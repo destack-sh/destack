@@ -135,7 +135,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             PatternField::Positional { pattern } => write!(f, [pattern])?,
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

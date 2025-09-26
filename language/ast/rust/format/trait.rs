@@ -100,6 +100,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
                 .entries(&self.statements)
                 .finish())),])]
         )?;
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
         write!(f, [hard_line_break(), token("}")])?;
 
         write!(f, [f.context().any_postfix_annotations(node_id)])?;

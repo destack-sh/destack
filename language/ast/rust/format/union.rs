@@ -130,6 +130,7 @@ impl<'ast> FormatNode<'ast, Union> for Union {
                     .finish())),])]
             )?;
         }
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
 
         // body closing braces
         write!(f, [hard_line_break(), token("}")])?;
@@ -204,7 +205,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
             write!(f, [space(), token("="), space(), value])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
