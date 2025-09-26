@@ -29,13 +29,21 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_if(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<If>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::If)?;
+
+        // condition
         let condition_id = self.eat_expression(ExpressionParserOptions {
             is_before_block: true,
             ..ExpressionParserOptions::default()
         })?;
+
+        // then block
         let then_block_id = self.eat_block()?;
         self.eat_newlines_maybe()?;
+
+        // if / else if / else node
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
             self.bump(); // eat else
             self.eat_newlines_maybe()?;

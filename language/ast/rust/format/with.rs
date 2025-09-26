@@ -7,15 +7,18 @@ use dyst_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, With> for With {
     fn format_node(
         &self,
-        _node_id: NodeId<With>,
+        node_id: NodeId<With>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // keyword
         write!(f, [Keyword::With])?;
         if self.clauses.is_empty() {
             return Ok(());
         }
         write!(f, [space()])?;
+
         // clauses
         write!(
             f,
@@ -27,7 +30,11 @@ impl<'ast> FormatNode<'ast, With> for With {
                 .entries(&self.clauses)
                 .finish()
             }))]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
@@ -96,12 +103,22 @@ mod tests {
     }
 
     #[test]
-    fn test_format_with_overflow_parenthesize() {
+    fn test_format_with_breaks() {
         assert_format!(
             "with Foo, Bar, Baz, Qux, Quux",
             "with (\n\tFoo\n\tBar\n\tBaz\n\tQux\n\tQuux\n)",
             |p| p.eat_with(),
             DystFormatOptions::default_tab_with_line_width(20)
+        );
+    }
+
+    #[test]
+    fn test_format_with_annotations() {
+        assert_format!(
+            "with #foo Foo",
+            "with #foo Foo",
+            |p| p.eat_with(),
+            DystFormatOptions::default()
         );
     }
 }

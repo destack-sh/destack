@@ -140,7 +140,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
-        
+
         // name
         write!(f, [self.name])?;
 

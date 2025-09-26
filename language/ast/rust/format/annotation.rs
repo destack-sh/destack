@@ -149,7 +149,7 @@ where
             if !is_included {
                 continue;
             }
-            
+
             // insert space/newline for first annotation in group
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);

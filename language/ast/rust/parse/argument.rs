@@ -50,6 +50,7 @@ impl<'a> Parser<'a> {
                 default: None,
             }
         };
+
         let parameter_id = self.tree.allocate(parameter, self.get_span_from(start));
         Ok(parameter_id)
     }

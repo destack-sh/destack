@@ -12,6 +12,7 @@ struct JointSpring {
     stiffness: float32
     damping: float32
 }
+
 struct JointMotor {
     /// Target velocity along the motorized DoF (m/s or rad/s)
     targetVelocity: float32

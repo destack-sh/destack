@@ -37,6 +37,7 @@ impl<'a> Parser<'a> {
     /// block: { ... }
     pub fn eat_block(&mut self) -> ParseResult<NodeId<Block>> {
         let start = self.mark();
+
         // label
         let label = if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()

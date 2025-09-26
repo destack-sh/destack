@@ -35,6 +35,8 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Enum)?;
 
         // optional explicit tag type in `(Type)`

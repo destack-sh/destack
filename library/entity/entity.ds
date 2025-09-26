@@ -31,28 +31,30 @@ enum(uint4) ExtensionFlag {
 
 /// A reference to an Entity.
 struct Reference<T: Entity> {
-    /// The universally unique identifier of self Entity.
+    /// The universally unique identifier of this Entity.
     id: Uuid
-    /// The Space self Entity is in.
+    /// The Space this Entity is in.
     spaceId: Uuid
-    /// The Branch self Entity is part of (in its Space).
+    /// The Branch this Entity is part of (in its Space).
     branchId: Uuid
 }
 
 /// Dereference a Reference to an Entity via Graph.
 implement<T: Entity> Dereference<T> for Reference<&T> {
-    function dereference(&self) with GraphContext as graph => &T? {
+    function dereference(&self) => &T?
+    with GraphContext as graph
+    {
         graph.get(self)
     }
 }
 
 /// An Identity is globally unique identifier for an Entity.
 struct Identity {
-    /// The universally unique identifier of self Entity.
+    /// The universally unique identifier of this Entity.
     id: Uuid
-    /// The Space self Entity is in.
+    /// The Space the Entity is in.
     space: Reference<Space>
-    /// The Branch self Entity is part of (in its Space).
+    /// The Branch this Entity is part of (in its Space).
     branch: Reference<Branch>
 }
 

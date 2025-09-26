@@ -54,6 +54,8 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_struct(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Struct)?;
 
         // optional representation type: ( ... )

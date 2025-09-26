@@ -21,7 +21,11 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Match)?;
+
+        // value
         let value_id = self.try_eat_expression(
             ExpressionParserOptions {
                 is_before_block: true,
@@ -29,9 +33,13 @@ impl<'a> Parser<'a> {
             },
             TokenType::OpenBrace,
         )?;
+
+        // cases
         self.eat_token(TokenType::OpenBrace)?;
         let cases_id = self.eat_match_body().for_node_type(NodeType::Match)?;
         self.eat_token(TokenType::CloseBrace)?;
+
+        // match
         let match_id = self.tree.allocate(
             Match {
                 value: value_id,
@@ -83,8 +91,10 @@ impl<'a> Parser<'a> {
     /// ```
     fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
         let start = self.mark();
+
         // pattern
         let pattern_id = self.eat_pattern(ExpressionParserOptions::default())?;
+
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
@@ -94,8 +104,10 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
         // arrow
         self.eat_arrow()?;
+
         // body
         if self.peek_block().is_ok() {
             let block_id = self.eat_block()?;
@@ -155,15 +167,20 @@ impl<'a> Parser<'a> {
 
             // try block with catch
             if self.peek_keyword(Keyword::Catch).is_ok() {
-                // catch match
-                self.bump(); // eat catch 
+                self.bump(); // eat keyword
+
+                // catch expression
                 let catch_expression_id = self.eat_expression(ExpressionParserOptions {
                     is_before_block: true,
                     ..ExpressionParserOptions::default()
                 })?;
+
+                // catch match cases
                 self.eat_token(TokenType::OpenBrace)?;
                 let catch_match_cases_id = self.eat_match_body()?;
                 self.eat_token(TokenType::CloseBrace)?;
+
+                // catch match
                 let catch_match_id = self.tree.allocate(
                     Match {
                         value: catch_expression_id,

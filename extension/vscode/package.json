@@ -2,7 +2,7 @@
     "name": "destack-extension-vscode",
     "displayName": "Destack & Dyst",
     "description": "Destack & Dyst for VSCode (.ds, .dsb, .dst, .dsx)",
-    "version": "2025.9.25-5",
+    "version": "2025.9.26-1",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"

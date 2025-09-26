@@ -47,6 +47,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
+
         let (literal_span, literal) = self
             .eat_raw_literal()
             .for_node_type(NodeType::ScalarLiteral)?;

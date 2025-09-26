@@ -1,19 +1,17 @@
 use dyst_fir::format::FormatResult;
 
 use crate::r#let::FormatScopedMutability;
-use crate::{
-    DystFormatter, FormatNode, Function, FunctionStyle, Keyword, NodeId, Runtime, Visibility,
-};
+use crate::{DystFormatter, FormatNode, Function, Keyword, NodeId, Runtime, Visibility};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Function> for Function {
     fn format_node(
         &self,
-        _node_id: NodeId<Function>,
+        node_id: NodeId<Function>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        debug_assert!(self.style == FunctionStyle::Function);
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         // visibility
         if let Some(visibility) = self.visibility {
@@ -108,10 +106,12 @@ impl<'ast> FormatNode<'ast, Function> for Function {
 
         // body
         if let Some(body) = self.body {
-            write!(f, [space(), body])
-        } else {
-            Ok(())
+            write!(f, [space(), body])?;
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

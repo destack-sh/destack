@@ -10,13 +10,19 @@ impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
     pub fn eat_module(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Module)
             .for_node_type(NodeType::Module)?;
+
+        // name
         let name = if self.peek_identifier().is_ok() {
             Some(self.eat_identifier()?)
         } else {
             None
         };
+
+        // body
         let module = {
             if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
@@ -40,6 +46,8 @@ impl<'a> Parser<'a> {
                 }
             }
         };
+
+        // module
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
     }

@@ -10,14 +10,16 @@ impl<'ast> FormatNode<'ast, Try> for Try {
         node_id: NodeId<Try>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             Try::Expression { try_expression } => {
                 // try <expression>
-                write!(f, [Keyword::Try, space(), *try_expression])
+                write!(f, [Keyword::Try, space(), *try_expression])?
             }
             Try::Block { try_block } => {
                 // try { <block> }
-                write!(f, [Keyword::Try, space(), *try_block])
+                write!(f, [Keyword::Try, space(), *try_block])?
             }
             Try::BlockWithCatch {
                 try_block,
@@ -35,6 +37,7 @@ impl<'ast> FormatNode<'ast, Try> for Try {
                 // empty catch body
                 if catch.cases.is_empty() {
                     write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
                 }
 
@@ -47,9 +50,13 @@ impl<'ast> FormatNode<'ast, Try> for Try {
                         .entries(&catch.cases)
                         .finish())),])]
                 )?;
-                write!(f, [hard_line_break(), token("}")])
+                write!(f, [hard_line_break(), token("}")])?
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
