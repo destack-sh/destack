@@ -16,9 +16,9 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["fmt", "--file", "library/entity/entity.ds"],
+            "args": ["ast", "--string", "#A\n#B struct #C Test #D { #E } #F\n#G"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
-        },
+        }
     ]
 }

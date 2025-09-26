@@ -27,7 +27,7 @@ impl<'ast> FormatNode<'ast, Tuple> for Tuple {
             ])]
         )?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -50,7 +50,7 @@ impl<'ast> FormatNode<'ast, TupleField> for TupleField {
             }
         };
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

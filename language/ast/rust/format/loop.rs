@@ -22,7 +22,7 @@ impl<'ast> FormatNode<'ast, While> for While {
             [Keyword::While, space(), self.condition, space(), self.body]
         )?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -56,7 +56,7 @@ impl<'ast> FormatNode<'ast, For> for For {
             ]
         )?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -77,7 +77,7 @@ impl<'ast> FormatNode<'ast, Loop> for Loop {
         }
         write!(f, [Keyword::Loop, space(), self.body])?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

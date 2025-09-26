@@ -83,7 +83,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             )?,
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

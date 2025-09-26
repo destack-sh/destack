@@ -13,6 +13,8 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         node_id: NodeId<Union>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // visibility
         if let Some(visibility) = self.visibility {
             let keyword = match visibility {
@@ -89,9 +91,10 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         // space before body braces
         write!(f, [space()])?;
 
-        // empty body (same line)
+        // empty body
         if self.fields.is_empty() && self.statements.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
         }
 
@@ -129,7 +132,11 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         }
 
         // body closing braces
-        write!(f, [hard_line_break(), token("}")])
+        write!(f, [hard_line_break(), token("}")])?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

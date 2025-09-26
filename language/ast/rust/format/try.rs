@@ -54,7 +54,7 @@ impl<'ast> FormatNode<'ast, Try> for Try {
             }
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

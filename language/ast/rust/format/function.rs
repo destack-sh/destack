@@ -109,7 +109,7 @@ impl<'ast> FormatNode<'ast, Function> for Function {
             write!(f, [space(), body])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

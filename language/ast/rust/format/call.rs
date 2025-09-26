@@ -10,14 +10,20 @@ impl<'ast> FormatNode<'ast, Index> for Index {
         _node_id: NodeId<Index>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
+
         match self {
             Index::Explicit { receiver, index } => {
-                write!(f, [receiver, token("["), index, token("]")])
+                write!(f, [receiver, token("["), index, token("]")])?;
             }
             Index::Implicit { receiver, index } => {
-                write!(f, [receiver, token("."), text(&index.to_string())])
+                write!(f, [receiver, token("."), text(&index.to_string())])?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
+
+        Ok(())
     }
 }
 
@@ -27,6 +33,8 @@ impl<'ast> FormatNode<'ast, Call> for Call {
         _node_id: NodeId<Call>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
+
         if self.runtime == Some(Runtime::Static) {
             write!(f, [token("@")])?;
         }
@@ -56,6 +64,7 @@ impl<'ast> FormatNode<'ast, Call> for Call {
 
         // bare static call
         if self.runtime == Some(Runtime::Static) && self.dynamic_arguments.is_empty() {
+            write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
             return Ok(());
         }
 
@@ -73,7 +82,11 @@ impl<'ast> FormatNode<'ast, Call> for Call {
                     .finish())),
                 token(")"),
             ])]
-        )
+        )?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
+
+        Ok(())
     }
 }
 

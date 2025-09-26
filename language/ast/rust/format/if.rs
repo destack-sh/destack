@@ -29,7 +29,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                         write!(f, [Keyword::If, space(), *condition, space(), *then_block])
                     }))]
                 )?;
-                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
             If::IfElse {
@@ -61,7 +61,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                         write!(f, [*else_block])
                     }))]
                 )?;
-                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
             If::IfElseIf {
@@ -93,7 +93,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                         write!(f, [*else_if])
                     }))]
                 )?;
-                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
         }
