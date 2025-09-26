@@ -97,7 +97,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Error => panic!("invalid expression: {self:?}"),
         };
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

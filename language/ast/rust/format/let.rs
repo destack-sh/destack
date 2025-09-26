@@ -106,9 +106,11 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
 impl<'ast> FormatNode<'ast, Let> for Let {
     fn format_node(
         &self,
-        _node_id: NodeId<Let>,
+        node_id: NodeId<Let>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         write!(
             f,
             [group(&format_with(|f| {
@@ -143,7 +145,11 @@ impl<'ast> FormatNode<'ast, Let> for Let {
                     Ok(())
                 }
             }))]
-        )
+        )?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

@@ -84,7 +84,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         // space before trait body
         write!(f, [space()])?;
 
-        // empty trait body (same line)
+        // empty body
         if self.statements.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
             write!(f, [f.context().any_postfix_annotations(node_id)])?;

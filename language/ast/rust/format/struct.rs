@@ -1,6 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::format_args;
 
+use crate::empty_block_with_infix_annotations;
 use crate::{
     DystFormatter, FormatNode, Keyword, NodeId, Struct, StructField, StructStyle, Visibility,
 };
@@ -111,9 +112,10 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
 
         write!(f, [space()])?;
 
-        // empty body (same line)
+        // empty body
         if struct_fields.is_empty() && self.statements.is_empty() {
-            write!(f, [token("{"), space(), token("}")])?;
+            write!(f, [empty_block_with_infix_annotations(node_id)])?;
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
         }
 
@@ -181,7 +183,7 @@ impl<'ast> FormatNode<'ast, StructField> for StructField {
             write!(f, [token(" = "), default])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

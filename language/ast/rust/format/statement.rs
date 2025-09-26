@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
 
             Statement::Expression(node) => node.format(f)?,
         }
-        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
         Ok(())
     }
 }

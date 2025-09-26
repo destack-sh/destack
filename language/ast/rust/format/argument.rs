@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
             write!(f, [token(" = "), default])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
 
         Ok(())
     }
@@ -51,7 +51,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             }
         }
 
-        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
 
         Ok(())
     }

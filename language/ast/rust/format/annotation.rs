@@ -79,6 +79,15 @@ impl<'ast> DystFormatContext<'ast> {
             node_id,
         }
     }
+
+    /// Format the line and block infix or postfix annotations for a node.
+    #[inline]
+    pub fn any_infix_or_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::AnyInfixOrPostfix,
+            node_id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -91,6 +100,7 @@ pub enum AnnotationCapture {
     LinePostfixBoundary,
     AnyPrefix,
     AnyPostfix,
+    AnyInfixOrPostfix,
 }
 
 /// Annotations for a node.
@@ -124,7 +134,10 @@ where
 
             // filter annotation
             let is_included = match position {
-                AnnotationPosition::BlockInfix => self.position == AnnotationCapture::BlockInfix,
+                AnnotationPosition::BlockInfix => {
+                    self.position == AnnotationCapture::BlockInfix
+                        || self.position == AnnotationCapture::AnyInfixOrPostfix
+                }
                 AnnotationPosition::BlockPrefix => {
                     self.position == AnnotationCapture::BlockPrefix
                         || self.position == AnnotationCapture::AnyPrefix
@@ -132,6 +145,7 @@ where
                 AnnotationPosition::BlockPostfix => {
                     self.position == AnnotationCapture::BlockPostfix
                         || self.position == AnnotationCapture::AnyPostfix
+                        || self.position == AnnotationCapture::AnyInfixOrPostfix
                 }
                 AnnotationPosition::LinePrefix => {
                     self.position == AnnotationCapture::LinePrefix
@@ -140,10 +154,12 @@ where
                 AnnotationPosition::LinePostfix => {
                     self.position == AnnotationCapture::LinePostfix
                         || self.position == AnnotationCapture::AnyPostfix
+                        || self.position == AnnotationCapture::AnyInfixOrPostfix
                 }
                 AnnotationPosition::LinePostfixBoundary => {
                     self.position == AnnotationCapture::LinePostfixBoundary
                         || self.position == AnnotationCapture::AnyPostfix
+                        || self.position == AnnotationCapture::AnyInfixOrPostfix
                 }
             };
             if !is_included {
@@ -154,12 +170,19 @@ where
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);
 
-                if position == AnnotationPosition::LinePostfix
-                    || position == AnnotationPosition::LinePostfixBoundary
-                {
-                    write!(f, [space()])?;
-                } else if position != AnnotationPosition::LinePrefix {
-                    write!(f, [hard_line_break()])?;
+                // insert space / newline
+                match position {
+                    AnnotationPosition::BlockInfix
+                    | AnnotationPosition::BlockPrefix
+                    | AnnotationPosition::BlockPostfix => {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
+                        write!(f, [space()])?;
+                    }
+                    AnnotationPosition::LinePrefix => {
+                        // no spacing needed for line prefix
+                    }
                 }
             }
 
@@ -351,6 +374,17 @@ mod tests {
             source,
             |p| p.eat_statement(),
             DystFormatOptions::default()
+        );
+    }
+
+    /// Annotations should default to infix within source if no other position is found.
+    #[test]
+    fn test_format_annotations_fallback_to_infix() {
+        assert_format!(
+            "#A struct #B Test #C { #D } #E",
+            "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
+            |p| p.eat_struct(None),
+            DystFormatOptions::default_tab()
         );
     }
 

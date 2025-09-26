@@ -49,7 +49,7 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
             }
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -65,7 +65,7 @@ impl<'ast> FormatNode<'ast, RangeLiteral> for RangeLiteral {
 
         write!(f, [self.start, token(".."), self.end,])?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -90,6 +90,7 @@ impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
                     ])
                     .entries(&self.elements)
                     .finish())),
+                f.context().block_infix_annotations(node_id),
                 token(")"),
             ])]
         )?;
@@ -121,6 +122,7 @@ impl<'ast> FormatNode<'ast, ArrayLiteral> for ArrayLiteral {
                             ])
                             .entries(elements)
                             .finish())),
+                        f.context().block_infix_annotations(node_id),
                         token("]"),
                     ])]
                 )?;
@@ -156,6 +158,7 @@ impl<'ast> FormatNode<'ast, StructLiteral> for StructLiteral {
                     .entries(&self.fields)
                     .finish())),
                 if_group_fits_on_line(&space()),
+                f.context().block_infix_annotations(node_id),
                 token("}"),
             ])]
         )?;

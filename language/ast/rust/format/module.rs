@@ -37,6 +37,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                 // empty body
                 if self.statements.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
+                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
                 }
                 // body
@@ -50,6 +51,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                             .entries(&self.statements)
                             .finish()),
                         hard_line_break(),
+                        f.context().block_infix_annotations(node_id),
                         token("}")
                     ])]
                 )?

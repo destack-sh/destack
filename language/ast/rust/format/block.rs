@@ -9,11 +9,11 @@ use dyst_fir::{format_args, write};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
-pub struct EmptyBlockWithAnnotations<T: Node> {
+pub struct EmptyBlockWithInfixAnnotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithAnnotations<T>
+impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeStore<T>,
@@ -44,8 +44,8 @@ where
 /// ```
 pub fn empty_block_with_infix_annotations<T: Node>(
     node_id: NodeId<T>,
-) -> EmptyBlockWithAnnotations<T> {
-    EmptyBlockWithAnnotations { node_id }
+) -> EmptyBlockWithInfixAnnotations<T> {
+    EmptyBlockWithInfixAnnotations { node_id }
 }
 
 impl<'ast> FormatNode<'ast, Block> for Block {
@@ -64,26 +64,23 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         }
         // statements
         if self.statements.is_empty() {
-            write!(
-                f,
-                [
-                    empty_block_with_infix_annotations(node_id),
-                    f.context().any_postfix_annotations(node_id)
-                ]
-            )?;
+            write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
         // single-statement block is inline if it's an expression and doesn't overflow
         else if self.statements.len() == 1 && is_in_expression {
             write!(
                 f,
-                [group(&format_args![
-                    token("{"),
-                    soft_line_break_or_space(),
-                    soft_block_indent(&self.statements[0]),
-                    soft_line_break_or_space(),
-                    token("}"),
+                [
+                    group(&format_args![
+                        token("{"),
+                        soft_line_break_or_space(),
+                        soft_block_indent(&self.statements[0]),
+                        soft_line_break_or_space(),
+                        f.context().block_infix_annotations(node_id),
+                        token("}"),
+                    ]),
                     f.context().any_postfix_annotations(node_id),
-                ])]
+                ]
             )?;
         }
         // multi-statement block gets newlines always
@@ -98,10 +95,10 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                         .entries(&self.statements)
                         .finish())),
                     hard_line_break(),
+                    f.context().block_infix_annotations(node_id),
+                    token("}"),
                 ])]
             )?;
-            write!(f, [f.context().block_infix_annotations(node_id)])?;
-            write!(f, [token("}")])?;
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
         }
 

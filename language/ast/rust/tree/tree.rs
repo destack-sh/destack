@@ -236,6 +236,12 @@ impl NodeTree {
         self.spans.get(node_id)
     }
 
+    /// Get the span for a node by its id.
+    #[inline]
+    pub fn get_span_by_id(&self, node_id: u32) -> Span {
+        self.spans.get_by_id(node_id)
+    }
+
     /// Set the span for a node.
     #[inline]
     pub(crate) fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
