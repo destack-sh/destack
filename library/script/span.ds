@@ -4,7 +4,7 @@ use dyst
 @event
 struct SpanEvent {
     /// The span name.
-    name: String
+    name: string
     /// Start time of the span.
     startTime: Timestamp
     /// End time of the span.

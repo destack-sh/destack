@@ -4,7 +4,7 @@ use dyst
 @entity
 struct Reaction {
     /// The reaction content, e.g. an emoji.
-    content: String
+    content: string
 }
 
 /// Base Reaction event.
@@ -13,7 +13,7 @@ struct ReactionEvent: Event {
     /// The Reaction self event pertains to.
     reaction: Reference<Reaction>
     /// The reaction content.
-    content: String
+    content: string
 }
 
 /// Reaction added.

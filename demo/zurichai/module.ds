@@ -2,7 +2,7 @@ use dyst
 
 @entity
 struct MeetupSeries {
-    name: String
+    name: string
 }
 
 @entity

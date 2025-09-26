@@ -372,7 +372,7 @@ impl<'a> Parser<'a> {
 
         // find inner enclosing node (block infix)
         if let Some(enclosing_node) =
-            self.find_node_enclosing(&start_token.span, NodeSearch::Inner, |span| {
+            self.find_node_enclosing_at(&start_token.span, NodeSearch::Inner, |span| {
                 !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
             })
         {

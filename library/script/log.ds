@@ -14,7 +14,7 @@ enum LogLevel {
 @event
 struct LogEvent: Event {
     /// The log name.
-    name: String
+    name: string
     /// The log level.
     level: LogLevel
 }

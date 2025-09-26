@@ -11,9 +11,9 @@ enum KeyModifier {
 @event
 struct KeyEvent: InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
-    key: String
+    key: string
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
-    code: String
+    code: string
     /// Whether the key is being held down
     isRepeat: boolean
     /// Whether the key was masked (security/privacy)

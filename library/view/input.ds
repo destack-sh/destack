@@ -10,7 +10,7 @@ struct NumberInputView2D: InputView2D {
     /// The numeric value
     value: float64?
     /// Placeholder text shown when empty
-    placeholder: String?
+    placeholder: string?
 }
 
 /// A 2D slider input View

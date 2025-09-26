@@ -5,9 +5,9 @@ struct TagDefinition {
     /// The Tag id.
     id: uint8
     /// The Tag name.
-    name: String
+    name: string
     /// The Tag description.
-    description: String?
+    description: string?
     /// Whether self Tag is internal.
     isInternal: boolean
 }
