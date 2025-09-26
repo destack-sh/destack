@@ -3,7 +3,7 @@
 
 [package]
 name = "dyst_ast_fuzz"
-description = "Dyst Language AST Fuzz"
+description = "Dyst AST Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"

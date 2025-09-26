@@ -1,6 +1,6 @@
 [package]
 name = "destack_tetris"
-description = "Destack Demo Tetris"
+description = "Destack Tetris"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

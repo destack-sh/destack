@@ -1,6 +1,6 @@
 [package]
 name = "destack_json_fuzz"
-description = "Destack Library JSON Fuzz"
+description = "Destack JSON Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"

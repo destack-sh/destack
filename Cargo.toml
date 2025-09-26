@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
 	# language
-	"language/air",
 	"language/ast",
 	"language/cranelift",
 	"language/collections",
@@ -64,7 +63,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.9.26-4"
+version = "2025.9.26-6"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -72,7 +71,6 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
-dyst_air = { path = "language/air" }
 dyst_ast = { path = "language/ast" }
 dyst_cranelift = { path = "language/cranelift" }
 dyst_collections = { path = "language/collections" }

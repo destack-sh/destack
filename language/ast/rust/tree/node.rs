@@ -466,7 +466,6 @@ impl Node for Struct {
 /// ```
 /// bar: int32
 /// baz: T
-/// baz: @someMacro(T)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {

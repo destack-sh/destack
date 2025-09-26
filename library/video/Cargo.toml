@@ -1,6 +1,6 @@
 [package]
 name = "destack_video"
-description = "Destack Library Video"
+description = "Destack Video"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

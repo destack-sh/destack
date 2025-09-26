@@ -1,6 +1,6 @@
 [package]
 name = "destack_animation"
-description = "Destack Library Animation"
+description = "Destack Animation"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

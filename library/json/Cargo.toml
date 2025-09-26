@@ -1,6 +1,6 @@
 [package]
 name = "destack_json"
-description = "Destack Library JSON"
+description = "Destack JSON"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

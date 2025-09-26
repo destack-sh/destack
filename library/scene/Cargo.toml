@@ -1,6 +1,6 @@
 [package]
 name = "destack_scene"
-description = "Destack Library Scene"
+description = "Destack Scene"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

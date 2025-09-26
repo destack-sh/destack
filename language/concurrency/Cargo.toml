@@ -1,6 +1,6 @@
 [package]
 name = "dyst_concurrency"
-description = "Dyst Language Concurrency"
+description = "Dyst Concurrency"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

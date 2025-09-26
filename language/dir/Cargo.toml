@@ -1,6 +1,6 @@
 [package]
 name = "dyst_dir"
-description = "Dyst Language High-Level IR"
+description = "Dyst IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

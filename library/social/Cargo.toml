@@ -1,6 +1,6 @@
 [package]
 name = "destack_social"
-description = "Destack Library Social"
+description = "Destack Social"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

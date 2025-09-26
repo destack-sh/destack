@@ -1,6 +1,6 @@
 [package]
 name = "destack_event"
-description = "Destack Library Event"
+description = "Destack Event"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

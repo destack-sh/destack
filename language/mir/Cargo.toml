@@ -1,6 +1,6 @@
 [package]
 name = "dyst_mir"
-description = "Dyst Language Machine IR"
+description = "Dyst Machine IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

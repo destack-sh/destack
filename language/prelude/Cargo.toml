@@ -1,6 +1,6 @@
 [package]
 name = "dyst_prelude"
-description = "Dyst Language Prelude"
+description = "Dyst Prelude"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "destack_lsp"
-description = "Destack Extension Language Server"
+description = "Destack Language Server"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

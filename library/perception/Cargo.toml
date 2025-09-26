@@ -1,6 +1,6 @@
 [package]
 name = "destack_perception"
-description = "Destack Library Perception"
+description = "Destack Perception"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

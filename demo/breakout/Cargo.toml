@@ -1,6 +1,6 @@
 [package]
 name = "destack_breakout"
-description = "Destack Demo Breakout"
+description = "Destack Breakout"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "dyst_session"
-description = "Dyst Language Session"
+description = "Dyst Session"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

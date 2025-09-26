@@ -1,6 +1,6 @@
 [package]
 name = "dyst_fir"
-description = "Dyst Language Formatting IR"
+description = "Dyst Formatting IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

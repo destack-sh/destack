@@ -1,6 +1,6 @@
 [package]
 name = "dyst_string"
-description = "Dyst Language String"
+description = "Dyst String"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -1,4 +1,4 @@
-//! Dyst Language Server library.
+//! Dyst Server library.
 //!
 //! Provides a synchronous stdio LSP server entrypoint and internal modules for
 //! document storage and semantic token computation.
