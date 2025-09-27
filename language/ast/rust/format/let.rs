@@ -1,8 +1,8 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, LetInitialization, Mutability,
-    NodeId, ScopedMutability,
+    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, Mutability, NodeId,
+    ScopedMutability,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -139,8 +139,6 @@ impl<'ast> FormatNode<'ast, Let> for Let {
                             soft_block_indent(&format_args![soft_line_break_or_space(), value])
                         ]
                     )
-                } else if self.initialization == LetInitialization::Explicit {
-                    write!(f, [space(), token("="), space(), token("--"),])
                 } else {
                     Ok(())
                 }
@@ -161,8 +159,8 @@ mod tests {
     #[test]
     fn test_format_let_with_scoped_mutability() {
         assert_format!(
-            "var(x, y) pos: Vector4 = --",
-            "var(x, y) pos: Vector4 = --",
+            "var(x, y) pos: Vector4 = undefined",
+            "var(x, y) pos: Vector4 = undefined",
             |p| p.eat_let(None)
         );
     }

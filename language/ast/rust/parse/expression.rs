@@ -1367,7 +1367,7 @@ let x =
                 assert_node!(
                     parser.tree,
                     *let_id,
-                    Let { mutability, pattern, r#type: _, value, visibility: _, initialization: _ } => {
+                    Let { mutability, pattern, r#type: _, value, visibility: _, .. } => {
                         assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                         // x
                         assert_node!(

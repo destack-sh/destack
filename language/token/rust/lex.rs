@@ -280,21 +280,6 @@ impl Tokenizer<'_> {
                     self.bump();
                     (TokenType::ThinArrow, None)
                 }
-                // --
-                else if self.peek() == '-' {
-                    // ---
-                    if self.peek_next() == '-' {
-                        self.bump();
-                        self.bump();
-                        (TokenType::EmptyWide, None)
-                    }
-                    // --
-                    else {
-                        self.bump();
-                        self.bump();
-                        (TokenType::Empty, None)
-                    }
-                }
                 // -%
                 else if self.peek() == '%' {
                     self.bump();
