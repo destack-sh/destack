@@ -1974,12 +1974,12 @@ impl Node for Coalesce {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    // nocheckin: has value pattern? like T!? (opposite of coalesce/unwrap)
-    //  (or is that redundant with coalesce operator? no because of complex matching?) 
     /// Wildcard scalar pattern (`_`).
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
+    /// Unwrap pattern (like `T?`).
+    Unwrap(NodeId<Pattern>),
     /// Reference pattern (like `&x`).
     Reference {
         target: NodeId<Pattern>,

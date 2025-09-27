@@ -1039,6 +1039,10 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Rest => {
             // no child nodes to visit
         }
+        Pattern::Unwrap(unwrap) => {
+            let unwrap_pattern = tree.get(*unwrap);
+            visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
+        }
         Pattern::Reference {
             target,
             mutability: _,

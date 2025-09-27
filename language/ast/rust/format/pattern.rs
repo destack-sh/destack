@@ -15,6 +15,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Rest => write!(f, [token("..")])?,
+            Pattern::Unwrap(unwrap) => write!(f, [unwrap, token("?")])?,
             Pattern::Reference { target, mutability } => {
                 if *mutability == Mutability::Mutable {
                     write!(f, [token("&var "), target])?
@@ -164,6 +165,12 @@ mod tests {
             .eat_pattern(ExpressionParserOptions::default()));
 
         assert_format!("&1", "&1", |p| p
+            .eat_pattern(ExpressionParserOptions::default()));
+    }
+
+    #[test]
+    fn test_format_pattern_unwrap() {
+        assert_format!("T?", "T?", |p| p
             .eat_pattern(ExpressionParserOptions::default()));
     }
 

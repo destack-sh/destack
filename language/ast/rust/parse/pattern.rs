@@ -173,11 +173,19 @@ impl<'a> Parser<'a> {
         };
 
         // ------------------------------------------------------------
-        // Postfix->Infix patterns
+        // Postfix / infix patterns
         // ------------------------------------------------------------
 
+        // unwrap
+        // NOTE #Broken: postfix maybe pattern needs ungluing (see #UnglueTokens)
+        if self.peek_token(TokenType::Maybe).is_ok() {
+            self.bump(); // eat ?
+            let pattern = Pattern::Unwrap(pattern_id);
+            let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
+            Ok(pattern_id)
+        }
         // range
-        if self.peek_token(TokenType::Range).is_ok()
+        else if self.peek_token(TokenType::Range).is_ok()
             || self.peek_token(TokenType::RangeWide).is_ok()
         {
             self.bump(); // eat range

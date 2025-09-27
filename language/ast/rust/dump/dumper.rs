@@ -1479,6 +1479,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Rest => {
                 self.node("Pattern::Rest", _id.id).end();
             }
+            Pattern::Unwrap(_) => {
+                self.node("Pattern::Unwrap", _id.id).end();
+            }
             Pattern::Reference {
                 target: _,
                 mutability,

@@ -179,10 +179,7 @@ fn run_for_string(body: &str, options: &DystFormatOptions) -> i32 {
 
     // format and output result
     match format_source(&source, options) {
-        Ok(FormattedSource {
-            formatted,
-            session,
-        }) => {
+        Ok(FormattedSource { formatted, session }) => {
             print_formatted_output("<formatted>", &formatted);
             print_diagnostics(&source, &session);
             if session.has_diagnostics_of_severity(Severity::Error) {
@@ -234,10 +231,7 @@ fn format_file(
         Uri::from(&path_buf),
         original_text.clone(),
     );
-    let FormattedSource {
-        formatted,
-        session,
-    } = format_source(&source, options)
+    let FormattedSource { formatted, session } = format_source(&source, options)
         .map_err(|error| format!("{error} ({})", path_buf.display()))?;
 
     // output formatted result if requested
