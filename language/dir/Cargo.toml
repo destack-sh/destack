@@ -1,6 +1,6 @@
 [package]
 name = "dyst_dir"
-description = "Dyst IR"
+description = "Dyst Data IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
