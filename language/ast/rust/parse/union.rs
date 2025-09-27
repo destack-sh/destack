@@ -6,7 +6,7 @@ use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
-    Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Struct, StructStyle,
+    Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Struct, StructStyle,
     Type, TypeParserOptions, Union, UnionField, Visibility,
 };
 
@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
 
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        let mut statements: Vec<NodeId<Statement>> = Vec::new();
+        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -164,12 +164,12 @@ impl<'a> Parser<'a> {
                 let field = self.eat_union_field().for_node_type(NodeType::Union)?;
                 fields.push(field);
             }
-            // eat statements
-            else if let Some(statement_id) = self
-                .try_eat_statement()
-                .for_node_type(NodeType::Statement)?
-            {
-                statements.push(statement_id);
+            // eat expressions
+            else {
+                let expression_id = self
+                    .try_eat_expression_as_statement()
+                    .for_node_type(NodeType::Expression)?;
+                expressions.push(expression_id);
             }
         }
 
@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
                 tag_type: None,
                 representation_type: None,
                 fields,
-                statements,
+                expressions,
             },
             self.get_span_from(start),
         );
@@ -262,7 +262,7 @@ impl<'a> Parser<'a> {
                         representation_type: None,
                         static_parameters: None,
                         fields,
-                        statements: Vec::new(),
+                        expressions: Vec::new(),
                     },
                     self.get_span_from(start),
                 );
@@ -302,8 +302,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Parameter, PrimitiveType, Statement, StructField, StructStyle, Type, Union,
-        UnionField, Use, assert_int, assert_node, assert_path, assert_string,
+        Expression, Parameter, PrimitiveType, StructField, StructStyle, Type, Union, UnionField,
+        Use, assert_int, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -317,10 +317,10 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, fields, expressions, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
 
             // A
@@ -350,9 +350,9 @@ union Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, super_types, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, super_types, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
@@ -383,7 +383,7 @@ union(uint4, uint60) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, static_parameters, fields, statements, super_types, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // (uint4, uint60)
@@ -412,11 +412,11 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_path!(parser.session, *path, "Boz");
             });
 
-            assert_eq!(statements.len(), 2);
+            assert_eq!(expressions.len(), 2);
             assert_eq!(fields.len(), 4);
 
             // use Bar
-            assert_node!(parser.tree, statements[0], Statement::Use(use_id) => {
+            assert_node!(parser.tree, expressions[0], Expression::Use(use_id) => {
                 assert_node!(parser.tree, *use_id, Use { clauses, .. } => {
                     assert_eq!(clauses.len(), 1);
                 });

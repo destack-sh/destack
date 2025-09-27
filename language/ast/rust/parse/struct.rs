@@ -7,7 +7,7 @@ use dyst_token::TokenType;
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Struct, StructField,
+    Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Struct, StructField,
     StructStyle, Type, TypeParserOptions, Visibility,
 };
 
@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Struct)?;
         self.eat_newlines_maybe()?;
-        let (mut fields, statements) = self
+        let (mut fields, expressions) = self
             .eat_struct_body(style)
             .for_node_type(NodeType::Struct)?;
         if let Some(tuple_fields) = tuple_fields {
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
                 static_parameters,
                 representation_type,
                 fields,
-                statements,
+                expressions,
             },
             self.get_span_from(start),
         );
@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a struct tuple body (without the parenthesis).
-    /// Because it's just a tuple body, it doesn't have any statements.
+    /// Because it's just a tuple body, it doesn't have any expressions.
     pub fn eat_struct_tuple_body(&mut self) -> ParseResult<Vec<NodeId<StructField>>> {
         let mut tuple_fields: Vec<NodeId<StructField>> = Vec::new();
         loop {
@@ -190,10 +190,10 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_body(
         &mut self,
         style: StructStyle,
-    ) -> ParseResult<(Vec<NodeId<StructField>>, Vec<NodeId<Statement>>)> {
+    ) -> ParseResult<(Vec<NodeId<StructField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<StructField>> = Vec::new();
-        let mut statements: Vec<NodeId<Statement>> = Vec::new();
+        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -208,16 +208,16 @@ impl<'a> Parser<'a> {
                 let field = self.eat_struct_field().for_node_type(NodeType::Struct)?;
                 fields.push(field);
             }
-            // eat statements
-            else if let Some(statement_id) = self
-                .try_eat_statement()
-                .for_node_type(NodeType::Statement)?
-            {
-                statements.push(statement_id);
+            // eat expressions
+            else {
+                let expression_id = self
+                    .try_eat_expression_as_statement()
+                    .for_node_type(NodeType::Expression)?;
+                expressions.push(expression_id);
             }
         }
 
-        Ok((fields, statements))
+        Ok((fields, expressions))
     }
 
     /// Peek a struct field: `name: Type` with optional default `= <expr>`.
@@ -302,10 +302,10 @@ struct { x: int32, y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, expressions, .. } => {
             assert_eq!(*name, None);
             assert_eq!(*static_parameters, None);
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
 
             // x: int32
@@ -338,9 +338,9 @@ struct Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, super_types, fields, statements, .. } => {
+        assert_node!(parser.tree, struct_id, Struct { name, super_types, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
@@ -362,11 +362,11 @@ struct Foo(int32, boolean) {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, style, fields, statements, .. } => {
+        assert_node!(parser.tree, struct_id, Struct { name, style, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert_eq!(*style, StructStyle::Tuple);
             assert_eq!(fields.len(), 2);
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
 
             // int32
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
@@ -408,10 +408,8 @@ struct Foo<T: Numeric>: Boz {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, super_types, .. } => {
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, expressions, super_types, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
-            assert_eq!(statements.len(), 3);
-            assert_eq!(fields.len(), 2);
 
             // T: Numeric
             assert!(static_parameters.is_some());
@@ -426,7 +424,6 @@ struct Foo<T: Numeric>: Boz {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });
-
             // Boz
             assert!(super_types.is_some());
             let super_types = super_types.as_ref().unwrap();
@@ -435,6 +432,7 @@ struct Foo<T: Numeric>: Boz {
                 assert_path!(parser.session, *path, "Boz");
             });
 
+            assert_eq!(fields.len(), 2);
             // a: T
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "a");
@@ -443,7 +441,6 @@ struct Foo<T: Numeric>: Boz {
                     assert_path!(parser.session, *path, "T");
                 });
             });
-
             // b: int32 = 4
             assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "b");
@@ -453,6 +450,8 @@ struct Foo<T: Numeric>: Boz {
                 });
                 assert!(default.is_some());
             });
+
+            assert_eq!(expressions.len(), 3);
         });
     }
 }

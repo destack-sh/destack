@@ -46,7 +46,7 @@ pub(crate) fn semantic_spans_from_text(
 pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
     let mut session = Session::new();
     let mut parser = Parser::prepare(source, &mut session);
-    let statements = parser.with_recovery(
+    let expressions = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),
         Vec::new(),
@@ -64,8 +64,8 @@ pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<Semantic
     });
 
     let mut index = SemanticTokenIndex::from_tokens(source, &all_tokens);
-    for statement in statements {
-        index.visit_statement(&parser.tree, statement, parser.tree.get(statement));
+    for expression in expressions {
+        index.visit_expression(&parser.tree, expression, parser.tree.get(expression));
     }
 
     let semantic_types = index.semantic_types;

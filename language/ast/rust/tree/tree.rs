@@ -9,8 +9,8 @@ use crate::{
     Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
     Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
     NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
-    Statement, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type,
+    Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -30,9 +30,8 @@ pub struct NodeTree {
 
     // per-node arenas
     // groupings
-    pub(crate) blocks: NodeArena<Block>,
-    pub(crate) statements: NodeArena<Statement>,
     pub(crate) expressions: NodeArena<Expression>,
+    pub(crate) blocks: NodeArena<Block>,
     // declarations
     pub(crate) modules: NodeArena<Module>,
     pub(crate) structs: NodeArena<Struct>,
@@ -119,9 +118,8 @@ impl NodeTree {
             annotations_per_node: HashMap::new(),
             spans: NodeSpanIndex::new(),
             // groupings
-            blocks: NodeArena::new(),
-            statements: NodeArena::new(),
             expressions: NodeArena::new(),
+            blocks: NodeArena::new(),
             // declarations
             modules: NodeArena::new(),
             structs: NodeArena::new(),
@@ -390,9 +388,8 @@ macro_rules! impl_node_tree_stores {
 // usage
 impl_node_tree_stores! {
     // groupings
-    Block => blocks,
-    Statement => statements,
     Expression => expressions,
+    Block => blocks,
     // declarations
     Module => modules,
     Struct => structs,

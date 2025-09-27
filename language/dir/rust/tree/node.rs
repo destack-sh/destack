@@ -1,9 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
-pub struct Struct {
-
-}
+pub struct Struct {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
-	// name: StringId,
+    // name: StringId,
 }

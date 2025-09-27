@@ -26,6 +26,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Function(node) => node.format(f)?,
             Expression::Block(node) => node.format(f)?,
 
+            Expression::With(node) => node.format(f)?,
+            Expression::Use(node) => node.format(f)?,
             Expression::Let(node) => node.format(f)?,
             Expression::If(node) => node.format(f)?,
             Expression::While(node) => node.format(f)?,
@@ -33,6 +35,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Loop(node) => node.format(f)?,
             Expression::Try(node) => node.format(f)?,
             Expression::Match(node) => node.format(f)?,
+            Expression::Break(node) => node.format(f)?,
+            Expression::Continue(node) => node.format(f)?,
+            Expression::Defer(node) => node.format(f)?,
+            Expression::Return(node) => node.format(f)?,
 
             Expression::Path(p) => p.format(f)?,
             Expression::ScalarLiteral(node) => node.format(f)?,

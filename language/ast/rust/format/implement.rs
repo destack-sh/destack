@@ -47,7 +47,7 @@ impl<'ast> FormatNode<'ast, Implement> for Implement {
         }
 
         // body
-        if self.statements.is_empty() {
+        if self.expressions.is_empty() {
             write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
             return Ok(());
         }
@@ -58,7 +58,7 @@ impl<'ast> FormatNode<'ast, Implement> for Implement {
             f,
             [group(&format_args![block_indent(&format_with(|f| f
                 .join_with(hard_line_break())
-                .entries(&self.statements)
+                .entries(&self.expressions)
                 .finish())),])]
         )?;
         write!(f, [hard_line_break(), token("}")])?;

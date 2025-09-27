@@ -2,9 +2,9 @@ use crate::{
     Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
     Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
     Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
-    StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
-    UseClause, UseItem, While, With, WithClause,
+    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral,
+    Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause,
+    UseItem, While, With, WithClause,
 };
 
 // ----------------------------------------------------------------------------
@@ -19,30 +19,12 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
     block: &Block,
 ) {
     visitor.visit_any(tree, NodeType::Block, id.id);
-    for statement_id in &block.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &block.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
-/// Walk the Statement.
-pub fn walk_statement<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Statement>,
-    statement: &Statement,
-) {
-    visitor.visit_any(tree, NodeType::Statement, id.id);
-    match statement {
-        Statement::With(node) => visitor.visit_with(tree, *node, tree.get(*node)),
-        Statement::Use(node) => visitor.visit_use(tree, *node, tree.get(*node)),
-        Statement::Break(node) => visitor.visit_break(tree, *node, tree.get(*node)),
-        Statement::Continue(node) => visitor.visit_continue(tree, *node, tree.get(*node)),
-        Statement::Defer(node) => visitor.visit_defer(tree, *node, tree.get(*node)),
-        Statement::Return(node) => visitor.visit_return(tree, *node, tree.get(*node)),
-        Statement::Expression(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
-    }
-}
 /// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -61,6 +43,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Function(node) => visitor.visit_function(tree, *node, tree.get(*node)),
         Expression::Block(node) => visitor.visit_block(tree, *node, tree.get(*node)),
 
+        Expression::With(node) => visitor.visit_with(tree, *node, tree.get(*node)),
+        Expression::Use(node) => visitor.visit_use(tree, *node, tree.get(*node)),
         Expression::Let(node) => visitor.visit_let(tree, *node, tree.get(*node)),
         Expression::If(node) => visitor.visit_if(tree, *node, tree.get(*node)),
         Expression::While(node) => visitor.visit_while(tree, *node, tree.get(*node)),
@@ -68,6 +52,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Loop(node) => visitor.visit_loop(tree, *node, tree.get(*node)),
         Expression::Try(node) => visitor.visit_try(tree, *node, tree.get(*node)),
         Expression::Match(node) => visitor.visit_match(tree, *node, tree.get(*node)),
+        Expression::Break(node) => visitor.visit_break(tree, *node, tree.get(*node)),
+        Expression::Continue(node) => visitor.visit_continue(tree, *node, tree.get(*node)),
+        Expression::Defer(node) => visitor.visit_defer(tree, *node, tree.get(*node)),
+        Expression::Return(node) => visitor.visit_return(tree, *node, tree.get(*node)),
 
         Expression::Path(_) => {}
         Expression::ScalarLiteral(node) => {
@@ -131,9 +119,9 @@ pub fn walk_module<V: NodeVisitor + ?Sized>(
     module: &Module,
 ) {
     visitor.visit_any(tree, NodeType::Module, id.id);
-    for statement_id in &module.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &module.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -169,9 +157,9 @@ pub fn walk_struct<V: NodeVisitor + ?Sized>(
         visitor.visit_struct_field(tree, *field_id, field);
     }
 
-    for statement_id in &struct_node.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &struct_node.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -217,9 +205,9 @@ pub fn walk_enum<V: NodeVisitor + ?Sized>(
         visitor.visit_enum_field(tree, *field_id, field);
     }
 
-    for statement_id in &enum_node.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &enum_node.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -274,9 +262,9 @@ pub fn walk_union<V: NodeVisitor + ?Sized>(
         visitor.visit_union_field(tree, *field_id, field);
     }
 
-    for statement_id in &union_node.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &union_node.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -325,9 +313,9 @@ pub fn walk_trait<V: NodeVisitor + ?Sized>(
         visitor.visit_with(tree, *with_id, with_node);
     }
 
-    for statement_id in &trait_node.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &trait_node.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -354,9 +342,9 @@ pub fn walk_implement<V: NodeVisitor + ?Sized>(
         visitor.visit_type(tree, *for_trait, trait_type);
     }
 
-    for statement_id in &implement.statements {
-        let statement = tree.get(*statement_id);
-        visitor.visit_statement(tree, *statement_id, statement);
+    for expression_id in &implement.expressions {
+        let expression = tree.get(*expression_id);
+        visitor.visit_expression(tree, *expression_id, expression);
     }
 }
 
@@ -1268,17 +1256,13 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         // --------------------------------------------------------------------
         // Groupings
         // --------------------------------------------------------------------
-        NodeType::Block => {
-            let block = tree.blocks.get(local_idx);
-            walk_block(visitor, tree, NodeId::new(node_id), block);
-        }
-        NodeType::Statement => {
-            let statement = tree.statements.get(local_idx);
-            walk_statement(visitor, tree, NodeId::new(node_id), statement);
-        }
         NodeType::Expression => {
             let expression = tree.expressions.get(local_idx);
             walk_expression(visitor, tree, NodeId::new(node_id), expression);
+        }
+        NodeType::Block => {
+            let block = tree.blocks.get(local_idx);
+            walk_block(visitor, tree, NodeId::new(node_id), block);
         }
         // --------------------------------------------------------------------
         // Declarations
