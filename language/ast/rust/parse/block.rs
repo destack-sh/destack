@@ -204,12 +204,28 @@ impl<'a> Parser<'a> {
     /// defer label: {
     ///     someOtherFunction()
     /// }
+    ///
+    /// defer catch e {
+    ///     _ => someErrorHandler(e)
+    /// }
     /// ```
     pub fn eat_defer(&mut self) -> ParseResult<NodeId<Defer>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Defer)?;
+
+        // catch
+        if self.peek_keyword(Keyword::Catch).is_ok() {
+            self.bump(); // eat keyword
+            let match_id = self.eat_match_body().for_node_type(NodeType::Match)?;
+            let defer_id = self
+                .tree
+                .allocate(Defer::Catch(match_id), self.get_span_from(start));
+            Ok(defer_id)
+        }
         // block
-        if self.peek_block().is_ok() {
+        else if self.peek_block().is_ok() {
             let block_id = self.eat_block().for_node_type(NodeType::Defer)?;
             let defer_id = self
                 .tree
@@ -233,7 +249,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Break, Continue, Defer, Expression, Return, assert_int, assert_node, assert_string,
+        Break, Continue, Defer, Expression, Match, Return, assert_expr_path, assert_int,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -367,6 +384,18 @@ mod tests {
         assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {
             let block = parser.tree.get(*block_id);
             assert!(block.expressions.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_defer_catch() {
+        let mut test = TestParser::new("defer catch e { _ => someErrorHandler(e) }");
+        let mut parser = test.prepare();
+        let defer_id = parser.eat_defer().unwrap();
+        assert_node!(parser.tree, defer_id, Defer::Catch(match_id) => {
+            assert_node!(parser.tree, *match_id, Match { value, .. } => {
+                assert_expr_path!(parser.session, parser.tree.get(*value), "e");
+            });
         });
     }
 }

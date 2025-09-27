@@ -109,6 +109,9 @@ impl<'a> Parser<'a> {
     ///
     /// let Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
+    ///
+    /// let t? = foo() else { return }
+    /// let t = foo() ?? return;
     /// ```
     pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Let>> {
         let start = self.mark();

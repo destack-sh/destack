@@ -20,10 +20,16 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
-        let start = self.mark();
-
         // keyword
         self.eat_keyword(Keyword::Match)?;
+
+        // body
+        self.eat_match_body().for_node_type(NodeType::Match)
+    }
+
+    /// Eat a match body (without the match keyword)
+    pub fn eat_match_body(&mut self) -> ParseResult<NodeId<Match>> {
+        let start = self.mark();
 
         // value
         let value_id = self.try_eat_expression(
@@ -36,7 +42,7 @@ impl<'a> Parser<'a> {
 
         // cases
         self.eat_token(TokenType::OpenBrace)?;
-        let cases_id = self.eat_match_body().for_node_type(NodeType::Match)?;
+        let cases_id = self.eat_match_cases().for_node_type(NodeType::Match)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
@@ -59,7 +65,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_match_body(&mut self) -> ParseResult<Vec<NodeId<MatchCase>>> {
+    fn eat_match_cases(&mut self) -> ParseResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
         loop {
             // stop on closing brace
@@ -177,7 +183,7 @@ impl<'a> Parser<'a> {
 
                 // catch match cases
                 self.eat_token(TokenType::OpenBrace)?;
-                let catch_match_cases_id = self.eat_match_body()?;
+                let catch_match_cases_id = self.eat_match_cases()?;
                 self.eat_token(TokenType::CloseBrace)?;
 
                 // catch match

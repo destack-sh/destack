@@ -1182,6 +1182,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Defer::Block(_block) => {
                 self.node("Defer::Block", _id.id).end();
             }
+            Defer::Catch(_match) => {
+                self.node("Defer::Catch", _id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_defer(dumper, _tree, _id, defer_node);

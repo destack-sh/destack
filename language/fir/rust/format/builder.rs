@@ -1470,7 +1470,7 @@ mod tests {
                     token("2,"),
                     soft_line_break_or_space(),
                     token("3"),
-                    if_group_fits_on_line(&token(" "))
+                    if_group_fits_on_line(&space())
                 ]),
                 token("]")
             ])]
