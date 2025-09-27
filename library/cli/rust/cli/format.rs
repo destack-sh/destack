@@ -56,18 +56,19 @@ const DEFAULT_IGNORE_PATHS: &[&str] = &[
     "hfuzz_target",
     "fuzz",
 ];
-/// Outcome of formatting a source file.
+
+/// Outcome of formatting some source.
 #[derive(Debug)]
-struct FormatOutcome {
-    formatted_text: String,
+struct FormattedSource {
+    formatted: String,
     session: Session,
 }
 
 /// Result of processing a single file.
 #[derive(Debug)]
-struct FileProcessOutcome {
-    changed: bool,
-    had_errors: bool,
+struct FormattedFlags {
+    did_change: bool,
+    did_error: bool,
 }
 
 /// Run the format command using parsed CLI arguments.
@@ -85,7 +86,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // handle inline string formatting first
     if let Some(body) = ctx.option("string") {
-        return run_with_inline_string(body, &options);
+        return run_for_string(body, &options);
     }
 
     // collect explicit file arguments from --file and positionals
@@ -102,11 +103,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
         return run_for_files(&file_arguments, &options, dry_run);
     }
 
-    run_for_all(&options, dry_run)
+    run_for_all_files(&options, dry_run)
 }
 
 /// Format all .ds files in the current directory tree.
-fn run_for_all(options: &DystFormatOptions, dry_run: bool) -> i32 {
+fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
     // get current working directory
     let root = match env::current_dir() {
         Ok(dir) => dir,
@@ -124,15 +125,15 @@ fn run_for_all(options: &DystFormatOptions, dry_run: bool) -> i32 {
             console::write_line(&canonical_display(path));
         }
 
-        match process_file(path, options, dry_run, false) {
-            Ok(FileProcessOutcome {
-                changed,
-                had_errors,
+        match format_file(path, options, dry_run, false) {
+            Ok(FormattedFlags {
+                did_change,
+                did_error,
             }) => {
-                if !dry_run && changed {
+                if !dry_run && did_change {
                     console::write_line(&canonical_display(path));
                 }
-                if had_errors {
+                if did_error {
                     exit_code = 1;
                 }
             }
@@ -152,9 +153,9 @@ fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) 
 
     // process each file and track overall success
     for path in paths {
-        match process_file(path, options, dry_run, true) {
-            Ok(FileProcessOutcome { had_errors, .. }) => {
-                if had_errors {
+        match format_file(path, options, dry_run, true) {
+            Ok(FormattedFlags { did_error, .. }) => {
+                if did_error {
                     exit_code = 1;
                 }
             }
@@ -168,7 +169,7 @@ fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) 
 }
 
 /// Format inline source provided via --string.
-fn run_with_inline_string(body: &str, options: &DystFormatOptions) -> i32 {
+fn run_for_string(body: &str, options: &DystFormatOptions) -> i32 {
     // create source from string input
     let source = Source::from_string(
         SourceId::new(0),
@@ -178,13 +179,17 @@ fn run_with_inline_string(body: &str, options: &DystFormatOptions) -> i32 {
 
     // format and output result
     match format_source(&source, options) {
-        Ok(FormatOutcome {
-            formatted_text,
+        Ok(FormattedSource {
+            formatted,
             session,
         }) => {
-            print_formatted_output("<formatted>", &formatted_text);
+            print_formatted_output("<formatted>", &formatted);
             print_diagnostics(&source, &session);
-            if has_errors(&session) { 1 } else { 0 }
+            if session.has_diagnostics_of_severity(Severity::Error) {
+                1
+            } else {
+                0
+            }
         }
         Err(message) => {
             console::error(&message);
@@ -211,12 +216,12 @@ fn collect_ds_files(root: &Path) -> Vec<PathBuf> {
 }
 
 /// Format a single file, optionally writing it back to disk.
-fn process_file(
+fn format_file(
     path: &Path,
     options: &DystFormatOptions,
     dry_run: bool,
     emit_output: bool,
-) -> Result<FileProcessOutcome, String> {
+) -> Result<FormattedFlags, String> {
     let path_buf = path.to_path_buf();
 
     // read original file content
@@ -229,36 +234,36 @@ fn process_file(
         Uri::from(&path_buf),
         original_text.clone(),
     );
-    let FormatOutcome {
-        formatted_text,
+    let FormattedSource {
+        formatted,
         session,
     } = format_source(&source, options)
         .map_err(|error| format!("{error} ({})", path_buf.display()))?;
 
     // output formatted result if requested
     if emit_output {
-        print_formatted_output(&canonical_display(&path_buf), &formatted_text);
+        print_formatted_output(&canonical_display(&path_buf), &formatted);
     }
     print_diagnostics(&source, &session);
 
-    // check if formatting changed the file or had errors
-    let had_errors = has_errors(&session);
-    let changed = formatted_text != original_text;
+    // check if formatting did_change the file or had errors
+    let did_error = session.has_diagnostics_of_severity(Severity::Error);
+    let did_change = formatted != original_text;
 
-    // write back to disk if not dry run and content changed
-    if !dry_run && changed {
-        fs::write(&path_buf, formatted_text)
+    // write back to disk if not dry run and content did_change
+    if !dry_run && did_change {
+        fs::write(&path_buf, formatted)
             .map_err(|error| format!("failed to write {}: {error}", path_buf.display()))?;
     }
 
-    Ok(FileProcessOutcome {
-        changed,
-        had_errors,
+    Ok(FormattedFlags {
+        did_change,
+        did_error,
     })
 }
 
 /// Format the provided source into a string along with diagnostics.
-fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatOutcome, String> {
+fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormattedSource, String> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
     let module_name_id = session.intern_string(module_name);
@@ -275,9 +280,6 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatO
         None,
         TokenType::End,
     );
-    let Some(module_id) = module_id else {
-        return Err("failed to parse module".to_string());
-    };
     parser.finalize();
 
     // create format context and format the AST
@@ -298,19 +300,19 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatO
         .print()
         .map_err(|error| format!("print error: {error}"))?;
 
-    Ok(FormatOutcome {
-        formatted_text: printed.into_str(),
+    Ok(FormattedSource {
+        formatted: printed.into_str(),
         session,
     })
 }
 
 /// Print formatted output with syntax highlighting if available.
-fn print_formatted_output(label: &str, formatted_text: &str) {
-    let colored_output = match semantic_spans_from_text(label, formatted_text) {
+fn print_formatted_output(label: &str, formatted: &str) {
+    let colored_output = match semantic_spans_from_text(label, formatted) {
         Ok(spans) => render_semantic_spans(&spans),
         Err(error) => {
             console::warn(&format!("semantic highlighting error: {error}"));
-            formatted_text.to_string()
+            formatted.to_string()
         }
     };
     console::write_line(&colored_output);
@@ -333,14 +335,6 @@ fn print_diagnostics(source: &Source, session: &Session) {
         console::error(&header);
         console::info(&annotated);
     }
-}
-
-/// Test whether any diagnostics are errors.
-fn has_errors(session: &Session) -> bool {
-    session
-        .diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
 }
 
 /// Compute a display string for a path.
