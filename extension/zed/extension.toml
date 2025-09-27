@@ -1,6 +1,6 @@
 id = "destack"
 name = "Destack Language"
-version = "2025.9.27-3"
+version = "2025.9.27-4"
 schema_version = 1
 authors = ["Destack Team <dev@destack.local>"]
 description = "Language support for Destack (.ds) with LSP powered features."

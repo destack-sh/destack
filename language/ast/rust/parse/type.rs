@@ -109,6 +109,9 @@ pub struct TypeParserOptions {
 }
 
 impl<'a> Parser<'a> {
+    // TODO! #Incomplete: parse types as values or disambiguate somehow?
+    //  (for type aliases like `let X = Y<T>`)
+
     /// Eat any Type (including nominal and anonymous declarations and implicit unions).
     /// Also consumes any prefix and postfix modifiers.
     ///
