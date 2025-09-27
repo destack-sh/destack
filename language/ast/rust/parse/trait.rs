@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Function, Statement, Trait, Type, WithClause, assert_node, assert_path, assert_string,
+        Expression, Function, Statement, Trait, Type, WithClause, assert_node, assert_path, assert_string
     };
 
     #[test]
@@ -245,15 +245,17 @@ trait Baz<T> with T: Copy {
 
             // function baz() => T
             let statement_id = statements[0];
-            assert_node!(parser.tree, statement_id, Statement::Function(func_id) => {
-                assert_node!(parser.tree, *func_id, Function { name, return_type, .. } => {
-                    // baz
-                    assert_string!(parser.session, name.unwrap(), "baz");
-                    // => T
-                    let ret = return_type.expect("expected return type");
-                    assert_node!(parser.tree, ret, Type::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "T");
-                    });
+            assert_node!(parser.tree, statement_id, Statement::Expression(func_id) => {
+                assert_node!(parser.tree, *func_id, Expression::Function(func_id) => {
+                    assert_node!(parser.tree, *func_id, Function { name, return_type, .. } => {
+                        // baz
+                        assert_string!(parser.session, name.unwrap(), "baz");
+                        // => T
+                        let ret = return_type.expect("expected return type");
+                        assert_node!(parser.tree, ret, Type::Path { path, .. } => {
+                            assert_path!(parser.session, *path, "T");
+                        });
+                    })
                 })
             })
         });

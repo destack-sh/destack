@@ -709,30 +709,6 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Loop(loop_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // break
-            else if keyword == Some(Keyword::Break) {
-                let break_id = self.eat_break().for_node_type(NodeType::Break)?;
-                let expression = Expression::Break(break_id);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
-            // continue
-            else if keyword == Some(Keyword::Continue) {
-                let continue_id = self.eat_continue().for_node_type(NodeType::Continue)?;
-                let expression = Expression::Continue(continue_id);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
-            // defer
-            else if keyword == Some(Keyword::Defer) {
-                let defer_id = self.eat_defer().for_node_type(NodeType::Defer)?;
-                let expression = Expression::Defer(defer_id);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
-            // return
-            else if keyword == Some(Keyword::Return) {
-                let return_id = self.eat_return().for_node_type(NodeType::Return)?;
-                let expression = Expression::Return(return_id);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
             // try
             else if keyword == Some(Keyword::Try) {
                 let try_id = self.eat_try_catch().for_node_type(NodeType::Try)?;

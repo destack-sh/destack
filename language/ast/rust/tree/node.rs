@@ -200,32 +200,22 @@ impl Node for Block {
     const KIND: NodeType = NodeType::Block;
 }
 
-/// An Statement is a top-level in a container in the AST.
-/// Statements do not have to produce values, but they can be any Expression.
-/// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
+/// An Statement is a top-level container without a value.
+/// (Not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    /// Module definition (as a Statement, see Module).
-    Module(NodeId<Module>),
-    /// Struct definition (as a Statement, see Struct).
-    Struct(NodeId<Struct>),
-    /// Enum definition (as a Statement, see Enum).
-    Enum(NodeId<Enum>),
-    /// Union definition (as a Statement, see Union).
-    Union(NodeId<Union>),
-    /// Trait definition (as a Statement, see Trait).
-    Trait(NodeId<Trait>),
-    /// Implement definition (as a Statement, see Implement).
-    Implement(NodeId<Implement>),
-    /// Function definition (as a Statement, see Function).
-    Function(NodeId<Function>),
-    /// Block of Statements (as a Statement, see Block).
-    Block(NodeId<Block>),
-
     /// With declaration for context management (see With).
     With(NodeId<With>),
     /// Use declaration for dependency management (see Use).
     Use(NodeId<Use>),
+    /// Break out of a scope (as an Expression, see Break).
+    Break(NodeId<Break>),
+    /// Continue to the next iteration of a scope (as an Expression, see Continue).
+    Continue(NodeId<Continue>),
+    /// Defer expression until scope exit (as an Expression, see Defer).
+    Defer(NodeId<Defer>),
+    /// Return expression (as an Expression, see Return).
+    Return(NodeId<Return>),
 
     /// Expression (see Expression).
     /// Catch-all for any Expression used as a "top-level" statement.
@@ -236,8 +226,7 @@ impl Node for Statement {
     const KIND: NodeType = NodeType::Statement;
 }
 
-/// An Expression is a generic container for all possible expression nodes in the AST.
-/// Expressions can be literals, bindings, calls, definitions, control flow, etc.
+/// An Expression is a generic container for value-producing forms.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,
 ///  that is, they have a place in memory we can point to and get the address of.
@@ -270,14 +259,6 @@ pub enum Expression {
     For(NodeId<For>),
     /// A Loop is an unconditional loop (as an Expression, see Loop).
     Loop(NodeId<Loop>),
-    /// Break out of a scope (as an Expression, see Break).
-    Break(NodeId<Break>),
-    /// Continue to the next iteration of a scope (as an Expression, see Continue).
-    Continue(NodeId<Continue>),
-    /// Defer expression until scope exit (as an Expression, see Defer).
-    Defer(NodeId<Defer>),
-    /// Return expression (as an Expression, see Return).
-    Return(NodeId<Return>),
     /// A Try is try/catch statement (as an Expression, see Try).
     Try(NodeId<Try>),
     /// A Match is match expression (as an Expression, see Match).
