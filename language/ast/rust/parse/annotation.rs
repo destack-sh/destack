@@ -543,14 +543,14 @@ impl<'a> Parser<'a> {
             let cleaned = match token_type {
                 TokenType::LineComment | TokenType::DocLineComment => {
                     if inner_str.contains('\n') {
-                        // handle multiline comments by stripping leading space from each line
+                        // strip leading space from each line
                         inner_str
                             .lines()
                             .map(|line| line.strip_prefix(' ').unwrap_or(line).to_owned())
                             .collect::<Vec<_>>()
                             .join("\n")
                     } else {
-                        // single line, just strip leading space
+                        // strip leading space
                         inner_str.strip_prefix(' ').unwrap_or(inner_str).to_owned()
                     }
                 }
@@ -559,19 +559,23 @@ impl<'a> Parser<'a> {
                     if trimmed.is_empty() {
                         String::new()
                     } else {
-                        // handle block comment formatting with optional asterisk prefixes
+                        // strip block comment formatting with optional asterisk prefixes
                         trimmed
                             .lines()
                             .map(|line| {
-                                let trimmed_star = line.strip_prefix(' ').unwrap_or(line);
-                                if let Some(after_star) = trimmed_star.strip_prefix('*') {
-                                    // line has asterisk prefix, strip it and following space
-                                    after_star
-                                        .strip_prefix(' ')
-                                        .unwrap_or(after_star)
-                                        .to_owned()
+                                let first_real_char =
+                                    line.char_indices().find(|&(_, ch)| ch != ' ');
+                                if let Some((idx, ch)) = first_real_char
+                                    && ch == '*'
+                                {
+                                    // strip asterisk prefix and following space
+                                    let mut line_str = &line[idx + ch.len_utf8()..];
+                                    if line_str.starts_with(' ') {
+                                        line_str = &line_str[1..];
+                                    }
+                                    line_str.to_owned()
                                 } else {
-                                    // no asterisk, just strip leading space
+                                    // strip leading space
                                     line.strip_prefix(' ').unwrap_or(line).to_owned()
                                 }
                             })
