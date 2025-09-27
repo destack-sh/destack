@@ -1039,53 +1039,54 @@ struct Floof {
         });
 
         // struct Floof
-        assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
-            assert_node!(parser.tree, *node, Struct { fields, .. } => {
-                // a: int32
-                assert_eq!(fields.len(), 1);
-                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                    assert_string!(parser.session, name.unwrap(), "a");
-                    let annotations = parser.tree.get_annotations_for(fields[0].id);
-                    assert_eq!(annotations.len(), 4);
+        assert_node!(parser.tree, statements[0], Statement::Expression(node) => {
+            assert_node!(parser.tree, *node, Expression::Struct(node) => {
+                assert_node!(parser.tree, *node, Struct { fields, .. } => {
+                    // a: int32
+                    assert_eq!(fields.len(), 1);
+                    assert_node!(parser.tree, fields[0], StructField { name, .. } => {
+                        assert_string!(parser.session, name.unwrap(), "a");
+                        let annotations = parser.tree.get_annotations_for(fields[0].id);
+                        assert_eq!(annotations.len(), 4);
 
-                    // doc block prefix
-                    // struct field\ndoc, struct field continued
-                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Doc { string, style } => {
-                            assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
-                            assert_eq!(*style, DocStyle::Slash);
+                        // doc block prefix
+                        // struct field\ndoc, struct field continued
+                        assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_node!(parser.tree, *node, Doc { string, style } => {
+                                assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
+                                assert_eq!(*style, DocStyle::Slash);
+                            });
                         });
-                    });
 
-                    // doc line postfix boundary
-                    // doc, struct field infix
-                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.get_string(*string), "doc, struct field infix");
-                            assert_eq!(*style, CommentStyle::Slash);
+                        // doc line postfix boundary
+                        // doc, struct field infix
+                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "doc, struct field infix");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
-                    });
 
-                    // blank block postfix
-                    assert_node!(parser.tree, annotations[2], Annotation::Blank { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                        assert_node!(parser.tree, *node, Blank { lines } => {
-                            assert_eq!(*lines, 1);
+                        // blank block postfix
+                        assert_node!(parser.tree, annotations[2], Annotation::Blank { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                            assert_node!(parser.tree, *node, Blank { lines } => {
+                                assert_eq!(*lines, 1);
+                            });
                         });
-                    });
 
-                    // doc block postfix
-                    assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.get_string(*string), "random comment");
-                            assert_eq!(*style, CommentStyle::Slash);
+                        // doc block postfix
+                        assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "random comment");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
                     });
                 });
-
             });
         })
     }

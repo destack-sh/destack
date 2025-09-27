@@ -668,35 +668,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_statement(&mut self, _tree: &NodeTree, _id: NodeId<Statement>, statement: &Statement) {
         match statement {
-            Statement::Module(_node) => {
-                self.node("Statement::Module", _id.id).end();
-            }
-            Statement::Struct(_node) => {
-                self.node("Statement::Struct", _id.id).end();
-            }
-            Statement::Enum(_node) => {
-                self.node("Statement::Enum", _id.id).end();
-            }
-            Statement::Union(_node) => {
-                self.node("Statement::Union", _id.id).end();
-            }
-            Statement::Trait(_node) => {
-                self.node("Statement::Trait", _id.id).end();
-            }
-            Statement::Implement(_node) => {
-                self.node("Statement::Implement", _id.id).end();
-            }
-            Statement::Function(_node) => {
-                self.node("Statement::Function", _id.id).end();
-            }
-            Statement::Block(_node) => {
-                self.node("Statement::Block", _id.id).end();
-            }
             Statement::With(_node) => {
                 self.node("Statement::With", _id.id).end();
             }
             Statement::Use(_node) => {
                 self.node("Statement::Use", _id.id).end();
+            }
+            Statement::Break(_node) => {
+                self.node("Statement::Break", _id.id).end();
+            }
+            Statement::Continue(_node) => {
+                self.node("Statement::Continue", _id.id).end();
+            }
+            Statement::Defer(_node) => {
+                self.node("Statement::Defer", _id.id).end();
+            }
+            Statement::Return(_node) => {
+                self.node("Statement::Return", _id.id).end();
             }
             Statement::Expression(_node) => {
                 self.node("Statement::Expression", _id.id).end();
@@ -753,18 +741,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Loop(_node) => {
                 self.node("Expression::Loop", _id.id).end();
-            }
-            Expression::Break(_node) => {
-                self.node("Expression::Break", _id.id).end();
-            }
-            Expression::Continue(_node) => {
-                self.node("Expression::Continue", _id.id).end();
-            }
-            Expression::Defer(_node) => {
-                self.node("Expression::Defer", _id.id).end();
-            }
-            Expression::Return(_node) => {
-                self.node("Expression::Return", _id.id).end();
             }
             Expression::Try(_node) => {
                 self.node("Expression::Try", _id.id).end();

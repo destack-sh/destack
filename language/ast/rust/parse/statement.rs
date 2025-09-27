@@ -35,64 +35,8 @@ impl<'a> Parser<'a> {
         let statement = {
             let keyword = self.peek_any_keyword().ok();
 
-            //
-            // ------------------------------------------------------------
-            // Declarations
-            // ------------------------------------------------------------
-            //
-            // module
-            if keyword == Some(Keyword::Module) {
-                let module_id = self
-                    .eat_module(visibility)
-                    .for_node_type(NodeType::Module)?;
-                Statement::Module(module_id)
-            }
-            // struct
-            else if keyword == Some(Keyword::Struct) {
-                let struct_id = self
-                    .eat_struct(visibility)
-                    .for_node_type(NodeType::Struct)?;
-                Statement::Struct(struct_id)
-            }
-            // enum
-            else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(visibility).for_node_type(NodeType::Enum)?;
-                Statement::Enum(enum_id)
-            }
-            // union
-            else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(visibility).for_node_type(NodeType::Union)?;
-                Statement::Union(union_id)
-            }
-            // trait
-            else if keyword == Some(Keyword::Trait) {
-                let trait_id = self.eat_trait(visibility).for_node_type(NodeType::Trait)?;
-                Statement::Trait(trait_id)
-            }
-            // implement
-            else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement().for_node_type(NodeType::Implement)?;
-                Statement::Implement(implement_id)
-            }
-            // function
-            else if keyword == Some(Keyword::Function) {
-                let function_id = self
-                    .eat_function(visibility)
-                    .for_node_type(NodeType::Function)?;
-                Statement::Function(function_id)
-            }
-            // block
-            else if self.peek_block().is_ok() {
-                let block_id = self.eat_block().for_node_type(NodeType::Block)?;
-                Statement::Block(block_id)
-            }
-            //
-            // ------------------------------------------------------------
-            // Context
-            // ------------------------------------------------------------
-            //
             // with
-            else if keyword == Some(Keyword::With) {
+            if keyword == Some(Keyword::With) {
                 let with_id = self.eat_with().for_node_type(NodeType::With)?;
                 Statement::With(with_id)
             }
@@ -100,6 +44,26 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Use) {
                 let use_id = self.eat_use(visibility).for_node_type(NodeType::Use)?;
                 Statement::Use(use_id)
+            }
+            // break
+            else if keyword == Some(Keyword::Break) {
+                let break_id = self.eat_break().for_node_type(NodeType::Break)?;
+                Statement::Break(break_id)
+            }
+            // continue
+            else if keyword == Some(Keyword::Continue) {
+                let continue_id = self.eat_continue().for_node_type(NodeType::Continue)?;
+                Statement::Continue(continue_id)
+            }
+            // defer
+            else if keyword == Some(Keyword::Defer) {
+                let defer_id = self.eat_defer().for_node_type(NodeType::Defer)?;
+                Statement::Defer(defer_id)
+            }
+            // return
+            else if keyword == Some(Keyword::Return) {
+                let return_id = self.eat_return().for_node_type(NodeType::Return)?;
+                Statement::Return(return_id)
             }
             //
             // ------------------------------------------------------------

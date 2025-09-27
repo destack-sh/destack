@@ -31,10 +31,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::While(node) => node.format(f)?,
             Expression::For(node) => node.format(f)?,
             Expression::Loop(node) => node.format(f)?,
-            Expression::Break(node) => node.format(f)?,
-            Expression::Continue(node) => node.format(f)?,
-            Expression::Defer(node) => node.format(f)?,
-            Expression::Return(node) => node.format(f)?,
             Expression::Try(node) => node.format(f)?,
             Expression::Match(node) => node.format(f)?,
 

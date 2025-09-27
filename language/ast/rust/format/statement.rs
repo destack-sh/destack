@@ -11,17 +11,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         match self {
-            Statement::Module(node) => node.format(f)?,
-            Statement::Struct(node) => node.format(f)?,
-            Statement::Enum(node) => node.format(f)?,
-            Statement::Union(node) => node.format(f)?,
-            Statement::Trait(node) => node.format(f)?,
-            Statement::Implement(node) => node.format(f)?,
-            Statement::Function(node) => node.format(f)?,
-            Statement::Block(node) => node.format(f)?,
-
             Statement::With(node) => node.format(f)?,
             Statement::Use(node) => node.format(f)?,
+            Statement::Break(node) => node.format(f)?,
+            Statement::Continue(node) => node.format(f)?,
+            Statement::Defer(node) => node.format(f)?,
+            Statement::Return(node) => node.format(f)?,
 
             Statement::Expression(node) => node.format(f)?,
         }
