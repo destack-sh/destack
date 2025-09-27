@@ -800,6 +800,9 @@ pub enum LetInitialization {
 /// if var Some(x) = someFunction() {
 ///     ...
 /// }
+///
+/// let t? = foo() else { return }
+/// let t = foo() ?? return;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     /// Whether the binding is mutable.
@@ -817,7 +820,6 @@ pub struct Let {
 }
 
 // nocheckin: else for lets and loops?
-// nocheckin: bare catch / catch defer?
 
 impl Node for Let {
     const KIND: NodeType = NodeType::Let;
@@ -1293,6 +1295,10 @@ impl Node for Continue {
 /// defer :label {
 ///     someOtherFunction()
 /// }
+///
+/// defer catch e {
+///     _ => someErrorHandler(e)
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Defer {
@@ -1300,6 +1306,8 @@ pub enum Defer {
     Expression(NodeId<Expression>),
     /// Defer a block of statements.
     Block(NodeId<Block>),
+    /// Defer catch with matching.
+    Catch(NodeId<Match>),
 }
 
 impl Node for Defer {

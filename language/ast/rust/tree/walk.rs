@@ -757,6 +757,10 @@ pub fn walk_defer<V: NodeVisitor + ?Sized>(
             let block = tree.get(*block_id);
             visitor.visit_block(tree, *block_id, block);
         }
+        Defer::Catch(match_id) => {
+            let match_node = tree.get(*match_id);
+            visitor.visit_match(tree, *match_id, match_node);
+        }
     }
 }
 

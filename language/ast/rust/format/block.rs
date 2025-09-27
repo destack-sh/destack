@@ -107,9 +107,10 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 impl<'ast> FormatNode<'ast, Break> for Break {
     fn format_node(
         &self,
-        _node_id: NodeId<Break>,
+        node_id: NodeId<Break>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         write!(f, [Keyword::Break])?;
         // label
         if let Some(label) = &self.label {
@@ -117,8 +118,9 @@ impl<'ast> FormatNode<'ast, Break> for Break {
         }
         // value
         if let Some(value) = &self.value {
-            write!(f, [token(" "), value])?;
+            write!(f, [space(), value])?;
         }
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
@@ -126,14 +128,16 @@ impl<'ast> FormatNode<'ast, Break> for Break {
 impl<'ast> FormatNode<'ast, Continue> for Continue {
     fn format_node(
         &self,
-        _node_id: NodeId<Continue>,
+        node_id: NodeId<Continue>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         write!(f, [Keyword::Continue])?;
         // label
         if let Some(label) = &self.label {
             write!(f, [token(": "), label])?;
         }
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
@@ -141,14 +145,16 @@ impl<'ast> FormatNode<'ast, Continue> for Continue {
 impl<'ast> FormatNode<'ast, Return> for Return {
     fn format_node(
         &self,
-        _node_id: NodeId<Return>,
+        node_id: NodeId<Return>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         write!(f, [Keyword::Return])?;
         // value
         if let Some(value) = &self.value {
-            write!(f, [token(" "), value])?;
+            write!(f, [space(), value])?;
         }
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
@@ -156,18 +162,23 @@ impl<'ast> FormatNode<'ast, Return> for Return {
 impl<'ast> FormatNode<'ast, Defer> for Defer {
     fn format_node(
         &self,
-        _node_id: NodeId<Defer>,
+        node_id: NodeId<Defer>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         write!(f, [Keyword::Defer])?;
         match self {
             Defer::Expression(expression) => {
-                write!(f, [token(" "), expression])?;
+                write!(f, [space(), expression])?;
             }
             Defer::Block(block) => {
-                write!(f, [token(" "), block])?;
+                write!(f, [space(), block])?;
+            }
+            Defer::Catch(match_) => {
+                write!(f, [space(), Keyword::Catch, space(), match_])?;
             }
         }
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
