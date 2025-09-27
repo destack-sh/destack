@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Block, Expression, For, Loop, Pattern, Statement, While, assert_expr_path,
+        BinaryOperator, Block, Expression, For, Loop, Pattern, While, assert_expr_path,
         assert_node, assert_path,
     };
 
@@ -256,22 +256,20 @@ while x > y {
                 assert_expr_path!(parser.session, parser.tree.get(*right), "y");
             });
 
-            assert_node!(parser.tree, *body, Block { statements, .. } => {
-                assert_eq!(statements.len(), 2);
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 2);
 
                 // while a < b
-                assert_node!(parser.tree, statements[0], Statement::Expression(expr_id) => {
-                    assert_node!(parser.tree, *expr_id, Expression::While(nested_while_id) => {
-                        assert_node!(parser.tree, *nested_while_id, While { condition: nested_condition, body: _, .. } => {
-                            // a < b
-                            assert_node!(parser.tree, *nested_condition, Expression::Binary { left, operator, right } => {
-                                // a
-                                assert_expr_path!(parser.session, parser.tree.get(*left), "a");
-                                // <
-                                assert_eq!(*operator, BinaryOperator::LessThan);
-                                // b
-                                assert_expr_path!(parser.session, parser.tree.get(*right), "b");
-                            });
+                assert_node!(parser.tree, expressions[0], Expression::While(nested_while_id) => {
+                    assert_node!(parser.tree, *nested_while_id, While { condition: nested_condition, body: _, .. } => {
+                        // a < b
+                        assert_node!(parser.tree, *nested_condition, Expression::Binary { left, operator, right } => {
+                            // a
+                            assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                            // <
+                            assert_eq!(*operator, BinaryOperator::LessThan);
+                            // b
+                            assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                         });
                     });
                 });

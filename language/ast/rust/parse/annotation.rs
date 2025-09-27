@@ -598,9 +598,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Doc, DocStyle, Expression, Function, Let, Statement, Struct,
-        StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path,
-        assert_string,
+        Comment, CommentStyle, Doc, DocStyle, Expression, Function, Let, Struct, StructField, Tag,
+        assert_lit_int, assert_lit_string, assert_node, assert_path, assert_string,
     };
 
     /// Tag annotations should be parsed around a struct.
@@ -615,11 +614,11 @@ struct Test {}
 "#,
         );
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
-        assert_eq!(statements.len(), 1);
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 3);
         // doc block prefix
         // /// Test doc
@@ -670,11 +669,11 @@ struct Test {}
         // C and D are not in "valid" positions and should fall back to infix
         let mut test = TestParser::new("#A\n#B struct #C Test #D { #E } #F\n#G");
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
-        assert_eq!(statements.len(), 1);
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 7);
         // A: block prefix
         assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
@@ -736,16 +735,16 @@ struct Test {}
 
     /// Line suffix is attached to the previous node on the same line.
     #[test]
-    fn test_attach_line_postfix_to_statement() {
+    fn test_attach_line_postfix_to_expression() {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
         // let A = 1
-        assert_eq!(statements.len(), 1);
+        assert_eq!(expressions.len(), 1);
         // line comment, suffix
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
@@ -758,19 +757,19 @@ struct Test {}
 
     /// Multi-line suffix is attached to the previous node on the same line as a block postfix.
     #[test]
-    fn test_attach_multi_line_postfix_to_statement() {
+    fn test_attach_multi_line_postfix_to_expression() {
         let mut test = TestParser::new(
             "let A = 1 /* line comment
 over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
         // let A = 1
-        assert_eq!(statements.len(), 1);
+        assert_eq!(expressions.len(), 1);
         // block comment, postfix
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
@@ -796,9 +795,9 @@ over multiple lines with trailing space    */",
         let block = parser.eat_block().unwrap();
         parser.finalize();
 
-        assert_node!(parser.tree, block, Block { statements, .. } => {
-            assert_eq!(statements.len(), 1);
-            let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_node!(parser.tree, block, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 1);
+            let annotations = parser.tree.get_annotations_for(expressions[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -812,57 +811,55 @@ over multiple lines with trailing space    */",
 
     /// Inline prefix, infix and suffix comments should be attached to closest inner node on the same line.
     #[test]
-    fn test_attach_line_prefix_infix_postfix_to_statement() {
+    fn test_attach_line_prefix_infix_postfix_to_expression() {
         let mut test =
             TestParser::new("let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */");
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
-        assert_eq!(statements.len(), 1);
+        assert_eq!(expressions.len(), 1);
 
         // A && B
-        assert_node!(parser.tree, statements[0], Statement::Expression(node) => {
-            assert_node!(parser.tree, *node, Expression::Let(node) => {
-                assert_node!(parser.tree, *node, Let { value, .. } => {
-                    assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
-                        assert_eq!(*operator, BinaryOperator::And);
-                        // A
-                        assert_node!(parser.tree, *left, Expression::Path(path) => {
-                            assert_path!(parser.session, *path, "A");
+        assert_node!(parser.tree, expressions[0], Expression::Let(node) => {
+            assert_node!(parser.tree, *node, Let { value, .. } => {
+                assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    // A
+                    assert_node!(parser.tree, *left, Expression::Path(path) => {
+                        assert_path!(parser.session, *path, "A");
+                    });
+                    let annotations = parser.tree.get_annotations_for(left.id);
+                    // line prefix, pre-A comment
+                    assert_eq!(annotations.len(), 2);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "Pre-A comment");
+                            assert_eq!(*style, CommentStyle::Star);
                         });
-                        let annotations = parser.tree.get_annotations_for(left.id);
-                        // line prefix, pre-A comment
-                        assert_eq!(annotations.len(), 2);
-                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePrefix);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.get_string(*string), "Pre-A comment");
-                                assert_eq!(*style, CommentStyle::Star);
-                            });
+                    });
+                    // line postfix, A comment
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "A comment");
+                            assert_eq!(*style, CommentStyle::Star);
                         });
-                        // line postfix, A comment
-                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfix);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.get_string(*string), "A comment");
-                                assert_eq!(*style, CommentStyle::Star);
-                            });
-                        });
+                    });
 
-                        // B
-                        assert_node!(parser.tree, *right, Expression::Path(path) => {
-                            assert_path!(parser.session, *path, "B");
-                        });
-                        // line postfix boundary, B comment
-                        let annotations = parser.tree.get_annotations_for(right.id);
-                        assert_eq!(annotations.len(), 1);
-                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.get_string(*string), "B comment");
-                                assert_eq!(*style, CommentStyle::Star);
-                            });
+                    // B
+                    assert_node!(parser.tree, *right, Expression::Path(path) => {
+                        assert_path!(parser.session, *path, "B");
+                    });
+                    // line postfix boundary, B comment
+                    let annotations = parser.tree.get_annotations_for(right.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "B comment");
+                            assert_eq!(*style, CommentStyle::Star);
                         });
                     });
                 });
@@ -872,7 +869,7 @@ over multiple lines with trailing space    */",
 
     /// Line suffix is attached separatelyfrom other surrounding comments.
     #[test]
-    fn test_attach_line_postfix_to_statement_with_surrounding_comments() {
+    fn test_attach_line_postfix_to_expression_with_surrounding_comments() {
         let mut test = TestParser::new(
             r"
 // block prefix comment
@@ -882,12 +879,12 @@ let A = 1 // line suffix comment
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
         // let A = 1
-        assert_eq!(statements.len(), 1);
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 3);
 
         // block prefix comment
@@ -919,15 +916,15 @@ let A = 1 // line suffix comment
     /// Blanks (>2 successive newlines) are just annotations and should be attached to the next node.
     /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
     #[test]
-    fn test_attach_blanks_to_statements() {
+    fn test_attach_blanks_to_expressions() {
         let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
         let mut parser = test.prepare();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
-        assert_eq!(statements.len(), 2);
+        assert_eq!(expressions.len(), 2);
 
         // A has one prefix block blank
-        let a_annotations = parser.tree.get_annotations_for(statements[0].id);
+        let a_annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(a_annotations.len(), 1);
         assert_node!(parser.tree, a_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -938,7 +935,7 @@ let A = 1 // line suffix comment
 
         // B has one prefix block blank and one postfix block blank
         // (the postfix blank after B because there is nothing else to attach to)
-        let b_annotations = parser.tree.get_annotations_for(statements[1].id);
+        let b_annotations = parser.tree.get_annotations_for(expressions[1].id);
         assert_eq!(b_annotations.len(), 2);
         assert_node!(parser.tree, b_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1006,12 +1003,12 @@ struct Floof {
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finalize();
 
         // struct Floof
-        assert_eq!(statements.len(), 1);
-        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
         assert_eq!(annotations.len(), 3);
         // doc block prefix, floating
         assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
@@ -1039,55 +1036,53 @@ struct Floof {
         });
 
         // struct Floof
-        assert_node!(parser.tree, statements[0], Statement::Expression(node) => {
-            assert_node!(parser.tree, *node, Expression::Struct(node) => {
-                assert_node!(parser.tree, *node, Struct { fields, .. } => {
-                    // a: int32
-                    assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                        assert_string!(parser.session, name.unwrap(), "a");
-                        let annotations = parser.tree.get_annotations_for(fields[0].id);
-                        assert_eq!(annotations.len(), 4);
+        assert_node!(parser.tree, expressions[0], Expression::Struct(node) => {
+            assert_node!(parser.tree, *node, Struct { fields, .. } => {
+                // a: int32
+                assert_eq!(fields.len(), 1);
+                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
+                    assert_string!(parser.session, name.unwrap(), "a");
+                    let annotations = parser.tree.get_annotations_for(fields[0].id);
+                    assert_eq!(annotations.len(), 4);
 
-                        // doc block prefix
-                        // struct field\ndoc, struct field continued
-                        assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                            assert_node!(parser.tree, *node, Doc { string, style } => {
-                                assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
-                                assert_eq!(*style, DocStyle::Slash);
-                            });
+                    // doc block prefix
+                    // struct field\ndoc, struct field continued
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
+                            assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
+                            assert_eq!(*style, DocStyle::Slash);
                         });
+                    });
 
-                        // doc line postfix boundary
-                        // doc, struct field infix
-                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.get_string(*string), "doc, struct field infix");
-                                assert_eq!(*style, CommentStyle::Slash);
-                            });
+                    // doc line postfix boundary
+                    // doc, struct field infix
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "doc, struct field infix");
+                            assert_eq!(*style, CommentStyle::Slash);
                         });
+                    });
 
-                        // blank block postfix
-                        assert_node!(parser.tree, annotations[2], Annotation::Blank { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                            assert_node!(parser.tree, *node, Blank { lines } => {
-                                assert_eq!(*lines, 1);
-                            });
+                    // blank block postfix
+                    assert_node!(parser.tree, annotations[2], Annotation::Blank { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Blank { lines } => {
+                            assert_eq!(*lines, 1);
                         });
+                    });
 
-                        // doc block postfix
-                        assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.get_string(*string), "random comment");
-                                assert_eq!(*style, CommentStyle::Slash);
-                            });
+                    // doc block postfix
+                    assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "random comment");
+                            assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
                 });
-            });
+                });
         })
     }
 }

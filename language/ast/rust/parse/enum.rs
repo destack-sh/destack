@@ -5,7 +5,7 @@ use dyst_token::TokenType;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
-    Enum, EnumField, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Type,
+    Enum, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Type,
     TypeParserOptions, Visibility,
 };
 
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
 
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
-        let mut statements: Vec<NodeId<Statement>> = Vec::new();
+        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -120,9 +120,12 @@ impl<'a> Parser<'a> {
                 let field = self.eat_enum_field().for_node_type(NodeType::Enum)?;
                 fields.push(field);
             }
-            // eat statements
-            else if let Some(statement_id) = self.try_eat_statement()? {
-                statements.push(statement_id);
+            // eat expressions
+            else {
+                let expression_id = self
+                    .try_eat_expression_as_statement()
+                    .for_node_type(NodeType::Expression)?;
+                expressions.push(expression_id);
             }
         }
 
@@ -133,7 +136,7 @@ impl<'a> Parser<'a> {
                 r#type: None,
                 super_types: None,
                 fields,
-                statements,
+                expressions,
             },
             self.get_span_from(start),
         );
@@ -200,9 +203,9 @@ enum Foo: Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, statements, .. } => {
+        assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
@@ -227,10 +230,10 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, statements, .. } => {
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, expressions, .. } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
 
             // Success

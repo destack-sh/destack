@@ -8,11 +8,7 @@ struct Meetup: Entity {
     fullName: string
 
     {
-        function get(self) {
-            return @format("{self.name} {self.surname}")
-        }
-        function set(self, value: string) {
-            self.name = value
-        }
+        function get(self) { return @format("{self.name} {self.surname}") }
+        function set(self, value: string) { self.name = value }
     }
 }

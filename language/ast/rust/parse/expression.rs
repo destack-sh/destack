@@ -368,7 +368,7 @@ pub struct ExpressionParserOptions {
     /// Determines AST structure.
     pub left_precedence: Option<u8> = None,
     /// The visibility of this expression.
-    /// Used when pre-snacking the visibility in an outer parse (like for statements).
+    /// Used when pre-snacking the visibility in an outer parse (like for expressions).
     pub visibility: Option<Visibility> = None,
 }
 
@@ -490,6 +490,12 @@ impl<'a> Parser<'a> {
                 right,
             },
         }
+    }
+
+    /// Try to eat an expression as a statement (return Expression::Error if error and recovery is possible).
+    #[inline]
+    pub fn try_eat_expression_as_statement(&mut self) -> ParseResult<NodeId<Expression>> {
+        self.try_eat_expression(ExpressionParserOptions::default(), TokenType::Newline)
     }
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
@@ -685,6 +691,27 @@ impl<'a> Parser<'a> {
             // Control flow
             // ------------------------------------------------------------
             //
+            // with
+            else if keyword == Some(Keyword::With) {
+                let with_id = self.eat_with().for_node_type(NodeType::With)?;
+                let expression = Expression::With(with_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // use
+            else if keyword == Some(Keyword::Use) {
+                let use_id = self.eat_use(visibility).for_node_type(NodeType::Use)?;
+                let expression = Expression::Use(use_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // let
+            else if keyword == Some(Keyword::Let)
+                || keyword == Some(Keyword::Var)
+                || keyword == Some(Keyword::Const)
+            {
+                let let_id = self.eat_let(visibility).for_node_type(NodeType::Let)?;
+                let expression = Expression::Let(let_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
             // if
             else if keyword == Some(Keyword::If) {
                 let if_id = self.eat_if(runtime).for_node_type(NodeType::If)?;
@@ -719,6 +746,30 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Match) {
                 let match_id = self.eat_match().for_node_type(NodeType::Match)?;
                 let expression = Expression::Match(match_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // break
+            else if keyword == Some(Keyword::Break) {
+                let break_id = self.eat_break().for_node_type(NodeType::Break)?;
+                let expression = Expression::Break(break_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // continue
+            else if keyword == Some(Keyword::Continue) {
+                let continue_id = self.eat_continue().for_node_type(NodeType::Continue)?;
+                let expression = Expression::Continue(continue_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // defer
+            else if keyword == Some(Keyword::Defer) {
+                let defer_id = self.eat_defer().for_node_type(NodeType::Defer)?;
+                let expression = Expression::Defer(defer_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // return
+            else if keyword == Some(Keyword::Return) {
+                let return_id = self.eat_return().for_node_type(NodeType::Return)?;
+                let expression = Expression::Return(return_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             //

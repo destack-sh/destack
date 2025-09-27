@@ -199,22 +199,7 @@ impl<'ast> DystFormatContext<'ast> {
         let mut current_id = self.parents.get_by_id(node_id.id)?;
         while let Some(parent_id) = self.parents.get_by_id(current_id) {
             let parent_type = self.tree.get_type(parent_id);
-            if parent_type == NodeType::Block
-                || parent_type == NodeType::Statement
-                || parent_type == NodeType::Expression
-            {
-                // expression direct parent may be statement wrapping it
-                //  (in which case it's really a statement, not an expression)
-                if parent_type == NodeType::Expression {
-                    let parent_parent_id = self.parents.get_by_id(parent_id);
-                    if let Some(parent_parent_id) = parent_parent_id {
-                        let parent_parent_type = self.tree.get_type(parent_parent_id);
-                        if parent_parent_type == NodeType::Statement {
-                            return Some((parent_parent_id, parent_parent_type));
-                        }
-                    }
-                }
-
+            if parent_type == NodeType::Block || parent_type == NodeType::Expression {
                 return Some((parent_id, parent_type));
             }
             current_id = parent_id;

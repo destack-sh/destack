@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{
-    Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, NodeType, ParseError, ParseResult,
-    Parser, Return, Statement,
+    Block, BlockFormat, Break, Continue, Defer, Expression, Keyword, NodeId, NodeType, ParseError,
+    ParseResult, Parser, Return,
 };
 use dyst_token::TokenType;
 
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
-        let statements = self
+        let expressions = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)?;
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
             Block {
                 format: BlockFormat::Explicit,
                 label: None,
-                statements,
+                expressions,
             },
             self.get_span_from(start),
         );
@@ -71,9 +71,9 @@ impl<'a> Parser<'a> {
         Ok(block_id)
     }
 
-    /// Eat a block of statements (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Statement>>> {
-        let mut statements: Vec<NodeId<Statement>> = Vec::new();
+    /// Eat a block of expressions (without the label, `{`, and `}`)
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Expression>>> {
+        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
 
         loop {
             // break if we're at the end of the block
@@ -83,21 +83,24 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            // consume any statement stops (semicolon or newline)
+            // consume any expression stops (semicolon or newline)
             else if self.peek_statement_stop().is_ok() {
                 self.eat_statement_stop_with_newlines()
-                    .for_node_type(NodeType::Statement)?;
+                    .for_node_type(NodeType::Expression)?;
             }
-            // eat statements
-            else if let Some(statement_id) = self.try_eat_statement()? {
-                statements.push(statement_id);
+            // eat expressions
+            else {
+                let expression_id = self
+                    .try_eat_expression_as_statement()
+                    .for_node_type(NodeType::Expression)?;
+                expressions.push(expression_id);
             }
         }
 
-        Ok(statements)
+        Ok(expressions)
     }
 
-    /// Eat a break statement.
+    /// Eat a break expression.
     ///
     /// Examples:
     /// ```
@@ -116,7 +119,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        // value (if not at a statement stop)
+        // value (if not at a expression stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
             let value_id = self
                 .eat_expression(ExpressionParserOptions::default())
@@ -136,7 +139,7 @@ impl<'a> Parser<'a> {
         Ok(break_id)
     }
 
-    /// Eat a continue statement.
+    /// Eat a continue expression.
     ///
     /// Examples:
     /// ```
@@ -161,7 +164,7 @@ impl<'a> Parser<'a> {
         Ok(continue_id)
     }
 
-    /// Eat a return statement.
+    /// Eat a return expression.
     ///
     /// Examples:
     /// ```
@@ -187,7 +190,7 @@ impl<'a> Parser<'a> {
         Ok(return_id)
     }
 
-    /// Eat a defer statement.
+    /// Eat a defer expression.
     ///
     /// Examples:
     /// ```
@@ -213,7 +216,7 @@ impl<'a> Parser<'a> {
                 .allocate(Defer::Block(block_id), self.get_span_from(start));
             Ok(defer_id)
         }
-        // statement
+        // expression
         else {
             let expression_id = self
                 .eat_expression(ExpressionParserOptions::default())
@@ -240,7 +243,7 @@ mod tests {
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert_eq!(block.label, None);
-        assert!(block.statements.is_empty());
+        assert!(block.expressions.is_empty());
     }
 
     #[test]
@@ -250,7 +253,7 @@ mod tests {
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert_string!(parser.session, block.label.unwrap(), "label");
-        assert!(block.statements.is_empty());
+        assert!(block.expressions.is_empty());
     }
 
     #[test]
@@ -363,7 +366,7 @@ mod tests {
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {
             let block = parser.tree.get(*block_id);
-            assert!(block.statements.is_empty());
+            assert!(block.expressions.is_empty());
         });
     }
 }

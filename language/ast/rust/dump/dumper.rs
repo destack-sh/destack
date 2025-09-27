@@ -29,17 +29,16 @@ use crate::{
     If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId,
     NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern,
     PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability,
-    Statement, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple,
-    TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem,
-    Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal,
-    walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer,
-    walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function,
-    walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case,
-    walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
-    walk_scalar_literal, walk_statement, walk_struct, walk_struct_field, walk_struct_literal,
-    walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union,
-    walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with,
-    walk_with_clause,
+    StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField,
+    TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility,
+    While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_block,
+    walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer, walk_enum,
+    walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if,
+    walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module,
+    walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
+    walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try,
+    walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field,
+    walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// The console colors.
@@ -666,35 +665,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_statement(&mut self, _tree: &NodeTree, _id: NodeId<Statement>, statement: &Statement) {
-        match statement {
-            Statement::With(_node) => {
-                self.node("Statement::With", _id.id).end();
-            }
-            Statement::Use(_node) => {
-                self.node("Statement::Use", _id.id).end();
-            }
-            Statement::Break(_node) => {
-                self.node("Statement::Break", _id.id).end();
-            }
-            Statement::Continue(_node) => {
-                self.node("Statement::Continue", _id.id).end();
-            }
-            Statement::Defer(_node) => {
-                self.node("Statement::Defer", _id.id).end();
-            }
-            Statement::Return(_node) => {
-                self.node("Statement::Return", _id.id).end();
-            }
-            Statement::Expression(_node) => {
-                self.node("Statement::Expression", _id.id).end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_statement(dumper, _tree, _id, statement);
-        });
-    }
-
     fn visit_expression(
         &mut self,
         _tree: &NodeTree,
@@ -727,6 +697,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Block", _id.id).end();
             }
 
+            Expression::With(_node) => {
+                self.node("Expression::With", _id.id).end();
+            }
+            Expression::Use(_node) => {
+                self.node("Expression::Use", _id.id).end();
+            }
             Expression::Let(_node) => {
                 self.node("Expression::Let", _id.id).end();
             }
@@ -747,6 +723,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Match(_node) => {
                 self.node("Expression::Match", _id.id).end();
+            }
+            Expression::Break(_node) => {
+                self.node("Expression::Break", _id.id).end();
+            }
+            Expression::Continue(_node) => {
+                self.node("Expression::Continue", _id.id).end();
+            }
+            Expression::Defer(_node) => {
+                self.node("Expression::Defer", _id.id).end();
+            }
+            Expression::Return(_node) => {
+                self.node("Expression::Return", _id.id).end();
             }
 
             Expression::Path(path) => {

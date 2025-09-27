@@ -92,7 +92,7 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         write!(f, [space()])?;
 
         // empty body
-        if self.fields.is_empty() && self.statements.is_empty() {
+        if self.fields.is_empty() && self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
@@ -113,20 +113,20 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         }
 
         // blank line between fields and statements
-        if !self.fields.is_empty() && !self.statements.is_empty() {
+        if !self.fields.is_empty() && !self.expressions.is_empty() {
             write!(f, [hard_line_break()])?;
-            if !f.context().has_blank_prefix_annotation(self.statements[0]) {
+            if !f.context().has_blank_prefix_annotation(self.expressions[0]) {
                 write!(f, [empty_line()])?;
             }
         }
 
         // statements
-        if !self.statements.is_empty() {
+        if !self.expressions.is_empty() {
             write!(
                 f,
                 [group(&format_args![block_indent(&format_with(|f| f
                     .join_with(hard_line_break())
-                    .entries(&self.statements)
+                    .entries(&self.expressions)
                     .finish())),])]
             )?;
         }

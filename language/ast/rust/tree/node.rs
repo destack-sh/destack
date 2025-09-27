@@ -13,9 +13,8 @@ use crate::{PathId, StringId};
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
     // Groupings
-    Block,
-    Statement,
     Expression,
+    Block,
     // Declarations
     Module,
     Struct,
@@ -193,37 +192,11 @@ pub enum BlockFormat {
 pub struct Block {
     pub format: BlockFormat,
     pub label: Option<StringId>,
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Block {
     const KIND: NodeType = NodeType::Block;
-}
-
-/// An Statement is a top-level container without a value.
-/// (Not every Expression is a *meaningful* Statement, so we lint this later.)
-#[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
-    /// With declaration for context management (see With).
-    With(NodeId<With>),
-    /// Use declaration for dependency management (see Use).
-    Use(NodeId<Use>),
-    /// Break out of a scope (as an Expression, see Break).
-    Break(NodeId<Break>),
-    /// Continue to the next iteration of a scope (as an Expression, see Continue).
-    Continue(NodeId<Continue>),
-    /// Defer expression until scope exit (as an Expression, see Defer).
-    Defer(NodeId<Defer>),
-    /// Return expression (as an Expression, see Return).
-    Return(NodeId<Return>),
-
-    /// Expression (see Expression).
-    /// Catch-all for any Expression used as a "top-level" statement.
-    Expression(NodeId<Expression>),
-}
-
-impl Node for Statement {
-    const KIND: NodeType = NodeType::Statement;
 }
 
 /// An Expression is a generic container for value-producing forms.
@@ -249,6 +222,10 @@ pub enum Expression {
     /// Block of Statements (as an Expression, see Block).
     Block(NodeId<Block>),
 
+    /// With declaration for context management (see With).
+    With(NodeId<With>),
+    /// Use declaration for dependency management (see Use).
+    Use(NodeId<Use>),
     /// Let or var binding (as an Expression, see Let).
     Let(NodeId<Let>),
     /// An If is an if/then/else expression (as an Expression, see If).
@@ -263,6 +240,14 @@ pub enum Expression {
     Try(NodeId<Try>),
     /// A Match is match expression (as an Expression, see Match).
     Match(NodeId<Match>),
+    /// Break out of a scope (as an Expression, see Break).
+    Break(NodeId<Break>),
+    /// Continue to the next iteration of a scope (as an Expression, see Continue).
+    Continue(NodeId<Continue>),
+    /// Defer expression until scope exit (as an Expression, see Defer).
+    Defer(NodeId<Defer>),
+    /// Return expression (as an Expression, see Return).
+    Return(NodeId<Return>),
 
     /// Alias reference to some path (as an Expression, we don't know what it is yet).
     Path(PathId),
@@ -358,7 +343,7 @@ pub struct Module {
     /// The visibility of the module.
     pub visibility: Option<Visibility>,
     /// The body of the module.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Module {
@@ -434,7 +419,7 @@ pub struct Struct {
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
     /// The body of the type.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Struct {
@@ -505,7 +490,7 @@ pub struct Enum {
     /// The fields of the enum.
     pub fields: Vec<NodeId<EnumField>>,
     /// The body of the enum.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Enum {
@@ -576,7 +561,7 @@ pub struct Union {
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The body of the union.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Union {
@@ -646,7 +631,7 @@ pub struct Trait {
     /// The with declarations of the trait.
     pub withs: Vec<NodeId<With>>,
     /// The body of the trait.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Trait {
@@ -684,7 +669,7 @@ pub struct Implement {
     /// The type to implement the trait for.
     pub for_trait: Option<NodeId<Type>>,
     /// The statements of the implement.
-    pub statements: Vec<NodeId<Statement>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Node for Implement {

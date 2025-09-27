@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
         let module = {
             if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
-                let statements = self
+                let expressions = self
                     .eat_block_body(BlockFormat::Explicit)
                     .for_node_type(NodeType::Block)?;
                 self.eat_token(TokenType::CloseBrace)
@@ -35,14 +35,14 @@ impl<'a> Parser<'a> {
                     format: ModuleFormat::Inline,
                     name,
                     visibility,
-                    statements,
+                    expressions,
                 }
             } else {
                 Module {
                     format: ModuleFormat::Forward,
                     name,
                     visibility,
-                    statements: Vec::new(),
+                    expressions: Vec::new(),
                 }
             }
         };
@@ -60,14 +60,14 @@ impl<'a> Parser<'a> {
         format: ModuleFormat,
     ) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
-        let statements = self
+        let expressions = self
             .eat_block_body(BlockFormat::Implicit)
             .for_node_type(NodeType::Block)?;
         let module = Module {
             format,
             name,
             visibility,
-            statements,
+            expressions,
         };
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
@@ -84,10 +84,10 @@ mod tests {
         let mut test = TestParser::new("module { }");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
-        assert_node!(parser.tree, module_id, Module { name, visibility, statements, format, .. } => {
+        assert_node!(parser.tree, module_id, Module { name, visibility, expressions, format, .. } => {
             assert!(name.is_none());
             assert!(visibility.is_none());
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert_eq!(*format, ModuleFormat::Inline);
         });
     }
@@ -97,10 +97,10 @@ mod tests {
         let mut test = TestParser::new("module x;");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
-        assert_node!(parser.tree, module_id, Module { name, visibility, statements, format, .. } => {
+        assert_node!(parser.tree, module_id, Module { name, visibility, expressions, format, .. } => {
             assert_string!(parser.session, name.unwrap(), "x");
             assert!(visibility.is_none());
-            assert!(statements.is_empty());
+            assert!(expressions.is_empty());
             assert_eq!(*format, ModuleFormat::Forward);
         });
     }

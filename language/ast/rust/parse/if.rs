@@ -2,7 +2,7 @@ use crate::parse::expression::ExpressionParserOptions;
 use crate::{If, Keyword, NodeId, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
-    /// Parse an if / else statement.
+    /// Parse an if / else expression.
     ///
     /// Examples:
     /// ```
@@ -100,9 +100,9 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block {  format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block {  format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert!(statements.is_empty());
+                assert!(expressions.is_empty());
             });
         });
     }
@@ -119,14 +119,14 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, false);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert!(statements.is_empty());
+                assert!(expressions.is_empty());
             });
             // empty else block
-            assert_node!(parser.tree, *else_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *else_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert!(statements.is_empty());
+                assert!(expressions.is_empty());
             });
         });
     }
@@ -143,18 +143,18 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert!(statements.is_empty());
+                assert!(expressions.is_empty());
             });
             // nested else-if should be simple If
             assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then, .. } => {
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
-                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert!(statements.is_empty());
+                    assert!(expressions.is_empty());
                 });
             });
         });
@@ -186,9 +186,9 @@ if x > y {
                 assert_expr_path!(parser.session, parser.tree.get(*right), "y");
             });
             // { y }
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert_eq!(statements.len(), 1);
+                assert_eq!(expressions.len(), 1);
             });
             // else if y == z
             assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then, .. } => {
@@ -201,9 +201,9 @@ if x > y {
                     assert_expr_path!(parser.session, parser.tree.get(*right), "z");
                 });
                 // { x }
-                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert_eq!(statements.len(), 1);
+                    assert_eq!(expressions.len(), 1);
                 });
             });
         });
@@ -221,9 +221,9 @@ if x > y {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // { }
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert!(statements.is_empty());
+                assert!(expressions.is_empty());
             });
             // else if false { } else { }
             assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else, .. } => {
@@ -232,14 +232,14 @@ if x > y {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
                 // { }
-                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert!(statements.is_empty());
+                    assert!(expressions.is_empty());
                 });
                 // else { }
-                assert_node!(parser.tree, *inner_else, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_else, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert!(statements.is_empty());
+                    assert!(expressions.is_empty());
                 });
             });
         });
@@ -268,9 +268,9 @@ else { v }
                 assert_expr_path!(parser.session, parser.tree.get(*right), "lo");
             });
             // { lo }
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert_eq!(statements.len(), 1);
+                assert_eq!(expressions.len(), 1);
             });
             // else if v > hi { hi } else { v }
             assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else, .. } => {
@@ -283,14 +283,14 @@ else { v }
                     assert_expr_path!(parser.session, parser.tree.get(*right), "hi");
                 });
                 // { hi }
-                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert_eq!(statements.len(), 1);
+                    assert_eq!(expressions.len(), 1);
                 });
                 // else { v }
-                assert_node!(parser.tree, *inner_else, Block { format: _, statements, label } => {
+                assert_node!(parser.tree, *inner_else, Block { format: _, expressions, label } => {
                     assert!(label.is_none());
-                    assert_eq!(statements.len(), 1);
+                    assert_eq!(expressions.len(), 1);
                 });
             });
         });
@@ -312,10 +312,10 @@ if x > 0 {
         assert_node!(parser.tree, if_id, If::If { condition, then_block, .. } => {
             // condition is binary expression x > 0
             assert_node!(parser.tree, *condition, Expression::Binary { left: _, operator: _, right: _ });
-            // then block has one statement
-            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+            // then block has one expression
+            assert_node!(parser.tree, *then_block, Block { format: _, expressions, label } => {
                 assert!(label.is_none());
-                assert_eq!(statements.len(), 1);
+                assert_eq!(expressions.len(), 1);
             });
         });
     }

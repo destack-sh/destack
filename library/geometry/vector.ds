@@ -6,20 +6,12 @@ struct Vector2 {
     y: float32
 
     /// Construct a Vector2 from x and y components.
-    function new(x: float32, y: float32) => Vector2 {
-        Vector2 { x, y }
-    }
+    function new(x: float32, y: float32) => Vector2 { Vector2 { x, y } }
 }
 @assert(@sizeOf(Vector2) == 8)
 
 function clampScalar(v: float32, lo: float32, hi: float32) => float32 {
-    if v < lo {
-        lo
-    } else if v > hi {
-        hi
-    } else {
-        v
-    }
+    if v < lo { lo } else if v > hi { hi } else { v }
 }
 
 implement Vector2 {
@@ -37,57 +29,35 @@ implement Vector2 {
     let NegUnitY: Vector2 = Vector2 { x: 0.0, y: -1.0 }
 
     /// Construct a Vector2 with both components set to the same value.
-    function splat(v: float32) => Vector2 {
-        Vector2 { x: v, y: v }
-    }
+    function splat(v: float32) => Vector2 { Vector2 { x: v, y: v } }
 
     /// Returns the length of the Vector.
-    function length(self) => float32 {
-        self.x * self.x + self.y * self.y.sqrt()
-    }
+    function length(self) => float32 { self.x * self.x + self.y * self.y.sqrt() }
 
     /// Returns the squared length of the Vector.
-    function lengthSquared(self) => float32 {
-        self.x * self.x + self.y * self.y
-    }
+    function lengthSquared(self) => float32 { self.x * self.x + self.y * self.y }
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector2) => float32 {
-        self.x * other.x + self.y * other.y
-    }
+    function dot(self, other: Vector2) => float32 { self.x * other.x + self.y * other.y }
 
     /// Returns the cross product of the two Vectors.
-    function cross(self, other: Vector2) => float32 {
-        self.x * other.y - self.y * other.x
-    }
+    function cross(self, other: Vector2) => float32 { self.x * other.y - self.y * other.x }
 
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector2 {
         let len = self.length()
-        if len == 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector2.
-    function distance(self, other: Vector2) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector2) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector2.
-    function distanceSquared(self, other: Vector2) => float32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector2) => float32 { self - other.lengthSquared() }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector2, t: float32) => Vector2 {
-        self + other - self * t
-    }
+    function lerp(self, other: Vector2, t: float32) => Vector2 { self + other - self * t }
     /// Component-wise absolute value.
-    function abs(self) => Vector2 {
-        Vector2 { x: self.x.abs(), y: self.y.abs() }
-    }
+    function abs(self) => Vector2 { Vector2 { x: self.x.abs(), y: self.y.abs() } }
 
     /// Component-wise minimum.
     function min(self, other: Vector2) => Vector2 {
@@ -111,19 +81,13 @@ implement Vector2 {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector2 {
-        Vector2 { x, y: self.y }
-    }
+    function withX(self, x: float32) => Vector2 { Vector2 { x, y: self.y } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector2 {
-        Vector2 { x: self.x, y }
-    }
+    function withY(self, y: float32) => Vector2 { Vector2 { x: self.x, y } }
 
     /// Rotate 90 degrees counter-clockwise (perpendicular vector).
-    function perp(self) => Vector2 {
-        Vector2 { x: -self.y, y: self.x }
-    }
+    function perp(self) => Vector2 { Vector2 { x: -self.y, y: self.x } }
 }
 
 implement Numeric<float32> for Vector2 {
@@ -188,24 +152,16 @@ implement Vector3 {
     let NegUnitZ: Vector3 = Vector3 { x: 0.0, y: 0.0, z: -1.0 }
 
     /// Construct a Vector3 from x, y and z components.
-    function new(x: float32, y: float32, z: float32) => Vector3 {
-        Vector3 { x, y, z }
-    }
+    function new(x: float32, y: float32, z: float32) => Vector3 { Vector3 { x, y, z } }
 
     /// Construct a Vector3 with all components set to the same value.
-    function splat(v: float32) => Vector3 {
-        Vector3 { x: v, y: v, z: v }
-    }
+    function splat(v: float32) => Vector3 { Vector3 { x: v, y: v, z: v } }
 
     /// Returns the length of the Vector.
-    function length(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z.sqrt()
-    }
+    function length(self) => float32 { self.x * self.x + self.y * self.y + self.z * self.z.sqrt() }
 
     /// Returns the squared length of the Vector.
-    function lengthSquared(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
+    function lengthSquared(self) => float32 { self.x * self.x + self.y * self.y + self.z * self.z }
 
     /// Returns the dot product of the two Vectors.
     function dot(self, other: Vector3) => float32 {
@@ -224,32 +180,20 @@ implement Vector3 {
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector3 {
         let len = self.length()
-        if len == 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector3.
-    function distance(self, other: Vector3) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector3) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector3.
-    function distanceSquared(self, other: Vector3) => float32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector3) => float32 { self - other.lengthSquared() }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector3, t: float32) => Vector3 {
-        self + other - self * t
-    }
+    function lerp(self, other: Vector3, t: float32) => Vector3 { self + other - self * t }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector3 {
-        Vector3 { x: self.x.abs(), y: self.y.abs(), z: self.z.abs() }
-    }
+    function abs(self) => Vector3 { Vector3 { x: self.x.abs(), y: self.y.abs(), z: self.z.abs() } }
 
     /// Component-wise minimum.
     function min(self, other: Vector3) => Vector3 {
@@ -279,19 +223,13 @@ implement Vector3 {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector3 {
-        Vector3 { x, y: self.y, z: self.z }
-    }
+    function withX(self, x: float32) => Vector3 { Vector3 { x, y: self.y, z: self.z } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector3 {
-        Vector3 { x: self.x, y, z: self.z }
-    }
+    function withY(self, y: float32) => Vector3 { Vector3 { x: self.x, y, z: self.z } }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: float32) => Vector3 {
-        Vector3 { x: self.x, y: self.y, z }
-    }
+    function withZ(self, z: float32) => Vector3 { Vector3 { x: self.x, y: self.y, z } }
 }
 
 implement Add<float32> for Vector3 {
@@ -372,9 +310,7 @@ implement Vector4 {
     }
 
     /// Construct a Vector4 with all components set to the same value.
-    function splat(v: float32) => Vector4 {
-        Vector4 { x: v, y: v, z: v, w: v }
-    }
+    function splat(v: float32) => Vector4 { Vector4 { x: v, y: v, z: v, w: v } }
 
     /// Returns the length of the Vector.
     function length(self) => float32 {
@@ -394,27 +330,17 @@ implement Vector4 {
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector4 {
         let len = self.length()
-        if len == 0.0 {
-            self
-        } else {
-            self / len
-        }
+        if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector4.
-    function distance(self, other: Vector4) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector4) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector4.
-    function distanceSquared(self, other: Vector4) => float32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector4) => float32 { self - other.lengthSquared() }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector4, t: float32) => Vector4 {
-        self + other - self * t
-    }
+    function lerp(self, other: Vector4, t: float32) => Vector4 { self + other - self * t }
 
     /// Component-wise absolute value.
     function abs(self) => Vector4 {
@@ -452,24 +378,16 @@ implement Vector4 {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector4 {
-        Vector4 { x, y: self.y, z: self.z, w: self.w }
-    }
+    function withX(self, x: float32) => Vector4 { Vector4 { x, y: self.y, z: self.z, w: self.w } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector4 {
-        Vector4 { x: self.x, y, z: self.z, w: self.w }
-    }
+    function withY(self, y: float32) => Vector4 { Vector4 { x: self.x, y, z: self.z, w: self.w } }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: float32) => Vector4 {
-        Vector4 { x: self.x, y: self.y, z, w: self.w }
-    }
+    function withZ(self, z: float32) => Vector4 { Vector4 { x: self.x, y: self.y, z, w: self.w } }
 
     /// Create a copy with a different w component.
-    function withW(self, w: float32) => Vector4 {
-        Vector4 { x: self.x, y: self.y, z: self.z, w }
-    }
+    function withW(self, w: float32) => Vector4 { Vector4 { x: self.x, y: self.y, z: self.z, w } }
 }
 
 implement Add<float32> for Vector4 {
@@ -550,14 +468,10 @@ implement Vector2i {
     let NegUnitY: Vector2i = Vector2i { x: 0, y: -1 }
 
     /// Construct a Vector2i from x and y components.
-    function new(x: int32, y: int32) => Vector2i {
-        Vector2i { x, y }
-    }
+    function new(x: int32, y: int32) => Vector2i { Vector2i { x, y } }
 
     /// Construct a Vector2i with both components set to the same value.
-    function splat(v: int32) => Vector2i {
-        Vector2i { x: v, y: v }
-    }
+    function splat(v: int32) => Vector2i { Vector2i { x: v, y: v } }
 
     /// Returns the length of the Vector as float32.
     function length(self) => float32 {
@@ -567,29 +481,19 @@ implement Vector2i {
     }
 
     /// Returns the squared length of the Vector as int32.
-    function lengthSquared(self) => int32 {
-        self.x * self.x + self.y * self.y
-    }
+    function lengthSquared(self) => int32 { self.x * self.x + self.y * self.y }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector2i) => int32 {
-        self.x * other.x + self.y * other.y
-    }
+    function dot(self, other: Vector2i) => int32 { self.x * other.x + self.y * other.y }
 
     /// Compute Euclidean distance to another Vector2i as float32.
-    function distance(self, other: Vector2i) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector2i) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector2i as int32.
-    function distanceSquared(self, other: Vector2i) => int32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector2i) => int32 { self - other.lengthSquared() }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector2i {
-        Vector2i { x: self.x.abs(), y: self.y.abs() }
-    }
+    function abs(self) => Vector2i { Vector2i { x: self.x.abs(), y: self.y.abs() } }
 
     /// Component-wise minimum.
     function min(self, other: Vector2i) => Vector2i {
@@ -613,14 +517,10 @@ implement Vector2i {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector2i {
-        Vector2i { x, y: self.y }
-    }
+    function withX(self, x: int32) => Vector2i { Vector2i { x, y: self.y } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector2i {
-        Vector2i { x: self.x, y: y }
-    }
+    function withY(self, y: int32) => Vector2i { Vector2i { x: self.x, y: y } }
 }
 
 implement Add<int32> for Vector2i {
@@ -691,14 +591,10 @@ implement Vector3i {
     let NegUnitZ: Vector3i = Vector3i { x: 0, y: 0, z: -1 }
 
     /// Construct a Vector3i from x, y and z components.
-    function new(x: int32, y: int32, z: int32) => Vector3i {
-        Vector3i { x, y, z }
-    }
+    function new(x: int32, y: int32, z: int32) => Vector3i { Vector3i { x, y, z } }
 
     /// Construct a Vector3i with all components set to the same value.
-    function splat(v: int32) => Vector3i {
-        Vector3i { x: v, y: v, z: v }
-    }
+    function splat(v: int32) => Vector3i { Vector3i { x: v, y: v, z: v } }
 
     /// Returns the length of the Vector as float32.
     function length(self) => float32 {
@@ -709,9 +605,7 @@ implement Vector3i {
     }
 
     /// Returns the squared length of the Vector as int32.
-    function lengthSquared(self) => int32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
+    function lengthSquared(self) => int32 { self.x * self.x + self.y * self.y + self.z * self.z }
 
     /// Returns the dot product of the two Vectors.
     function dot(self, other: Vector3i) => int32 {
@@ -719,14 +613,10 @@ implement Vector3i {
     }
 
     /// Compute Euclidean distance to another Vector3i as float32.
-    function distance(self, other: Vector3i) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector3i) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector3i as int32.
-    function distanceSquared(self, other: Vector3i) => int32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector3i) => int32 { self - other.lengthSquared() }
 
     /// Component-wise absolute value.
     function abs(self) => Vector3i {
@@ -761,19 +651,13 @@ implement Vector3i {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector3i {
-        Vector3i { x, y: self.y, z: self.z }
-    }
+    function withX(self, x: int32) => Vector3i { Vector3i { x, y: self.y, z: self.z } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector3i {
-        Vector3i { x: self.x, y, z: self.z }
-    }
+    function withY(self, y: int32) => Vector3i { Vector3i { x: self.x, y, z: self.z } }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: int32) => Vector3i {
-        Vector3i { x: self.x, y: self.y, z }
-    }
+    function withZ(self, z: int32) => Vector3i { Vector3i { x: self.x, y: self.y, z } }
 }
 
 implement Add<int32> for Vector3i {
@@ -851,16 +735,12 @@ struct Vector4i {
     let NegUnitW: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: -1 }
 
     /// Construct a Vector4i from x, y, z and w components.
-    function new(x: int32, y: int32, z: int32, w: int32) => Vector4i {
-        Vector4i { x, y, z, w }
-    }
+    function new(x: int32, y: int32, z: int32, w: int32) => Vector4i { Vector4i { x, y, z, w } }
 }
 
 implement Vector4i {
     /// Construct a Vector4i with all components set to the same value.
-    function splat(v: int32) => Vector4i {
-        Vector4i { x: v, y: v, z: v, w: v }
-    }
+    function splat(v: int32) => Vector4i { Vector4i { x: v, y: v, z: v, w: v } }
 
     /// Returns the length of the Vector as float32.
     function length(self) => float32 {
@@ -882,14 +762,10 @@ implement Vector4i {
     }
 
     /// Compute Euclidean distance to another Vector4i as float32.
-    function distance(self, other: Vector4i) => float32 {
-        self - other.length()
-    }
+    function distance(self, other: Vector4i) => float32 { self - other.length() }
 
     /// Compute squared Euclidean distance to another Vector4i as int32.
-    function distanceSquared(self, other: Vector4i) => int32 {
-        self - other.lengthSquared()
-    }
+    function distanceSquared(self, other: Vector4i) => int32 { self - other.lengthSquared() }
 
     /// Component-wise absolute value.
     function abs(self) => Vector4i {
@@ -927,24 +803,16 @@ implement Vector4i {
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector4i {
-        Vector4i { x, y: self.y, z: self.z, w: self.w }
-    }
+    function withX(self, x: int32) => Vector4i { Vector4i { x, y: self.y, z: self.z, w: self.w } }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector4i {
-        Vector4i { x: self.x, y, z: self.z, w: self.w }
-    }
+    function withY(self, y: int32) => Vector4i { Vector4i { x: self.x, y, z: self.z, w: self.w } }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: int32) => Vector4i {
-        Vector4i { x: self.x, y: self.y, z, w: self.w }
-    }
+    function withZ(self, z: int32) => Vector4i { Vector4i { x: self.x, y: self.y, z, w: self.w } }
 
     /// Create a copy with a different w component.
-    function withW(self, w: int32) => Vector4i {
-        Vector4i { x: self.x, y: self.y, z: self.z, w }
-    }
+    function withW(self, w: int32) => Vector4i { Vector4i { x: self.x, y: self.y, z: self.z, w } }
 }
 
 implement Add<int32> for Vector4i {

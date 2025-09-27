@@ -63,17 +63,17 @@ impl<'ast> FormatNode<'ast, Block> for Block {
             write!(f, [label, token(": ")])?;
         }
         // statements
-        if self.statements.is_empty() {
+        if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
         // single-statement block is inline if it's an expression and doesn't overflow
-        else if self.statements.len() == 1 && is_in_expression {
+        else if self.expressions.len() == 1 && is_in_expression {
             write!(
                 f,
                 [group(&format_args![
                     token("{"),
                     soft_line_break_or_space(),
-                    soft_block_indent(&self.statements[0]),
+                    soft_block_indent(&self.expressions[0]),
                     soft_line_break_or_space(),
                     f.context().block_infix_annotations(node_id),
                     token("}"),
@@ -89,7 +89,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     hard_line_break(),
                     soft_block_indent(&format_with(|f| f
                         .join_with(hard_line_break())
-                        .entries(&self.statements)
+                        .entries(&self.expressions)
                         .finish())),
                     hard_line_break(),
                     f.context().block_infix_annotations(node_id),

@@ -21,7 +21,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                 f,
                 [format_with(|f| f
                     .join_with(hard_line_break())
-                    .entries(&self.statements)
+                    .entries(&self.expressions)
                     .finish()),]
             )?,
             // declaration module (module x;)
@@ -35,7 +35,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                     write!(f, [Keyword::Module, space()])?;
                 }
                 // empty body
-                if self.statements.is_empty() {
+                if self.expressions.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -48,7 +48,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                         hard_line_break(),
                         format_with(|f| f
                             .join_with(hard_line_break())
-                            .entries(&self.statements)
+                            .entries(&self.expressions)
                             .finish()),
                         hard_line_break(),
                         f.context().block_infix_annotations(node_id),

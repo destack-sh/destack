@@ -85,7 +85,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         write!(f, [space()])?;
 
         // empty body
-        if self.statements.is_empty() {
+        if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
@@ -97,7 +97,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
             f,
             [group(&format_args![block_indent(&format_with(|f| f
                 .join_with(hard_line_break())
-                .entries(&self.statements)
+                .entries(&self.expressions)
                 .finish())),])]
         )?;
         write!(f, [f.context().block_infix_annotations(node_id)])?;

@@ -339,7 +339,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, ExpressionParserOptions, assert_format};
 
     /// Tags should be preserved in order.
     #[test]
@@ -361,7 +361,7 @@ mod tests {
 
     /// Multiple comments around an expression should retain their order.
     #[test]
-    fn test_format_multiple_comments_around_statement() {
+    fn test_format_multiple_comments_around_expression() {
         let source = "{
     // comment part 1
     // comment part 2
@@ -372,7 +372,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_statement(),
+            |p| p.eat_expression(ExpressionParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -390,7 +390,7 @@ mod tests {
 
     /// Multiple comments around an expression should retain their order across successive blocks.
     #[test]
-    fn test_format_multiple_comments_around_statement_in_successive_blocks() {
+    fn test_format_multiple_comments_around_expression_in_successive_blocks() {
         let source = "{
     // comment part 0
     a: {
@@ -413,18 +413,18 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_statement(),
+            |p| p.eat_expression(ExpressionParserOptions::default()),
             DystFormatOptions::default()
         );
     }
 
-    /// Inline statement comments should be preserved with proper spacing.
+    /// Inline expression comments should be preserved with proper spacing.
     #[test]
-    fn test_format_inline_statement_comment() {
+    fn test_format_inline_expression_comment() {
         assert_format!(
             "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
-            |p| p.eat_statement(),
+            |p| p.eat_expression(ExpressionParserOptions::default()),
             DystFormatOptions::default_with_line_width(200)
         );
     }
