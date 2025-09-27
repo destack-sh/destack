@@ -41,7 +41,9 @@ impl<'a> Parser<'a> {
                     .allocate(Pattern::Wildcard, self.get_span_from(start))
             }
             // rest
-            else if self.peek_token(TokenType::Range).is_ok() {
+            else if self.peek_token(TokenType::Range).is_ok()
+                || self.peek_token(TokenType::RangeWide).is_ok()
+            {
                 self.bump(); // eat range
                 self.tree.allocate(Pattern::Rest, self.get_span_from(start))
             }
@@ -175,7 +177,9 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
 
         // range
-        if self.peek_token(TokenType::Range).is_ok() {
+        if self.peek_token(TokenType::Range).is_ok()
+            || self.peek_token(TokenType::RangeWide).is_ok()
+        {
             self.bump(); // eat range
             let end_id = self.eat_pattern(options).for_node_type(NodeType::Pattern)?;
             let pattern = Pattern::Range {

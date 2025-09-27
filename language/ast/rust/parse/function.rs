@@ -189,15 +189,6 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        // with
-        let with = if self.peek_keyword(Keyword::With).is_ok() {
-            self.bump(); // eat with
-            let with = self.eat_with_body().for_node_type(NodeType::Function)?;
-            Some(with)
-        } else {
-            None
-        };
-
         // return type
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
@@ -205,6 +196,15 @@ impl<'a> Parser<'a> {
                 .eat_type(TypeParserOptions::default())
                 .for_node_type(NodeType::Function)?;
             Some(return_type)
+        } else {
+            None
+        };
+
+        // with (postfix)
+        let with = if self.peek_keyword(Keyword::With).is_ok() {
+            self.bump(); // eat with
+            let with = self.eat_with_body().for_node_type(NodeType::Function)?;
+            Some(with)
         } else {
             None
         };
@@ -249,11 +249,11 @@ mod tests {
     fn test_parse_function_with_clause() {
         let mut test = TestParser::new(
             r###"
-function foo() with (
+function foo() => int32 with (
   !Bar,
   Time,
   F: Numeric,
-) => int32 {
+) {
 }
 "###,
         );

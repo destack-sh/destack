@@ -94,14 +94,14 @@ impl<'ast> FormatNode<'ast, Function> for Function {
             ])]
         )?;
 
-        // with clause
-        if let Some(with_id) = self.with {
-            write!(f, [space(), with_id])?;
-        }
-
         // return type
         if let Some(return_type) = self.return_type {
             write!(f, [space(), token("=>"), space(), return_type])?;
+        }
+
+        // with clause
+        if let Some(with_id) = self.with {
+            write!(f, [space(), with_id])?;
         }
 
         // body
@@ -200,8 +200,8 @@ mod tests {
     #[test]
     fn test_format_function_with_with_and_return() {
         assert_format!(
-            "function foo() with Disk => int32 {}",
-            "function foo() with Disk => int32 { }",
+            "function foo() => int32 with Disk {}",
+            "function foo() => int32 with Disk { }",
             |p| p.eat_function(None)
         );
     }

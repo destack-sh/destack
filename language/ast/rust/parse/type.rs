@@ -196,7 +196,9 @@ impl<'a> Parser<'a> {
                     .allocate(Type::Virtual(inner_type), self.get_span_from(start))
             }
             // ..
-            else if next.token.r#type == TokenType::Range {
+            else if next.token.r#type == TokenType::Range
+                || next.token.r#type == TokenType::RangeWide
+            {
                 self.bump();
                 let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                 self.tree

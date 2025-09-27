@@ -98,6 +98,7 @@ pub enum AnnotationCapture {
     LinePrefix,
     LinePostfix,
     LinePostfixBoundary,
+
     AnyPrefix,
     AnyPostfix,
     AnyInfixOrPostfix,
@@ -462,6 +463,25 @@ mod tests {
     // some comment
     // over multiple lines yo
 }",
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Excessive whitespace in line comments should be preserved.
+    #[test]
+    fn test_format_excessive_whitespace_in_line_comment() {
+        let source = r"{
+    // /// An Identity is globally unique identifier for an Entity.
+    // struct Identity {
+    //     /// The universally unique identifier of this Entity.
+    //     id: Uuid
+    // }
+    let X = 1
+}";
+        assert_format!(
+            source,
+            source,
             |p| p.eat_block(),
             DystFormatOptions::default()
         );
