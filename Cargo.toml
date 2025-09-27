@@ -63,7 +63,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.9.27-3"
+version = "2025.9.27-4"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -83,6 +83,7 @@ dyst_mir = { path = "language/mir" }
 dyst_memory = { path = "language/memory" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
+dyst_string = { path = "language/string" }
 dyst_token = { path = "language/token" }
 dyst_vm = { path = "language/vm" }
 dyst_prelude = { path = "language/prelude" }
