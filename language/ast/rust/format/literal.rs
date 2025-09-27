@@ -19,6 +19,7 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
         let span = f.context().tree.get_span(node_id);
         let span_str = f.context().source.get_span_str(span);
         match self {
+            ScalarLiteral::Undefined => token("undefined").format(f)?,
             ScalarLiteral::Void => token("void").format(f)?,
             ScalarLiteral::Null => token("null").format(f)?,
             ScalarLiteral::Boolean(value) => {

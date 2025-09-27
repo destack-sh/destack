@@ -105,6 +105,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
 impl<'ast> Format<DystFormatContext<'ast>> for PrimitiveType {
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         match self {
+            PrimitiveType::Undefined => write!(f, [token("undefined")]),
             PrimitiveType::Void => write!(f, [token("void")]),
             PrimitiveType::Null => write!(f, [token("null")]),
             PrimitiveType::Boolean => write!(f, [token("boolean")]),

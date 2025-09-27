@@ -776,12 +776,6 @@ pub struct SelfParameter {
     pub is_pointer: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LetInitialization {
-    Implicit,
-    Explicit,
-}
-
 /// Let or var binding for constant or mutable variables.
 /// Both let and var may destructure and pattern match.
 ///
@@ -796,7 +790,6 @@ pub enum LetInitialization {
 /// var x = 1
 /// var x: int32 = 1
 /// var x: int32 // implicitly uninitialized, must be set before use
-/// var x: [float64; 3] = -- // explicitly uninitialized, can do whatever
 /// if var Some(x) = someFunction() {
 ///     ...
 /// }
@@ -815,11 +808,7 @@ pub struct Let {
     pub r#type: Option<NodeId<Type>>,
     /// The value of the binding.
     pub value: Option<NodeId<Expression>>,
-    /// The initialization of the binding.
-    pub initialization: LetInitialization,
 }
-
-// nocheckin: else for lets and loops?
 
 impl Node for Let {
     const KIND: NodeType = NodeType::Let;
@@ -1474,6 +1463,8 @@ impl Node for Argument {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
+    /// Unknown / uninitialized value.
+    Undefined,
     /// Void / empty / unit type.
     Void,
     /// Null value for optionals.
@@ -1617,6 +1608,8 @@ pub enum FloatType {
 /// A PrimitiveType represents primitive types.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveType {
+    /// Unknown / uninitialized type.
+    Undefined,
     /// Void / empty / unit type.
     Void,
     /// Null type.

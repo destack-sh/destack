@@ -12,11 +12,14 @@ impl<'ast> FormatNode<'ast, While> for While {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
+        // runtime
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
             write!(f, [token("@")])?;
         }
+
+        // while <condition> { <body> }
         write!(
             f,
             [Keyword::While, space(), self.condition, space(), self.body]
@@ -36,11 +39,14 @@ impl<'ast> FormatNode<'ast, For> for For {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
+        // runtime
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
             write!(f, [token("@")])?;
         }
+
+        // for <pattern> in <iterator> { <body> }
         write!(
             f,
             [
@@ -70,11 +76,14 @@ impl<'ast> FormatNode<'ast, Loop> for Loop {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
+        // runtime
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
             write!(f, [token("@")])?;
         }
+
+        // loop { <body> }
         write!(f, [Keyword::Loop, space(), self.body])?;
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

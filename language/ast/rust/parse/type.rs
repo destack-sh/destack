@@ -344,6 +344,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// undefined
     /// void
     /// null
     /// boolean
@@ -357,6 +358,8 @@ impl<'a> Parser<'a> {
         // NOTE: void and null are parsed as literals, but it's fine since we match on the raw span string
         let next_str = self.get_span_str(next.span);
         match next_str {
+            // undefined
+            "undefined" => Ok(PrimitiveType::Undefined),
             // void
             "void" => Ok(PrimitiveType::Void),
             // null
@@ -397,6 +400,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// undefined
     /// void
     /// null
     /// uint8

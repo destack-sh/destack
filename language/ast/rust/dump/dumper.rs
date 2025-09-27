@@ -614,6 +614,9 @@ impl Dump for FloatType {
 impl Dump for PrimitiveType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            PrimitiveType::Undefined => {
+                dumper.object("PrimitiveType::Undefined").end();
+            }
             PrimitiveType::Void => {
                 dumper.object("PrimitiveType::Void").end();
             }
@@ -1273,6 +1276,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         literal: &ScalarLiteral,
     ) {
         match literal {
+            ScalarLiteral::Undefined => {
+                self.node("ScalarLiteral::Undefined", _id.id).end();
+            }
             ScalarLiteral::Void => {
                 self.node("ScalarLiteral::Void", _id.id).end();
             }

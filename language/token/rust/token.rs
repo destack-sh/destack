@@ -83,10 +83,6 @@ pub enum TokenType {
     Range,
     /// `...`
     RangeWide,
-    /// '--',
-    Empty,
-    /// `---`,
-    EmptyWide,
     /// `=>`
     FatArrow,
     /// `->`
@@ -264,8 +260,6 @@ impl Display for TokenType {
             TokenType::Dot => write!(f, "."),
             TokenType::Range => write!(f, ".."),
             TokenType::RangeWide => write!(f, "..."),
-            TokenType::Empty => write!(f, "--"),
-            TokenType::EmptyWide => write!(f, "---"),
             TokenType::FatArrow => write!(f, "=>"),
             TokenType::ThinArrow => write!(f, "->"),
             TokenType::At => write!(f, "@"),
