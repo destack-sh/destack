@@ -1,6 +1,6 @@
 #![allow(clippy::new_without_default)]
 
-use dyst_diagnostic::Diagnostic;
+use dyst_diagnostic::{Diagnostic, Severity};
 use dyst_source::{Path, PathId, PathPool, SourceId, StringId, StringPool};
 
 /// A session for diagnostic operations.
@@ -38,6 +38,11 @@ impl Session {
     /// Reset diagnostics for a source.
     pub fn reset_diagnostics_for_source(&mut self, source: SourceId) {
         self.diagnostics.retain(|d| d.source != source);
+    }
+
+    /// Has diagnostics of the given severity.
+    pub fn has_diagnostics_of_severity(&self, severity: Severity) -> bool {
+        self.diagnostics.iter().any(|d| d.severity == severity)
     }
 
     /// Get diagnostics for a source.

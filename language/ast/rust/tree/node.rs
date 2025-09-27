@@ -816,6 +816,9 @@ pub struct Let {
     pub initialization: LetInitialization,
 }
 
+// nocheckin: else for lets and loops?
+// nocheckin: bare catch / catch defer?
+
 impl Node for Let {
     const KIND: NodeType = NodeType::Let;
 }
@@ -1971,7 +1974,9 @@ impl Node for Coalesce {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    /// Wildcard single pattern (`_`).
+    // nocheckin: has value pattern? like T!? (opposite of coalesce/unwrap)
+    //  (or is that redundant with coalesce operator? no because of complex matching?) 
+    /// Wildcard scalar pattern (`_`).
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
