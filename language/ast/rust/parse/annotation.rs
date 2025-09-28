@@ -5,7 +5,7 @@ use dyst_token::{TokenSpan, TokenType};
 
 use crate::parse::prelude::*;
 use crate::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, NodeId,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, NodeId,
     NodeSearch, NodeType, ParseResult, Parser, Tag,
 };
 
@@ -16,12 +16,13 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::BlockComment,
     TokenType::DocBlockComment,
 ];
-const ANNOTATION_NODE_TYPES: [NodeType; 5] = [
+const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Annotation,
     NodeType::Blank,
     NodeType::Doc,
     NodeType::Comment,
     NodeType::Tag,
+    NodeType::Decorator,
 ];
 
 impl Annotation {
@@ -31,17 +32,19 @@ impl Annotation {
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
             Annotation::Tag { position, .. } => *position,
+            Annotation::Decorator { position, .. } => *position,
         }
     }
 }
 
 impl<'a> Parser<'a> {
-    /// Pre-parse unattached annotations (like Tags).
-    /// We do one full pass and consume the entire Parser.
-    pub(crate) fn prepare_annotations(&mut self) {
-        // parse out all the tags
+    /// Eat all side annotations (like Tags).
+    /// NOTE: One full pass, consuming the entire Parser.
+    pub(crate) fn eat_side_annotations(&mut self) {
+        // parse out all the side annotations
         while let Ok(token) = self.peek() {
             // #
+            // tags are line and block scoped
             if token.token.r#type == TokenType::Tag {
                 let _ = self.with_recovery(
                     self.mark(),
@@ -49,8 +52,24 @@ impl<'a> Parser<'a> {
                     None,
                     TokenType::Newline,
                 );
-            } else {
-                self.bump(); // keep going
+            }
+            // @
+            // decorators are block scoped only
+            else if token.token.r#type == TokenType::At
+                // must be block scoped
+                && (self.prev().is_none()
+                    || self.prev().unwrap().token.r#type == TokenType::Newline)
+            {
+                let _ = self.with_recovery(
+                    self.mark(),
+                    |parser| parser.eat_decorator().map(Some),
+                    None,
+                    TokenType::Newline,
+                );
+            }
+            // keep going
+            else {
+                self.bump();
             }
         }
     }
@@ -103,6 +122,55 @@ impl<'a> Parser<'a> {
         Ok(tag)
     }
 
+    /// Eat a decorator.
+    ///
+    /// Examples:
+    /// ```
+    /// @foo
+    /// @foo(1, 2, 3)
+    /// ```
+    pub(crate) fn eat_decorator(&mut self) -> ParseResult<NodeId<Decorator>> {
+        let start = self.mark();
+
+        // @
+        self.eat_token(TokenType::At)?;
+
+        // receiver
+        let receiver = self.eat_path().for_node_type(NodeType::Decorator)?;
+
+        // arguments
+        let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.bump(); // eat open parenthesis
+            self.eat_newlines_maybe()?;
+            // empty parentheses
+            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                self.bump(); // eat close parenthesis
+                None
+            }
+            // non-empty parentheses
+            else {
+                let arguments = self
+                    .eat_arguments_body()
+                    .for_node_type(NodeType::Decorator)?;
+                self.eat_token(TokenType::CloseParenthesis)
+                    .for_node_type(NodeType::Decorator)?;
+                Some(arguments)
+            }
+        } else {
+            None
+        };
+
+        // decorator
+        let decorator = self.tree.allocate(
+            Decorator {
+                receiver,
+                arguments,
+            },
+            self.get_span_from(start),
+        );
+        Ok(decorator)
+    }
+
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
     pub(crate) fn attach_annotations(&mut self) {
@@ -121,9 +189,9 @@ impl<'a> Parser<'a> {
         let tokens = tokens;
 
         // attach annotations
-        let ignore_span = MultiSpan::new(self.tree.get_spans_for(NodeType::Tag));
+        let ignore_span = self.get_side_span();
         self.attach_side_annotations(&tokens, &ignore_span);
-        self.attach_tag_annotations(&tokens, &ignore_span);
+        self.attach_main_annotations(&tokens, &ignore_span);
 
         // sort annotations per node
         self.tree.sort_annotations();
@@ -192,33 +260,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Attach tag annotations to the tokens.
-    fn attach_tag_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
+    /// Attach the side Tag annotations to relevant nodes.
+    fn attach_main_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
+        // attach Tags
         for tag_id in self.tree.get_nodes_for::<Tag>() {
             let span = self.tree.get_span(tag_id);
-            #[cfg(debug_assertions)]
-            let _span_str = self.get_span_str(span);
 
-            // find corresponding token group
-            let token_idx = tokens
-                .iter()
-                .position(|token| token.span.start == span.start)
-                .unwrap_or_else(|| panic!("tag span not found in tokens: {span:?}"));
-            let token_group = tokens
-                .iter()
-                .skip(token_idx)
-                .take_while(|token| token.span.end <= span.end)
-                .copied()
-                .collect::<Vec<_>>();
-
-            // find annotation position
-            let Some((position, target_node_id)) = self.find_annotation_position(
-                token_idx as u32,
-                tokens,
-                &token_group,
-                true,
-                ignore_span,
-            ) else {
+            // find the annotation position
+            let Some((position, target_node_id)) =
+                self.find_main_annotation_position(tokens, ignore_span, false, span)
+            else {
                 // error if no position found
                 let error = ParseError::unexpected_for(span, NodeType::Tag);
                 self.handle_error(&error);
@@ -235,6 +286,64 @@ impl<'a> Parser<'a> {
             );
             self.tree.append_annotation(target_node_id, annotation_id);
         }
+
+        // attach Decorators
+        for decorator_id in self.tree.get_nodes_for::<Decorator>() {
+            let span = self.tree.get_span(decorator_id);
+
+            // find the annotation position
+            let Some((position, target_node_id)) =
+                self.find_main_annotation_position(tokens, ignore_span, true, span)
+            else {
+                // error if no position found
+                let error = ParseError::unexpected_for(span, NodeType::Decorator);
+                self.handle_error(&error);
+                continue;
+            };
+
+            // attach the annotation
+            let annotation_id = self.tree.allocate(
+                Annotation::Decorator {
+                    node: decorator_id,
+                    position,
+                },
+                span,
+            );
+            self.tree.append_annotation(target_node_id, annotation_id);
+        }
+    }
+
+    fn find_main_annotation_position(
+        &self,
+        tokens: &[TokenSpan],
+        ignore_span: &MultiSpan,
+        is_block_prefix_only: bool,
+        span: Span,
+    ) -> Option<(AnnotationPosition, u32)> {
+        #[cfg(debug_assertions)]
+        let _span_str = self.get_span_str(span);
+
+        // find corresponding token group
+        let token_idx = tokens
+            .iter()
+            .position(|token| token.span.start == span.start)
+            .unwrap_or_else(|| panic!("tag span not found in tokens: {span:?}"));
+        let token_group = tokens
+            .iter()
+            .skip(token_idx)
+            .take_while(|token| token.span.end <= span.end)
+            .copied()
+            .collect::<Vec<_>>();
+
+        // find annotation position
+        self.find_annotation_position(
+            token_idx as u32,
+            tokens,
+            &token_group,
+            true,
+            is_block_prefix_only,
+            ignore_span,
+        )
     }
 
     /// Find the annotation position for a given token index and group.
@@ -244,6 +353,7 @@ impl<'a> Parser<'a> {
         tokens: &[TokenSpan],
         group: &[TokenSpan],
         is_full_line: bool,
+        is_block_prefix_only: bool,
         ignore_span: &MultiSpan,
     ) -> Option<(AnnotationPosition, u32)> {
         debug_assert!(!group.is_empty());
@@ -252,9 +362,8 @@ impl<'a> Parser<'a> {
         let end_token = group[group.len() - 1];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
 
-        // line prefix or postfix (or block infix if we have nothing)
-        // entire span must be on one line together with the previous/next token
-        if is_one_line {
+        // line prefix or postfix
+        if !is_block_prefix_only && is_one_line {
             // find previous token not in ignore span
             let prev_token = if token_idx > 0 {
                 let mut prev_token_idx = token_idx as usize - 1;
@@ -350,7 +459,7 @@ impl<'a> Parser<'a> {
         }
 
         // block postfix: find the preceding targetable node
-        let prev_targetable_token = if token_idx > 0 {
+        let prev_targetable_token = if !is_block_prefix_only && token_idx > 0 {
             let mut prev_token_idx = token_idx as usize - 1;
             loop {
                 let Some(prev_token) = tokens.get(prev_token_idx) else {
@@ -375,10 +484,11 @@ impl<'a> Parser<'a> {
         }
 
         // find inner enclosing node (block infix)
-        if let Some(enclosing_node) =
-            self.find_node_enclosing_at(&start_token.span, NodeSearch::Inner, |span| {
-                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
-            })
+        if !is_block_prefix_only
+            && let Some(enclosing_node) =
+                self.find_node_enclosing_at(&start_token.span, NodeSearch::Inner, |span| {
+                    !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
+                })
         {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }
@@ -406,13 +516,20 @@ impl<'a> Parser<'a> {
             start_token.span.start,
             end_token.span.end,
         );
+        #[cfg(debug_assertions)]
+        let _span_str = self.get_span_str(span);
 
         // find the node to attach to
         let is_line_comment = start_token.token.r#type == TokenType::LineComment
             || start_token.token.r#type == TokenType::DocLineComment;
-        let Some((position, target_node_id)) =
-            self.find_annotation_position(token_idx, tokens, group, is_line_comment, ignore_span)
-        else {
+        let Some((position, target_node_id)) = self.find_annotation_position(
+            token_idx,
+            tokens,
+            group,
+            is_line_comment,
+            false,
+            ignore_span,
+        ) else {
             let node_type = match token_type {
                 TokenType::Newline => NodeType::Blank,
                 TokenType::LineComment => NodeType::Comment,
@@ -598,8 +715,9 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Doc, DocStyle, Expression, Function, Let, Struct, StructField, Tag,
-        assert_lit_int, assert_lit_string, assert_node, assert_path, assert_string,
+        Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, Function, Let, Struct,
+        StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path,
+        assert_string,
     };
 
     /// Tag annotations should be parsed around a struct.
@@ -658,6 +776,27 @@ struct Test {}
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
                 assert_path!(parser.session, *receiver, "dyst.EndGroup");
+                assert!(arguments.is_none());
+            });
+        });
+    }
+
+    /// Decorator annotations should be parsed around any block.
+    #[test]
+    fn test_attach_decorator_to_function() {
+        let mut test = TestParser::new("@foo\nfunction foo() { }");
+        let mut parser = test.prepare();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        // @foo
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "foo");
                 assert!(arguments.is_none());
             });
         });

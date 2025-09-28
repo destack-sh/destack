@@ -72,6 +72,7 @@ pub enum NodeType {
     Doc,
     Comment,
     Tag,
+    Decorator,
 }
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -442,6 +443,8 @@ pub struct StructField {
     /// The default value of the field.
     pub default: Option<NodeId<Expression>>,
 }
+
+// TODO! #Incomplete: getter/setter functions for Struct/Union/...Fields?
 
 impl Node for StructField {
     const KIND: NodeType = NodeType::StructField;
@@ -1881,10 +1884,6 @@ impl Node for Index {
 /// The function may or may not be declared as comptime (with a `@ prefix),
 ///  but the call must be prefixed with a `@` to qualify as a static call.
 ///
-/// Static functions may take the next sibling expression as an argument:
-///  - `@entity struct MyEntity { ... }`
-///  - `@flag enum MyFlag { ... }`
-///
 /// Examples:
 /// ```
 /// foo()
@@ -2124,6 +2123,11 @@ pub enum Annotation {
         node: NodeId<Tag>,
         position: AnnotationPosition,
     },
+    /// A decorator annotation.
+    Decorator {
+        node: NodeId<Decorator>,
+        position: AnnotationPosition,
+    },
 }
 
 impl Node for Annotation {
@@ -2150,7 +2154,7 @@ pub enum DocStyle {
     Star,
 }
 
-/// A Doc is a full documentation comment string.
+/// A Doc is a block or line-scoped documentation comment string.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.
 ///
 /// Examples:
@@ -2183,7 +2187,7 @@ pub enum CommentStyle {
     Star,
 }
 
-/// A Comment is a free-floating comment.
+/// A Comment is a block or line-scoped free-floating comment.
 /// Like documentation, Comments are attached in a side tree outside of the main parse / tree.
 ///
 /// Examples:
@@ -2203,7 +2207,13 @@ impl Node for Comment {
     const KIND: NodeType = NodeType::Comment;
 }
 
-/// A Tag is a tag annotation.
+/// A Tag is a block or line-scoped tag annotation.
+///
+/// Examples:
+/// ```
+/// #Foo
+/// #Foo(x: 1)
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tag {
     /// The tag name / path.
@@ -2214,4 +2224,24 @@ pub struct Tag {
 
 impl Node for Tag {
     const KIND: NodeType = NodeType::Tag;
+}
+
+/// A Decorator is a block-scoped decorator annotation.
+/// It looks like a macro call and is prefixed to a block.
+///
+/// Examples:
+/// ```
+/// @foo
+/// @foo(1, 2, 3)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Decorator {
+    /// The decorator name / path.
+    pub receiver: PathId,
+    /// The arguments (if any).
+    pub arguments: Option<Vec<NodeId<Argument>>>,
+}
+
+impl Node for Decorator {
+    const KIND: NodeType = NodeType::Decorator;
 }

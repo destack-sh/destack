@@ -1,0 +1,169 @@
+struct LruCache<K, V, Context, MaxLoadPercentage: float32 = 0.8> {
+
+    /// Map to maintain our entries.
+    map: Map
+
+    /// Queue to maintain LRU order.
+    queue: Queue
+
+    /// The capacity of our map.
+    /// If this capacity is reached, cache misses will begin evicting entries.
+    capacity: Map.Size
+
+    let Map = std.HashMapUnmanaged(K, *Queue.Node, Context, MaxLoadPercentage)
+    let Queue = std.DoublyLinkedList(KV)
+
+    /// The key-value pair.
+    struct KV {
+        key: K
+        value: V
+    }
+
+    /// The result of a getOrPut operation.
+    struct GetOrPutResult {
+        /// The entry that was retrieved.
+        /// If foundExisting is false, then this is a pointer to allocated space to store a V.
+        /// If foundExisting is true, the pointer value is valid, but can be overwritten.
+        valuePtr: &V
+
+        /// Whether an existing value was found or not.
+        foundExisting: bool
+
+        /// If another entry had to be evicted to make space for this put operation, then this is the value that was evicted.
+        evicted: KV?
+    }
+
+    function init(capacity: Map.Size) => Self {
+        Self { map: Map {  }, queue: Queue {  }, capacity: capacity }
+    }
+
+    function deinit(self, alloc: Allocator) {
+        // use our queue as a source of truth for dealloc
+        // because we might keep items in the queue around that aren't
+        // present in our LRU anymore to prevent future allocations
+        var it = self.queue.first
+        for node in it {
+            it = node.next
+            alloc.destroy(node)
+        }
+
+        self.map.deinit(alloc) * self = undefined
+    }
+
+    /// Get or put a value for a key.
+    /// See GetOrPutResult on how to check if an existing value was found, if an existing value was evicted, etc.
+    function getOrPut(&self, allocator: Allocator, key: K) => GetOrPutResult {
+        // if (@sizeOf(Context) != 0) {
+        // @compileError("Cannot infer context " ++ @typeName(Context) ++ ", call getOrPutContext instead.");
+        // }
+        self.getOrPutContext(allocator, key, undefined)
+    }
+
+    /// See getOrPut
+    function getOrPutContext(&self, alloc: Allocator, key: K, ctx: Context) => GetOrPutResult {
+        // let mapGop = try self.map.getOrPutContext(alloc, key, ctx);
+        if mapGop.foundExisting {
+            // move to end to mark as most recently used
+            self.queue.remove(*mapGop.valuePtr)
+            self.queue.append(*mapGop.valuePtr)
+
+            GetOrPutResult {
+                foundExisting: true
+                valuePtr: &*mapGop.valuePtr.data.value
+                evicted: null
+            }
+        }
+        // defer catch e { _ => self.map.remove(key); }
+
+        // we're evicting if our map insertion increased our capacity
+        let evict = self.map.count() > self.capacity
+
+        // get our node
+        // if we're not evicting then we allocate a new node
+        // if we are evicting then we avoid allocation by just reusing the node we would've evicted
+        var node =
+            if !evict { try alloc.create(Queue.Node) } else {
+                node: {
+                    // our first node is the least recently used
+                    let leastUsed = self.queue.first?
+
+                    // move our least recently used to the end to make it the most recently used
+                    self.queue.remove(leastUsed)
+
+                    // remove the least used from the map
+                    self.map.remove(leastUsed.data.key)
+
+                    break: node leastUsed
+                }
+            }
+        // defer catch
+        // if !evict { alloc.destroy(node) }
+
+        // store our node in the map
+        mapGop.valuePtr = node
+
+        // mark the node as most recently used
+        self.queue.append(node)
+
+        // set our key
+        node.data.key = key
+
+        GetOrPutResult {
+            foundExisting: mapGop.foundExisting
+            valuePtr: &node.data.value
+            evicted: if !evict { null } else { node.data }
+        }
+    }
+
+    /// Get a value for a key.
+    function get(&self, key: K) => V? {
+        if @sizeOf(Context) != 0 { @compileError("getContext must be used.") }
+        self.getContext(key, undefined)
+    }
+
+    /// See get
+    function getContext(&self, key: K, ctx: Context) => V? {
+        let node = self.map.getContext(key, ctx)
+        orelse
+        return null
+        node.data.value
+    }
+
+    /// Resize the LRU.
+    /// If this shrinks the LRU then LRU items will be deallocated.
+    /// The deallocated items are returned in the slice.
+    /// This slice must be freed by the caller.
+    function resize(&self, alloc: Allocator, capacity: Map.Size) => V[] {
+        // fastest path
+        if capacity >= self.capacity {
+            self.capacity = capacity
+            null
+        }
+
+        // if we're shrinking but we're smaller than the new capacity,
+        // then we don't have to do anything
+        if self.map.count() <= capacity {
+            self.capacity = capacity
+            null
+        }
+
+        // we're shrinking and we have more items than the new capacity
+        let delta = self.map.count() - capacity
+        var evicted = try alloc.alloc(V, delta)
+
+        var i: Map.Size = 0
+        while i < delta {
+            i += 1
+            let node = self.queue.first?
+            evicted[i] = node.data.value
+            self.queue.remove(node)
+            self.map.remove(node.data.key)
+            alloc.destroy(node)
+        }
+
+        self.capacity = capacity
+        assert(self.map.count() == capacity)
+
+        evicted
+    }
+}
