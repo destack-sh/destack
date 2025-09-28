@@ -41,4 +41,3 @@ struct Entitlement: Entity {
     /// The target Entity of the Entitlement.
     target: Reference<Entity>
 }
-
