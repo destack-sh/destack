@@ -6,8 +6,8 @@ use dyst_source::Span;
 use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
-    Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
-    Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
+    Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral,
+    For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
     NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
     Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type,
     Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
@@ -89,6 +89,7 @@ pub struct NodeTree {
     pub(crate) docs: NodeArena<Doc>,
     pub(crate) comments: NodeArena<Comment>,
     pub(crate) tags: NodeArena<Tag>,
+    pub(crate) decorators: NodeArena<Decorator>,
 }
 
 impl Debug for NodeTree {
@@ -177,6 +178,7 @@ impl NodeTree {
             docs: NodeArena::new(),
             comments: NodeArena::new(),
             tags: NodeArena::new(),
+            decorators: NodeArena::new(),
         }
     }
 
@@ -447,4 +449,5 @@ impl_node_tree_stores! {
     Doc => docs,
     Comment => comments,
     Tag => tags,
+    Decorator => decorators,
 }

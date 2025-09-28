@@ -3,8 +3,9 @@ use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 use crate::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, DystFormatContext,
-    DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType, Tag,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
+    Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {
@@ -131,6 +132,7 @@ where
                 Annotation::Doc { position, .. } => (NodeType::Doc, *position),
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Tag { position, .. } => (NodeType::Tag, *position),
+                Annotation::Decorator { position, .. } => (NodeType::Call, *position),
             };
 
             // filter annotation
@@ -231,6 +233,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
             Annotation::Doc { node, .. } => node.format(f),
             Annotation::Comment { node, .. } => node.format(f),
             Annotation::Tag { node, .. } => node.format(f),
+            Annotation::Decorator { node, .. } => node.format(f),
         }
     }
 }
@@ -336,6 +339,35 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
     }
 }
 
+impl<'ast> FormatNode<'ast, Decorator> for Decorator {
+    fn format_node(
+        &self,
+        _node_id: NodeId<Decorator>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [token("@"), self.receiver])?;
+        if let Some(arguments) = &self.arguments
+            && !arguments.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token("("),
+                    soft_block_indent(&format_with(|f| f
+                        .join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(arguments)
+                        .finish())),
+                    token(")")
+                ])]
+            )?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
@@ -355,6 +387,26 @@ mod tests {
             source,
             source,
             |p| p.eat_struct(None),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Decorators should be preserved in order with other annotations.
+    #[test]
+    fn test_format_decorators_on_struct() {
+        let source = r#"{
+    // comment before entity
+    @entity
+    // comment after entity
+    // comment before foo
+    @foo(1, 2, 3)
+    // comment after foo
+    struct Entity { }
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
             DystFormatOptions::default()
         );
     }

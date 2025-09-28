@@ -1,10 +1,5 @@
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
-    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
-    Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral,
-    Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause,
-    UseItem, While, With, WithClause,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 // ----------------------------------------------------------------------------
@@ -1205,6 +1200,9 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         Annotation::Tag { node, .. } => {
             visitor.visit_tag(tree, *node, tree.get(*node));
         }
+        Annotation::Decorator { node, .. } => {
+            visitor.visit_decorator(tree, *node, tree.get(*node));
+        }
     }
 }
 
@@ -1247,6 +1245,22 @@ pub fn walk_tag<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Tag, id.id);
     if let Some(arguments) = &tag.arguments {
+        for argument in arguments {
+            let argument_node = tree.get(*argument);
+            visitor.visit_argument(tree, *argument, argument_node);
+        }
+    }
+}
+
+/// Walk the Decorator.
+pub fn walk_decorator<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Decorator>,
+    decorator: &Decorator,
+) {
+    visitor.visit_any(tree, NodeType::Decorator, id.id);
+    if let Some(arguments) = &decorator.arguments {
         for argument in arguments {
             let argument_node = tree.get(*argument);
             visitor.visit_argument(tree, *argument, argument_node);
@@ -1489,6 +1503,10 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::Tag => {
             let tag = tree.tags.get(local_idx);
             walk_tag(visitor, tree, NodeId::new(node_id), tag);
+        }
+        NodeType::Decorator => {
+            let decorator = tree.decorators.get(local_idx);
+            walk_decorator(visitor, tree, NodeId::new(node_id), decorator);
         }
     }
 }

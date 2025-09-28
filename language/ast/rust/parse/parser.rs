@@ -85,18 +85,27 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
         };
 
-        // pre-parse annotations and then ignore those tokens
-        parser.prepare_annotations();
-        let tags_span = MultiSpan::new(parser.tree.get_spans_for(NodeType::Tag));
+        // pre-parse side annotations
+        parser.eat_side_annotations();
+        // and then partition tokens
+        let side_span = parser.get_side_span();
         let (tokens, side_tokens) = all_tokens
             .iter()
-            .partition(|token| is_semantic(token.token.r#type) && !tags_span.contains(&token.span));
+            .partition(|token| is_semantic(token.token.r#type) && !side_span.contains(&token.span));
         parser.tokens = tokens;
         parser.side_tokens = side_tokens;
 
         // return the parser
         parser.reset();
         parser
+    }
+
+    /// Get the span of all side annotations.
+    #[inline]
+    pub(crate) fn get_side_span(&self) -> MultiSpan {
+        let tag_spans = self.tree.get_spans_for(NodeType::Tag);
+        let decorator_spans = self.tree.get_spans_for(NodeType::Decorator);
+        MultiSpan::new(tag_spans.into_iter().chain(decorator_spans).collect())
     }
 
     /// Reset the parser.
@@ -222,10 +231,14 @@ impl<'a> Parser<'a> {
         &self.source.content[token.span.start as usize..token.span.end as usize]
     }
 
-    /// Get the current Token.
+    /// Get the previous Token.
     #[inline]
     pub fn prev(&self) -> Option<&TokenSpan> {
-        self.tokens.get(self.pos)
+        if self.pos > 0 {
+            self.tokens.get(self.pos - 1)
+        } else {
+            None
+        }
     }
 
     /// Peek the next Token or error.

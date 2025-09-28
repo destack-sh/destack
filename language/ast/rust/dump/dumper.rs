@@ -23,22 +23,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
-    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, Continue, Defer, Doc,
-    DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle,
-    If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId,
-    NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern,
-    PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability,
-    StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility,
-    While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_block,
-    walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer, walk_enum,
-    walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if,
-    walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
-    walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try,
-    walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field,
-    walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank, Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, Continue, Decorator, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause
 };
 
 /// The console colors.
@@ -1610,6 +1595,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
+            Annotation::Decorator { position, .. } => {
+                self.node("Annotation::Decorator", _id.id)
+                    .field("position", position)
+                    .end();
+            }
         };
         self.with_depth(|dumper| {
             walk_annotation(dumper, _tree, _id, annotation);
@@ -1620,6 +1610,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.node("Blank", _id.id)
             .field("lines", &blank.lines)
             .end();
+        self.with_depth(|dumper| {
+            walk_blank(dumper, _tree, _id, blank);
+        });
     }
 
     fn visit_doc(&mut self, _tree: &NodeTree, _id: NodeId<Doc>, doc: &Doc) {
@@ -1628,6 +1621,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .field("string", &string.as_ref())
             .field("style", &doc.style)
             .end();
+        self.with_depth(|dumper| {
+            walk_doc(dumper, _tree, _id, doc);
+        });
     }
 
     fn visit_comment(&mut self, _tree: &NodeTree, _id: NodeId<Comment>, comment: &Comment) {
@@ -1636,12 +1632,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .field("string", &string.as_ref())
             .field("style", &comment.style)
             .end();
+        self.with_depth(|dumper| {
+            walk_comment(dumper, _tree, _id, comment);
+        });
     }
 
     fn visit_tag(&mut self, _tree: &NodeTree, _id: NodeId<Tag>, tag: &Tag) {
         self.node("Tag", _id.id)
             .field("receiver", &tag.receiver)
             .end();
+        self.with_depth(|dumper| {
+            walk_tag(dumper, _tree, _id, tag);
+        });
+    }
+
+    fn visit_decorator(&mut self, _tree: &NodeTree, _id: NodeId<Decorator>, decorator: &Decorator) {
+        self.node("Decorator", _id.id)
+            .field("receiver", &decorator.receiver)
+            .end();
+        self.with_depth(|dumper| {
+            walk_decorator(dumper, _tree, _id, decorator);
+        });
     }
 }
 

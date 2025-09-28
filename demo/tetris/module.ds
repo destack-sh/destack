@@ -14,8 +14,7 @@ struct TetrisComponent {
     id: int32
 }
 
-@entity
-struct TetrisGame {
+struct TetrisGame: Entity {
     use TetrisComponent
 }
 
@@ -31,7 +30,6 @@ enum TetrisPieceShape {
     Z
 }
 
-@entity
 union(TetrisPieceShape) TetrisPiece: RigidBody2D { }
 
 implement TetrisPiece {

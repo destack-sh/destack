@@ -8,8 +8,7 @@ enum BranchType {
 }
 
 /// A Branch is a version of a Snapshot.
-@entity
-struct Branch {
+struct Branch: Entity {
     /// The Branch type.
     type: BranchType
 }
