@@ -24,6 +24,7 @@ const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Tag,
     NodeType::Decorator,
 ];
+const STATIC_KEYWORDS_STR: [&str; 4] = ["if", "loop", "for", "while"];
 
 impl Annotation {
     pub fn position(&self) -> AnnotationPosition {
@@ -59,6 +60,7 @@ impl<'a> Parser<'a> {
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.r#type == TokenType::Newline)
+                && let Ok(next) = self.peek_next() && !STATIC_KEYWORDS_STR.contains(&self.get_span_str(next.span))
             {
                 let _ = self.with_recovery(
                     self.mark(),
