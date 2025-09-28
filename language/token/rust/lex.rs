@@ -237,7 +237,7 @@ impl Tokenizer<'_> {
             }
             '@' => (TokenType::At, None),
             '#' => (TokenType::Tag, None),
-            '~' => (TokenType::BitwiseNot, None),
+            '~' => (TokenType::ElementwiseNot, None),
             '?' => {
                 // ??
                 if self.peek() == '?' {
@@ -317,7 +317,7 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // bitwise and, logical and and their assignments
+            // elementwise and, logical and and their assignments
             '&' => {
                 // &&
                 if self.peek() == '&' {
@@ -335,15 +335,15 @@ impl Tokenizer<'_> {
                 // &=
                 else if self.peek() == '=' {
                     self.bump();
-                    (TokenType::BitwiseAndAssign, None)
+                    (TokenType::ElementwiseAndAssign, None)
                 }
                 // &
                 else {
-                    (TokenType::BitwiseAnd, None)
+                    (TokenType::ElementwiseAnd, None)
                 }
             }
 
-            // bitwise or, logical or and their assignments
+            // elementwise or, logical or and their assignments
             '|' => {
                 // ||
                 if self.peek() == '|' {
@@ -361,11 +361,11 @@ impl Tokenizer<'_> {
                 // |=
                 else if self.peek() == '=' {
                     self.bump();
-                    (TokenType::BitwiseOrAssign, None)
+                    (TokenType::ElementwiseOrAssign, None)
                 }
                 // |
                 else {
-                    (TokenType::BitwiseOr, None)
+                    (TokenType::ElementwiseOr, None)
                 }
             }
 
@@ -457,11 +457,11 @@ impl Tokenizer<'_> {
                 // ^=
                 if self.peek() == '=' {
                     self.bump();
-                    (TokenType::BitwiseXorAssign, None)
+                    (TokenType::ElementwiseXorAssign, None)
                 }
                 // ^
                 else {
-                    (TokenType::BitwiseXor, None)
+                    (TokenType::ElementwiseXor, None)
                 }
             }
 

@@ -35,10 +35,10 @@ impl BinaryOperator {
             BinaryOperator::SaturatingShiftLeft => OperatorPrecedence::Shift,
             BinaryOperator::ShiftRight => OperatorPrecedence::Shift,
 
-            // bitwise
-            BinaryOperator::BitwiseAnd => OperatorPrecedence::Bitwise,
-            BinaryOperator::BitwiseXor => OperatorPrecedence::Bitwise,
-            BinaryOperator::BitwiseOr => OperatorPrecedence::Bitwise,
+            // elementwise
+            BinaryOperator::ElementwiseAnd => OperatorPrecedence::Elementwise,
+            BinaryOperator::ElementwiseXor => OperatorPrecedence::Elementwise,
+            BinaryOperator::ElementwiseOr => OperatorPrecedence::Elementwise,
 
             // comparison
             BinaryOperator::Equal => OperatorPrecedence::Comparison,
@@ -84,10 +84,10 @@ impl BinaryOperator {
             TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
             TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
 
-            // bitwise
-            TokenType::BitwiseAnd => Some(BinaryOperator::BitwiseAnd),
-            TokenType::BitwiseXor => Some(BinaryOperator::BitwiseXor),
-            TokenType::BitwiseOr => Some(BinaryOperator::BitwiseOr),
+            // elementwise
+            TokenType::ElementwiseAnd => Some(BinaryOperator::ElementwiseAnd),
+            TokenType::ElementwiseXor => Some(BinaryOperator::ElementwiseXor),
+            TokenType::ElementwiseOr => Some(BinaryOperator::ElementwiseOr),
 
             // comparison
             TokenType::Equal => Some(BinaryOperator::Equal),
@@ -129,10 +129,10 @@ impl BinaryOperator {
             BinaryOperator::SaturatingShiftLeft => TokenType::SaturatingShiftLeft,
             BinaryOperator::ShiftRight => TokenType::ShiftRight,
 
-            // bitwise
-            BinaryOperator::BitwiseAnd => TokenType::BitwiseAnd,
-            BinaryOperator::BitwiseXor => TokenType::BitwiseXor,
-            BinaryOperator::BitwiseOr => TokenType::BitwiseOr,
+            // elementwise
+            BinaryOperator::ElementwiseAnd => TokenType::ElementwiseAnd,
+            BinaryOperator::ElementwiseXor => TokenType::ElementwiseXor,
+            BinaryOperator::ElementwiseOr => TokenType::ElementwiseOr,
 
             // comparison
             BinaryOperator::Equal => TokenType::Equal,
@@ -171,7 +171,7 @@ impl UnaryOperator {
             TokenType::Subtract => Some(UnaryOperator::Negate),
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
-            TokenType::BitwiseNot => Some(UnaryOperator::BitwiseNot),
+            TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             _ => None,
         }
     }
@@ -183,7 +183,7 @@ impl UnaryOperator {
             UnaryOperator::Not => TokenType::Not,
             UnaryOperator::Negate => TokenType::Subtract,
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
-            UnaryOperator::BitwiseNot => TokenType::BitwiseNot,
+            UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
             UnaryOperator::Dereference => TokenType::Multiply,
         }
     }
@@ -217,10 +217,10 @@ impl AssignOperator {
             | AssignOperator::SaturatingShiftLeftAssign
             | AssignOperator::ShiftRightAssign => OperatorPrecedence::AssignmentShift,
 
-            // assignment bitwise
-            AssignOperator::BitwiseAndAssign
-            | AssignOperator::BitwiseXorAssign
-            | AssignOperator::BitwiseOrAssign => OperatorPrecedence::AssignmentBitwise,
+            // assignment elementwise
+            AssignOperator::ElementwiseAndAssign
+            | AssignOperator::ElementwiseXorAssign
+            | AssignOperator::ElementwiseOrAssign => OperatorPrecedence::AssignmentElementwise,
 
             // assignment logical
             AssignOperator::AndAssign | AssignOperator::OrAssign => {
@@ -262,10 +262,10 @@ impl AssignOperator {
             TokenType::SaturatingShiftLeftAssign => Some(AssignOperator::SaturatingShiftLeftAssign),
             TokenType::ShiftRightAssign => Some(AssignOperator::ShiftRightAssign),
 
-            // bitwise
-            TokenType::BitwiseAndAssign => Some(AssignOperator::BitwiseAndAssign),
-            TokenType::BitwiseOrAssign => Some(AssignOperator::BitwiseOrAssign),
-            TokenType::BitwiseXorAssign => Some(AssignOperator::BitwiseXorAssign),
+            // elementwise
+            TokenType::ElementwiseAndAssign => Some(AssignOperator::ElementwiseAndAssign),
+            TokenType::ElementwiseOrAssign => Some(AssignOperator::ElementwiseOrAssign),
+            TokenType::ElementwiseXorAssign => Some(AssignOperator::ElementwiseXorAssign),
 
             // logical
             TokenType::LogicalAndAssign => Some(AssignOperator::AndAssign),
@@ -301,10 +301,10 @@ impl AssignOperator {
             AssignOperator::SaturatingShiftLeftAssign => TokenType::SaturatingShiftLeftAssign,
             AssignOperator::ShiftRightAssign => TokenType::ShiftRightAssign,
 
-            // bitwise
-            AssignOperator::BitwiseAndAssign => TokenType::BitwiseAndAssign,
-            AssignOperator::BitwiseOrAssign => TokenType::BitwiseOrAssign,
-            AssignOperator::BitwiseXorAssign => TokenType::BitwiseXorAssign,
+            // elementwise
+            AssignOperator::ElementwiseAndAssign => TokenType::ElementwiseAndAssign,
+            AssignOperator::ElementwiseOrAssign => TokenType::ElementwiseOrAssign,
+            AssignOperator::ElementwiseXorAssign => TokenType::ElementwiseXorAssign,
 
             // logical
             AssignOperator::AndAssign => TokenType::LogicalAndAssign,
@@ -610,7 +610,7 @@ impl<'a> Parser<'a> {
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // reference (`&` or `&var` or `&const`)
-            else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
+            else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok()
                     || self.peek_keyword(Keyword::Const).is_ok()
@@ -875,7 +875,7 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // reference (postfix with `&`)
-            else if let Ok(distance) = self.peek_member(TokenType::BitwiseAnd) {
+            else if let Ok(distance) = self.peek_member(TokenType::ElementwiseAnd) {
                 self.bump_by(distance); // eat &
                 let mutability = self.eat_scoped_mutability()?;
                 let expression = Expression::Reference {
@@ -1726,11 +1726,11 @@ self
         );
     }
 
-    /// Addition has higher precedence than bitwise or.
+    /// Addition has higher precedence than elementwise or.
     /// a + b | c + d
     /// => ((a + b) | (c + d))
     #[test]
-    fn test_parse_precedence_bitwise_vs_addition() {
+    fn test_parse_precedence_elementwise_vs_addition() {
         let mut test = TestParser::new("a + b | c + d");
         let mut parser = test.prepare();
         let expr_id = parser
@@ -1743,7 +1743,7 @@ self
             // ((a + b) | (c + d))
             Expression::Binary { left, operator, right } => {
                 // |
-                assert_eq!(*operator, BinaryOperator::BitwiseOr);
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 assert_node!(
                     parser.tree,
                     *left,

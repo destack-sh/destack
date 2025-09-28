@@ -47,12 +47,19 @@ struct InviteRejectedEvent: Event {
 
 /// An Invite to a Joinable.
 @entity
-struct Invite {
+struct Invite: Entity {
     /// The invited member.
     member: Reference<Actor>
     /// The Role offered by the Invite.
     role: Reference<Role>?
     /// The type of the Role offered by the Invite.
     roleType: RoleType?
+
+    // TODO! #Incomplete: should "partial" nodes like this be allowed (in limited places)? 
+    @if x {
+        // member: Reference<Actor>
+    } else {
+        // member: Reference<Actor>
+    }
 }
 

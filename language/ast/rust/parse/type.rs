@@ -111,6 +111,7 @@ pub struct TypeParserOptions {
 impl<'a> Parser<'a> {
     // TODO! #Incomplete: parse types as values or disambiguate somehow?
     //  (for type aliases like `let X = Y<T>`)
+    //  and if we do that.. can we just allow any expression in type positions?
 
     /// Eat any Type (including nominal and anonymous declarations and implicit unions).
     /// Also consumes any prefix and postfix modifiers.
@@ -170,7 +171,7 @@ impl<'a> Parser<'a> {
             }
             // * or &
             else if next.token.r#type == TokenType::Multiply
-                || next.token.r#type == TokenType::BitwiseAnd
+                || next.token.r#type == TokenType::ElementwiseAnd
             {
                 self.bump(); // eat `*` or `&`
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok()
@@ -297,7 +298,7 @@ impl<'a> Parser<'a> {
             && let Ok(next) = next
         {
             // eat `| B` until no more `|`
-            if next.token.r#type == TokenType::BitwiseOr {
+            if next.token.r#type == TokenType::ElementwiseOr {
                 self.bump(); // eat `|`
                 let mut types: Vec<NodeId<Type>> = vec![type_id];
                 loop {
@@ -307,7 +308,7 @@ impl<'a> Parser<'a> {
                         })
                         .for_node_type(NodeType::Type)?;
                     types.push(right_type);
-                    if self.peek_token(TokenType::BitwiseOr).is_ok() {
+                    if self.peek_token(TokenType::ElementwiseOr).is_ok() {
                         self.bump(); // eat `|` and keep going
                     } else {
                         break;
@@ -318,7 +319,7 @@ impl<'a> Parser<'a> {
                     .allocate(Type::Union(types), self.get_span_from(start));
             }
             // eat `& B` until no more `&`
-            else if next.token.r#type == TokenType::BitwiseAnd {
+            else if next.token.r#type == TokenType::ElementwiseAnd {
                 self.bump(); // eat `&`
                 let mut types: Vec<NodeId<Type>> = vec![type_id];
                 loop {
@@ -328,7 +329,7 @@ impl<'a> Parser<'a> {
                         })
                         .for_node_type(NodeType::Type)?;
                     types.push(right_type);
-                    if self.peek_token(TokenType::BitwiseAnd).is_ok() {
+                    if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                         self.bump(); // eat `&` and keep going
                     } else {
                         break;

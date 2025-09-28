@@ -111,7 +111,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::Not => token("!"),
             UnaryOperator::Negate => token("-"),
             UnaryOperator::WrappingNegate => token("-%"),
-            UnaryOperator::BitwiseNot => token("~"),
+            UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
         };
         write!(f, [token])
@@ -141,10 +141,10 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::SaturatingShiftLeft => token("<<|"),
             BinaryOperator::ShiftRight => token(">>"),
 
-            // bitwise
-            BinaryOperator::BitwiseAnd => token("&"),
-            BinaryOperator::BitwiseXor => token("^"),
-            BinaryOperator::BitwiseOr => token("|"),
+            // elementwise
+            BinaryOperator::ElementwiseAnd => token("&"),
+            BinaryOperator::ElementwiseXor => token("^"),
+            BinaryOperator::ElementwiseOr => token("|"),
 
             // comparison
             BinaryOperator::Equal => token("=="),
@@ -187,10 +187,10 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
             AssignOperator::SaturatingShiftLeftAssign => "<<|=",
             AssignOperator::ShiftRightAssign => ">>=",
 
-            // bitwise
-            AssignOperator::BitwiseAndAssign => "&=",
-            AssignOperator::BitwiseOrAssign => "|=",
-            AssignOperator::BitwiseXorAssign => "^=",
+            // elementwise
+            AssignOperator::ElementwiseAndAssign => "&=",
+            AssignOperator::ElementwiseOrAssign => "|=",
+            AssignOperator::ElementwiseXorAssign => "^=",
 
             // logical
             AssignOperator::AndAssign => "&&=",

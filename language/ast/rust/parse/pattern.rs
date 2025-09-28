@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
             }
             // pointer
             else if self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::BitwiseAnd).is_ok()
+                || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
                 self.bump(); // eat pointer
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
@@ -199,10 +199,10 @@ impl<'a> Parser<'a> {
             Ok(pattern_id)
         }
         // union
-        else if self.peek_token(TokenType::BitwiseOr).is_ok() && !self.options.in_implicit_union {
+        else if self.peek_token(TokenType::ElementwiseOr).is_ok() && !self.options.in_implicit_union {
             // eat all union "fields" (just unnamed patterns)
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
-            while self.peek_token(TokenType::BitwiseOr).is_ok() {
+            while self.peek_token(TokenType::ElementwiseOr).is_ok() {
                 self.bump(); // eat '|'
                 let field_pattern_id = self
                     .with_options(

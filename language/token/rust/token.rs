@@ -92,7 +92,7 @@ pub enum TokenType {
     /// `#`
     Tag,
     /// `~`
-    BitwiseNot,
+    ElementwiseNot,
     /// `?`
     Maybe,
     /// `??`
@@ -150,13 +150,13 @@ pub enum TokenType {
     /// `>>`
     ShiftRight,
 
-    // bitwise
+    // elementwise
     /// `&`
-    BitwiseAnd,
+    ElementwiseAnd,
     /// `^`
-    BitwiseXor,
+    ElementwiseXor,
     /// `|`
-    BitwiseOr,
+    ElementwiseOr,
 
     // comparison
     /// `==`
@@ -216,13 +216,13 @@ pub enum TokenType {
     /// `>>=`
     ShiftRightAssign,
 
-    // assignment bitwise
+    // assignment elementwise
     /// `&=`
-    BitwiseAndAssign,
+    ElementwiseAndAssign,
     /// `^=`
-    BitwiseXorAssign,
+    ElementwiseXorAssign,
     /// `|=`
-    BitwiseOrAssign,
+    ElementwiseOrAssign,
 
     // assignment logical
     /// `&&=`
@@ -264,7 +264,7 @@ impl Display for TokenType {
             TokenType::ThinArrow => write!(f, "->"),
             TokenType::At => write!(f, "@"),
             TokenType::Tag => write!(f, "#"),
-            TokenType::BitwiseNot => write!(f, "~"),
+            TokenType::ElementwiseNot => write!(f, "~"),
             TokenType::Maybe => write!(f, "?"),
             TokenType::Coalesce => write!(f, "??"),
             TokenType::Virtual => write!(f, "$"),
@@ -298,10 +298,10 @@ impl Display for TokenType {
             TokenType::SaturatingShiftLeft => write!(f, "<<|"),
             TokenType::ShiftRight => write!(f, ">>"),
 
-            // bitwise
-            TokenType::BitwiseAnd => write!(f, "&"),
-            TokenType::BitwiseXor => write!(f, "^"),
-            TokenType::BitwiseOr => write!(f, "|"),
+            // elementwise
+            TokenType::ElementwiseAnd => write!(f, "&"),
+            TokenType::ElementwiseXor => write!(f, "^"),
+            TokenType::ElementwiseOr => write!(f, "|"),
 
             // comparison
             TokenType::Equal => write!(f, "=="),
@@ -338,10 +338,10 @@ impl Display for TokenType {
             TokenType::SaturatingShiftLeftAssign => write!(f, "<<|=="),
             TokenType::ShiftRightAssign => write!(f, ">>="),
 
-            // assignment bitwise
-            TokenType::BitwiseAndAssign => write!(f, "&="),
-            TokenType::BitwiseXorAssign => write!(f, "^="),
-            TokenType::BitwiseOrAssign => write!(f, "|="),
+            // assignment elementwise
+            TokenType::ElementwiseAndAssign => write!(f, "&="),
+            TokenType::ElementwiseXorAssign => write!(f, "^="),
+            TokenType::ElementwiseOrAssign => write!(f, "|="),
 
             // assignment logical
             TokenType::LogicalAndAssign => write!(f, "&&="),

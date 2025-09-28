@@ -75,7 +75,7 @@ impl Token {
 
             TokenType::At => "@".to_string(),
             TokenType::Tag => "#".to_string(),
-            TokenType::BitwiseNot => "~".to_string(),
+            TokenType::ElementwiseNot => "~".to_string(),
             TokenType::Maybe => "?".to_string(),
             TokenType::Coalesce => "??".to_string(),
             TokenType::Virtual => "$".to_string(),
@@ -101,10 +101,10 @@ impl Token {
             TokenType::SaturatingShiftLeft => "<<|".to_string(),
             TokenType::ShiftRight => ">>".to_string(),
 
-            // bitwise
-            TokenType::BitwiseAnd => "&".to_string(),
-            TokenType::BitwiseXor => "^".to_string(),
-            TokenType::BitwiseOr => "|".to_string(),
+            // elementwise
+            TokenType::ElementwiseAnd => "&".to_string(),
+            TokenType::ElementwiseXor => "^".to_string(),
+            TokenType::ElementwiseOr => "|".to_string(),
 
             // comparison
             TokenType::Equal => "==".to_string(),
@@ -141,10 +141,10 @@ impl Token {
             TokenType::SaturatingShiftLeftAssign => "<<|=".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
 
-            // assignment bitwise
-            TokenType::BitwiseAndAssign => "&=".to_string(),
-            TokenType::BitwiseXorAssign => "^=".to_string(),
-            TokenType::BitwiseOrAssign => "|=".to_string(),
+            // assignment elementwise
+            TokenType::ElementwiseAndAssign => "&=".to_string(),
+            TokenType::ElementwiseXorAssign => "^=".to_string(),
+            TokenType::ElementwiseOrAssign => "|=".to_string(),
 
             // assignment logical
             TokenType::LogicalAndAssign => "&&=".to_string(),

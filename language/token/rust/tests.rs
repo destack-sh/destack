@@ -141,7 +141,7 @@ fn test_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // ~
-        Token::new(TokenType::BitwiseNot, 1, None),
+        Token::new(TokenType::ElementwiseNot, 1, None),
     );
 }
 
