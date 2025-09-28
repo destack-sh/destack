@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
             }
             // &var_ self
             else if (self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::BitwiseAnd).is_ok())
+                || self.peek_token(TokenType::ElementwiseAnd).is_ok())
                 && self.peek_next_keyword(Keyword::Var).is_ok()
             {
                 self.bump(); // eat &
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
             }
             // &self
             else if self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::BitwiseAnd).is_ok()
+                || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
                 self.bump(); // eat &
                 self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self

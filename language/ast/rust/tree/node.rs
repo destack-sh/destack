@@ -1636,14 +1636,14 @@ pub enum PrimitiveType {
 /// * / % ** *% *|                // multiplication
 /// + - +% -% +| -|               // addition
 /// << >> <<|                     // shift
-/// & ^ |                         // bitwise
+/// & ^ |                         // elementwise
 /// == != < > <= >=               // comparison
 /// && ||                         // logical
 /// =                             // assignment
 /// *= /= %= **= *%= *|=          // assignment multiplication
 /// += -= +%= -%= +|= -|=         // assignment addition
 /// <<= >>= <<|=                  // assignment shift
-/// &= ^= |=                      // assignment bitwise
+/// &= ^= |=                      // assignment elementwise
 /// &&= ||=                       // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -1663,9 +1663,9 @@ pub enum OperatorPrecedence {
     /// Shift-related binary operators.
     /// `<< >> <<|`
     Shift = 200,
-    /// Bitwise-related binary operators.
+    /// Elementwise-related binary operators.
     /// `& ^ |`
-    Bitwise = 190,
+    Elementwise = 190,
     /// Comparison-related binary operators.
     /// `== != < > <= >=`
     Comparison = 180,
@@ -1684,9 +1684,9 @@ pub enum OperatorPrecedence {
     /// Assignment shift-related binary operators.
     /// `<<= >>= <<|=`
     AssignmentShift = 130,
-    /// Assignment bitwise-related binary operators.
+    /// Assignment elementwise-related binary operators.
     /// `&= ^= |=`
-    AssignmentBitwise = 120,
+    AssignmentElementwise = 120,
     /// Assignment logical-related binary operators.
     /// `&&= ||=`
     AssignmentLogical = 110,
@@ -1703,7 +1703,7 @@ pub enum UnaryOperator {
     /// `-%`
     WrappingNegate = 244,
     /// `~`
-    BitwiseNot = 243,
+    ElementwiseNot = 243,
     /// `*`
     Dereference = 242,
 }
@@ -1746,13 +1746,13 @@ pub enum BinaryOperator {
     /// `>>`
     ShiftRight = 200,
 
-    // bitwise
+    // elementwise
     /// `&`
-    BitwiseAnd = 192,
+    ElementwiseAnd = 192,
     /// `^`
-    BitwiseXor = 191,
+    ElementwiseXor = 191,
     /// `|`
-    BitwiseOr = 190,
+    ElementwiseOr = 190,
 
     // comparison
     /// `==`
@@ -1825,13 +1825,13 @@ pub enum AssignOperator {
     /// `>>=`
     ShiftRightAssign = 130,
 
-    // assignment bitwise
+    // assignment elementwise
     /// `&=`
-    BitwiseAndAssign = 122,
+    ElementwiseAndAssign = 122,
     /// `^=`
-    BitwiseXorAssign = 121,
+    ElementwiseXorAssign = 121,
     /// `|=`
-    BitwiseOrAssign = 120,
+    ElementwiseOrAssign = 120,
 
     // assignment logical
     /// `&&=`

@@ -123,7 +123,7 @@ macro_rules! assert_int {
 /// Assert a `ScalarLiteral::Float` equals an exact value with `==`.
 #[macro_export]
 macro_rules! assert_float {
-    // Exact float value (bitwise equal).
+    // Exact float value (elementwise equal).
     ($tree:expr, $id:expr, $expected:expr) => {{
         $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Float(f, _) => {
             assert_eq!(

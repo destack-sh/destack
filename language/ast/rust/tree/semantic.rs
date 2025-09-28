@@ -99,7 +99,7 @@ impl SemanticType {
             | TokenType::ThinArrow
             | TokenType::At
             | TokenType::Tag
-            | TokenType::BitwiseNot
+            | TokenType::ElementwiseNot
             | TokenType::Maybe
             | TokenType::Coalesce
             | TokenType::Virtual
@@ -129,8 +129,8 @@ impl SemanticType {
             | TokenType::SaturatingShiftLeft
             | TokenType::ShiftRight => SemanticType::Operator,
 
-            // bitwise operators
-            TokenType::BitwiseAnd | TokenType::BitwiseXor | TokenType::BitwiseOr => {
+            // elementwise operators
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::ElementwiseOr => {
                 SemanticType::Operator
             }
 
@@ -161,9 +161,9 @@ impl SemanticType {
             | TokenType::ShiftLeftAssign
             | TokenType::SaturatingShiftLeftAssign
             | TokenType::ShiftRightAssign
-            | TokenType::BitwiseAndAssign
-            | TokenType::BitwiseXorAssign
-            | TokenType::BitwiseOrAssign
+            | TokenType::ElementwiseAndAssign
+            | TokenType::ElementwiseXorAssign
+            | TokenType::ElementwiseOrAssign
             | TokenType::LogicalAndAssign
             | TokenType::LogicalOrAssign => SemanticType::Operator,
         }
