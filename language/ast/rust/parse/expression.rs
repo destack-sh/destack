@@ -1,7 +1,7 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use crate::ScopedMutability;
 use crate::parse::prelude::*;
+use crate::{RangeLiteral, ScopedMutability};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -815,7 +815,8 @@ impl<'a> Parser<'a> {
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-                // nocheckin: parse static arguments
+                // nocheckin: parse static arguments (for Types as values, but also literals)
+                //  (also see peek_path and peek_struct_literal)
                 let expression = Expression::Path {
                     path: path_id,
                     static_arguments: None,
@@ -861,8 +862,27 @@ impl<'a> Parser<'a> {
 
         // eat all postfix operations
         loop {
+            // range (implicit with `..`)
+            if self.peek_token(TokenType::Range).is_ok()
+                || self.peek_token(TokenType::RangeWide).is_ok()
+            {
+                self.bump(); // eat ..
+                let right_expression_id = self
+                    .eat_expression(options)
+                    .for_node_type(NodeType::RangeLiteral)?;
+                let literal_id = self.tree.allocate(
+                    RangeLiteral {
+                        start: left_expression_id,
+                        end: right_expression_id,
+                        is_inclusive: true,
+                    },
+                    self.get_span_from(start),
+                );
+                let expression = Expression::RangeLiteral(literal_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
             // member (also works across newline)
-            if let Ok(distance) = self.peek_member(TokenType::Identifier) {
+            else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
                 let expression = Expression::Member {
@@ -1024,8 +1044,9 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
-        Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type, UnaryOperator,
-        assert_expr_path, assert_int, assert_node, assert_path, assert_string,
+        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type,
+        UnaryOperator, assert_expr_path, assert_int, assert_lit_int, assert_node, assert_path,
+        assert_string,
     };
 
     /// Tuple literals are disambiguated.
@@ -1067,6 +1088,29 @@ mod tests {
                 );
             }
         );
+    }
+
+    /// Range literals are disambiguated.
+    /// 1..3
+    #[test]
+    fn test_parse_range_literal() {
+        let mut test = TestParser::new("1..3");
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // 1..3
+        assert_node!(parser.tree, expr_id, Expression::RangeLiteral(range_literal_id) => {
+            assert_node!(parser.tree, *range_literal_id, RangeLiteral { start, end, .. } => {
+                assert_node!(parser.tree, *start, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_lit_int!(parser.session, parser.tree.get(*scalar_literal_id), 1);
+                });
+                assert_node!(parser.tree, *end, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_lit_int!(parser.session, parser.tree.get(*scalar_literal_id), 3);
+                });
+            });
+        });
     }
 
     /// Struct literals are disambiguated.

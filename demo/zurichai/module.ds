@@ -1,14 +1,27 @@
 use dyst
+use destack.time
 
+#entity(description: "A Series of related Meetups (with a common prefix)")
 struct MeetupSeries: Entity {
+    // The name of the Meetup Series.
     name: string
+    /// The prefix of the Meetup Series.
+    prefix: string
 }
 
+#entity
 struct Meetup: Entity {
-    fullName: string
+    // When the Meetup is happening.
+    date: Date
+    // The name of the Meetup.
+    name: string
+    // The number of the Meetup.
+    number: uint32
+    // The Series this Meetup is part of.
+    series: Reference<MeetupSeries>
 
-    {
-        function get(self) { return @format("{self.name} {self.surname}") }
-        function set(self, value: string) { self.name = value }
-    }
+    // {
+    //     function get(self) { return @format("{self.name} {self.surname}") }
+    //     function set(self, value: string) { self.name = value }
+    // }
 }
