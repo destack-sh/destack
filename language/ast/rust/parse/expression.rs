@@ -172,6 +172,7 @@ impl UnaryOperator {
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
+            TokenType::Virtual => Some(UnaryOperator::Virtual),
             _ => None,
         }
     }
@@ -185,6 +186,7 @@ impl UnaryOperator {
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
             UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
             UnaryOperator::Dereference => TokenType::Multiply,
+            UnaryOperator::Virtual => TokenType::Virtual,
         }
     }
 }
