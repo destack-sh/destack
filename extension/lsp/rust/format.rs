@@ -22,10 +22,13 @@ impl Workspace {
         let context = DystFormatContext {
             options,
             source: &document.source,
-            session: &self.session,
+            tokens: &document.tokens,
+            side_tokens: &document.side_tokens,
+            side_span: &document.side_span,
             tree: &document.ast,
             spans: &document.ast.spans,
             parents: NodeParentIndex::from_tree(&document.ast),
+            session: &self.session,
         };
         let formatted = format!(context, [document.module_id]).unwrap();
         let printed = formatted.print();

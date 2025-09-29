@@ -1,15 +1,19 @@
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_session::Session;
-use dyst_source::{Source, SourceId, Uri};
+use dyst_source::{MultiSpan, Source, SourceId, Uri};
+use dyst_token::TokenSpan;
 
 use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, ParseResult, Parser};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
 pub(crate) struct TestFormatter {
-    pub source: Source,
     pub session: Session,
+    pub source: Source,
+    pub tokens: Vec<TokenSpan>,
+    pub side_tokens: Vec<TokenSpan>,
+    pub side_span: MultiSpan,
     pub tree: NodeTree,
 }
 
@@ -26,11 +30,17 @@ impl TestFormatter {
         let mut parser = Parser::prepare(&source, &mut session);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
+        let side_span = parser.get_side_span();
         let tree = parser.tree;
+        let tokens = parser.tokens;
+        let side_tokens = parser.side_tokens;
 
         let formatter = Self {
-            source,
             session,
+            source,
+            tokens,
+            side_tokens,
+            side_span,
             tree,
         };
 
@@ -49,6 +59,9 @@ impl TestFormatter {
             tree: &self.tree,
             spans: &self.tree.spans,
             parents: NodeParentIndex::from_tree(&self.tree),
+            tokens: &self.tokens,
+            side_tokens: &self.side_tokens,
+            side_span: &self.side_span,
         };
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();

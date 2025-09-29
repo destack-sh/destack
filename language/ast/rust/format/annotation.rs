@@ -2,6 +2,7 @@ use dyst_fir::format::{Format, FormatResult, hard_line_break};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
+use crate::block::CONTAINER_NODE_TYPES;
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
     DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
@@ -220,7 +221,11 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
         match self {
             Annotation::Blank { node, .. } => {
                 // skip blanks at the end of the source
-                let container = f.context().get_container(node_id);
+                let container = f
+                    .context()
+                    .get_ancestors(node_id)
+                    .into_iter()
+                    .find(|(_, node_type)| CONTAINER_NODE_TYPES.contains(node_type));
                 if let Some((container_id, _)) = container {
                     let container_span = f.context().get_span_by_id(container_id);
                     if container_span.end >= f.context().source.len - 1 {

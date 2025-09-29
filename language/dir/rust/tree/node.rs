@@ -92,11 +92,11 @@ impl<T: Node> Debug for NodeId<T> {
 
 // manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
 impl<T: Clone + Node> Copy for NodeId<T> {}
- 
+
 impl<T: Node> NodeId<T> {
     #[inline]
     pub fn get(&self) -> usize {
-        self.id as usize 
+        self.id as usize
     }
 }
 

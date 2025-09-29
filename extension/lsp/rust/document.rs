@@ -1,6 +1,6 @@
 use dyst_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
 use dyst_session::Session;
-use dyst_source::Source;
+use dyst_source::{MultiSpan, Source};
 use dyst_token::{TokenSpan, TokenType};
 
 #[derive(Debug, Clone)]
@@ -11,8 +11,12 @@ pub struct Document {
     pub is_open: bool,
     /// The semantic tokens of the document.
     pub tokens: Vec<TokenSpan>,
-    /// The combined tokens of the document.
-    pub combined_tokens: Vec<TokenSpan>,
+    /// The side tokens of the document.
+    pub side_tokens: Vec<TokenSpan>,
+    /// The side span of the document.
+    pub side_span: MultiSpan,
+    /// All tokens of the document.
+    pub all_tokens: Vec<TokenSpan>,
     /// The AST of the document.
     pub ast: NodeTree,
     /// The root module ID of the document.
@@ -41,17 +45,21 @@ impl Document {
         parser.finalize();
 
         // turn into document
+        let side_span = parser.get_side_span();
+        let side_tokens = parser.side_tokens;
         let tokens = parser.tokens;
-        let mut all_tokens = Vec::with_capacity(tokens.len() + parser.side_tokens.len());
+        let mut all_tokens: Vec<TokenSpan> = Vec::with_capacity(tokens.len() + side_tokens.len());
         all_tokens.extend(tokens.iter());
-        all_tokens.extend(parser.side_tokens);
+        all_tokens.extend(side_tokens.iter());
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
         Document {
             source,
             is_open,
             tokens,
-            combined_tokens: all_tokens,
+            side_tokens,
+            side_span,
+            all_tokens,
             ast,
             module_id,
         }

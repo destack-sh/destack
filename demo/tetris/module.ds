@@ -59,14 +59,17 @@ implement Board {
 
     /// Check if a cell is filled at the given position.
     function isFilled(self, pos: Position) => boolean {
-        if !self.isValidPosition(pos) { return true }
+        if !self.isValidPosition(pos) {
+            return true
+        }
         self.cells[pos.y][pos.x].isFilled
     }
 
     /// Set a cell at the given position.
     function setCell(&var self, pos: Position, color: Color) {
-        // nocheckin: fix the wrapping of these expressions (now that we no longer have statements)
-        if self.isValidPosition(pos) { self.cells[pos.y][pos.x] = Cell { isFilled: true, color } }
+        if self.isValidPosition(pos) {
+            self.cells[pos.y][pos.x] = Cell { isFilled: true, color }
+        }
     }
 
     /// Clear completed lines and return the number cleared.
@@ -91,7 +94,9 @@ implement Board {
                 // }
                 self.cells.insert(0, newRow)
                 linesCleared += 1
-            } else { y -= 1 }
+            } else {
+                y -= 1
+            }
         }
         linesCleared
     }
@@ -322,10 +327,9 @@ implement TetrisPiece {
 
 implement TetrisGame {
     /// Create a new Tetris game.
-    function new() => TetrisGame {
-        let board = Board.new()
+    function new(width: int32, height: int32) => TetrisGame {
         TetrisGame {
-            board
+            board: Board.new(width, height),
             currentPiece: null
             currentPosition: Position { x: 4, y: 0 }
             nextPiece: null
@@ -344,14 +348,20 @@ implement TetrisGame {
         self.currentPiece = piece
         self.currentPosition = Position { x: 4, y: 0 }
         // check if game over
-        if self.isCollision(self.currentPosition) { self.state = GameState.GameOver }
+        if self.isCollision(self.currentPosition) {
+            self.state = GameState.GameOver
+        }
     }
 
     /// Check if the current piece would collide at the given position.
     function isCollision(self, pos: Position) => boolean {
         if let Some(piece) = self.currentPiece {
             let absolutePositions = piece.getAbsolutePositions(pos)
-            for blockPos in absolutePositions { if self.board.isFilled(blockPos) { return true } }
+            for blockPos in absolutePositions {
+                if self.board.isFilled(blockPos) {
+                    return true
+                }
+            }
         }
         false
     }
@@ -376,11 +386,13 @@ implement TetrisGame {
                 // rotation failed, revert
                 piece.rotation = oldRotation
                 piece.blocks = TetrisPiece.getBlocksForShape(piece.shape, oldRotation)
-                return false
+                false
+            } else {
+                true
             }
-            return true
+        } else {
+            false
         }
-        false
     }
 
     /// Lock the current piece to the board.
@@ -388,7 +400,9 @@ implement TetrisGame {
         if let Some(piece) = self.currentPiece {
             let absolutePositions = piece.getAbsolutePositions(self.currentPosition)
             let color = piece.getColor()
-            for pos in absolutePositions { self.board.setCell(pos, color) }
+            for pos in absolutePositions {
+                self.board.setCell(pos, color)
+            }
             // clear completed lines
             let cleared = self.board.clearLines()
             self.linesCleared += cleared
@@ -403,34 +417,54 @@ implement TetrisGame {
             // update level every 10 lines
             self.level = self.linesCleared / 10 + 1
             self.dropInterval = 1.0 - self.level - 1 * 0.1
-            if self.dropInterval < 0.1 { self.dropInterval = 0.1 }
+            if self.dropInterval < 0.1 {
+                self.dropInterval = 0.1
+            }
             self.currentPiece = null
         }
     }
 
     /// Handle input for moving left.
-    function moveLeft(&var self) { if self.state == GameState.Playing { self.tryMove(-1, 0) } }
+    function moveLeft(&var self) {
+        if self.state == GameState.Playing {
+            self.tryMove(-1, 0)
+        }
+    }
 
     /// Handle input for moving right.
-    function moveRight(&var self) { if self.state == GameState.Playing { self.tryMove(1, 0) } }
+    function moveRight(&var self) {
+        if self.state == GameState.Playing {
+            self.tryMove(1, 0)
+        }
+    }
 
     /// Handle input for soft drop.
     function softDrop(&var self) {
-        if self.state == GameState.Playing { if self.tryMove(0, 1) { self.score += 1 } }
+        if self.state == GameState.Playing {
+            if self.tryMove(0, 1) {
+                self.score += 1
+            }
+        }
     }
 
     /// Handle input for hard drop.
     function hardDrop(&var self) {
         if self.state == GameState.Playing {
             let dropDistance = 0
-            while self.tryMove(0, 1) { dropDistance += 1 }
+            while self.tryMove(0, 1) {
+                dropDistance += 1
+            }
             self.score += dropDistance * 2
             self.lockPiece()
         }
     }
 
     /// Handle input for rotation.
-    function rotatePiece(&var self) { if self.state == GameState.Playing { self.tryRotate() } }
+    function rotatePiece(&var self) {
+        if self.state == GameState.Playing {
+            self.tryRotate()
+        }
+    }
 
     /// Get a random piece shape.
     function getRandomShape(random: &Random) => TetrisPieceShape {

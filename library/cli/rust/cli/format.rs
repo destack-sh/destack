@@ -277,14 +277,20 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
     parser.finalize();
 
     // create format context and format the AST
+    let side_span = parser.get_side_span();
+    let tokens = parser.tokens;
+    let side_tokens = parser.side_tokens;
     let tree = parser.tree;
     let context = DystFormatContext {
         options: options.clone(),
         source,
-        session: &session,
         tree: &tree,
+        tokens: &tokens,
+        side_tokens: &side_tokens,
+        side_span: &side_span,
         spans: &tree.spans,
         parents: NodeParentIndex::from_tree(&tree),
+        session: &session,
     };
 
     // format and print the document

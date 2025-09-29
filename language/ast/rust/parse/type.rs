@@ -255,6 +255,8 @@ impl<'a> Parser<'a> {
         Ok(type_id)
     }
 
+    // todo! nocheckin: transform ast.PrimitiveType into ast.TypeLiteral?
+
     /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
     ///
     /// Examples:

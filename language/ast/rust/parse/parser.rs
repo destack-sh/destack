@@ -102,7 +102,7 @@ impl<'a> Parser<'a> {
 
     /// Get the span of all side annotations.
     #[inline]
-    pub(crate) fn get_side_span(&self) -> MultiSpan {
+    pub fn get_side_span(&self) -> MultiSpan {
         let tag_spans = self.tree.get_spans_for(NodeType::Tag);
         let decorator_spans = self.tree.get_spans_for(NodeType::Decorator);
         MultiSpan::new(tag_spans.into_iter().chain(decorator_spans).collect())

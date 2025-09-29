@@ -164,7 +164,7 @@ impl Workspace {
     pub fn get_semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
         let tree = doc.module_id.map(|root| (&doc.ast, root));
-        collect_semantic_tokens(&doc.source, &doc.combined_tokens, tree, None)
+        collect_semantic_tokens(&doc.source, &doc.all_tokens, tree, None)
     }
 
     /// Compute semantic tokens for a document within a range.
@@ -175,6 +175,6 @@ impl Workspace {
     ) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
         let tree = doc.module_id.map(|root| (&doc.ast, root));
-        collect_semantic_tokens(&doc.source, &doc.combined_tokens, tree, Some(range))
+        collect_semantic_tokens(&doc.source, &doc.all_tokens, tree, Some(range))
     }
 }
