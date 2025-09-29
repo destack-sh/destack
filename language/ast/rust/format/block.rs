@@ -1,22 +1,12 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, Break, Continue, Defer, DystFormatContext, DystFormatter, FormatNode, Keyword, Node,
-    NodeId, NodeTree, NodeTreeStore, NodeType, Return,
+    Block, Break, CONTAINER_NODE_TYPES, Continue, Defer, DystFormatContext, DystFormatter,
+    Expression, FormatNode, INLINE_NODE_TYPES, Keyword, Node, NodeId, NodeTree, NodeTreeStore,
+    NodeType, Return,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
-
-pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 8] = [
-    NodeType::Module,
-    NodeType::Struct,
-    NodeType::Enum,
-    NodeType::Union,
-    NodeType::Trait,
-    NodeType::Implement,
-    NodeType::Function,
-    NodeType::Block,
-];
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -65,8 +55,31 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let span = f.context().get_span(node_id);
         #[cfg(debug_assertions)]
-        let _node_span = f.context().get_span_str(f.context().get_span(node_id));
+        let _span_str = f.context().get_span_str(span);
+
+        // check whether the block is inlinable based on its contents
+        // if any expression is not inline, then the entire block shouldn't be
+        let is_inlinable = self.expressions.iter().all(|expr_id| {
+            let expr_node = f.context().get_node(*expr_id);
+            // assign counts as non-inline
+            if let Expression::Assign { .. } = &expr_node {
+                return false;
+            }
+            // anything that doesn't wrap an expression counts as inline
+            let Some(expr_node_type) = expr_node.to_wrapper_node_type() else {
+                return true;
+            };
+            // just check if the expression is inlinable
+            INLINE_NODE_TYPES.contains(&expr_node_type)
+        });
+
+        // parent (default to self)
+        let (parent_node_id, parent_node_type) = f
+            .context()
+            .get_parent_by_id(node_id.id)
+            .unwrap_or((node_id.id, NodeType::Block));
 
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         // label
@@ -77,9 +90,15 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
-        // single-statement block may be inline  
+        // single-statement block may be inline
         // (retain existing newline if it exists)
-        else if self.expressions.len() == 1 && !f.context().is_at_line_start(node_id.id) {
+        else if self.expressions.len() == 1
+            && !f.context().is_at_line_start(node_id.id)
+            && !f.context().is_at_line_start(parent_node_id)
+            && !CONTAINER_NODE_TYPES.contains(&parent_node_type)
+            && !f.context().has_newline(span)
+            && is_inlinable
+        {
             write!(
                 f,
                 [group(&format_args![
@@ -288,7 +307,18 @@ mod tests {
         );
     }
 
-    /// Block should break if the expression is used as a "statement" (even inside another block)
+    /// Block should break if the expression is used as a "statement".
+    #[test]
+    fn test_format_block_statement_like() {
+        assert_format!(
+            "if y { z } else { w }",
+            "if y {\n\tz\n} else {\n\tw\n}",
+            |p| p.eat_if(None),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    /// Block should retain the explicit newline.
     #[test]
     fn test_format_block_statement_retain_newline() {
         let source = "{\n\tlet X = 1\n\tlet Y = 2\n\tlet Z = 3\n}";

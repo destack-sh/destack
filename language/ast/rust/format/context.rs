@@ -161,6 +161,16 @@ impl<'ast> DystFormatContext<'ast> {
         self.tree.get(node_id)
     }
 
+    /// Get a Node from the tree.
+    #[inline]
+    pub fn get_node_type<T>(&self, node_id: NodeId<T>) -> NodeType
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.tree.get_type(node_id.id)
+    }
+
     /// Get a parent node id and its type from the tree.
     #[inline]
     pub fn get_parent<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
@@ -222,10 +232,30 @@ impl<'ast> DystFormatContext<'ast> {
         self.spans.get_by_id(node_id)
     }
 
+    /// Whether the given span has a newline.
+    #[inline]
+    pub fn has_newline(&self, span: Span) -> bool {
+        let Some(mut token_idx) = self
+            .tokens
+            .iter()
+            .position(|token| token.span.start == span.start)
+        else {
+            return false;
+        };
+        while let Some(token) = self.tokens.get(token_idx)
+            && token.span.end < span.end
+        {
+            if token.token.r#type == TokenType::Newline {
+                return true;
+            }
+            token_idx += 1;
+        }
+        false
+    }
+
     /// Whether the given node is at a line start.
     /// (With no other semantic spans between it and the previous newline / start).
-    pub fn is_at_line_start(&self, node_id: u32) -> bool
-    {
+    pub fn is_at_line_start(&self, node_id: u32) -> bool {
         // find the token starting the node's span
         let span = self.get_span_by_id(node_id);
         #[cfg(debug_assertions)]

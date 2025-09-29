@@ -5,8 +5,8 @@ use dyst_token::{TokenSpan, TokenType};
 
 use crate::parse::prelude::*;
 use crate::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, NodeId,
-    NodeSearch, NodeType, ParseResult, Parser, Tag,
+    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
+    Doc, DocStyle, NodeId, NodeSearch, NodeType, ParseResult, Parser, Tag,
 };
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
@@ -16,14 +16,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::BlockComment,
     TokenType::DocBlockComment,
 ];
-const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
-    NodeType::Annotation,
-    NodeType::Blank,
-    NodeType::Doc,
-    NodeType::Comment,
-    NodeType::Tag,
-    NodeType::Decorator,
-];
+
 const STATIC_KEYWORDS_STR: [&str; 4] = ["if", "loop", "for", "while"];
 
 impl Annotation {

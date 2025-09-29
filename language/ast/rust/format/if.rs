@@ -16,20 +16,21 @@ impl<'ast> FormatNode<'ast, If> for If {
                 condition,
                 then_block,
             } => {
-                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
-                    [group(&format_with(|f| {
+                    [group(&format_with(|f: &mut DystFormatter<'ast, '_>| {
+                        write!(f, [f.context().any_prefix_annotations(node_id)])?;
                         // if <condition> { <block> }
                         if let Some(runtime) = runtime
                             && *runtime == Runtime::Static
                         {
                             write!(f, [token("@")])?;
                         }
-                        write!(f, [Keyword::If, space(), *condition, space(), *then_block])
+                        write!(f, [Keyword::If, space(), *condition, space(), *then_block])?;
+                        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+                        Ok(())
                     }))]
                 )?;
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
             If::IfElse {
@@ -39,10 +40,10 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_block,
             } => {
                 // if <condition> { <block> } else { <block> }
-                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
-                    [group(&format_with(|f| {
+                    [group(&format_with(|f: &mut DystFormatter<'ast, '_>| {
+                        write!(f, [f.context().any_prefix_annotations(node_id)])?;
                         if let Some(runtime) = runtime
                             && *runtime == Runtime::Static
                         {
@@ -58,10 +59,11 @@ impl<'ast> FormatNode<'ast, If> for If {
                         }
                         write!(f, [Keyword::Else])?;
                         write!(f, [space()])?;
-                        write!(f, [*else_block])
+                        write!(f, [*else_block])?;
+                        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+                        Ok(())
                     }))]
                 )?;
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
             If::IfElseIf {
@@ -71,10 +73,10 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_if,
             } => {
                 // if <condition> { <block> } else if { <block> }
-                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
-                    [group(&format_with(|f| {
+                    [group(&format_with(|f: &mut DystFormatter<'ast, '_>| {
+                        write!(f, [f.context().any_prefix_annotations(node_id)])?;
                         if let Some(runtime) = runtime
                             && *runtime == Runtime::Static
                         {
@@ -90,10 +92,11 @@ impl<'ast> FormatNode<'ast, If> for If {
                         }
                         write!(f, [Keyword::Else])?;
                         write!(f, [space()])?;
-                        write!(f, [*else_if])
+                        write!(f, [*else_if])?;
+                        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+                        Ok(())
                     }))]
                 )?;
-                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
                 Ok(())
             }
         }
