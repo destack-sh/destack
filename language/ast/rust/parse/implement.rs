@@ -142,8 +142,8 @@ implement Foo<int32> {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path(path_id) => {
-                        assert_path!(parser.session, *path_id, "int32");
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser.session, *path, "int32");
                     });
                 });
             });
@@ -174,8 +174,8 @@ implement Bar<int32> for Baz {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path(path_id) => {
-                        assert_path!(parser.session, *path_id, "int32");
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser.session, *path, "int32");
                     });
                 });
             });
@@ -206,8 +206,8 @@ implement<T> Bar<T> for Baz<T> {
             let static_args = static_arguments.as_ref().expect("expected static arguments");
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::Path(path_id) => {
-                    assert_path!(parser.session, *path_id, "T");
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                    assert_path!(parser.session, *path, "T");
                 });
             });
 
@@ -219,8 +219,8 @@ implement<T> Bar<T> for Baz<T> {
                 let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(receiver_static_args.len(), 1);
                 assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path(path_id) => {
-                        assert_path!(parser.session, *path_id, "T");
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser.session, *path, "T");
                     });
                 });
             });
@@ -233,8 +233,8 @@ implement<T> Bar<T> for Baz<T> {
                 let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(receiver_static_args.len(), 1);
                 assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path(path_id) => {
-                        assert_path!(parser.session, *path_id, "T");
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser.session, *path, "T");
                     });
                 });
             });

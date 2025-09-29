@@ -40,6 +40,7 @@ struct Reference<T: Entity> {
 }
 
 /// An Identity is globally unique identifier for an Entity.
+#component
 struct Identity {
     /// The universally unique identifier of this Entity.
     id: Uuid

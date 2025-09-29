@@ -741,7 +741,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Return", _id.id).end();
             }
 
-            Expression::Path(path) => {
+            Expression::Path {
+                path,
+                static_arguments: _,
+            } => {
                 self.node("Expression::Path", _id.id)
                     .field("path", path)
                     .end();
@@ -789,11 +792,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Cast(_node) => {
                 self.node("Expression::Cast", _id.id).end();
             }
-            Expression::Unwrap(_node) => {
-                self.node("Expression::Unwrap", _id.id).end();
+            Expression::Maybe(_node) => {
+                self.node("Expression::Maybe", _id.id).end();
             }
-            Expression::UnwrapOrPanic(_node) => {
-                self.node("Expression::UnwrapOrPanic", _id.id).end();
+            Expression::Must(_node) => {
+                self.node("Expression::Must", _id.id).end();
             }
             Expression::Coalesce(_node) => {
                 self.node("Expression::Coalesce", _id.id).end();
@@ -1489,7 +1492,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Rest => {
                 self.node("Pattern::Rest", _id.id).end();
             }
-            Pattern::Unwrap(_) => {
+            Pattern::Maybe(_) => {
                 self.node("Pattern::Unwrap", _id.id).end();
             }
             Pattern::Reference {

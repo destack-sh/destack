@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
-use dyst_fir::write;
+use dyst_fir::{format_args, write};
 
 use crate::r#let::FormatScopedMutability;
 use crate::{
@@ -40,7 +40,33 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Defer(node) => node.format(f)?,
             Expression::Return(node) => node.format(f)?,
 
-            Expression::Path(p) => p.format(f)?,
+            Expression::Path {
+                path,
+                static_arguments,
+            } => {
+                write!(f, [path])?;
+
+                // static arguments
+                if let Some(static_arguments) = static_arguments
+                    && !static_arguments.is_empty()
+                {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("<"),
+                            soft_block_indent(&format_with(|f| {
+                                f.join_with(&format_args![
+                                    if_group_fits_on_line(&token(",")),
+                                    soft_line_break_or_space()
+                                ])
+                                .entries(static_arguments)
+                                .finish()
+                            })),
+                            token(">")
+                        ])]
+                    )?;
+                }
+            }
             Expression::ScalarLiteral(node) => node.format(f)?,
             Expression::RangeLiteral(node) => node.format(f)?,
             Expression::ArrayLiteral(node) => node.format(f)?,
@@ -70,8 +96,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Index(node) => node.format(f)?,
             Expression::Call(node) => node.format(f)?,
             Expression::Cast(node) => node.format(f)?,
-            Expression::Unwrap(expr) => write!(f, [expr, token("?")])?,
-            Expression::UnwrapOrPanic(expr) => write!(f, [expr, token("!")])?,
+            Expression::Maybe(expr) => write!(f, [expr, token("?")])?,
+            Expression::Must(expr) => write!(f, [expr, token("!")])?,
             Expression::Coalesce(node) => node.format(f)?,
             Expression::Binary {
                 left,

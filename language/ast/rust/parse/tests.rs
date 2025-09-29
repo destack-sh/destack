@@ -221,7 +221,10 @@ macro_rules! assert_path {
 macro_rules! assert_expr_path {
     ($session:expr, $expr:expr, $expected:expr) => {{
         match $expr {
-            $crate::Expression::Path(path) => {
+            $crate::Expression::Path {
+                path,
+                static_arguments: _,
+            } => {
                 assert_path!($session, *path, $expected);
             }
             other => panic!("expected Expression::Path, got {other:?}"),

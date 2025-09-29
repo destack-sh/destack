@@ -203,9 +203,13 @@ mod tests {
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let self_str = parser.intern_string("self");
         let self_path = parser.intern_path(vec![self_str]);
-        parser
-            .tree
-            .allocate(Expression::Path(self_path), parser.peek().unwrap().span)
+        parser.tree.allocate(
+            Expression::Path {
+                path: self_path,
+                static_arguments: None,
+            },
+            parser.peek().unwrap().span,
+        )
     }
 
     #[test]

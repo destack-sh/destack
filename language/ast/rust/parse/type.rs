@@ -113,6 +113,7 @@ impl<'a> Parser<'a> {
     //  for type aliases like `let X = Y<T>`
     //  and if we do that.. can we just allow any expression in type positions?
     //  also what about "bare" types like `int32` or even `struct`?
+    //  also what about the `&T?` `&(T?)` vs `(&T)?` ambiguity?
 
     /// Eat any Type (including nominal and anonymous declarations and implicit unions).
     /// Also consumes any prefix and postfix modifiers.
