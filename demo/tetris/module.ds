@@ -1,5 +1,7 @@
 use dyst
+use destack.entity
 
+/// A color in the Tetris game.
 enum Color {
     Red
     Orange
@@ -10,16 +12,108 @@ enum Color {
     Brown
 }
 
-struct TetrisComponent {
-    id: int32
+/// Game state for Tetris.
+enum GameState {
+    Playing
+    Paused
+    GameOver
 }
 
+/// Position on the game board.
+struct Position {
+    x: int32
+    y: int32
+}
+
+/// A cell on the Tetris board.
+struct Cell {
+    isFilled: boolean
+    color: Color?
+}
+
+/// The Tetris game board.
+struct Board {
+    width: int32 = 10
+    height: int32 = 20
+    cells: Cell[][]
+}
+
+implement Board {
+    /// Create a new empty board.
+    function new(width: int32, height: int32) => Board {
+        let cells = []
+        // for y in 0..height {
+        //     let row = []
+        //     for x in 0..width {
+        //         row.push(Cell { isFilled: false, color: null })
+        //     }
+        //     cells.push(row)
+        // }
+        Board { width, height, cells }
+    }
+
+    /// Check if a position is valid on the board.
+    function isValidPosition(self, pos: Position) => boolean {
+        pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height
+    }
+
+    /// Check if a cell is filled at the given position.
+    function isFilled(self, pos: Position) => boolean {
+        if !self.isValidPosition(pos) { return true }
+        self.cells[pos.y][pos.x].isFilled
+    }
+
+    /// Set a cell at the given position.
+    function setCell(&var self, pos: Position, color: Color) {
+        // nocheckin: fix the wrapping of these expressions (now that we no longer have statements)
+        if self.isValidPosition(pos) { self.cells[pos.y][pos.x] = Cell { isFilled: true, color } }
+    }
+
+    /// Clear completed lines and return the number cleared.
+    function clearLines(&var self) => int32 {
+        let linesCleared = 0
+        let y = self.height - 1
+        while y >= 0 {
+            let isComplete = true
+            // for x in 0..self.width {
+            //     if !self.cells[y][x].isFilled {
+            //         isComplete = false
+            //         break
+            //     }
+            // }
+            if isComplete {
+                // remove this line
+                self.cells.remove(y)
+                // add new empty line at top
+                let newRow: List<Cell> = []
+                // for x in 0..self.width {
+                //     newRow.push(Cell { isFilled: false, color: null })
+                // }
+                self.cells.insert(0, newRow)
+                linesCleared += 1
+            } else { y -= 1 }
+        }
+        linesCleared
+    }
+}
+
+#entity
 struct TetrisGame: Entity {
-    use TetrisComponent
+    board: Board
+    currentPiece: TetrisPiece?
+    currentPosition: Position
+    nextPiece: TetrisPiece?
+    score: int32 = 0
+    level: int32 = 1
+    linesCleared: int32 = 0
+    state: GameState = GameState.Playing
+    dropTimer: float32 = 0.0
+    dropInterval: float32 = 1.0
 }
 
 implement Context for TetrisGame { }
 
+/// The shape of a Tetris piece.
 enum TetrisPieceShape {
     I
     J
@@ -30,13 +124,23 @@ enum TetrisPieceShape {
     Z
 }
 
-union(TetrisPieceShape) TetrisPiece: RigidBody2D { }
+/// A Tetris piece with its rotation state.
+struct TetrisPiece {
+    shape: TetrisPieceShape
+    rotation: int32 = 0
+    blocks: Position[]
+}
 
 implement TetrisPiece {
-    function new(shape: TetrisPieceShape) => TetrisPiece { TetrisPiece { shape } }
+    /// Create a new Tetris piece.
+    function new(shape: TetrisPieceShape) => TetrisPiece {
+        let blocks = TetrisPiece.getBlocksForShape(shape, 0)
+        TetrisPiece { shape, rotation: 0, blocks }
+    }
 
+    /// Get the color of the Tetris piece.
     function getColor(self) => Color {
-        match self {
+        match self.shape {
             TetrisPieceShape.I => Color.Blue
             TetrisPieceShape.J => Color.Red
             TetrisPieceShape.L => Color.Orange
@@ -46,10 +150,329 @@ implement TetrisPiece {
             TetrisPieceShape.Z => Color.Brown
         }
     }
+
+    /// Get block positions for a shape and rotation.
+    function getBlocksForShape(shape: TetrisPieceShape, rotation: int32) => Position[] {
+        let normalizedRotation = rotation % 4
+        match shape {
+            TetrisPieceShape.I => {
+                if normalizedRotation == 0 || normalizedRotation == 2 {
+                    [
+                        Position { x: 0, y: 0 }
+                        Position { x: 1, y: 0 }
+                        Position { x: 2, y: 0 }
+                        Position { x: 3, y: 0 }
+                    ]
+                } else {
+                    [
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 1, y: 2 }
+                        Position { x: 1, y: 3 }
+                    ]
+                }
+            }
+            TetrisPieceShape.O => {
+                [
+                    Position { x: 0, y: 0 }
+                    Position { x: 1, y: 0 }
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                ]
+            }
+            TetrisPieceShape.T => {
+                match normalizedRotation {
+                    0 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                    ]
+                    1 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    2 => [
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    3 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    _ => []
+                }
+            }
+            TetrisPieceShape.S => {
+                if normalizedRotation == 0 || normalizedRotation == 2 {
+                    [
+                        Position { x: 1, y: 0 }
+                        Position { x: 2, y: 0 }
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                    ]
+                } else {
+                    [
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 2, y: 2 }
+                    ]
+                }
+            }
+            TetrisPieceShape.Z => {
+                if normalizedRotation == 0 || normalizedRotation == 2 {
+                    [
+                        Position { x: 0, y: 0 }
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                    ]
+                } else {
+                    [
+                        Position { x: 2, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                }
+            }
+            TetrisPieceShape.J => {
+                match normalizedRotation {
+                    0 => [
+                        Position { x: 0, y: 0 }
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                    ]
+                    1 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 2, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    2 => [
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 2, y: 2 }
+                    ]
+                    3 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 0, y: 2 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    _ => []
+                }
+            }
+            TetrisPieceShape.L => {
+                match normalizedRotation {
+                    0 => [
+                        Position { x: 2, y: 0 }
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                    ]
+                    1 => [
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 1, y: 2 }
+                        Position { x: 2, y: 2 }
+                    ]
+                    2 => [
+                        Position { x: 0, y: 1 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 2, y: 1 }
+                        Position { x: 0, y: 2 }
+                    ]
+                    3 => [
+                        Position { x: 0, y: 0 }
+                        Position { x: 1, y: 0 }
+                        Position { x: 1, y: 1 }
+                        Position { x: 1, y: 2 }
+                    ]
+                    _ => []
+                }
+            }
+        }
+    }
+
+    /// Rotate the piece clockwise.
+    function rotate(&var self) {
+        self.rotation = self.rotation + 1 % 4
+        self.blocks = TetrisPiece.getBlocksForShape(self.shape, self.rotation)
+    }
+
+    /// Get absolute positions of blocks given a base position.
+    function getAbsolutePositions(self, basePos: Position) => Position[] {
+        let positions = []
+        for block in self.blocks {
+            positions.push(Position { x: basePos.x + block.x, y: basePos.y + block.y })
+        }
+        positions
+    }
+}
+
+implement TetrisGame {
+    /// Create a new Tetris game.
+    function new() => TetrisGame {
+        let board = Board.new()
+        TetrisGame {
+            board
+            currentPiece: null
+            currentPosition: Position { x: 4, y: 0 }
+            nextPiece: null
+            score: 0
+            level: 1
+            linesCleared: 0
+            state: GameState.Playing
+            dropTimer: 0.0
+            dropInterval: 1.0
+        }
+    }
+
+    /// Spawn a new piece at the top of the board.
+    function spawnPiece(&var self, shape: TetrisPieceShape) {
+        let piece = TetrisPiece.new(shape)
+        self.currentPiece = piece
+        self.currentPosition = Position { x: 4, y: 0 }
+        // check if game over
+        if self.isCollision(self.currentPosition) { self.state = GameState.GameOver }
+    }
+
+    /// Check if the current piece would collide at the given position.
+    function isCollision(self, pos: Position) => boolean {
+        if let Some(piece) = self.currentPiece {
+            let absolutePositions = piece.getAbsolutePositions(pos)
+            for blockPos in absolutePositions { if self.board.isFilled(blockPos) { return true } }
+        }
+        false
+    }
+
+    /// Try to move the current piece in the given direction.
+    function tryMove(&var self, dx: int32, dy: int32) => boolean {
+        let newPosition =
+            Position { x: self.currentPosition.x + dx, y: self.currentPosition.y + dy }
+        if !self.isCollision(newPosition) {
+            self.currentPosition = newPosition
+            return true
+        }
+        false
+    }
+
+    /// Try to rotate the current piece.
+    function tryRotate(&var self) => boolean {
+        if let Some(&var piece) = self.currentPiece {
+            let oldRotation = piece.rotation
+            piece.rotate()
+            if self.isCollision(self.currentPosition) {
+                // rotation failed, revert
+                piece.rotation = oldRotation
+                piece.blocks = TetrisPiece.getBlocksForShape(piece.shape, oldRotation)
+                return false
+            }
+            return true
+        }
+        false
+    }
+
+    /// Lock the current piece to the board.
+    function lockPiece(&var self) {
+        if let Some(piece) = self.currentPiece {
+            let absolutePositions = piece.getAbsolutePositions(self.currentPosition)
+            let color = piece.getColor()
+            for pos in absolutePositions { self.board.setCell(pos, color) }
+            // clear completed lines
+            let cleared = self.board.clearLines()
+            self.linesCleared += cleared
+            // update score based on lines cleared
+            match cleared {
+                1 => self.score += 100 * self.level
+                2 => self.score += 300 * self.level
+                3 => self.score += 500 * self.level
+                4 => self.score += 800 * self.level
+                _ => { }
+            }
+            // update level every 10 lines
+            self.level = self.linesCleared / 10 + 1
+            self.dropInterval = 1.0 - self.level - 1 * 0.1
+            if self.dropInterval < 0.1 { self.dropInterval = 0.1 }
+            self.currentPiece = null
+        }
+    }
+
+    /// Handle input for moving left.
+    function moveLeft(&var self) { if self.state == GameState.Playing { self.tryMove(-1, 0) } }
+
+    /// Handle input for moving right.
+    function moveRight(&var self) { if self.state == GameState.Playing { self.tryMove(1, 0) } }
+
+    /// Handle input for soft drop.
+    function softDrop(&var self) {
+        if self.state == GameState.Playing { if self.tryMove(0, 1) { self.score += 1 } }
+    }
+
+    /// Handle input for hard drop.
+    function hardDrop(&var self) {
+        if self.state == GameState.Playing {
+            let dropDistance = 0
+            while self.tryMove(0, 1) { dropDistance += 1 }
+            self.score += dropDistance * 2
+            self.lockPiece()
+        }
+    }
+
+    /// Handle input for rotation.
+    function rotatePiece(&var self) { if self.state == GameState.Playing { self.tryRotate() } }
+
+    /// Get a random piece shape.
+    function getRandomShape(random: &Random) => TetrisPieceShape {
+        let shapes =
+            [
+                TetrisPieceShape.I
+                TetrisPieceShape.J
+                TetrisPieceShape.L
+                TetrisPieceShape.O
+                TetrisPieceShape.S
+                TetrisPieceShape.T
+                TetrisPieceShape.Z
+            ]
+        shapes[random.range(0, 7)]
+    }
 }
 
 implement Tick for TetrisGame {
-    function tick(&var self) with Time, Random { }
+    function tick(&var self) with &Time, &Random {
+        // spawn initial piece if needed
+        if self.currentPiece == null {
+            let shape =
+                if let Some(next) = self.nextPiece {
+                    let nextShape = next.shape
+                    self.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                    nextShape
+                } else {
+                    self.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                    TetrisGame.getRandomShape(random)
+                }
+            self.spawnPiece(shape)
+        }
+        // handle automatic dropping
+        self.dropTimer += time.deltaTime
+        if self.dropTimer >= self.dropInterval {
+            self.dropTimer = 0.0
+            if !self.tryMove(0, 1) {
+                // piece can't move down, lock it
+                self.lockPiece()
+            }
+        }
+    }
 }
 
 implement Draw for TetrisGame {

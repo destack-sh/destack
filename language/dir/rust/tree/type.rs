@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use crate::{
-    Argument, Enum, Expression, Function, Node, NodeId, NodeType, PathId, ScopedMutability, Struct,
-    Tuple, Union,
-};
+use crate::{Node, NodeId, NodeType};
 
 impl IntType {
     /// 8-bit signed integer
@@ -147,12 +144,12 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
-        path: PathId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        // path: PathId,
+        // static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
-        mutability: ScopedMutability,
+        // mutability: ScopedMutability,
         target: NodeId<Type>,
     },
     /// Virtual type `$T`. Somewhat like Any<T>.
@@ -162,24 +159,14 @@ pub enum Type {
     /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,
-        count: NodeId<Expression>,
+        // count: NodeId<Expression>,
     },
     /// Slice type `T[]`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },
     /// Tuple type `(T1, T2, ...)` (no tuple keyword).
-    Tuple(NodeId<Tuple>),
-    /// Inline struct type `struct MyStruct { ... }`.
-    InlineStruct(NodeId<Struct>),
-    /// Inline enum type `enum MyEnum { ... }`.
-    InlineEnum(NodeId<Enum>),
-    /// Inline union type `union MyUnion { ... }`.
-    InlineUnion(NodeId<Union>),
-    /// Union type `A | B | C`.
-    Union(Vec<NodeId<Type>>),
+    // Tuple(NodeId<Tuple>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
-    /// Inline Function type `function (T1, T2, ...) => T`.
-    Function(NodeId<Function>),
 }
 
 impl Node for Type {
