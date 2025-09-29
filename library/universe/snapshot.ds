@@ -14,8 +14,8 @@ enum SnapshotStatus {
 }
 
 /// A Snapshot is a point in Space-time.
-@entity
-struct Snapshot {
+#entity
+struct Snapshot: Entity {
     /// The Snapshot type.
     type: SnapshotType
     /// The Snapshot status.

@@ -163,7 +163,7 @@ impl CommandApp {
                     let ctx = CommandArguments::parse(args);
                     return (func)(ctx);
                 }
-                // NOTE @Robustness: unknown default configured, fall through to help
+                // NOTE #Robustness: unknown default configured, fall through to help
             }
             return self._show_help();
         }

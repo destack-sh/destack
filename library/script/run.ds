@@ -13,8 +13,8 @@ enum RunStatus {
 }
 
 /// Base event regarding a Run.
-@event
-struct RunEvent {
+#event
+struct RunEvent: Event {
     /// The Run self event pertains to.
     run: Run
     /// The target Entity of the Run, if any.
@@ -22,40 +22,40 @@ struct RunEvent {
 }
 
 /// A Run was started.
-@event
+#event
 struct RunStartedEvent: RunEvent { }
 
 /// A Run pause was requested.
-@event
+#event
 struct RunPauseRequestedEvent: RunEvent { }
 
 /// A Run was paused.
-@event
+#event
 struct RunPausedEvent: RunEvent { }
 
 /// A Run resume was requested.
-@event
+#event
 struct RunResumeRequestedEvent: RunEvent { }
 
 /// A Run was resumed.
-@event
+#event
 struct RunResumedEvent: RunEvent { }
 
 /// A Run stop was requested.
-@event
+#event
 struct RunStopRequestedEvent: RunEvent { }
 
 /// A Run failed.
-@event
+#event
 struct RunFailedEvent: RunEvent { }
 
 /// A Run completed.
-@event
+#event
 struct RunCompletedEvent: RunEvent { }
 
 /// Run of an Action.
-@entity
-struct Run {
+#entity
+struct Run: Entity {
     /// The Action being run.
     action: Reference<Action>
     /// The current Run status.

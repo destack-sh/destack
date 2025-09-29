@@ -69,8 +69,8 @@ struct Effect {
 }
 
 /// An effect template.
-@entity
-struct EffectTemplate {
+#entity
+struct EffectTemplate: Entity {
     /// When the effect is applied.
     type: EffectType
     /// Optional opacity multiplier.

@@ -11,8 +11,8 @@ struct FunctionDefinition {
 }
 
 /// Base Function entity.
-@entity
-struct Function {
+#entity
+struct Function: Entity {
     /// The Method type.
     type: MethodType
     /// Optional textual body.

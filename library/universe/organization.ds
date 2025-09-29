@@ -1,8 +1,8 @@
 use dyst
 
 /// An Organization with Users and Teams.
-@entity
-struct Organization {
+#entity
+struct Organization: Entity {
     /// The URL-friendly slug of the Organization.
     slug: string
 }

@@ -1,7 +1,7 @@
 use dyst
 
 /// An Image File
-@entity
+#entity
 struct Image: File {
     width: uint32
     height: uint32

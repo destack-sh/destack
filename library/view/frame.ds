@@ -1,8 +1,8 @@
 use dyst
 
 /// A frame View is a bare ContainerView
-@entity
-struct FrameView2D {
+#entity
+struct FrameView2D: Entity {
     use LayoutView2D
 }
 

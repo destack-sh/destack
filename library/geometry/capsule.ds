@@ -11,8 +11,8 @@ struct Capsule2D {
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
-@entity
-struct CapsuleShape2D {
+#entity
+struct CapsuleShape2D: Entity {
     use Shape2D
     use Capsule2D
 }
@@ -28,8 +28,8 @@ struct Capsule3D {
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.
-@entity
-struct CapsuleShape3D {
+#entity
+struct CapsuleShape3D: Entity {
     use Shape3D
     use Capsule3D
 }

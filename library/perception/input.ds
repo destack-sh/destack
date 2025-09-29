@@ -1,6 +1,6 @@
 use dyst
 
 /// Base type for direct user input events
-@event
+#event
 struct InputEvent: Event { }
 

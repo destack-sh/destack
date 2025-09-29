@@ -10,8 +10,8 @@ enum MachineType {
 }
 
 /// A Machine provides physical compute.
-@entity
-struct Machine {
+#entity
+struct Machine: Entity {
     /// Machine type.
     type: MachineType = MachineType.Runtime
     /// Runtime version string.

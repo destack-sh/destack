@@ -11,17 +11,19 @@ pub enum Keyword {
     Self_,
     /// Refer to the own instance.
     This,
-    /// Define a Module (inline).
+    /// Declare a Module (inline).
     Module,
-    /// Define a Struct.
+    /// Declare a tuple.
+    Tuple,
+    /// Declare a Struct.
     Struct,
-    /// Define an Enum.
+    /// Declare an Enum.
     Enum,
-    /// Define a Union.
+    /// Declare a Union.
     Union,
-    /// Define a Trait.
+    /// Declare a Trait.
     Trait,
-    /// Define a Function.
+    /// Declare a Function.
     Function,
     /// Implement a type.
     Implement,
@@ -74,6 +76,7 @@ impl Keyword {
             Keyword::Self_ => "self",
             Keyword::This => "this",
             Keyword::Module => "module",
+            Keyword::Tuple => "tuple",
             Keyword::Struct => "struct",
             Keyword::Enum => "enum",
             Keyword::Union => "union",
@@ -112,6 +115,7 @@ impl FromStr for Keyword {
             "private" => Ok(Keyword::Private),
             "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
+            "tuple" => Ok(Keyword::Tuple),
             "module" => Ok(Keyword::Module),
             "struct" => Ok(Keyword::Struct),
             "enum" => Ok(Keyword::Enum),

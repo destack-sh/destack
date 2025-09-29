@@ -150,7 +150,7 @@ impl Order {
     ///
     /// Appends do not lengthen the tail: `head = a.head + 1`, empty tail.
     ///
-    /// NOTE @Cleanup: this ignores potential space in the tail to keep append fast.
+    /// NOTE #Cleanup: this ignores potential space in the tail to keep append fast.
     pub fn next_after(a: &Order) -> Order {
         let head = a.head().wrapping_add(1);
         Self::from_head_and_slice(head, &[])

@@ -1,11 +1,11 @@
 use dyst
 
 /// A Gauge Metric.
-@entity
+#entity
 struct GaugeMetric: Metric { }
 
 /// A Gauge Measurement.
-@event
+#event
 struct GaugeMeasurementEvent: MeasurementEvent {
     /// The Gauge metric definition.
     definition: Reference<GaugeMetric>

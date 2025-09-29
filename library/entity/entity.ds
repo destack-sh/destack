@@ -50,7 +50,7 @@ struct Identity {
 }
 
 /// A named, versioned, mutable object in the system.
-@entity
+#entity
 struct Entity {
     #BeginGroup("main")
     /// The materialization level of the `Entity`.

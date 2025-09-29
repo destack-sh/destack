@@ -7,41 +7,41 @@ enum TimerType {
 }
 
 /// Base Timer event.
-@event
-struct TimerEvent {
+#event
+struct TimerEvent: Event {
     /// The Timer self event pertains to.
     timer: Timer
 }
 
 /// Timer started.
-@event
-struct TimerStartedEvent {
+#event
+struct TimerStartedEvent: Event {
     use TimerEvent
 }
 /// Timer paused.
-@event
-struct TimerPausedEvent {
+#event
+struct TimerPausedEvent: Event {
     use TimerEvent
 }
 /// Timer resumed.
-@event
-struct TimerResumedEvent {
+#event
+struct TimerResumedEvent: Event {
     use TimerEvent
 }
 /// Timer completed.
-@event
-struct TimerCompletedEvent {
+#event
+struct TimerCompletedEvent: Event {
     use TimerEvent
 }
 /// Timer cancelled.
-@event
-struct TimerCancelledEvent {
+#event
+struct TimerCancelledEvent: Event {
     use TimerEvent
 }
 
 /// A Timer.
-@entity
-struct Timer {
+#entity
+struct Timer: Entity {
     /// The Timer type.
     type: TimerType
     /// The optional Schedule for the Timer.

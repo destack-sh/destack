@@ -1,8 +1,8 @@
 use dyst
 
 /// A Script.
-@entity
-struct Script {
+#entity
+struct Script: Entity {
     /// The script code.
     code: string
 }

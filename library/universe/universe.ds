@@ -33,8 +33,8 @@ struct UniverseSpawnResponse {
 }
 
 /// The Destack computational universe.
-@entity
-struct Universe {
+#entity
+struct Universe: Entity {
     /// The current version of Destack.
     VERSION: string
     /// The float epsilon used for floating point comparisons.

@@ -1,8 +1,8 @@
 use dyst
 
 /// A Layer is a container for Views
-@entity
-struct Layer {
+#entity
+struct Layer: Entity {
     /// Whether the layer is visible
     isVisible: boolean?
     /// Layer opacity

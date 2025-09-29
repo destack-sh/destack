@@ -1,7 +1,7 @@
 use dyst
 
 /// Base event regarding a Membership.
-@event
+#event
 struct MembershipEvent: Event {
     /// The Membership self event pertains to.
     membership: Reference<Membership>
@@ -12,7 +12,7 @@ struct MembershipEvent: Event {
 }
 
 /// Membership was joined.
-@event
+#event
 struct MembershipJoinedEvent: Event {
     /// The Role assigned by the Membership.
     role: Reference<Role>
@@ -23,14 +23,14 @@ struct MembershipJoinedEvent: Event {
 }
 
 /// Membership was left.
-@event
+#event
 struct MembershipLeftEvent: Event {
     use MembershipEvent
 }
 
 /// A Membership of an Actor in a Joinable.
-@entity
-struct Membership {
+#entity
+struct Membership: Entity {
     /// The member Entity.
     member: Reference<Actor>
     /// The Role assigned to the member.

@@ -9,7 +9,7 @@ struct Circle2D {
 }
 
 /// A CircleShape is a shape that represents a circle.
-@entity
+#entity
 struct CircleShape2D: Shape2D {
     use Circle2D
 }
@@ -22,7 +22,7 @@ struct Sphere3D {
 }
 
 /// A SphereShape3D is a shape that represents a sphere.
-@entity
+#entity
 struct SphereShape3D: Shape3D {
     use Sphere3D
 }

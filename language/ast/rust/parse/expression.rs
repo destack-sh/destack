@@ -832,7 +832,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        // implicitly call static functions without arguments (e.g., `@entity`)
+        // implicitly call static functions without arguments (e.g., `#entity`)
         let left_expression = self.tree.get(left_expression_id);
         if runtime.is_some()
             && let Expression::Path(..) = left_expression
