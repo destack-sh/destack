@@ -13,37 +13,29 @@ struct InviteEvent: Event {
 
 /// Invite was sent.
 #event
-struct InviteSentEvent: Event {
+struct InviteSentEvent: InviteEvent {
     /// The Role assigned by the Invite.
     role: Reference<Role>
     /// The type of the Role.
     roleType: RoleType
-
-    use InviteEvent
 }
 
 /// Invite was rescinded.
 #event
-struct InviteRescindedEvent: Event {
-    use InviteEvent
-}
+struct InviteRescindedEvent: InviteEvent { }
 
 /// Invite was accepted.
 #event
-struct InviteAcceptedEvent: Event {
+struct InviteAcceptedEvent: InviteEvent {
     /// The Role accepted by the member.
     role: Reference<Role>
     /// The type of the Role.
     roleType: RoleType
-
-    use InviteEvent
 }
 
 /// Invite was rejected.
 #event
-struct InviteRejectedEvent: Event {
-    use InviteEvent
-}
+struct InviteRejectedEvent: InviteEvent { }
 
 /// An Invite to a Joinable.
 #entity
@@ -54,12 +46,5 @@ struct Invite: Entity {
     role: Reference<Role>?
     /// The type of the Role offered by the Invite.
     roleType: RoleType?
-
-    // TODO! #Incomplete: should "partial" nodes like this be allowed (in limited places)? 
-    @if x {
-        // member: Reference<Actor>
-    } else {
-        // member: Reference<Actor>
-    }
 }
 

@@ -813,7 +813,11 @@ impl<'a> Parser<'a> {
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-                let expression = Expression::Path(path_id);
+                // nocheckin: parse static arguments
+                let expression = Expression::Path {
+                    path: path_id,
+                    static_arguments: None,
+                };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             //
@@ -835,7 +839,7 @@ impl<'a> Parser<'a> {
         // implicitly call static functions without arguments (e.g., `#entity`)
         let left_expression = self.tree.get(left_expression_id);
         if runtime.is_some()
-            && let Expression::Path(..) = left_expression
+            && let Expression::Path { .. } = left_expression
             && self.peek_token(TokenType::OpenParenthesis).is_err()
         {
             let call_id = self.tree.allocate(
@@ -920,13 +924,13 @@ impl<'a> Parser<'a> {
             // unwrap
             else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
-                let expression = Expression::Unwrap(left_expression_id);
+                let expression = Expression::Maybe(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // force unwrap
             else if self.peek_token(TokenType::Not).is_ok() {
                 self.bump(); // eat !
-                let expression = Expression::UnwrapOrPanic(left_expression_id);
+                let expression = Expression::Must(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // coalesce
@@ -1325,8 +1329,8 @@ geom.Mesh<2, Dims: 4> {
                                 assert_node!(
                                     parser.tree,
                                     *receiver,
-                                    Expression::Path(path_id) => {
-                                        assert_path!(parser.session, *path_id, "self.foo");
+                                    Expression::Path { path, static_arguments: _ } => {
+                                        assert_path!(parser.session, *path, "self.foo");
                                     }
                                 );
                             }
@@ -1404,8 +1408,8 @@ let x =
                                                         assert_node!(
                                                             parser.tree,
                                                             *receiver,
-                                                            Expression::Path(path_id) => {
-                                                                assert_path!(parser.session, *path_id, "foo.parse");
+                                                            Expression::Path { path, static_arguments: _ } => {
+                                                                assert_path!(parser.session, *path, "foo.parse");
                                                             }
                                                         );
                                                     }

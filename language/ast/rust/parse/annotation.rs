@@ -967,7 +967,7 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
                     assert_eq!(*operator, BinaryOperator::And);
                     // A
-                    assert_node!(parser.tree, *left, Expression::Path(path) => {
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser.session, *path, "A");
                     });
                     let annotations = parser.tree.get_annotations_for(left.id);
@@ -990,7 +990,7 @@ over multiple lines with trailing space    */",
                     });
 
                     // B
-                    assert_node!(parser.tree, *right, Expression::Path(path) => {
+                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser.session, *path, "B");
                     });
                     // line postfix boundary, B comment

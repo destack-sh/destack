@@ -57,7 +57,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Defer(node) => visitor.visit_defer(tree, *node, tree.get(*node)),
         Expression::Return(node) => visitor.visit_return(tree, *node, tree.get(*node)),
 
-        Expression::Path(_) => {}
+        Expression::Path {
+            path: _,
+            static_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
         Expression::ScalarLiteral(node) => {
             visitor.visit_scalar_literal(tree, *node, tree.get(*node))
         }
@@ -99,8 +109,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Index(node) => visitor.visit_index(tree, *node, tree.get(*node)),
         Expression::Call(node) => visitor.visit_call(tree, *node, tree.get(*node)),
         Expression::Cast(node) => visitor.visit_cast(tree, *node, tree.get(*node)),
-        Expression::Unwrap(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
-        Expression::UnwrapOrPanic(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
+        Expression::Maybe(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
+        Expression::Must(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Expression::Coalesce(node) => visitor.visit_coalesce(tree, *node, tree.get(*node)),
 
         Expression::Error => {}
@@ -1043,7 +1053,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Rest => {
             // no child nodes to visit
         }
-        Pattern::Unwrap(unwrap) => {
+        Pattern::Maybe(unwrap) => {
             let unwrap_pattern = tree.get(*unwrap);
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
         }

@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
         // NOTE #Broken: postfix maybe pattern needs ungluing (see #UnglueTokens)
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat ?
-            let pattern = Pattern::Unwrap(pattern_id);
+            let pattern = Pattern::Maybe(pattern_id);
             let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }

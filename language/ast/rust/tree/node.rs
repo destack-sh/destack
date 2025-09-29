@@ -250,8 +250,11 @@ pub enum Expression {
     /// Return expression (as an Expression, see Return).
     Return(NodeId<Return>),
 
-    /// Alias reference to some path (as an Expression, we don't know what it is yet).
-    Path(PathId),
+    /// Alias reference to some path, statically parameterized (as an Expression).
+    Path {
+        path: PathId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
     /// Literal scalar value (as an Expression, see ScalarLiteral).
     ScalarLiteral(NodeId<ScalarLiteral>),
     /// Range literal (as an Expression, see RangeLiteral).
@@ -284,10 +287,10 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
-    /// Unwrap an expression with `?` and propagate (postfix as an Expression).
-    Unwrap(NodeId<Expression>),
-    /// Unwrap an expression with `!` and propagate (postfix as an Expression).
-    UnwrapOrPanic(NodeId<Expression>),
+    /// Maybe unwrap an expression with `?` and propagate (postfix as an Expression).
+    Maybe(NodeId<Expression>),
+    /// Must unwrap an expression with `!` and propagate (postfix as an Expression).
+    Must(NodeId<Expression>),
     /// Coalesce an expression with `??` (postfix as an Expression).
     Coalesce(NodeId<Coalesce>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
@@ -445,6 +448,8 @@ pub struct StructField {
 }
 
 // TODO! #Incomplete: getter/setter functions for Struct/Union/...Fields?
+//  (how does this interact with traits and unions?)
+//  (how does this relate with Entities?)
 
 impl Node for StructField {
     const KIND: NodeType = NodeType::StructField;
@@ -1978,8 +1983,8 @@ pub enum Pattern {
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
-    /// Unwrap pattern (like `T?`).
-    Unwrap(NodeId<Pattern>),
+    /// Maybe pattern (like `T?`).
+    Maybe(NodeId<Pattern>),
     /// Reference pattern (like `&x`).
     Reference {
         target: NodeId<Pattern>,
