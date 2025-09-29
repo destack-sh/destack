@@ -12,10 +12,10 @@ use crate::PathId;
 /// The type of a node in the AST.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
-    // Groupings
+    // groupings
     Expression,
     Block,
-    // Declarations
+    // declarations
     Module,
     Struct,
     StructField,
@@ -29,13 +29,13 @@ pub enum NodeType {
     Tuple,
     TupleField,
     Function,
-    // Context
+    // context
     With,
     WithClause,
     Use,
     UseClause,
     UseItem,
-    // Control
+    // control
     If,
     While,
     For,
@@ -45,28 +45,28 @@ pub enum NodeType {
     Defer,
     Return,
     Try,
-    // Bindings
+    // bindings
     Let,
     Parameter,
     Argument,
-    // Literals
+    // literals
     ScalarLiteral,
     RangeLiteral,
     TupleLiteral,
     ArrayLiteral,
     StructLiteral,
     FieldLiteral,
-    // Calls
+    // calls
     Index,
     Call,
     Cast,
     Coalesce,
-    // Matching
+    // matching
     Match,
     MatchCase,
     Pattern,
     PatternField,
-    // Annotations
+    // annotations
     Annotation,
     Blank,
     Doc,
@@ -74,6 +74,59 @@ pub enum NodeType {
     Tag,
     Decorator,
 }
+
+/// Node types that contain other "non-trivial" nodes.
+pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 10] = [
+    NodeType::Block,
+    NodeType::Module,
+    NodeType::Struct,
+    NodeType::Enum,
+    NodeType::Union,
+    NodeType::Trait,
+    NodeType::Implement,
+    NodeType::Function,
+    NodeType::Match,
+    NodeType::MatchCase,
+];
+
+/// Node types that are annotations.
+pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
+    NodeType::Annotation,
+    NodeType::Blank,
+    NodeType::Doc,
+    NodeType::Comment,
+    NodeType::Tag,
+    NodeType::Decorator,
+];
+
+/// Node types that may appear inline (instead of as a full statement).
+pub(crate) const INLINE_NODE_TYPES: [NodeType; 19] = [
+    // expressions
+    NodeType::Expression,
+    // declarations
+    NodeType::StructField,
+    NodeType::EnumField,
+    NodeType::UnionField,
+    NodeType::TupleField,
+    // bindings
+    NodeType::Parameter,
+    NodeType::Argument,
+    // literals
+    NodeType::ScalarLiteral,
+    NodeType::RangeLiteral,
+    NodeType::TupleLiteral,
+    NodeType::ArrayLiteral,
+    NodeType::StructLiteral,
+    NodeType::FieldLiteral,
+    // calls
+    NodeType::Call,
+    NodeType::Cast,
+    NodeType::Coalesce,
+    NodeType::Index,
+    // matching
+    NodeType::Pattern,
+    NodeType::PatternField,
+];
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]

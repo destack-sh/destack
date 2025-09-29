@@ -383,6 +383,66 @@ pub enum Expression {
     Error,
 }
 
+impl Expression {
+    /// Map the expression to its inner node type (if any).
+    pub fn to_wrapper_node_type(&self) -> Option<NodeType> {
+        match self {
+            // definitions
+            Expression::Module(_) => Some(NodeType::Module),
+            Expression::Struct(_) => Some(NodeType::Struct),
+            Expression::Enum(_) => Some(NodeType::Enum),
+            Expression::Union(_) => Some(NodeType::Union),
+            Expression::Trait(_) => Some(NodeType::Trait),
+            Expression::Implement(_) => Some(NodeType::Implement),
+            Expression::Function(_) => Some(NodeType::Function),
+            Expression::Block(_) => Some(NodeType::Block),
+
+            // declarations
+            Expression::With(_) => Some(NodeType::With),
+            Expression::Use(_) => Some(NodeType::Use),
+            Expression::Let(_) => Some(NodeType::Let),
+            Expression::If(_) => Some(NodeType::If),
+            Expression::While(_) => Some(NodeType::While),
+            Expression::For(_) => Some(NodeType::For),
+            Expression::Loop(_) => Some(NodeType::Loop),
+            Expression::Try(_) => Some(NodeType::Try),
+            Expression::Match(_) => Some(NodeType::Match),
+            Expression::Break(_) => Some(NodeType::Break),
+            Expression::Continue(_) => Some(NodeType::Continue),
+            Expression::Defer(_) => Some(NodeType::Defer),
+            Expression::Return(_) => Some(NodeType::Return),
+
+            // literals
+            Expression::Path { .. } => None,
+            Expression::ScalarLiteral(_) => Some(NodeType::ScalarLiteral),
+            Expression::RangeLiteral(_) => Some(NodeType::RangeLiteral),
+            Expression::ArrayLiteral(_) => Some(NodeType::ArrayLiteral),
+            Expression::TupleLiteral(_) => Some(NodeType::TupleLiteral),
+            Expression::StructLiteral(_) => Some(NodeType::StructLiteral),
+
+            // unary operations
+            Expression::Unary { .. } => None,
+            Expression::Reference { .. } => None,
+
+            // postfix operations
+            Expression::Member { .. } => None,
+            Expression::Index(_) => Some(NodeType::Index),
+            Expression::Call(_) => Some(NodeType::Call),
+            Expression::Cast(_) => Some(NodeType::Cast),
+            Expression::Maybe(_) => None,
+            Expression::Must(_) => None,
+            Expression::Coalesce(_) => Some(NodeType::Coalesce),
+
+            // binary operations
+            Expression::Binary { .. } => None,
+            Expression::Assign { .. } => None,
+
+            // error
+            Expression::Error => None,
+        }
+    }
+}
+
 impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
 }
