@@ -7,6 +7,17 @@ use crate::{
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
+pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 8] = [
+    NodeType::Module,
+    NodeType::Struct,
+    NodeType::Enum,
+    NodeType::Union,
+    NodeType::Trait,
+    NodeType::Implement,
+    NodeType::Function,
+    NodeType::Block,
+];
+
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmptyBlockWithInfixAnnotations<T: Node> {
@@ -54,9 +65,6 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let container = f.context().get_container(node_id);
-        let is_in_expression = matches!(container, Some((_, NodeType::Expression)));
-
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         // label
         if let Some(label) = &self.label {
@@ -66,8 +74,8 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
-        // single-statement block is inline if it's an expression and doesn't overflow
-        else if self.expressions.len() == 1 && is_in_expression {
+        // single-statement block can be inline if not at start of line
+        else if self.expressions.len() == 1 && !f.context().is_at_line_start(node_id) {
             write!(
                 f,
                 [group(&format_args![
@@ -80,7 +88,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                 ]),]
             )?;
         }
-        // multi-statement block gets newlines always
+        // multi-statement block always gets newlines
         else {
             write!(
                 f,
@@ -186,7 +194,7 @@ impl<'ast> FormatNode<'ast, Defer> for Defer {
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, ExpressionParserOptions, assert_format};
 
     #[test]
     fn test_format_empty_block_with_comment() {
@@ -261,6 +269,40 @@ mod tests {
             source,
             |p| p.eat_block(),
             DystFormatOptions::default()
+        );
+    }
+
+    /// Block shouldn't break if the expression is used inline.
+    #[test]
+    fn test_format_block_inline() {
+        let source = "let x = if y { z } else { w }";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(ExpressionParserOptions::default()),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    /// Block should break if the expression is used as a "statement".
+    #[test]
+    fn test_format_block_statement_like() {
+        assert_format!(
+            "if y { z } else { w }",
+            "if y {\n\tz\n} else {\n\tw\n}",
+            |p| p.eat_if(None),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    /// Block should break if the expression is used as a "statement" (even inside another block)
+    #[test]
+    fn test_format_block_statement_like_nested() {
+        assert_format!(
+            "{ if y { z } else { w } }",
+            "{\n\tif y {\n\t\tz\n\t} else {\n\t\tw\n\t}\n}",
+            |p| p.eat_block(),
+            DystFormatOptions::default_tab()
         );
     }
 }

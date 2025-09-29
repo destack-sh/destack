@@ -3,7 +3,7 @@ use dyst_fir::format::{
 };
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
-use dyst_source::{Path, PathId, Source, Span, StringId};
+use dyst_source::{MultiSpan, Path, PathId, Source, Span, StringId};
 use dyst_token::TokenSpan;
 
 use crate::{
@@ -112,6 +112,12 @@ pub struct DystFormatContext<'ast> {
     pub options: DystFormatOptions,
     /// The source.
     pub source: &'ast Source,
+    /// The main tokens.
+    pub tokens: &'ast Vec<TokenSpan>,
+    /// The side tokens.
+    pub side_tokens: &'ast Vec<TokenSpan>,
+    /// The side span.
+    pub side_span: &'ast MultiSpan,
     /// The tree.
     pub tree: &'ast NodeTree,
     /// The span index.
@@ -171,6 +177,18 @@ impl<'ast> DystFormatContext<'ast> {
         }
     }
 
+    /// Get a parent node id and its type from the tree.
+    #[inline]
+    pub fn get_parent_by_id(&self, node_id: u32) -> Option<(u32, NodeType)> {
+        let parent_id = self.parents.get_by_id(node_id);
+        if let Some(parent_id) = parent_id {
+            let parent_type = self.tree.get_type(parent_id);
+            Some((parent_id, parent_type))
+        } else {
+            None
+        }
+    }
+
     /// Get all ancestors of a node.
     #[inline]
     pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<(u32, NodeType)>
@@ -188,25 +206,6 @@ impl<'ast> DystFormatContext<'ast> {
             .collect()
     }
 
-    /// Get the container of a node (block, statement, or expression).
-    /// Excludes the node_id itself.
-    #[inline]
-    pub fn get_container<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
-    where
-        T: Node,
-        NodeTree: NodeTreeStore<T>,
-    {
-        let mut current_id = self.parents.get_by_id(node_id.id)?;
-        while let Some(parent_id) = self.parents.get_by_id(current_id) {
-            let parent_type = self.tree.get_type(parent_id);
-            if parent_type == NodeType::Block || parent_type == NodeType::Expression {
-                return Some((parent_id, parent_type));
-            }
-            current_id = parent_id;
-        }
-        None
-    }
-
     /// Get a Span from the tree.
     #[inline]
     pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
@@ -221,6 +220,40 @@ impl<'ast> DystFormatContext<'ast> {
     #[inline]
     pub fn get_span_by_id(&self, node_id: u32) -> Span {
         self.spans.get_by_id(node_id)
+    }
+
+    /// Whether the given node is at a line start.
+    /// (With no other semantic spans between it and the previous newline / start).
+    pub fn is_at_line_start<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        // find first previous token
+        let span = self.spans.get(node_id);
+        let Some(prev_token_idx) = self
+            .tokens
+            .iter()
+            .rev()
+            .position(|token| token.span.start < span.start)
+        else {
+            return true; // already at start
+        };
+
+        // can we reach newline or start before hitting something not in side span
+        let mut prev_token_idx = prev_token_idx;
+        loop {
+            let Some(prev_token) = self.tokens.get(prev_token_idx) else {
+                return true; // reached start
+            };
+            if prev_token.span.start == 0 {
+                return true; // reached start
+            }
+            if self.side_span.contains(&prev_token.span) {
+                return false; // hit side span
+            }
+            prev_token_idx -= 1;
+        }
     }
 
     /// Get annotations for a node. Annotations are sorted by position.

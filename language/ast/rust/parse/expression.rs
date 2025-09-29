@@ -815,7 +815,7 @@ impl<'a> Parser<'a> {
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-                // nocheckin: parse static arguments (for Types as values, but also literals)
+                // TODO! nocheckin: parse static arguments (for Types as values, but also literals)
                 //  (also see peek_path and peek_struct_literal)
                 let expression = Expression::Path {
                     path: path_id,
