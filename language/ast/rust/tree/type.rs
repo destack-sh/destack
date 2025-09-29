@@ -68,12 +68,12 @@ pub enum Type {
     Virtual(NodeId<Type>),
     /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
-    /// Array type `[N]T`. Must have static length.
+    /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,
         count: NodeId<Expression>,
     },
-    /// Slice type `[]T`. Unknown length (dynamically sized).
+    /// Slice type `T[]`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },
     /// Tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(NodeId<Tuple>),

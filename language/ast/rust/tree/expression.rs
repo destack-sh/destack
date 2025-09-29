@@ -86,6 +86,8 @@ pub enum UnaryOperator {
     ElementwiseNot = 243,
     /// `*`
     Dereference = 242,
+    /// `$`
+    Virtual = 241,
 }
 
 /// A BinaryOperator is an infix binary operator.
@@ -337,7 +339,7 @@ pub enum Expression {
     /// Struct literal (as an Expression, see StructLiteral).
     StructLiteral(NodeId<StructLiteral>),
 
-    /// Unary operation (prefix as Expression).
+    /// Unary operation (simple prefix as Expression).
     Unary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
@@ -354,13 +356,13 @@ pub enum Expression {
     },
     /// Index access (postfix as an Expression, see Index).
     Index(NodeId<Index>),
-    /// A Call is call to a function (postfix as an Expression, see Call).
+    /// Call to a function (postfix as an Expression, see Call).
     Call(NodeId<Call>),
-    /// As casting (postfix as an Expression, see As).
+    /// Cast to a type (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
     /// Maybe unwrap an expression with `?` and propagate (postfix as an Expression).
     Maybe(NodeId<Expression>),
-    /// Must unwrap an expression with `!` and propagate (postfix as an Expression).
+    /// Force unwrap an expression with `!` and propagate (postfix as an Expression).
     Must(NodeId<Expression>),
     /// Coalesce an expression with `??` (postfix as an Expression).
     Coalesce(NodeId<Coalesce>),

@@ -98,6 +98,7 @@ pub struct StructField {
 // TODO! #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)
+//  (how does this relate to $ virtualness?)
 
 impl Node for StructField {
     const KIND: NodeType = NodeType::StructField;
