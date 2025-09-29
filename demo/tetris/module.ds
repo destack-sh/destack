@@ -348,13 +348,13 @@ implement TetrisGame {
         self.currentPiece = piece
         self.currentPosition = Position { x: 4, y: 0 }
         // check if game over
-        if self.isCollision(self.currentPosition) {
+        if self.collidesWith(self.currentPosition) {
             self.state = GameState.GameOver
         }
     }
 
     /// Check if the current piece would collide at the given position.
-    function isCollision(self, pos: Position) => boolean {
+    function collidesWith(self, pos: Position) => boolean {
         if let Some(piece) = self.currentPiece {
             let absolutePositions = piece.getAbsolutePositions(pos)
             for blockPos in absolutePositions {
@@ -370,7 +370,7 @@ implement TetrisGame {
     function tryMove(&var self, dx: int32, dy: int32) => boolean {
         let newPosition =
             Position { x: self.currentPosition.x + dx, y: self.currentPosition.y + dy }
-        if !self.isCollision(newPosition) {
+        if !self.collidesWith(newPosition) {
             self.currentPosition = newPosition
             return true
         }
@@ -382,7 +382,7 @@ implement TetrisGame {
         if let Some(&var piece) = self.currentPiece {
             let oldRotation = piece.rotation
             piece.rotate()
-            if self.isCollision(self.currentPosition) {
+            if self.collidesWith(self.currentPosition) {
                 // rotation failed, revert
                 piece.rotation = oldRotation
                 piece.blocks = TetrisPiece.getBlocksForShape(piece.shape, oldRotation)

@@ -4,7 +4,7 @@ use dyst_fir::format::{
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Path, PathId, Source, Span, StringId};
-use dyst_token::TokenSpan;
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
     Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,
@@ -224,36 +224,33 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Whether the given node is at a line start.
     /// (With no other semantic spans between it and the previous newline / start).
-    pub fn is_at_line_start<T>(&self, node_id: NodeId<T>) -> bool
-    where
-        T: Node,
-        NodeTree: NodeTreeStore<T>,
+    pub fn is_at_line_start(&self, node_id: u32) -> bool
     {
-        // find first previous token
-        let span = self.spans.get(node_id);
-        let Some(prev_token_idx) = self
+        // find the token starting the node's span
+        let span = self.get_span_by_id(node_id);
+        #[cfg(debug_assertions)]
+        let _span_str = self.get_span_str(span);
+        let Some(mut token_idx) = self
             .tokens
             .iter()
-            .rev()
-            .position(|token| token.span.start < span.start)
+            .position(|token| token.span.start == span.start)
         else {
-            return true; // already at start
+            return false; // not found
         };
 
         // can we reach newline or start before hitting something not in side span
-        let mut prev_token_idx = prev_token_idx;
-        loop {
-            let Some(prev_token) = self.tokens.get(prev_token_idx) else {
+        while let Some(prev_token) = self.tokens.get(token_idx) {
+            if token_idx == 0 || prev_token.token.r#type == TokenType::Newline {
                 return true; // reached start
-            };
-            if prev_token.span.start == 0 {
-                return true; // reached start
+            } else if self.side_span.contains(&prev_token.span) {
+                token_idx -= 1; // keep looking
+            } else {
+                return false; // hit something else
             }
-            if self.side_span.contains(&prev_token.span) {
-                return false; // hit side span
-            }
-            prev_token_idx -= 1;
         }
+
+        // reached start
+        true
     }
 
     /// Get annotations for a node. Annotations are sorted by position.
