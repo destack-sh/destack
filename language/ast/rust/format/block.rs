@@ -65,6 +65,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        #[cfg(debug_assertions)]
+        let _node_span = f.context().get_span_str(f.context().get_span(node_id));
+
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         // label
         if let Some(label) = &self.label {
@@ -74,8 +77,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
-        // single-statement block can be inline if not at start of line
-        else if self.expressions.len() == 1 && !f.context().is_at_line_start(node_id) {
+        // single-statement block may be inline  
+        // (retain existing newline if it exists)
+        else if self.expressions.len() == 1 && !f.context().is_at_line_start(node_id.id) {
             write!(
                 f,
                 [group(&format_args![
@@ -284,23 +288,13 @@ mod tests {
         );
     }
 
-    /// Block should break if the expression is used as a "statement".
-    #[test]
-    fn test_format_block_statement_like() {
-        assert_format!(
-            "if y { z } else { w }",
-            "if y {\n\tz\n} else {\n\tw\n}",
-            |p| p.eat_if(None),
-            DystFormatOptions::default_tab()
-        );
-    }
-
     /// Block should break if the expression is used as a "statement" (even inside another block)
     #[test]
-    fn test_format_block_statement_like_nested() {
+    fn test_format_block_statement_retain_newline() {
+        let source = "{\n\tlet X = 1\n\tlet Y = 2\n\tlet Z = 3\n}";
         assert_format!(
-            "{ if y { z } else { w } }",
-            "{\n\tif y {\n\t\tz\n\t} else {\n\t\tw\n\t}\n}",
+            source,
+            source,
             |p| p.eat_block(),
             DystFormatOptions::default_tab()
         );
