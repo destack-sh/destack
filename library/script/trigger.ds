@@ -6,15 +6,15 @@ enum TriggerType {
 }
 
 /// Base Trigger event.
-@event
-struct TriggerEvent {
+#event
+struct TriggerEvent: Event {
     /// The Trigger self event pertains to.
     trigger: Trigger
 }
 
 /// A Trigger is a dynamic event to run something.
-@entity
-struct Trigger {
+#entity
+struct Trigger: Entity {
     /// The Event type to react to.
     event: NodeType?
     /// The optional filter Condition for the Event payload.

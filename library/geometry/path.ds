@@ -9,7 +9,7 @@ struct Path2D {
 }
 
 /// A PathShape is a shape that represents a polyline of multiple points.
-@entity
+#entity
 struct PathShape2D: Shape2D {
     use Path2D
 }
@@ -23,7 +23,7 @@ struct Polyline3D {
 }
 
 /// A PolylineShape3D represents a polygonal chain in 3D space.
-@entity
+#entity
 struct PolylineShape3D: Shape3D {
     use Polyline3D
 }

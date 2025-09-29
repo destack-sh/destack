@@ -110,8 +110,9 @@ pub struct TypeParserOptions {
 
 impl<'a> Parser<'a> {
     // TODO! #Incomplete: parse types as values or disambiguate somehow?
-    //  (for type aliases like `let X = Y<T>`)
+    //  for type aliases like `let X = Y<T>`
     //  and if we do that.. can we just allow any expression in type positions?
+    //  also what about "bare" types like `int32` or even `struct`?
 
     /// Eat any Type (including nominal and anonymous declarations and implicit unions).
     /// Also consumes any prefix and postfix modifiers.

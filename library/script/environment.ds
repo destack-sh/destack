@@ -1,6 +1,6 @@
 use dyst
 
 /// An Environment is a usage scenario.
-@entity
-struct Environment { }
+#entity
+struct Environment: Entity { }
 

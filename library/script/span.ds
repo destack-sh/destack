@@ -1,8 +1,8 @@
 use dyst
 
 /// A Span traces a Run.
-@event
-struct SpanEvent {
+#event
+struct SpanEvent: Event {
     /// The span name.
     name: string
     /// Start time of the span.

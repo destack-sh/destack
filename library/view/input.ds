@@ -1,11 +1,11 @@
 use dyst
 
 /// Base input View
-@entity
+#entity
 struct InputView2D: View2D { }
 
 /// A 2D number input View
-@entity
+#entity
 struct NumberInputView2D: InputView2D {
     /// The numeric value
     value: float64?
@@ -14,7 +14,7 @@ struct NumberInputView2D: InputView2D {
 }
 
 /// A 2D slider input View
-@entity
+#entity
 struct SliderInputView2D: InputView2D {
     /// The current slider value
     value: float64?

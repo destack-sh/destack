@@ -502,7 +502,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(document) = workspace.get_document(&lsp_uri_to_uri(&uri)) else {
             return Ok(None);
         };
-        // NOTE @Incomplete: format LSP partial range
+        // NOTE #Incomplete: format LSP partial range
         let formatted = workspace.format_document(document);
         let Some((end_line, end_character)) = document.source.get_position(document.source.len)
         else {

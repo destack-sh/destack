@@ -1,11 +1,11 @@
 use dyst
 
 /// An Entity that represents a Metric.
-@entity
-struct Metric { }
+#entity
+struct Metric: Entity { }
 
 /// An Event that represents a Measurement.
-@event
+#event
 struct MeasurementEvent: Event {
     /// The metric definition self measurement is for.
     definition: Reference<Metric>

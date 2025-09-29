@@ -13,8 +13,8 @@ struct TagDefinition {
 }
 
 /// A Tag to tag an Entity with.
-@entity
-struct Tag {
+#entity
+struct Tag: Entity {
     /// The designated Type for Values associated with self Tag. Any if unset.
     type: Type?
 }

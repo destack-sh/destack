@@ -1,8 +1,8 @@
 use dyst
 
 /// A container that splits its children
-@entity
-struct SplitView2D {
+#entity
+struct SplitView2D: Entity {
     use LayoutView2D
 }
 

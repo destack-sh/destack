@@ -27,8 +27,8 @@ struct Transition {
 }
 
 /// A transition templatecle
-@entity
-struct TransitionTemplate {
+#entity
+struct TransitionTemplate: Entity {
     type: TransitionType = TransitionType.Tween
     delay: float32?
     duration: float32?

@@ -199,7 +199,9 @@ impl<'a> Parser<'a> {
             Ok(pattern_id)
         }
         // union
-        else if self.peek_token(TokenType::ElementwiseOr).is_ok() && !self.options.in_implicit_union {
+        else if self.peek_token(TokenType::ElementwiseOr).is_ok()
+            && !self.options.in_implicit_union
+        {
             // eat all union "fields" (just unnamed patterns)
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::ElementwiseOr).is_ok() {

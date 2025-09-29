@@ -1,21 +1,21 @@
 use dyst
 
 /// A Star is a relationship between an Actor and a starred Node.
-@entity
-struct Star { }
+#entity
+struct Star: Entity { }
 
 /// Base Star event.
-@event
+#event
 struct StarEvent: Event {
     /// The Star self event pertains to.
     star: Reference<Star>
 }
 
 /// Star added.
-@event
+#event
 struct StarAddedEvent: StarEvent { }
 
 /// Star removed.
-@event
+#event
 struct StarRemovedEvent: StarEvent { }
 

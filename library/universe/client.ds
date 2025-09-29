@@ -1,8 +1,8 @@
 use dyst
 
 /// A Client to connect with the system.
-@entity
-struct Client {
+#entity
+struct Client: Entity {
     /// The client type.
     type: ClientType
     /// The access token, if any.

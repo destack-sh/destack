@@ -1,8 +1,8 @@
 use dyst
 
 /// A User is a human use Destack.
-@entity
-struct User {
+#entity
+struct User: Entity {
     /// The URL-friendly slug of the User.
     slug: string
     /// When the User last logged in.

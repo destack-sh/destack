@@ -1,7 +1,7 @@
 use dyst
 
 /// A Mouse is a user input device that can be used to interact with the UI
-@entity
+#entity
 struct Mouse2D: Pointer2D { }
 
 /// Mouse buttons
@@ -12,29 +12,29 @@ enum MouseButton {
 }
 
 /// Mouse-derived event with a button
-@event
+#event
 struct MouseEvent: PointerEvent {
     button: MouseButton
 }
 
 /// Click event base
-@event
+#event
 struct ClickEvent: MouseEvent { }
 
 /// Single click
-@event
+#event
 struct SingleClickEvent: ClickEvent { }
 
 /// Double click
-@event
+#event
 struct DoubleClickEvent: ClickEvent { }
 
 /// Triple click
-@event
+#event
 struct TripleClickEvent: ClickEvent { }
 
 /// Wheel scroll
-@event
+#event
 struct WheelEvent: MouseEvent {
     delta: Vector2
 }

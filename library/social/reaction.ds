@@ -1,14 +1,14 @@
 use dyst
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
-@entity
-struct Reaction {
+#entity
+struct Reaction: Entity {
     /// The reaction content, e.g. an emoji.
     content: string
 }
 
 /// Base Reaction event.
-@event
+#event
 struct ReactionEvent: Event {
     /// The Reaction self event pertains to.
     reaction: Reference<Reaction>
@@ -17,10 +17,10 @@ struct ReactionEvent: Event {
 }
 
 /// Reaction added.
-@event
+#event
 struct ReactionAddedEvent: ReactionEvent { }
 
 /// Reaction removed.
-@event
+#event
 struct ReactionRemovedEvent: ReactionEvent { }
 

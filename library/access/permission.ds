@@ -4,6 +4,6 @@ use dyst
 struct PermissionDefinition { }
 
 /// A Permission for something.
-@entity
-struct Permission { }
+#entity
+struct Permission: Entity { }
 

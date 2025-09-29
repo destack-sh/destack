@@ -10,31 +10,31 @@ enum NotificationStatus {
 }
 
 /// Base Notification event.
-@event
+#event
 struct NotificationEvent: Event {
     /// The Notification self event pertains to.
     notification: Reference<Notification>
 }
 
 /// Notification sent.
-@event
+#event
 struct NotificationSentEvent: NotificationEvent { }
 /// Notification rescinded.
-@event
+#event
 struct NotificationRescindedEvent: NotificationEvent { }
 /// Notification read.
-@event
+#event
 struct NotificationReadEvent: NotificationEvent { }
 /// Notification dismissed.
-@event
+#event
 struct NotificationDismissedEvent: NotificationEvent { }
 /// Notification expired.
-@event
+#event
 struct NotificationExpiredEvent: NotificationEvent { }
 
 /// A Notification is a message about something.
-@entity
-struct Notification {
+#entity
+struct Notification: Entity {
     /// The title of the Notification.
     title: string
     /// The status of the Notification.
