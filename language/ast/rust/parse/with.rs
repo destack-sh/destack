@@ -2,7 +2,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, TypeParserOptions, With, WithClause};
+use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, With, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration.
@@ -87,14 +87,14 @@ impl<'a> Parser<'a> {
 
         // first parse the left-hand side type target
         let left = self
-            .eat_type(TypeParserOptions::default())
+            .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::WithClause)?;
 
         // assertion: `T: SomeType`
         if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let right = self
-                .eat_type(TypeParserOptions::default())
+                .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::WithClause)?;
             let clause = self.tree.allocate(
                 WithClause::Assertion {
@@ -132,7 +132,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{PrimitiveType, Type, With, WithClause, assert_node, assert_path, assert_string};
+    use crate::{
+        Expression, TypeLiteral, UnaryOperator, With, WithClause, assert_node, assert_path,
+        assert_string,
+    };
 
     #[test]
     fn test_parse_with_type_assertion() {
@@ -143,12 +146,14 @@ mod tests {
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "T");
                 });
-                assert_node!(parser.tree, *assertion, Type::Primitive(PrimitiveType::Int(int_ty)) => {
-                    assert_eq!(int_ty.width, 32);
-                    assert!(int_ty.is_signed);
+                assert_node!(parser.tree, *assertion, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                        assert_eq!(int_ty.width, 32);
+                        assert!(int_ty.is_signed);
+                    });
                 });
             });
         });
@@ -164,7 +169,7 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert!(alias.is_none());
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Foo");
                 });
             });
@@ -181,7 +186,7 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert_string!(parser.session, alias.unwrap(), "Bar");
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Foo");
                 });
             });
@@ -198,7 +203,7 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert!(alias.is_none());
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Foo.Bar");
                 });
             });
@@ -215,8 +220,9 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert!(alias.is_none());
-                assert_node!(parser.tree, *target, Type::Not(inner_id) => {
-                    assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                    assert_eq!(*operator, UnaryOperator::Not);
+                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "Bar");
                     });
                 });
@@ -236,8 +242,9 @@ mod tests {
 
             // !Bar
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Not(inner_id) => {
-                    assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                    assert_eq!(*operator, UnaryOperator::Not);
+                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "Bar");
                     });
                 });
@@ -245,7 +252,7 @@ mod tests {
 
             // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
@@ -253,10 +260,10 @@ mod tests {
 
             // F: Numeric
             assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "F");
                 });
-                assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });
@@ -279,8 +286,9 @@ mod tests {
 
             // !Bar
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Not(inner_id) => {
-                    assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                    assert_eq!(*operator, UnaryOperator::Not);
+                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "Bar");
                     });
                 });
@@ -288,7 +296,7 @@ mod tests {
 
             // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
@@ -296,10 +304,10 @@ mod tests {
 
             // F: Numeric
             assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "F");
                 });
-                assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });

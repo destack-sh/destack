@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     ArrayLiteral, CompositeType, DystFormatContext, DystFormatter, FieldLiteral, FloatType,
     FormatNode, IntType, Keyword, NodeId, PrimitiveType, RangeLiteral, ScalarLiteral,
-    StructLiteral, TupleLiteral, TypeLiteral,
+    StructLiteral, TupleLiteral, TupleLiteralField, TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, group, text, token};
 use dyst_fir::prelude::*;
@@ -171,6 +171,32 @@ impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
         )?;
 
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, TupleLiteralField> for TupleLiteralField {
+    fn format_node(
+        &self,
+        node_id: NodeId<TupleLiteralField>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        match self {
+            TupleLiteralField::Named {
+                name,
+                value: r#type,
+            } => {
+                write!(f, [name, token(": "), r#type])?;
+            }
+            TupleLiteralField::Positional { value: r#type } => {
+                write!(f, [r#type])?;
+            }
+        }
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -387,16 +413,6 @@ fn normalize_floating_number(input: &str) -> Cow<'_, str> {
 mod tests {
     use crate::format::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-
-    #[test]
-    fn test_format_void_literal() {
-        assert_format!("void", "void", |p| p.eat_scalar_literal());
-    }
-
-    #[test]
-    fn test_format_null_literal() {
-        assert_format!("null", "null", |p| p.eat_scalar_literal());
-    }
 
     #[test]
     fn test_format_boolean_literal() {

@@ -1,8 +1,6 @@
 use crate::parse::ParserOptions;
 use crate::parse::prelude::*;
-use crate::{
-    BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser, TypeParserOptions,
-};
+use crate::{BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser};
 use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -52,14 +50,14 @@ impl<'a> Parser<'a> {
 
         // receiver
         let receiver = self
-            .eat_type(TypeParserOptions::default())
+            .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::Implement)?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.eat_keyword(Keyword::For)?;
             let for_trait = self
-                .eat_type(TypeParserOptions::default())
+                .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Implement)?;
             Some(for_trait)
         } else {
@@ -91,7 +89,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Argument, Expression, Implement, Type, assert_node, assert_path};
+    use crate::{Argument, Expression, Implement, assert_node, assert_path};
 
     #[test]
     fn test_parse_implement_simple() {
@@ -111,7 +109,7 @@ implement Foo {
             assert!(expressions.is_empty());
 
             // Foo
-            assert_node!(parser.tree, *receiver, Type::Path { path, .. } => {
+            assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Foo");
             });
         });
@@ -135,7 +133,7 @@ implement Foo<int32> {
             assert!(expressions.is_empty());
 
             // Foo<int32>
-            assert_node!(parser.tree, *receiver, Type::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
                 assert_path!(parser.session, *path, "Foo");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -167,7 +165,7 @@ implement Bar<int32> for Baz {
             assert!(expressions.is_empty());
 
             // Bar<int32>
-            assert_node!(parser.tree, *receiver, Type::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
                 assert_path!(parser.session, *path, "Bar");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -181,7 +179,7 @@ implement Bar<int32> for Baz {
             });
 
             // for Baz
-            assert_node!(parser.tree, for_trait.unwrap(), Type::Path { path, .. } => {
+            assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Baz");
             });
         });
@@ -212,7 +210,7 @@ implement<T> Bar<T> for Baz<T> {
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *receiver, Type::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
                 // Bar
                 assert_path!(parser.session, *path, "Bar");
                 // <T>
@@ -226,7 +224,7 @@ implement<T> Bar<T> for Baz<T> {
             });
 
             // for Baz<T>
-            assert_node!(parser.tree, for_trait.unwrap(), Type::Path { path, .. } => {
+            assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
                 // Baz
                 assert_path!(parser.session, *path, "Baz");
                 // <T>

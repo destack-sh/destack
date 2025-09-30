@@ -24,8 +24,6 @@ mod stop;
 mod r#struct;
 mod r#trait;
 mod r#try;
-mod r#tuple;
-mod r#type;
 mod union;
 mod r#use;
 mod visibility;

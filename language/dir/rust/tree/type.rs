@@ -94,7 +94,7 @@ impl FromStr for FloatType {
 /// An (unresolved) Type declaration node.
 ///
 /// Type references don't support static evaluation directly for simplicity.
-/// They can refer to Paths that are themselves any static Expressions
+/// They can refer to Paths that are themselves any static Types
 ///  (which enables the same feature set in a more structured way).
 ///
 /// Examples:
@@ -159,7 +159,7 @@ pub enum Type {
     /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,
-        // count: NodeId<Expression>,
+        // count: NodeId<Type>,
     },
     /// Slice type `T[]`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },

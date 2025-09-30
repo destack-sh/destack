@@ -1,4 +1,4 @@
-use crate::{Argument, Expression, Node, NodeId, NodeType, Type};
+use crate::{Argument, Expression, Node, NodeId, NodeType};
 
 /// An Impl defines the implementation of a concrete type node.
 /// There may be multiple Impls for the same type, and even impls for different modules.
@@ -27,9 +27,9 @@ pub struct Implement {
     /// The static arguments to the implement (leftmost static arguments).
     pub static_arguments: Option<Vec<NodeId<Argument>>>,
     /// The trait type to implement.
-    pub receiver: NodeId<Type>,
+    pub receiver: NodeId<Expression>,
     /// The type to implement the trait for.
-    pub for_trait: Option<NodeId<Type>>,
+    pub for_trait: Option<NodeId<Expression>>,
     /// The statements of the implement.
     pub expressions: Vec<NodeId<Expression>>,
 }

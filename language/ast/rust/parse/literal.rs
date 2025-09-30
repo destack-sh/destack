@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
-    ArrayLiteral, Expression, FieldLiteral, FloatType, IntType, NodeId, NodeType, ParseError,
-    ParseResult, Parser, ScalarLiteral, StructLiteral, TupleLiteral, TypeParserOptions,
+    ArrayLiteral, FieldLiteral, FloatType, IntType, NodeId, NodeType, ParseError, ParseResult,
+    Parser, PrimitiveType, ScalarLiteral, StructLiteral, TupleLiteral, TupleLiteralField,
+    TypeLiteral,
 };
 
 impl<'a> Parser<'a> {
@@ -52,7 +53,6 @@ impl<'a> Parser<'a> {
         let literal_str = self.get_span_str(literal_span.span);
 
         match literal {
-
             // boolean literal
             RawLiteralType::Boolean { value } => {
                 let scalar_literal = self
@@ -281,6 +281,67 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eat a type literal.
+    pub fn eat_type_literal(&mut self) -> ParseResult<NodeId<TypeLiteral>> {
+        todo!("Parse.eat_type_literal")
+    }
+
+    /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
+    ///
+    /// Examples:
+    /// ```
+    /// undefined
+    /// void
+    /// null
+    /// boolean
+    /// character
+    /// int32
+    /// uint7
+    /// float32
+    /// ```
+    fn peek_primitive_type(&self) -> ParseResult<PrimitiveType> {
+        let next = self.peek()?;
+        // NOTE: void and null are parsed as literals, but it's fine since we match on the raw span string
+        let next_str = self.get_span_str(next.span);
+        match next_str {
+            // undefined
+            "undefined" => Ok(PrimitiveType::Undefined),
+            // void
+            "void" => Ok(PrimitiveType::Void),
+            // null
+            "null" => Ok(PrimitiveType::Null),
+            // boolean
+            "boolean" => Ok(PrimitiveType::Boolean),
+            // character
+            "character" => Ok(PrimitiveType::Character),
+            // int_
+            int_str if int_str.starts_with("int") && int_str.len() > 3 => {
+                let Ok(width) = int_str.trim_start_matches("int").parse::<u16>() else {
+                    return Err(ParseError::expected(next.span, TokenType::Literal));
+                };
+                Ok(PrimitiveType::Int(IntType {
+                    width,
+                    is_signed: true,
+                }))
+            }
+            // uint_
+            uint_str if uint_str.starts_with("uint") && uint_str.len() > 4 => {
+                let Ok(width) = uint_str.trim_start_matches("uint").parse::<u16>() else {
+                    return Err(ParseError::expected(next.span, TokenType::Literal));
+                };
+                Ok(PrimitiveType::Int(IntType {
+                    width,
+                    is_signed: false,
+                }))
+            }
+            // float32
+            "float32" => Ok(PrimitiveType::Float(FloatType::Float32)),
+            // float64
+            "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
+            _ => Err(ParseError::expected(next.span, TokenType::Identifier)),
+        }
+    }
+
     /// Eat an array literal (fixed).
     /// The individual elements are full expressions, not just literals.
     ///
@@ -379,9 +440,9 @@ impl<'a> Parser<'a> {
     /// Eat the body of a tuple literal (excluding the parenthesis).
     pub fn eat_tuple_literal_body(
         &mut self,
-        first_element: NodeId<Expression>,
-    ) -> ParseResult<Vec<NodeId<Expression>>> {
-        let mut elements: Vec<NodeId<Expression>> = vec![first_element];
+        first_element: NodeId<TupleLiteralField>,
+    ) -> ParseResult<Vec<NodeId<TupleLiteralField>>> {
+        let mut elements: Vec<NodeId<TupleLiteralField>> = vec![first_element];
         loop {
             // stop at closing parenthesis
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
@@ -454,7 +515,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();
         let r#type = self
-            .eat_type(TypeParserOptions::default())
+            .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::StructLiteral)?;
         let fields = self
             .eat_struct_literal_body()
@@ -530,7 +591,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         ArrayLiteral, Expression, FieldLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
-        assert_bool, assert_char, assert_float, assert_int, assert_lit_string, assert_node,
+        TupleLiteralField, assert_bool, assert_char, assert_float, assert_int, assert_lit_string,
+        assert_node,
     };
 
     #[test]
@@ -746,22 +808,28 @@ mod tests {
             assert_eq!(elements.len(), 3);
 
             // [0] = 10
-            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, *scalar_literal_id, 10);
+            assert_node!(parser.tree, elements[0], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_int!(parser.tree, *scalar_literal_id, 10);
+                });
             });
 
             // [1] = false
-            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_bool!(parser.tree, *scalar_literal_id, false);
+            assert_node!(parser.tree, elements[1], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_bool!(parser.tree, *scalar_literal_id, false);
+                });
             });
 
             // [2] = "Hi"
-            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_lit_string!(
-                    parser.session,
-                    parser.tree.get(*scalar_literal_id),
-                    "Hi"
-                );
+            assert_node!(parser.tree, elements[2], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_lit_string!(
+                        parser.session,
+                        parser.tree.get(*scalar_literal_id),
+                        "Hi"
+                    );
+                });
             });
         });
     }
@@ -783,18 +851,24 @@ mod tests {
             assert_eq!(elements.len(), 3);
 
             // [0] = 1.0
-            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, *scalar_literal_id, 1.0);
+            assert_node!(parser.tree, elements[0], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_float!(parser.tree, *scalar_literal_id, 1.0);
+                });
             });
 
             // [1] = 2.0
-            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, *scalar_literal_id, 2.0);
+            assert_node!(parser.tree, elements[1], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_float!(parser.tree, *scalar_literal_id, 2.0);
+                });
             });
 
             // [2] = 3.0
-            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, *scalar_literal_id, 3.0);
+            assert_node!(parser.tree, elements[2], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_float!(parser.tree, *scalar_literal_id, 3.0);
+                });
             });
         });
     }

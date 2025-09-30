@@ -1,6 +1,6 @@
 use dyst_source::{PathId, StringId};
 
-use crate::{Mutability, Node, NodeId, NodeType, ScalarLiteral, Type};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, ScalarLiteral};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -54,7 +54,7 @@ pub enum Pattern {
     Slice { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
-        r#type: NodeId<Type>,
+        r#type: NodeId<Expression>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

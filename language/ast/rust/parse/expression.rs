@@ -722,9 +722,9 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
-        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type,
-        UnaryOperator, assert_expr_path, assert_int, assert_lit_int, assert_node, assert_path,
-        assert_string,
+        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral,
+        TupleLiteralField, UnaryOperator, assert_expr_path, assert_int, assert_lit_int,
+        assert_node, assert_path, assert_string,
     };
 
     /// Tuple literals are disambiguated.
@@ -750,16 +750,28 @@ mod tests {
                         assert_node!(
                             parser.tree,
                             elements[0],
-                            Expression::ScalarLiteral(scalar_literal_id) => {
-                                assert_int!(parser.tree, *scalar_literal_id, 1);
+                            TupleLiteralField::Positional { value } => {
+                                assert_node!(
+                                    parser.tree,
+                                    *value,
+                                    Expression::ScalarLiteral(scalar_literal_id) => {
+                                        assert_int!(parser.tree, *scalar_literal_id, 1);
+                                    }
+                                );
                             }
                         );
                         // 2
                         assert_node!(
                             parser.tree,
                             elements[1],
-                            Expression::ScalarLiteral(scalar_literal_id) => {
-                                assert_int!(parser.tree, *scalar_literal_id, 2);
+                            TupleLiteralField::Positional { value } => {
+                                assert_node!(
+                                    parser.tree,
+                                    *value,
+                                    Expression::ScalarLiteral(scalar_literal_id) => {
+                                        assert_int!(parser.tree, *scalar_literal_id, 2);
+                                    }
+                                );
                             }
                         );
                     }
@@ -815,7 +827,7 @@ mod tests {
                         assert_node!(
                             parser.tree,
                             *r#type,
-                            Type::Path { path, static_arguments: _ } => {
+                            Expression::Path { path, static_arguments: _ } => {
                                 assert_path!(parser.session, *path, "geom.Vector2");
                             }
                         );
@@ -887,7 +899,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     struct_literal.r#type,
-                    Type::Path { path, static_arguments } => {
+                    Expression::Path { path, static_arguments } => {
                         // geom.Mesh
                         assert_path!(parser.session, *path, "geom.Mesh");
                         // <2, Dims: 4>

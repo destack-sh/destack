@@ -1,5 +1,10 @@
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
+    Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
+    Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor,
+    Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField,
+    StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union,
+    UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 // ----------------------------------------------------------------------------
@@ -66,9 +71,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ScalarLiteral(node) => {
             visitor.visit_scalar_literal(tree, *node, tree.get(*node))
         }
+        Expression::TypeLiteral(node) => visitor.visit_type_literal(tree, *node, tree.get(*node)),
         Expression::RangeLiteral(node) => visitor.visit_range_literal(tree, *node, tree.get(*node)),
-        Expression::ArrayLiteral(node) => visitor.visit_array_literal(tree, *node, tree.get(*node)),
         Expression::TupleLiteral(node) => visitor.visit_tuple_literal(tree, *node, tree.get(*node)),
+        Expression::ArrayLiteral(node) => visitor.visit_array_literal(tree, *node, tree.get(*node)),
         Expression::StructLiteral(node) => {
             visitor.visit_struct_literal(tree, *node, tree.get(*node))
         }
@@ -141,13 +147,13 @@ pub fn walk_struct<V: NodeVisitor + ?Sized>(
     if let Some(super_types) = &struct_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
-            visitor.visit_type(tree, *type_id, type_node);
+            visitor.visit_expression(tree, *type_id, type_node);
         }
     }
 
     if let Some(representation_type) = &struct_node.representation_type {
         let type_node = tree.get(*representation_type);
-        visitor.visit_type(tree, *representation_type, type_node);
+        visitor.visit_expression(tree, *representation_type, type_node);
     }
 
     if let Some(static_parameters) = &struct_node.static_parameters {
@@ -177,7 +183,7 @@ pub fn walk_struct_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::StructField, id.id);
     let type_node = tree.get(field.r#type);
-    visitor.visit_type(tree, field.r#type, type_node);
+    visitor.visit_expression(tree, field.r#type, type_node);
 
     if let Some(default) = &field.default {
         let expression = tree.get(*default);
@@ -195,13 +201,13 @@ pub fn walk_enum<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Enum, id.id);
     if let Some(type_node) = &enum_node.r#type {
         let type_ref = tree.get(*type_node);
-        visitor.visit_type(tree, *type_node, type_ref);
+        visitor.visit_expression(tree, *type_node, type_ref);
     }
 
     if let Some(super_types) = &enum_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
-            visitor.visit_type(tree, *type_id, type_node);
+            visitor.visit_expression(tree, *type_id, type_node);
         }
     }
 
@@ -240,12 +246,12 @@ pub fn walk_union<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Union, id.id);
     if let Some(tag_type) = &union_node.tag_type {
         let type_node = tree.get(*tag_type);
-        visitor.visit_type(tree, *tag_type, type_node);
+        visitor.visit_expression(tree, *tag_type, type_node);
     }
 
     if let Some(representation_type) = &union_node.representation_type {
         let type_node = tree.get(*representation_type);
-        visitor.visit_type(tree, *representation_type, type_node);
+        visitor.visit_expression(tree, *representation_type, type_node);
     }
 
     if let Some(static_parameters) = &union_node.static_parameters {
@@ -258,7 +264,7 @@ pub fn walk_union<V: NodeVisitor + ?Sized>(
     if let Some(super_types) = &union_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
-            visitor.visit_type(tree, *type_id, type_node);
+            visitor.visit_expression(tree, *type_id, type_node);
         }
     }
 
@@ -283,7 +289,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::UnionField, id.id);
     if let Some(type_node) = &field.r#type {
         let type_ref = tree.get(*type_node);
-        visitor.visit_type(tree, *type_node, type_ref);
+        visitor.visit_expression(tree, *type_node, type_ref);
     }
     if let Some(value) = &field.value {
         let expression = tree.get(*value);
@@ -302,7 +308,7 @@ pub fn walk_trait<V: NodeVisitor + ?Sized>(
     if let Some(super_types) = &trait_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
-            visitor.visit_type(tree, *type_id, type_node);
+            visitor.visit_expression(tree, *type_id, type_node);
         }
     }
 
@@ -340,11 +346,11 @@ pub fn walk_implement<V: NodeVisitor + ?Sized>(
     }
 
     let receiver = tree.get(implement.receiver);
-    visitor.visit_type(tree, implement.receiver, receiver);
+    visitor.visit_expression(tree, implement.receiver, receiver);
 
     if let Some(for_trait) = &implement.for_trait {
         let trait_type = tree.get(*for_trait);
-        visitor.visit_type(tree, *for_trait, trait_type);
+        visitor.visit_expression(tree, *for_trait, trait_type);
     }
 
     for expression_id in &implement.expressions {
@@ -375,7 +381,7 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
 
     if let Some(return_type) = &function.return_type {
         let type_node = tree.get(*return_type);
-        visitor.visit_type(tree, *return_type, type_node);
+        visitor.visit_expression(tree, *return_type, type_node);
     }
 
     if let Some(with) = &function.with {
@@ -402,138 +408,12 @@ pub fn walk_let<V: NodeVisitor + ?Sized>(
 
     if let Some(type_node) = &let_node.r#type {
         let type_ref = tree.get(*type_node);
-        visitor.visit_type(tree, *type_node, type_ref);
+        visitor.visit_expression(tree, *type_node, type_ref);
     }
 
     if let Some(value) = &let_node.value {
         let expression = tree.get(*value);
         visitor.visit_expression(tree, *value, expression);
-    }
-}
-
-/// Walk the Tuple.
-pub fn walk_tuple<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Tuple>,
-    tuple: &Tuple,
-) {
-    visitor.visit_any(tree, NodeType::Tuple, id.id);
-    for element_id in &tuple.elements {
-        let element = tree.get(*element_id);
-        visitor.visit_tuple_field(tree, *element_id, element);
-    }
-}
-
-/// Walk the TupleField.
-pub fn walk_tuple_field<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<TupleField>,
-    field: &TupleField,
-) {
-    visitor.visit_any(tree, NodeType::TupleField, id.id);
-    match field {
-        TupleField::Named { name: _, r#type } => {
-            let type_node = tree.get(*r#type);
-            visitor.visit_type(tree, *r#type, type_node);
-        }
-        TupleField::Positional { r#type } => {
-            let type_node = tree.get(*r#type);
-            visitor.visit_type(tree, *r#type, type_node);
-        }
-    }
-}
-
-/// Walk the Type.
-pub fn walk_type<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Type>,
-    type_node: &Type,
-) {
-    visitor.visit_any(tree, NodeType::Type, id.id);
-    match type_node {
-        Type::Infer => {}
-        Type::Maybe(inner) => {
-            let inner_type = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_type);
-        }
-        Type::Not(inner) => {
-            let inner_type = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_type);
-        }
-        Type::Never => {}
-        Type::Self_ => {}
-        Type::Primitive(_) => {}
-        Type::Path {
-            path: _,
-            static_arguments,
-        } => {
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Type::Reference {
-            mutability: _,
-            target,
-        } => {
-            let target_type = tree.get(*target);
-            visitor.visit_type(tree, *target, target_type);
-        }
-        Type::Virtual(inner) => {
-            let inner_type = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_type);
-        }
-        Type::Variadic(inner) => {
-            let inner_type = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_type);
-        }
-        Type::Array { element, count } => {
-            let element_type = tree.get(*element);
-            visitor.visit_type(tree, *element, element_type);
-            let count_expr = tree.get(*count);
-            visitor.visit_expression(tree, *count, count_expr);
-        }
-        Type::Slice { element } => {
-            let element_type = tree.get(*element);
-            visitor.visit_type(tree, *element, element_type);
-        }
-        Type::Tuple(tuple_id) => {
-            let tuple = tree.get(*tuple_id);
-            visitor.visit_tuple(tree, *tuple_id, tuple);
-        }
-        Type::InlineStruct(struct_id) => {
-            let struct_node = tree.get(*struct_id);
-            visitor.visit_struct(tree, *struct_id, struct_node);
-        }
-        Type::InlineEnum(enum_id) => {
-            let enum_node = tree.get(*enum_id);
-            visitor.visit_enum(tree, *enum_id, enum_node);
-        }
-        Type::InlineUnion(union_id) => {
-            let union_node = tree.get(*union_id);
-            visitor.visit_union(tree, *union_id, union_node);
-        }
-        Type::Union(types) => {
-            for type_id in types {
-                let type_node = tree.get(*type_id);
-                visitor.visit_type(tree, *type_id, type_node);
-            }
-        }
-        Type::Intersection(types) => {
-            for type_id in types {
-                let type_node = tree.get(*type_id);
-                visitor.visit_type(tree, *type_id, type_node);
-            }
-        }
-        Type::Function(function_id) => {
-            let function = tree.get(*function_id);
-            visitor.visit_function(tree, *function_id, function);
-        }
     }
 }
 
@@ -566,13 +446,13 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     match with_clause {
         WithClause::Declaration { target, alias: _ } => {
             let target_type = tree.get(*target);
-            visitor.visit_type(tree, *target, target_type);
+            visitor.visit_expression(tree, *target, target_type);
         }
         WithClause::Assertion { target, assertion } => {
             let target_type = tree.get(*target);
-            visitor.visit_type(tree, *target, target_type);
+            visitor.visit_expression(tree, *target, target_type);
             let assertion_type = tree.get(*assertion);
-            visitor.visit_type(tree, *assertion, assertion_type);
+            visitor.visit_expression(tree, *assertion, assertion_type);
         }
     }
 }
@@ -839,7 +719,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Parameter, id.id);
     if let Some(type_node) = &parameter.r#type {
         let type_ref = tree.get(*type_node);
-        visitor.visit_type(tree, *type_node, type_ref);
+        visitor.visit_expression(tree, *type_node, type_ref);
     }
 
     if let Some(default) = &parameter.default {
@@ -939,7 +819,27 @@ pub fn walk_tuple_literal<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::TupleLiteral, id.id);
     for element_id in &tuple_literal.elements {
         let element = tree.get(*element_id);
-        visitor.visit_expression(tree, *element_id, element);
+        visitor.visit_tuple_literal_field(tree, *element_id, element);
+    }
+}
+
+/// Walk the TupleLiteralField.
+pub fn walk_tuple_literal_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<TupleLiteralField>,
+    tuple_literal_field: &TupleLiteralField,
+) {
+    visitor.visit_any(tree, NodeType::TupleLiteralField, id.id);
+    match tuple_literal_field {
+        TupleLiteralField::Named { name, value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        TupleLiteralField::Positional { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
     }
 }
 
@@ -952,7 +852,7 @@ pub fn walk_struct_literal<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::StructLiteral, id.id);
     let type_node = tree.get(struct_literal.r#type);
-    visitor.visit_type(tree, struct_literal.r#type, type_node);
+    visitor.visit_expression(tree, struct_literal.r#type, type_node);
 }
 
 /// Walk the FieldLiteral.
@@ -1026,7 +926,7 @@ pub fn walk_cast<V: NodeVisitor + ?Sized>(
     let receiver = tree.get(cast.receiver);
     visitor.visit_expression(tree, cast.receiver, receiver);
     let type_node = tree.get(cast.r#type);
-    visitor.visit_type(tree, cast.r#type, type_node);
+    visitor.visit_expression(tree, cast.r#type, type_node);
 }
 
 /// Walk the Coalesce.
@@ -1111,7 +1011,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         }
         Pattern::Struct { r#type, fields } => {
             let type_node = tree.get(*r#type);
-            visitor.visit_type(tree, *r#type, type_node);
+            visitor.visit_expression(tree, *r#type, type_node);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
@@ -1349,18 +1249,6 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
             let implement = tree.implements.get(local_idx);
             walk_implement(visitor, tree, NodeId::new(node_id), implement);
         }
-        NodeType::Type => {
-            let type_node = tree.types.get(local_idx);
-            walk_type(visitor, tree, NodeId::new(node_id), type_node);
-        }
-        NodeType::Tuple => {
-            let tuple = tree.tuples.get(local_idx);
-            walk_tuple(visitor, tree, NodeId::new(node_id), tuple);
-        }
-        NodeType::TupleField => {
-            let tuple_field = tree.tuple_fields.get(local_idx);
-            walk_tuple_field(visitor, tree, NodeId::new(node_id), tuple_field);
-        }
         NodeType::Function => {
             let function = tree.functions.get(local_idx);
             walk_function(visitor, tree, NodeId::new(node_id), function);
@@ -1458,6 +1346,10 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::TupleLiteral => {
             let tuple_literal = tree.tuple_literals.get(local_idx);
             walk_tuple_literal(visitor, tree, NodeId::new(node_id), tuple_literal);
+        }
+        NodeType::TupleLiteralField => {
+            let tuple_literal_field = tree.tuple_literal_fields.get(local_idx);
+            walk_tuple_literal_field(visitor, tree, NodeId::new(node_id), tuple_literal_field);
         }
         NodeType::ArrayLiteral => {
             let array_literal = tree.array_literals.get(local_idx);

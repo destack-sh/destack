@@ -3,8 +3,8 @@ use dyst_token::TokenType;
 use crate::parse::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{
-    BlockFormat, Keyword, NodeId, NodeType, ParseResult, Parser, Trait, Type, TypeParserOptions,
-    Visibility, With,
+    BlockFormat, Expression, Keyword, NodeId, NodeType, ParseResult, Parser, Trait, Visibility,
+    With,
 };
 
 impl<'a> Parser<'a> {
@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            let mut super_types: Vec<NodeId<Expression>> = Vec::new();
             loop {
                 // eat until open parenthesis
                 if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_type(TypeParserOptions::default())
+                        .eat_expression(ExpressionParserOptions::default())
                         .for_node_type(NodeType::Trait)?;
                     super_types.push(super_type);
                 }
@@ -125,9 +125,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{
-        Expression, Function, Trait, Type, WithClause, assert_node, assert_path, assert_string,
-    };
+    use crate::{Expression, Function, Trait, WithClause, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
@@ -156,7 +154,7 @@ mod tests {
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Bar");
             });
         });
@@ -186,7 +184,7 @@ trait Foo: Baz {
             // : Baz
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Baz");
             });
         });
@@ -233,11 +231,11 @@ trait Baz<T> with T: Copy {
             // with T: Copy
             assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
                 // T
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "T");
                 });
                 // Copy
-                assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Copy");
                 });
             });
@@ -252,7 +250,7 @@ trait Baz<T> with T: Copy {
                     assert_string!(parser.session, name.unwrap(), "baz");
                     // => T
                     let ret = return_type.expect("expected return type");
-                    assert_node!(parser.tree, ret, Type::Path { path, .. } => {
+                    assert_node!(parser.tree, ret, Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "T");
                     });
                 });

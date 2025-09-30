@@ -5,8 +5,8 @@ use dyst_token::TokenType;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
-    Enum, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Type,
-    TypeParserOptions, Visibility,
+    Enum, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
+    Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -40,11 +40,11 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Enum)?;
 
         // optional explicit tag type in `(Type)`
-        let explicit_type: Option<NodeId<Type>> =
+        let explicit_type: Option<NodeId<Expression>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let ty = self
-                    .eat_type(TypeParserOptions::default())
+                    .eat_expression(ExpressionParserOptions::default())
                     .for_node_type(NodeType::Enum)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            let mut super_types: Vec<NodeId<Expression>> = Vec::new();
             loop {
                 // eat until open parenthesis
                 if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_type(TypeParserOptions::default())
+                        .eat_expression(ExpressionParserOptions::default())
                         .for_node_type(NodeType::Enum)?;
                     super_types.push(super_type);
                 }
@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node, assert_path,
+        Enum, EnumField, Expression, IntType, TypeLiteral, assert_int, assert_node, assert_path,
         assert_string,
     };
 
@@ -210,7 +210,7 @@ enum Foo: Day {}
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Day");
             });
         });
@@ -274,15 +274,14 @@ enum(uint8) Foo: Day {
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // enum type
-            assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
-                assert_eq!(int_ty.width, 8);
-                assert!(!int_ty.is_signed);
+            assert_node!(parser.tree, r#type.unwrap(), Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 8, is_signed: false }));
             });
 
             // super: Day
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Day");
             });
 

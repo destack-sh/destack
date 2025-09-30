@@ -19,8 +19,6 @@ pub mod pattern;
 pub mod r#struct;
 pub mod r#trait;
 pub mod r#try;
-pub mod r#tuple;
-pub mod r#type;
 pub mod union;
 pub mod r#use;
 pub mod with;

@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId, Type};
+use crate::{Expression, Node, NodeId, NodeType, StringId};
 
 /// A Parameter is a parameter to some expression.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
@@ -16,7 +16,7 @@ pub struct Parameter {
     /// The name of the parameter.
     pub name: StringId,
     /// The type of the parameter.
-    pub r#type: Option<NodeId<Type>>,
+    pub r#type: Option<NodeId<Expression>>,
     /// The default value of the parameter.
     pub default: Option<NodeId<Expression>>,
 }
@@ -28,7 +28,7 @@ impl Node for Parameter {
 /// An Argument is an argument to a function call.
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
-/// 
+///
 ///
 /// Examples:
 /// ```

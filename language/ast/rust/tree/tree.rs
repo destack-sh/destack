@@ -5,7 +5,12 @@ use dyst_source::Span;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
+    Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral,
+    For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
+    NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
+    Struct, StructField, StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField,
+    TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -37,9 +42,6 @@ pub struct NodeTree {
     pub(crate) union_fields: NodeArena<UnionField>,
     pub(crate) traits: NodeArena<Trait>,
     pub(crate) implements: NodeArena<Implement>,
-    pub(crate) types: NodeArena<Type>,
-    pub(crate) tuples: NodeArena<Tuple>,
-    pub(crate) tuple_fields: NodeArena<TupleField>,
     pub(crate) functions: NodeArena<Function>,
     // context
     pub(crate) withs: NodeArena<With>,
@@ -65,8 +67,9 @@ pub struct NodeTree {
     pub(crate) scalar_literals: NodeArena<ScalarLiteral>,
     pub(crate) type_literals: NodeArena<TypeLiteral>,
     pub(crate) range_literals: NodeArena<RangeLiteral>,
-    pub(crate) array_literals: NodeArena<ArrayLiteral>,
     pub(crate) tuple_literals: NodeArena<TupleLiteral>,
+    pub(crate) tuple_literal_fields: NodeArena<TupleLiteralField>,
+    pub(crate) array_literals: NodeArena<ArrayLiteral>,
     pub(crate) struct_literals: NodeArena<StructLiteral>,
     pub(crate) field_literals: NodeArena<FieldLiteral>,
     // calls
@@ -127,9 +130,6 @@ impl NodeTree {
             union_fields: NodeArena::new(),
             traits: NodeArena::new(),
             implements: NodeArena::new(),
-            types: NodeArena::new(),
-            tuples: NodeArena::new(),
-            tuple_fields: NodeArena::new(),
             functions: NodeArena::new(),
             // context
             withs: NodeArena::new(),
@@ -155,8 +155,9 @@ impl NodeTree {
             scalar_literals: NodeArena::new(),
             type_literals: NodeArena::new(),
             range_literals: NodeArena::new(),
-            array_literals: NodeArena::new(),
             tuple_literals: NodeArena::new(),
+            tuple_literal_fields: NodeArena::new(),
+            array_literals: NodeArena::new(),
             struct_literals: NodeArena::new(),
             field_literals: NodeArena::new(),
             // calls
@@ -399,9 +400,6 @@ impl_node_tree_stores! {
     UnionField => union_fields,
     Trait => traits,
     Implement => implements,
-    Type => types,
-    Tuple => tuples,
-    TupleField => tuple_fields,
     Function => functions,
     // context
     With => withs,
@@ -422,13 +420,14 @@ impl_node_tree_stores! {
     // bindings
     Let => lets,
     Parameter => parameters,
-    Argument => arguments,  
+    Argument => arguments,
     // literals
     ScalarLiteral => scalar_literals,
     TypeLiteral => type_literals,
     RangeLiteral => range_literals,
-    ArrayLiteral => array_literals,
     TupleLiteral => tuple_literals,
+    TupleLiteralField => tuple_literal_fields,
+    ArrayLiteral => array_literals,
     StructLiteral => struct_literals,
     FieldLiteral => field_literals,
     // calls

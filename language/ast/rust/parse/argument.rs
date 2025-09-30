@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;
             let r#type = self
-                .eat_type(TypeParserOptions::default())
+                .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Parameter)?;
             Some(r#type)
         } else {
@@ -145,8 +145,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node,
-        assert_string,
+        Argument, Expression, TypeLiteral, assert_bool, assert_int, assert_node, assert_string,
     };
 
     #[test]
@@ -174,9 +173,11 @@ mod tests {
 
         // int32
         assert_node!(parser.tree, parameter.r#type.unwrap(),
-            Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                assert_eq!(*width, 32);
-                assert!(*is_signed);
+            Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                    assert_eq!(int_ty.width, 32);
+                    assert!(int_ty.is_signed);
+                });
             }
         );
         assert!(parameter.default.is_none());
@@ -197,7 +198,9 @@ mod tests {
         assert_node!(
             parser.tree,
             parameter.r#type.unwrap(),
-            Type::Primitive(PrimitiveType::Boolean)
+            Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
+            }
         );
 
         // false

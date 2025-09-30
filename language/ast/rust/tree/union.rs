@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Parameter, Type, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
 
 /// A Union is a tagged sum type of structs.
 /// Like with structs, the ',' separator is optional if newline-delimited.
@@ -37,13 +37,13 @@ pub struct Union {
     /// The visibility of the union.
     pub visibility: Option<Visibility>,
     /// The tag type of the union (if explicitly specified).
-    pub tag_type: Option<NodeId<Type>>,
+    pub tag_type: Option<NodeId<Expression>>,
     /// The representation type of the union (if explicitly specified).
-    pub representation_type: Option<NodeId<Type>>,
+    pub representation_type: Option<NodeId<Expression>>,
     /// The static parameters of the union.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The super types of the union (desugars to `use`-ing other types).
-    pub super_types: Option<Vec<NodeId<Type>>>,
+    pub super_types: Option<Vec<NodeId<Expression>>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The body of the union.
@@ -67,7 +67,7 @@ pub struct UnionField {
     /// The name of the union field.
     pub name: StringId,
     /// The type of the union field.
-    pub r#type: Option<NodeId<Type>>,
+    pub r#type: Option<NodeId<Expression>>,
     /// The default value of the union field.
     pub value: Option<NodeId<Expression>>,
 }

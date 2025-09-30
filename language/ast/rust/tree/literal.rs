@@ -1,4 +1,6 @@
-use crate::{CompositeType, Expression, FloatType, IntType, Node, NodeId, NodeType, StringId, Type};
+use std::str::FromStr;
+
+use crate::{Expression, Node, NodeId, NodeType, StringId};
 
 /// A ScalarLiteral is literal scalar value node.
 ///
@@ -37,14 +39,14 @@ impl Node for ScalarLiteral {
     const KIND: NodeType = NodeType::ScalarLiteral;
 }
 
-/// A TypeLiteral is literal type node. 
+/// A TypeLiteral is literal type node.
 /// Some types are also their literal scalar values (like `null`).
 ///
 /// Examples:
 /// ```
 /// !
 /// $
-/// _ 
+/// _
 /// undefined
 /// void
 /// null
@@ -85,6 +87,97 @@ impl Node for TypeLiteral {
     const KIND: NodeType = NodeType::TypeLiteral;
 }
 
+/// An IntType represents arbitrary width integer with signedness.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct IntType {
+    /// Bit width.
+    pub width: u16,
+    /// Whether the integer is signed (`int*` or `uint*`).
+    pub is_signed: bool,
+}
+
+/// A FloatType represents IEEE-754 float.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FloatType {
+    /// 32-bit IEEE-754 float.
+    Float32,
+    /// 64-bit IEEE-754 float.
+    Float64,
+}
+
+impl IntType {
+    #[inline]
+    pub fn as_str(self) -> String {
+        let mut as_str = if self.is_signed {
+            "int".to_string()
+        } else {
+            "uint".to_string()
+        };
+        as_str.push_str(&self.width.to_string());
+        as_str
+    }
+}
+
+impl FloatType {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            FloatType::Float32 => "float32",
+            FloatType::Float64 => "float64",
+        }
+    }
+}
+
+impl FromStr for FloatType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "float32" => Ok(FloatType::Float32),
+            "float64" => Ok(FloatType::Float64),
+            _ => Err(()),
+        }
+    }
+}
+
+/// A PrimitiveType represents primitive types.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum PrimitiveType {
+    /// Unknown / uninitialized type.
+    Undefined,
+    /// Void / empty / unit type.
+    Void,
+    /// Null type.
+    Null,
+    /// Boolean type.
+    Boolean,
+    /// Character type.
+    Character,
+    /// Integer type with arbitrary width.
+    Int(IntType),
+    /// Floating point number type.
+    Float(FloatType),
+}
+
+/// A CompositeType represents composite types.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompositeType {
+    /// Base type `type`.
+    Type,
+    /// Struct type `struct MyStruct { ... }`.
+    Struct,
+    /// Enum type `enum MyEnum { ... }`.
+    Enum,
+    /// Union type `A | B | C`.
+    Union,
+    /// Tuple type `(T1, T2, ...)`.
+    Tuple,
+    /// Trait type `trait MyTrait { ... }`.
+    Trait,
+    /// Function type `function (T1, T2, ...) => T`.
+    Function,
+}
+
 /// A RangeLiteral is range of an array or tuple node.
 ///
 /// Examples:
@@ -104,19 +197,38 @@ impl Node for RangeLiteral {
 }
 
 /// A TupleLiteral is literal tuple of heterogeneous elements node.
+/// Tuple elements may be named or anonymous, but cannot have default values.
 ///
 /// Examples:
 /// ```
 /// (1, 2, 3)
 /// (1.0, 2.0, 3.0)
+/// (x: int32, y: boolean)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleLiteral {
-    pub elements: Vec<NodeId<Expression>>,
+    pub elements: Vec<NodeId<TupleLiteralField>>,
 }
 
 impl Node for TupleLiteral {
     const KIND: NodeType = NodeType::TupleLiteral;
+}
+
+/// A TupleLiteralField is a tuple field definition.
+/// Tuple elements may be named or anonymous, but cannot have default values.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TupleLiteralField {
+    Named {
+        name: StringId,
+        value: NodeId<Expression>,
+    },
+    Positional {
+        value: NodeId<Expression>,
+    },
+}
+
+impl Node for TupleLiteralField {
+    const KIND: NodeType = NodeType::TupleLiteralField;
 }
 
 /// An ArrayLiteral is literal array of homogeneous elements node.
@@ -151,7 +263,7 @@ impl Node for ArrayLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructLiteral {
     /// The type of the struct.
-    pub r#type: NodeId<Type>,
+    pub r#type: NodeId<Expression>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<FieldLiteral>>,
 }

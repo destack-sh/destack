@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, Pattern, ScopedMutability, Type, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Pattern, ScopedMutability, Visibility};
 
 /// Let or var binding for constant or mutable variables.
 /// Both let and var may destructure and pattern match.
@@ -29,7 +29,7 @@ pub struct Let {
     /// The pattern of the binding.
     pub pattern: NodeId<Pattern>,
     /// The type of the binding.
-    pub r#type: Option<NodeId<Type>>,
+    pub r#type: Option<NodeId<Expression>>,
     /// The value of the binding.
     pub value: Option<NodeId<Expression>>,
 }

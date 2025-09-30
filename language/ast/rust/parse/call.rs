@@ -6,7 +6,7 @@ use dyst_token::TokenType;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, NodeType, ParseError, ParseResult,
-    Parser, ParserOptions, Runtime, ScalarLiteral, TypeParserOptions,
+    Parser, ParserOptions, Runtime, ScalarLiteral,
 };
 
 impl<'a> Parser<'a> {
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         self.eat_keyword(Keyword::As)?;
         let r#type = self
-            .eat_type(TypeParserOptions::default())
+            .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::Cast)?;
         let cast_id = self.tree.allocate(
             Cast {
@@ -209,8 +209,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Cast, Expression, Index, IntType, NodeId, Parser, PrimitiveType, Runtime,
-        ScalarLiteral, Type, assert_node, assert_string,
+        Argument, Cast, Expression, Index, IntType, NodeId, Parser, Runtime, ScalarLiteral,
+        TypeLiteral, assert_node, assert_string,
     };
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
@@ -326,7 +326,9 @@ mod tests {
         let cast_id = parser.eat_as_postfix(recv).unwrap();
         assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {
             assert_eq!(*receiver, recv);
-            assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width: 32, is_signed: true })));
+            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 32, is_signed: true }));
+            });
         });
     }
 }

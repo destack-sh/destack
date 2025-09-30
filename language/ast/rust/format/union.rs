@@ -1,8 +1,8 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    DystFormatter, FormatNode, Keyword, NodeId, StructStyle, Type, Union, UnionField, Visibility,
-    empty_block_with_infix_annotations,
+    DystFormatter, Expression, FormatNode, Keyword, NodeId, StructStyle, Union, UnionField,
+    Visibility, empty_block_with_infix_annotations,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -156,7 +156,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
         if let Some(ty) = self.r#type {
             let payload = f.context().get_node(ty).clone();
             match payload {
-                Type::InlineStruct(struct_id) => {
+                Expression::Struct(struct_id) => {
                     let struct_ = f.context().get_node(struct_id).clone();
                     match struct_.style {
                         StructStyle::Tuple => {

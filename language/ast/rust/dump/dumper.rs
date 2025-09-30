@@ -23,7 +23,23 @@
 use std::borrow::Cow;
 
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank, Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, CompositeType, Continue, Decorator, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
+    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, CompositeType,
+    Continue, Decorator, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral,
+    FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match,
+    MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor,
+    Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return,
+    Runtime, ScalarLiteral, ScopedMutability, StringId, StringPool, Struct, StructField,
+    StructLiteral, Tag, Trait, Try, TupleLiteral, TypeLiteral, UnaryOperator, Union, UnionField,
+    Use, UseClause, UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument,
+    walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce,
+    walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field,
+    walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement,
+    walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
+    walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try,
+    walk_tuple_literal, walk_type_literal, walk_union, walk_union_field, walk_use,
+    walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// The console colors.
@@ -765,6 +781,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ScalarLiteral(_node) => {
                 self.node("Expression::ScalarLiteral", _id.id).end();
             }
+            Expression::TypeLiteral(_node) => {
+                self.node("Expression::TypeLiteral", _id.id).end();
+            }
             Expression::RangeLiteral(_node) => {
                 self.node("Expression::RangeLiteral", _id.id).end();
             }
@@ -937,99 +956,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.node("Implement", _id.id).end();
         self.with_depth(|dumper| {
             walk_implement(dumper, _tree, _id, _implement);
-        });
-    }
-
-    fn visit_type(&mut self, _tree: &NodeTree, _id: NodeId<Type>, type_node: &Type) {
-        match type_node {
-            Type::Infer => {
-                self.node("Type::Infer", _id.id).end();
-            }
-            Type::Maybe(..) => {
-                self.node("Type::Maybe", _id.id).end();
-            }
-            Type::Not(..) => {
-                self.node("Type::Not", _id.id).end();
-            }
-            Type::Never => {
-                self.node("Type::Never", _id.id).end();
-            }
-            Type::Self_ => {
-                self.node("Type::Self", _id.id).end();
-            }
-            Type::Primitive(primitive) => {
-                self.node("Type::Primitive", _id.id).value(primitive).end();
-            }
-            Type::Path { path, .. } => {
-                self.node("Type::Path", _id.id).value(path).end();
-            }
-            Type::Reference {
-                mutability,
-                target: _,
-            } => {
-                self.node("Type::Pointer", _id.id)
-                    .field("mutability", mutability)
-                    .end();
-            }
-            Type::Virtual(..) => {
-                self.node("Type::Virtual", _id.id).end();
-            }
-            Type::Variadic(..) => {
-                self.node("Type::Variadic", _id.id).end();
-            }
-            Type::Array { .. } => {
-                self.node("Type::Array", _id.id).end();
-            }
-            Type::Slice { element: _ } => {
-                self.node("Type::Slice", _id.id).end();
-            }
-            Type::Tuple(_tuple) => {
-                self.node("Type::Tuple", _id.id).end();
-            }
-            Type::InlineStruct(_struct_node) => {
-                self.node("Type::InlineStruct", _id.id).end();
-            }
-            Type::InlineEnum(_enum_node) => {
-                self.node("Type::InlineEnum", _id.id).end();
-            }
-            Type::InlineUnion(_union_node) => {
-                self.node("Type::InlineUnion", _id.id).end();
-            }
-            Type::Union(_) => {
-                self.node("Type::Union", _id.id).end();
-            }
-            Type::Intersection(_) => {
-                self.node("Type::Intersection", _id.id).end();
-            }
-            Type::Function(_function) => {
-                self.node("Type::Function", _id.id).end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_type(dumper, _tree, _id, type_node);
-        });
-    }
-
-    fn visit_tuple(&mut self, _tree: &NodeTree, _id: NodeId<Tuple>, _tuple: &Tuple) {
-        self.node("Tuple", _id.id).end();
-        self.with_depth(|dumper| {
-            walk_tuple(dumper, _tree, _id, _tuple);
-        });
-    }
-
-    fn visit_tuple_field(&mut self, _tree: &NodeTree, _id: NodeId<TupleField>, field: &TupleField) {
-        match field {
-            TupleField::Named { name, r#type: _ } => {
-                self.node("TupleField::Named", _id.id)
-                    .field("name", name)
-                    .end();
-            }
-            TupleField::Positional { r#type: _ } => {
-                self.node("TupleField::Positional", _id.id).end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_tuple_field(dumper, _tree, _id, field);
         });
     }
 
