@@ -1,9 +1,10 @@
 use crate::{Argument, Expression, Node, NodeId, NodeType, Runtime};
 
-/// Index reference.
+/// Index into a receiver expression.
 ///
 /// Examples:
 /// ```
+/// T[] // special declarative
 /// foo[1]
 /// foo[1..3]
 /// foo["bar"]
@@ -12,11 +13,14 @@ use crate::{Argument, Expression, Node, NodeId, NodeType, Runtime};
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Index {
+    ExplicitBare {
+        receiver: NodeId<Expression>,
+    },
     Explicit {
         receiver: NodeId<Expression>,
         index: NodeId<Expression>,
     },
-    Implicit {
+    Member {
         receiver: NodeId<Expression>,
         index: i64,
     },

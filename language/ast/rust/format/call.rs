@@ -13,10 +13,13 @@ impl<'ast> FormatNode<'ast, Index> for Index {
         write!(f, [f.context().any_prefix_annotations(_node_id)])?;
 
         match self {
+            Index::ExplicitBare { receiver } => {
+                write!(f, [receiver, token("[]")])?;
+            }
             Index::Explicit { receiver, index } => {
                 write!(f, [receiver, token("["), index, token("]")])?;
             }
-            Index::Implicit { receiver, index } => {
+            Index::Member { receiver, index } => {
                 write!(f, [receiver, token("."), text(&index.to_string())])?;
             }
         }

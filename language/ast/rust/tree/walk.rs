@@ -968,11 +968,14 @@ pub fn walk_index<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Index, id.id);
     match index {
+        Index::ExplicitBare { receiver } => {
+            visitor.visit_expression(tree, *receiver, tree.get(*receiver));
+        }
         Index::Explicit { receiver, index } => {
             visitor.visit_expression(tree, *receiver, tree.get(*receiver));
             visitor.visit_expression(tree, *index, tree.get(*index));
         }
-        Index::Implicit { receiver, index: _ } => {
+        Index::Member { receiver, index: _ } => {
             visitor.visit_expression(tree, *receiver, tree.get(*receiver));
         }
     }
