@@ -1,7 +1,9 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use crate::parse::prelude::*;
-use crate::{RangeLiteral, ScopedMutability, TupleLiteral, TupleLiteralField};
+use crate::{
+    Argument, RangeLiteral, ScopedMutability, StructLiteral, TupleLiteral, TupleLiteralField,
+};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -82,8 +84,23 @@ pub struct ExpressionParserOptions {
     pub visibility: Option<Visibility> = None,
 }
 
-// TODO! #Broken: handle expression parntheses (and generally parenthesized nodes?)
-// TODO! #Broken: handle expression prefix/postfix binding (like `&` prefix over `?` postfix)
+impl ExpressionParserOptions {
+    /// Create default expression parser options.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create expression parser options for an expression before a block.
+    pub fn is_before_block() -> Self {
+        Self {
+            is_before_block: true,
+            ..Self::default()
+        }
+    }
+}
+
+// TODO! #Broken: handle expression parentheses (and generally parenthesized nodes?)
+//  (isn't this only a formatting concern?)
 
 impl<'a> Parser<'a> {
     /// Peek a unary operator.
@@ -185,6 +202,24 @@ impl<'a> Parser<'a> {
         else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
+    }
+
+    /// Eat static arguments.
+    #[inline]
+    fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
+        self.eat_token(TokenType::LessThan)?;
+        let static_arguments = self
+            .with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |parser| parser.eat_arguments_body(),
+            )
+            .for_node_type(NodeType::Expression)?;
+        self.eat_token(TokenType::GreaterThan)
+            .for_node_type(NodeType::Expression)?;
+        Ok(static_arguments)
     }
 
     /// Eat an expression.
@@ -483,11 +518,25 @@ impl<'a> Parser<'a> {
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-                // TODO! nocheckin: parse static arguments (for Types as values, but also literals)
-                //  (also see peek_path and peek_struct_literal)
+
+                // speculatively unwrap postfix static parameterisation with `<`
+                //  (might also be just a comparison operator)
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id;
+                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                    match self.eat_static_arguments() {
+                        Ok(static_arguments) => Some(static_arguments),
+                        Err(_) => {
+                            self.restore(speculative_start, speculative_start_idx);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
                 let expression = Expression::Path {
                     path: path_id,
-                    static_arguments: None,
+                    static_arguments,
                 };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -507,10 +556,9 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        // implicitly call static functions without arguments (e.g., `#entity`)
-        let left_expression = self.tree.get(left_expression_id);
+        // implicitly call static functions without arguments (e.g., `@entity`)
         if runtime.is_some()
-            && let Expression::Path { .. } = left_expression
+            && let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenParenthesis).is_err()
         {
             let call_id = self.tree.allocate(
@@ -527,8 +575,28 @@ impl<'a> Parser<'a> {
                 .allocate(Expression::Call(call_id), self.get_span_from(start));
             runtime = None;
         }
+        // struct literal postfix with `{`
+        else if let Expression::Path { .. } = self.tree.get(left_expression_id)
+            && self.peek_token(TokenType::OpenBrace).is_ok()
+            && !options.is_before_block
+        {
+            let fields = self
+                .eat_struct_literal_body()
+                .for_node_type(NodeType::StructLiteral)?;
+            let struct_literal_id = self.tree.allocate(
+                StructLiteral {
+                    r#type: left_expression_id,
+                    fields,
+                },
+                self.get_span_from(start),
+            );
+            left_expression_id = self.tree.allocate(
+                Expression::StructLiteral(struct_literal_id),
+                self.get_span_from(start),
+            );
+        }
 
-        // eat all postfix operations
+        // eat all regular postfix operators
         loop {
             // range (implicit with `..`)
             if self.peek_token(TokenType::Range).is_ok()
@@ -556,25 +624,6 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Member {
                     receiver: left_expression_id,
                     path: path_id,
-                };
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            }
-            // dereference (postfix with `.*`)
-            else if let Ok(distance) = self.peek_member(TokenType::Multiply) {
-                self.bump_by(distance); // eat dereference
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::Dereference,
-                    right: left_expression_id,
-                };
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            }
-            // reference (postfix with `&`)
-            else if let Ok(distance) = self.peek_member(TokenType::ElementwiseAnd) {
-                self.bump_by(distance); // eat &
-                let mutability = self.eat_scoped_mutability()?;
-                let expression = Expression::Reference {
-                    mutability,
-                    right: left_expression_id,
                 };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
@@ -992,23 +1041,6 @@ geom.Mesh<2, Dims: 4> {
         });
     }
 
-    /// Dereference variable postfix.
-    /// x.*
-    #[test]
-    fn test_parse_dereference_variable_postfix() {
-        let mut test = TestParser::new("x.*");
-        let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
-
-        // x.*
-        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
-            assert_eq!(*operator, UnaryOperator::Dereference);
-            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
-        });
-    }
-
     /// Reference operator on variable.
     /// &x
     #[test]
@@ -1032,46 +1064,8 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
-    /// Reference operator postfix.
-    /// &var x
-    #[test]
-    fn test_parse_reference_variable_postfix() {
-        let mut test = TestParser::new("x.&");
-        let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
-
-        // x.&
-        assert_node!(parser.tree, expr_id, Expression::Reference { mutability, right } => {
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
-            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
-        });
-    }
-
-    /// Reference operator postfix with scoped mutability.
-    /// &var x
-    #[test]
-    fn test_parse_reference_variable_postfix_with_scoped_mutability() {
-        let mut test = TestParser::new("pos.&var(y)");
-        let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
-
-        // pos.&var(y)
-        assert_node!(parser.tree, expr_id, Expression::Reference { mutability, right } => {
-            match mutability {
-                ScopedMutability::Scoped { mutability, scopes } => {
-                    assert_eq!(*mutability, Mutability::Mutable);
-                    assert_eq!(scopes.len(), 1);
-                    assert_path!(parser.session, scopes[0], "y");
-                }
-                _ => panic!("expected ScopedMutability::Scoped"),
-            }
-            assert_expr_path!(parser.session, parser.tree.get(*right), "pos");
-        });
-    }
+    // TODO! #Broken: handle expression prefix/postfix binding (like `&` prefix over `?` postfix)
+    //  (e.g. `&T?` should mean `(&T)?`, not `&(T?)`)
 
     /// Reference operator on member access with method call.
     /// &var self.foo()
@@ -1305,6 +1299,30 @@ self
                         );
                     }
                 );
+            }
+        );
+    }
+
+    /// Comparison operator should be disambiguated from static parameterisation.
+    /// x < y
+    #[test]
+    fn test_parse_comparison_less_than() {
+        let mut test = TestParser::new("x < y");
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // x < y
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                // x
+                assert_expr_path!(parser.session, parser.tree.get(*left), "x");
+                // y
+                assert_expr_path!(parser.session, parser.tree.get(*right), "y");
             }
         );
     }

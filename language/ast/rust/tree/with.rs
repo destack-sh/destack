@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId};
+use crate::{Expression, Node, NodeId, NodeType};
 
 /// A With is a with declaration for context management.
 /// With can declare the use of an item in a scope and refine type bounds.
@@ -47,8 +47,6 @@ pub enum WithClause {
     Declaration {
         /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
         target: NodeId<Expression>,
-        /// The alias to use for the item (like `Baz` in `with Foo.Bar as Baz`)
-        alias: Option<StringId>,
     },
     Assertion {
         /// The target to assert (like `T` in `with T: int32`)

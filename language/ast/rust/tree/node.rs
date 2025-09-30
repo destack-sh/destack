@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use crate::PathId;
 
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
     // groupings
     Expression,

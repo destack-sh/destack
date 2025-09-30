@@ -33,10 +33,7 @@ impl<'a> Parser<'a> {
 
         // value
         let value_id = self.try_eat_expression(
-            ExpressionParserOptions {
-                is_before_block: true,
-                ..ExpressionParserOptions::default()
-            },
+            ExpressionParserOptions::is_before_block(),
             TokenType::OpenBrace,
         )?;
 

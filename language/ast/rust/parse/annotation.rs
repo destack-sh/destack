@@ -50,6 +50,8 @@ impl<'a> Parser<'a> {
             // @
             // decorators are block scoped only
             // TODO #Incomplete: support inline @if decorator (and any others?)
+            //  like `@if target == Os.Windows\nsomething`
+            //  or maybe `@if(target == Os.Windows)`
             //  (basically static block-scoped keyword but without { on the same? line)
             else if token.token.r#type == TokenType::At
                 // must be block scoped
@@ -260,7 +262,7 @@ impl<'a> Parser<'a> {
     /// Attach the side Tag annotations to relevant nodes.
     fn attach_main_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
         // attach Tags
-        for tag_id in self.tree.get_nodes_for::<Tag>() {
+        for tag_id in self.tree.get_nodes::<Tag>() {
             let span = self.tree.get_span(tag_id);
 
             // find the annotation position
@@ -285,7 +287,7 @@ impl<'a> Parser<'a> {
         }
 
         // attach Decorators
-        for decorator_id in self.tree.get_nodes_for::<Decorator>() {
+        for decorator_id in self.tree.get_nodes::<Decorator>() {
             let span = self.tree.get_span(decorator_id);
 
             // find the annotation position

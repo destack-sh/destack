@@ -179,8 +179,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Call, Expression, Index, IntType, Let, Mutability, Pattern, PatternField, ScopedMutability,
-        TypeLiteral, assert_int, assert_node, assert_path, assert_string,
+        Call, Expression, FloatType, Index, IntType, Let, Mutability, Pattern, PatternField,
+        ScopedMutability, TypeLiteral, assert_int, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -277,8 +277,8 @@ var x: float64[3] = undefined
             let ty_id = r#type.expect("expected explicit type");
             assert_node!(parser.tree, ty_id, Expression::Index(index) => {
                 assert_node!(parser.tree, *index, Index::Explicit { receiver, index } => {
-                    assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "float64");
+                    assert_node!(parser.tree, *receiver, Expression::TypeLiteral(literal_id) => {
+                        assert_node!(parser.tree, *literal_id, TypeLiteral::Float(FloatType::Float64));
                     });
                     assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
                         assert_int!(parser.tree, *lit_id, 3);

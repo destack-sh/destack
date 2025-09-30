@@ -956,10 +956,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         clause: &WithClause,
     ) {
         match clause {
-            WithClause::Declaration { target: _, alias } => {
-                self.node("WithClause::Declaration", _id.id)
-                    .field_optional("alias", alias)
-                    .end();
+            WithClause::Declaration { target: _ } => {
+                self.node("WithClause::Declaration", _id.id).end();
             }
             WithClause::Assertion {
                 target: _,

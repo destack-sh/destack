@@ -50,14 +50,26 @@ impl<'a> Parser<'a> {
 
         // receiver
         let receiver = self
-            .eat_expression(ExpressionParserOptions::default())
+            .with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
+            )
             .for_node_type(NodeType::Implement)?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.bump(); // eat for
             let for_trait = self
-                .eat_expression(ExpressionParserOptions::default())
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
+                )
                 .for_node_type(NodeType::Implement)?;
             Some(for_trait)
         } else {
@@ -89,7 +101,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Argument, Expression, Implement, assert_node, assert_path};
+    use crate::{Argument, Expression, Implement, IntType, TypeLiteral, assert_node, assert_path};
 
     #[test]
     fn test_parse_implement_simple() {
@@ -140,8 +152,11 @@ implement Foo<int32> {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "int32");
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
+                        assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
+                            assert_eq!(*width, 32);
+                            assert!(*is_signed);
+                        });
                     });
                 });
             });
@@ -172,8 +187,11 @@ implement Bar<int32> for Baz {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "int32");
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
+                        assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
+                            assert_eq!(*width, 32);
+                            assert!(*is_signed);
+                        });
                     });
                 });
             });
