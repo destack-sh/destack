@@ -1,7 +1,7 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use crate::parse::prelude::*;
-use crate::{RangeLiteral, ScopedMutability};
+use crate::{RangeLiteral, ScopedMutability, TupleLiteral, TupleLiteralField};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -222,17 +222,39 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
-            // parenthesis
+            // parenthesis (may be tuple or just a parenthesized expression)
             if token.token.r#type == TokenType::OpenParenthesis {
                 self.bump(); // eat open paranthesis
-                // parse inner expressions in their own context
-                let expression_id = self.eat_expression(ExpressionParserOptions {
-                    is_parenthesized: true,
-                    ..ExpressionParserOptions::default()
-                })?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                self.tree.set_span(expression_id, self.get_span_from(start));
-                expression_id
+                self.eat_newlines_maybe()?;
+
+                // named tuple element, must be a tuple
+                if self.peek_token(TokenType::Identifier).is_ok()
+                    && self.peek_next_token(TokenType::Colon).is_ok()
+                {
+                    let tuple_elements = self
+                        .eat_tuple_literal_body(None)
+                        .for_node_type(NodeType::TupleLiteral)?;
+                    let tuple_literal_id = self.tree.allocate(
+                        TupleLiteral {
+                            elements: tuple_elements,
+                        },
+                        self.get_span_from(start),
+                    );
+                    self.tree.allocate(
+                        Expression::TupleLiteral(tuple_literal_id),
+                        self.get_span_from(start),
+                    )
+                }
+                // may be a tuple with anonymous elements or just a parenthesized expression (see below)
+                else {
+                    let expression_id = self.eat_expression(ExpressionParserOptions {
+                        is_parenthesized: true,
+                        ..ExpressionParserOptions::default()
+                    })?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                    self.tree.set_span(expression_id, self.get_span_from(start));
+                    expression_id
+                }
             }
             //
             // ------------------------------------------------------------
@@ -447,6 +469,14 @@ impl<'a> Parser<'a> {
                 let expression = Expression::ScalarLiteral(scalar_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
+            // type
+            else if self.peek_type_literal().is_ok() {
+                let type_literal = self
+                    .eat_type_literal()
+                    .for_node_type(NodeType::TypeLiteral)?;
+                let expression = Expression::TypeLiteral(type_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
@@ -598,26 +628,33 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Coalesce(coalesce_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // tuple
+            // tuple (if we have a comma / newline following an expression inside parentheses)
             else if options.is_parenthesized
                 && (self.peek_token(TokenType::Comma).is_ok()
-                    || self.peek_token(TokenType::Newline).is_ok()
-                    || self.peek_token(TokenType::Colon).is_ok())
+                    || self.peek_token(TokenType::Newline).is_ok())
             {
-                todo!("Expression.eat_expression: tuple literal in parenthesized expression");
-                // self.bump(); // eat comma
-                // self.eat_newlines_maybe()?;
-                // let tuple_elements = self
-                //     .eat_tuple_literal_body(left_expression_id)
-                //     .for_node_type(NodeType::TupleLiteral)?;
-                // let tuple_literal_id = self.tree.allocate(
-                //     TupleLiteral {
-                //         elements: tuple_elements,
-                //     },
-                //     self.get_span_from(start),
-                // );
-                // let expression = Expression::TupleLiteral(tuple_literal_id);
-                // left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+                // we already have the first element (the expression itself)
+                let first_element_id = self.tree.allocate(
+                    TupleLiteralField::Positional {
+                        value: left_expression_id,
+                    },
+                    self.get_span_from(start),
+                );
+                // parse remaining elements
+                let tuple_elements = self
+                    .eat_tuple_literal_body(Some(first_element_id))
+                    .for_node_type(NodeType::TupleLiteral)?;
+                // build tuple literal
+                let tuple_literal_id = self.tree.allocate(
+                    TupleLiteral {
+                        elements: tuple_elements,
+                    },
+                    self.get_span_from(start),
+                );
+                let expression = Expression::TupleLiteral(tuple_literal_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // done
             else {
@@ -683,10 +720,10 @@ mod tests {
     use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
-        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral,
-        TupleLiteralField, UnaryOperator, assert_expr_path, assert_int, assert_lit_int,
-        assert_node, assert_path, assert_string,
+        Argument, BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability,
+        Pattern, RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral,
+        TupleLiteral, TupleLiteralField, UnaryOperator, assert_expr_path, assert_int,
+        assert_lit_int, assert_node, assert_path, assert_string,
     };
 
     /// Tuple literals are disambiguated.
@@ -895,6 +932,43 @@ geom.Mesh<2, Dims: 4> {
                 );
             }
         );
+    }
+
+    /// Types with static parameters are disambiguated as values.
+    /// let Alias = A<B<C>>
+    #[test]
+    fn test_parse_type_with_static_parameters() {
+        let mut test = TestParser::new("let Alias = A<B<C>>");
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // let Alias = A<B<C>>
+        assert_node!(parser.tree, expr_id, Expression::Let(let_id) => {
+            assert_node!(parser.tree, *let_id, Let { mutability: _, pattern, r#type: _, value, visibility: _, .. } => {
+                // let Alias
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser.session, *name, "Alias");
+                });
+                // A<B<C>>
+                assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
+                    assert_path!(parser.session, *path, "A");
+                    assert!(static_arguments.is_some());
+                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                        // B<C>
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                            assert_path!(parser.session, *path, "B");
+                            assert!(static_arguments.is_some());
+                            // C
+                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                                assert_expr_path!(parser.session, parser.tree.get(*value), "C");
+                            });
+                        });
+                    });
+                });
+            });
+        });
     }
 
     /// Dereference variable.

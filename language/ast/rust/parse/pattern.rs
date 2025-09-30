@@ -5,8 +5,8 @@ use dyst_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::{
-    ExpressionParserOptions, Keyword, Mutability, NodeId, NodeType, ParseError, ParseResult,
-    Parser, Pattern, PatternField,
+    ExpressionParserOptions, Keyword, Mutability, NodeId, NodeType, ParseResult, Parser, Pattern,
+    PatternField,
 };
 
 impl<'a> Parser<'a> {

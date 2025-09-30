@@ -5,8 +5,7 @@ use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     ArrayLiteral, FieldLiteral, FloatType, IntType, NodeId, NodeType, ParseError, ParseResult,
-    Parser, PrimitiveType, ScalarLiteral, StructLiteral, TupleLiteral, TupleLiteralField,
-    TypeLiteral,
+    Parser, ScalarLiteral, StructLiteral, TupleLiteral, TupleLiteralField, TypeLiteral,
 };
 
 impl<'a> Parser<'a> {
@@ -16,16 +15,6 @@ impl<'a> Parser<'a> {
             Ok(self.peek()?)
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
-        }
-    }
-
-    /// Eat a raw literal token.
-    pub fn eat_raw_literal(&mut self) -> ParseResult<(TokenSpan, RawLiteralType)> {
-        let literal_span = *self.eat()?;
-        if let Some(literal) = literal_span.token.body {
-            Ok((literal_span, literal))
-        } else {
-            Err(ParseError::unexpected(literal_span.span))
         }
     }
 
@@ -47,9 +36,10 @@ impl<'a> Parser<'a> {
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
 
-        let (literal_span, literal) = self
-            .eat_raw_literal()
-            .for_node_type(NodeType::ScalarLiteral)?;
+        let literal_span = *self.eat()?;
+        let Some(literal) = literal_span.token.body else {
+            return Err(ParseError::unexpected(literal_span.span));
+        };
         let literal_str = self.get_span_str(literal_span.span);
 
         match literal {
@@ -287,11 +277,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a type literal.
-    pub fn eat_type_literal(&mut self) -> ParseResult<NodeId<TypeLiteral>> {
-        todo!("Parse.eat_type_literal")
-    }
-
     /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
     ///
     /// Examples:
@@ -305,27 +290,26 @@ impl<'a> Parser<'a> {
     /// uint7
     /// float32
     /// ```
-    fn peek_primitive_type(&self) -> ParseResult<PrimitiveType> {
+    pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {
         let next = self.peek()?;
-        // NOTE: void and null are parsed as literals, but it's fine since we match on the raw span string
         let next_str = self.get_span_str(next.span);
         match next_str {
             // undefined
-            "undefined" => Ok(PrimitiveType::Undefined),
+            "undefined" => Ok(TypeLiteral::Undefined),
             // void
-            "void" => Ok(PrimitiveType::Void),
+            "void" => Ok(TypeLiteral::Void),
             // null
-            "null" => Ok(PrimitiveType::Null),
+            "null" => Ok(TypeLiteral::Null),
             // boolean
-            "boolean" => Ok(PrimitiveType::Boolean),
+            "boolean" => Ok(TypeLiteral::Boolean),
             // character
-            "character" => Ok(PrimitiveType::Character),
+            "character" => Ok(TypeLiteral::Character),
             // int_
             int_str if int_str.starts_with("int") && int_str.len() > 3 => {
                 let Ok(width) = int_str.trim_start_matches("int").parse::<u16>() else {
                     return Err(ParseError::expected(next.span, TokenType::Literal));
                 };
-                Ok(PrimitiveType::Int(IntType {
+                Ok(TypeLiteral::Int(IntType {
                     width,
                     is_signed: true,
                 }))
@@ -335,65 +319,24 @@ impl<'a> Parser<'a> {
                 let Ok(width) = uint_str.trim_start_matches("uint").parse::<u16>() else {
                     return Err(ParseError::expected(next.span, TokenType::Literal));
                 };
-                Ok(PrimitiveType::Int(IntType {
+                Ok(TypeLiteral::Int(IntType {
                     width,
                     is_signed: false,
                 }))
             }
             // float32
-            "float32" => Ok(PrimitiveType::Float(FloatType::Float32)),
+            "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
             // float64
-            "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
+            "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
             _ => Err(ParseError::expected(next.span, TokenType::Identifier)),
         }
     }
 
-    /// Eat an array literal (fixed).
-    /// The individual elements are full expressions, not just literals.
-    ///
-    /// Examples:
-    /// ```
-    /// [] // empty array
-    /// [1, 2, ] // trailing comma is allowed
-    /// // multi-line array with implicit comma
-    /// [
-    ///   1 // comma is optional here
-    ///   2 // comma is optional here too
-    /// ]
-    /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
-    pub fn eat_array_literal(&mut self) -> ParseResult<NodeId<ArrayLiteral>> {
+    /// Eat a type literal.
+    pub fn eat_type_literal(&mut self) -> ParseResult<NodeId<TypeLiteral>> {
         let start = self.mark();
-
-        self.eat_token(TokenType::OpenBracket)
-            .for_node_type(NodeType::ArrayLiteral)?;
-        self.eat_newlines_maybe()?;
-
-        // eat everything
-        let mut elements = vec![];
-        loop {
-            // stop on closing bracket
-            if self.peek_token(TokenType::CloseBracket).is_ok() {
-                break;
-            }
-            // consume any stop
-            else if self.peek_item_stop().is_ok() {
-                self.eat_item_stop_with_newlines()?;
-            }
-            // keep eating elements
-            else {
-                let element = self
-                    .eat_expression(ExpressionParserOptions::default())
-                    .for_node_type(NodeType::ArrayLiteral)?;
-                elements.push(element);
-            }
-        }
-
-        self.eat_token(TokenType::CloseBracket)
-            .for_node_type(NodeType::ArrayLiteral)?;
-        let array_literal = self
-            .tree
-            .allocate(ArrayLiteral::Fixed { elements }, self.get_span_from(start));
-        Ok(array_literal)
+        let type_literal = self.peek_type_literal()?;
+        Ok(self.tree.allocate(type_literal, self.get_span_from(start)))
     }
 
     /// Eat a tuple literal.
@@ -469,7 +412,78 @@ impl<'a> Parser<'a> {
 
     /// Eat a tuple literal field.
     pub fn eat_tuple_literal_field(&mut self) -> ParseResult<NodeId<TupleLiteralField>> {
-        todo!("Parser.eat_tuple_literal_field")
+        let start = self.mark();
+        // named field
+        if self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_ok()
+        {
+            let name = self.eat_identifier()?;
+            self.eat_token(TokenType::Colon)?;
+            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let field_literal = self.tree.allocate(
+                TupleLiteralField::Named { name, value },
+                self.get_span_from(start),
+            );
+            Ok(field_literal)
+        }
+        // positional field
+        else {
+            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let field_literal = self.tree.allocate(
+                TupleLiteralField::Positional { value },
+                self.get_span_from(start),
+            );
+            Ok(field_literal)
+        }
+    }
+
+    /// Eat an array literal (fixed).
+    /// The individual elements are full expressions, not just literals.
+    ///
+    /// Examples:
+    /// ```
+    /// [] // empty array
+    /// [1, 2, ] // trailing comma is allowed
+    /// // multi-line array with implicit comma
+    /// [
+    ///   1 // comma is optional here
+    ///   2 // comma is optional here too
+    /// ]
+    /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
+    /// ```
+    pub fn eat_array_literal(&mut self) -> ParseResult<NodeId<ArrayLiteral>> {
+        let start = self.mark();
+
+        self.eat_token(TokenType::OpenBracket)
+            .for_node_type(NodeType::ArrayLiteral)?;
+        self.eat_newlines_maybe()?;
+
+        // eat everything
+        let mut elements = vec![];
+        loop {
+            // stop on closing bracket
+            if self.peek_token(TokenType::CloseBracket).is_ok() {
+                break;
+            }
+            // consume any stop
+            else if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
+            }
+            // keep eating elements
+            else {
+                let element = self
+                    .eat_expression(ExpressionParserOptions::default())
+                    .for_node_type(NodeType::ArrayLiteral)?;
+                elements.push(element);
+            }
+        }
+
+        self.eat_token(TokenType::CloseBracket)
+            .for_node_type(NodeType::ArrayLiteral)?;
+        let array_literal = self
+            .tree
+            .allocate(ArrayLiteral::Fixed { elements }, self.get_span_from(start));
+        Ok(array_literal)
     }
 
     /// Eat a struct literal (including the type prefix).

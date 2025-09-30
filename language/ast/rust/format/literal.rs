@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::{
     ArrayLiteral, CompositeType, DystFormatContext, DystFormatter, FieldLiteral, FloatType,
-    FormatNode, IntType, Keyword, NodeId, PrimitiveType, RangeLiteral, ScalarLiteral,
-    StructLiteral, TupleLiteral, TupleLiteralField, TypeLiteral,
+    FormatNode, IntType, Keyword, NodeId, RangeLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
+    TupleLiteralField, TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, group, text, token};
 use dyst_fir::prelude::*;
@@ -80,20 +80,6 @@ impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
-    }
-}
-
-impl<'ast> Format<DystFormatContext<'ast>> for PrimitiveType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
-        match self {
-            PrimitiveType::Undefined => write!(f, [token("undefined")]),
-            PrimitiveType::Void => write!(f, [token("void")]),
-            PrimitiveType::Null => write!(f, [token("null")]),
-            PrimitiveType::Boolean => write!(f, [token("boolean")]),
-            PrimitiveType::Character => write!(f, [token("char")]),
-            PrimitiveType::Int(int_type) => write!(f, [int_type]),
-            PrimitiveType::Float(float_type) => write!(f, [float_type]),
-        }
     }
 }
 
