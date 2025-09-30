@@ -8,7 +8,7 @@ use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Struct, StructField,
-    StructStyle, Type, TypeParserOptions, Visibility,
+    StructStyle, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
         let representation_type = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
             let representation_type = self
-                .eat_type(TypeParserOptions::default())
+                .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Struct)?;
             self.eat_token(TokenType::CloseParenthesis)?;
             Some(representation_type)
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            let mut super_types: Vec<NodeId<Expression>> = Vec::new();
             loop {
                 // eat until open parenthesis
                 if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_type(TypeParserOptions::default())
+                        .eat_expression(ExpressionParserOptions::default())
                         .for_node_type(NodeType::Struct)?;
                     super_types.push(super_type);
                 }
@@ -255,7 +255,7 @@ impl<'a> Parser<'a> {
 
         // type
         let r#type = self
-            .eat_type(TypeParserOptions::default())
+            .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::Struct)?;
 
         // optional default value: `= <expr>`
@@ -285,7 +285,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        IntType, Parameter, PrimitiveType, Struct, StructField, StructStyle, Type, assert_node,
+        Expression, IntType, Parameter, Struct, StructField, StructStyle, TypeLiteral, assert_node,
         assert_path, assert_string,
     };
 
@@ -312,9 +312,11 @@ struct { x: int32, y: boolean
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "x");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                    assert_eq!(*width, 32);
-                    assert!(*is_signed);
+                assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
+                        assert_eq!(*width, 32);
+                        assert!(*is_signed);
+                    });
                 });
             });
 
@@ -322,7 +324,9 @@ struct { x: int32, y: boolean
             assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "y");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+                assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
+                });
             });
         });
     }
@@ -345,7 +349,7 @@ struct Foo: Bar {}
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Bar");
             });
         });
@@ -372,9 +376,11 @@ struct Foo(int32, boolean) {}
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
                 assert!(name.is_none());
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                    assert_eq!(*width, 32);
-                    assert!(*is_signed);
+                assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
+                        assert_eq!(*width, 32);
+                        assert!(*is_signed);
+                    });
                 });
             });
 
@@ -382,7 +388,9 @@ struct Foo(int32, boolean) {}
             assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
                 assert!(name.is_none());
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+                assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
+                });
             });
         });
     }
@@ -420,7 +428,7 @@ struct Foo<T: Numeric>: Boz {
                 assert_string!(parser.session, *name, "T");
                 // Numeric
                 assert!(r#type.is_some());
-                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, .. } => {
+                assert_node!(parser.tree, r#type.unwrap(), Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });
@@ -428,7 +436,7 @@ struct Foo<T: Numeric>: Boz {
             assert!(super_types.is_some());
             let super_types = super_types.as_ref().unwrap();
             assert_eq!(super_types.len(), 1);
-            assert_node!(parser.tree, super_types[0], Type::Path { path, .. } => {
+            assert_node!(parser.tree, super_types[0], Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Boz");
             });
 
@@ -437,16 +445,18 @@ struct Foo<T: Numeric>: Boz {
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "a");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *r#type, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "T");
                 });
             });
             // b: int32 = 4
             assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
                 assert_string!(parser.session, name.unwrap(), "b");
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                    assert_eq!(*width, 32);
-                    assert!(*is_signed);
+                assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
+                    assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
+                        assert_eq!(*width, 32);
+                        assert!(*is_signed);
+                    });
                 });
                 assert!(default.is_some());
             });

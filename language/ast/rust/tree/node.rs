@@ -25,9 +25,6 @@ pub enum NodeType {
     UnionField,
     Trait,
     Implement,
-    Type,
-    Tuple,
-    TupleField,
     Function,
     // context
     With,
@@ -54,6 +51,7 @@ pub enum NodeType {
     TypeLiteral,
     RangeLiteral,
     TupleLiteral,
+    TupleLiteralField,
     ArrayLiteral,
     StructLiteral,
     FieldLiteral,
@@ -108,7 +106,6 @@ pub(crate) const INLINE_NODE_TYPES: [NodeType; 20] = [
     NodeType::StructField,
     NodeType::EnumField,
     NodeType::UnionField,
-    NodeType::TupleField,
     // bindings
     NodeType::Parameter,
     NodeType::Argument,
@@ -117,6 +114,7 @@ pub(crate) const INLINE_NODE_TYPES: [NodeType; 20] = [
     NodeType::TypeLiteral,
     NodeType::RangeLiteral,
     NodeType::TupleLiteral,
+    NodeType::TupleLiteralField,
     NodeType::ArrayLiteral,
     NodeType::StructLiteral,
     NodeType::FieldLiteral,

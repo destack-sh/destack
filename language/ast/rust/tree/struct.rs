@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Parameter, Type, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
 
 /// The style of a struct.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -63,9 +63,9 @@ pub struct Struct {
     /// The style of the struct.
     pub style: StructStyle,
     /// The super types of the struct (desugars to `use`-ing other types).
-    pub super_types: Option<Vec<NodeId<Type>>>,
+    pub super_types: Option<Vec<NodeId<Expression>>>,
     /// The representation type of the union.
-    pub representation_type: Option<NodeId<Type>>,
+    pub representation_type: Option<NodeId<Expression>>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
@@ -90,7 +90,7 @@ pub struct StructField {
     /// The name of the field.
     pub name: Option<StringId>,
     /// The type of the field.
-    pub r#type: NodeId<Type>,
+    pub r#type: NodeId<Expression>,
     /// The default value of the field.
     pub default: Option<NodeId<Expression>>,
 }

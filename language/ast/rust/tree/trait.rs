@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Parameter, Type, Visibility, With};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility, With};
 
 /// A Trait is trait definition node defining behavior and constants.
 /// Traits can `use` other traits to include them (just like structs / unions).
@@ -37,7 +37,7 @@ pub struct Trait {
     /// The visibility of the trait.
     pub visibility: Option<Visibility>,
     /// The super types of the trait.
-    pub super_types: Option<Vec<NodeId<Type>>>,
+    pub super_types: Option<Vec<NodeId<Expression>>>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The with declarations of the trait.

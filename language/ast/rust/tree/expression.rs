@@ -4,8 +4,8 @@ use dyst_token::TokenType;
 use crate::{
     Argument, ArrayLiteral, Block, Break, Call, Continue, Defer, Enum, For, Function, If,
     Implement, Index, Let, Loop, Match, Module, Node, NodeId, NodeType, RangeLiteral, Return,
-    ScalarLiteral, ScopedMutability, Struct, StructLiteral, Trait, Try, TupleLiteral, Type, Union,
-    Use, While, With,
+    ScalarLiteral, ScopedMutability, Struct, StructLiteral, Trait, Try, TupleLiteral, TypeLiteral,
+    Union, Use, While, With,
 };
 
 /// The operator group (for precedence parsing).
@@ -571,7 +571,7 @@ pub struct Cast {
     /// The receiver of the cast (including expression to cast).
     pub receiver: NodeId<Expression>,
     /// The type to cast to.
-    pub r#type: NodeId<Type>,
+    pub r#type: NodeId<Expression>,
 }
 
 impl Node for Cast {
@@ -656,6 +656,8 @@ pub enum Expression {
     },
     /// Literal scalar value (as an Expression, see ScalarLiteral).
     ScalarLiteral(NodeId<ScalarLiteral>),
+    /// Type literal (as an Expression, see TypeLiteral).
+    TypeLiteral(NodeId<TypeLiteral>),
     /// Range literal (as an Expression, see RangeLiteral).
     RangeLiteral(NodeId<RangeLiteral>),
     /// Array literal (as an Expression, see ArrayLiteral).
@@ -741,9 +743,10 @@ impl Expression {
             // literals
             Expression::Path { .. } => None,
             Expression::ScalarLiteral(_) => Some(NodeType::ScalarLiteral),
+            Expression::TypeLiteral(_) => Some(NodeType::TypeLiteral),
             Expression::RangeLiteral(_) => Some(NodeType::RangeLiteral),
-            Expression::ArrayLiteral(_) => Some(NodeType::ArrayLiteral),
             Expression::TupleLiteral(_) => Some(NodeType::TupleLiteral),
+            Expression::ArrayLiteral(_) => Some(NodeType::ArrayLiteral),
             Expression::StructLiteral(_) => Some(NodeType::StructLiteral),
 
             // unary operations

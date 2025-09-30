@@ -6,7 +6,7 @@ use dyst_token::TokenType;
 
 use crate::{
     Function, FunctionStyle, Keyword, Mutability, NodeId, NodeType, ParseResult, Parser, Runtime,
-    SelfParameter, TypeParserOptions, Visibility,
+    SelfParameter, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
             let return_type = self
-                .eat_type(TypeParserOptions::default())
+                .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Function)?;
             Some(return_type)
         } else {
@@ -241,8 +241,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Function, IntType, Mutability, PrimitiveType, ScopedMutability, Type, WithClause,
-        assert_node, assert_path, assert_string,
+        Expression, Function, IntType, Mutability, PrimitiveType, ScopedMutability, TypeLiteral,
+        UnaryOperator, WithClause, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -272,8 +272,9 @@ function foo() => int32 with (
 
             // !Bar
             assert_node!(parser.tree, with.clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Not(inner_id) => {
-                    assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                    assert_eq!(*operator, UnaryOperator::Not);
+                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "Bar");
                     });
                 });
@@ -281,7 +282,7 @@ function foo() => int32 with (
 
             // Time
             assert_node!(parser.tree, with.clauses[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
@@ -289,19 +290,21 @@ function foo() => int32 with (
 
             // F: Numeric
             assert_node!(parser.tree, with.clauses[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "F");
                 });
-                assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
+                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });
 
             // return type
             let ret = return_type.expect("expected return type");
-            assert_node!(parser.tree, ret, Type::Primitive(PrimitiveType::Int(int_ty)) => {
-                assert_eq!(int_ty.width, 32);
-                assert!(int_ty.is_signed);
+            assert_node!(parser.tree, ret, Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                    assert_eq!(int_ty.width, 32);
+                    assert!(int_ty.is_signed);
+                });
             });
         });
     }
@@ -349,9 +352,11 @@ function b(
             assert_string!(parser.session, param.name, "x");
 
             let param_type = param.r#type.expect("expected type for parameter x");
-            assert_node!(parser.tree, param_type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                assert_eq!(*width, 32);
-                assert!(*is_signed);
+            assert_node!(parser.tree, param_type, Expression::TypeLiteral(literal_id) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                    assert_eq!(int_ty.width, 32);
+                    assert!(int_ty.is_signed);
+                });
             });
         });
     }

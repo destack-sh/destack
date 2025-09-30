@@ -1,7 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    Block, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Type, Visibility, With,
+    Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility,
+    With,
 };
 
 /// A FunctionStyle is the style of a function.
@@ -76,7 +77,7 @@ pub struct Function {
     /// The dynamic parameters to the function.
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
-    pub return_type: Option<NodeId<Type>>,
+    pub return_type: Option<NodeId<Expression>>,
     /// The with declaration for the function (can't have a body).
     pub with: Option<NodeId<With>>,
     /// The body of the function.
