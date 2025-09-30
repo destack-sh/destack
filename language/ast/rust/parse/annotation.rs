@@ -17,7 +17,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-const STATIC_BLOCK_KEYWORDS_STR: [&str; 4] = ["if", "loop", "for", "while"];
+const STATIC_BLOCK_KEYWORDS_STR: [&str; 3] = ["loop", "for", "while"];
 
 impl Annotation {
     pub fn position(&self) -> AnnotationPosition {
@@ -49,22 +49,31 @@ impl<'a> Parser<'a> {
             }
             // @
             // decorators are block scoped only
-            // TODO #Incomplete: support inline @if decorator (and any others?)
-            //  like `@if target == Os.Windows\nsomething`
-            //  or maybe `@if(target == Os.Windows)`
-            //  (basically static block-scoped keyword but without { on the same? line)
             else if token.token.r#type == TokenType::At
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.r#type == TokenType::Newline)
-                && let Ok(next) = self.peek_next() && !STATIC_BLOCK_KEYWORDS_STR.contains(&self.get_span_str(next.span))
+                && let Ok(next) = self.peek_next() 
+                && let next_span_str = self.get_span_str(next.span) 
+                && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
             {
-                let _ = self.with_recovery(
+                // speculatively parse the decorator
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id;
+                let decorator = self.with_recovery(
                     self.mark(),
                     |parser| parser.eat_decorator().map(Some),
                     None,
                     TokenType::Newline,
                 );
+
+                // allow `@if(...)` if it's unambiguously an if without a following block
+                if decorator.is_some() && next_span_str == "if" && self.peek_block().is_ok() {
+                    // otherwise ignore this decorator, it's just a static if
+                    self.restore(speculative_start, speculative_start_idx);
+                    self.bump();
+                    continue;
+                }
             }
             // keep going
             else {
@@ -713,10 +722,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, Function, Let, Struct,
-        StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path,
-        assert_string,
+        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, Function, If, Let, Struct, StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path, assert_string
     };
 
     /// Tag annotations should be parsed around a struct.
@@ -797,6 +803,43 @@ struct Test {}
             assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
                 assert_path!(parser.session, *receiver, "foo");
                 assert!(arguments.is_none());
+            });
+        });
+    }
+
+    /// If decorators should be distinguished from static ifs.
+    #[test]
+    fn test_attach_if_decorator_to_function_with_static_if_inside() {
+        let mut test = TestParser::new("@if\nfunction foo() { @if true { } }");
+        let mut parser = test.prepare();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        // @if
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "if");
+                assert!(arguments.is_none());
+            });
+        });
+
+        // function foo()
+        assert_node!(parser.tree, expressions[0], Expression::Function(node) => {
+            assert_node!(parser.tree, *node, Function { name, body, .. } => {
+                // foo
+                assert_string!(parser.session, name.unwrap(), "foo");
+                assert!(body.is_some());
+                assert_node!(parser.tree, body.unwrap(), Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    // @if
+                    assert_node!(parser.tree, expressions[0], Expression::If(node) => {
+                        assert_node!(parser.tree, *node, If::If { .. });
+                    });
+                });
             });
         });
     }
