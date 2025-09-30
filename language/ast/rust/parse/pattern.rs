@@ -151,8 +151,6 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
 
         // unwrap
-        // nocheckin TODO #Broken: postfix maybe pattern needs ungluing (see #UnglueTokens)
-        //  (maybe instead of #UnglueTokens just don't glue them in the first place?)
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat ?
             let pattern = Pattern::Maybe(pattern_id);

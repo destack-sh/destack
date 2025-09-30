@@ -96,7 +96,13 @@ impl<'a> Parser<'a> {
                 match parsed_int {
                     Ok(value) => {
                         let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Integer(value, IntType { width: 32, is_signed: true }),
+                            ScalarLiteral::Integer(
+                                value,
+                                IntType {
+                                    width: 32,
+                                    is_signed: true,
+                                },
+                            ),
                             self.get_span_from(start),
                         );
                         Ok(scalar_literal)

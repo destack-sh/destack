@@ -304,7 +304,6 @@ impl BinaryOperator {
             // shift
             TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
             TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
-            TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
 
             // elementwise
             TokenType::ElementwiseAnd => Some(BinaryOperator::ElementwiseAnd),
@@ -324,49 +323,6 @@ impl BinaryOperator {
             TokenType::LogicalOr => Some(BinaryOperator::Or),
 
             _ => None,
-        }
-    }
-
-    /// Convert a BinaryOperator to a TokenType (if a direct mapping exists).
-    #[inline]
-    pub fn as_token_type(&self) -> TokenType {
-        match self {
-            // multiplication
-            BinaryOperator::Multiply => TokenType::Multiply,
-            BinaryOperator::WrappingMultiply => TokenType::WrappingMultiply,
-            BinaryOperator::SaturatingMultiply => TokenType::SaturatingMultiply,
-            BinaryOperator::Divide => TokenType::Divide,
-            BinaryOperator::Remainder => TokenType::Remainder,
-
-            // addition
-            BinaryOperator::Add => TokenType::Add,
-            BinaryOperator::WrappingAdd => TokenType::WrappingAdd,
-            BinaryOperator::SaturatingAdd => TokenType::SaturatingAdd,
-            BinaryOperator::Subtract => TokenType::Subtract,
-            BinaryOperator::WrappingSubtract => TokenType::WrappingSubtract,
-            BinaryOperator::SaturatingSubtract => TokenType::SaturatingSubtract,
-
-            // shift
-            BinaryOperator::ShiftLeft => TokenType::ShiftLeft,
-            BinaryOperator::SaturatingShiftLeft => TokenType::SaturatingShiftLeft,
-            BinaryOperator::ShiftRight => TokenType::ShiftRight,
-
-            // elementwise
-            BinaryOperator::ElementwiseAnd => TokenType::ElementwiseAnd,
-            BinaryOperator::ElementwiseXor => TokenType::ElementwiseXor,
-            BinaryOperator::ElementwiseOr => TokenType::ElementwiseOr,
-
-            // comparison
-            BinaryOperator::Equal => TokenType::Equal,
-            BinaryOperator::NotEqual => TokenType::NotEqual,
-            BinaryOperator::LessThan => TokenType::LessThan,
-            BinaryOperator::LessThanOrEqual => TokenType::LessThanOrEqual,
-            BinaryOperator::GreaterThan => TokenType::GreaterThan,
-            BinaryOperator::GreaterThanOrEqual => TokenType::GreaterThanOrEqual,
-
-            // logical
-            BinaryOperator::And => TokenType::LogicalAnd,
-            BinaryOperator::Or => TokenType::LogicalOr,
         }
     }
 }

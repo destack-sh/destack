@@ -6,8 +6,7 @@ use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
     AssignOperator, BinaryOperator, Call, Expression, InfixOperator, Keyword, Mutability, NodeId,
-    NodeType, ParseError, ParseResult, Parser, ParserMark, Runtime, TupleLiteral, UnaryOperator,
-    Visibility,
+    NodeType, ParseError, ParseResult, Parser, ParserMark, Runtime, UnaryOperator, Visibility,
 };
 
 static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
@@ -66,88 +65,54 @@ impl<'a> Parser<'a> {
         let token = self.peek_next()?;
         UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::unexpected(token.span))
     }
-    /// Make a binary operator.
-    #[inline]
-    fn to_binary_operator(&self, token: &TokenSpan) -> ParseResult<BinaryOperator> {
-        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type) {
-            if self.options.in_static_type
-                && !IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator)
-            {
-                return Err(ParseError::unexpected(token.span));
-            }
-            Ok(binary_operator)
-        } else {
-            Err(ParseError::unexpected(token.span))
-        }
-    }
-
-    /// Make an assign operator.
-    #[inline]
-    fn to_assign_operator(&self, token: &TokenSpan) -> ParseResult<AssignOperator> {
-        if self.options.in_static_type {
-            return Err(ParseError::unexpected(token.span));
-        }
-        AssignOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::unexpected(token.span))
-    }
-
-    /// Peek a binary operator.
-    #[inline]
-    pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
-        let token = self.peek()?;
-        self.to_binary_operator(token)
-    }
-
-    /// Peek a next binary operator.
-    #[inline]
-    pub fn peek_next_binary_operator(&self) -> ParseResult<BinaryOperator> {
-        let token = self.peek_next()?;
-        self.to_binary_operator(token)
-    }
-
-    /// Peek an assign operator.
-    #[inline]
-    pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
-        let token = self.peek()?;
-        self.to_assign_operator(token)
-    }
-
-    /// Peek a next assign operator.
-    #[inline]
-    pub fn peek_next_assign_operator(&self) -> ParseResult<AssignOperator> {
-        let token = self.peek_next()?;
-        self.to_assign_operator(token)
-    }
 
     /// Make an infix operator.
     #[inline]
-    fn to_infix_operator(&self, token: &TokenSpan) -> ParseResult<InfixOperator> {
-        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
+    fn to_infix_operator(
+        &self,
+        token: &TokenSpan,
+        next_token: &TokenSpan,
+    ) -> ParseResult<(InfixOperator, u8)> {
+        // special case for shift right to avoid ungluing ambiguity
+        if !self.options.in_static_type
+            && token.token.r#type == TokenType::GreaterThan
+            && next_token.token.r#type == TokenType::GreaterThan
+        {
+            Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
+        }
+        // regular binary operator
+        else if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
             && (!self.options.in_static_type
                 || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
         {
-            Ok(InfixOperator::Binary(binary_operator))
-        } else if !self.options.in_static_type
+            Ok((InfixOperator::Binary(binary_operator), 1))
+        }
+        // regular assign operator
+        else if !self.options.in_static_type
             && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
         {
-            Ok(InfixOperator::Assign(assign_operator))
-        } else {
+            Ok((InfixOperator::Assign(assign_operator), 1))
+        }
+        // unexpected
+        else {
             Err(ParseError::unexpected(token.span))
         }
     }
 
     /// Peek an infix operator.
     #[inline]
-    pub fn peek_infix_operator(&self) -> ParseResult<InfixOperator> {
+    pub fn peek_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek()?;
-        self.to_infix_operator(token)
+        let next_token = self.peek_next()?;
+        self.to_infix_operator(token, next_token)
     }
 
     /// Peek a next infix operator.
     #[inline]
-    pub fn peek_next_infix_operator(&self) -> ParseResult<InfixOperator> {
+    pub fn peek_next_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
-        self.to_infix_operator(token)
+        let next_token = self.peek_next_next()?;
+        self.to_infix_operator(token, next_token)
     }
 
     /// Make an expression from an infix operator.
@@ -668,21 +633,21 @@ impl<'a> Parser<'a> {
 
         // eat infix expressions while left precedence is weaker than right precedence
         loop {
-            let right_operator = {
+            let (right_operator, operator_len) = {
                 // infix operator on same line
-                if let Ok(right_operator) = self.peek_infix_operator()
+                if let Ok((right_operator, operator_len)) = self.peek_infix_operator()
                     && (options.left_precedence.is_none()
                         || options.left_precedence.unwrap() < right_operator.precedence())
                 {
-                    right_operator
+                    (right_operator, operator_len)
                 }
                 // infix operator on next line
                 else if self.peek_token(TokenType::Newline).is_ok()
-                    && let Ok(right_operator) = self.peek_next_infix_operator()
+                    && let Ok((right_operator, operator_len)) = self.peek_next_infix_operator()
                     && (options.left_precedence.is_none()
                         || options.left_precedence.unwrap() < right_operator.precedence())
                 {
-                    right_operator
+                    (right_operator, operator_len)
                 }
                 // no infix operator, break
                 else {
@@ -692,7 +657,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::Newline).is_ok() {
                 self.bump(); // eat newline
             }
-            self.bump(); // eat infix operator
+            self.bump_by(operator_len); // eat infix operator
             self.eat_newline_maybe()?; // allow one newline
 
             // eat right expression
