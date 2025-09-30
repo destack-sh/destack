@@ -1,4 +1,3 @@
-use crate::parse::expression::ExpressionParserOptions;
 use crate::{If, Keyword, NodeId, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
@@ -34,7 +33,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition_id = self.eat_expression(ExpressionParserOptions::is_before_block())?;
+        let condition_id = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // then block
         let then_block_id = self.eat_block()?;

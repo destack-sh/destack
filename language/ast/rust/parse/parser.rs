@@ -18,6 +18,85 @@ pub(crate) struct ParserOptions {
     pub in_static_type: bool = false,
     /// Whether we're parsing an implicit union pattern.
     pub in_implicit_union: bool = false,
+    /// Whether we're in parenthesized expression (directly).
+    /// These expressions might be tuple literals if followed by a comma.
+    pub in_parenthesis: bool = false,
+    /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
+    /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
+    pub in_before_block: bool = false,
+    /// The left precedence preceding (i.e. before) the expression. 
+    /// Determines operator lifting / grouping.
+    pub left_precedence: Option<u8> = None,
+}
+
+impl ParserOptions {
+    /// Adapt and reset options for a statement.
+    pub(crate) fn in_statement(self) -> Self {
+        Self::default()
+    }
+
+    /// Adapt and reset options for a static type.
+    pub(crate) fn in_static_type(self) -> Self {
+        Self {
+            in_static_type: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for an implicit union pattern.
+    pub(crate) fn in_implicit_union(self) -> Self {
+        Self {
+            in_implicit_union: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for a static type before a block.
+    pub(crate) fn in_static_type_before_block(self) -> Self {
+        Self {
+            in_static_type: true,
+            in_before_block: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for before a block.
+    pub(crate) fn in_before_block(self) -> Self {
+        Self {
+            in_before_block: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for a parenthesis expression (with `(`).
+    pub(crate) fn in_parenthesis(self) -> Self {
+        Self {
+            in_static_type: false,
+            in_parenthesis: true,
+            in_implicit_union: false,
+            left_precedence: None,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for a nested expression (that's not `(`).
+    pub(crate) fn in_nested(self) -> Self {
+        Self {
+            in_static_type: false,
+            in_parenthesis: false,
+            in_implicit_union: false,
+            left_precedence: None,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for left precedence.
+    pub(crate) fn in_left_precedence(self, precedence: u8) -> Self {
+        Self {
+            left_precedence: Some(precedence),
+            ..self
+        }
+    }
 }
 
 /// A parser for Dyst AST.

@@ -23,13 +23,9 @@ impl<'a> Parser<'a> {
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let r#type = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_expression(ExpressionParserOptions::default()),
-                )
+                .with_options(self.options.in_static_type(), |parser| {
+                    parser.eat_expression()
+                })
                 .for_node_type(NodeType::Parameter)?;
             Some(r#type)
         } else {
@@ -40,9 +36,7 @@ impl<'a> Parser<'a> {
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.bump(); // eat assign
-            let value = self
-                .eat_expression(ExpressionParserOptions::default())
-                .for_node_type(NodeType::Parameter)?;
+            let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
             Parameter {
                 name,
                 r#type,
@@ -101,9 +95,7 @@ impl<'a> Parser<'a> {
         {
             let name = self.eat_identifier().for_node_type(NodeType::Argument)?;
             self.eat_colon()?;
-            let value = self
-                .eat_expression(ExpressionParserOptions::default())
-                .for_node_type(NodeType::Argument)?;
+            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
                 .allocate(Argument::Named { name, value }, self.get_span_from(start));
@@ -111,7 +103,7 @@ impl<'a> Parser<'a> {
         }
         // positional argument
         else {
-            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let value = self.eat_expression()?;
             let argument_id = self
                 .tree
                 .allocate(Argument::Positional { value }, self.get_span_from(start));

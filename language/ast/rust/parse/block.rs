@@ -121,9 +121,7 @@ impl<'a> Parser<'a> {
         };
         // value (if not at a expression stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self
-                .eat_expression(ExpressionParserOptions::default())
-                .for_node_type(NodeType::Break)?;
+            let value_id = self.eat_expression().for_node_type(NodeType::Break)?;
             Some(value_id)
         } else {
             None
@@ -176,9 +174,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self
-                .eat_expression(ExpressionParserOptions::default())
-                .for_node_type(NodeType::Return)?;
+            let value_id = self.eat_expression().for_node_type(NodeType::Return)?;
             Some(value_id)
         } else {
             None
@@ -234,9 +230,7 @@ impl<'a> Parser<'a> {
         }
         // expression
         else {
-            let expression_id = self
-                .eat_expression(ExpressionParserOptions::default())
-                .for_node_type(NodeType::Defer)?;
+            let expression_id = self.eat_expression().for_node_type(NodeType::Defer)?;
             let defer_id = self
                 .tree
                 .allocate(Defer::Expression(expression_id), self.get_span_from(start));

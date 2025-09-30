@@ -193,7 +193,9 @@ impl<'a> Parser<'a> {
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
             let return_type = self
-                .eat_expression(ExpressionParserOptions::is_before_block())
+                .with_options(self.options.in_before_block(), |parser| {
+                    parser.eat_expression()
+                })
                 .for_node_type(NodeType::Function)?;
             Some(return_type)
         } else {

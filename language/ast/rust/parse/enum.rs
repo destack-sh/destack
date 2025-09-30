@@ -2,7 +2,6 @@
 
 use dyst_token::TokenType;
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     Enum, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
@@ -44,13 +43,9 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 let ty = self
-                    .with_options(
-                        ParserOptions {
-                            in_static_type: true,
-                            ..self.options
-                        },
-                        |parser| parser.eat_expression(ExpressionParserOptions::default()),
-                    )
+                    .with_options(self.options.in_static_type(), |parser| {
+                        parser.eat_expression()
+                    })
                     .for_node_type(NodeType::Enum)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
@@ -77,15 +72,9 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .with_options(
-                            ParserOptions {
-                                in_static_type: true,
-                                ..self.options
-                            },
-                            |parser| {
-                                parser.eat_expression(ExpressionParserOptions::is_before_block())
-                            },
-                        )
+                        .with_options(self.options.in_static_type_before_block(), |parser| {
+                            parser.eat_expression()
+                        })
                         .for_node_type(NodeType::Enum)?;
                     super_types.push(super_type);
                 }
@@ -183,10 +172,7 @@ impl<'a> Parser<'a> {
         // optional `= <expr>` value
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(
-                self.eat_expression(ExpressionParserOptions::default())
-                    .for_node_type(NodeType::EnumField)?,
-            )
+            Some(self.eat_expression().for_node_type(NodeType::EnumField)?)
         } else {
             None
         };

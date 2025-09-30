@@ -186,4 +186,22 @@ else {
             DystFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_if_let() {
+        let source = r"if let Some(piece) = self.currentPiece {
+    let absolutePositions = piece.getAbsolutePositions(pos)
+    for blockPos in absolutePositions {
+        if self.board.isFilled(blockPos) {
+            return true
+        }
+    }
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(None),
+            DystFormatOptions::default()
+        );
+    }
 }

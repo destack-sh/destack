@@ -1,6 +1,5 @@
 use dyst_token::TokenType;
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::{Keyword, Match, NodeId, ParseResult, Parser, Try};
 
 impl<'a> Parser<'a> {
@@ -37,10 +36,10 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat keyword
 
                 // catch expression
-                let catch_expression_id = self.eat_expression(ExpressionParserOptions {
-                    is_before_block: true,
-                    ..ExpressionParserOptions::default()
-                })?;
+                let catch_expression_id = self
+                    .with_options(self.options.in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })?;
 
                 // catch match cases
                 self.eat_token(TokenType::OpenBrace)?;
@@ -77,7 +76,7 @@ impl<'a> Parser<'a> {
         }
         // try expression
         else {
-            let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
+            let expression_id = self.eat_expression()?;
             let try_id = self.tree.allocate(
                 Try::Expression {
                     try_expression: expression_id,

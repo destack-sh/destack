@@ -1,6 +1,5 @@
 //! Parse loops, for, while, etc.
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{For, Keyword, Loop, NodeId, NodeType, ParseResult, Parser, Runtime, While};
 
@@ -63,7 +62,9 @@ impl<'a> Parser<'a> {
 
         // pattern
         let pattern_id = self
-            .eat_pattern(ExpressionParserOptions::is_before_block())
+            .with_options(self.options.in_before_block(), |parser| {
+                parser.eat_pattern()
+            })
             .for_node_type(NodeType::For)?;
 
         // in
@@ -71,7 +72,9 @@ impl<'a> Parser<'a> {
 
         // iterator
         let iterator_id = self
-            .eat_expression(ExpressionParserOptions::is_before_block())
+            .with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })
             .for_node_type(NodeType::For)?;
 
         // body
@@ -111,7 +114,9 @@ impl<'a> Parser<'a> {
 
         // condition
         let condition_id = self
-            .eat_expression(ExpressionParserOptions::is_before_block())
+            .with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })
             .for_node_type(NodeType::While)?;
 
         // body

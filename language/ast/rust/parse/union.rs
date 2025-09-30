@@ -2,8 +2,6 @@
 
 use dyst_token::TokenType;
 
-use crate::parse::ParserOptions;
-use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Struct, StructStyle,
@@ -53,26 +51,18 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open parenthesis
                 // tag type
                 let ty = self
-                    .with_options(
-                        ParserOptions {
-                            in_static_type: true,
-                            ..self.options
-                        },
-                        |parser| parser.eat_expression(ExpressionParserOptions::default()),
-                    )
+                    .with_options(self.options.in_static_type(), |parser| {
+                        parser.eat_expression()
+                    })
                     .for_node_type(NodeType::Union)?;
 
                 // representation type
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.bump(); // eat comma
                     let representation_type = self
-                        .with_options(
-                            ParserOptions {
-                                in_static_type: true,
-                                ..self.options
-                            },
-                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
-                        )
+                        .with_options(self.options.in_static_type(), |parser| {
+                            parser.eat_expression()
+                        })
                         .for_node_type(NodeType::Union)?;
                     self.eat_token(TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Union)?;
@@ -95,13 +85,9 @@ impl<'a> Parser<'a> {
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
             let params = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_parameters_body(),
-                )
+                .with_options(self.options.in_static_type(), |parser| {
+                    parser.eat_parameters_body()
+                })
                 .for_node_type(NodeType::Union)?;
             self.eat_token(TokenType::GreaterThan)
                 .for_node_type(NodeType::Union)?;
@@ -126,15 +112,9 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .with_options(
-                            ParserOptions {
-                                in_static_type: true,
-                                ..self.options
-                            },
-                            |parser| {
-                                parser.eat_expression(ExpressionParserOptions::is_before_block())
-                            },
-                        )
+                        .with_options(self.options.in_static_type_before_block(), |parser| {
+                            parser.eat_expression()
+                        })
                         .for_node_type(NodeType::Union)?;
                     super_types.push(super_type);
                 }
@@ -301,10 +281,7 @@ impl<'a> Parser<'a> {
         // optional default value: `= <expr>`
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
-            Some(
-                self.eat_expression(ExpressionParserOptions::default())
-                    .for_node_type(NodeType::Union)?,
-            )
+            Some(self.eat_expression().for_node_type(NodeType::Union)?)
         } else {
             None
         };
