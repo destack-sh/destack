@@ -38,8 +38,8 @@ use crate::{
     walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
     walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
     walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try,
-    walk_tuple_literal, walk_type_literal, walk_union, walk_union_field, walk_use,
-    walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
+    walk_tuple_literal, walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause,
+    walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// The console colors.

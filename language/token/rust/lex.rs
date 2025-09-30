@@ -429,17 +429,10 @@ impl Tokenizer<'_> {
             // greater than or shift right
             '>' => {
                 // >>
-                if self.peek() == '>' {
-                    self.bump();
-                    // >>=
-                    if self.peek() == '=' {
-                        self.bump();
-                        (TokenType::ShiftRightAssign, None)
-                    }
-                    // >>
-                    else {
-                        (TokenType::ShiftRight, None)
-                    }
+                if self.peek() == '>' && self.peek_next() == '=' {
+                    self.bump(); // >
+                    self.bump(); // =
+                    (TokenType::ShiftRightAssign, None)
                 }
                 // >=
                 else if self.peek() == '=' {

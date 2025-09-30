@@ -190,7 +190,6 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::SaturatingSubtract => "93",
         TokenType::ShiftLeft => "96",
         TokenType::SaturatingShiftLeft => "96",
-        TokenType::ShiftRight => "96",
         TokenType::ElementwiseAnd => "96",
         TokenType::ElementwiseXor => "96",
         TokenType::ElementwiseOr => "96",
