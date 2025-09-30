@@ -14,6 +14,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// []
     /// [1]
     /// [1..3]
     /// ["bar"]
@@ -27,6 +28,18 @@ impl<'a> Parser<'a> {
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
+
+        // bare index
+        if self.peek_token(TokenType::CloseBracket).is_ok() {
+            self.bump(); // eat close bracket
+            let index_id = self.tree.allocate(
+                Index::ExplicitBare {
+                    receiver: receiver_id,
+                },
+                self.get_span_from(start),
+            );
+            return Ok(index_id);
+        }
 
         // expression
         let index = self
@@ -71,7 +84,7 @@ impl<'a> Parser<'a> {
 
         // index
         let index_id = self.tree.allocate(
-            Index::Implicit {
+            Index::Member {
                 receiver: receiver_id,
                 index,
             },
@@ -235,7 +248,7 @@ mod tests {
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let index_id = parser.eat_index_postfix_implicit(recv).unwrap();
-        assert_node!(parser.tree, index_id, Index::Implicit { receiver, index } => {
+        assert_node!(parser.tree, index_id, Index::Member { receiver, index } => {
             assert_eq!(*receiver, recv);
             assert_eq!(*index, 1);
         });

@@ -15,6 +15,8 @@ pub enum Keyword {
     Module,
     /// Declare a tuple.
     Tuple,
+    /// Declare a type.
+    Type,
     /// Declare a Struct.
     Struct,
     /// Declare an Enum.
@@ -77,6 +79,7 @@ impl Keyword {
             Keyword::This => "this",
             Keyword::Module => "module",
             Keyword::Tuple => "tuple",
+            Keyword::Type => "type",
             Keyword::Struct => "struct",
             Keyword::Enum => "enum",
             Keyword::Union => "union",
@@ -117,6 +120,7 @@ impl FromStr for Keyword {
             "this" => Ok(Keyword::This),
             "tuple" => Ok(Keyword::Tuple),
             "module" => Ok(Keyword::Module),
+            "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),
             "enum" => Ok(Keyword::Enum),
             "union" => Ok(Keyword::Union),

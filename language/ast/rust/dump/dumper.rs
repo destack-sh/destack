@@ -1411,14 +1411,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_index(&mut self, _tree: &NodeTree, _id: NodeId<Index>, index: &Index) {
         match index {
+            Index::ExplicitBare { receiver: _ } => {
+                self.node("Index::ExplicitBare", _id.id).end();
+            }
             Index::Explicit {
                 receiver: _,
                 index: _,
             } => {
                 self.node("Index::Explicit", _id.id).end();
             }
-            Index::Implicit { receiver: _, index } => {
-                self.node("Index::Implicit", _id.id)
+            Index::Member { receiver: _, index } => {
+                self.node("Index::Member", _id.id)
                     .field("index", index)
                     .end();
             }
