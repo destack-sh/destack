@@ -67,38 +67,6 @@ fn to_infix_operator(
     }
 }
 
-/// Options for parsing an expression.
-#[derive(Debug, Copy, Clone, Default)]
-pub struct ExpressionParserOptions {
-    /// Whether we're in parenthesized expression (directly).
-    /// These expressions might be tuple literals if followed by a comma.
-    pub is_parenthesized: bool = false,
-    /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
-    pub is_before_block: bool = false,
-    /// The left precedence preceding (i.e. before) the expression. 
-    /// Determines operator lifting / grouping.
-    pub left_precedence: Option<u8> = None,
-    /// The visibility of this expression.
-    /// Used when pre-snacking the visibility in an outer parse (like for expressions).
-    pub visibility: Option<Visibility> = None,
-}
-
-impl ExpressionParserOptions {
-    /// Create default expression parser options.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create expression parser options for an expression before a block.
-    pub fn is_before_block() -> Self {
-        Self {
-            is_before_block: true,
-            ..Self::default()
-        }
-    }
-}
-
 // TODO! #Broken: handle expression parentheses (and generally parenthesized nodes?)
 //  (isn't this only a formatting concern?)
 
@@ -158,17 +126,15 @@ impl<'a> Parser<'a> {
     /// Try to eat an expression as a statement (return Expression::Error if error and recovery is possible).
     #[inline]
     pub fn try_eat_expression_as_statement(&mut self) -> ParseResult<NodeId<Expression>> {
-        self.try_eat_expression(ExpressionParserOptions::default(), TokenType::Newline)
+        self.with_options(self.options.in_statement(), |parser| {
+            parser.try_eat_expression(TokenType::Newline)
+        })
     }
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression(
-        &mut self,
-        options: ExpressionParserOptions,
-        recover: TokenType,
-    ) -> ParseResult<NodeId<Expression>> {
-        match self.eat_expression(options) {
+    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParseResult<NodeId<Expression>> {
+        match self.eat_expression() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
@@ -209,13 +175,9 @@ impl<'a> Parser<'a> {
     fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::LessThan)?;
         let static_arguments = self
-            .with_options(
-                ParserOptions {
-                    in_static_type: true,
-                    ..self.options
-                },
-                |parser| parser.eat_arguments_body(),
-            )
+            .with_options(self.options.in_static_type(), |parser| {
+                parser.eat_arguments_body()
+            })
             .for_node_type(NodeType::Expression)?;
         self.eat_token(TokenType::GreaterThan)
             .for_node_type(NodeType::Expression)?;
@@ -223,21 +185,16 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an expression.
-    pub fn eat_expression(
-        &mut self,
-        options: ExpressionParserOptions,
-    ) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // visibility
-        let visibility = if options.visibility.is_some() {
-            options.visibility
-        } else {
-            let visibility = self.peek_visibility()?;
-            if visibility.is_some() {
+        let visibility: Option<Visibility> = match self.peek_visibility() {
+            Ok(Some(visibility)) => {
                 self.bump(); // eat visibility
+                Some(visibility)
             }
-            visibility
+            _ => None,
         };
 
         // runtime
@@ -285,10 +242,10 @@ impl<'a> Parser<'a> {
                 }
                 // may be a tuple with anonymous elements or just a parenthesized expression (see below)
                 else {
-                    let expression_id = self.eat_expression(ExpressionParserOptions {
-                        is_parenthesized: true,
-                        ..ExpressionParserOptions::default()
-                    })?;
+                    let expression_id = self
+                        .with_options(self.options.in_parenthesis(), |parser| {
+                            parser.eat_expression()
+                        })?;
                     self.eat_token(TokenType::CloseParenthesis)?;
                     self.tree.set_span(expression_id, self.get_span_from(start));
                     expression_id
@@ -304,10 +261,10 @@ impl<'a> Parser<'a> {
             else if let Ok(unary_operator) = self.peek_unary_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
-                let right = self.eat_expression(ExpressionParserOptions {
-                    left_precedence: Some(right_precedence),
-                    ..options
-                })?;
+                let right = self.with_options(
+                    self.options.in_left_precedence(right_precedence),
+                    |parser| parser.eat_expression(),
+                )?;
                 let expression = Expression::Unary {
                     operator: unary_operator,
                     right,
@@ -327,7 +284,7 @@ impl<'a> Parser<'a> {
                         mutability: Mutability::Immutable,
                     }
                 };
-                let right = self.eat_expression(options)?;
+                let right = self.eat_expression()?;
                 let expression = Expression::Reference { mutability, right };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -578,7 +535,7 @@ impl<'a> Parser<'a> {
         // struct literal postfix with `{`
         else if let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenBrace).is_ok()
-            && !options.is_before_block
+            && !self.options.in_before_block
         {
             let fields = self
                 .eat_struct_literal_body()
@@ -604,7 +561,7 @@ impl<'a> Parser<'a> {
             {
                 self.bump(); // eat ..
                 let right_expression_id = self
-                    .eat_expression(options)
+                    .eat_expression()
                     .for_node_type(NodeType::RangeLiteral)?;
                 let literal_id = self.tree.allocate(
                     RangeLiteral {
@@ -681,7 +638,7 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // tuple (if we have a comma / newline following an expression inside parentheses)
-            else if options.is_parenthesized
+            else if self.options.in_parenthesis
                 && (self.peek_token(TokenType::Comma).is_ok()
                     || self.peek_token(TokenType::Newline).is_ok())
             {
@@ -725,16 +682,16 @@ impl<'a> Parser<'a> {
             let (right_operator, operator_len) = {
                 // infix operator on same line
                 if let Ok((right_operator, operator_len)) = self.peek_infix_operator()
-                    && (options.left_precedence.is_none()
-                        || options.left_precedence.unwrap() < right_operator.precedence())
+                    && (self.options.left_precedence.is_none()
+                        || self.options.left_precedence.unwrap() < right_operator.precedence())
                 {
                     (right_operator, operator_len)
                 }
                 // infix operator on next line
                 else if self.peek_token(TokenType::Newline).is_ok()
                     && let Ok((right_operator, operator_len)) = self.peek_next_infix_operator()
-                    && (options.left_precedence.is_none()
-                        || options.left_precedence.unwrap() < right_operator.precedence())
+                    && (self.options.left_precedence.is_none()
+                        || self.options.left_precedence.unwrap() < right_operator.precedence())
                 {
                     (right_operator, operator_len)
                 }
@@ -750,10 +707,10 @@ impl<'a> Parser<'a> {
             self.eat_newline_maybe()?; // allow one newline
 
             // eat right expression
-            let right_expression_id = self.eat_expression(ExpressionParserOptions {
-                left_precedence: Some(right_operator.precedence()),
-                ..options
-            })?;
+            let right_expression_id = self.with_options(
+                self.options.in_left_precedence(right_operator.precedence()),
+                |parser| parser.eat_expression(),
+            )?;
 
             // combine into new left expression
             let left_expression =
@@ -769,7 +726,6 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability,
@@ -784,9 +740,7 @@ mod tests {
     fn test_parse_tuple_literal() {
         let mut test = TestParser::new("(1, 2)");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
         // (1, 2)
         assert_node!(
             parser.tree,
@@ -837,9 +791,7 @@ mod tests {
     fn test_parse_range_literal() {
         let mut test = TestParser::new("1..3");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // 1..3
         assert_node!(parser.tree, expr_id, Expression::RangeLiteral(range_literal_id) => {
@@ -861,9 +813,7 @@ mod tests {
         let mut test = TestParser::new("geom.Vector2 { x: 1, y }");
         let mut parser = test.prepare();
 
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // geom.Vector2 { x: 1, y }
         assert_node!(
@@ -937,9 +887,7 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -992,9 +940,7 @@ geom.Mesh<2, Dims: 4> {
     fn test_parse_type_with_static_parameters() {
         let mut test = TestParser::new("let Alias = A<B<C>>");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // let Alias = A<B<C>>
         assert_node!(parser.tree, expr_id, Expression::Let(let_id) => {
@@ -1030,9 +976,7 @@ geom.Mesh<2, Dims: 4> {
         let mut test = TestParser::new("*x");
         let mut parser = test.prepare();
 
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // *x
         assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
@@ -1047,9 +991,7 @@ geom.Mesh<2, Dims: 4> {
     fn test_parse_reference_variable() {
         let mut test = TestParser::new("&x");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // &x
         assert_node!(
@@ -1073,9 +1015,7 @@ geom.Mesh<2, Dims: 4> {
     fn test_parse_reference_member_call() {
         let mut test = TestParser::new("&var self.foo()");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // &var self.foo()
         assert_node!(
@@ -1128,9 +1068,7 @@ let x =
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // let x = foo.parse() + 2 + (x / 4)
         assert_node!(
@@ -1249,9 +1187,7 @@ self
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // self.foo().baz()
         assert_node!(
@@ -1309,9 +1245,7 @@ self
     fn test_parse_comparison_less_than() {
         let mut test = TestParser::new("x < y");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         // x < y
         assert_node!(
@@ -1334,9 +1268,7 @@ self
     fn test_parse_precedence_addition_left_associative() {
         let mut test = TestParser::new("a + b + c");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1372,9 +1304,7 @@ self
     fn test_parse_precedence_addition_across_lines() {
         let mut test = TestParser::new("a +\n b +\n c");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1408,9 +1338,7 @@ self
     fn test_parse_precedence_multiply_before_addition() {
         let mut test = TestParser::new("a + b * c");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1445,9 +1373,7 @@ self
     fn test_parse_precedence_parentheses_override() {
         let mut test = TestParser::new("(a + b) * c");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1482,9 +1408,7 @@ self
     fn test_parse_precedence_chain_mixed() {
         let mut test = TestParser::new("a + b * c + d");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1530,9 +1454,7 @@ self
     fn test_parse_precedence_elementwise_vs_addition() {
         let mut test = TestParser::new("a + b | c + d");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1578,9 +1500,7 @@ self
     fn test_parse_precedence_comparison_vs_logical() {
         let mut test = TestParser::new("a == b && c == d");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1626,9 +1546,7 @@ self
     fn test_parse_precedence_unary_before_multiply() {
         let mut test = TestParser::new("-a * b");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1660,9 +1578,7 @@ self
     fn test_parse_precedence_postfix_call_before_add() {
         let mut test = TestParser::new("a() + @b() / c");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
@@ -1726,9 +1642,7 @@ self
     fn test_parse_precedence_postfix_call_before_coalesce() {
         let mut test = TestParser::new("(y * y).sqrt() ?? 0");
         let mut parser = test.prepare();
-        let expr_id = parser
-            .eat_expression(ExpressionParserOptions::default())
-            .unwrap();
+        let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,

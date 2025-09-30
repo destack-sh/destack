@@ -1,4 +1,3 @@
-use crate::parse::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser};
 use dyst_token::TokenType;
@@ -34,13 +33,9 @@ impl<'a> Parser<'a> {
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat <
             let static_arguments = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_arguments_body(),
-                )
+                .with_options(self.options.in_static_type_before_block(), |parser| {
+                    parser.eat_arguments_body()
+                })
                 .for_node_type(NodeType::Implement)?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_arguments)
@@ -50,26 +45,18 @@ impl<'a> Parser<'a> {
 
         // receiver
         let receiver = self
-            .with_options(
-                ParserOptions {
-                    in_static_type: true,
-                    ..self.options
-                },
-                |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
-            )
+            .with_options(self.options.in_static_type_before_block(), |parser| {
+                parser.eat_expression()
+            })
             .for_node_type(NodeType::Implement)?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.bump(); // eat for
             let for_trait = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
-                )
+                .with_options(self.options.in_static_type_before_block(), |parser| {
+                    parser.eat_expression()
+                })
                 .for_node_type(NodeType::Implement)?;
             Some(for_trait)
         } else {

@@ -1,6 +1,5 @@
 use dyst_token::TokenType;
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{Keyword, Match, MatchCase, NodeId, NodeType, ParseResult, Parser};
 
@@ -32,10 +31,9 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // value
-        let value_id = self.try_eat_expression(
-            ExpressionParserOptions::is_before_block(),
-            TokenType::OpenBrace,
-        )?;
+        let value_id = self.with_options(self.options.in_before_block(), |parser| {
+            parser.try_eat_expression(TokenType::OpenBrace)
+        })?;
 
         // cases
         self.eat_token(TokenType::OpenBrace)?;
@@ -96,13 +94,14 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // pattern
-        let pattern_id = self.eat_pattern(ExpressionParserOptions::default())?;
+        let pattern_id = self.eat_pattern()?;
 
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
-            let guard =
-                self.try_eat_expression(ExpressionParserOptions::default(), TokenType::FatArrow)?;
+            let guard = self.with_options(self.options.in_before_block(), |parser| {
+                parser.try_eat_expression(TokenType::FatArrow)
+            })?;
             Some(guard)
         } else {
             None
@@ -126,8 +125,7 @@ impl<'a> Parser<'a> {
         }
         // expression
         else {
-            let expression_id =
-                self.try_eat_expression(ExpressionParserOptions::default(), TokenType::Newline)?;
+            let expression_id = self.try_eat_expression(TokenType::Newline)?;
             let match_case_id = self.tree.allocate(
                 MatchCase::Expression {
                     pattern: pattern_id,

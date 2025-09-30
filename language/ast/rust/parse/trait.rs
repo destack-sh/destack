@@ -1,6 +1,5 @@
 use dyst_token::TokenType;
 
-use crate::parse::ParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     BlockFormat, Expression, Keyword, NodeId, NodeType, ParseResult, Parser, Trait, Visibility,
@@ -48,13 +47,9 @@ impl<'a> Parser<'a> {
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
             let params = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_parameters_body(),
-                )
+                .with_options(self.options.in_static_type(), |parser| {
+                    parser.eat_parameters_body()
+                })
                 .for_node_type(NodeType::Trait)?;
             self.eat_token(TokenType::GreaterThan)
                 .for_node_type(NodeType::Trait)?;
@@ -79,7 +74,9 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_expression(ExpressionParserOptions::is_before_block())
+                        .with_options(self.options.in_before_block(), |parser| {
+                            parser.eat_expression()
+                        })
                         .for_node_type(NodeType::Trait)?;
                     super_types.push(super_type);
                 }

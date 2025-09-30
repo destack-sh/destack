@@ -375,7 +375,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, ExpressionParserOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     /// Tags should be preserved in order.
     #[test]
@@ -428,7 +428,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(ExpressionParserOptions::default()),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
@@ -469,7 +469,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(ExpressionParserOptions::default()),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
@@ -480,7 +480,7 @@ mod tests {
         assert_format!(
             "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
-            |p| p.eat_expression(ExpressionParserOptions::default()),
+            |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(200)
         );
     }

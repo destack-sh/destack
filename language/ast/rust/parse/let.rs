@@ -2,7 +2,6 @@ use crate::parse::prelude::*;
 use dyst_source::PathId;
 use dyst_token::TokenType;
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Keyword, Let, Mutability, NodeId, NodeType, ParseResult, Parser, ScopedMutability, Visibility,
 };
@@ -126,21 +125,15 @@ impl<'a> Parser<'a> {
         };
 
         // pattern
-        let pattern = self
-            .eat_pattern(ExpressionParserOptions::default())
-            .for_node_type(NodeType::Let)?;
+        let pattern = self.eat_pattern().for_node_type(NodeType::Let)?;
 
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let r#type = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_expression(ExpressionParserOptions::default()),
-                )
+                .with_options(self.options.in_static_type(), |parser| {
+                    parser.eat_expression()
+                })
                 .for_node_type(NodeType::Let)?;
             Some(r#type)
         } else {
@@ -151,10 +144,7 @@ impl<'a> Parser<'a> {
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            Some(
-                self.eat_expression(ExpressionParserOptions::default())
-                    .for_node_type(NodeType::Let)?,
-            )
+            Some(self.eat_expression().for_node_type(NodeType::Let)?)
         } else {
             // implicitly uninitialized
             None

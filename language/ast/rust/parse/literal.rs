@@ -1,7 +1,6 @@
 use dyst_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
-use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     ArrayLiteral, FieldLiteral, FloatType, IntType, NodeId, NodeType, ParseError, ParseResult,
@@ -420,7 +419,7 @@ impl<'a> Parser<'a> {
         {
             let name = self.eat_identifier()?;
             self.eat_token(TokenType::Colon)?;
-            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let value = self.eat_expression()?;
             let field_literal = self.tree.allocate(
                 TupleLiteralField::Named { name, value },
                 self.get_span_from(start),
@@ -429,7 +428,7 @@ impl<'a> Parser<'a> {
         }
         // positional field
         else {
-            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let value = self.eat_expression()?;
             let field_literal = self.tree.allocate(
                 TupleLiteralField::Positional { value },
                 self.get_span_from(start),
@@ -473,7 +472,7 @@ impl<'a> Parser<'a> {
             // keep eating elements
             else {
                 let element = self
-                    .eat_expression(ExpressionParserOptions::default())
+                    .eat_expression()
                     .for_node_type(NodeType::ArrayLiteral)?;
                 elements.push(element);
             }
@@ -503,7 +502,9 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();
         let r#type = self
-            .eat_expression(ExpressionParserOptions::is_before_block())
+            .with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })
             .for_node_type(NodeType::StructLiteral)?;
         let fields = self
             .eat_struct_literal_body()
@@ -549,7 +550,7 @@ impl<'a> Parser<'a> {
             // named field
             if self.peek_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
-                let value = self.eat_expression(ExpressionParserOptions::default())?;
+                let value = self.eat_expression()?;
                 let field_literal = self.tree.allocate(
                     FieldLiteral::Named { name, value },
                     self.get_span_from(field_start),

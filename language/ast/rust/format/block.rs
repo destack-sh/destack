@@ -217,7 +217,7 @@ impl<'ast> FormatNode<'ast, Defer> for Defer {
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, ExpressionParserOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_empty_block_with_comment() {
@@ -302,7 +302,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(ExpressionParserOptions::default()),
+            |p| p.eat_expression(),
             DystFormatOptions::default_tab()
         );
     }

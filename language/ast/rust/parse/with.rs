@@ -87,20 +87,18 @@ impl<'a> Parser<'a> {
 
         // first parse the left-hand side type target
         let left = self
-            .eat_expression(ExpressionParserOptions::is_before_block())
+            .with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })
             .for_node_type(NodeType::WithClause)?;
 
         // assertion: `T: SomeType`
         if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let right = self
-                .with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
-                )
+                .with_options(self.options.in_static_type_before_block(), |parser| {
+                    parser.eat_expression()
+                })
                 .for_node_type(NodeType::WithClause)?;
             let clause = self.tree.allocate(
                 WithClause::Assertion {
