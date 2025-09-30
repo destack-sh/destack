@@ -17,7 +17,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-const STATIC_KEYWORDS_STR: [&str; 4] = ["if", "loop", "for", "while"];
+const STATIC_BLOCK_KEYWORDS_STR: [&str; 4] = ["if", "loop", "for", "while"];
 
 impl Annotation {
     pub fn position(&self) -> AnnotationPosition {
@@ -49,11 +49,13 @@ impl<'a> Parser<'a> {
             }
             // @
             // decorators are block scoped only
+            // TODO #Incomplete: support inline @if decorator (and any others?)
+            //  (basically static block-scoped keyword but without { on the same? line)
             else if token.token.r#type == TokenType::At
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.r#type == TokenType::Newline)
-                && let Ok(next) = self.peek_next() && !STATIC_KEYWORDS_STR.contains(&self.get_span_str(next.span))
+                && let Ok(next) = self.peek_next() && !STATIC_BLOCK_KEYWORDS_STR.contains(&self.get_span_str(next.span))
             {
                 let _ = self.with_recovery(
                     self.mark(),

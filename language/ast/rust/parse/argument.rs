@@ -21,9 +21,15 @@ impl<'a> Parser<'a> {
 
         // : type
         let r#type = if self.peek_colon().is_ok() {
-            self.eat_colon()?;
+            self.bump(); // eat colon
             let r#type = self
-                .eat_expression(ExpressionParserOptions::default())
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                )
                 .for_node_type(NodeType::Parameter)?;
             Some(r#type)
         } else {
@@ -33,7 +39,7 @@ impl<'a> Parser<'a> {
         // = value
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
-            self.eat_token(TokenType::Assign)?;
+            self.bump(); // eat assign
             let value = self
                 .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Parameter)?;

@@ -121,7 +121,13 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_expression(ExpressionParserOptions::default())
+                        .with_options(
+                            ParserOptions {
+                                in_static_type: true,
+                                ..self.options
+                            },
+                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                        )
                         .for_node_type(NodeType::Struct)?;
                     super_types.push(super_type);
                 }
@@ -255,7 +261,13 @@ impl<'a> Parser<'a> {
 
         // type
         let r#type = self
-            .eat_expression(ExpressionParserOptions::default())
+            .with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |parser| parser.eat_expression(ExpressionParserOptions::default()),
+            )
             .for_node_type(NodeType::Struct)?;
 
         // optional default value: `= <expr>`
