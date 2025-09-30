@@ -82,7 +82,9 @@ struct LruCache<K, V, Context, MaxLoadPercentage: float32 = 0.8> {
         // if we're not evicting then we allocate a new node
         // if we are evicting then we avoid allocation by just reusing the node we would've evicted
         var node =
-            if !evict { try alloc.create(Queue.Node) } else {
+            if !evict {
+                try alloc.create(Queue.Node)
+            } else {
                 node: {
                     // our first node is the least recently used
                     let leastUsed = self.queue.first?

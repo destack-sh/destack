@@ -12,29 +12,30 @@ use crate::{
 ///
 /// Precedence:
 /// ```
-/// !x -x -%x ~x *x &x               // prefix
-/// x() x[] x{} x as y x? x! x ?? y  // postfix
-/// * / % ** *% *|                   // multiplication
-/// + - +% -% +| -|                  // addition
-/// << >> <<|                        // shift
-/// & ^ |                            // elementwise
-/// == != < > <= >=                  // comparison
-/// && ||                            // logical
-/// =                                // assignment
-/// *= /= %= **= *%= *|=             // assignment multiplication
-/// += -= +%= -%= +|= -|=            // assignment addition
-/// <<= >>= <<|=                     // assignment shift
-/// &= ^= |=                         // assignment elementwise
-/// &&= ||=                          // assignment logical
+/// x() x[] x{} x? x!         // postfix
+/// !x -x -%x ~x *x &x        // prefix
+/// * / % *% *|               // multiplication
+/// + - +% -% +| -|           // addition
+/// << >> <<|                 // shift
+/// & ^ |                     // elementwise
+/// == != < > <= >=           // comparison
+/// && ||                     // logical
+/// ?? as                     // coalesce
+/// =                         // assignment
+/// *= /= %= **= *%= *|=      // assignment multiplication
+/// += -= +%= -%= +|= -|=     // assignment addition
+/// <<= >>= <<|=              // assignment shift
+/// &= ^= |=                  // assignment elementwise
+/// &&= ||=                   // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatorPrecedence {
+    /// Unary postfix operators.
+    /// `x() x[] x{} x? x!`
+    Postfix = 240,
     /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x`
-    Prefix = 240,
-    /// Unary postfix operators.
-    /// `x() x[] x{} x as y x? x ?? y``
-    Postfix = 230,
+    Prefix = 230,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
     Multiplication = 220,
@@ -78,17 +79,17 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    Not = 246,
+    Not = 236,
     /// `-`
-    Negate = 245,
+    Negate = 235,
     /// `-%`
-    WrappingNegate = 244,
+    WrappingNegate = 234,
     /// `~`
-    ElementwiseNot = 243,
+    ElementwiseNot = 233,
     /// `*`
-    Dereference = 242,
+    Dereference = 232,
     /// `$`
-    Virtual = 241,
+    Virtual = 231,
 }
 
 /// A BinaryOperator is an infix binary operator.
@@ -623,6 +624,8 @@ pub enum Expression {
     /// Struct literal (as an Expression, see StructLiteral).
     StructLiteral(NodeId<StructLiteral>),
 
+    /// Parenthesized expression (as an Expression).
+    Parenthesized { expression: NodeId<Expression> },
     /// Unary operation (simple prefix as Expression).
     Unary {
         operator: UnaryOperator,
@@ -706,6 +709,7 @@ impl Expression {
             Expression::StructLiteral(_) => Some(NodeType::StructLiteral),
 
             // unary operations
+            Expression::Parenthesized { .. } => None,
             Expression::Unary { .. } => None,
             Expression::Reference { .. } => None,
 

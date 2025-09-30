@@ -79,6 +79,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_struct_literal(tree, *node, tree.get(*node))
         }
 
+        Expression::Parenthesized { expression } => {
+            visitor.visit_expression(tree, *expression, tree.get(*expression));
+        }
         Expression::Unary { operator: _, right } => {
             visitor.visit_expression(tree, *right, tree.get(*right));
         }

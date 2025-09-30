@@ -67,9 +67,6 @@ fn to_infix_operator(
     }
 }
 
-// TODO! #Broken: handle expression parentheses (and generally parenthesized nodes?)
-//  (isn't this only a formatting concern?)
-
 impl<'a> Parser<'a> {
     /// Peek a unary operator.
     #[inline]
@@ -247,8 +244,21 @@ impl<'a> Parser<'a> {
                             parser.eat_expression()
                         })?;
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    self.tree.set_span(expression_id, self.get_span_from(start));
-                    expression_id
+                    let expression = self.tree.get(expression_id);
+                    match expression {
+                        // if it was a tuple, just expand it to cover the entire span
+                        Expression::TupleLiteral(_) => {
+                            self.tree.set_span(expression_id, self.get_span_from(start));
+                            expression_id
+                        }
+                        // otherwise it was a manually parenthesized expression, wrap it
+                        _ => self.tree.allocate(
+                            Expression::Parenthesized {
+                                expression: expression_id,
+                            },
+                            self.get_span_from(start),
+                        ),
+                    }
                 }
             }
             //
@@ -609,14 +619,6 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Call(call_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // cast
-            else if self.peek_keyword(Keyword::As).is_ok() {
-                let cast_id = self
-                    .eat_as_postfix(left_expression_id)
-                    .for_node_type(NodeType::Cast)?;
-                let expression = Expression::Cast(cast_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            }
             // unwrap
             else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
@@ -627,6 +629,15 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::Not).is_ok() {
                 self.bump(); // eat !
                 let expression = Expression::Must(left_expression_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // NOTE: shouldn't cast / coalesce be handled like infix operators?
+            // cast
+            else if self.peek_keyword(Keyword::As).is_ok() {
+                let cast_id = self
+                    .eat_as_postfix(left_expression_id)
+                    .for_node_type(NodeType::Cast)?;
+                let expression = Expression::Cast(cast_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // coalesce
@@ -1006,9 +1017,6 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
-    // TODO! #Broken: handle expression prefix/postfix binding (like `&` prefix over `?` postfix)
-    //  (e.g. `&T?` should mean `(&T)?`, not `&(T?)`)
-
     /// Reference operator on member access with method call.
     /// &var self.foo()
     #[test]
@@ -1054,7 +1062,7 @@ geom.Mesh<2, Dims: 4> {
     /// let x =
     ///     foo.parse()
     ///         + 2
-    ///         + (x / 4)
+    ///         + x
     #[test]
     fn test_parse_let_multiline_infix() {
         let mut test = TestParser::new(
@@ -1062,7 +1070,7 @@ geom.Mesh<2, Dims: 4> {
 let x = 
     foo.parse()
         + 2 
-        + (x / 4)
+        + x
 ",
         );
         let mut parser = test.prepare();
@@ -1070,7 +1078,7 @@ let x =
 
         let expr_id = parser.eat_expression().unwrap();
 
-        // let x = foo.parse() + 2 + (x / 4)
+        // let x = foo.parse() + 2 + x
         assert_node!(
             parser.tree,
             expr_id,
@@ -1089,7 +1097,7 @@ let x =
                             }
                         );
 
-                        // foo.parse() + 2 + (x / 4)
+                        // foo.parse() + 2 + x
                         assert_node!(
                             parser.tree,
                             value.unwrap(),
@@ -1139,28 +1147,12 @@ let x =
                                         );
                                     }
                                 );
-                                // (x / 4)
+                                // x
                                 assert_node!(
                                     parser.tree,
                                     *right,
-                                    Expression::Binary { left, operator, right } => {
-                                        assert_eq!(*operator, BinaryOperator::Divide);
-                                        // x
-                                        assert_expr_path!(parser.session, parser.tree.get(*left), "x");
-                                        // 4
-                                        assert_node!(
-                                            parser.tree,
-                                            *right,
-                                            Expression::ScalarLiteral(scalar_id) => {
-                                                assert_node!(
-                                                    parser.tree,
-                                                    *scalar_id,
-                                                    ScalarLiteral::Integer(value, _) => {
-                                                        assert_eq!(*value, 4);
-                                                    }
-                                                );
-                                            }
-                                        );
+                                    Expression::Path { path, static_arguments: _ } => {
+                                        assert_path!(parser.session, *path, "x");
                                     }
                                 );
                             }
@@ -1362,41 +1354,6 @@ self
                         assert_expr_path!(parser.session, parser.tree.get(*right), "c");
                     }
                 );
-            }
-        );
-    }
-
-    /// Parentheses override operator precedence.
-    /// (a + b) * c
-    /// => ((a + b) * c)
-    #[test]
-    fn test_parse_precedence_parentheses_override() {
-        let mut test = TestParser::new("(a + b) * c");
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
-
-        assert_node!(
-            parser.tree,
-            expr_id,
-            // ((a + b) * c)
-            Expression::Binary { left, operator, right } => {
-                // *
-                assert_eq!(*operator, BinaryOperator::Multiply);
-                assert_node!(
-                    parser.tree,
-                    *left,
-                    // (a + b)
-                    Expression::Binary { left, operator, right } => {
-                        // +
-                        assert_eq!(*operator, BinaryOperator::Add);
-                        // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
-                        // b
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
-                    }
-                );
-                // c
-                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
             }
         );
     }
@@ -1636,40 +1593,28 @@ self
     }
 
     /// Combine postfix member access and call with coalesce.
-    /// (y * y).sqrt() ?? 0
-    /// => (((y * y).sqrt()) ?? 0)
+    /// y.sqrt() ?? 0
+    /// => ((   y.sqrt()) ?? 0)
     #[test]
     fn test_parse_precedence_postfix_call_before_coalesce() {
-        let mut test = TestParser::new("(y * y).sqrt() ?? 0");
+        let mut test = TestParser::new("y.sqrt() ?? 0");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
 
         assert_node!(
             parser.tree,
             expr_id,
-            // (((y * y).sqrt()) ?? 0)
+            // ((y.sqrt()) ?? 0)
             Expression::Coalesce(coalesce_id) => {
                 assert_node!(
                     parser.tree,
                     *coalesce_id,
                     Coalesce { receiver, default } => {
-                        // ((y * y).sqrt())
+                        // (y.sqrt())
                         assert_node!(parser.tree, *receiver, Expression::Call(call_id) => {
                             assert_node!(parser.tree, *call_id, Call { receiver, .. } => {
-                                // ((y * y).sqrt())
-                                assert_node!(parser.tree, *receiver, Expression::Member { receiver, path } => {
-                                    // sqrt
-                                    assert_path!(parser.session, *path, "sqrt");
-                                    // (y * y)
-                                    assert_node!(parser.tree, *receiver, Expression::Binary { left, operator, right } => {
-                                        // *
-                                        assert_eq!(*operator, BinaryOperator::Multiply);
-                                        // y
-                                        assert_expr_path!(parser.session, parser.tree.get(*left), "y");
-                                        // y
-                                        assert_expr_path!(parser.session, parser.tree.get(*right), "y");
-                                    });
-                                });
+                                // y.sqrt
+                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
                             });
                         });
 

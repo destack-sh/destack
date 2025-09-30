@@ -97,6 +97,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Index(node) => node.format(f)?,
             Expression::Call(node) => node.format(f)?,
             Expression::Cast(node) => node.format(f)?,
+            Expression::Parenthesized { expression } => {
+                write!(f, [token("("), expression, token(")")])?
+            }
             Expression::Maybe(expr) => write!(f, [expr, token("?")])?,
             Expression::Must(expr) => write!(f, [expr, token("!")])?,
             Expression::Coalesce(node) => node.format(f)?,
@@ -229,4 +232,29 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::format::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
+
+    /// Simple expressions should stay on one line.
+    #[test]
+    fn test_format_expression_simple() {
+        assert_format!(
+            "1 + 2 * 3 - a / b % c",
+            "1 + 2 * 3 - a / b % c",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    /// Parenthesized expressions should retain their parentheses.
+    #[test]
+    fn test_format_expression_parenthesized() {
+        assert_format!(
+            "(((1 + 2) * 3) - a / (b % c))",
+            "(((1 + 2) * 3) - a / (b % c))",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab()
+        );
+    }
+}
