@@ -3,43 +3,43 @@ use dyst
 /// Position properties for a 2D view.
 struct Position2D {
     /// The origin of the Entity in 2D space.
-    origin: ?Vector2
+    origin: Vector2?
     /// The anchor of the Entity in 2D space.
-    anchor: ?Anchor
+    anchor: Anchor?
     /// The offset of the Entity in 2D space.
-    offset: ?Offset2
+    offset: Offset2?
 }
 
 /// Sizing properties for a 2D view.
 struct Sizing2D {
     /// The width of the View.
-    width: ?Length
+    width: Length?
     /// The height of the View.
-    height: ?Length
+    height: Length?
     /// The minimum width of the View.
-    minWidth: ?Length
+    minWidth: Length?
     /// The minimum height of the View.
-    minHeight: ?Length
+    minHeight: Length?
     /// The maximum width of the View.
-    maxWidth: ?Length
+    maxWidth: Length?
     /// The maximum height of the View.
-    maxHeight: ?Length
+    maxHeight: Length?
 }
 
 /// Style properties for a 2D view.
 struct Style2D {
     /// Whether the View is visible.
-    isVisible: ?boolean
+    isVisible: boolean?
     /// The opacity of the View.
-    opacity: ?float32
+    opacity: float32?
     /// The fill of the View.
-    fill: ?Fill
+    fill: Fill?
     /// The shadow of the View.
-    shadow: ?Shadow
+    shadow: Shadow?
     /// The border of the View.
-    border: ?Border
+    border: Border?
     /// The radius of the View.
-    radius: ?Corner2
+    radius: Corner2?
 }
 
 /// A View2D is a 2D interface element.

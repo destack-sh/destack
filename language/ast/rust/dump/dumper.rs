@@ -765,6 +765,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
 
+            Expression::Parenthesized { expression: _ } => {
+                self.node("Expression::Parenthesized", _id.id).end();
+            }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
