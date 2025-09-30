@@ -91,7 +91,7 @@ impl FromStr for FloatType {
     }
 }
 
-/// An (unresolved) Type declaration node in the AST.
+/// An (unresolved) Type declaration node.
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions

@@ -11,7 +11,7 @@ pub enum StructStyle {
     Struct,
 }
 
-/// A Struct is struct definition node in the AST.
+/// A Struct is struct definition node.
 /// The ',' separator is optional if newline-delimited.
 /// Structs may `use` other structs to include them (just like traits).
 /// Structs may also have super structs as semantic sugar for `use`-ing other structs.

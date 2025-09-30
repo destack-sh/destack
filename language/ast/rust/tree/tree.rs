@@ -5,12 +5,7 @@ use dyst_source::Span;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
-    Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral,
-    For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
-    NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
-    Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type,
-    Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 /// The Node tree.
@@ -18,11 +13,11 @@ use crate::{
 pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_id: u32,
-    /// The local ids of all nodes in the AST. Index is the global node id.
+    /// The local ids of all nodes. Index is the global node id.
     pub(crate) local_id_by_node: Vec<u32>,
-    /// The types of all nodes in the AST. Index is the global node id.
+    /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node: Vec<NodeType>,
-    /// The annotations attached to nodes in the AST.
+    /// The annotations attached to nodes.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The spans of the NodeTree.
@@ -68,6 +63,7 @@ pub struct NodeTree {
     pub(crate) arguments: NodeArena<Argument>,
     // literals
     pub(crate) scalar_literals: NodeArena<ScalarLiteral>,
+    pub(crate) type_literals: NodeArena<TypeLiteral>,
     pub(crate) range_literals: NodeArena<RangeLiteral>,
     pub(crate) array_literals: NodeArena<ArrayLiteral>,
     pub(crate) tuple_literals: NodeArena<TupleLiteral>,
@@ -157,6 +153,7 @@ impl NodeTree {
             arguments: NodeArena::new(),
             // literals
             scalar_literals: NodeArena::new(),
+            type_literals: NodeArena::new(),
             range_literals: NodeArena::new(),
             array_literals: NodeArena::new(),
             tuple_literals: NodeArena::new(),
@@ -425,9 +422,10 @@ impl_node_tree_stores! {
     // bindings
     Let => lets,
     Parameter => parameters,
-    Argument => arguments,
+    Argument => arguments,  
     // literals
     ScalarLiteral => scalar_literals,
+    TypeLiteral => type_literals,
     RangeLiteral => range_literals,
     ArrayLiteral => array_literals,
     TupleLiteral => tuple_literals,

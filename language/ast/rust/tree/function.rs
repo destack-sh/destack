@@ -13,7 +13,7 @@ pub enum FunctionStyle {
     Lambda,
 }
 
-/// A Function is function or "lambda" definition or declaration node in the AST.
+/// A Function is function or "lambda" definition or declaration node.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
 /// Examples:

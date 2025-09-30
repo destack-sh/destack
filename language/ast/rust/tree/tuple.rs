@@ -1,6 +1,6 @@
 use crate::{Node, NodeId, NodeType, StringId, Type};
 
-/// A Tuple is tuple definition node in the AST.
+/// A Tuple is tuple definition node.
 /// Tuples are declared anonymously and inline.
 /// The ',' separator is optional if newline-delimited.
 ///

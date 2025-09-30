@@ -12,20 +12,20 @@ use crate::{
 ///
 /// Precedence:
 /// ```
-/// !x -x -%x ~x *x &x            // prefix
-/// x() x[] x{} x as y x? x ?? y  // postfix
-/// * / % ** *% *|                // multiplication
-/// + - +% -% +| -|               // addition
-/// << >> <<|                     // shift
-/// & ^ |                         // elementwise
-/// == != < > <= >=               // comparison
-/// && ||                         // logical
-/// =                             // assignment
-/// *= /= %= **= *%= *|=          // assignment multiplication
-/// += -= +%= -%= +|= -|=         // assignment addition
-/// <<= >>= <<|=                  // assignment shift
-/// &= ^= |=                      // assignment elementwise
-/// &&= ||=                       // assignment logical
+/// !x -x -%x ~x *x &x               // prefix
+/// x() x[] x{} x as y x? x! x ?? y  // postfix
+/// * / % ** *% *|                   // multiplication
+/// + - +% -% +| -|                  // addition
+/// << >> <<|                        // shift
+/// & ^ |                            // elementwise
+/// == != < > <= >=                  // comparison
+/// && ||                            // logical
+/// =                                // assignment
+/// *= /= %= **= *%= *|=             // assignment multiplication
+/// += -= +%= -%= +|= -|=            // assignment addition
+/// <<= >>= <<|=                     // assignment shift
+/// &= ^= |=                         // assignment elementwise
+/// &&= ||=                          // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatorPrecedence {

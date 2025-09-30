@@ -303,7 +303,6 @@ fn test_raw_string() {
 fn test_literals() {
     assert_tokenize_eq_roundtrip!(
         r####"
-null
 true
 false
 'a'
@@ -319,9 +318,6 @@ b"a"
 r###"raw"###
 br###"raw"###
 "####,
-        Token::new(TokenType::Newline, 1, None),
-        // null
-        Token::new(TokenType::Literal, 4, Some(RawLiteralType::Null),),
         Token::new(TokenType::Newline, 1, None),
         // true
         Token::new(

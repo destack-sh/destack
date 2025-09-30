@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::CloseBracket).is_ok() {
             self.bump(); // eat close bracket
             let index_id = self.tree.allocate(
-                Index::ExplicitBare {
+                Index::Declarative {
                     receiver: receiver_id,
                 },
                 self.get_span_from(start),

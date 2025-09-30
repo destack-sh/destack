@@ -32,8 +32,6 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
-    /// void
-    /// null
     /// true
     /// false
     /// 1
@@ -54,21 +52,6 @@ impl<'a> Parser<'a> {
         let literal_str = self.get_span_str(literal_span.span);
 
         match literal {
-            // void literal
-            RawLiteralType::Void => {
-                let scalar_literal = self
-                    .tree
-                    .allocate(ScalarLiteral::Void, self.get_span_from(start));
-                Ok(scalar_literal)
-            }
-
-            // null literal
-            RawLiteralType::Null => {
-                let scalar_literal = self
-                    .tree
-                    .allocate(ScalarLiteral::Null, self.get_span_from(start));
-                Ok(scalar_literal)
-            }
 
             // boolean literal
             RawLiteralType::Boolean { value } => {
@@ -358,7 +341,7 @@ impl<'a> Parser<'a> {
     ///   2 // comma is optional here too
     /// )
     /// (1.0, 2.0, 0.0)
-    /// (10, false, "Hi") // okay because it's a tuple
+    /// (10, false, "Hi") // heterogenous tuple is okay because it's a tuple
     /// ```
     pub fn eat_tuple_literal(&mut self) -> ParseResult<NodeId<TupleLiteral>> {
         let start = self.mark();

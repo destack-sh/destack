@@ -13,7 +13,7 @@ impl<'ast> FormatNode<'ast, Index> for Index {
         write!(f, [f.context().any_prefix_annotations(_node_id)])?;
 
         match self {
-            Index::ExplicitBare { receiver } => {
+            Index::Declarative { receiver } => {
                 write!(f, [receiver, token("[]")])?;
             }
             Index::Explicit { receiver, index } => {

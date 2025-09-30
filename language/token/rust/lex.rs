@@ -606,17 +606,8 @@ impl Tokenizer<'_> {
             }
             _ => {}
         }
-        // special case: `void`, `null`, `true`, `false`
-        // void
-        if first_char == 'v' && self.str[start_pos - 1..self.pos].eq("void") {
-            (TokenType::Literal, Some(RawLiteralType::Void))
-        }
-        // null
-        else if first_char == 'n' && self.str[start_pos - 1..self.pos].eq("null") {
-            (TokenType::Literal, Some(RawLiteralType::Null))
-        }
-        // true
-        else if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
+        // boolean
+        if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
             (
                 TokenType::Literal,
                 Some(RawLiteralType::Boolean { value: true }),

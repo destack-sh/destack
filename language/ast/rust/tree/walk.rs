@@ -1,10 +1,5 @@
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
-    Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
-    Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor,
-    Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField,
-    StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
-    UseClause, UseItem, While, With, WithClause,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 // ----------------------------------------------------------------------------
@@ -891,6 +886,17 @@ pub fn walk_scalar_literal<V: NodeVisitor + ?Sized>(
     // ScalarLiteral has no child nodes to visit
 }
 
+/// Walk the TypeLiteral.
+pub fn walk_type_literal<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<TypeLiteral>,
+    _type_literal: &TypeLiteral,
+) {
+    visitor.visit_any(tree, NodeType::TypeLiteral, id.id);
+    // TypeLiteral has no child nodes to visit
+}
+
 /// Walk the RangeLiteral.
 pub fn walk_range_literal<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -968,7 +974,7 @@ pub fn walk_index<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Index, id.id);
     match index {
-        Index::ExplicitBare { receiver } => {
+        Index::Declarative { receiver } => {
             visitor.visit_expression(tree, *receiver, tree.get(*receiver));
         }
         Index::Explicit { receiver, index } => {
@@ -1440,6 +1446,10 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::ScalarLiteral => {
             let scalar_literal = tree.scalar_literals.get(local_idx);
             walk_scalar_literal(visitor, tree, NodeId::new(node_id), scalar_literal);
+        }
+        NodeType::TypeLiteral => {
+            let type_literal = tree.type_literals.get(local_idx);
+            walk_type_literal(visitor, tree, NodeId::new(node_id), type_literal);
         }
         NodeType::RangeLiteral => {
             let range_literal = tree.range_literals.get(local_idx);

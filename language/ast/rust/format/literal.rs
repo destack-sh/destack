@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use crate::{
-    ArrayLiteral, DystFormatter, FieldLiteral, FormatNode, NodeId, RangeLiteral, ScalarLiteral,
-    StructLiteral, TupleLiteral,
+    ArrayLiteral, CompositeType, DystFormatContext, DystFormatter, FieldLiteral, FloatType,
+    FormatNode, IntType, Keyword, NodeId, PrimitiveType, RangeLiteral, ScalarLiteral,
+    StructLiteral, TupleLiteral, TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, group, text, token};
 use dyst_fir::prelude::*;
@@ -19,9 +20,6 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
         let span = f.context().tree.get_span(node_id);
         let span_str = f.context().source.get_span_str(span);
         match self {
-            ScalarLiteral::Undefined => token("undefined").format(f)?,
-            ScalarLiteral::Void => token("void").format(f)?,
-            ScalarLiteral::Null => token("null").format(f)?,
             ScalarLiteral::Boolean(value) => {
                 token(if *value { "true" } else { "false" }).format(f)?
             }
@@ -53,6 +51,82 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
+    fn format_node(
+        &self,
+        node_id: NodeId<TypeLiteral>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        match self {
+            TypeLiteral::Never => write!(f, [token("!")]),
+            TypeLiteral::Any => write!(f, [token("$")]),
+            TypeLiteral::Infer => write!(f, [token("_")]),
+            TypeLiteral::Undefined => write!(f, [token("undefined")]),
+            TypeLiteral::Void => write!(f, [token("void")]),
+            TypeLiteral::Null => write!(f, [token("null")]),
+            TypeLiteral::Boolean => write!(f, [token("boolean")]),
+            TypeLiteral::Character => write!(f, [token("char")]),
+            TypeLiteral::Self_ => write!(f, [token("Self")]),
+            TypeLiteral::Int(int_type) => write!(f, [int_type]),
+            TypeLiteral::Float(float_type) => write!(f, [float_type]),
+            TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
+        }?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for PrimitiveType {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        match self {
+            PrimitiveType::Undefined => write!(f, [token("undefined")]),
+            PrimitiveType::Void => write!(f, [token("void")]),
+            PrimitiveType::Null => write!(f, [token("null")]),
+            PrimitiveType::Boolean => write!(f, [token("boolean")]),
+            PrimitiveType::Character => write!(f, [token("char")]),
+            PrimitiveType::Int(int_type) => write!(f, [int_type]),
+            PrimitiveType::Float(float_type) => write!(f, [float_type]),
+        }
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for IntType {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        if self.is_signed {
+            write!(f, [token("int"), text(&self.width.to_string())])
+        } else {
+            write!(f, [token("uint"), text(&self.width.to_string())])
+        }
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        match self {
+            FloatType::Float32 => write!(f, [token("float32")]),
+            FloatType::Float64 => write!(f, [token("float64")]),
+        }
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        match self {
+            CompositeType::Type => write!(f, [Keyword::Type]),
+            CompositeType::Struct => write!(f, [Keyword::Struct]),
+            CompositeType::Enum => write!(f, [Keyword::Enum]),
+            CompositeType::Union => write!(f, [Keyword::Union]),
+            CompositeType::Tuple => write!(f, [Keyword::Tuple]),
+            CompositeType::Trait => write!(f, [Keyword::Trait]),
+            CompositeType::Function => write!(f, [Keyword::Function]),
+        }
     }
 }
 
