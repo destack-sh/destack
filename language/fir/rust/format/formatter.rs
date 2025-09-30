@@ -141,7 +141,7 @@ where
 }
 
 /// Handles the formatting of a AST and stores the context how the AST should be formatted (user preferences).
-/// The formatter is passed to the [Format] implementation of every node in the AST so that they
+/// The formatter is passed to the [Format] implementation of every node.so that they
 /// can use it to format their children.
 pub struct Formatter<'buf, Context> {
     pub(super) buffer: &'buf mut dyn Buffer<Context = Context>,

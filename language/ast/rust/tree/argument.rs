@@ -25,9 +25,10 @@ impl Node for Parameter {
     const KIND: NodeType = NodeType::Parameter;
 }
 
-/// An Argument is an argument to a function call in the AST.
+/// An Argument is an argument to a function call.
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
+/// 
 ///
 /// Examples:
 /// ```

@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use crate::PathId;
 
-/// The type of a node in the AST.
+/// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
     // groupings
@@ -51,6 +51,7 @@ pub enum NodeType {
     Argument,
     // literals
     ScalarLiteral,
+    TypeLiteral,
     RangeLiteral,
     TupleLiteral,
     ArrayLiteral,
@@ -100,7 +101,7 @@ pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
 ];
 
 /// Node types that may appear inline (instead of as a full statement).
-pub(crate) const INLINE_NODE_TYPES: [NodeType; 19] = [
+pub(crate) const INLINE_NODE_TYPES: [NodeType; 20] = [
     // expressions
     NodeType::Expression,
     // declarations
@@ -113,6 +114,7 @@ pub(crate) const INLINE_NODE_TYPES: [NodeType; 19] = [
     NodeType::Argument,
     // literals
     NodeType::ScalarLiteral,
+    NodeType::TypeLiteral,
     NodeType::RangeLiteral,
     NodeType::TupleLiteral,
     NodeType::ArrayLiteral,
@@ -161,7 +163,7 @@ impl<T: Node> NodeId<T> {
     }
 }
 
-/// A Node in the AST.
+/// A Node.
 pub trait Node: Sized {
     const KIND: NodeType;
 }

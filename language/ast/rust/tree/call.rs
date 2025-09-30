@@ -13,7 +13,7 @@ use crate::{Argument, Expression, Node, NodeId, NodeType, Runtime};
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Index {
-    ExplicitBare {
+    Declarative {
         receiver: NodeId<Expression>,
     },
     Explicit {

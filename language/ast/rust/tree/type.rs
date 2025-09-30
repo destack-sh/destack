@@ -94,7 +94,7 @@ impl FromStr for FloatType {
     }
 }
 
-/// An (unresolved) Type declaration node in the AST.
+/// An (unresolved) Type declaration node.
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions
@@ -221,4 +221,23 @@ pub enum PrimitiveType {
     Int(IntType),
     /// Floating point number type.
     Float(FloatType),
+}
+
+/// A CompositeType represents composite types.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompositeType {
+    /// Base type `type`.
+    Type,
+    /// Struct type `struct MyStruct { ... }`.
+    Struct,
+    /// Enum type `enum MyEnum { ... }`.
+    Enum,
+    /// Union type `A | B | C`.
+    Union,
+    /// Tuple type `(T1, T2, ...)`.
+    Tuple,
+    /// Trait type `trait MyTrait { ... }`.
+    Trait,
+    /// Function type `function (T1, T2, ...) => T`.
+    Function,
 }

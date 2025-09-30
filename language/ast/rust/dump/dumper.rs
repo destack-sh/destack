@@ -23,23 +23,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
-    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, Continue, Decorator,
-    Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function,
-    FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability,
-    Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool,
-    Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral,
-    ScopedMutability, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try,
-    Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause,
-    UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument,
-    walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce,
-    walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field,
-    walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement,
-    walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
-    walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try,
-    walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field,
-    walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank, Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, CompositeType, Continue, Decorator, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, TypeLiteral, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause
 };
 
 /// The console colors.
@@ -638,6 +622,35 @@ impl Dump for PrimitiveType {
                     .object("PrimitiveType::Float")
                     .value(float_type)
                     .end();
+            }
+        }
+    }
+}
+
+/// Dump a CompositeType as a structured representation.
+impl Dump for CompositeType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            CompositeType::Type => {
+                dumper.object("CompositeType::Type").end();
+            }
+            CompositeType::Struct => {
+                dumper.object("CompositeType::Struct").end();
+            }
+            CompositeType::Enum => {
+                dumper.object("CompositeType::Enum").end();
+            }
+            CompositeType::Union => {
+                dumper.object("CompositeType::Union").end();
+            }
+            CompositeType::Tuple => {
+                dumper.object("CompositeType::Tuple").end();
+            }
+            CompositeType::Trait => {
+                dumper.object("CompositeType::Trait").end();
+            }
+            CompositeType::Function => {
+                dumper.object("CompositeType::Function").end();
             }
         }
     }
@@ -1280,15 +1293,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         literal: &ScalarLiteral,
     ) {
         match literal {
-            ScalarLiteral::Undefined => {
-                self.node("ScalarLiteral::Undefined", _id.id).end();
-            }
-            ScalarLiteral::Void => {
-                self.node("ScalarLiteral::Void", _id.id).end();
-            }
-            ScalarLiteral::Null => {
-                self.node("ScalarLiteral::Null", _id.id).end();
-            }
             ScalarLiteral::Boolean(value) => {
                 self.node("ScalarLiteral::Boolean", _id.id)
                     .field("value", &value.to_string().as_str())
@@ -1327,6 +1331,61 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_scalar_literal(dumper, _tree, _id, literal);
+        });
+    }
+
+    fn visit_type_literal(
+        &mut self,
+        _tree: &NodeTree,
+        _id: NodeId<TypeLiteral>,
+        literal: &TypeLiteral,
+    ) {
+        match literal {
+            TypeLiteral::Never => {
+                self.node("TypeLiteral::Never", _id.id).end();
+            }
+            TypeLiteral::Any => {
+                self.node("TypeLiteral::Any", _id.id).end();
+            }
+            TypeLiteral::Infer => {
+                self.node("TypeLiteral::Infer", _id.id).end();
+            }
+            TypeLiteral::Undefined => {
+                self.node("TypeLiteral::Undefined", _id.id).end();
+            }
+            TypeLiteral::Void => {
+                self.node("TypeLiteral::Void", _id.id).end();
+            }
+            TypeLiteral::Null => {
+                self.node("TypeLiteral::Null", _id.id).end();
+            }
+            TypeLiteral::Boolean => {
+                self.node("TypeLiteral::Boolean", _id.id).end();
+            }
+            TypeLiteral::Character => {
+                self.node("TypeLiteral::Character", _id.id).end();
+            }
+            TypeLiteral::Self_ => {
+                self.node("TypeLiteral::Self_", _id.id).end();
+            }
+            TypeLiteral::Int(int_type) => {
+                self.node("TypeLiteral::Int", _id.id)
+                    .field("int_type", int_type)
+                    .end();
+            }
+            TypeLiteral::Float(float_type) => {
+                self.node("TypeLiteral::Float", _id.id)
+                    .field("float_type", float_type)
+                    .end();
+            }
+            TypeLiteral::Composite(composite_type) => {
+                self.node("TypeLiteral::Composite", _id.id)
+                    .field("composite_type", composite_type)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_type_literal(dumper, _tree, _id, literal);
         });
     }
 
@@ -1411,8 +1470,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_index(&mut self, _tree: &NodeTree, _id: NodeId<Index>, index: &Index) {
         match index {
-            Index::ExplicitBare { receiver: _ } => {
-                self.node("Index::ExplicitBare", _id.id).end();
+            Index::Declarative { receiver: _ } => {
+                self.node("Index::Declarative", _id.id).end();
             }
             Index::Explicit {
                 receiver: _,

@@ -60,8 +60,6 @@ impl SemanticType {
             TokenType::Literal => {
                 if let Some(literal) = token.token.body {
                     match literal {
-                        RawLiteralType::Void => SemanticType::LiteralNumbery,
-                        RawLiteralType::Null => SemanticType::LiteralNumbery,
                         RawLiteralType::Boolean { value: _ } => SemanticType::LiteralNumbery,
                         RawLiteralType::Int {
                             base: _,

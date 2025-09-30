@@ -1,6 +1,6 @@
 use crate::{Argument, Expression, Node, NodeId, NodeType, Type};
 
-/// An Impl defines the implementation of a concrete type node in the AST.
+/// An Impl defines the implementation of a concrete type node.
 /// There may be multiple Impls for the same type, and even impls for different modules.
 /// (To add a module's implementation to your own just use the corresponding module.)
 ///

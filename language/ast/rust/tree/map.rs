@@ -16,7 +16,7 @@ pub enum NodeSearch {
 /// The NodeSpanIndex is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
 pub struct NodeSpanIndex {
-    /// The spans of all nodes in the AST. Index is the global node id.
+    /// The spans of all nodes. Index is the global node id.
     spans_per_node: Vec<Span>,
 }
 

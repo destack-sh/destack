@@ -1,11 +1,9 @@
-use crate::{Expression, FloatType, IntType, Node, NodeId, NodeType, StringId, Type};
+use crate::{CompositeType, Expression, FloatType, IntType, Node, NodeId, NodeType, StringId, Type};
 
-/// A ScalarLiteral is literal scalar value node in the AST.
+/// A ScalarLiteral is literal scalar value node.
 ///
 /// Examples:
 /// ```
-/// void
-/// null
 /// true
 /// false
 /// 1
@@ -19,12 +17,6 @@ use crate::{Expression, FloatType, IntType, Node, NodeId, NodeType, StringId, Ty
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
-    /// Unknown / uninitialized value.
-    Undefined,
-    /// Void / empty / unit type.
-    Void,
-    /// Null value for optionals.
-    Null,
     /// Boolean value.
     Boolean(bool),
     /// Byte value.
@@ -45,7 +37,55 @@ impl Node for ScalarLiteral {
     const KIND: NodeType = NodeType::ScalarLiteral;
 }
 
-/// A RangeLiteral is range of an array or tuple node in the AST.
+/// A TypeLiteral is literal type node. 
+/// Some types are also their literal scalar values (like `null`).
+///
+/// Examples:
+/// ```
+/// !
+/// $
+/// _ 
+/// undefined
+/// void
+/// null
+/// int2
+/// float64
+/// boolean
+/// Self
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeLiteral {
+    /// Never type `!`.
+    Never,
+    /// Any type `$`.
+    Any,
+    /// Infer type `_`.
+    Infer,
+    /// Unknown / uninitialized type and value.
+    Undefined,
+    /// Void / empty / unit type.
+    Void,
+    /// Null type and value.
+    Null,
+    /// Boolean type.
+    Boolean,
+    /// Character type.
+    Character,
+    /// Integer type.
+    Int(IntType),
+    /// Float type.
+    Float(FloatType),
+    /// Composite type.
+    Composite(CompositeType),
+    /// Self type.
+    Self_,
+}
+
+impl Node for TypeLiteral {
+    const KIND: NodeType = NodeType::TypeLiteral;
+}
+
+/// A RangeLiteral is range of an array or tuple node.
 ///
 /// Examples:
 /// ```
@@ -63,7 +103,7 @@ impl Node for RangeLiteral {
     const KIND: NodeType = NodeType::RangeLiteral;
 }
 
-/// A TupleLiteral is literal tuple of heterogeneous elements node in the AST.
+/// A TupleLiteral is literal tuple of heterogeneous elements node.
 ///
 /// Examples:
 /// ```
@@ -79,7 +119,7 @@ impl Node for TupleLiteral {
     const KIND: NodeType = NodeType::TupleLiteral;
 }
 
-/// An ArrayLiteral is literal array of homogeneous elements node in the AST.
+/// An ArrayLiteral is literal array of homogeneous elements node.
 ///
 /// Examples:
 /// ```
@@ -101,7 +141,7 @@ impl Node for ArrayLiteral {
     const KIND: NodeType = NodeType::ArrayLiteral;
 }
 
-/// A StructLiteral is literal struct of heterogeneous fields node in the AST.
+/// A StructLiteral is literal struct of heterogeneous fields node.
 ///
 /// Examples:
 /// ```
@@ -120,7 +160,7 @@ impl Node for StructLiteral {
     const KIND: NodeType = NodeType::StructLiteral;
 }
 
-/// A FieldLiteral is a literal field value node in the AST.
+/// A FieldLiteral is a literal field value node.
 ///
 /// Examples:
 /// ```

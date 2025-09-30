@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::{Expression, Node, NodeId, NodeType, Type, Visibility};
 
-/// An Enum is an enumeration definition node in the AST.
+/// An Enum is an enumeration definition node.
 /// Like with structs, the ',' separator is optional if newline-delimited.
 /// Like other types, enums can have super types - since "super" types are just
 ///  sugar for `use`-ing other types and not implicit subtypes, this is fine and useful.

@@ -353,10 +353,6 @@ impl Display for TokenType {
 /// "Raw" Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RawLiteralType {
-    /// Void
-    Void,
-    /// Null
-    Null,
     /// Boolean
     Boolean { value: bool },
     /// 12, 0o100, 0x (is_empty), 0b120, 1.0

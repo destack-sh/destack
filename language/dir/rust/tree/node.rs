@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-/// The type of a node in the AST.
+/// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
     // // Groupings
@@ -100,7 +100,7 @@ impl<T: Node> NodeId<T> {
     }
 }
 
-/// A Node in the AST.
+/// A Node.
 pub trait Node: Sized {
     const KIND: NodeType;
 }
