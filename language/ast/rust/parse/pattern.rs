@@ -107,32 +107,12 @@ impl<'a> Parser<'a> {
                 self.tree
                     .allocate(Pattern::Slice { fields }, self.get_span_from(start))
             }
-            // struct
-            else if !options.is_before_block && self.peek_struct_literal().is_ok() {
-                let r#type = self.eat_expression(ExpressionParserOptions::default())?;
-                self.eat_token(TokenType::OpenBrace)?;
-                self.eat_newlines_maybe()?;
-                let fields = self
-                    .eat_pattern_field_list(
-                        TokenType::Comma,
-                        TokenType::CloseBrace,
-                        ExpressionParserOptions::default(),
-                    )
-                    .for_node_type(NodeType::Pattern)?;
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseBrace)?;
-                self.tree.allocate(
-                    Pattern::Struct { r#type, fields },
-                    self.get_span_from(start),
-                )
-            }
             // path or identifier
-            else if let Ok((_, pos, len)) = self.peek_path() {
+            else {
+                let path_id = self.eat_path().for_node_type(NodeType::Pattern)?;
+                let path = self.session.paths.get(path_id);
                 // tuple with path
-                if let Some(token) = self.tokens.get(pos)
-                    && token.token.r#type == TokenType::OpenParenthesis
-                {
-                    let path = self.eat_path()?;
+                if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                     self.bump(); // eat open parenthesis
                     self.eat_newlines_maybe()?;
                     let fields = self
@@ -143,32 +123,26 @@ impl<'a> Parser<'a> {
                         )
                         .for_node_type(NodeType::Pattern)?;
                     let pattern = Pattern::Tuple {
-                        path: Some(path),
+                        path: Some(path_id),
                         fields,
                     };
                     self.eat_token(TokenType::CloseParenthesis)?;
                     self.tree.allocate(pattern, self.get_span_from(start))
                 }
                 // path
-                else if len > 1 {
-                    let path = self.eat_path().for_node_type(NodeType::Pattern)?;
+                else if path.segments.len() > 1 {
                     self.tree
-                        .allocate(Pattern::Path(path), self.get_span_from(start))
+                        .allocate(Pattern::Path(path_id), self.get_span_from(start))
                 }
                 // identifier (without mutability)
                 else {
-                    let identifier_id = self.eat_identifier().for_node_type(NodeType::Pattern)?;
                     self.tree.allocate(
                         Pattern::Binding {
-                            name: identifier_id,
+                            name: path.segments[0],
                         },
                         self.get_span_from(start),
                     )
                 }
-            }
-            // error
-            else {
-                return Err(ParseError::unexpected(self.peek()?.span));
             }
         };
 
@@ -177,7 +151,8 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
 
         // unwrap
-        // NOTE #Broken: postfix maybe pattern needs ungluing (see #UnglueTokens)
+        // nocheckin TODO #Broken: postfix maybe pattern needs ungluing (see #UnglueTokens)
+        //  (maybe instead of #UnglueTokens just don't glue them in the first place?)
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat ?
             let pattern = Pattern::Maybe(pattern_id);

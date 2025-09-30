@@ -482,14 +482,6 @@ impl<'a> Parser<'a> {
                 let expression = Expression::ScalarLiteral(scalar_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // struct
-            else if !options.is_before_block && self.peek_struct_literal().is_ok() {
-                let struct_literal = self
-                    .eat_struct_literal()
-                    .for_node_type(NodeType::StructLiteral)?;
-                let expression = Expression::StructLiteral(struct_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
@@ -642,20 +634,25 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // tuple
-            else if options.is_parenthesized && self.peek_token(TokenType::Comma).is_ok() {
-                self.bump(); // eat comma
-                self.eat_newlines_maybe()?;
-                let tuple_elements = self
-                    .eat_tuple_literal_body(left_expression_id)
-                    .for_node_type(NodeType::TupleLiteral)?;
-                let tuple_literal_id = self.tree.allocate(
-                    TupleLiteral {
-                        elements: tuple_elements,
-                    },
-                    self.get_span_from(start),
-                );
-                let expression = Expression::TupleLiteral(tuple_literal_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            else if options.is_parenthesized
+                && (self.peek_token(TokenType::Comma).is_ok()
+                    || self.peek_token(TokenType::Newline).is_ok()
+                    || self.peek_token(TokenType::Colon).is_ok())
+            {
+                todo!("Expression.eat_expression: tuple literal in parenthesized expression");
+                // self.bump(); // eat comma
+                // self.eat_newlines_maybe()?;
+                // let tuple_elements = self
+                //     .eat_tuple_literal_body(left_expression_id)
+                //     .for_node_type(NodeType::TupleLiteral)?;
+                // let tuple_literal_id = self.tree.allocate(
+                //     TupleLiteral {
+                //         elements: tuple_elements,
+                //     },
+                //     self.get_span_from(start),
+                // );
+                // let expression = Expression::TupleLiteral(tuple_literal_id);
+                // left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // done
             else {

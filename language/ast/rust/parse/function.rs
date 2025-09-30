@@ -241,8 +241,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Function, IntType, Mutability, PrimitiveType, ScopedMutability, TypeLiteral,
-        UnaryOperator, WithClause, assert_node, assert_path, assert_string,
+        Expression, Function, Mutability, ScopedMutability, TypeLiteral, UnaryOperator, WithClause,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
