@@ -31,6 +31,40 @@ static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
     BinaryOperator::NotEqual,
 ];
 
+/// Make an infix operator.
+#[inline]
+fn to_infix_operator(
+    token: &TokenSpan,
+    next_token: &TokenSpan,
+    in_static_type: bool,
+) -> ParseResult<(InfixOperator, u8)> {
+    // special case for shift right to avoid ungluing ambiguity
+    if !in_static_type
+        && token.token.r#type == TokenType::GreaterThan
+        && next_token.token.r#type == TokenType::GreaterThan
+    {
+        Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
+    }
+    // regular binary operator
+    // (only a subset of binary operators are allowed in static types)
+    else if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
+        && (!in_static_type || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
+    {
+        Ok((InfixOperator::Binary(binary_operator), 1))
+    }
+    // regular assign operator
+    // (not allowed in static types)
+    else if !in_static_type
+        && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
+    {
+        Ok((InfixOperator::Assign(assign_operator), 1))
+    }
+    // unexpected
+    else {
+        Err(ParseError::unexpected(token.span))
+    }
+}
+
 /// Options for parsing an expression.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ExpressionParserOptions {
@@ -41,7 +75,7 @@ pub struct ExpressionParserOptions {
     /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub is_before_block: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
-    /// Determines AST structure.
+    /// Determines operator lifting / grouping.
     pub left_precedence: Option<u8> = None,
     /// The visibility of this expression.
     /// Used when pre-snacking the visibility in an outer parse (like for expressions).
@@ -66,45 +100,12 @@ impl<'a> Parser<'a> {
         UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::unexpected(token.span))
     }
 
-    /// Make an infix operator.
-    #[inline]
-    fn to_infix_operator(
-        &self,
-        token: &TokenSpan,
-        next_token: &TokenSpan,
-    ) -> ParseResult<(InfixOperator, u8)> {
-        // special case for shift right to avoid ungluing ambiguity
-        if !self.options.in_static_type
-            && token.token.r#type == TokenType::GreaterThan
-            && next_token.token.r#type == TokenType::GreaterThan
-        {
-            Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
-        }
-        // regular binary operator
-        else if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
-            && (!self.options.in_static_type
-                || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
-        {
-            Ok((InfixOperator::Binary(binary_operator), 1))
-        }
-        // regular assign operator
-        else if !self.options.in_static_type
-            && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
-        {
-            Ok((InfixOperator::Assign(assign_operator), 1))
-        }
-        // unexpected
-        else {
-            Err(ParseError::unexpected(token.span))
-        }
-    }
-
     /// Peek an infix operator.
     #[inline]
     pub fn peek_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek()?;
         let next_token = self.peek_next()?;
-        self.to_infix_operator(token, next_token)
+        to_infix_operator(token, next_token, self.options.in_static_type)
     }
 
     /// Peek a next infix operator.
@@ -112,7 +113,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
         let next_token = self.peek_next_next()?;
-        self.to_infix_operator(token, next_token)
+        to_infix_operator(token, next_token, self.options.in_static_type)
     }
 
     /// Make an expression from an infix operator.
@@ -215,6 +216,8 @@ impl<'a> Parser<'a> {
         let mut left_expression_id: NodeId<Expression> = {
             let token = self.peek()?;
             let keyword = self.peek_any_keyword().ok();
+            #[cfg(debug_assertions)]
+            let _token_str = self.get_span_str(token.span);
 
             //
             // ------------------------------------------------------------

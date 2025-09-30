@@ -336,6 +336,7 @@ impl<'a> Parser<'a> {
     pub fn eat_type_literal(&mut self) -> ParseResult<NodeId<TypeLiteral>> {
         let start = self.mark();
         let type_literal = self.peek_type_literal()?;
+        self.bump(); // eat type literal
         Ok(self.tree.allocate(type_literal, self.get_span_from(start)))
     }
 
@@ -519,7 +520,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// { x: 1.0, y: 2.0, z }
     ///
-    /// // multi-line struct with implicit comma
+    /// // multi-line struct with optional comma
     /// {
     ///    x: 1.0
     ///    y: 2.0

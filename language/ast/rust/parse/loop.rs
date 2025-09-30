@@ -144,7 +144,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Block, Expression, For, Loop, Pattern, While, assert_expr_path,
-        assert_node, assert_path,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -180,8 +180,8 @@ for item in items {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                assert_path!(parser.session, *path_id, "item");
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name } => {
+                assert_string!(parser.session, *name, "item");
             });
             // in items
             assert_expr_path!(parser.session, parser.tree.get(*iterator), "items");
@@ -203,8 +203,8 @@ for item in items outer: {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                assert_path!(parser.session, *path_id, "item");
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name } => {
+                assert_string!(parser.session, *name, "item");
             });
             // in items
             assert_expr_path!(parser.session, parser.tree.get(*iterator), "items");

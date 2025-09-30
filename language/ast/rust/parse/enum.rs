@@ -42,9 +42,15 @@ impl<'a> Parser<'a> {
         // optional explicit tag type in `(Type)`
         let explicit_type: Option<NodeId<Expression>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                self.eat_token(TokenType::OpenParenthesis)?;
+                self.bump(); // eat open parenthesis
                 let ty = self
-                    .eat_expression(ExpressionParserOptions::default())
+                    .with_options(
+                        ParserOptions {
+                            in_static_type: true,
+                            ..self.options
+                        },
+                        |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                    )
                     .for_node_type(NodeType::Enum)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
@@ -71,7 +77,13 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_expression(ExpressionParserOptions::default())
+                        .with_options(
+                            ParserOptions {
+                                in_static_type: true,
+                                ..self.options
+                            },
+                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                        )
                         .for_node_type(NodeType::Enum)?;
                     super_types.push(super_type);
                 }

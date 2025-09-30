@@ -134,7 +134,13 @@ impl<'a> Parser<'a> {
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let r#type = self
-                .eat_expression(ExpressionParserOptions::default())
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                )
                 .for_node_type(NodeType::Let)?;
             Some(r#type)
         } else {

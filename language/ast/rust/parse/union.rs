@@ -50,21 +50,36 @@ impl<'a> Parser<'a> {
         // optional explicit tag / representation type in `(Type)`
         let (explicit_type, representation_type) =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                self.eat_token(TokenType::OpenParenthesis)?;
+                self.bump(); // eat open parenthesis
                 // tag type
                 let ty = self
-                    .eat_expression(ExpressionParserOptions::default())
+                    .with_options(
+                        ParserOptions {
+                            in_static_type: true,
+                            ..self.options
+                        },
+                        |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                    )
                     .for_node_type(NodeType::Union)?;
+
+                // representation type
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.bump(); // eat comma
-                    // representation type
                     let representation_type = self
-                        .eat_expression(ExpressionParserOptions::default())
+                        .with_options(
+                            ParserOptions {
+                                in_static_type: true,
+                                ..self.options
+                            },
+                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                        )
                         .for_node_type(NodeType::Union)?;
                     self.eat_token(TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Union)?;
                     (Some(ty), Some(representation_type))
-                } else {
+                }
+                // no representation type
+                else {
                     self.eat_token(TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Union)?;
                     (Some(ty), None)
@@ -111,7 +126,13 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_expression(ExpressionParserOptions::default())
+                        .with_options(
+                            ParserOptions {
+                                in_static_type: true,
+                                ..self.options
+                            },
+                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                        )
                         .for_node_type(NodeType::Union)?;
                     super_types.push(super_type);
                 }
