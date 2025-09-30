@@ -832,7 +832,7 @@ pub fn walk_tuple_literal_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TupleLiteralField, id.id);
     match tuple_literal_field {
-        TupleLiteralField::Named { name, value } => {
+        TupleLiteralField::Named { name: _, value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }

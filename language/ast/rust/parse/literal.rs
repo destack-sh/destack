@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
                 match parsed_int {
                     Ok(value) => {
                         let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Integer(value, IntType::INT32),
+                            ScalarLiteral::Integer(value, IntType { width: 32, is_signed: true }),
                             self.get_span_from(start),
                         );
                         Ok(scalar_literal)
@@ -420,14 +420,9 @@ impl<'a> Parser<'a> {
             return Ok(tuple_literal);
         }
 
-        // parse first element
-        let first_element = self
-            .eat_expression(ExpressionParserOptions::default())
-            .for_node_type(NodeType::TupleLiteral)?;
-
         // parse remaining elements separated by comma or newline, allow trailing comma
         let elements = self
-            .eat_tuple_literal_body(first_element)
+            .eat_tuple_literal_body(None)
             .for_node_type(NodeType::TupleLiteral)?;
         self.eat_token(TokenType::CloseParenthesis)
             .for_node_type(NodeType::TupleLiteral)?;
@@ -440,9 +435,12 @@ impl<'a> Parser<'a> {
     /// Eat the body of a tuple literal (excluding the parenthesis).
     pub fn eat_tuple_literal_body(
         &mut self,
-        first_element: NodeId<TupleLiteralField>,
+        first_element: Option<NodeId<TupleLiteralField>>,
     ) -> ParseResult<Vec<NodeId<TupleLiteralField>>> {
-        let mut elements: Vec<NodeId<TupleLiteralField>> = vec![first_element];
+        let mut elements: Vec<NodeId<TupleLiteralField>> = vec![];
+        if let Some(first_element) = first_element {
+            elements.push(first_element);
+        }
         loop {
             // stop at closing parenthesis
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
@@ -455,7 +453,7 @@ impl<'a> Parser<'a> {
             // keep eating elements
             else {
                 let element = self
-                    .eat_expression(ExpressionParserOptions::default())
+                    .eat_tuple_literal_field()
                     .for_node_type(NodeType::TupleLiteral)?;
                 elements.push(element);
             }
@@ -463,40 +461,9 @@ impl<'a> Parser<'a> {
         Ok(elements)
     }
 
-    /// Peek a struct literal.
-    /// NOTE :Performance: peek_struct_literal uses :UnboundedLookahead (also see peek_path)
-    #[inline]
-    pub fn peek_struct_literal(&self) -> ParseResult<()> {
-        let (_, mut pos, _) = self.peek_path()?;
-
-        // {
-        // like in `geom.Mesh { ... }`
-        if let Some(token) = self.tokens.get(pos)
-            && token.token.r#type == TokenType::OpenBrace
-        {
-            return Ok(());
-        }
-        // generics
-        else if let Some(token) = self.tokens.get(pos)
-            && token.token.r#type == TokenType::LessThan
-        {
-            pos += 1;
-            // scan until '>'
-            while let Some(token) = self.tokens.get(pos) {
-                if token.token.r#type == TokenType::GreaterThan {
-                    // if next token is '{', we have a struct literal
-                    if let Some(token) = self.tokens.get(pos + 1)
-                        && token.token.r#type == TokenType::OpenBrace
-                    {
-                        return Ok(());
-                    }
-                    break;
-                }
-                pos += 1;
-            }
-        }
-
-        Err(ParseError::unexpected(self.peek()?.span))
+    /// Eat a tuple literal field.
+    pub fn eat_tuple_literal_field(&mut self) -> ParseResult<NodeId<TupleLiteralField>> {
+        todo!("Parser.eat_tuple_literal_field")
     }
 
     /// Eat a struct literal (including the type prefix).
@@ -791,8 +758,10 @@ mod tests {
         let literal_id = parser.eat_tuple_literal().unwrap();
         assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
             assert_eq!(elements.len(), 1);
-            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, *scalar_literal_id, 1);
+            assert_node!(parser.tree, elements[0], TupleLiteralField::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_int!(parser.tree, *scalar_literal_id, 1);
+                });
             });
         });
     }

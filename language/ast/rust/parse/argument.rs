@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Argument, NodeId, NodeType, Parameter, ParseResult, Parser, TypeParserOptions};
+use crate::{Argument, NodeId, NodeType, Parameter, ParseResult, Parser};
 use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
