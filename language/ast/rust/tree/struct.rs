@@ -95,7 +95,7 @@ pub struct StructField {
     pub default: Option<NodeId<Expression>>,
 }
 
-// TODO! #Incomplete: getter/setter functions for Struct/Union/...Fields?
+// NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)
 //  (how does this relate to $ virtualness?)

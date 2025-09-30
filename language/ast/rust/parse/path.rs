@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser, PathId};
+use crate::{ParseResult, Parser, PathId};
 use dyst_source::StringId;
 use dyst_token::TokenType;
 

@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
 
         // static arguments
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.eat_token(TokenType::LessThan)?;
+            self.bump(); // eat <
             let static_arguments = self
                 .with_options(
                     ParserOptions {
@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
-            self.eat_keyword(Keyword::For)?;
+            self.bump(); // eat for
             let for_trait = self
                 .eat_expression(ExpressionParserOptions::default())
                 .for_node_type(NodeType::Implement)?;

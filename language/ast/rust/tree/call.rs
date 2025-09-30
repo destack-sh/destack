@@ -30,7 +30,7 @@ impl Node for Index {
     const KIND: NodeType = NodeType::Index;
 }
 
-/// A Call is call to a function at runtime or compile time ("dynamic" or "static").
+/// A Call is call to a function OR an instantiation of a tuple type.
 ///
 /// The function may or may not be declared as comptime (with a `@ prefix),
 ///  but the call must be prefixed with a `@` to qualify as a static call.
@@ -42,12 +42,14 @@ impl Node for Index {
 /// foo<int32>(1, 2, 3)
 /// foo<Validate: false>(1, 2, 3)
 /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
+/// Bar(1, 2, 3)
+/// MyUnion.Baz(2, 3)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// The runtime of the call (static or dynamic).
     pub runtime: Option<Runtime>,
-    /// The receiver of the call (including function name).
+    /// The receiver of the call (including function name / tuple type name).
     pub receiver: NodeId<Expression>,
     /// The static arguments to the call `<Arg1, Arg2, ...>`.
     pub static_arguments: Option<Vec<NodeId<Argument>>>,

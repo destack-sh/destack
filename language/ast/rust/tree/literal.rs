@@ -140,25 +140,6 @@ impl FromStr for FloatType {
     }
 }
 
-/// A PrimitiveType represents primitive types.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PrimitiveType {
-    /// Unknown / uninitialized type.
-    Undefined,
-    /// Void / empty / unit type.
-    Void,
-    /// Null type.
-    Null,
-    /// Boolean type.
-    Boolean,
-    /// Character type.
-    Character,
-    /// Integer type with arbitrary width.
-    Int(IntType),
-    /// Floating point number type.
-    Float(FloatType),
-}
-
 /// A CompositeType represents composite types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompositeType {
@@ -196,8 +177,8 @@ impl Node for RangeLiteral {
     const KIND: NodeType = NodeType::RangeLiteral;
 }
 
-/// A TupleLiteral is literal tuple of heterogeneous elements node.
-/// Tuple elements may be named or anonymous, but cannot have default values.
+/// A TupleLiteral is an anonymous tuple of heterogeneous elements.
+/// For named tuple "literals", see the Call node.
 ///
 /// Examples:
 /// ```
@@ -254,6 +235,7 @@ impl Node for ArrayLiteral {
 }
 
 /// A StructLiteral is literal struct of heterogeneous fields node.
+/// Struct literals always have an explicit type prefix (unlike tuple literals).
 ///
 /// Examples:
 /// ```
