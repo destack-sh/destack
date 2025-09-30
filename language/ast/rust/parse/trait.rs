@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
                 // keep eating super types
                 else {
                     let super_type = self
-                        .eat_expression(ExpressionParserOptions::default())
+                        .eat_expression(ExpressionParserOptions::is_before_block())
                         .for_node_type(NodeType::Trait)?;
                     super_types.push(super_type);
                 }

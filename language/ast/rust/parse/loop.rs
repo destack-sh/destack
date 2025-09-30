@@ -63,10 +63,7 @@ impl<'a> Parser<'a> {
 
         // pattern
         let pattern_id = self
-            .eat_pattern(ExpressionParserOptions {
-                is_before_block: true,
-                ..ExpressionParserOptions::default()
-            })
+            .eat_pattern(ExpressionParserOptions::is_before_block())
             .for_node_type(NodeType::For)?;
 
         // in
@@ -74,10 +71,7 @@ impl<'a> Parser<'a> {
 
         // iterator
         let iterator_id = self
-            .eat_expression(ExpressionParserOptions {
-                is_before_block: true,
-                ..ExpressionParserOptions::default()
-            })
+            .eat_expression(ExpressionParserOptions::is_before_block())
             .for_node_type(NodeType::For)?;
 
         // body
@@ -117,10 +111,7 @@ impl<'a> Parser<'a> {
 
         // condition
         let condition_id = self
-            .eat_expression(ExpressionParserOptions {
-                is_before_block: true,
-                ..ExpressionParserOptions::default()
-            })
+            .eat_expression(ExpressionParserOptions::is_before_block())
             .for_node_type(NodeType::While)?;
 
         // body

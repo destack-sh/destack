@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
 
         // first parse the left-hand side type target
         let left = self
-            .eat_expression(ExpressionParserOptions::default())
+            .eat_expression(ExpressionParserOptions::is_before_block())
             .for_node_type(NodeType::WithClause)?;
 
         // assertion: `T: SomeType`
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
                         in_static_type: true,
                         ..self.options
                     },
-                    |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                    |parser| parser.eat_expression(ExpressionParserOptions::is_before_block()),
                 )
                 .for_node_type(NodeType::WithClause)?;
             let clause = self.tree.allocate(
@@ -111,23 +111,10 @@ impl<'a> Parser<'a> {
             );
             Ok(clause)
         }
-        // declaration: optional alias `as Ident`
+        // declaration
         else {
-            let alias = if let Ok(next) = self.peek_token(TokenType::Identifier) {
-                if self.get_token_str(*next) == Keyword::As.as_str() {
-                    self.bump(); // eat as keyword
-                    Some(self.eat_identifier().for_node_type(NodeType::WithClause)?)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
             let clause = self.tree.allocate(
-                WithClause::Declaration {
-                    target: left,
-                    alias,
-                },
+                WithClause::Declaration { target: left },
                 self.get_span_from(start),
             );
             Ok(clause)
@@ -140,7 +127,6 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, TypeLiteral, UnaryOperator, With, WithClause, assert_node, assert_path,
-        assert_string,
     };
 
     #[test]
@@ -173,25 +159,7 @@ mod tests {
         // with Foo
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
-                assert!(alias.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Foo");
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_with_aliased_declaration() {
-        let mut test = TestParser::new("with Foo as Bar");
-        let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
-        // with Foo as Bar
-        assert_node!(parser.tree, with_id, With { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
-                assert_string!(parser.session, alias.unwrap(), "Bar");
+            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Foo");
                 });
@@ -207,8 +175,7 @@ mod tests {
         // with Foo.Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
-                assert!(alias.is_none());
+            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Foo.Bar");
                 });
@@ -224,8 +191,7 @@ mod tests {
         // with !Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
-                assert!(alias.is_none());
+            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
                     assert_eq!(*operator, UnaryOperator::Not);
                     assert_node!(parser.tree, *right, Expression::Path { path, .. } => {

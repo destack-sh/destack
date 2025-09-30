@@ -444,7 +444,7 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::WithClause, id.id);
     match with_clause {
-        WithClause::Declaration { target, alias: _ } => {
+        WithClause::Declaration { target } => {
             let target_type = tree.get(*target);
             visitor.visit_expression(tree, *target, target_type);
         }

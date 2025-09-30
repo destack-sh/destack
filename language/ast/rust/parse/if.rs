@@ -34,10 +34,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition_id = self.eat_expression(ExpressionParserOptions {
-            is_before_block: true,
-            ..ExpressionParserOptions::default()
-        })?;
+        let condition_id = self.eat_expression(ExpressionParserOptions::is_before_block())?;
 
         // then block
         let then_block_id = self.eat_block()?;

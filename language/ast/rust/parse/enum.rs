@@ -82,7 +82,9 @@ impl<'a> Parser<'a> {
                                 in_static_type: true,
                                 ..self.options
                             },
-                            |parser| parser.eat_expression(ExpressionParserOptions::default()),
+                            |parser| {
+                                parser.eat_expression(ExpressionParserOptions::is_before_block())
+                            },
                         )
                         .for_node_type(NodeType::Enum)?;
                     super_types.push(super_type);

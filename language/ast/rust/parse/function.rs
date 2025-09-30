@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
             let return_type = self
-                .eat_expression(ExpressionParserOptions::default())
+                .eat_expression(ExpressionParserOptions::is_before_block())
                 .for_node_type(NodeType::Function)?;
             Some(return_type)
         } else {

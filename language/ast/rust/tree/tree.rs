@@ -197,6 +197,30 @@ impl NodeTree {
         NodeId::new(global_id)
     }
 
+    /// Prune nodes from the tree. Resets the next id to the given index.
+    #[inline]
+    pub fn reset_to(&mut self, from_idx: u32) {
+        // collect local ids by node type
+        let mut local_ids_by_node: HashMap<NodeType, Vec<u32>> = HashMap::new();
+        for idx in from_idx..self.next_id {
+            let node_type = self.type_by_node[idx as usize];
+            let local_id = self.local_id_by_node[idx as usize];
+            local_ids_by_node
+                .entry(node_type)
+                .or_default()
+                .push(local_id);
+        }
+        // deallocate nodes
+        for (node_type, local_ids) in local_ids_by_node {
+            self.deallocate(node_type, local_ids);
+        }
+        self.type_by_node.truncate(from_idx as usize);
+        self.local_id_by_node.truncate(from_idx as usize);
+        // reset spans & next_id
+        self.spans.prune_from(from_idx);
+        self.next_id = from_idx;
+    }
+
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_type(&self, id: u32) -> NodeType {
@@ -263,7 +287,7 @@ impl NodeTree {
 
     /// Get the nodes for all nodes of a given type.
     #[inline]
-    pub fn get_nodes_for<T>(&self) -> Vec<NodeId<T>>
+    pub fn get_nodes<T>(&self) -> Vec<NodeId<T>>
     where
         T: Node,
     {
@@ -274,6 +298,73 @@ impl NodeTree {
             }
         }
         nodes
+    }
+
+    /// Remove a given local node.
+    #[inline]
+    fn deallocate(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
+        match node_type {
+            // groupings
+            NodeType::Expression => self.expressions.deallocate(local_ids),
+            NodeType::Block => self.blocks.deallocate(local_ids),
+            // declarations
+            NodeType::Module => self.modules.deallocate(local_ids),
+            NodeType::Struct => self.structs.deallocate(local_ids),
+            NodeType::StructField => self.struct_fields.deallocate(local_ids),
+            NodeType::Enum => self.enums.deallocate(local_ids),
+            NodeType::EnumField => self.enum_fields.deallocate(local_ids),
+            NodeType::Union => self.unions.deallocate(local_ids),
+            NodeType::UnionField => self.union_fields.deallocate(local_ids),
+            NodeType::Trait => self.traits.deallocate(local_ids),
+            NodeType::Implement => self.implements.deallocate(local_ids),
+            NodeType::Function => self.functions.deallocate(local_ids),
+            // context
+            NodeType::With => self.withs.deallocate(local_ids),
+            NodeType::WithClause => self.with_clauses.deallocate(local_ids),
+            NodeType::Use => self.uses.deallocate(local_ids),
+            NodeType::UseClause => self.use_clauses.deallocate(local_ids),
+            NodeType::UseItem => self.use_items.deallocate(local_ids),
+            // control
+            NodeType::If => self.ifs.deallocate(local_ids),
+            NodeType::While => self.whiles.deallocate(local_ids),
+            NodeType::For => self.fors.deallocate(local_ids),
+            NodeType::Loop => self.loops.deallocate(local_ids),
+            NodeType::Break => self.breaks.deallocate(local_ids),
+            NodeType::Continue => self.continues.deallocate(local_ids),
+            NodeType::Defer => self.defers.deallocate(local_ids),
+            NodeType::Return => self.returns.deallocate(local_ids),
+            NodeType::Try => self.trys.deallocate(local_ids),
+            // bindings
+            NodeType::Let => self.lets.deallocate(local_ids),
+            NodeType::Parameter => self.parameters.deallocate(local_ids),
+            NodeType::Argument => self.arguments.deallocate(local_ids),
+            // literals
+            NodeType::ScalarLiteral => self.scalar_literals.deallocate(local_ids),
+            NodeType::TypeLiteral => self.type_literals.deallocate(local_ids),
+            NodeType::RangeLiteral => self.range_literals.deallocate(local_ids),
+            NodeType::TupleLiteral => self.tuple_literals.deallocate(local_ids),
+            NodeType::TupleLiteralField => self.tuple_literal_fields.deallocate(local_ids),
+            NodeType::ArrayLiteral => self.array_literals.deallocate(local_ids),
+            NodeType::StructLiteral => self.struct_literals.deallocate(local_ids),
+            NodeType::FieldLiteral => self.field_literals.deallocate(local_ids),
+            // calls
+            NodeType::Index => self.indexes.deallocate(local_ids),
+            NodeType::Call => self.calls.deallocate(local_ids),
+            NodeType::Cast => self.casts.deallocate(local_ids),
+            NodeType::Coalesce => self.coalesce.deallocate(local_ids),
+            // matching
+            NodeType::Match => self.matches.deallocate(local_ids),
+            NodeType::Pattern => self.patterns.deallocate(local_ids),
+            NodeType::PatternField => self.pattern_fields.deallocate(local_ids),
+            NodeType::MatchCase => self.match_cases.deallocate(local_ids),
+            // annotations
+            NodeType::Annotation => self.annotations.deallocate(local_ids),
+            NodeType::Blank => self.blanks.deallocate(local_ids),
+            NodeType::Doc => self.docs.deallocate(local_ids),
+            NodeType::Comment => self.comments.deallocate(local_ids),
+            NodeType::Tag => self.tags.deallocate(local_ids),
+            NodeType::Decorator => self.decorators.deallocate(local_ids),
+        }
     }
 
     /// Append a doc to a node by its global id.

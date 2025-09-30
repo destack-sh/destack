@@ -51,6 +51,12 @@ impl NodeSpanIndex {
         self.spans_per_node.push(span);
     }
 
+    /// Prune spans from the map.
+    #[inline]
+    pub(crate) fn prune_from(&mut self, from_idx: u32) {
+        self.spans_per_node.truncate(from_idx as usize);
+    }
+
     /// Set the span for a node.
     #[inline]
     pub(crate) fn set<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {

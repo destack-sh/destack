@@ -503,7 +503,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();
         let r#type = self
-            .eat_expression(ExpressionParserOptions::default())
+            .eat_expression(ExpressionParserOptions::is_before_block())
             .for_node_type(NodeType::StructLiteral)?;
         let fields = self
             .eat_struct_literal_body()
@@ -527,7 +527,7 @@ impl<'a> Parser<'a> {
     ///    z
     /// }
     /// ```
-    fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
+    pub(crate) fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
 

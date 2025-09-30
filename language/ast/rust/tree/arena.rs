@@ -62,6 +62,20 @@ impl<T> NodeArena<T> {
         &mut self.nodes[local_id as usize]
     }
 
+    /// Delete a node from the arena.
+    #[inline]
+    pub fn deallocate(&mut self, local_ids: Vec<u32>) {
+        // sort in descending order to remove from back to front
+        // this preserves indices of remaining elements
+        let mut sorted_ids = local_ids;
+        sorted_ids.sort_by(|a, b| b.cmp(a));
+        for local_id in sorted_ids {
+            if (local_id as usize) < self.nodes.len() {
+                self.nodes.remove(local_id as usize);
+            }
+        }
+    }
+
     /// Reserve capacity for at least n additional nodes.
     #[inline]
     pub fn reserve(&mut self, n: usize) {
