@@ -41,14 +41,7 @@ struct Board {
 implement Board {
     /// Create a new empty board.
     function new(width: int32, height: int32) => Board {
-        let cells = []
-        for y in 0..height {
-            let row: List<_> = []
-            for x in 0..width {
-                row.push(Cell { isFilled: false, color: null })
-            }
-            cells.push(row)
-        }
+        let cells = Cell[width][height]
         Board { width, height, cells }
     }
 
@@ -88,7 +81,7 @@ implement Board {
                 // remove this line
                 self.cells.remove(y)
                 // add new empty line at top
-                let newRow: List<Cell> = []
+                let newRow: Cell[] = Cell[self.width]
                 for x in 0..self.width {
                     newRow.push(Cell { isFilled: false, color: null })
                 }

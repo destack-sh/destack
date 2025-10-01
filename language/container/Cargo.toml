@@ -1,6 +1,6 @@
 [package]
-name = "destack_telemetry"
-description = "Destack Telemetry"
+name = "dyst_container"
+description = "Dyst Collections"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

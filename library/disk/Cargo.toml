@@ -1,6 +1,6 @@
 [package]
-name = "destack_telemetry"
-description = "Destack Telemetry"
+name = "destack_disk"
+description = "Destack Disk"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,9 +13,7 @@ doctest = true
 
 [dependencies]
 
-[dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
-
 [lints]
 workspace = true
+
+
