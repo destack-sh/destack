@@ -579,6 +579,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_terminal"
+version = "2025.10.1-3"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_tetris"
 version = "2025.10.1-3"
 dependencies = [
@@ -678,7 +686,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_collections"
+name = "dyst_concurrency"
 version = "2025.10.1-3"
 dependencies = [
  "quickcheck",
@@ -686,7 +694,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_concurrency"
+name = "dyst_container"
 version = "2025.10.1-3"
 dependencies = [
  "quickcheck",

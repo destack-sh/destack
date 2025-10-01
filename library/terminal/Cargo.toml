@@ -1,6 +1,6 @@
 [package]
-name = "dyst_collections"
-description = "Dyst Collections"
+name = "destack_terminal"
+description = "Destack Terminal"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -4,7 +4,7 @@ members = [
 	# language
 	"language/ast",
 	"language/cranelift",
-	"language/collections",
+	"language/container",
 	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
@@ -20,7 +20,6 @@ members = [
 	"library/access",
 	"library/animation",
 	"library/audio",
-	"library/cli",
 	"library/cloud",
 	"library/entity",
 	"library/event",
@@ -38,6 +37,7 @@ members = [
 	"library/social",
 	"library/style",
 	"library/telemetry",
+	"library/terminal",
 	"library/text",
 	"library/time",
 	"library/tokei",
@@ -47,6 +47,7 @@ members = [
 	"library/video",
 	"library/view",
 	# extension
+	"extension/cli",
 	"extension/lsp",
 	"extension/python",
 	"extension/rust",
@@ -73,8 +74,8 @@ rust-version = "1.88.0"
 # language
 dyst_ast = { path = "language/ast" }
 dyst_cranelift = { path = "language/cranelift" }
-dyst_collections = { path = "language/collections" }
 dyst_concurrency = { path = "language/concurrency" }
+dyst_container = { path = "language/container" }
 dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
@@ -91,8 +92,8 @@ dyst_prelude = { path = "language/prelude" }
 destack_access = { path = "library/access" }
 destack_animation = { path = "library/animation" }
 destack_audio = { path = "library/audio" }
-destack_cli = { path = "library/cli" }
 destack_cloud = { path = "library/cloud" }
+destack_disk = { path = "library/disk" }
 destack_entity = { path = "library/entity" }
 destack_event = { path = "library/event" }
 destack_file = { path = "library/file" }
@@ -109,6 +110,8 @@ destack_script = { path = "library/script" }
 destack_social = { path = "library/social" }
 destack_style = { path = "library/style" }
 destack_text = { path = "library/text" }
+destack_telemetry = { path = "library/telemetry" }
+destack_terminal = { path = "library/terminal" }
 destack_time = { path = "library/time" }
 destack_tokei = { path = "library/tokei" }
 destack_unicode = { path = "library/unicode" }
@@ -117,10 +120,10 @@ destack_uuid = { path = "library/uuid" }
 destack_video = { path = "library/video" }
 destack_view = { path = "library/view" }
 # extension
+destack_cli = { path = "extension/cli" }
 destack_javascript = { path = "extension/javascript" }
 destack_python = { path = "extension/python" }
 destack_rust = { path = "extension/rust" }
-destack_telemetry = { path = "extension/telemetry" }
 destack_lsp = { path = "extension/lsp" }
 # platform
 destack_platform_web = { path = "platform/web" }
