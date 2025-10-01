@@ -77,6 +77,57 @@ impl<'a> Parser<'a> {
         Ok(parameters)
     }
 
+    /// Eat static parameters (including the `<` and `>` tokens) if they exist.
+    pub fn eat_static_parameters_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Parameter>>>> {
+        if self.peek_token(TokenType::LessThan).is_ok() {
+            return Ok(Some(self.eat_static_parameters()?));
+        }
+        Ok(None)
+    }
+
+    /// Eat static parameters (including the `<` and `>` tokens).
+    pub fn eat_static_parameters(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
+        self.eat_token(TokenType::LessThan)?;
+
+        // empty static parameters
+        if self.peek_token(TokenType::GreaterThan).is_ok() {
+            self.bump(); // eat greater than
+            return Ok(vec![]);
+        }
+
+        // regular static parameters
+        let parameters = self.with_options(self.options.in_static_type(), |parser| {
+            parser.eat_parameters_body()
+        })?;
+        self.eat_token(TokenType::GreaterThan)?;
+        Ok(parameters)
+    }
+
+    /// Eat dynamic parameters (including the `(` and `)` tokens) if they exist.
+    pub fn eat_dynamic_parameters_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Parameter>>>> {
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            return Ok(Some(self.eat_dynamic_parameters()?));
+        }
+        Ok(None)
+    }
+
+    /// Eat dynamic parameters (including the `(` and `)` tokens).
+    pub fn eat_dynamic_parameters(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
+        self.eat_token(TokenType::OpenParenthesis)?;
+        // empty dynamic parameters
+        if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            self.bump(); // eat close parenthesis
+            return Ok(vec![]);
+        }
+
+        // regular dynamic parameters
+        let parameters = self.with_options(self.options.in_nested(), |parser| {
+            parser.eat_parameters_body()
+        })?;
+        self.eat_token(TokenType::CloseParenthesis)?;
+        Ok(parameters)
+    }
+
     /// Eat an argument (e.g., `x: 1` or `y`).
     ///
     /// Examples:

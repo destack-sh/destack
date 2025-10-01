@@ -18,15 +18,42 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
         // header
         write!(f, [Keyword::Enum])?;
         // type
-        if let Some(r#type) = self.r#type {
+        if let Some(r#type) = self.tag_type {
             write!(f, [token("("), r#type, token(")"), space()])?;
         } else {
             write!(f, [space()])?;
         }
         // name
         if let Some(name) = self.name {
-            write!(f, [name, space()])?;
+            write!(f, [name])?;
         }
+
+        // static parameters
+        if let Some(static_parameters) = &self.static_parameters
+            && !static_parameters.is_empty()
+        {
+            write!(
+                f,
+                [
+                    group(&format_args![
+                        token("<"),
+                        soft_block_indent(&format_with(|f| {
+                            f.join_with(&format_args![
+                                if_group_fits_on_line(&token(",")),
+                                soft_line_break_or_space()
+                            ])
+                            .entries(static_parameters)
+                            .finish()
+                        })),
+                        token(">")
+                    ]),
+                    space()
+                ]
+            )?;
+        } else if self.name.is_some() {
+            write!(f, [space()])?;
+        }
+
         // empty block
         if self.fields.is_empty() && self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
@@ -145,6 +172,22 @@ mod tests {
             "enum {\n\tlet X = 1\n}",
             |p| p.eat_enum(None),
             DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_enum_with_static_parameters() {
+        let source = r"enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+    A = 1
+    B = T
+    @if(IsSomething)
+    C = 3
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_enum(None),
+            DystFormatOptions::default()
         );
     }
 }

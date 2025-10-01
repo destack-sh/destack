@@ -31,6 +31,13 @@ impl<'a> Parser<'a> {
     ///     Baz = 1
     ///     Qux = 2
     /// }
+    ///
+    /// enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+    ///     A = 1
+    ///     B = T
+    ///     @if(IsSomething)
+    ///     C = 3
+    /// }
     /// ```
     pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
         let start = self.mark();
@@ -55,6 +62,9 @@ impl<'a> Parser<'a> {
 
         // optional name
         let name = self.eat_identifier_or_wildcard_maybe()?;
+
+        // optional static parameters: < ... >
+        let static_parameters = self.eat_static_parameters_maybe()?;
 
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {
@@ -95,7 +105,8 @@ impl<'a> Parser<'a> {
         // fill header data
         let enum_ = self.tree.get_mut(enum_id);
         enum_.name = name;
-        enum_.r#type = explicit_type;
+        enum_.tag_type = explicit_type;
+        enum_.static_parameters = static_parameters;
         enum_.super_types = super_types;
         self.tree.set_span(enum_id, self.get_span_from(start));
 
@@ -136,7 +147,8 @@ impl<'a> Parser<'a> {
             Enum {
                 name: None,
                 visibility,
-                r#type: None,
+                tag_type: None,
+                static_parameters: None,
                 super_types: None,
                 fields,
                 expressions,
@@ -188,8 +200,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Enum, EnumField, Expression, IntType, TypeLiteral, assert_int, assert_node, assert_path,
-        assert_string,
+        Enum, EnumField, Expression, IntType, Parameter, TypeLiteral, assert_int, assert_node, assert_path, assert_string
     };
 
     #[test]
@@ -230,9 +241,9 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, expressions, .. } => {
+        assert_node!(parser.tree, enum_id, Enum { name, tag_type, fields, expressions, .. } => {
             assert!(name.is_none());
-            assert!(r#type.is_none());
+            assert!(tag_type.is_none());
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
 
@@ -269,12 +280,12 @@ enum(uint8) Foo: Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, super_types, .. } => {
+        assert_node!(parser.tree, enum_id, Enum { name, tag_type, fields, super_types, .. } => {
             // enum name
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // enum type
-            assert_node!(parser.tree, r#type.unwrap(), Expression::TypeLiteral(literal_id) => {
+            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(literal_id) => {
                 assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 8, is_signed: false }));
             });
 
@@ -302,6 +313,43 @@ enum(uint8) Foo: Day {
                     assert_int!(parser.tree, *literal_id, 2);
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_enum_with_static_parameters() {
+        let mut test = TestParser::new(
+            r###"
+enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+    A = 1
+    B = T
+    @if(IsSomething)
+    C = 3
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let enum_id = parser.eat_enum(None).unwrap();
+        assert_node!(parser.tree, enum_id, Enum { name, static_parameters, fields, .. } => {
+            // Machine
+            assert_string!(parser.session, name.unwrap(), "Machine");
+
+            // <T: int32 = 3, IsSomething: boolean = true>
+            assert!(static_parameters.is_some());
+            let static_parameters = static_parameters.as_ref().unwrap();
+            assert_eq!(static_parameters.len(), 2);
+            // T: int32 = 3
+            assert_node!(parser.tree, static_parameters[0], Parameter { name, .. } => {
+                assert_string!(parser.session, *name, "T");
+            });
+            // IsSomething: boolean = true
+            assert_node!(parser.tree, static_parameters[1], Parameter { name, .. } => {
+                assert_string!(parser.session, *name, "IsSomething");
+            });
+
+            assert_eq!(fields.len(), 3);
         });
     }
 }

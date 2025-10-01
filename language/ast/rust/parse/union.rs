@@ -82,19 +82,10 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
-        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.bump(); // eat less than
-            let params = self
-                .with_options(self.options.in_static_type(), |parser| {
-                    parser.eat_parameters_body()
-                })
-                .for_node_type(NodeType::Union)?;
-            self.eat_token(TokenType::GreaterThan)
-                .for_node_type(NodeType::Union)?;
-            Some(params)
-        } else {
-            None
-        };
+        let static_parameters = self.eat_static_parameters_maybe()?;
+
+        // nocheckin: pull out common parsing & formatting 
+        //  (for: representation type, static params, super types, ..?)
 
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {
