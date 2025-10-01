@@ -1,0 +1,4 @@
+
+trait Allocator {
+    function allocate(self, size: usize);
+}

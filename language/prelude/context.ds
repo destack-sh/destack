@@ -3,6 +3,12 @@ trait Context { }
 
 /// Default context.
 struct DefaultContext {
+    /// The default allocator.
     defaultAllocator: Allocator
+    /// The temporary allocator.
+    temporaryAllocator: Allocator
+    /// The allocator.
     allocator: Allocator
 }
+
+implement Context for DefaultContext { }
