@@ -1,10 +1,10 @@
 /// A Result value which may hold Success(T) or Error(E).
 union Result<T, E> {
+    /// The success case.
     Success(T)
+    /// The failure case.
     Failure(E)
-}
 
-implement Result {
     /// Check if the Result is a Success.
     function isSuccess(self) => boolean {
         match self {
