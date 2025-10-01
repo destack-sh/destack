@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
 
         // iterator
         let iterator_id = self
-            .with_options(self.options.in_before_block(), |parser| {
+            .with_options(self.options.nested_in_before_block(), |parser| {
                 parser.eat_expression()
             })
             .for_node_type(NodeType::For)?;

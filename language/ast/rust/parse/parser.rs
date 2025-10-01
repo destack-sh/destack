@@ -13,12 +13,14 @@ use dyst_session::Session;
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
-    /// Whether we're parsing a static type (parameters or arguments).
-    /// We disallow certain infix operations in static types to avoid ambiguity with <>.
-    pub in_static_type: bool = false,
-    /// Whether we're parsing an implicit union pattern.
-    pub in_implicit_union: bool = false,
-    /// Whether we're in parenthesized expression (directly).
+    /// Whether we're parsing inside a type.
+    pub in_type: bool = false,
+    /// Whether we're parsing inside a static argument (`<...>`).
+    /// We disallow certain infix operations in static arguments to avoid ambiguity with <>.
+    pub in_static: bool = false,
+    /// Whether we're parsing a union pattern.
+    pub in_union_pattern: bool = false,
+    /// Whether we're in parenthesized expression (`(..)`, directly).
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
@@ -35,10 +37,18 @@ impl ParserOptions {
         Self::default()
     }
 
-    /// Adapt and reset options for a static type.
-    pub(crate) fn in_static_type(self) -> Self {
+    /// Adapt and reset options for a type.
+    pub(crate) fn in_type(self) -> Self {
         Self {
-            in_static_type: true,
+            in_type: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for a static context.
+    pub(crate) fn in_static(self) -> Self {
+        Self {
+            in_static: true,
             ..self
         }
     }
@@ -46,16 +56,7 @@ impl ParserOptions {
     /// Adapt and reset options for an implicit union pattern.
     pub(crate) fn in_implicit_union(self) -> Self {
         Self {
-            in_implicit_union: true,
-            ..self
-        }
-    }
-
-    /// Adapt and reset options for a static type before a block.
-    pub(crate) fn in_static_type_before_block(self) -> Self {
-        Self {
-            in_static_type: true,
-            in_before_block: true,
+            in_union_pattern: true,
             ..self
         }
     }
@@ -68,12 +69,25 @@ impl ParserOptions {
         }
     }
 
+    /// Adapt and reset options for a nested expression before a block.
+    pub(crate) fn nested_in_before_block(self) -> Self {
+        Self {
+            in_type: false,
+            in_static: false,
+            in_union_pattern: false,
+            in_parenthesis: false,
+            in_before_block: true,
+            left_precedence: None,
+        }
+    }
+
     /// Adapt and reset options for a parenthesis expression (with `(`).
     pub(crate) fn in_parenthesis(self) -> Self {
         Self {
-            in_static_type: false,
+            in_type: false,
+            in_static: false,
             in_parenthesis: true,
-            in_implicit_union: false,
+            in_union_pattern: false,
             left_precedence: None,
             ..self
         }
@@ -82,9 +96,10 @@ impl ParserOptions {
     /// Adapt and reset options for a nested expression (that's not `(`).
     pub(crate) fn in_nested(self) -> Self {
         Self {
-            in_static_type: false,
+            in_type: false,
+            in_static: false,
             in_parenthesis: false,
-            in_implicit_union: false,
+            in_union_pattern: false,
             left_precedence: None,
             ..self
         }

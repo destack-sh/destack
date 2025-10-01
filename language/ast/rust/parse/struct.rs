@@ -216,9 +216,7 @@ impl<'a> Parser<'a> {
 
         // type
         let r#type = self
-            .with_options(self.options.in_static_type(), |parser| {
-                parser.eat_expression()
-            })
+            .with_options(self.options.in_type(), |parser| parser.eat_expression())
             .for_node_type(NodeType::Struct)?;
 
         // optional default value: `= <expr>`

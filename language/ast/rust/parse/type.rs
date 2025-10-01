@@ -38,10 +38,9 @@ impl<'a> Parser<'a> {
             }
             // keep eating super types
             else {
-                let super_type = self
-                    .with_options(self.options.in_static_type_before_block(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let super_type = self.with_options(self.options.in_before_block(), |parser| {
+                    parser.eat_expression()
+                })?;
                 super_types.push(super_type);
             }
         }

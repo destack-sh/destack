@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
         if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let right = self
-                .with_options(self.options.in_static_type_before_block(), |parser| {
+                .with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })
                 .for_node_type(NodeType::WithClause)?;

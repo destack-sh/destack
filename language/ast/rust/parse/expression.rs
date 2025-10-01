@@ -9,26 +9,18 @@ use crate::{
     NodeType, ParseError, ParseResult, Parser, ParserMark, Runtime, UnaryOperator, Visibility,
 };
 
-static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
-    // multiplication
-    BinaryOperator::Multiply,
-    BinaryOperator::WrappingMultiply,
-    BinaryOperator::SaturatingMultiply,
-    BinaryOperator::Divide,
-    BinaryOperator::Remainder,
-    // addition
-    BinaryOperator::Add,
-    BinaryOperator::WrappingAdd,
-    BinaryOperator::SaturatingAdd,
-    BinaryOperator::Subtract,
-    BinaryOperator::WrappingSubtract,
-    BinaryOperator::SaturatingSubtract,
-    // logical
-    BinaryOperator::And,
-    BinaryOperator::Or,
+// can't use anything with `<` or `>` in static arguments
+// (to avoid parsing ambiguity with `<>` brackets)
+static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
+    // shift
+    BinaryOperator::ShiftLeft,
+    BinaryOperator::SaturatingShiftLeft,
+    BinaryOperator::ShiftRight,
     // comparison
-    BinaryOperator::Equal,
-    BinaryOperator::NotEqual,
+    BinaryOperator::LessThan,
+    BinaryOperator::LessThanOrEqual,
+    BinaryOperator::GreaterThan,
+    BinaryOperator::GreaterThanOrEqual,
 ];
 
 /// Make an infix operator.
@@ -36,10 +28,10 @@ static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
 fn to_infix_operator(
     token: &TokenSpan,
     next_token: &TokenSpan,
-    in_static_type: bool,
+    options: ParserOptions,
 ) -> ParseResult<(InfixOperator, u8)> {
     // special case for shift right to avoid ungluing ambiguity
-    if !in_static_type
+    if !options.in_static
         && token.token.r#type == TokenType::GreaterThan
         && next_token.token.r#type == TokenType::GreaterThan
     {
@@ -48,13 +40,14 @@ fn to_infix_operator(
     // regular binary operator
     // (only a subset of binary operators are allowed in static types)
     else if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
-        && (!in_static_type || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
+        && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular assign operator
-    // (not allowed in static types)
-    else if !in_static_type
+    // (not allowed in static arguments)
+    else if !options.in_static
+        && !options.in_type
         && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
     {
         Ok((InfixOperator::Assign(assign_operator), 1))
@@ -85,7 +78,7 @@ impl<'a> Parser<'a> {
     pub fn peek_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek()?;
         let next_token = self.peek_next()?;
-        to_infix_operator(token, next_token, self.options.in_static_type)
+        to_infix_operator(token, next_token, self.options)
     }
 
     /// Peek a next infix operator.
@@ -93,7 +86,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
         let next_token = self.peek_next_next()?;
-        to_infix_operator(token, next_token, self.options.in_static_type)
+        to_infix_operator(token, next_token, self.options)
     }
 
     /// Make an expression from an infix operator.

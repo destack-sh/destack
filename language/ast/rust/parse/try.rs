@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat keyword
 
                 // catch expression
-                let catch_expression_id = self
+                let catch_scrutinee_id = self
                     .with_options(self.options.in_before_block(), |parser| {
                         parser.eat_expression()
                     })?;
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
                 // catch match
                 let catch_match_id = self.tree.allocate(
                     Match {
-                        value: catch_expression_id,
+                        value: catch_scrutinee_id,
                         cases: catch_match_cases_id,
                     },
                     self.get_span_from(start),

@@ -23,9 +23,7 @@ impl<'a> Parser<'a> {
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let r#type = self
-                .with_options(self.options.in_static_type(), |parser| {
-                    parser.eat_expression()
-                })
+                .with_options(self.options.in_type(), |parser| parser.eat_expression())
                 .for_node_type(NodeType::Parameter)?;
             Some(r#type)
         } else {
@@ -96,7 +94,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular static parameters
-        let parameters = self.with_options(self.options.in_static_type(), |parser| {
+        let parameters = self.with_options(self.options.in_static(), |parser| {
             parser.eat_parameters_body()
         })?;
         self.eat_token(TokenType::GreaterThan)?;
@@ -180,7 +178,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular static arguments
-        let static_arguments = self.with_options(self.options.in_static_type(), |parser| {
+        let static_arguments = self.with_options(self.options.in_static(), |parser| {
             parser.eat_arguments_body()
         })?;
 

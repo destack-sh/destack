@@ -50,9 +50,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 let ty = self
-                    .with_options(self.options.in_static_type(), |parser| {
-                        parser.eat_expression()
-                    })
+                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
                     .for_node_type(NodeType::Enum)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)

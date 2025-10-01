@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
         }
         // union
         else if self.peek_token(TokenType::ElementwiseOr).is_ok()
-            && !self.options.in_implicit_union
+            && !self.options.in_union_pattern
         {
             // eat all union "fields" (just unnamed patterns)
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];

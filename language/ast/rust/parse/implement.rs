@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
 
         // receiver
         let receiver = self
-            .with_options(self.options.in_static_type_before_block(), |parser| {
+            .with_options(self.options.in_before_block(), |parser| {
                 parser.eat_expression()
             })
             .for_node_type(NodeType::Implement)?;
@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.bump(); // eat for
             let for_trait = self
-                .with_options(self.options.in_static_type_before_block(), |parser| {
+                .with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })
                 .for_node_type(NodeType::Implement)?;

@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
-            let guard = self.with_options(self.options.in_before_block(), |parser| {
+            let guard = self.with_options(self.options.nested_in_before_block(), |parser| {
                 parser.try_eat_expression(TokenType::FatArrow)
             })?;
             Some(guard)
