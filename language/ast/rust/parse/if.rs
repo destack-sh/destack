@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition_id = self.with_options(self.options.in_before_block(), |parser| {
+        let condition_id = self.with_options(self.options.nested_in_before_block(), |parser| {
             parser.eat_expression()
         })?;
 

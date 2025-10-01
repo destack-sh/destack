@@ -51,18 +51,14 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open parenthesis
                 // tag type
                 let ty = self
-                    .with_options(self.options.in_static_type(), |parser| {
-                        parser.eat_expression()
-                    })
+                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
                     .for_node_type(NodeType::Union)?;
 
                 // representation type
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.bump(); // eat comma
                     let representation_type = self
-                        .with_options(self.options.in_static_type(), |parser| {
-                            parser.eat_expression()
-                        })
+                        .with_options(self.options.in_type(), |parser| parser.eat_expression())
                         .for_node_type(NodeType::Union)?;
                     self.eat_token(TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Union)?;
