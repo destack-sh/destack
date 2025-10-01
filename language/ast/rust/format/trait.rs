@@ -1,5 +1,6 @@
 use dyst_fir::format::FormatResult;
 
+use crate::argument::list_like;
 use crate::{
     DystFormatter, FormatNode, Keyword, NodeId, Trait, Visibility,
     empty_block_with_infix_annotations,
@@ -37,21 +38,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         if let Some(static_parameters) = &self.static_parameters
             && !static_parameters.is_empty()
         {
-            write!(
-                f,
-                [group(&format_args![
-                    token("<"),
-                    soft_block_indent(&format_with(|f| {
-                        f.join_with(&format_with(|f| {
-                            if_group_fits_on_line(&token(",")).format(f)?;
-                            soft_line_break_or_space().format(f)
-                        }))
-                        .entries(static_parameters)
-                        .finish()
-                    })),
-                    token(">")
-                ])]
-            )?;
+            write!(f, [list_like("<", ">", ",", static_parameters)])?;
         }
 
         // super types

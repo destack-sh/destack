@@ -1,6 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::format_args;
 
+use crate::argument::list_like;
 use crate::{
     DystFormatter, Enum, EnumField, FormatNode, Keyword, NodeId, empty_block_with_infix_annotations,
 };
@@ -32,24 +33,8 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
         if let Some(static_parameters) = &self.static_parameters
             && !static_parameters.is_empty()
         {
-            write!(
-                f,
-                [
-                    group(&format_args![
-                        token("<"),
-                        soft_block_indent(&format_with(|f| {
-                            f.join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
-                                soft_line_break_or_space()
-                            ])
-                            .entries(static_parameters)
-                            .finish()
-                        })),
-                        token(">")
-                    ]),
-                    space()
-                ]
-            )?;
+            write!(f, [list_like("<", ">", ",", static_parameters)])?;
+            write!(f, [space()])?;
         } else if self.name.is_some() {
             write!(f, [space()])?;
         }

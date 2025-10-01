@@ -1,8 +1,78 @@
+use std::marker::PhantomData;
+
 use dyst_fir::format::FormatResult;
 
-use crate::{Argument, DystFormatter, FormatNode, NodeId, Parameter};
+use crate::{
+    Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
+    Parameter,
+};
 use dyst_fir::prelude::*;
-use dyst_fir::write;
+use dyst_fir::{format_args, write};
+
+/// List like thing infix annotations.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeStore<T>,
+{
+    start_token: &'static str,
+    end_token: &'static str,
+    separator: &'static str,
+    elements: &'e Vec<NodeId<T>>,
+
+    _phantom: PhantomData<&'ast ()>,
+}
+
+impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeStore<T>,
+{
+    #[inline]
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        write!(
+            f,
+            [group(&format_args![
+                token(self.start_token),
+                soft_block_indent(&format_with(|f| {
+                    f.join_with(&format_args![
+                        if_group_fits_on_line(&token(self.separator)),
+                        soft_line_break_or_space()
+                    ])
+                    .entries(self.elements)
+                    .finish()
+                })),
+                token(self.end_token)
+            ]),]
+        )?;
+
+        Ok(())
+    }
+}
+
+/// List like group for `elements`:
+///  - beginning with `start_token`
+///  - ending with `end_token`
+///  - separated by `separator`
+pub(crate) fn list_like<'ast, 'e, T>(
+    start_token: &'static str,
+    end_token: &'static str,
+    separator: &'static str,
+    elements: &'e Vec<NodeId<T>>,
+) -> ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeStore<T>,
+{
+    ListLike {
+        start_token,
+        end_token,
+        separator,
+        elements,
+        _phantom: PhantomData,
+    }
+}
 
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(

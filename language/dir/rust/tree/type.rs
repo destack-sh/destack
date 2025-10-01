@@ -139,9 +139,9 @@ pub enum Type {
     /// Self type (only inside associated scopes for types).
     Self_,
     /// Scalar primitive type.
-    Primitive(NodeId<TypeLiteral>),
+    // Primitive(NodeId<TypeLiteral>),
     /// Literal value type.
-    Value(NodeId<ScalarLiteral>),
+    // Value(NodeId<ScalarLiteral>),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
         path: PathId,

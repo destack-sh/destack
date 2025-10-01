@@ -1,5 +1,6 @@
 use dyst_fir::format::FormatResult;
 
+use crate::argument::list_like;
 use crate::r#let::FormatScopedMutability;
 use crate::{DystFormatter, FormatNode, Function, Keyword, NodeId, Runtime, Visibility};
 use dyst_fir::prelude::*;
@@ -37,21 +38,7 @@ impl<'ast> FormatNode<'ast, Function> for Function {
         if let Some(static_parameters) = &self.static_parameters
             && !static_parameters.is_empty()
         {
-            write!(
-                f,
-                [group(&format_args![
-                    token("<"),
-                    soft_block_indent(&format_with(|f| {
-                        f.join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
-                            soft_line_break_or_space()
-                        ])
-                        .entries(static_parameters)
-                        .finish()
-                    })),
-                    token(">")
-                ])]
-            )?;
+            write!(f, [list_like("<", ">", ",", static_parameters)])?;
         }
 
         // self parameter and dynamic parameters
