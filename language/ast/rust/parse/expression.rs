@@ -872,7 +872,7 @@ mod tests {
                                         assert_node!(
                                             parser.tree,
                                             *scalar_id,
-                                            ScalarLiteral::Integer(1, _)
+                                            ScalarLiteral::Integer(1)
                                         );
                                     }
                                 );
@@ -1151,7 +1151,7 @@ let x =
                                                 assert_node!(
                                                     parser.tree,
                                                     *scalar_id,
-                                                    ScalarLiteral::Integer(value, _) => {
+                                                    ScalarLiteral::Integer(value) => {
                                                         assert_eq!(*value, 2);
                                                     }
                                                 );
@@ -1638,7 +1638,7 @@ self
                                 assert_node!(
                                     parser.tree,
                                     *scalar_id,
-                                    ScalarLiteral::Integer(0, _)
+                                    ScalarLiteral::Integer(0)
                                 );
                             }
                         );

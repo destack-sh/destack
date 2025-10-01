@@ -269,8 +269,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node, assert_path,
-        assert_string,
+        Mutability, Pattern, PatternField, ScalarLiteral, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -316,7 +315,7 @@ mod tests {
             assert_eq!(*mutability, Mutability::Immutable);
             // 1
             assert_node!(parser.tree, *target, Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }))
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1))
             });
         })
     }
@@ -355,14 +354,14 @@ mod tests {
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
                 });
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
                 });
             });
 
@@ -431,14 +430,14 @@ mod tests {
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
                 });
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
                 });
             });
 
@@ -461,17 +460,17 @@ mod tests {
 
             // 1
             assert_node!(parser.tree, fields[0], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
             });
 
             // 2
             assert_node!(parser.tree, fields[1], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
             });
 
             // 3
             assert_node!(parser.tree, fields[2], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(3, IntType { width: 32, is_signed: true }));
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(3));
             });
         });
     }

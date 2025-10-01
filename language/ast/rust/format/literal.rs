@@ -23,11 +23,11 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
             ScalarLiteral::Boolean(value) => {
                 token(if *value { "true" } else { "false" }).format(f)?
             }
-            ScalarLiteral::Integer(_, _) => {
+            ScalarLiteral::Integer(_) => {
                 let normalized = normalize_integer(span_str);
                 text(&normalized).format(f)?;
             }
-            ScalarLiteral::Float(_, _) => {
+            ScalarLiteral::Float(_) => {
                 let normalized = normalize_floating_number(span_str);
                 text(&normalized).format(f)?;
             }

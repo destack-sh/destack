@@ -1198,12 +1198,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", &value.to_string().as_str())
                     .end();
             }
-            ScalarLiteral::Integer(value, _) => {
+            ScalarLiteral::Integer(value) => {
                 self.node("ScalarLiteral::Integer", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
-            ScalarLiteral::Float(value, _) => {
+            ScalarLiteral::Float(value) => {
                 self.node("ScalarLiteral::Float", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();

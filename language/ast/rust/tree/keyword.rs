@@ -7,9 +7,9 @@ pub enum Keyword {
     Public,
     /// Mark the following item as private (with optional qualifier)
     Private,
-    /// Refer to the own instance.
+    /// Refer to the containing instance type / value.
     Self_,
-    /// Refer to the own instance.
+    /// Refer to the containing instance type / value.
     This,
     /// Declare a Module (inline).
     Module,
