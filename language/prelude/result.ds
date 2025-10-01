@@ -1,8 +1,6 @@
 /// A Result value which may hold Success(T) or Error(E).
 union Result<T, E> {
-    /// The success case.
     Success(T)
-    /// The failure case.
     Failure(E)
 
     /// Check if the Result is a Success.

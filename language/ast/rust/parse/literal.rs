@@ -5,6 +5,7 @@ use crate::parse::prelude::*;
 use crate::{
     ArrayLiteral, FieldLiteral, FloatType, IntType, NodeId, NodeType, ParseError, ParseResult,
     Parser, ScalarLiteral, StructLiteral, TupleLiteral, TupleLiteralField, TypeLiteral,
+    UnaryOperator,
 };
 
 impl<'a> Parser<'a> {
@@ -268,10 +269,23 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
+    /// Whether the token type is maybe the start of a (type-related) expression.
+    fn is_start_of_expression(&self, token_type: TokenType) -> bool {
+        token_type == TokenType::OpenParenthesis
+            || token_type == TokenType::Identifier
+            || token_type == TokenType::Literal
+            // (if we're before a block then { is a terminator, not the start of a block)
+            || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
+            || UnaryOperator::from_token_type(token_type).is_some()
+    }
+
+    /// Peek a primitive type (e.g., `!`, `void`, `boolean`, `int32`, `uint7`, `float32`).
     ///
     /// Examples:
     /// ```
+    /// !
+    /// $
+    /// _
     /// undefined
     /// void
     /// null
@@ -283,6 +297,28 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {
         let next = self.peek()?;
+        let next_type = next.token.r#type;
+        let next_next = self.peek_next();
+        let next_next_type = next_next.as_ref().map(|next| next.token.r#type).ok();
+
+        // !, $, _
+        if (next_type == TokenType::Not
+            || next_type == TokenType::Virtual
+            || next_type == TokenType::Wildcard)
+            // if next token doesn't start a related expression
+            && (next_next_type.is_none()
+                || (next_next_type.is_some()
+                    && !self.is_start_of_expression(next_next_type.unwrap())))
+        {
+            return match next_type {
+                TokenType::Not => Ok(TypeLiteral::Never),
+                TokenType::Virtual => Ok(TypeLiteral::Any),
+                TokenType::Wildcard => Ok(TypeLiteral::Infer),
+                _ => unreachable!(),
+            };
+        }
+
+        // regular single-token type literals
         let next_str = self.get_span_str(next.span);
         match next_str {
             // undefined
@@ -295,6 +331,15 @@ impl<'a> Parser<'a> {
             "boolean" => Ok(TypeLiteral::Boolean),
             // character
             "character" => Ok(TypeLiteral::Character),
+            // Self
+            "Self"
+                // if next token doesn't start a related expression
+                if next_next_type.is_none()
+                    || (next_next_type.unwrap() != TokenType::OpenBrace)
+                    || self.options.in_before_block =>
+            {
+                Ok(TypeLiteral::Self_)
+            }
             // int_
             int_str if int_str.starts_with("int") && int_str.len() > 3 => {
                 let Ok(width) = int_str.trim_start_matches("int").parse::<u16>() else {
@@ -571,14 +616,14 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        ArrayLiteral, Expression, FieldLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
-        TupleLiteralField, assert_bool, assert_char, assert_float, assert_int, assert_lit_string,
-        assert_node,
+        ArrayLiteral, Expression, FieldLiteral, FloatType, IntType, ScalarLiteral, StructLiteral,
+        TupleLiteral, TupleLiteralField, TypeLiteral, assert_bool, assert_char, assert_float,
+        assert_int, assert_lit_string, assert_node,
     };
 
+    /// Parse integer literals in various formats.
     #[test]
-    fn test_parse_integer_literals() {
-        // Parse multiple integer literals including hex
+    fn test_parse_integer_literal() {
         let mut test = TestParser::new("1 731 0x1234");
         let mut parser = test.prepare();
 
@@ -592,9 +637,9 @@ mod tests {
         assert_int!(parser.tree, literal_id, 0x1234);
     }
 
+    /// Parse scientific notation and decimal floats.
     #[test]
-    fn test_parse_float_literals() {
-        // Parse scientific notation and decimal floats
+    fn test_parse_float_literal() {
         let mut test = TestParser::new("10e37 1.0");
         let mut parser = test.prepare();
 
@@ -605,9 +650,9 @@ mod tests {
         assert_float!(parser.tree, literal_id, 1.0);
     }
 
+    /// Parse true and false literals.
     #[test]
-    fn test_parse_boolean_literals() {
-        // Parse true and false literals
+    fn test_parse_boolean_literal() {
         let mut test = TestParser::new("true false");
         let mut parser = test.prepare();
 
@@ -618,9 +663,9 @@ mod tests {
         assert_bool!(parser.tree, literal_id, false);
     }
 
+    /// Parse character and byte literals.
     #[test]
-    fn test_parse_character_literals() {
-        // Parse character and byte literals
+    fn test_parse_character_literal() {
         let mut test = TestParser::new("'a' b'a'");
         let mut parser = test.prepare();
 
@@ -631,9 +676,9 @@ mod tests {
         assert_node!(parser.tree, literal_id, ScalarLiteral::Byte(b'a'));
     }
 
+    /// Parse various string literal formats including raw and byte strings.
     #[test]
-    fn test_parse_string_literals() {
-        // Parse various string literal formats including raw and byte strings
+    fn test_parse_string_literal() {
         let mut test = TestParser::new(
             r###""Hello, world!" b"abc" r"abc" r##"a#b#c"## br"abc" br##"a#b#c"##"###,
         );
@@ -673,6 +718,7 @@ mod tests {
         });
     }
 
+    /// Parse empty array literal.
     #[test]
     fn test_parse_empty_array_literal() {
         // []
@@ -731,9 +777,9 @@ mod tests {
         });
     }
 
+    /// Multi-line array with implicit comma separation.
     #[test]
     fn test_parse_multiline_array_literal() {
-        // Multi-line array with implicit comma separation
         let mut test = TestParser::new(
             r###"[1.0, 
      2.0
@@ -897,5 +943,114 @@ destack.geometry.Mesh<2, int32> {
                 });
             });
         });
+    }
+
+    /// Peek `!` as `Never` and reject glued tokens.
+    #[test]
+    fn test_peek_type_literal_never_boundaries() {
+        let mut test = TestParser::new("!");
+        let parser = test.prepare();
+        let literal = parser.peek_type_literal().unwrap();
+        assert_eq!(literal, TypeLiteral::Never);
+
+        let mut test = TestParser::new("!1");
+        let parser = test.prepare();
+        assert!(parser.peek_type_literal().is_err());
+    }
+
+    /// Peek `$` as `Any` and reject glued tokens.
+    #[test]
+    fn test_peek_type_literal_any_boundaries() {
+        let mut test = TestParser::new("$");
+        let parser = test.prepare();
+        let literal = parser.peek_type_literal().unwrap();
+        assert_eq!(literal, TypeLiteral::Any);
+
+        let mut test = TestParser::new("$1");
+        let parser = test.prepare();
+        assert!(parser.peek_type_literal().is_err());
+    }
+
+    /// Peek `_` as `Infer` and reject glued tokens.
+    #[test]
+    fn test_peek_type_literal_infer_boundaries() {
+        let mut test = TestParser::new("_");
+        let parser = test.prepare();
+        let literal = parser.peek_type_literal().unwrap();
+        assert_eq!(literal, TypeLiteral::Infer);
+
+        let mut test = TestParser::new("_1");
+        let parser = test.prepare();
+        assert!(parser.peek_type_literal().is_err());
+    }
+
+    /// Peek keyword-based primitive type literals.
+    #[test]
+    fn test_peek_type_literal_keywords() {
+        let mut test = TestParser::new("undefined void null boolean character Self");
+        let mut parser = test.prepare();
+
+        let undefined = parser.peek_type_literal().unwrap();
+        assert_eq!(undefined, TypeLiteral::Undefined);
+        parser.bump();
+
+        let void = parser.peek_type_literal().unwrap();
+        assert_eq!(void, TypeLiteral::Void);
+        parser.bump();
+
+        let null = parser.peek_type_literal().unwrap();
+        assert_eq!(null, TypeLiteral::Null);
+        parser.bump();
+
+        let boolean = parser.peek_type_literal().unwrap();
+        assert_eq!(boolean, TypeLiteral::Boolean);
+        parser.bump();
+
+        let character = parser.peek_type_literal().unwrap();
+        assert_eq!(character, TypeLiteral::Character);
+        parser.bump();
+
+        let self_literal = parser.peek_type_literal().unwrap();
+        assert_eq!(self_literal, TypeLiteral::Self_);
+    }
+
+    /// Peek signed integer type literals with different widths.
+    #[test]
+    fn test_peek_type_literal_ints() {
+        let mut test = TestParser::new("int2 int32");
+        let mut parser = test.prepare();
+
+        let int2 = parser.peek_type_literal().unwrap();
+        assert_eq!(
+            int2,
+            TypeLiteral::Int(IntType {
+                width: 2,
+                is_signed: true,
+            })
+        );
+        parser.bump();
+
+        let int32 = parser.peek_type_literal().unwrap();
+        assert_eq!(
+            int32,
+            TypeLiteral::Int(IntType {
+                width: 32,
+                is_signed: true,
+            })
+        );
+    }
+
+    /// Peek floating point type literals.
+    #[test]
+    fn test_peek_type_literal_floats() {
+        let mut test = TestParser::new("float32 float64");
+        let mut parser = test.prepare();
+
+        let float32 = parser.peek_type_literal().unwrap();
+        assert_eq!(float32, TypeLiteral::Float(FloatType::Float32));
+        parser.bump();
+
+        let float64 = parser.peek_type_literal().unwrap();
+        assert_eq!(float64, TypeLiteral::Float(FloatType::Float64));
     }
 }
