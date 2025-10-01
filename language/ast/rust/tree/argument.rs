@@ -33,10 +33,9 @@ impl Node for Parameter {
 /// Examples:
 /// ```
 /// x: 1
-/// y: 2
+/// y: foo()
 /// y
 /// false
-/// z: foo() > 7
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {

@@ -606,6 +606,8 @@ pub enum Expression {
     /// Return expression (as an Expression, see Return).
     Return(NodeId<Return>),
 
+    // NOTE #Incomplete: multiply parameterized Expression Paths?
+    //  (like `Foo<int32, boolean>.Bar<Yes: true>`)
     /// Alias reference to some path, statically parameterized (as an Expression).
     Path {
         path: PathId,

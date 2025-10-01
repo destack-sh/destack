@@ -53,8 +53,8 @@ impl<'a> Parser<'a> {
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.r#type == TokenType::Newline)
-                && let Ok(next) = self.peek_next() 
-                && let next_span_str = self.get_span_str(next.span) 
+                && let Ok(next) = self.peek_next()
+                && let next_span_str = self.get_span_str(next.span)
                 && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
             {
                 // speculatively parse the decorator
@@ -722,7 +722,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, Function, If, Let, Struct, StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path, assert_string
+        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
+        Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, Function, If, Let, Struct,
+        StructField, Tag, assert_lit_int, assert_lit_string, assert_node, assert_path,
+        assert_string,
     };
 
     /// Tag annotations should be parsed around a struct.

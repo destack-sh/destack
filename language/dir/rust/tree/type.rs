@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{Node, NodeId, NodeType};
+use crate::{Node, NodeId, NodeType, PathId};
 
 impl IntType {
     /// 8-bit signed integer
@@ -103,7 +103,7 @@ impl FromStr for FloatType {
 /// null
 /// int32
 /// boolean
-/// boolean | *int32
+/// boolean | &int32
 /// float32[]
 /// float64[3]
 /// (int32, int32)
@@ -122,11 +122,9 @@ impl FromStr for FloatType {
 ///
 /// A | B // implicit anonymous union
 /// A & B // implicit anonymous intersection
-/// struct MyResponse { x: int32, y: int32 }
-/// enum { Good, Bad }
-/// union { A(int), B(float) } // explicit anonymous union
+/// 
 /// function (int32) => int32
-/// function () => Result<int32, struct Error { message: string }>
+/// function () => Result<int32, Error>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -140,11 +138,13 @@ pub enum Type {
     Never,
     /// Self type (only inside associated scopes for types).
     Self_,
-    /// Primitive type.
-    Primitive(PrimitiveType),
+    /// Scalar primitive type.
+    Primitive(NodeId<TypeLiteral>),
+    /// Literal value type.
+    Value(NodeId<ScalarLiteral>),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
-        // path: PathId,
+        path: PathId,
         // static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
@@ -152,7 +152,7 @@ pub enum Type {
         // mutability: ScopedMutability,
         target: NodeId<Type>,
     },
-    /// Virtual type `$T`. Somewhat like Any<T>.
+    /// Virtual type `$T`.
     Virtual(NodeId<Type>),
     /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
@@ -189,23 +189,4 @@ pub enum FloatType {
     Float32,
     /// 64-bit IEEE-754 float.
     Float64,
-}
-
-/// A PrimitiveType represents primitive types.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PrimitiveType {
-    /// Unknown / uninitialized type.
-    Undefined,
-    /// Void / empty / unit type.
-    Void,
-    /// Null type.
-    Null,
-    /// Boolean type.
-    Boolean,
-    /// Character type.
-    Character,
-    /// Integer type with arbitrary width.
-    Int(IntType),
-    /// Floating point number type.
-    Float(FloatType),
 }
