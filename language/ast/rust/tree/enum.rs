@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
 
 /// An Enum is an enumeration definition node.
 /// Like with structs, the ',' separator is optional if newline-delimited.
@@ -31,6 +31,13 @@ use crate::{Expression, Node, NodeId, NodeType, Visibility};
 /// enum ExtendedDay: Day { // ExtendedDay has Day as super
 ///     Surfday = 8
 /// }
+///
+/// enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+///     A = 1
+///     B = T
+///     @if(IsSomething)
+///     C = 3
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enum {
@@ -39,7 +46,9 @@ pub struct Enum {
     /// The visibility of the enum.
     pub visibility: Option<Visibility>,
     /// The type of the enum (if explicitly specified).
-    pub r#type: Option<NodeId<Expression>>,
+    pub tag_type: Option<NodeId<Expression>>,
+    /// The static parameters of the enum.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The super types of the enum (desugars to `use`-ing other types).
     pub super_types: Option<Vec<NodeId<Expression>>>,
     /// The fields of the enum.

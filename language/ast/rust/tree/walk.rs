@@ -202,7 +202,7 @@ pub fn walk_enum<V: NodeVisitor + ?Sized>(
     enum_node: &Enum,
 ) {
     visitor.visit_any(tree, NodeType::Enum, id.id);
-    if let Some(type_node) = &enum_node.r#type {
+    if let Some(type_node) = &enum_node.tag_type {
         let type_ref = tree.get(*type_node);
         visitor.visit_expression(tree, *type_node, type_ref);
     }
