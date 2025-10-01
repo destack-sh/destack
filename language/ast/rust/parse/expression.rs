@@ -171,11 +171,20 @@ impl<'a> Parser<'a> {
     #[inline]
     fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::LessThan)?;
+        
+        // empty static arguments
+        if self.peek_token(TokenType::GreaterThan).is_ok() {
+            self.bump(); // eat greater than
+            return Ok(vec![]);
+        } 
+        
+        // regular static arguments
         let static_arguments = self
             .with_options(self.options.in_static_type(), |parser| {
                 parser.eat_arguments_body()
             })
             .for_node_type(NodeType::Expression)?;
+        
         self.eat_token(TokenType::GreaterThan)
             .for_node_type(NodeType::Expression)?;
         Ok(static_arguments)
