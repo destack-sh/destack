@@ -192,4 +192,20 @@ mod tests {
             |p| p.eat_function(None)
         );
     }
+
+    #[test]
+    fn test_format_function_with_self() {
+        let source = r"function init(capacity: int32) => Self {
+    Self {
+        map: Map.new(capacity)
+        queue: Queue.new(capacity)
+        capacity: capacity
+        somethingElse: something
+        moreStuff: bar()
+        evenMoreStuff: foo()
+        moreMoreMoreStuff: baz()
+    }
+}";
+        assert_format!(source, source, |p| p.eat_function(None));
+    }
 }

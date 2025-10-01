@@ -1,4 +1,3 @@
-
 trait Allocator {
-    function allocate(self, size: usize);
+    function allocate(self, size: usize)
 }

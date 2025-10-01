@@ -42,13 +42,13 @@ implement Board {
     /// Create a new empty board.
     function new(width: int32, height: int32) => Board {
         let cells = []
-        // for y in 0..height {
-        //     let row = []
-        //     for x in 0..width {
-        //         row.push(Cell { isFilled: false, color: null })
-        //     }
-        //     cells.push(row)
-        // }
+        for y in 0..height {
+            let row = []
+            for x in 0..width {
+                row.push(Cell { isFilled: false, color: null })
+            }
+            cells.push(row)
+        }
         Board { width, height, cells }
     }
 
@@ -78,20 +78,20 @@ implement Board {
         let y = self.height - 1
         while y >= 0 {
             let isComplete = true
-            // for x in 0..self.width {
-            //     if !self.cells[y][x].isFilled {
-            //         isComplete = false
-            //         break
-            //     }
-            // }
+            for x in 0..self.width {
+                if !self.cells[y][x].isFilled {
+                    isComplete = false
+                    break
+                }
+            }
             if isComplete {
                 // remove this line
                 self.cells.remove(y)
                 // add new empty line at top
                 let newRow: List<Cell> = []
-                // for x in 0..self.width {
-                //     newRow.push(Cell { isFilled: false, color: null })
-                // }
+                for x in 0..self.width {
+                    newRow.push(Cell { isFilled: false, color: null })
+                }
                 self.cells.insert(0, newRow)
                 linesCleared += 1
             } else {
