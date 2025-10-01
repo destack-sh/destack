@@ -235,15 +235,19 @@ impl<'a> Parser<'a> {
                 }
                 // may be a tuple with anonymous elements or just a parenthesized expression (see below)
                 else {
+                    let inner_start = self.pos();
                     let expression_id = self
                         .with_options(self.options.in_parenthesis(), |parser| {
                             parser.eat_expression()
                         })?;
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    let expression = self.tree.get(expression_id);
-                    match expression {
-                        // if it was a tuple, just expand it to cover the entire span
-                        Expression::TupleLiteral(_) => {
+                    match self.tree.get(expression_id) {
+                        // if it was a tuple starting here, expand it to cover the entire span
+                        //  (except if that tuple has its own parenthesis already when nesting)
+                        Expression::TupleLiteral(_)
+                            if self.tokens[inner_start as usize].token.r#type
+                                != TokenType::OpenParenthesis =>
+                        {
                             self.tree.set_span(expression_id, self.get_span_from(start));
                             expression_id
                         }
