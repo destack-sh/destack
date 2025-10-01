@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         // literal
         let literal_id = self.eat_scalar_literal().for_node_type(NodeType::Index)?;
         let index = match self.tree.get(literal_id) {
-            ScalarLiteral::Integer(index, _) => *index,
+            ScalarLiteral::Integer(index) => *index,
             _ => return Err(ParseError::unexpected(self.peek()?.span)),
         };
 
@@ -201,7 +201,7 @@ mod tests {
         assert_node!(parser.tree, index_id, Index::Explicit { receiver, index } => {
             assert_eq!(*receiver, recv);
             assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
-                assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1, _));
+                assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1));
             });
         });
     }
@@ -239,7 +239,7 @@ mod tests {
             // 1
             assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
-                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1, _));
+                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1));
                 });
             });
 
@@ -247,7 +247,7 @@ mod tests {
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
                 assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
-                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2, _));
+                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2));
                 });
             });
         });

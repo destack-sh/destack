@@ -110,7 +110,7 @@ macro_rules! assert_check {
 macro_rules! assert_int {
     // Exact integer value.
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Integer(n, _) => {
+        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Integer(n) => {
             assert_eq!(
 							*n,
 							$expected,
@@ -125,7 +125,7 @@ macro_rules! assert_int {
 macro_rules! assert_float {
     // Exact float value (elementwise equal).
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Float(f, _) => {
+        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Float(f) => {
             assert_eq!(
 							*f,
 							$expected,
@@ -193,7 +193,7 @@ macro_rules! assert_lit_string {
 macro_rules! assert_lit_int {
     ($session:expr, $id:expr, $expected:expr) => {{
         match $id {
-            $crate::ScalarLiteral::Integer(n, _) => {
+            $crate::ScalarLiteral::Integer(n) => {
                 assert_eq!(*n, $expected, "expected integer");
             }
             other => panic!("expected ScalarLiteral::Integer, got {other:?}"),

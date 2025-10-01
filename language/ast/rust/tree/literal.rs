@@ -24,9 +24,9 @@ pub enum ScalarLiteral {
     /// Byte value.
     Byte(u8),
     /// Integer value.
-    Integer(i64, IntType),
+    Integer(i64),
     /// Float value.
-    Float(f64, FloatType),
+    Float(f64),
     /// Character value.
     Character(char),
     /// String value.

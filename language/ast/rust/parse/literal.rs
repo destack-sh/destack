@@ -84,16 +84,9 @@ impl<'a> Parser<'a> {
                 };
                 match parsed_int {
                     Ok(value) => {
-                        let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Integer(
-                                value,
-                                IntType {
-                                    width: 32,
-                                    is_signed: true,
-                                },
-                            ),
-                            self.get_span_from(start),
-                        );
+                        let scalar_literal = self
+                            .tree
+                            .allocate(ScalarLiteral::Integer(value), self.get_span_from(start));
                         Ok(scalar_literal)
                     }
                     Err(_) => Err(ParseError::expected_for(
@@ -124,10 +117,9 @@ impl<'a> Parser<'a> {
                 let parsed_float = cleaned_str.parse::<f64>();
                 match parsed_float {
                     Ok(value) => {
-                        let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Float(value, FloatType::Float64),
-                            self.get_span_from(start),
-                        );
+                        let scalar_literal = self
+                            .tree
+                            .allocate(ScalarLiteral::Float(value), self.get_span_from(start));
                         Ok(scalar_literal)
                     }
                     Err(_) => Err(ParseError::expected_for(
