@@ -140,21 +140,37 @@ impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        write!(
-            f,
-            [group(&format_args![
-                token("("),
-                soft_block_indent(&format_with(|f| f
-                    .join_with(&format_args![
-                        if_group_fits_on_line(&token(",")),
-                        soft_line_break_or_space()
-                    ])
-                    .entries(&self.elements)
-                    .finish())),
-                f.context().block_infix_annotations(node_id),
-                token(")"),
-            ])]
-        )?;
+        if self.elements.len() == 1 {
+            // single element tuple needs trailing comma if single line
+            write!(
+                f,
+                [group(&format_args![
+                    token("("),
+                    soft_block_indent(&format_args![
+                        self.elements[0],
+                        if_group_fits_on_line(&token(","))
+                    ]),
+                    token(")")
+                ])]
+            )?;
+        } else {
+            // multi-element tuple
+            write!(
+                f,
+                [group(&format_args![
+                    token("("),
+                    soft_block_indent(&format_with(|f| f
+                        .join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(&self.elements)
+                        .finish())),
+                    f.context().block_infix_annotations(node_id),
+                    token(")"),
+                ])]
+            )?;
+        }
 
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
@@ -494,6 +510,18 @@ mod tests {
             |p| p.eat_scalar_literal(),
             DystFormatOptions::default()
         );
+    }
+
+    /// Empty tuples should be retained.
+    #[test]
+    fn test_format_tuple_literal_empty() {
+        assert_format!("()", "()", |p| p.eat_tuple_literal());
+    }
+
+    /// One element tuples should retain their trailing comma if single line.
+    #[test]
+    fn test_format_tuple_literal_one_element_single_line() {
+        assert_format!("(1,)", "(1,)", |p| p.eat_tuple_literal());
     }
 
     /// If the tuple fits on a single line, it should print on a single line.

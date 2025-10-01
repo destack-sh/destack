@@ -203,8 +203,19 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open paranthesis
                 self.eat_newlines_maybe()?;
 
-                // named tuple element, must be a tuple
-                if self.peek_token(TokenType::Identifier).is_ok()
+                // if we immediately see a closing parenthesis, it's an empty tuple
+                if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                    self.bump(); // eat closing parenthesis
+                    let tuple_literal_id = self
+                        .tree
+                        .allocate(TupleLiteral { elements: vec![] }, self.get_span_from(start));
+                    self.tree.allocate(
+                        Expression::TupleLiteral(tuple_literal_id),
+                        self.get_span_from(start),
+                    )
+                }
+                // named tuple element, must be some tuple
+                else if self.peek_token(TokenType::Identifier).is_ok()
                     && self.peek_next_token(TokenType::Colon).is_ok()
                 {
                     let tuple_elements = self
@@ -728,6 +739,19 @@ mod tests {
         TupleLiteral, TupleLiteralField, UnaryOperator, assert_expr_path, assert_int,
         assert_lit_int, assert_node, assert_path, assert_string,
     };
+
+    /// Empty parenthesis are tuples.
+    #[test]
+    fn test_parse_empty_parenthesis_tuple() {
+        let mut test = TestParser::new("()");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::TupleLiteral(tuple_literal_id) => {
+            assert_node!(parser.tree, *tuple_literal_id, TupleLiteral { elements } => {
+                assert_eq!(elements.len(), 0);
+            });
+        });
+    }
 
     /// Tuple literals are disambiguated.
     /// (1, 2)
