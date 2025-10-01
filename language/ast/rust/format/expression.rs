@@ -258,7 +258,18 @@ mod tests {
         );
     }
 
-    /// Empty arguments and tuples should be respected.
+    /// Empty parenthesis/arguments/tuplestuples should be respected.
+    #[test]
+    fn test_format_expression_nested_empty_parenthesis() {
+        assert_format!(
+            "(((())))",
+            "(((())))",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Empty parenthesis/arguments/tuplestuples should be respected.
     #[test]
     fn test_format_expression_nested_empty_arguments() {
         assert_format!(

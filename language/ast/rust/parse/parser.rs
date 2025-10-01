@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
         )
     }
 
-    /// Get the current position.
+    /// Get the current position in the tokens.
     #[inline]
     pub fn pos(&self) -> u32 {
         self.pos as u32
