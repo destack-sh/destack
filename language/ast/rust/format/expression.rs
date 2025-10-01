@@ -257,4 +257,15 @@ mod tests {
             DystFormatOptions::default_tab()
         );
     }
+
+    /// Empty arguments and tuples should be respected.
+    #[test]
+    fn test_format_expression_nested_empty_arguments() {
+        assert_format!(
+            "foo<()>(((())))",
+            "foo<()>(((())))",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
 }
