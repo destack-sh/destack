@@ -82,38 +82,14 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
-        let static_parameters = self.eat_static_parameters_maybe()?;
-
-        // nocheckin: pull out common parsing & formatting 
-        //  (for: representation type, static params, super types, ..?)
+        let static_parameters = self
+            .eat_static_parameters_maybe()
+            .for_node_type(NodeType::Union)?;
 
         // optional super types: : ...
-        let super_types = if self.peek_token(TokenType::Colon).is_ok() {
-            self.bump(); // eat colon
-            let mut super_types: Vec<NodeId<Expression>> = Vec::new();
-            loop {
-                // eat until open parenthesis
-                if self.peek_token(TokenType::OpenBrace).is_ok() {
-                    break;
-                }
-                // consume any stop
-                else if self.peek_any_stop().is_ok() {
-                    self.eat_any_stop_with_newlines()?;
-                }
-                // keep eating super types
-                else {
-                    let super_type = self
-                        .with_options(self.options.in_static_type_before_block(), |parser| {
-                            parser.eat_expression()
-                        })
-                        .for_node_type(NodeType::Union)?;
-                    super_types.push(super_type);
-                }
-            }
-            Some(super_types)
-        } else {
-            None
-        };
+        let super_types = self
+            .eat_super_types_maybe()
+            .for_node_type(NodeType::Union)?;
 
         // body
         self.eat_token(TokenType::OpenBrace)
