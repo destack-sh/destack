@@ -84,7 +84,6 @@ impl<'a> Parser<'a> {
     /// x: 1
     /// y
     /// 2
-    /// z: foo() > 7
     /// ```
     #[inline]
     pub fn eat_argument(&mut self) -> ParseResult<NodeId<Argument>> {
@@ -109,6 +108,61 @@ impl<'a> Parser<'a> {
                 .allocate(Argument::Positional { value }, self.get_span_from(start));
             Ok(argument_id)
         }
+    }
+
+    /// Eat static arguments (including the `<` and `>` tokens) if they exist.
+    pub fn eat_static_arguments_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Argument>>>> {
+        if self.peek_token(TokenType::LessThan).is_ok() {
+            return Ok(Some(self.eat_static_arguments()?));
+        }
+        Ok(None)
+    }
+
+    /// Eat static arguments (including the `<` and `>` tokens).
+    pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
+        self.eat_token(TokenType::LessThan)?;
+
+        // empty static arguments
+        if self.peek_token(TokenType::GreaterThan).is_ok() {
+            self.bump(); // eat greater than
+            return Ok(vec![]);
+        }
+
+        // regular static arguments
+        let static_arguments = self.with_options(self.options.in_static_type(), |parser| {
+            parser.eat_arguments_body()
+        })?;
+
+        self.eat_token(TokenType::GreaterThan)?;
+        Ok(static_arguments)
+    }
+
+    /// Eat dynamic arguments (including the `(` and `)` tokens) if they exist.
+    pub fn eat_dynamic_arguments_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Argument>>>> {
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            return Ok(Some(self.eat_dynamic_arguments()?));
+        }
+        Ok(None)
+    }
+
+    /// Eat dynamic arguments (including the `(` and `)` tokens).
+    pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
+        self.eat_token(TokenType::OpenParenthesis)?;
+
+        // empty dynamic arguments
+        if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            self.bump(); // eat close parenthesis
+            return Ok(vec![]);
+        }
+
+        // regular dynamic arguments
+        let dynamic_arguments = self.with_options(self.options.in_nested(), |parser| {
+            parser.eat_arguments_body()
+        })?;
+
+        self.eat_token(TokenType::CloseParenthesis)?;
+
+        Ok(dynamic_arguments)
     }
 
     /// Eat an argument list. May be comma or newline separated.

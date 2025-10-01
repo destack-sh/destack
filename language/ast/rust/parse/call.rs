@@ -109,43 +109,14 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Call>> {
         let start = self.mark();
 
-        // static arguments (may not exist or be empty)
-        let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.bump(); // eat less than
-            if self.peek_token(TokenType::GreaterThan).is_ok() {
-                self.bump(); // eat greater than
-                None
-            } else {
-                let static_arguments = self
-                    .with_options(self.options.in_static_type(), |parser| {
-                        parser.eat_arguments_body()
-                    })
-                    .for_node_type(NodeType::Call)?;
-                self.eat_token(TokenType::GreaterThan)?;
-                Some(static_arguments)
-            }
-        } else {
-            None
-        };
-
         // dynamic arguments (may be empty)
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let dynamic_arguments = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-            vec![]
-        } else {
-            self.with_options(self.options.in_nested(), |parser| {
-                parser.eat_arguments_body()
-            })
-            .for_node_type(NodeType::Call)?
-        };
-        self.eat_token(TokenType::CloseParenthesis)?;
+        let dynamic_arguments = self.eat_dynamic_arguments()?;
 
         // call
         let call_id = self.tree.allocate(
             Call {
                 runtime,
                 receiver: receiver_id,
-                static_arguments,
                 dynamic_arguments,
             },
             self.get_span_from(start),
@@ -250,27 +221,17 @@ mod tests {
 
     #[test]
     fn test_parse_call_postfix() {
-        // <Validate: false>(1, x: 2)
-        let mut test = TestParser::new("<Validate: false>(1, x: 2)");
+        // (1, x: 2)
+        let mut test = TestParser::new("(1, x: 2)");
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let call_id = parser
             .eat_call_postfix(recv, Some(Runtime::Dynamic))
             .unwrap();
 
-        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
+        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, dynamic_arguments } => {
             assert_eq!(*receiver, recv);
             assert_eq!(*runtime, Some(Runtime::Dynamic));
-
-            // <Validate: false>
-            let static_args = static_arguments.as_ref().expect("expected static args");
-            assert_eq!(static_args.len(), 1);
-            assert_node!(parser.tree, static_args[0], Argument::Named { name, value } => {
-                assert_string!(parser.session, *name, "Validate");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
-                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Boolean(false));
-                });
-            });
 
             // (1, x: 2)
             assert_eq!(dynamic_arguments.len(), 2);
@@ -302,10 +263,9 @@ mod tests {
         let call_id = parser
             .eat_call_postfix(recv, Some(Runtime::Dynamic))
             .unwrap();
-        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
+        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, dynamic_arguments } => {
             assert_eq!(*receiver, recv);
             assert_eq!(*runtime, Some(Runtime::Dynamic));
-            assert!(static_arguments.is_none());
             assert_eq!(dynamic_arguments.len(), 0);
         });
     }

@@ -30,18 +30,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Implement)?;
 
         // static arguments
-        let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.bump(); // eat <
-            let static_arguments = self
-                .with_options(self.options.in_static_type_before_block(), |parser| {
-                    parser.eat_arguments_body()
-                })
-                .for_node_type(NodeType::Implement)?;
-            self.eat_token(TokenType::GreaterThan)?;
-            Some(static_arguments)
-        } else {
-            None
-        };
+        let static_arguments = self.eat_static_arguments_maybe()?;
 
         // receiver
         let receiver = self

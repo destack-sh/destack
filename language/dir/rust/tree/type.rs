@@ -122,7 +122,7 @@ impl FromStr for FloatType {
 ///
 /// A | B // implicit anonymous union
 /// A & B // implicit anonymous intersection
-/// 
+///
 /// function (int32) => int32
 /// function () => Result<int32, Error>
 /// ```

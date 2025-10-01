@@ -45,26 +45,6 @@ impl<'ast> FormatNode<'ast, Call> for Call {
         // receiver
         write!(f, [self.receiver])?;
 
-        // static arguments
-        if let Some(static_arguments) = &self.static_arguments
-            && !static_arguments.is_empty()
-        {
-            write!(
-                f,
-                [group(&format_args![
-                    token("<"),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
-                            soft_line_break_or_space()
-                        ])
-                        .entries(static_arguments)
-                        .finish())),
-                    token(">")
-                ])]
-            )?;
-        }
-
         // bare static call
         if self.runtime == Some(Runtime::Static) && self.dynamic_arguments.is_empty() {
             write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
