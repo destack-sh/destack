@@ -361,7 +361,7 @@ let x =
             // foo.parse()
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::Call(call_id) => {
-                assert_node!(parser.tree, *call_id, Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                assert_node!(parser.tree, *call_id, Call { runtime, receiver, dynamic_arguments: _ } => {
                     assert_eq!(*runtime, None);
                     assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser.session, *path, "foo.parse");

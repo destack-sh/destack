@@ -905,13 +905,6 @@ pub fn walk_call<V: NodeVisitor + ?Sized>(
     let receiver = tree.get(call.receiver);
     visitor.visit_expression(tree, call.receiver, receiver);
 
-    if let Some(static_arguments) = &call.static_arguments {
-        for arg_id in static_arguments {
-            let arg = tree.get(*arg_id);
-            visitor.visit_argument(tree, *arg_id, arg);
-        }
-    }
-
     for arg_id in &call.dynamic_arguments {
         let arg = tree.get(*arg_id);
         visitor.visit_argument(tree, *arg_id, arg);

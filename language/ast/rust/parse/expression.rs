@@ -1,9 +1,7 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use crate::parse::prelude::*;
-use crate::{
-    Argument, RangeLiteral, ScopedMutability, StructLiteral, TupleLiteral, TupleLiteralField,
-};
+use crate::{RangeLiteral, ScopedMutability, StructLiteral, TupleLiteral, TupleLiteralField};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -167,29 +165,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat static arguments.
-    #[inline]
-    fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
-        self.eat_token(TokenType::LessThan)?;
-        
-        // empty static arguments
-        if self.peek_token(TokenType::GreaterThan).is_ok() {
-            self.bump(); // eat greater than
-            return Ok(vec![]);
-        } 
-        
-        // regular static arguments
-        let static_arguments = self
-            .with_options(self.options.in_static_type(), |parser| {
-                parser.eat_arguments_body()
-            })
-            .for_node_type(NodeType::Expression)?;
-        
-        self.eat_token(TokenType::GreaterThan)
-            .for_node_type(NodeType::Expression)?;
-        Ok(static_arguments)
-    }
-
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
@@ -235,6 +210,7 @@ impl<'a> Parser<'a> {
                     let tuple_elements = self
                         .eat_tuple_literal_body(None)
                         .for_node_type(NodeType::TupleLiteral)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                     let tuple_literal_id = self.tree.allocate(
                         TupleLiteral {
                             elements: tuple_elements,
@@ -541,7 +517,6 @@ impl<'a> Parser<'a> {
                 Call {
                     runtime,
                     receiver: left_expression_id,
-                    static_arguments: None,
                     dynamic_arguments: vec![],
                 },
                 self.get_span_from(start),
@@ -1049,7 +1024,7 @@ geom.Mesh<2, Dims: 4> {
                         assert_node!(
                             parser.tree,
                             *call_id,
-                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                            Call { runtime, receiver, dynamic_arguments: _ } => {
                                 assert_eq!(*runtime, None);
                                 // self.foo
                                 assert_node!(
@@ -1126,7 +1101,7 @@ let x =
                                                 assert_node!(
                                                     parser.tree,
                                                     *call_id,
-                                                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                                    Call { runtime, receiver, dynamic_arguments: _ } => {
                                                         assert_eq!(*runtime, None);
                                                         // foo.parse
                                                         assert_node!(
@@ -1198,7 +1173,7 @@ self
                 assert_node!(
                     parser.tree,
                     *call_id,
-                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                    Call { runtime, receiver, dynamic_arguments: _ } => {
                         assert_eq!(*runtime, None);
                         // self.foo().baz
                         assert_node!(
@@ -1213,7 +1188,7 @@ self
                                         assert_node!(
                                             parser.tree,
                                             *call_id,
-                                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                            Call { runtime, receiver, dynamic_arguments: _ } => {
                                                 assert_eq!(*runtime, None);
                                                 // self.foo
                                                 assert_node!(
@@ -1562,7 +1537,7 @@ self
                         assert_node!(
                             parser.tree,
                             *call_id,
-                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                            Call { runtime, receiver, dynamic_arguments: _ } => {
                                 assert_eq!(*runtime, None);
                                 // a
                                 assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
@@ -1585,7 +1560,7 @@ self
                                 assert_node!(
                                     parser.tree,
                                     *call_id,
-                                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                    Call { runtime, receiver, dynamic_arguments: _ } => {
                                         assert_eq!(*runtime, Some(Runtime::Static));
                                         // b
                                         assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
