@@ -138,7 +138,16 @@ export async function activate(ctx: vscode.ExtensionContext) {
     };
 
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ language: "dyst" }, { language: "destack" }, { pattern: "**/*.ds" }],
+        documentSelector: [
+            { language: "dyst" },
+            { language: "dst" },
+            { language: "dsb" },
+            { language: "dsx" },
+            { pattern: "**/*.ds" },
+            { pattern: "**/*.dst" },
+            { pattern: "**/*.dsb" },
+            { pattern: "**/*.dsx" },
+        ],
         outputChannel: clientLog,
         traceOutputChannel: clientLog,
     };

@@ -41,7 +41,6 @@ members = [
 	"library/test",
 	"library/text",
 	"library/time",
-	"library/tokei",
 	"library/unicode",
 	"library/universe",
 	"library/uuid",
@@ -53,7 +52,9 @@ members = [
 	"extension/python",
 	"extension/rust",
 	"extension/javascript",
+	"extension/tokei",
 	"extension/web",
+	"extension/vscode",
 	"extension/zed",
 ]
 
@@ -108,7 +109,6 @@ destack_telemetry = { path = "library/telemetry" }
 destack_terminal = { path = "library/terminal" }
 destack_test = { path = "library/test" }
 destack_time = { path = "library/time" }
-destack_tokei = { path = "library/tokei" }
 destack_unicode = { path = "library/unicode" }
 destack_universe = { path = "library/universe" }
 destack_uuid = { path = "library/uuid" }
@@ -119,8 +119,11 @@ destack_cli = { path = "extension/cli" }
 destack_javascript = { path = "extension/javascript" }
 destack_lsp = { path = "extension/lsp" }
 destack_python = { path = "extension/python" }
+destack_tokei = { path = "extension/tokei" }
 destack_rust = { path = "extension/rust" }
 destack_web = { path = "extension/web" }
+destack_vscode = { path = "extension/vscode" }
+destack_zed = { path = "extension/zed" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"

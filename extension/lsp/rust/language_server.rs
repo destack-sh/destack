@@ -98,7 +98,7 @@ impl LanguageServer for DestackLanguageServer {
             .log_message(lsp::MessageType::INFO, "destack.initialized.start")
             .await;
         self.register_all_file_watches().await;
-        self.index_all_workspaces().await;
+        self.reindex_all_workspaces().await;
         self.client
             .log_message(lsp::MessageType::INFO, "destack.initialized")
             .await;

@@ -348,7 +348,7 @@ impl DestackLanguageServer {
     }
 
     /// Index every known workspace.
-    pub(crate) async fn index_all_workspaces(&self) {
+    pub(crate) async fn reindex_all_workspaces(&self) {
         let workspace_handles: Vec<_> = {
             let guard = self.workspaces.read().await;
             guard.values().cloned().collect()

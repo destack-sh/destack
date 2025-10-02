@@ -1,5 +1,2 @@
 #module
-Module {
-	name: "entity"
-	dependencies: []
-}
+Module { name: "entity", dependencies: [] }

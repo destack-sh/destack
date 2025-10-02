@@ -15,6 +15,10 @@ const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
         name: Some("Dyst"),
     },
     LanguageDeclaration {
+        extension: &["dst"],
+        name: Some("Dyst Text"),
+    },
+    LanguageDeclaration {
         extension: &["rs"],
         name: Some("Rust"),
     },
