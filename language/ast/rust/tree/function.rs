@@ -78,7 +78,7 @@ pub struct Function {
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<NodeId<Expression>>,
-    /// The with declaration for the function (can't have a body).
+    /// The with declaration for the function.
     pub with: Option<NodeId<With>>,
     /// The body of the function.
     pub body: Option<NodeId<Block>>,

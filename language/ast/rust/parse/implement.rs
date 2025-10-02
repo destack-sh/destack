@@ -52,6 +52,9 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional with declaration
+        let with = self.eat_with_maybe().for_node_type(NodeType::Implement)?;
+
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
@@ -66,6 +69,7 @@ impl<'a> Parser<'a> {
                 static_arguments,
                 receiver,
                 for_trait,
+                with,
                 expressions,
             },
             self.get_span_from(start),
@@ -91,7 +95,7 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions } => {
+        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(for_trait.is_none());
             assert!(expressions.is_empty());
@@ -115,7 +119,7 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions } => {
+        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(for_trait.is_none());
             assert!(expressions.is_empty());
@@ -151,7 +155,7 @@ implement Bar<int32> for Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions } => {
+        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(expressions.is_empty());
 
@@ -191,7 +195,7 @@ implement<T> Bar<T> for Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions } => {
+        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(expressions.is_empty());
 
             // <T>

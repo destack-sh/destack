@@ -86,32 +86,42 @@ impl<'a> Parser<'a> {
             .eat_super_types_maybe()
             .for_node_type(NodeType::Union)?;
 
+        // optional with declaration
+        let with = self.eat_with_maybe().for_node_type(NodeType::Union)?;
+
         // body
         self.eat_token(TokenType::OpenBrace)
             .for_node_type(NodeType::Union)?;
         self.eat_newlines_maybe()?;
-        let union_id = self
-            .eat_union_body(visibility)
-            .for_node_type(NodeType::Union)?;
+        let (fields, expressions) = self.eat_union_body().for_node_type(NodeType::Union)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Union)?;
 
-        // fill in header data
-        let union = self.tree.get_mut(union_id);
-        union.name = name;
-        union.static_parameters = static_parameters;
-        union.tag_type = explicit_type;
-        union.representation_type = representation_type;
-        union.super_types = super_types;
+        // union
+        let union_id = self.tree.allocate(
+            Union {
+                name,
+                visibility,
+                static_parameters,
+                super_types,
+                tag_type: explicit_type,
+                representation_type,
+                with,
+                fields,
+                expressions,
+            },
+            self.get_span_from(start),
+        );
         self.tree.set_span(union_id, self.get_span_from(start));
 
         Ok(union_id)
     }
 
     /// Eat a union body (without the header or `{` and `}`)
-    fn eat_union_body(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Union>> {
-        let start = self.mark();
-
+    #[allow(clippy::type_complexity)]
+    fn eat_union_body(
+        &mut self,
+    ) -> ParseResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -138,20 +148,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let union_id = self.tree.allocate(
-            Union {
-                name: None,
-                visibility,
-                static_parameters: None,
-                super_types: None,
-                tag_type: None,
-                representation_type: None,
-                fields,
-                expressions,
-            },
-            self.get_span_from(start),
-        );
-        Ok(union_id)
+        Ok((fields, expressions))
     }
 
     /// Peek a union field.
@@ -226,6 +223,7 @@ impl<'a> Parser<'a> {
                         super_types: None,
                         representation_type: None,
                         static_parameters: None,
+                        with: None,
                         fields,
                         expressions: Vec::new(),
                     },

@@ -5,6 +5,16 @@ use crate::parse::prelude::*;
 use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, With, WithClause};
 
 impl<'a> Parser<'a> {
+    /// Eat a with declaration maybe.
+    #[inline]
+    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<NodeId<With>>> {
+        if self.peek_keyword(Keyword::With).is_ok() {
+            Ok(Some(self.eat_with()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Eat a with declaration.
     ///
     /// With can declare the use of an item in a scope and refine type bounds.

@@ -174,6 +174,7 @@ impl<'a> Parser<'a> {
                 None
             }
         };
+
         // optional separator after self (comma or newline) before other parameters
         if self_parameter.is_some() && self.peek_item_stop().is_ok() {
             self.eat_item_stop_with_newlines()?;
@@ -202,14 +203,8 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // with (postfix)
-        let with = if self.peek_keyword(Keyword::With).is_ok() {
-            self.bump(); // eat with
-            let with = self.eat_with_body().for_node_type(NodeType::Function)?;
-            Some(with)
-        } else {
-            None
-        };
+        // with
+        let with = self.eat_with_maybe()?;
 
         // body
         let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -226,11 +221,11 @@ impl<'a> Parser<'a> {
                 // NOTE #Incomplete: support lambda function style
                 //  (same postfix problem as with struct literals?)
                 style: FunctionStyle::Function,
-                with,
                 static_parameters,
                 self_parameter,
                 dynamic_parameters,
                 return_type,
+                with,
                 body,
             },
             self.get_span_from(start),

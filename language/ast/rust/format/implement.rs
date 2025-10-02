@@ -46,6 +46,11 @@ impl<'ast> FormatNode<'ast, Implement> for Implement {
             write!(f, [space(), Keyword::For, space(), for_trait])?;
         }
 
+        // with declaration
+        if let Some(with) = self.with {
+            write!(f, [space(), with])?;
+        }
+
         // body
         if self.expressions.is_empty() {
             write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;

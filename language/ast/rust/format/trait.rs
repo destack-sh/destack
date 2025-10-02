@@ -65,10 +65,8 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         }
 
         // with clauses
-        if !self.withs.is_empty() {
-            for with in &self.withs {
-                write!(f, [space(), *with])?;
-            }
+        if let Some(with) = &self.with {
+            write!(f, [space(), *with])?;
         }
 
         // space before trait body
