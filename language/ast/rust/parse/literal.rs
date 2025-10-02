@@ -279,6 +279,15 @@ impl<'a> Parser<'a> {
             || UnaryOperator::from_token_type(token_type).is_some()
     }
 
+    /// Whether the token type is the start of a type with a width.
+    fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
+        if let Some(target) = target.strip_prefix(prefix) {
+            target.parse::<u16>().ok()
+        } else {
+            None
+        }
+    }
+
     /// Peek a primitive type (e.g., `!`, `void`, `boolean`, `int32`, `uint7`, `float32`).
     ///
     /// Examples:
@@ -328,9 +337,13 @@ impl<'a> Parser<'a> {
             // null
             "null" => Ok(TypeLiteral::Null),
             // boolean
-            "boolean" => Ok(TypeLiteral::Boolean),
+            "boolean" | "bool" => Ok(TypeLiteral::Boolean),
             // character
-            "character" => Ok(TypeLiteral::Character),
+            "character" | "char" => Ok(TypeLiteral::Character),
+            // string
+            "string" | "str" => Ok(TypeLiteral::String),
+            // number
+            "number" => Ok(TypeLiteral::Number),
             // Self
             "Self"
                 // if next token doesn't start a related expression
@@ -340,30 +353,36 @@ impl<'a> Parser<'a> {
             {
                 Ok(TypeLiteral::Self_)
             }
-            // int_
-            int_str if int_str.starts_with("int") && int_str.len() > 3 => {
-                let Ok(width) = int_str.trim_start_matches("int").parse::<u16>() else {
-                    return Err(ParseError::expected(next.span, TokenType::Literal));
-                };
-                Ok(TypeLiteral::Int(IntType {
-                    width,
-                    is_signed: true,
-                }))
+            // int (followed by number or nothing)
+            "int" => {
+                Ok(TypeLiteral::Int(IntType { width: None, is_signed: true }))
             }
-            // uint_
-            uint_str if uint_str.starts_with("uint") && uint_str.len() > 4 => {
-                let Ok(width) = uint_str.trim_start_matches("uint").parse::<u16>() else {
-                    return Err(ParseError::expected(next.span, TokenType::Literal));
-                };
-                Ok(TypeLiteral::Int(IntType {
-                    width,
-                    is_signed: false,
-                }))
+            int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
+                Ok(TypeLiteral::Int(IntType { width: Some(width), is_signed: true }))
             }
-            // float32
-            "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
-            // float64
-            "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
+            int_str if let Some(width) = self.is_type_with_width("i", int_str) => {
+                Ok(TypeLiteral::Int(IntType { width: Some(width), is_signed: true }))
+            }
+            // uint (followed by number or nothing)
+            "uint" => {
+                Ok(TypeLiteral::Int(IntType { width: None, is_signed: false }))
+            }
+            uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
+                Ok(TypeLiteral::Int(IntType { width: Some(width), is_signed: false }))
+            }
+            uint_str if let Some(width) = self.is_type_with_width("u", uint_str) => {
+                Ok(TypeLiteral::Int(IntType { width: Some(width), is_signed: false }))
+            }
+            // float (followed by number or nothing)
+            "float" => {
+                Ok(TypeLiteral::Float(FloatType { width: None }))
+            }
+            float_str if let Some(width) = self.is_type_with_width("float", float_str) => {
+                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
+            }
+            float_str if let Some(width) = self.is_type_with_width("f", float_str) => {
+                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
+            }
             _ => Err(ParseError::expected(next.span, TokenType::Identifier)),
         }
     }
@@ -1024,7 +1043,7 @@ destack.geometry.Mesh<2, int32> {
         assert_eq!(
             int2,
             TypeLiteral::Int(IntType {
-                width: 2,
+                width: Some(2),
                 is_signed: true,
             })
         );
@@ -1034,7 +1053,7 @@ destack.geometry.Mesh<2, int32> {
         assert_eq!(
             int32,
             TypeLiteral::Int(IntType {
-                width: 32,
+                width: Some(32),
                 is_signed: true,
             })
         );
@@ -1047,10 +1066,10 @@ destack.geometry.Mesh<2, int32> {
         let mut parser = test.prepare();
 
         let float32 = parser.peek_type_literal().unwrap();
-        assert_eq!(float32, TypeLiteral::Float(FloatType::Float32));
+        assert_eq!(float32, TypeLiteral::Float(FloatType { width: Some(32) }));
         parser.bump();
 
         let float64 = parser.peek_type_literal().unwrap();
-        assert_eq!(float64, TypeLiteral::Float(FloatType::Float64));
+        assert_eq!(float64, TypeLiteral::Float(FloatType { width: Some(64) }));
     }
 }

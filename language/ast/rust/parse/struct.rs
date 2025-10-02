@@ -272,7 +272,7 @@ struct { x: int32, y: boolean
                 assert!(default.is_none());
                 assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
                     assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                        assert_eq!(*width, 32);
+                        assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
                 });
@@ -336,7 +336,7 @@ struct Foo(int32, boolean) {}
                 assert!(default.is_none());
                 assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
                     assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                        assert_eq!(*width, 32);
+                        assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
                 });
@@ -413,7 +413,7 @@ struct Foo<T: Numeric>: Boz {
                 assert_string!(parser.session, name.unwrap(), "b");
                 assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
                     assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                        assert_eq!(*width, 32);
+                        assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
                 });

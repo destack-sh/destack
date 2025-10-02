@@ -351,13 +351,13 @@ union(uint4, uint60) Foo<T>: Boz {
             // (uint4, uint60)
             assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(literal_id) => {
                 assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, 4);
+                    assert_eq!(int_ty.width, Some(4));
                     assert!(!int_ty.is_signed);
                 });
             });
             assert_node!(parser.tree, representation_type.unwrap(), Expression::TypeLiteral(literal_id) => {
                 assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, 60);
+                    assert_eq!(int_ty.width, Some(60));
                     assert!(!int_ty.is_signed);
                 });
             });
@@ -430,7 +430,7 @@ union(uint4, uint60) Foo<T>: Boz {
                         assert_string!(parser.session, name.unwrap(), "count");
                         assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
                             assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                                assert_eq!(int_ty.width, 32);
+                                assert_eq!(int_ty.width, Some(32));
                                 assert!(int_ty.is_signed);
                             });
                         });
@@ -458,7 +458,7 @@ union(uint4, uint60) Foo<T>: Boz {
                         // int32
                         assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
                             assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                                assert_eq!(int_ty.width, 32);
+                                assert_eq!(int_ty.width, Some(32));
                                 assert!(int_ty.is_signed);
                             });
                         });

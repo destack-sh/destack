@@ -130,7 +130,7 @@ implement Foo<int32> {
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
                         assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                            assert_eq!(*width, 32);
+                            assert_eq!(*width, Some(32));
                             assert!(*is_signed);
                         });
                     });
@@ -165,7 +165,7 @@ implement Bar<int32> for Baz {
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
                         assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                            assert_eq!(*width, 32);
+                            assert_eq!(*width, Some(32));
                             assert!(*is_signed);
                         });
                     });

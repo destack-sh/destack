@@ -71,10 +71,12 @@ impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
             TypeLiteral::Null => write!(f, [token("null")]),
             TypeLiteral::Boolean => write!(f, [token("boolean")]),
             TypeLiteral::Character => write!(f, [token("char")]),
-            TypeLiteral::Self_ => write!(f, [token("Self")]),
+            TypeLiteral::String => write!(f, [token("string")]),
+            TypeLiteral::Number => write!(f, [token("number")]),
             TypeLiteral::Int(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
+            TypeLiteral::Self_ => write!(f, [token("Self")]),
         }?;
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
@@ -86,18 +88,29 @@ impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
 impl<'ast> Format<DystFormatContext<'ast>> for IntType {
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         if self.is_signed {
-            write!(f, [token("int"), text(&self.width.to_string())])
+            // signed
+            if let Some(width) = self.width {
+                write!(f, [token("int"), text(&width.to_string())])
+            } else {
+                write!(f, [token("int")])
+            }
         } else {
-            write!(f, [token("uint"), text(&self.width.to_string())])
+            // unsigned
+            if let Some(width) = self.width {
+                write!(f, [token("uint"), text(&width.to_string())])
+            } else {
+                write!(f, [token("uint")])
+            }
         }
     }
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
-        match self {
-            FloatType::Float32 => write!(f, [token("float32")]),
-            FloatType::Float64 => write!(f, [token("float64")]),
+        if let Some(width) = self.width {
+            write!(f, [token("float"), text(&width.to_string())])
+        } else {
+            write!(f, [token("float")])
         }
     }
 }

@@ -304,7 +304,7 @@ function foo() => int32 with (
             let ret = return_type.expect("expected return type");
             assert_node!(parser.tree, ret, Expression::TypeLiteral(literal_id) => {
                 assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, 32);
+                    assert_eq!(int_ty.width, Some(32));
                     assert!(int_ty.is_signed);
                 });
             });
@@ -356,7 +356,7 @@ function b(
             let param_type = param.r#type.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Expression::TypeLiteral(literal_id) => {
                 assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, 32);
+                    assert_eq!(int_ty.width, Some(32));
                     assert!(int_ty.is_signed);
                 });
             });

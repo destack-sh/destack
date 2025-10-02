@@ -141,7 +141,7 @@ mod tests {
                 });
                 assert_node!(parser.tree, *assertion, Expression::TypeLiteral(literal_id) => {
                     assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                        assert_eq!(int_ty.width, 32);
+                        assert_eq!(int_ty.width, Some(32));
                         assert!(int_ty.is_signed);
                     });
                 });

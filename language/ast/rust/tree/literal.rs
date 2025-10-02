@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{Expression, Node, NodeId, NodeType, StringId};
 
 /// A ScalarLiteral is literal scalar value node.
@@ -73,6 +71,10 @@ pub enum TypeLiteral {
     Boolean,
     /// Character type.
     Character,
+    /// String type (unsized).
+    String,
+    /// "Number" type (alias).
+    Number,
     /// Integer type.
     Int(IntType),
     /// Float type.
@@ -90,52 +92,47 @@ impl Node for TypeLiteral {
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct IntType {
-    /// Bit width.
-    pub width: u16,
+    /// Bit width. May be omitted in AST for better diagnostics.
+    pub width: Option<u16>,
     /// Whether the integer is signed (`int*` or `uint*`).
     pub is_signed: bool,
 }
 
 /// A FloatType represents IEEE-754 float.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FloatType {
-    /// 32-bit IEEE-754 float.
-    Float32,
-    /// 64-bit IEEE-754 float.
-    Float64,
+pub struct FloatType {
+    /// Float width. May be omitted in AST for better diagnostics.
+    pub width: Option<u16>,
 }
 
 impl IntType {
     #[inline]
     pub fn as_str(self) -> String {
-        let mut as_str = if self.is_signed {
-            "int".to_string()
+        if self.is_signed {
+            // int
+            if let Some(width) = self.width {
+                format!("int{width}")
+            } else {
+                "int".to_string()
+            }
         } else {
-            "uint".to_string()
-        };
-        as_str.push_str(&self.width.to_string());
-        as_str
+            // uint
+            if let Some(width) = self.width {
+                format!("uint{width}")
+            } else {
+                "uint".to_string()
+            }
+        }
     }
 }
 
 impl FloatType {
     #[inline]
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            FloatType::Float32 => "float32",
-            FloatType::Float64 => "float64",
-        }
-    }
-}
-
-impl FromStr for FloatType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "float32" => Ok(FloatType::Float32),
-            "float64" => Ok(FloatType::Float64),
-            _ => Err(()),
+    pub fn as_str(self) -> String {
+        if let Some(width) = self.width {
+            format!("float{width}")
+        } else {
+            "float".to_string()
         }
     }
 }
