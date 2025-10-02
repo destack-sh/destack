@@ -295,6 +295,8 @@ pub struct FormatterSnapshot {
 
 #[cfg(test)]
 mod tests {
+    use dyst_source::SourceFormat;
+
     use crate::format::{
         FormatState, Formatted, IndentStyle, SimpleFormatContext, SimpleFormatOptions, VecBuffer,
     };
@@ -305,7 +307,7 @@ mod tests {
     #[test]
     fn test_join_multiple_format_together_without_any_separator() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [format_with(|f| {
                 f.join()
                     .entry(&token("a"))
@@ -325,7 +327,7 @@ mod tests {
     #[test]
     fn test_join_with_separator() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [format_with(|f| {
                 f.join_with(&format_args!(token(","), space()))
                     .entry(&token("1"))
@@ -350,7 +352,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [format_with(|f| {
                 f.fill()
@@ -400,7 +402,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [format_with(|f| {
                 f.fill()
@@ -428,7 +430,7 @@ mod tests {
         }
 
         let paragraph = Paragraph(String::from("test"));
-        let formatted = format!(SimpleFormatContext::default(), [paragraph]).unwrap();
+        let formatted = format!(SimpleFormatContext::empty_dyst(), [paragraph]).unwrap();
 
         assert_eq!("test\n", formatted.print().unwrap().as_str());
     }
@@ -436,14 +438,14 @@ mod tests {
     /// Write function formats arguments into buffer
     #[test]
     fn test_write_function_formats_arguments_into_buffer() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
 
         write!(&mut buffer, [format_args!(token("Hello World"))]).unwrap();
 
         let formatted = Formatted::new(
             Document::from(buffer.into_vec()),
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
         );
 
         assert_eq!("Hello World", formatted.print().unwrap().as_str());
@@ -452,14 +454,14 @@ mod tests {
     /// Write macro is preferable for simple cases
     #[test]
     fn test_write_macro_is_preferable_for_simple_cases() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
 
         write!(&mut buffer, [token("Hello World")]).unwrap();
 
         let formatted = Formatted::new(
             Document::from(buffer.into_vec()),
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
         );
 
         assert_eq!("Hello World", formatted.print().unwrap().as_str());
@@ -469,7 +471,7 @@ mod tests {
     #[test]
     fn test_format_function_creates_formatted_representation_from_arguments() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [&format_args!(token("test"))]
         )
         .unwrap();
@@ -479,7 +481,7 @@ mod tests {
     /// Format macro is preferable for direct usage
     #[test]
     fn test_format_macro_is_preferable_for_direct_usage() {
-        let formatted = format!(SimpleFormatContext::default(), [token("test")]).unwrap();
+        let formatted = format!(SimpleFormatContext::empty_dyst(), [token("test")]).unwrap();
         assert_eq!("test", formatted.print().unwrap().as_str());
     }
 }

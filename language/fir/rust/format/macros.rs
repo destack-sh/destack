@@ -80,6 +80,8 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
+    use dyst_source::SourceFormat;
+
     use crate::format::{FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer};
     use crate::prelude::*;
 
@@ -94,7 +96,7 @@ mod tests {
     /// Write a single format node to buffer.
     #[test]
     fn test_single_node() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
 
         write![&mut buffer, [TestFormat]].unwrap();
@@ -105,7 +107,7 @@ mod tests {
     /// Write multiple format nodes to buffer.
     #[test]
     fn test_multiple_nodes() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
 
         write![
@@ -130,7 +132,7 @@ mod tests {
     #[test]
     fn test_format_args_basic() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [format_args!(token("Hello World"))]
         )
         .unwrap();
@@ -141,7 +143,7 @@ mod tests {
     /// Write macro accepts buffer and format arguments.
     #[test]
     fn test_write_macro_basic() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
 
         write!(&mut buffer, [token("Hello"), space()]).unwrap();
@@ -160,7 +162,7 @@ mod tests {
     /// Format macro creates formatted document from arguments.
     #[test]
     fn test_format_macro_basic() {
-        let formatted = format!(SimpleFormatContext::default(), [token("test")]).unwrap();
+        let formatted = format!(SimpleFormatContext::empty_dyst(), [token("test")]).unwrap();
 
         assert_eq!("test", formatted.print().unwrap().as_str());
     }
@@ -173,7 +175,7 @@ mod tests {
             line_width: 10,
             ..SimpleFormatOptions::default()
         };
-        let context = SimpleFormatContext::new(options, Source::default());
+        let context = SimpleFormatContext::new(options, Source::empty(SourceFormat::Dyst));
 
         let formatted = format!(
             context,
@@ -204,7 +206,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [
                 token("aVeryLongIdentifier"),
@@ -237,7 +239,7 @@ mod tests {
                     line_width: 50,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()
@@ -253,7 +255,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()
@@ -268,7 +270,7 @@ mod tests {
     #[test]
     fn test_best_fitting_complex() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("aVeryLongIdentifier"),
                 best_fitting!(
@@ -330,7 +332,7 @@ mod tests {
                         line_width: 80,
                         ..SimpleFormatOptions::default()
                     },
-                    Source::default()
+                    Source::empty(SourceFormat::Dyst)
                 )
             )
             .print()
@@ -350,7 +352,7 @@ mod tests {
                         line_width: 21,
                         ..SimpleFormatOptions::default()
                     },
-                    Source::default()
+                    Source::empty(SourceFormat::Dyst)
                 )
             )
             .print()
@@ -369,7 +371,7 @@ mod tests {
                         line_width: 20,
                         ..SimpleFormatOptions::default()
                     },
-                    Source::default()
+                    Source::empty(SourceFormat::Dyst)
                 )
             )
             .print()
@@ -388,7 +390,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
             [best_fitting!(
                 // first variant - method call on line but break array
@@ -441,7 +443,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()
@@ -455,7 +457,7 @@ mod tests {
     fn test_best_fitting_selects_variant_by_width() {
         // the second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -507,7 +509,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()
@@ -526,7 +528,7 @@ mod tests {
     fn test_best_fitting_prints_like_normal_format_args() {
         // create a best fitting with multiple variants
         let formatted_best_fitting = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -573,7 +575,7 @@ mod tests {
         // this matches the IR above except that the `best_fitting` was replaced with
         // the contents of its second variant
         let formatted_normal_list = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -616,7 +618,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()
@@ -632,7 +634,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
         )
         .print()

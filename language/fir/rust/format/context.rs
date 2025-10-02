@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::sync::atomic::Ordering;
 
-use dyst_source::Source;
+use dyst_source::{Source, SourceFormat};
 
 use crate::format::{FormatOptions, GroupId, SimpleFormatOptions};
 
@@ -62,7 +62,7 @@ pub trait FormatContext {
     fn source(&self) -> &Source;
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SimpleFormatContext {
     options: SimpleFormatOptions,
     source: Source,
@@ -72,6 +72,14 @@ impl SimpleFormatContext {
     /// Create a new SimpleFormatContext with the given options and source.
     pub fn new(options: SimpleFormatOptions, source: Source) -> Self {
         Self { options, source }
+    }
+
+    /// Create an empty SimpleFormatContext.
+    pub fn empty_dyst() -> Self {
+        Self {
+            options: SimpleFormatOptions::default(),
+            source: Source::empty(SourceFormat::Dyst),
+        }
     }
 }
 

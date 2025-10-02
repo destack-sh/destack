@@ -1,5 +1,6 @@
 mod annotate;
 mod color;
+mod format;
 mod map;
 mod path;
 mod source;
@@ -9,6 +10,7 @@ mod uri;
 
 pub use annotate::*;
 pub use color::*;
+pub use format::*;
 pub use map::*;
 pub use path::*;
 pub use source::*;

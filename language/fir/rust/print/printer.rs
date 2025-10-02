@@ -1514,7 +1514,7 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::Source;
+    use dyst_source::{Source, SourceFormat};
 
     use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
     use crate::prelude::*;
@@ -1529,9 +1529,9 @@ mod tests {
         root: &dyn Format<SimpleFormatContext>,
         options: PrintOptions,
     ) -> Printed {
-        let formatted = crate::format!(SimpleFormatContext::default(), [root]).unwrap();
+        let formatted = crate::format!(SimpleFormatContext::empty_dyst(), [root]).unwrap();
 
-        Printer::new(&Source::default(), options)
+        Printer::new(&Source::empty(SourceFormat::Dyst), options)
             .print(formatted.document())
             .expect("Document to be valid")
     }
@@ -1737,7 +1737,7 @@ two lines`,
     /// Fill should break items optimally based on line width.
     #[test]
     fn test_fill_breaks() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut state);
         let mut formatter = Formatter::new(&mut buffer);
 
@@ -1785,7 +1785,7 @@ two lines`,
         let document = Document::from(buffer.into_vec());
 
         let printed = Printer::new(
-            &Source::default(),
+            &Source::empty(SourceFormat::Dyst),
             PrintOptions::default().with_line_width(10),
         )
         .print(&document)

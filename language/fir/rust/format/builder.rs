@@ -1132,6 +1132,8 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_source::SourceFormat;
+
     use crate::format::{BestFittingMode, IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
     use crate::{best_fitting, format, format_args, write};
@@ -1140,7 +1142,7 @@ mod tests {
     #[test]
     fn test_soft_line_break_fits_on_single_line() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break(),
@@ -1160,7 +1162,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::default(),
+            Source::empty(SourceFormat::Dyst),
         );
 
         let nodes = format!(
@@ -1183,7 +1185,7 @@ mod tests {
     #[test]
     fn test_hard_line_break_always_breaks() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [group(&format_args![
                 token("a,"),
                 hard_line_break(),
@@ -1200,7 +1202,7 @@ mod tests {
     #[test]
     fn test_empty_line_separates_nodes() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [group(&format_args![
                 token("a,"),
                 empty_line(),
@@ -1217,7 +1219,7 @@ mod tests {
     #[test]
     fn test_soft_line_break_or_space_fits_on_line() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break_or_space(),
@@ -1237,7 +1239,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::default(),
+            Source::empty(SourceFormat::Dyst),
         );
 
         let nodes = format!(
@@ -1259,7 +1261,7 @@ mod tests {
     /// Token writes content as-is to output
     #[test]
     fn test_token_writes_content() {
-        let nodes = format!(SimpleFormatContext::default(), [token("Hello World")]).unwrap();
+        let nodes = format!(SimpleFormatContext::empty_dyst(), [token("Hello World")]).unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1267,7 +1269,7 @@ mod tests {
     /// Token properly handles escaped string literals
     #[test]
     fn test_token_handles_escaped_strings() {
-        let nodes = format!(SimpleFormatContext::default(), [token("\"Hello\\tWorld\"")]).unwrap();
+        let nodes = format!(SimpleFormatContext::empty_dyst(), [token("\"Hello\\tWorld\"")]).unwrap();
 
         assert_eq!(r#""Hello\tWorld""#, nodes.print().unwrap().as_str());
     }
@@ -1276,7 +1278,7 @@ mod tests {
     #[test]
     fn test_line_postfix_pushes_to_end() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [token("a"), line_postfix(&token("c"), 0), token("b")]
         )
         .unwrap();
@@ -1292,7 +1294,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::default(),
+            Source::empty(SourceFormat::Dyst),
         );
 
         let nodes = format!(
@@ -1330,7 +1332,7 @@ mod tests {
     #[test]
     fn test_line_postfix_boundary_forces_printing() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("a"),
                 line_postfix(&token("c"), 0),
@@ -1348,7 +1350,7 @@ mod tests {
     #[test]
     fn test_space_separates_tokens() {
         let nodes = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [token("a"), space(), token("b")]
         )
         .unwrap();
@@ -1360,7 +1362,7 @@ mod tests {
     #[test]
     fn test_indent_adds_indentation_level() {
         let block = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1382,7 +1384,7 @@ mod tests {
     #[test]
     fn test_block_indent_adds_indentation_and_breaks() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1404,7 +1406,7 @@ mod tests {
     #[test]
     fn test_soft_block_indent_adds_soft_breaks() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [
                 token("switch {"),
                 soft_block_indent(&format_args![
@@ -1431,7 +1433,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::default(),
+            Source::empty(SourceFormat::Dyst),
         );
 
         let formatted = format!(
@@ -1461,7 +1463,7 @@ mod tests {
     #[test]
     fn test_if_group_fits_on_line_shows_when_fitting() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [group(&format_args![
                 token("["),
                 soft_block_indent(&format_args![
@@ -1514,7 +1516,7 @@ mod tests {
                 line_width: 20,
                 ..SimpleFormatOptions::default()
             },
-            Source::default(),
+            Source::empty(SourceFormat::Dyst),
         );
 
         let formatted = format!(context, [content]).unwrap();
@@ -1562,7 +1564,7 @@ mod tests {
                     line_width: 21,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default(),
+                Source::empty(SourceFormat::Dyst),
             ),
             [content]
         )
@@ -1578,7 +1580,7 @@ mod tests {
     #[test]
     fn test_text_creates_dynamic_content() {
         let dynamic_text = "Hello World";
-        let nodes = format!(SimpleFormatContext::default(), [text(dynamic_text)]).unwrap();
+        let nodes = format!(SimpleFormatContext::empty_dyst(), [text(dynamic_text)]).unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1614,7 +1616,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [document.clone()]
         )
@@ -1630,7 +1632,7 @@ mod tests {
                     line_width: 8,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [document]
         )
@@ -1643,7 +1645,7 @@ mod tests {
     #[test]
     fn test_best_fit_parenthesize_content_fits() {
         let formatted = format!(
-            SimpleFormatContext::default(),
+            SimpleFormatContext::empty_dyst(),
             [format_with(|f| {
                 write!(
                     f,
@@ -1668,7 +1670,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [format_with(|f| {
                 write!(
@@ -1696,7 +1698,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [format_with(|f| {
                 write!(
@@ -1769,7 +1771,7 @@ mod tests {
                     line_width: 40,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [document.clone()]
         )
@@ -1787,7 +1789,7 @@ mod tests {
                     line_width: 23,
                     ..SimpleFormatOptions::default()
                 },
-                Source::default()
+                Source::empty(SourceFormat::Dyst)
             ),
             [document.clone()]
         )
