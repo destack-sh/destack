@@ -86,14 +86,17 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             write!(
                 f,
                 [group(&format_args![
-                    token(": "),
+                    token(":"),
+                    space(),
+                    if_group_breaks(&token("(")),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
                             if_group_fits_on_line(&token(",")),
                             soft_line_break_or_space()
                         ])
                         .entries(super_types)
-                        .finish()))
+                        .finish())),
+                    if_group_breaks(&token(")")),
                 ])]
             )?;
         }

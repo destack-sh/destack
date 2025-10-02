@@ -170,7 +170,7 @@ pub enum CompositeType {
 pub struct RangeLiteral {
     pub start: NodeId<Expression>,
     pub end: NodeId<Expression>,
-    pub is_inclusive: bool,
+    pub is_inclusive: bool, // nocheckin: handle RangeLiteral.is_inclusive
 }
 
 impl Node for RangeLiteral {

@@ -53,7 +53,7 @@ struct Identity {
 
 /// A named, versioned, mutable object in the system.
 #entity
-struct Entity {
+struct Entity: Identity {
     /// The materialization level of the `Entity`.
     materialization: Materialization = Materialization.Root
     /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
@@ -86,5 +86,6 @@ struct Entity {
     script: Reference<Script>?
 
     /// The identity of the `Entity`.
+    // nocheckin: ..Identity instead of use for type inclusion?
     use Identity as identity
 }

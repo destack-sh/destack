@@ -62,7 +62,9 @@ impl<'ast> FormatNode<'ast, Union> for Union {
             write!(
                 f,
                 [group(&format_args![
-                    token(": "),
+                    token(":"),
+                    space(),
+                    if_group_breaks(&token("(")),
                     soft_block_indent(&format_with(|f| {
                         f.join_with(&format_args![
                             if_group_fits_on_line(&token(",")),
@@ -70,7 +72,8 @@ impl<'ast> FormatNode<'ast, Union> for Union {
                         ])
                         .entries(super_types)
                         .finish()
-                    }))
+                    })),
+                    if_group_breaks(&token(")")),
                 ])]
             )?;
         }
@@ -246,10 +249,20 @@ mod tests {
     #[test]
     fn test_format_union_with_super_types() {
         assert_format!(
-            "union Foo: Bar, Baz { }",
+            "union Foo: (Bar, Baz) { }",
             "union Foo: Bar, Baz { }",
             |p| p.eat_union(None),
             DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_union_with_super_types_breaks() {
+        assert_format!(
+            "union Foo: BarWithLongName, BazWithEvenLongerName, QuxWithLongestName { }",
+            "union Foo: (\n\tBarWithLongName\n\tBazWithEvenLongerName\n\tQuxWithLongestName\n) { }",
+            |p| p.eat_union(None),
+            DystFormatOptions::default_tab_with_line_width(40)
         );
     }
 
