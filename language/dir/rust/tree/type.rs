@@ -175,7 +175,7 @@ impl Node for Type {
 
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct IntType {
+pub struct  IntType {
     /// Bit width.
     pub width: u16,
     /// Whether the integer is signed (`int*` or `uint*`).

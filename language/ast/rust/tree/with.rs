@@ -2,6 +2,7 @@ use crate::{Expression, Node, NodeId, NodeType};
 
 /// A With is a with declaration for context management.
 /// With can declare the use of an item in a scope and refine type bounds.
+/// nocheckin: with ... on types/items (union, struct, implement, ..)
 ///
 /// Examples:
 /// ```

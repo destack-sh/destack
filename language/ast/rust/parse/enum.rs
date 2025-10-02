@@ -262,7 +262,7 @@ enum(uint8) Foo: Day {
 
             // enum type
             assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 8, is_signed: false }));
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(8), is_signed: false }));
             });
 
             // super: Day

@@ -227,7 +227,7 @@ let x: int32 = 1
             // int32
             let ty_id = r#type.expect("expected explicit type");
             assert_node!(parser.tree, ty_id, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 32, is_signed: _ }) => {
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(32), is_signed: _ }) => {
                 });
             });
 
@@ -266,7 +266,7 @@ var x: float64[3] = undefined
             assert_node!(parser.tree, ty_id, Expression::Index(index) => {
                 assert_node!(parser.tree, *index, Index::Explicit { receiver, index } => {
                     assert_node!(parser.tree, *receiver, Expression::TypeLiteral(literal_id) => {
-                        assert_node!(parser.tree, *literal_id, TypeLiteral::Float(FloatType::Float64));
+                        assert_node!(parser.tree, *literal_id, TypeLiteral::Float(FloatType { width: Some(64) }));
                     });
                     assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
                         assert_int!(parser.tree, *lit_id, 3);

@@ -603,11 +603,7 @@ impl Dump for IntType {
 /// Dump a FloatType as a string.
 impl Dump for FloatType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let float_str = match self {
-            FloatType::Float32 => "float32",
-            FloatType::Float64 => "float64",
-        };
-        dumper.write_str(float_str, Some(Color::Yellow));
+        dumper.object("FloatType").field("width", &self.width).end();
     }
 }
 
@@ -1260,8 +1256,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             TypeLiteral::Character => {
                 self.node("TypeLiteral::Character", _id.id).end();
             }
-            TypeLiteral::Self_ => {
-                self.node("TypeLiteral::Self_", _id.id).end();
+            TypeLiteral::String => {
+                self.node("TypeLiteral::String", _id.id).end();
+            }
+            TypeLiteral::Number => {
+                self.node("TypeLiteral::Number", _id.id).end();
             }
             TypeLiteral::Int(int_type) => {
                 self.node("TypeLiteral::Int", _id.id)
@@ -1277,6 +1276,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("TypeLiteral::Composite", _id.id)
                     .field("composite_type", composite_type)
                     .end();
+            }
+            TypeLiteral::Self_ => {
+                self.node("TypeLiteral::Self_", _id.id).end();
             }
         }
         self.with_depth(|dumper| {

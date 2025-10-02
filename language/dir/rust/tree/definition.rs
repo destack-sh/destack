@@ -10,4 +10,4 @@ pub enum Definition {
     Let,
 }
 
-// nocheckin
+// nocheckin: Definitions, DIR, ...

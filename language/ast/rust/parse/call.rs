@@ -281,7 +281,7 @@ mod tests {
         assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {
             assert_eq!(*receiver, recv);
             assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: 32, is_signed: true }));
+                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(32), is_signed: true }));
             });
         });
     }
