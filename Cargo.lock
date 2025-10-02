@@ -622,6 +622,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_vscode"
+version = "2025.10.2-4"
+
+[[package]]
 name = "destack_web"
 version = "2025.10.2-4"
 dependencies = [
