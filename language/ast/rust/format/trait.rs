@@ -48,7 +48,9 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
             write!(
                 f,
                 [group(&format_args![
-                    token(": "),
+                    token(":"),
+                    space(),
+                    if_group_breaks(&token("(")),
                     soft_block_indent(&format_with(|f| {
                         f.join_with(&format_with(|f| {
                             if_group_fits_on_line(&token(",")).format(f)?;
@@ -56,7 +58,8 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
                         }))
                         .entries(super_types)
                         .finish()
-                    }))
+                    })),
+                    if_group_breaks(&token(")")),
                 ])]
             )?;
         }
