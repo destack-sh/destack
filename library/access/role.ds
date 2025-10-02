@@ -1,8 +1,8 @@
-use dyst
+use destack
 
 /// Base event regarding a Role.
-#event
-struct RoleEvent: Event {
+@event
+struct RoleEvent {
     /// The Role self event pertains to.
     role: Reference<Role>
     /// The actor Entity affected by the Role.
@@ -10,20 +10,20 @@ struct RoleEvent: Event {
 }
 
 /// A Role was assigned.
-#event
-struct RoleAssignedEvent: Event {
+@event
+struct RoleAssignedEvent {
     ..RoleEvent
 }
 
 /// A Role was unassigned.
-#event
-struct RoleUnassignedEvent: Event {
+@event
+struct RoleUnassignedEvent {
     ..RoleEvent
 }
 
 /// A Role for Actors to take.
-#entity
-struct Role: Entity {
+@entity
+struct Role {
     /// The Role type.
     type: RoleType
 }

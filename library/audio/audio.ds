@@ -1,7 +1,7 @@
-use dyst
+use destack
 
 /// An Audio File
-#entity
+@entity
 struct Audio: File {
     duration: Duration
 }

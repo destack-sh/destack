@@ -1,18 +1,18 @@
-use dyst
+use destack
 
 /// Clipboard base event
-#event
+@event
 struct ClipboardEvent: InputEvent { }
 
 /// Copy event
-#event
+@event
 struct CopyEvent: ClipboardEvent { }
 
 /// Cut event
-#event
+@event
 struct CutEvent: ClipboardEvent { }
 
 /// Paste event
-#event
+@event
 struct PasteEvent: ClipboardEvent { }
 

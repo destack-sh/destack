@@ -1,11 +1,11 @@
-use dyst
+use destack
 
 /// Definition of a builtin Method.
 struct MethodDefinition {
     /// The Method type.
     type: MethodType
     /// Optional id of the aliased Method.
-    aliasOf: u16?
+    aliasOf: uint16?
     /// Method input Properties.w
     inputProperties: List<PropertyDefinition>
     /// Optional output Property.
@@ -13,8 +13,8 @@ struct MethodDefinition {
 }
 
 /// A Method is a small runtime-specific piece of logic.
-#entity
-struct Method: Entity {
+@entity
+struct Method {
     ..Function
 }
 

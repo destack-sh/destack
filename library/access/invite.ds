@@ -1,8 +1,8 @@
-use dyst
+use destack
 
 /// Base event regarding an Invite.
-#event
-struct InviteEvent: Event {
+@event
+struct InviteEvent {
     /// The Invite self event pertains to.
     invite: Reference<Invite>
     /// The Joinable Entity the Invite is for.
@@ -12,7 +12,7 @@ struct InviteEvent: Event {
 }
 
 /// Invite was sent.
-#event
+@event
 struct InviteSentEvent: InviteEvent {
     /// The Role assigned by the Invite.
     role: Reference<Role>
@@ -21,11 +21,11 @@ struct InviteSentEvent: InviteEvent {
 }
 
 /// Invite was rescinded.
-#event
+@event
 struct InviteRescindedEvent: InviteEvent { }
 
 /// Invite was accepted.
-#event
+@event
 struct InviteAcceptedEvent: InviteEvent {
     /// The Role accepted by the member.
     role: Reference<Role>
@@ -34,12 +34,12 @@ struct InviteAcceptedEvent: InviteEvent {
 }
 
 /// Invite was rejected.
-#event
+@event
 struct InviteRejectedEvent: InviteEvent { }
 
 /// An Invite to a Joinable.
-#entity
-struct Invite: Entity {
+@entity
+struct Invite {
     /// The invited member.
     member: Reference<Actor>
     /// The Role offered by the Invite.

@@ -1,6 +1,6 @@
-use dyst
+use destack
 
 /// A Locale is a language and a region
-#entity
-struct Locale: Entity { }
+@entity
+struct Locale { }
 

@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Types of machines that provide compute.
 enum MachineType {
@@ -10,8 +10,8 @@ enum MachineType {
 }
 
 /// A Machine provides physical compute.
-#entity
-struct Machine: Entity {
+@entity
+struct Machine {
     /// Machine type.
     type: MachineType = MachineType.Runtime
     /// Runtime version string.

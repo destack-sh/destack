@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Flags that modify Joint behavior
 enum JointFlag {
@@ -71,8 +71,8 @@ struct JointBreakLimit {
 }
 
 /// Base Joint in 2D space
-#entity
-struct Joint2D: Entity {
+@entity
+struct Joint2D {
     /// First body connected by the Joint
     bodyA: Reference<Body2D>
     /// Second body connected by the Joint
@@ -98,8 +98,8 @@ struct JointFrame2D {
 }
 
 /// Revolute (hinge) joint in 2D
-#entity
-struct HingeJoint2D: Entity {
+@entity
+struct HingeJoint2D {
     /// Angular limit around the hinge axis (radians)
     limit: JointScalarLimit? = null
     /// Angular motor around the hinge axis (rad/s)
@@ -111,8 +111,8 @@ struct HingeJoint2D: Entity {
 }
 
 /// Prismatic (slider) joint in 2D
-#entity
-struct PrismaticJoint2D: Entity {
+@entity
+struct PrismaticJoint2D {
     /// Slide axis expressed in Body A local space (unit vector)
     axisA: Vector2
     /// Linear limit along the slide axis (meters)
@@ -126,8 +126,8 @@ struct PrismaticJoint2D: Entity {
 }
 
 /// Fixed joint in 2D
-#entity
-struct FixedJoint2D: Entity {
+@entity
+struct FixedJoint2D {
     /// Softening for locked translation (spring-damper)
     linearSpring: JointSpring? = null
     /// Softening for locked rotation (spring-damper)
@@ -137,8 +137,8 @@ struct FixedJoint2D: Entity {
 }
 
 /// Rope/Distance joint in 2D
-#entity
-struct RopeJoint2D: Entity {
+@entity
+struct RopeJoint2D {
     /// Distance range between anchors (meters)
     distanceLimit: JointScalarLimit?
     /// Spring to model a compliant rope/rod
@@ -148,8 +148,8 @@ struct RopeJoint2D: Entity {
 }
 
 /// Wheel joint in 2D
-#entity
-struct WheelJoint2D: Entity {
+@entity
+struct WheelJoint2D {
     /// Suspension (slide) axis in Body A local space (unit vector)
     suspensionAxisA: Vector2
     /// Suspension spring-damper along the suspension axis
@@ -163,8 +163,8 @@ struct WheelJoint2D: Entity {
 }
 
 /// Base Joint in 3D space
-#entity
-struct Joint3D: Entity {
+@entity
+struct Joint3D {
     /// First body connected by the Joint
     bodyA: Reference<Body3D>
     /// Second body connected by the Joint
@@ -190,8 +190,8 @@ struct JointFrame3D {
 }
 
 /// Spherical (ball-and-socket) joint in 3D
-#entity
-struct SphericalJoint3D: Entity {
+@entity
+struct SphericalJoint3D {
     /// Swing (cone) limit around local Y/Z axes (radians)
     coneLimit: JointConeLimit? = null
     /// Twist limit around the local X axis (radians)
@@ -203,8 +203,8 @@ struct SphericalJoint3D: Entity {
 }
 
 /// Hinge joint in 3D
-#entity
-struct HingeJoint3D: Entity {
+@entity
+struct HingeJoint3D {
     /// Hinge axis expressed in Body A local space (unit vector)
     axisA: Vector3
     /// Angular limit around the hinge axis (radians)
@@ -218,8 +218,8 @@ struct HingeJoint3D: Entity {
 }
 
 /// Prismatic (slider) joint in 3D
-#entity
-struct PrismaticJoint3D: Entity {
+@entity
+struct PrismaticJoint3D {
     /// Slide axis expressed in Body A local space (unit vector)
     axisA: Vector3
     /// Linear limit along the slide axis (meters)
@@ -233,8 +233,8 @@ struct PrismaticJoint3D: Entity {
 }
 
 /// Fixed joint in 3D
-#entity
-struct FixedJoint3D: Entity {
+@entity
+struct FixedJoint3D {
     /// Softening for locked translation (spring-damper)
     linearSpring: JointSpring? = null
     /// Softening for locked rotation (spring-damper)
@@ -244,8 +244,8 @@ struct FixedJoint3D: Entity {
 }
 
 /// Rope/Distance joint in 3D
-#entity
-struct RopeJoint3D: Entity {
+@entity
+struct RopeJoint3D {
     /// Distance range between anchors (meters)
     distanceLimit: JointScalarLimit
     /// Spring to model a compliant rope/rod
@@ -255,8 +255,8 @@ struct RopeJoint3D: Entity {
 }
 
 /// Wheel (suspension) joint in 3D
-#entity
-struct WheelJoint3D: Entity {
+@entity
+struct WheelJoint3D {
     /// Suspension (slide) axis in Body A local space (unit vector)
     suspensionAxisA: Vector3
     /// Suspension spring-damper along the suspension axis

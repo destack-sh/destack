@@ -1,7 +1,7 @@
-use dyst
+use destack
 
 /// A Video File
-#entity
+@entity
 struct Video: File {
     width: uint32
     height: uint32

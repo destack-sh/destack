@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A Capsule2D is a segment with rounded ends with a common radius.
 struct Capsule2D {
@@ -11,8 +11,8 @@ struct Capsule2D {
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
-#entity
-struct CapsuleShape2D: Entity {
+@entity
+struct CapsuleShape2D {
     ..Shape2D
     ..Capsule2D
 }
@@ -28,8 +28,8 @@ struct Capsule3D {
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.
-#entity
-struct CapsuleShape3D: Entity {
+@entity
+struct CapsuleShape3D {
     ..Shape3D
     ..Capsule3D
 }

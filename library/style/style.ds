@@ -1,6 +1,6 @@
-use dyst
+use destack
 
 /// A Style defines a base visual appearance in some context
-#entity
-struct Style: Entity { }
+@entity
+struct Style { }
 

@@ -11,12 +11,6 @@
     "typescript.tsdk": "node_modules/typescript/lib",
     "css.lint.unknownAtRules": "ignore",
     "scss.lint.unknownAtRules": "ignore",
-    "vsicons.associations.files": [
-        {
-            "icon": "spacengine",
-            "extension": [".ds"]
-        }
-    ],
     "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_cli",
     "destack.server.cwd": "/Users/florian/symbol/destack",
     "destack.server.args": ["lsp"],

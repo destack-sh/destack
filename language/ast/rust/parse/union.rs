@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// // unions can be tagged with enums and include other types with use (like structs)
-    /// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
+    /// union(TetrisShapeType) TetrisShape { // TetrisShape has Entity as super
     ///     ..TetrisGameObject
     ///
     ///     function myFunc() { // nested declaration

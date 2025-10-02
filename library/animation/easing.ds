@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Built-in easing types
 enum Easing {

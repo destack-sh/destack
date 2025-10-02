@@ -1,14 +1,14 @@
-use dyst
+use destack
 
 /// A Body in 2D space
-#entity
-struct Body2D: Entity {
+@entity
+struct Body2D {
     ..Entity2D
 }
 
 /// A Body in 3D space
-#entity
-struct Body3D: Entity {
+@entity
+struct Body3D {
     ..Entity3D
 }
 

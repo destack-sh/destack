@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Timer types.
 enum TimerType {
@@ -7,41 +7,41 @@ enum TimerType {
 }
 
 /// Base Timer event.
-#event
-struct TimerEvent: Event {
+@event
+struct TimerEvent {
     /// The Timer self event pertains to.
     timer: Timer
 }
 
 /// Timer started.
-#event
-struct TimerStartedEvent: Event {
+@event
+struct TimerStartedEvent {
     ..TimerEvent
 }
 /// Timer paused.
-#event
-struct TimerPausedEvent: Event {
+@event
+struct TimerPausedEvent {
     ..TimerEvent
 }
 /// Timer resumed.
-#event
-struct TimerResumedEvent: Event {
+@event
+struct TimerResumedEvent {
     ..TimerEvent
 }
 /// Timer completed.
-#event
-struct TimerCompletedEvent: Event {
+@event
+struct TimerCompletedEvent {
     ..TimerEvent
 }
 /// Timer cancelled.
-#event
-struct TimerCancelledEvent: Event {
+@event
+struct TimerCancelledEvent {
     ..TimerEvent
 }
 
 /// A Timer.
-#entity
-struct Timer: Entity {
+@entity
+struct Timer {
     /// The Timer type.
     type: TimerType
     /// The optional Schedule for the Timer.

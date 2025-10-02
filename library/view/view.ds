@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Position properties for a 2D view.
 struct Position2D {
@@ -39,11 +39,11 @@ struct Style2D {
     /// The border of the View.
     border: Border?
     /// The radius of the View.
-    radius: Corner2?
+    radius: Corner2
 }
 
 /// A View2D is a 2D interface element.
-#entity
+@entity
 struct View2D: RigidBody2D {
     ..Position2D
     ..Sizing2D

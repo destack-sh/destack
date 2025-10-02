@@ -1,9 +1,9 @@
-use dyst
+use destack
 
 /// Definition of a builtin Permission for a builtin Node.
 struct PermissionDefinition { }
 
 /// A Permission for something.
-#entity
-struct Permission: Entity { }
+@entity
+struct Permission { }
 

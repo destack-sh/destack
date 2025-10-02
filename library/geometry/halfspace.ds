@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
 struct Halfspace2D {
@@ -9,7 +9,7 @@ struct Halfspace2D {
 }
 
 /// A HalfspaceShape2D represents a half-space in 2D defined by a line.
-#entity
+@entity
 struct HalfspaceShape2D: Shape2D {
     ..Halfspace2D
 }
@@ -23,7 +23,7 @@ struct Plane3D {
 }
 
 /// A PlaneShape3D represents a half-space in 3D defined by a plane.
-#entity
+@entity
 struct PlaneShape3D: Shape3D {
     ..Plane3D
 }

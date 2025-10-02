@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Trigger types.
 enum TriggerType {
@@ -6,22 +6,23 @@ enum TriggerType {
 }
 
 /// Base Trigger event.
-#event
-struct TriggerEvent: Event {
+@event
+struct TriggerEvent {
     /// The Trigger self event pertains to.
     trigger: Trigger
 }
 
 /// A Trigger is a dynamic event to run something.
-#entity
-struct Trigger: Entity {
+@entity
+struct Trigger {
     /// The Event type to react to.
     event: NodeType?
     /// The optional filter Condition for the Event payload.
     where: Condition?
-    /// The target Entity to invoke.
-    target: Entity?
     /// Arguments to pass to the target.
     arguments: Map<Uuid, Value>
+
+    /// The target Entity to invoke.
+    target?
 }
 

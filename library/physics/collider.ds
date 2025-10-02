@@ -1,11 +1,11 @@
-use dyst
+use destack
 
 /// Base Collider event
-#event
-struct ColliderEvent: Event { }
+@event
+struct ColliderEvent { }
 
 /// Collision contact between two colliders
-#event
+@event
 struct ColliderContactEvent: ColliderEvent {
     /// First collider
     colliderA: Reference<Collider2D>
@@ -14,14 +14,14 @@ struct ColliderContactEvent: ColliderEvent {
 }
 
 /// A Collider in 2D space
-#entity
-struct Collider2D: Entity {
+@entity
+struct Collider2D {
     ..Entity2D
 }
 
 /// A Collider in 3D space
-#entity
-struct Collider3D: Entity {
+@entity
+struct Collider3D {
     ..Entity3D
 }
 

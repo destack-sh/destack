@@ -1,20 +1,20 @@
-use dyst
+use destack
 
 /// Base focus event
-#event
+@event
 struct FocusEvent: InputEvent { }
 
 /// Focus gained
-#event
+@event
 struct FocusInEvent: FocusEvent { }
 
 /// Focus lost
-#event
+@event
 struct FocusOutEvent: FocusEvent { }
 
-// union FocusEvent: Event {
-// #event
+// union FocusEvent {
+// @event
 // FocusInEvent
-// #event
+// @event
 // FocusOutEvent
 // }

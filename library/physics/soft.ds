@@ -1,14 +1,14 @@
-use dyst
+use destack
 
 /// A deformable body in 2D
-#entity
-struct SoftBody2D: Entity {
+@entity
+struct SoftBody2D {
     ..Body2D
 }
 
 /// A deformable body in 3D
-#entity
-struct SoftBody3D: Entity {
+@entity
+struct SoftBody3D {
     ..Body3D
 }
 

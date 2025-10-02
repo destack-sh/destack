@@ -569,6 +569,8 @@ impl Node for Coalesce {
 pub enum Expression {
     /// Module definition (used as an Expression, see Module).
     Module(NodeId<Module>),
+    // TODO #Incomplete?: type alias (type x = y)
+    // (or is that redundant with `let x = y`? need to disambiguate e.g. | and & though..)
     /// Struct definition (used as an Expression, see Struct).
     Struct(NodeId<Struct>),
     /// Enum definition (used as an Expression, see Enum).

@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 struct Path {
     segments: List<PathSegment>

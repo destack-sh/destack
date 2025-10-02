@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A quaternion.
 struct Quaternion {
