@@ -11,5 +11,5 @@ struct ConvexShape2D: Shape2D {
 struct ConvexShape3D: Shape3D {
     vertices: List<Vector3>
 
-    use ConvexShape2D
+    ..ConvexShape2D
 }

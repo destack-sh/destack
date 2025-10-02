@@ -13,7 +13,7 @@ use crate::{
 /// Precedence:
 /// ```
 /// x() x[] x{} x? x!         // postfix
-/// !x -x -%x ~x *x &x        // prefix
+/// !x -x -%x ~x *x &x ..x    // prefix
 /// * / % *% *|               // multiplication
 /// + - +% -% +| -|           // addition
 /// << >> <<|                 // shift
@@ -34,7 +34,7 @@ pub enum OperatorPrecedence {
     /// `x() x[] x{} x? x!`
     Postfix = 240,
     /// Unary prefix operators.
-    /// `!x -x -%x ~x &x *x`
+    /// `!x -x -%x ~x &x *x ..x`
     Prefix = 230,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
@@ -79,17 +79,19 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    Not = 236,
+    Not = 237,
     /// `-`
-    Negate = 235,
+    Negate = 236,
     /// `-%`
-    WrappingNegate = 234,
+    WrappingNegate = 235,
     /// `~`
-    ElementwiseNot = 233,
+    ElementwiseNot = 234,
     /// `*`
-    Dereference = 232,
+    Dereference = 233,
     /// `$`
-    Virtual = 231,
+    Virtual = 232,
+    /// `..`
+    Spread = 231,
 }
 
 /// A BinaryOperator is an infix binary operator.
@@ -352,6 +354,8 @@ impl UnaryOperator {
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             TokenType::Virtual => Some(UnaryOperator::Virtual),
+            TokenType::Range => Some(UnaryOperator::Spread),
+            TokenType::RangeWide => Some(UnaryOperator::Spread),
             _ => None,
         }
     }
@@ -366,6 +370,7 @@ impl UnaryOperator {
             UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
             UnaryOperator::Dereference => TokenType::Multiply,
             UnaryOperator::Virtual => TokenType::Virtual,
+            UnaryOperator::Spread => TokenType::Range,
         }
     }
 }

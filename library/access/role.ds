@@ -12,13 +12,13 @@ struct RoleEvent: Event {
 /// A Role was assigned.
 #event
 struct RoleAssignedEvent: Event {
-    use RoleEvent
+    ..RoleEvent
 }
 
 /// A Role was unassigned.
 #event
 struct RoleUnassignedEvent: Event {
-    use RoleEvent
+    ..RoleEvent
 }
 
 /// A Role for Actors to take.

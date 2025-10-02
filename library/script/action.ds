@@ -18,6 +18,6 @@ struct Action: Entity {
     /// The Action type.
     type: ActionType
 
-    use Function
+    ..Function
 }
 

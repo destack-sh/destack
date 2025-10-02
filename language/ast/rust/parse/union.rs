@@ -29,8 +29,7 @@ impl<'a> Parser<'a> {
     ///
     /// // unions can be tagged with enums and include other types with use (like structs)
     /// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
-    ///     use TetrisGameObject
-    ///     ...
+    ///     ..TetrisGameObject
     ///
     ///     function myFunc() { // nested declaration
     ///     }
@@ -265,8 +264,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Parameter, StructField, StructStyle, TypeLiteral, Union, UnionField, Use,
-        assert_int, assert_node, assert_path, assert_string,
+        Expression, Parameter, StructField, StructStyle, TypeLiteral, UnaryOperator, Union,
+        UnionField, assert_int, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -332,11 +331,11 @@ union Foo: Bar {}
             r###"
 union(uint4, uint60) Foo<T>: Boz {
     A
-    use Bar
     C(boolean)
     D(boolean, count: int32) = 6
     E { x: int32, y: T }
-
+    
+    ..Bar
     function myFunc() { // nested declaration
     }
 }
@@ -381,13 +380,6 @@ union(uint4, uint60) Foo<T>: Boz {
 
             assert_eq!(expressions.len(), 2);
             assert_eq!(fields.len(), 4);
-
-            // use Bar
-            assert_node!(parser.tree, expressions[0], Expression::Use(use_id) => {
-                assert_node!(parser.tree, *use_id, Use { clauses, .. } => {
-                    assert_eq!(clauses.len(), 1);
-                });
-            });
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
@@ -483,6 +475,15 @@ union(uint4, uint60) Foo<T>: Boz {
                     });
                 });
             });
+
+            // ..Bar
+            assert_node!(parser.tree, expressions[0], Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Spread);
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Bar");
+                });
+            });
+
         });
     }
 }

@@ -144,6 +144,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Virtual => token("$"),
+            UnaryOperator::Spread => token(".."),
         };
         write!(f, [token])
     }

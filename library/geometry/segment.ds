@@ -5,13 +5,13 @@ struct Segment2D {
     startOffset: Vector2
     endOffset: Vector2
 
-    use Form2D
+    ..Form2D
 }
 
 /// A SegmentShape is a shape that represents a line between two points.
 #entity
 struct SegmentShape2D: Shape2D {
-    use Segment2D
+    ..Segment2D
 }
 
 /// A Segment3D is a line between two points in 3D space.
@@ -19,11 +19,11 @@ struct Segment3D {
     startOffset: Vector3
     endOffset: Vector3
 
-    use Form3D
+    ..Form3D
 }
 
 /// A SegmentShape3D is a shape that represents a line between two points in 3D.
 #entity
 struct SegmentShape3D: Shape3D {
-    use Segment3D
+    ..Segment3D
 }

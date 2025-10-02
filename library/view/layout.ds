@@ -27,5 +27,5 @@ struct LayoutComponent2D {
 /// A 2D layout View defines how its children are laid out.
 #entity
 struct LayoutView2D: View2D {
-    use LayoutComponent2D as layout
+    ..LayoutComponent2D
 }

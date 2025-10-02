@@ -37,9 +37,9 @@ struct RigidBody2D: Entity {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
-    use Body2D as body
-    use Kinematic2D as kinematic
-    use Mass2D as mass
+    ..Body2D
+    ..Kinematic2D
+    ..Mass2D
 }
 
 /// Kinematic properties for a 3D rigid body
@@ -72,8 +72,8 @@ struct RigidBody3D: Entity {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
-    use Body3D
-    use Kinematic3D
-    use Mass3D
+    ..Body3D
+    ..Kinematic3D
+    ..Mass3D
 }
 

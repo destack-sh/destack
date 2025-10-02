@@ -23,8 +23,7 @@ use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
 ///
 /// // unions can be tagged with enums and include other types with use (like structs)
 /// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
-///     use TetrisGameObject
-///     ...
+///     ..TetrisGameObject
 ///
 ///     function myFunc() { // nested declaration
 ///     }

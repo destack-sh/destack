@@ -16,27 +16,27 @@ struct TimerEvent: Event {
 /// Timer started.
 #event
 struct TimerStartedEvent: Event {
-    use TimerEvent
+    ..TimerEvent
 }
 /// Timer paused.
 #event
 struct TimerPausedEvent: Event {
-    use TimerEvent
+    ..TimerEvent
 }
 /// Timer resumed.
 #event
 struct TimerResumedEvent: Event {
-    use TimerEvent
+    ..TimerEvent
 }
 /// Timer completed.
 #event
 struct TimerCompletedEvent: Event {
-    use TimerEvent
+    ..TimerEvent
 }
 /// Timer cancelled.
 #event
 struct TimerCancelledEvent: Event {
-    use TimerEvent
+    ..TimerEvent
 }
 
 /// A Timer.

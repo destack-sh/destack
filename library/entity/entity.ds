@@ -86,6 +86,5 @@ struct Entity: Identity {
     script: Reference<Script>?
 
     /// The identity of the `Entity`.
-    // nocheckin: ..Identity instead of use for type inclusion?
-    use Identity as identity
+    ..Identity
 }

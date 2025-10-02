@@ -46,9 +46,8 @@ pub enum StructStyle {
 ///     myField: int32
 ///     myOtherField: T
 ///
-///     let x: int32 = 7 // constant
-///
-///     use Bar // Foo has a Bar
+///     ..Baz
+//      let x: int32 = 7 // constant
 ///
 ///     function myFunc() { // nested declaration
 ///     }
@@ -87,7 +86,7 @@ impl Node for Struct {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
-    /// The name of the field.
+    /// The name of the field (may be unset for tuple fields).
     pub name: Option<StringId>,
     /// The type of the field.
     pub r#type: NodeId<Expression>,
@@ -98,7 +97,7 @@ pub struct StructField {
 // NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)
-//  (how does this relate to $ virtualness?)
+//  (how does this relate to $ virtualness/dynamicness?)
 
 impl Node for StructField {
     const KIND: NodeType = NodeType::StructField;
