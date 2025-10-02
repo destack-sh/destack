@@ -6,7 +6,8 @@ use tower_lsp_server::{LanguageServer, jsonrpc};
 
 use dyst_source::SourceFormat;
 
-use crate::workspace::lsp_uri_to_uri;
+use crate::document::DocumentContent;
+use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
 use tower_lsp_server::lsp_types as lsp;
 
@@ -26,16 +27,19 @@ impl LanguageServer for DestackLanguageServer {
 
         self.add_initial_workspaces(&params).await;
 
-        let file_operation_filters = vec![lsp::FileOperationFilter {
-            scheme: None,
-            pattern: lsp::FileOperationPattern {
-                glob: SourceFormat::Dyst.glob().to_string(),
-                matches: Some(lsp::FileOperationPatternKind::File),
-                options: Some(lsp::FileOperationPatternOptions {
-                    ignore_case: Some(true),
-                }),
-            },
-        }];
+        let file_operation_filters: Vec<lsp::FileOperationFilter> = TRACKED_FORMATS
+            .iter()
+            .map(|format| lsp::FileOperationFilter {
+                scheme: None,
+                pattern: lsp::FileOperationPattern {
+                    glob: format.glob().to_string(),
+                    matches: Some(lsp::FileOperationPatternKind::File),
+                    options: Some(lsp::FileOperationPatternOptions {
+                        ignore_case: Some(true),
+                    }),
+                },
+            })
+            .collect();
 
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
@@ -115,7 +119,8 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal that a new text document has been opened by the client.
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
-        self.update_open_document(&uri, params.text_document.text)
+        let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(SourceFormat::Dyst);
+        self.upsert_open_text_document(&uri, format, params.text_document.text)
             .await;
         self.client
             .log_message(
@@ -129,7 +134,9 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().last() {
-            self.update_open_document(&uri, change.text).await;
+            let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(SourceFormat::Dyst);
+            self.upsert_open_text_document(&uri, format, change.text)
+                .await;
         }
         self.client
             .log_message(
@@ -167,7 +174,7 @@ impl LanguageServer for DestackLanguageServer {
                     .await;
             }
 
-            self.index_workspace(workspace_handle.clone()).await;
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
 
         for folder in &params.event.removed {
@@ -220,6 +227,9 @@ impl LanguageServer for DestackLanguageServer {
 
             let source_uri = lsp_uri_to_uri(&change.uri);
             let mut workspace = handle.write().await;
+            if workspace.has_open_document(&source_uri) {
+                continue; // do not override open documents
+            }
             match change.typ {
                 // sync the document if created/changed
                 lsp::FileChangeType::CREATED | lsp::FileChangeType::CHANGED => {
@@ -280,6 +290,9 @@ impl LanguageServer for DestackLanguageServer {
             let workspace_handle = self.get_or_create_workspace_for_document(&lsp_uri).await;
             let mut workspace = workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&lsp_uri);
+            if workspace.has_open_document(&uri) {
+                continue; // do not override open documents
+            }
             match workspace.sync_document_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
@@ -355,6 +368,9 @@ impl LanguageServer for DestackLanguageServer {
             let new_workspace_handle = self.get_or_create_workspace_for_document(&new_uri).await;
             let mut workspace = new_workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&new_uri);
+            if workspace.has_open_document(&uri) {
+                continue; // do not override open documents
+            }
             match workspace.sync_document_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
@@ -503,10 +519,14 @@ impl LanguageServer for DestackLanguageServer {
         let Some(document) = workspace.get_document(&lsp_uri_to_uri(&uri)) else {
             return Ok(None);
         };
-        // NOTE #Incomplete: format LSP partial range
-        let formatted = workspace.format_document(document);
-        let Some((end_line, end_character)) = document.source.get_position(document.source.len)
-        else {
+        let DocumentContent::Text { source, .. } = &document.content else {
+            return Ok(None);
+        };
+
+        let Some(formatted) = workspace.format_document(document) else {
+            return Ok(None);
+        };
+        let Some((end_line, end_character)) = source.get_position(source.len) else {
             return Ok(None);
         };
         let full_edit = lsp::TextEdit {

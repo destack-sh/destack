@@ -10,7 +10,8 @@ use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::DestackLanguageServer;
 use crate::diagnostic::diagnostic_to_lsp_diagnostic;
-use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
+use crate::document::DocumentContent;
+use crate::workspace::{TRACKED_FORMATS, Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
 
 impl DestackLanguageServer {
     /// Register file watchers for all existing workspaces.
@@ -54,15 +55,18 @@ impl DestackLanguageServer {
             self.next_watch_id.fetch_add(1, Ordering::Relaxed)
         );
 
-        // create file watcher for .ds files in workspace
-        let pattern = lsp::RelativePattern {
-            base_uri: lsp::OneOf::Right(uri_to_lsp_uri(&workspace.root)),
-            pattern: SourceFormat::Dyst.glob().to_string(),
-        };
-        let watchers = vec![lsp::FileSystemWatcher {
-            glob_pattern: lsp::GlobPattern::Relative(pattern),
-            kind: Some(lsp::WatchKind::all()),
-        }];
+        // track all supported source formats beneath the workspace root
+        let base_uri = uri_to_lsp_uri(&workspace.root);
+        let watchers: Vec<lsp::FileSystemWatcher> = TRACKED_FORMATS
+            .iter()
+            .map(|format| lsp::FileSystemWatcher {
+                glob_pattern: lsp::GlobPattern::Relative(lsp::RelativePattern {
+                    base_uri: lsp::OneOf::Right(base_uri.clone()),
+                    pattern: format.glob().to_string(),
+                }),
+                kind: Some(lsp::WatchKind::all()),
+            })
+            .collect();
         let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
         let register_options = serde_json::to_value(options)
             .map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))?;
@@ -142,7 +146,7 @@ impl DestackLanguageServer {
                     .await;
             }
 
-            self.index_workspace(workspace_handle.clone()).await;
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
 
         workspace_handle
@@ -228,20 +232,28 @@ impl DestackLanguageServer {
         let Some(document) = workspace.get_document(uri) else {
             return Vec::new();
         };
+        let DocumentContent::Text { source, .. } = &document.content else {
+            return Vec::new();
+        };
         workspace
-            .get_diagnostics_for_source(document.source.id)
+            .get_diagnostics_for_source(source.id)
             .into_iter()
-            .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &document.source))
+            .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, source))
             .collect()
     }
 
     /// Update an open document's content in the appropriate Workspace.
-    pub(crate) async fn update_open_document(&self, lsp_uri: &lsp::Uri, content: String) {
+    pub(crate) async fn upsert_open_text_document(
+        &self,
+        lsp_uri: &lsp::Uri,
+        format: SourceFormat,
+        content: String,
+    ) {
         // update the document
         let workspace_handle = self.get_or_create_workspace_for_document(lsp_uri).await;
         let mut workspace = workspace_handle.write().await;
         let uri = lsp_uri_to_uri(lsp_uri);
-        workspace.upsert_document(&uri, content, true);
+        workspace.upsert_text_document(&uri, format, true, content);
         drop(workspace);
 
         // re-analyze the workspace
@@ -251,7 +263,7 @@ impl DestackLanguageServer {
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!("destack.update_open_document uri={}", lsp_uri.as_str(),),
+                format!("destack.upsert_open_text_document uri={}", lsp_uri.as_str(),),
             )
             .await;
     }
@@ -288,17 +300,17 @@ impl DestackLanguageServer {
     }
 
     /// Refresh a workspace from disk and publish updated diagnostics.
-    pub(crate) async fn index_workspace(&self, workspace_handle: Arc<RwLock<Workspace>>) {
+    pub(crate) async fn reindex_workspace(&self, workspace_handle: Arc<RwLock<Workspace>>) {
         let mut workspace = workspace_handle.write().await;
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!("destack.index_workspace.start root={}", workspace.root),
+                format!("destack.reindex_workspace.start root={}", workspace.root),
             )
             .await;
 
         // reindex the workspace
-        let uris = match workspace.index_from_disk() {
+        let uris = match workspace.reindex_all_from_disk() {
             Ok(outcome) => {
                 // merge updates and removals so diagnostics clear for former files
                 let mut combined = outcome.updated;
@@ -310,7 +322,7 @@ impl DestackLanguageServer {
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
-                        format!("destack.index_workspace root={root_display} error={error}"),
+                        format!("destack.reindex_workspace root={root_display} error={error}"),
                     )
                     .await;
                 return;
@@ -328,7 +340,7 @@ impl DestackLanguageServer {
             .log_message(
                 lsp::MessageType::INFO,
                 format!(
-                    "destack.index_workspace root={} uris={} diagnostics={}",
+                    "destack.reindex_workspace root={} uris={} diagnostics={}",
                     root, num_diagnostics, num_uris
                 ),
             )
@@ -342,7 +354,7 @@ impl DestackLanguageServer {
             guard.values().cloned().collect()
         };
         for workspace_handle in &workspace_handles {
-            self.index_workspace(workspace_handle.clone()).await;
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
 
         self.client
@@ -411,7 +423,7 @@ impl DestackLanguageServer {
 
         // reindex workspaces
         for workspace_handle in workspace_handles {
-            self.index_workspace(workspace_handle.clone()).await;
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
     }
 }

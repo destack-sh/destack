@@ -8,6 +8,20 @@ pub enum SourceFormat {
 }
 
 impl SourceFormat {
+    /// Get a source format from a file extension.
+    pub fn from_extension(s: &str) -> Option<Self> {
+        match s {
+            "ds" => Some(SourceFormat::Dyst),
+            "dst" => Some(SourceFormat::DystText),
+            "dsb" => Some(SourceFormat::DystBinary),
+            "dsx" => Some(SourceFormat::DystExecutable),
+            _ => None,
+        }
+    }
+}
+
+impl SourceFormat {
+    /// Get the file extension for a source format.
     pub fn extension(&self) -> &str {
         match self {
             SourceFormat::Dyst => "ds",
@@ -17,6 +31,7 @@ impl SourceFormat {
         }
     }
 
+    /// Get the glob pattern for a source format.
     pub fn glob(&self) -> &str {
         match self {
             SourceFormat::Dyst => "**/*.ds",

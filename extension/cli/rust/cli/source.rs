@@ -3,7 +3,7 @@ use std::path::Path;
 
 use dyst_ast::{BlockFormat, NodeVisitor, Parser, SemanticTokenIndex, SemanticType};
 use dyst_session::Session;
-use dyst_source::{Source, SourceId, Uri};
+use dyst_source::{Source, SourceFormat, SourceId, Uri};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::console::console;
@@ -15,11 +15,19 @@ pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
         let path_ref = Path::new(path);
         fs::read_to_string(path_ref)
             .map_err(|error| format!("failed to read {path}: {error}"))
-            .map(|content| Source::from_string(SourceId::new(0), Uri::from_string(path), content))
+            .map(|content| {
+                Source::from_string(
+                    SourceId::new(0),
+                    Uri::from_string(path),
+                    SourceFormat::Dyst,
+                    content,
+                )
+            })
     } else if let Some(string) = ctx.option("string") {
         Ok(Source::from_string(
             SourceId::new(0),
             Uri::from_string("<string>"),
+            SourceFormat::Dyst,
             string.to_string(),
         ))
     } else {
@@ -38,7 +46,12 @@ pub(crate) fn semantic_spans_from_text(
     label: &str,
     text: &str,
 ) -> Result<Vec<SemanticSpan>, String> {
-    let source = Source::from_string(SourceId::new(1), Uri::from_string(label), text.to_string());
+    let source = Source::from_string(
+        SourceId::new(1),
+        Uri::from_string(label),
+        SourceFormat::Dyst,
+        text.to_string(),
+    );
     semantic_spans_from_source(&source)
 }
 

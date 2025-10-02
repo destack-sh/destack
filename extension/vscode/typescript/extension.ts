@@ -12,7 +12,7 @@ import {
 } from "vscode-languageclient/node";
 
 let client: LanguageClient | undefined;
-let serverProc: ChildProcessWithoutNullStreams | undefined; // <— single source of truth
+let serverProc: ChildProcessWithoutNullStreams | undefined;
 
 const DEBUG = false;
 
@@ -77,7 +77,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
         serverLog.info(`Using Destack Server: ${serverCommand} ${args.join(" ")}`);
 
         return await new Promise<StreamInfo>((resolve, reject) => {
-            // Prepare env
+            // prepare env
             const env = { ...process.env };
             if (DEBUG) {
                 env.WAIT_FOR_DEBUGGER = "1";
@@ -85,7 +85,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
                 env.RUST_BACKTRACE = env.RUST_BACKTRACE || "full";
             }
 
-            // Spawn and **assign the module-level serverProc**
+            // spawn and assign the module-level serverProc
             serverProc = spawn(serverCommand, args, {
                 stdio: ["pipe", "pipe", "pipe"],
                 cwd: cwd || workspaceFolder?.uri.fsPath,

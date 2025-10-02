@@ -1,33 +1,52 @@
 use dyst_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source};
+use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::{TokenSpan, TokenType};
 
+/// A document.
 #[derive(Debug, Clone)]
 pub struct Document {
+    /// The ID of the source.
+    pub id: SourceId,
+    /// The URI of the SourceFile.
+    pub uri: Uri,
     /// The format of the document.
     pub format: SourceFormat,
-    /// The source of the document.
-    pub source: Source,
-    /// Whether the document content is controlled by an open editor session.
+    /// Whether the document is currently open.
     pub is_open: bool,
-    /// The semantic tokens of the document.
-    pub tokens: Vec<TokenSpan>,
-    /// The side tokens of the document.
-    pub side_tokens: Vec<TokenSpan>,
-    /// The side span of the document.
-    pub side_span: MultiSpan,
-    /// All tokens of the document.
-    pub all_tokens: Vec<TokenSpan>,
-    /// The AST of the document.
-    pub ast: NodeTree,
-    /// The root module ID of the document.
-    pub module_id: Option<NodeId<Module>>,
+    /// The content of the document.
+    pub content: DocumentContent,
 }
 
-impl Document {
-    /// Parse the document from source.
-    pub fn parse(source: Source, session: &mut Session, is_open: bool) -> Self {
+/// The content of a document.
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum DocumentContent {
+    Text {
+        /// The source of the document.
+        source: Source,
+        /// The tokens of the document.
+        tokens: Vec<TokenSpan>,
+        /// The side tokens of the document.
+        side_tokens: Vec<TokenSpan>,
+        /// The side span of the document.
+        side_span: MultiSpan,
+        /// All tokens of the document (including side tokens).
+        all_tokens: Vec<TokenSpan>,
+        /// The AST of the document.
+        ast: NodeTree,
+        /// The module ID of the document, when available.
+        module_id: Option<NodeId<Module>>,
+    },
+    Binary {
+        /// The content of the document.
+        content: Vec<u8>,
+    },
+}
+
+impl DocumentContent {
+    /// Build a document for the provided text source.
+    pub(crate) fn from_text(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
         let module_name_id = session.intern_string(module_name);
@@ -55,16 +74,60 @@ impl Document {
         all_tokens.extend(side_tokens.iter());
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
-        Document {
-            format: source.format,
+
+        DocumentContent::Text {
             source,
-            is_open,
             tokens,
             side_tokens,
             side_span,
             all_tokens,
             ast,
             module_id,
+        }
+    }
+
+    /// Build a document for the provided binary source.
+    pub(crate) fn from_binary(content: Vec<u8>) -> Self {
+        DocumentContent::Binary { content }
+    }
+}
+
+impl Document {
+    /// Build a document for the provided text source.
+    pub(crate) fn from_text(
+        id: SourceId,
+        uri: Uri,
+        format: SourceFormat,
+        is_open: bool,
+        content: String,
+        session: &mut Session,
+    ) -> Self {
+        let source = Source::from_string(id, uri.clone(), format, content);
+        let content = DocumentContent::from_text(source, session);
+
+        Document {
+            id,
+            uri,
+            format,
+            is_open,
+            content,
+        }
+    }
+
+    /// Build a document for the provided binary source.
+    pub(crate) fn from_binary(
+        id: SourceId,
+        uri: Uri,
+        format: SourceFormat,
+        is_open: bool,
+        content: Vec<u8>,
+    ) -> Self {
+        Document {
+            id,
+            uri,
+            format,
+            is_open,
+            content: DocumentContent::from_binary(content),
         }
     }
 }

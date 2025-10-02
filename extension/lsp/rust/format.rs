@@ -1,19 +1,35 @@
+use crate::document::DocumentContent;
 use crate::{Document, Workspace};
 use dyst_ast::{DystFormatContext, DystFormatOptions, NodeParentIndex};
 use dyst_diagnostic::Severity;
 use dyst_fir::format;
 
 impl Workspace {
-    /// Format a document.
-    pub fn format_document(&self, document: &Document) -> String {
+    /// Format a (text) document.
+    pub fn format_document(&self, document: &Document) -> Option<String> {
+        let DocumentContent::Text {
+            source,
+            tokens,
+            side_tokens,
+            side_span,
+            ast,
+            module_id,
+            ..
+        } = &document.content
+        else {
+            return None;
+        };
+
         // bail if document is malformed
-        if document.module_id.is_none()
-            || self
-                .get_diagnostics_for_source(document.source.id)
-                .iter()
-                .any(|d| d.severity == Severity::Error)
+        let Some(module_id) = module_id else {
+            return None;
+        };
+        if self
+            .get_diagnostics_for_source(source.id)
+            .iter()
+            .any(|d| d.severity == Severity::Error)
         {
-            return document.source.content.clone();
+            return None;
         }
 
         // format with default options
@@ -21,17 +37,17 @@ impl Workspace {
         let options = DystFormatOptions::default();
         let context = DystFormatContext {
             options,
-            source: &document.source,
-            tokens: &document.tokens,
-            side_tokens: &document.side_tokens,
-            side_span: &document.side_span,
-            tree: &document.ast,
-            spans: &document.ast.spans,
-            parents: NodeParentIndex::from_tree(&document.ast),
+            source,
+            tokens,
+            side_tokens,
+            side_span,
+            tree: ast,
+            spans: &ast.spans,
+            parents: NodeParentIndex::from_tree(ast),
             session: &self.session,
         };
-        let formatted = format!(context, [document.module_id]).unwrap();
+        let formatted = format!(context, [module_id]).unwrap();
         let printed = formatted.print();
-        printed.unwrap().as_str().to_string()
+        Some(printed.unwrap().as_str().to_string())
     }
 }
