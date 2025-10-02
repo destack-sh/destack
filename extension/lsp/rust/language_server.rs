@@ -4,7 +4,8 @@ use std::str::FromStr;
 
 use tower_lsp_server::{LanguageServer, jsonrpc};
 
-use crate::lifecycle::DYST_FILE_GLOB;
+use dyst_source::SourceFormat;
+
 use crate::workspace::lsp_uri_to_uri;
 use crate::{DestackLanguageServer, semantic};
 use tower_lsp_server::lsp_types as lsp;
@@ -28,7 +29,7 @@ impl LanguageServer for DestackLanguageServer {
         let file_operation_filters = vec![lsp::FileOperationFilter {
             scheme: None,
             pattern: lsp::FileOperationPattern {
-                glob: DYST_FILE_GLOB.to_string(),
+                glob: SourceFormat::Dyst.glob().to_string(),
                 matches: Some(lsp::FileOperationPatternKind::File),
                 options: Some(lsp::FileOperationPatternOptions {
                     ignore_case: Some(true),

@@ -1,4 +1,4 @@
-use crate::{Span, Uri};
+use crate::{SourceFormat, Span, Uri};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,6 +17,8 @@ pub struct Source {
     pub id: SourceId,
     /// The URI of the SourceFile.
     pub uri: Uri,
+    /// The format of the source file.
+    pub format: SourceFormat,
     /// The content of the source file.
     pub content: String,
     /// The length of the SourceFile in bytes.
@@ -25,22 +27,20 @@ pub struct Source {
     pub line_start_offsets: Vec<u32>,
 }
 
-impl Default for Source {
-    fn default() -> Self {
-        Self {
-            id: SourceId::new(0),
-            uri: Uri::default(),
-            content: String::new(),
-            len: 0,
-            line_start_offsets: vec![],
-        }
-    }
-}
-
 impl Source {
+    /// Create an empty source in some format.
+    pub fn empty(format: SourceFormat) -> Self {
+        Self::from_string(
+            SourceId::new(0),
+            Uri::from_string("<empty>"),
+            format,
+            String::new(),
+        )
+    }
+
     /// Create a new Source.
     /// Precomputes indexing information immediately.
-    pub fn from_string(id: SourceId, uri: Uri, content: String) -> Self {
+    pub fn from_string(id: SourceId, uri: Uri, format: SourceFormat, content: String) -> Self {
         let len = content.len() as u32;
 
         // precompute line start byte offsets for O(1) line -> byte lookup
@@ -54,6 +54,7 @@ impl Source {
         Self {
             id,
             uri,
+            format,
             content,
             len,
             line_start_offsets,

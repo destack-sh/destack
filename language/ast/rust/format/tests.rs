@@ -1,7 +1,7 @@
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceId, Uri};
+use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::TokenSpan;
 
 use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, ParseResult, Parser};
@@ -24,7 +24,12 @@ impl TestFormatter {
         F: FnOnce(&mut Parser<'_>) -> ParseResult<N>,
     {
         let source_id = SourceId::new(0);
-        let source = Source::from_string(source_id, Uri::from_string("<test>"), input.to_string());
+        let source = Source::from_string(
+            source_id,
+            Uri::from_string("<string>"),
+            SourceFormat::Dyst,
+            input.to_string(),
+        );
         let mut session = Session::new();
 
         let mut parser = Parser::prepare(&source, &mut session);

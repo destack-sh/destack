@@ -5,6 +5,8 @@ use dyst_token::{TokenSpan, TokenType};
 
 #[derive(Debug, Clone)]
 pub struct Document {
+    /// The format of the document.
+    pub format: SourceFormat,
     /// The source of the document.
     pub source: Source,
     /// Whether the document content is controlled by an open editor session.
@@ -54,6 +56,7 @@ impl Document {
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
         Document {
+            format: source.format,
             source,
             is_open,
             tokens,

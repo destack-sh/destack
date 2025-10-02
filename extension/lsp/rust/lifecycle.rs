@@ -4,21 +4,13 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use dyst_source::SourceFormat;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::DestackLanguageServer;
 use crate::diagnostic::diagnostic_to_lsp_diagnostic;
 use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
-
-pub const DYST_FILE_GLOB: &str = "**/*.ds";
-pub const DYST_FILE_EXTENSION: &str = "ds";
-pub const DYST_TEXT_FILE_GLOB: &str = "**/*.dst";
-pub const DYST_TEXT_FILE_EXTENSION: &str = "dst";
-pub const DYST_BINARY_FILE_GLOB: &str = "**/*.dsb";
-pub const DYST_BINARY_FILE_EXTENSION: &str = "dsb";
-pub const DYST_EXECUTABLE_FILE_GLOB: &str = "**/*.dsx";
-pub const DYST_EXECUTABLE_FILE_EXTENSION: &str = "dsx";
 
 impl DestackLanguageServer {
     /// Register file watchers for all existing workspaces.
@@ -65,7 +57,7 @@ impl DestackLanguageServer {
         // create file watcher for .ds files in workspace
         let pattern = lsp::RelativePattern {
             base_uri: lsp::OneOf::Right(uri_to_lsp_uri(&workspace.root)),
-            pattern: DYST_FILE_GLOB.to_string(),
+            pattern: SourceFormat::Dyst.glob().to_string(),
         };
         let watchers = vec![lsp::FileSystemWatcher {
             glob_pattern: lsp::GlobPattern::Relative(pattern),

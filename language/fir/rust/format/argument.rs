@@ -92,7 +92,7 @@ mod tests {
     /// Format nested arguments and verify the output structure.
     #[test]
     fn test_nesting() {
-        let mut context = FormatState::new(SimpleFormatContext::default());
+        let mut context = FormatState::new(SimpleFormatContext::empty_dyst());
         let mut buffer = VecBuffer::new(&mut context);
 
         write!(

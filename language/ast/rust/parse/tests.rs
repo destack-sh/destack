@@ -1,5 +1,5 @@
 use dyst_session::Session;
-use dyst_source::{Source, SourceId, Uri};
+use dyst_source::{Source, SourceFormat, SourceId, Uri};
 
 use crate::Parser;
 
@@ -13,7 +13,12 @@ pub(crate) struct TestParser {
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
-        let source = Source::from_string(source_id, Uri::from_string("<test>"), input.to_string());
+        let source = Source::from_string(
+            source_id,
+            Uri::from_string("<string>"),
+            SourceFormat::Dyst,
+            input.to_string(),
+        );
         Self {
             source,
             session: Session::new(),
@@ -240,7 +245,7 @@ mod tests {
 
     use destack_file::glob;
     use dyst_session::Session;
-    use dyst_source::{Source, SourceId};
+    use dyst_source::{Source, SourceFormat, SourceId};
     use dyst_token::TokenType;
 
     use crate::{BlockFormat, Parser};
@@ -269,6 +274,7 @@ mod tests {
             let source = Source::from_string(
                 source_id,
                 ds_file.into(),
+                SourceFormat::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );
             sources.insert(source_id, source);

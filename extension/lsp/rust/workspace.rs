@@ -4,7 +4,7 @@ use std::{fs, io};
 use destack_file::glob::glob;
 use dyst_diagnostic::Diagnostic;
 use dyst_session::Session;
-use dyst_source::{Source, SourceId, Uri};
+use dyst_source::{Source, SourceFormat, SourceId, Uri};
 use std::str::FromStr;
 use tower_lsp_server::{UriExt, lsp_types as lsp};
 
@@ -92,7 +92,13 @@ impl Workspace {
     }
 
     /// Upsert and parse a document into the workspace.
-    pub fn upsert_document(&mut self, uri: &Uri, content: String, is_open: bool) -> SourceId {
+    pub fn upsert_document(
+        &mut self,
+        uri: &Uri,
+        format: SourceFormat,
+        content: String,
+        is_open: bool,
+    ) -> SourceId {
         // get or acquire the source ID
         let source_id = self
             .documents
@@ -105,7 +111,7 @@ impl Workspace {
             });
 
         // create the source
-        let source = Source::from_string(source_id, uri.clone(), content);
+        let source = Source::from_string(source_id, uri.clone(), format, content);
 
         // reset diagnostics
         self.reset_diagnostics_for_source(source_id);
@@ -123,7 +129,7 @@ impl Workspace {
     }
 
     /// Refresh a single document from disk when it is not open.
-    pub fn sync_document_from_disk(&mut self, uri: &Uri) -> io::Result<()> {
+    pub fn sync_document_from_disk(&mut self, uri: &Uri, format: SourceFormat) -> io::Result<()> {
         // skip if the document is open
         if self
             .documents
@@ -143,12 +149,12 @@ impl Workspace {
         let content = fs::read_to_string(&path)?;
 
         // upsert the document
-        self.upsert_document(uri, content, false);
+        self.upsert_document(uri, format, content, false);
         Ok(())
     }
 
-    /// Rebuild the workspace state from disk for all `.ds` sources.
-    pub fn index_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
+    /// Rebuild the workspace state from disk for all sources.
+    pub fn index_from_disk(&mut self, format: SourceFormat) -> io::Result<WorkspaceReindex> {
         // build pattern
         let root_uri = uri_to_lsp_uri(&self.root);
         let root_path = root_uri
@@ -161,7 +167,7 @@ impl Workspace {
             })?
             .to_string_lossy()
             .into_owned();
-        let glob_pattern = format!("{}/**/*.ds", root_path);
+        let glob_pattern = format!("{}/{}", root_path, format.glob());
 
         // collect from workspace tree
         let mut seen_uris = HashSet::new();
@@ -181,7 +187,7 @@ impl Workspace {
             };
 
             // upsert the document
-            self.upsert_document(&uri, content, false);
+            self.upsert_document(&uri, format, content, false);
             index.updated.push(uri.clone());
         }
 
