@@ -1,6 +1,6 @@
 use dyst
 
-/// A User is a human use Destack.
+/// A User is a human ..Destack.
 #entity
 struct User: Entity {
     /// The URL-friendly slug of the User.

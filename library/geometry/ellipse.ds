@@ -10,7 +10,7 @@ struct Ellipse2D: Form2D {
 /// A EllipseShape is a shape that represents a ellipse.
 #entity
 struct EllipseShape2D: Shape2D {
-    use Ellipse2D
+    ..Ellipse2D
 }
 
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
@@ -23,5 +23,5 @@ struct Ellipsoid3D: Form3D {
 /// An EllipsoidShape3D is a shape that represents an ellipsoid in 3D.
 #entity
 struct EllipsoidShape3D: Shape3D {
-    use Ellipsoid3D
+    ..Ellipsoid3D
 }

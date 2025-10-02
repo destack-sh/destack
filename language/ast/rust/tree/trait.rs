@@ -15,7 +15,8 @@ use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility, With};
 /// trait _ {} // explicit anonymous trait (for disambiguation)
 ///
 /// trait Foo: Baz { // Foo is a super
-///     use Bar, Boz // Foo *uses* Bar and Boz
+///     ..Bar
+///     ..Boz
 ///     
 ///     let x: int32 // constant
 ///     function foo() => int32

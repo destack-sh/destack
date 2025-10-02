@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
     ///
     ///     let x: int32 = 7 // constant
     ///
-    ///     use Bar // Foo has a Bar
+    ///     ..Bar // Foo has a Bar
     ///
     ///     function myFunc() { // nested declaration
     ///     }
@@ -358,7 +358,8 @@ struct Foo(int32, boolean) {}
         let mut test = TestParser::new(
             r###"
 struct Foo<T: Numeric>: Boz {
-    use Bar, Baz
+    ..Bar
+    ..Baz
     
     let x: int32 = 4
 
@@ -419,7 +420,7 @@ struct Foo<T: Numeric>: Boz {
                 assert!(default.is_some());
             });
 
-            assert_eq!(expressions.len(), 3);
+            assert_eq!(expressions.len(), 4);
         });
     }
 }

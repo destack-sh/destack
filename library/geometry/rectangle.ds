@@ -5,13 +5,13 @@ struct Rectangle2D {
     width: float32
     height: float32
 
-    use Form2D
+    ..Form2D
 }
 
 /// A RectangleShape is a shape that represents a rectangle.
 #entity
 struct RectangleShape2D: Shape2D {
-    use Rectangle2D
+    ..Rectangle2D
 }
 
 /// A Box is an axis-aligned box defined by width, height and depth.
@@ -24,5 +24,5 @@ struct Box3D: Form3D {
 /// A BoxShape3D is a shape that represents an axis-aligned box.
 #entity
 struct BoxShape3D: Shape3D {
-    use Box3D
+    ..Box3D
 }

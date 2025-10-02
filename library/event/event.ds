@@ -30,5 +30,5 @@ struct Event {
     /// The Event that caused self Event (if any).
     causedBy: Reference<Event>?
 
-    use Identity as identity
+    ..Identity
 }

@@ -16,12 +16,12 @@ struct ColliderContactEvent: ColliderEvent {
 /// A Collider in 2D space
 #entity
 struct Collider2D: Entity {
-    use Entity2D
+    ..Entity2D
 }
 
 /// A Collider in 3D space
 #entity
 struct Collider3D: Entity {
-    use Entity3D
+    ..Entity3D
 }
 
