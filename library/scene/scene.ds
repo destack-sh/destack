@@ -1,15 +1,15 @@
-use dyst
+use destack
 
 /// Base type for scene events.
-#event
-struct SceneEvent: Event {
+@event
+struct SceneEvent {
     /// The Scene the event pertains to.
     scene: Reference<Scene>
 }
 
 /// A Scene contains some interactive part of a Stage.
-#entity
-struct Scene: Entity {
+@entity
+struct Scene {
     /// The root View of the Scene.
     rootView: Reference<LayoutView2D>?
 }

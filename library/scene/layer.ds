@@ -1,8 +1,8 @@
-use dyst
+use destack
 
 /// A Layer is a container for Views
-#entity
-struct Layer: Entity {
+@entity
+struct Layer {
     /// Whether the layer is visible
     isVisible: boolean?
     /// Layer opacity

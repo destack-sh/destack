@@ -1,16 +1,16 @@
-use dyst
-use destack.time
+use destack
 
-#entity(description: "A Series of related Meetups (with a common prefix)")
-struct MeetupSeries: Entity {
+/// A Series of related Meetups (with a common prefix).
+@entity
+struct MeetupSeries {
     // The name of the Meetup Series.
     name: string
     /// The prefix of the Meetup Series.
     prefix: string
 }
 
-#entity
-struct Meetup: Entity {
+@entity
+struct Meetup {
     // When the Meetup is happening.
     date: Date
     // The name of the Meetup.
@@ -25,3 +25,4 @@ struct Meetup: Entity {
     //     function set(self, value: string) { self.name = value }
     // }
 }
+

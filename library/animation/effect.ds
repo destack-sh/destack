@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// When the effect fires.
 enum EffectType {
@@ -69,8 +69,8 @@ struct Effect {
 }
 
 /// An effect template.
-#entity
-struct EffectTemplate: Entity {
+@entity
+struct EffectTemplate {
     /// When the effect is applied.
     type: EffectType
     /// Optional opacity multiplier.

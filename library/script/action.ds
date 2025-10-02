@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Definition of a builtin Action.
 struct ActionDefinition {
@@ -13,8 +13,8 @@ struct ActionDefinition {
 }
 
 /// An implementation of a unit of work implemented for some runtimes.
-#entity
-struct Action: Entity {
+@entity
+struct Action {
     /// The Action type.
     type: ActionType
 

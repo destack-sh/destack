@@ -1,6 +1,6 @@
 [package]
 name = "dyst_llvm"
-description = "Destack LLVM Code Generator"
+description = "Dyst LLVM"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

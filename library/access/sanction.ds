@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A type of Sanction.
 enum SanctionType {
@@ -7,46 +7,46 @@ enum SanctionType {
 }
 
 /// Base event regarding a Sanction.
-#event
-struct SanctionEvent: Event {
+@event
+struct SanctionEvent {
     /// The Sanction self event pertains to.
     sanction: Sanction
     /// The sanctioned target Entity.
-    target: Entity
+    target
 }
 
 /// Sanction was requested.
-#event
-struct SanctionRequestedEvent: Event {
+@event
+struct SanctionRequestedEvent {
     ..SanctionEvent
 }
 
 /// Sanction was granted.
-#event
-struct SanctionGrantedEvent: Event {
+@event
+struct SanctionGrantedEvent {
     ..SanctionEvent
 }
 
 /// Sanction was revoked.
-#event
-struct SanctionRevokedEvent: Event {
+@event
+struct SanctionRevokedEvent {
     ..SanctionEvent
 }
 
 /// Sanction has expired.
-#event
-struct SanctionExpiredEvent: Event {
+@event
+struct SanctionExpiredEvent {
     ..SanctionEvent
 }
 
 /// A Sanction on some Actor.
-#entity
-struct Sanction: Entity {
+@entity
+struct Sanction {
     /// The Sanction type.
     type: SanctionType
     /// When the Sanction expires.
     expiresAt: Timestamp?
     /// The target Entity of the Sanction.
-    target: Entity
+    target
 }
 

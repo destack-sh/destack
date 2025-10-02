@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Universe signup request.
 struct UniverseSignupRequest {
@@ -33,8 +33,8 @@ struct UniverseSpawnResponse {
 }
 
 /// The Destack computational universe.
-#entity
-struct Universe: Entity {
+@entity
+struct Universe {
     /// The current version of Destack.
     VERSION: string
     /// The float epsilon used for floating point comparisons.

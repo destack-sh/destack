@@ -3,9 +3,9 @@ use crate::{Expression, Node, NodeId, NodeType, StringId, Visibility};
 /// The style of a module.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ModuleFormat {
-    /// Implicit module in a source (e.g., whole file).
-    Implicit,
-    /// Forward declaration for a module (e.g., `module x;`)
+    /// Implicit module source (e.g., whole file).
+    Source,
+    /// Forward declaration for a module (e.g., `module x;)
     Forward,
     /// Inline module with explicit braces (e.g., `module x { ... }`).
     Inline,
@@ -13,7 +13,9 @@ pub enum ModuleFormat {
 
 /// A Module is a module declaration.
 /// Modules may be whole directories, single files, or nested within a file.
-/// NOTE #Incomplete: Module-level static parameterisation? (just use `let` somehow?)
+/// NOTE #Incomplete: Module-level static parameterisation?
+///  (just use `let` somehow?)
+///  (or maybe something like `module self { ... }`?)
 ///
 /// Examples:
 /// ```

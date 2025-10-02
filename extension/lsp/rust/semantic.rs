@@ -73,7 +73,7 @@ pub fn collect_semantic_tokens(
     encode_semantic_tokens(source, tokens, &semantic_index.semantic_types, byte_span)
 }
 
-/// Encode tokens into LSP semantic token format with delta encoding.
+/// Encode tokens into LSP semantic token format.
 fn encode_semantic_tokens(
     source: &Source,
     tokens: &[TokenSpan],

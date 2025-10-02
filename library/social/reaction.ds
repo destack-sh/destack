@@ -1,15 +1,15 @@
-use dyst
+use destack
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
-#entity
-struct Reaction: Entity {
+@entity
+struct Reaction {
     /// The reaction content, e.g. an emoji.
     content: string
 }
 
 /// Base Reaction event.
-#event
-struct ReactionEvent: Event {
+@event
+struct ReactionEvent {
     /// The Reaction self event pertains to.
     reaction: Reference<Reaction>
     /// The reaction content.
@@ -17,10 +17,10 @@ struct ReactionEvent: Event {
 }
 
 /// Reaction added.
-#event
+@event
 struct ReactionAddedEvent: ReactionEvent { }
 
 /// Reaction removed.
-#event
+@event
 struct ReactionRemovedEvent: ReactionEvent { }
 

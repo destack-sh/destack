@@ -31,6 +31,7 @@ impl<'a> Parser<'a> {
     ///    !Bar,
     ///    Time<float32> // optional comma
     ///    F: Numeric
+    ///    T > Y
     /// )
     /// ```
     pub fn eat_with(&mut self) -> ParseResult<NodeId<With>> {
@@ -102,7 +103,7 @@ impl<'a> Parser<'a> {
             })
             .for_node_type(NodeType::WithClause)?;
 
-        // assertion: `T: SomeType`
+        // assertion (`T: SomeType`)
         if self.peek_colon().is_ok() {
             self.bump(); // eat colon
             let right = self
@@ -119,7 +120,7 @@ impl<'a> Parser<'a> {
             );
             Ok(clause)
         }
-        // declaration
+        // declaration (`Foo` or `T > Y`)
         else {
             let clause = self.tree.allocate(
                 WithClause::Declaration { target: left },

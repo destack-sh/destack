@@ -1,6 +1,6 @@
-use dyst
+use destack
 
 /// A frame View is a bare ContainerView
-#entity
+@entity
 struct FrameView2D: LayoutView2D { }
 

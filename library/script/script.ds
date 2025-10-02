@@ -1,8 +1,8 @@
-use dyst
+use destack
 
 /// A Script.
-#entity
-struct Script: Entity {
+@entity
+struct Script {
     /// The script code.
     code: string
 }

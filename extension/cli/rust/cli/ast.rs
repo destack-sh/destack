@@ -35,7 +35,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         parser.mark(),
         |parser| {
             parser
-                .eat_module_body(None, Some(module_name_id), ModuleFormat::Implicit)
+                .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
                 .map(Some)
         },
         None,

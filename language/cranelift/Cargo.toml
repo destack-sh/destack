@@ -1,6 +1,6 @@
 [package]
 name = "dyst_cranelift"
-description = "Destack Cranelift Code Generator"
+description = "Dyst Cranelift"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

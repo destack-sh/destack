@@ -13,6 +13,12 @@ use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
 
 pub const DYST_FILE_GLOB: &str = "**/*.ds";
 pub const DYST_FILE_EXTENSION: &str = "ds";
+pub const DYST_TEXT_FILE_GLOB: &str = "**/*.dst";
+pub const DYST_TEXT_FILE_EXTENSION: &str = "dst";
+pub const DYST_BINARY_FILE_GLOB: &str = "**/*.dsb";
+pub const DYST_BINARY_FILE_EXTENSION: &str = "dsb";
+pub const DYST_EXECUTABLE_FILE_GLOB: &str = "**/*.dsx";
+pub const DYST_EXECUTABLE_FILE_EXTENSION: &str = "dsx";
 
 impl DestackLanguageServer {
     /// Register file watchers for all existing workspaces.

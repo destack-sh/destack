@@ -1,4 +1,4 @@
-use dyst
+use destack
 use destack.entity
 
 /// The consensus status of an Event.
@@ -26,7 +26,7 @@ struct Event {
     /// The logical time in the Client when it created self Event (client).
     clientLocalEpoch: Epoch
     /// The status of the Event (system).
-    status: EventStatus = EventStatus.Pending
+    statusStatus = EventStatus.Pending
     /// The Event that caused self Event (if any).
     causedBy: Reference<Event>?
 

@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A Cylinder is aligned with the local z axis with a radius and height.
 struct Cylinder3D {
@@ -9,7 +9,7 @@ struct Cylinder3D {
 }
 
 /// A CylinderShape3D is a shape that represents a cylinder.
-#entity
+@entity
 struct CylinderShape3D: Shape3D {
     ..Cylinder3D
 }

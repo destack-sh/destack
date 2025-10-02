@@ -400,7 +400,7 @@ mod tests {
     fn test_format_decorators_on_struct() {
         let source = r#"{
     // comment before entity
-    #entity
+    @entity
     // comment after entity
     // comment before foo
     @foo(1, 2, 3)

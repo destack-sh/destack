@@ -268,7 +268,7 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
         parser.mark(),
         |parser| {
             parser
-                .eat_module_body(None, Some(module_name_id), ModuleFormat::Implicit)
+                .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
                 .map(Some)
         },
         None,

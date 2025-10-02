@@ -2,18 +2,23 @@
     "name": "destack-extension-vscode",
     "displayName": "Destack & Dyst",
     "description": "Destack & Dyst for VSCode (.ds, .dsb, .dst, .dsx)",
-    "version": "2025.10.2-1",
+    "version": "2025.10.2-3",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"
     },
     "publisher": "symbol-industries",
     "categories": [
-        "Programming Languages"
+        "Programming Languages",
+        "Language Packs",
+        "Languages",
+        "Linters",
+        "Formatters",
+        "Visualization"
     ],
     "repository": {
         "type": "web",
-        "url": "https://destack.dev"
+        "url": "https://destack.sh"
     },
     "activationEvents": [
         "onStartupFinished"
@@ -21,7 +26,8 @@
     "main": "./out/extension.js",
     "files": [
         "out/extension.js",
-        "language-configuration.json",
+        "ds-configuration.json",
+        "dst-configuration.json",
         "package.json",
         "README.md",
         "LICENSE.txt"
@@ -66,16 +72,33 @@
                 "extensions": [
                     ".ds"
                 ],
-                "configuration": "./language-configuration.json"
+                "configuration": "./ds-configuration.json"
             },
             {
-                "id": "destack",
+                "id": "dst",
                 "aliases": [
-                    "Destack"
+                    "Destack Text Format"
                 ],
                 "extensions": [
-                    ".dsb",
-                    ".dst",
+                    ".dst"
+                ],
+                "configuration": "./dst-configuration.json"
+            },
+            {
+                "id": "dsb",
+                "aliases": [
+                    "Destack Binary Format"
+                ],
+                "extensions": [
+                    ".dsb"
+                ]
+            },
+            {
+                "id": "dsx",
+                "aliases": [
+                    "Destack Executable Format"
+                ],
+                "extensions": [
                     ".dsx"
                 ]
             }

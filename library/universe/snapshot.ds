@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// The type of a Snapshot.
 enum SnapshotType {
@@ -14,8 +14,8 @@ enum SnapshotStatus {
 }
 
 /// A Snapshot is a point in Space-time.
-#entity
-struct Snapshot: Entity {
+@entity
+struct Snapshot {
     /// The Snapshot type.
     type: SnapshotType
     /// The Snapshot status.

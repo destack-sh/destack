@@ -15,6 +15,7 @@ use crate::{Expression, Node, NodeId, NodeType};
 ///    !Bar,
 ///    Time<F> // optional comma
 ///    F: Numeric
+///    T > Y
 /// )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -37,10 +38,12 @@ impl Node for With {
 /// Foo
 /// Foo as Bar
 /// Foo.Bar as Baz
+/// 
 /// // assertion
 /// T: int32
 /// Self: geom.Mesh<T>
 /// T.Item: Copy
+/// T > Y
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum WithClause {

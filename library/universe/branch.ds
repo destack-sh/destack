@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// The type of a Branch.
 enum BranchType {
@@ -8,7 +8,7 @@ enum BranchType {
 }
 
 /// A Branch is a version of a Snapshot.
-struct Branch: Entity {
+struct Branch {
     /// The Branch type.
     type: BranchType
 }

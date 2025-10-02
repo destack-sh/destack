@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Log levels.
 enum LogLevel {
@@ -11,8 +11,8 @@ enum LogLevel {
 }
 
 /// A log message.
-#event
-struct LogEvent: Event {
+@event
+struct LogEvent {
     /// The log name.
     name: string
     /// The log level.

@@ -4,7 +4,8 @@ use dyst_source::Source;
 use dyst_token::{RawLiteralType, TokenSpan, TokenType};
 
 use crate::{
-    Keyword, Node, NodeId, NodeTree, NodeVisitor, walk_argument, walk_enum_field, walk_parameter, walk_pattern_field, walk_struct_field, walk_type_literal, walk_union_field
+    Keyword, Node, NodeId, NodeTree, NodeVisitor, walk_argument, walk_enum_field, walk_parameter,
+    walk_pattern_field, walk_struct_field, walk_type_literal, walk_union_field,
 };
 
 /// The semantic type of a Span or Token.
@@ -230,6 +231,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_struct_field(self, tree, id, struct_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
+        self.set_semantic_span(tree, struct_field.r#type, SemanticType::Type);
     }
 
     fn visit_enum_field(
@@ -250,6 +252,9 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_union_field(self, tree, id, union_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
+        if let Some(type_id) = union_field.r#type {
+            self.set_semantic_span(tree, type_id, SemanticType::Type);
+        }
     }
 
     // ------------------------------------------------------------
@@ -264,6 +269,9 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
+        if let Some(type_id) = parameter.r#type {
+            self.set_semantic_span(tree, type_id, SemanticType::Type);
+        }
     }
 
     fn visit_argument(

@@ -1,4 +1,4 @@
-use dyst.simulation
+use destack.simulation
 
 /// A 2-dimensional vector with float32 components.
 struct Vector2 {

@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A Form2D is a 2D geometric form.
 struct Form2D {
@@ -11,14 +11,14 @@ struct Form3D {
 }
 
 /// A Shape2D is a 2D geometric shape.
-#entity
-struct Shape2D: Entity {
+@entity
+struct Shape2D {
     ..Entity2D
 }
 
 /// A Shape3D is a 3D geometric shape.
-#entity
-struct Shape3D: Entity {
+@entity
+struct Shape3D {
     ..Entity3D
 }
 

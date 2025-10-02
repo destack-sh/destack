@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// Day of week.
 enum DayOfWeek {
@@ -58,7 +58,7 @@ struct Schedule {
     /// Month days to include.
     byMonthDay: List<uint8>?
     /// Year days to include.
-    byYearDay: List<u16>?
+    byYearDay: List<uint16>?
     /// Easter offsets to include.
     byEaster: List<uint8>?
     /// Week numbers to include.

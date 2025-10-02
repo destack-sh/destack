@@ -38,6 +38,7 @@ members = [
 	"library/style",
 	"library/telemetry",
 	"library/terminal",
+	"library/test",
 	"library/text",
 	"library/time",
 	"library/tokei",
@@ -52,19 +53,12 @@ members = [
 	"extension/python",
 	"extension/rust",
 	"extension/javascript",
+	"extension/web",
 	"extension/zed",
-	# platform
-	"platform/web",
-	# demo
-	"demo/breakout",
-	"demo/tetris",
-	# test
-	"test/demo",
-	"test/simulation",
 ]
 
 [workspace.package]
-version = "2025.10.2-1"
+version = "2025.10.2-3"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -112,6 +106,7 @@ destack_style = { path = "library/style" }
 destack_text = { path = "library/text" }
 destack_telemetry = { path = "library/telemetry" }
 destack_terminal = { path = "library/terminal" }
+destack_test = { path = "library/test" }
 destack_time = { path = "library/time" }
 destack_tokei = { path = "library/tokei" }
 destack_unicode = { path = "library/unicode" }
@@ -122,17 +117,10 @@ destack_view = { path = "library/view" }
 # extension
 destack_cli = { path = "extension/cli" }
 destack_javascript = { path = "extension/javascript" }
+destack_lsp = { path = "extension/lsp" }
 destack_python = { path = "extension/python" }
 destack_rust = { path = "extension/rust" }
-destack_lsp = { path = "extension/lsp" }
-# platform
-destack_platform_web = { path = "platform/web" }
-# demo
-destack_breakout = { path = "demo/breakout" }
-destack_tetris = { path = "demo/tetris" }
-# test
-destack_demo = { path = "test/demo" }
-destack_simulation = { path = "test/simulation" }
+destack_web = { path = "extension/web" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"

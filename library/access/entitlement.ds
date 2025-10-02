@@ -1,4 +1,4 @@
-use dyst
+use destack
 
 /// A type of Entitlement.
 enum EntitlementType {
@@ -7,33 +7,33 @@ enum EntitlementType {
 }
 
 /// Base event regarding an Entitlement.
-#event
-struct EntitlementEvent: Event {
+@event
+struct EntitlementEvent {
     /// The Entitlement self event pertains to.
     entitlement: Reference<Entitlement>
     /// The Entitled target Entity.
-    target: Entity
+    target
 }
 
 /// Entitlement was requested.
-#event
+@event
 struct EntitlementRequestedEvent: EntitlementEvent { }
 
 /// Entitlement was granted.
-#event
+@event
 struct EntitlementGrantedEvent: EntitlementEvent { }
 
 /// Entitlement was revoked.
-#event
+@event
 struct EntitlementRevokedEvent: EntitlementEvent { }
 
 /// Entitlement has expired.
-#event
+@event
 struct EntitlementExpiredEvent: EntitlementEvent { }
 
 /// An Entitlement to some Entity.
-#entity
-struct Entitlement: Entity {
+@entity
+struct Entitlement {
     /// The Entitlement type.
     type: EntitlementType
     /// When the Entitlement expires.

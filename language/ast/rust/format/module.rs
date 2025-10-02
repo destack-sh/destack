@@ -17,7 +17,7 @@ impl<'ast> FormatNode<'ast, Module> for Module {
 
         // implicit module (whole file)
         match self.format {
-            ModuleFormat::Implicit => write!(
+            ModuleFormat::Source => write!(
                 f,
                 [format_with(|f| f
                     .join_with(hard_line_break())

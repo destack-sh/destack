@@ -1,9 +1,9 @@
-use dyst
+use destack
 
 /// Definition of a builtin Function.
 struct FunctionDefinition {
     /// The Function id.
-    id: u16
+    id: uint16
     /// Whether the Function is asynchronous.
     isAsync: boolean
     /// Whether the Function is managed by the system.
@@ -11,8 +11,8 @@ struct FunctionDefinition {
 }
 
 /// Base Function entity.
-#entity
-struct Function: Entity {
+@entity
+struct Function {
     /// The Method type.
     type: MethodType
     /// Optional textual body.
