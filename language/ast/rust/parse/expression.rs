@@ -557,11 +557,17 @@ impl<'a> Parser<'a> {
 
         // eat all regular postfix operators
         loop {
-            // range (implicit with `..`)
+            // range (`..`, `..=`)
             if self.peek_token(TokenType::Range).is_ok()
                 || self.peek_token(TokenType::RangeWide).is_ok()
             {
                 self.bump(); // eat ..
+                let is_inclusive = if self.peek_token(TokenType::Equal).is_ok() {
+                    self.bump(); // eat =
+                    true
+                } else {
+                    false
+                };
                 let right_expression_id = self
                     .eat_expression()
                     .for_node_type(NodeType::RangeLiteral)?;
@@ -569,7 +575,7 @@ impl<'a> Parser<'a> {
                     RangeLiteral {
                         start: left_expression_id,
                         end: right_expression_id,
-                        is_inclusive: true,
+                        is_inclusive,
                     },
                     self.get_span_from(start),
                 );

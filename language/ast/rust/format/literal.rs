@@ -124,7 +124,11 @@ impl<'ast> FormatNode<'ast, RangeLiteral> for RangeLiteral {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        write!(f, [self.start, token(".."), self.end,])?;
+        if self.is_inclusive {
+            write!(f, [self.start, token("..="), self.end,])?;
+        } else {
+            write!(f, [self.start, token(".."), self.end,])?;
+        }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
