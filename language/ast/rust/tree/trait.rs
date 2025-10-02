@@ -42,7 +42,7 @@ pub struct Trait {
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The with declarations of the trait.
-    pub withs: Vec<NodeId<With>>,
+    pub with: Option<NodeId<With>>,
     /// The body of the trait.
     pub expressions: Vec<NodeId<Expression>>,
 }

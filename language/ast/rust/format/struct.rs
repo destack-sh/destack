@@ -101,6 +101,11 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             )?;
         }
 
+        // with declaration
+        if let Some(with) = self.with {
+            write!(f, [space(), with])?;
+        }
+
         write!(f, [space()])?;
 
         // empty body

@@ -92,6 +92,9 @@ impl<'a> Parser<'a> {
             .eat_super_types_maybe()
             .for_node_type(NodeType::Struct)?;
 
+        // optional with declaration
+        let with = self.eat_with_maybe().for_node_type(NodeType::Struct)?;
+
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Struct)?;
@@ -115,6 +118,7 @@ impl<'a> Parser<'a> {
                 super_types,
                 static_parameters,
                 representation_type,
+                with,
                 fields,
                 expressions,
             },

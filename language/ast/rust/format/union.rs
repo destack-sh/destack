@@ -78,6 +78,11 @@ impl<'ast> FormatNode<'ast, Union> for Union {
             )?;
         }
 
+        // with declaration
+        if let Some(with) = self.with {
+            write!(f, [space(), with])?;
+        }
+
         // space before body braces
         write!(f, [space()])?;
 

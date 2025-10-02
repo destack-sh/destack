@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility, With};
 
 /// An Enum is an enumeration definition node.
 /// Like with structs, the ',' separator is optional if newline-delimited.
@@ -51,6 +51,8 @@ pub struct Enum {
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The super types of the enum (desugars to `use`-ing other types).
     pub super_types: Option<Vec<NodeId<Expression>>>,
+    /// The with declaration of the enum.
+    pub with: Option<NodeId<With>>,
     /// The fields of the enum.
     pub fields: Vec<NodeId<EnumField>>,
     /// The body of the enum.

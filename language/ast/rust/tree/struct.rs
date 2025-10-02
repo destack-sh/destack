@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility};
+use crate::{Expression, Node, NodeId, NodeType, Parameter, Visibility, With};
 
 /// The style of a struct.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -67,6 +67,8 @@ pub struct Struct {
     pub representation_type: Option<NodeId<Expression>>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    /// The with declaration of the struct.
+    pub with: Option<NodeId<With>>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
     /// The body of the type.

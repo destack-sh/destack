@@ -39,6 +39,11 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
             write!(f, [space()])?;
         }
 
+        // with declaration
+        if let Some(with) = self.with {
+            write!(f, [space(), with])?;
+        }
+
         // empty block
         if self.fields.is_empty() && self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;

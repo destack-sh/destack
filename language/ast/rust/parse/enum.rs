@@ -68,30 +68,38 @@ impl<'a> Parser<'a> {
 
         // optional super types: : ...
         let super_types = self.eat_super_types_maybe().for_node_type(NodeType::Enum)?;
-
+        
+        // optional with declaration
+        let with = self.eat_with_maybe().for_node_type(NodeType::Enum)?;
+        
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let enum_id = self
-            .eat_enum_body(visibility)
-            .for_node_type(NodeType::Enum)?;
+        let (fields, expressions) = self.eat_enum_body().for_node_type(NodeType::Enum)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        // fill header data
-        let enum_ = self.tree.get_mut(enum_id);
-        enum_.name = name;
-        enum_.tag_type = explicit_type;
-        enum_.static_parameters = static_parameters;
-        enum_.super_types = super_types;
+        // enum
+        let enum_id = self.tree.allocate(
+            Enum {
+                name,
+                visibility,
+                tag_type: explicit_type,
+                static_parameters,
+                super_types,
+                with,
+                fields,
+                expressions,
+            },
+            self.get_span_from(start),
+        );
         self.tree.set_span(enum_id, self.get_span_from(start));
 
         Ok(enum_id)
     }
 
     /// Eat an enum body (without the header or `{` and `}`)
-    fn eat_enum_body(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
-        let start = self.mark();
-
+    #[allow(clippy::type_complexity)]
+    fn eat_enum_body(&mut self) -> ParseResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -118,19 +126,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let enum_id = self.tree.allocate(
-            Enum {
-                name: None,
-                visibility,
-                tag_type: None,
-                static_parameters: None,
-                super_types: None,
-                fields,
-                expressions,
-            },
-            self.get_span_from(start),
-        );
-        Ok(enum_id)
+        Ok((fields, expressions))
     }
 
     /// Peek an enum field.

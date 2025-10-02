@@ -166,6 +166,11 @@ pub fn walk_struct<V: NodeVisitor + ?Sized>(
         }
     }
 
+    if let Some(with) = &struct_node.with {
+        let with_node = tree.get(*with);
+        visitor.visit_with(tree, *with, with_node);
+    }
+
     for field_id in &struct_node.fields {
         let field = tree.get(*field_id);
         visitor.visit_struct_field(tree, *field_id, field);
@@ -212,6 +217,11 @@ pub fn walk_enum<V: NodeVisitor + ?Sized>(
             let type_node = tree.get(*type_id);
             visitor.visit_expression(tree, *type_id, type_node);
         }
+    }
+
+    if let Some(with) = &enum_node.with {
+        let with_node = tree.get(*with);
+        visitor.visit_with(tree, *with, with_node);
     }
 
     for field_id in &enum_node.fields {
@@ -271,6 +281,11 @@ pub fn walk_union<V: NodeVisitor + ?Sized>(
         }
     }
 
+    if let Some(with) = &union_node.with {
+        let with_node = tree.get(*with);
+        visitor.visit_with(tree, *with, with_node);
+    }
+
     for field_id in &union_node.fields {
         let field = tree.get(*field_id);
         visitor.visit_union_field(tree, *field_id, field);
@@ -322,9 +337,9 @@ pub fn walk_trait<V: NodeVisitor + ?Sized>(
         }
     }
 
-    for with_id in &trait_node.withs {
-        let with_node = tree.get(*with_id);
-        visitor.visit_with(tree, *with_id, with_node);
+    if let Some(with) = &trait_node.with {
+        let with_node = tree.get(*with);
+        visitor.visit_with(tree, *with, with_node);
     }
 
     for expression_id in &trait_node.expressions {
@@ -354,6 +369,11 @@ pub fn walk_implement<V: NodeVisitor + ?Sized>(
     if let Some(for_trait) = &implement.for_trait {
         let trait_type = tree.get(*for_trait);
         visitor.visit_expression(tree, *for_trait, trait_type);
+    }
+
+    if let Some(with) = &implement.with {
+        let with_node = tree.get(*with);
+        visitor.visit_with(tree, *with, with_node);
     }
 
     for expression_id in &implement.expressions {
