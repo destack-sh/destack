@@ -164,13 +164,14 @@ pub enum CompositeType {
 /// Examples:
 /// ```
 /// 1..3
-/// 1..n
+/// 1..n // exclusive
+/// 1..=n // inclusive
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct RangeLiteral {
     pub start: NodeId<Expression>,
     pub end: NodeId<Expression>,
-    pub is_inclusive: bool, // nocheckin: handle RangeLiteral.is_inclusive
+    pub is_inclusive: bool,
 }
 
 impl Node for RangeLiteral {
