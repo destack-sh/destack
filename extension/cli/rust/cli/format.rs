@@ -9,7 +9,7 @@ use dyst_diagnostic::Severity;
 use dyst_fir::format::{IndentStyle, LineEnding, format as format_fir};
 use dyst_fir::format_args;
 use dyst_session::Session;
-use dyst_source::{AnnotateOptions, Color, Source, SourceId, Uri, annotate_source};
+use dyst_source::{AnnotateOptions, Color, Source, SourceFormat, SourceId, Uri, annotate_source};
 use dyst_token::TokenType;
 
 use crate::cli::source::{render_semantic_spans, semantic_spans_from_text};
@@ -22,6 +22,7 @@ pub const HELP: &str = r"Format Dyst source code.
 	--indent-width <n>   Set spaces per indent (default 4)
 	--line-ending <e>    Choose line ending: lf, crlf, cr
 	--dry-run            Preview formatting without writing files
+    --format <f>         Choose format: ds, dst, dsb, dsx
 	<path>               Format the provided file (omit to format all .ds files)";
 
 const DEFAULT_IGNORE_PATHS: &[&str] = &[
@@ -169,12 +170,13 @@ fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) 
 }
 
 /// Format inline source provided via --string.
-fn run_for_string(body: &str, options: &DystFormatOptions) -> i32 {
+fn run_for_string(string: &str, options: &DystFormatOptions) -> i32 {
     // create source from string input
     let source = Source::from_string(
         SourceId::new(0),
         Uri::from_string("<string>"),
-        body.to_string(),
+        options.format,
+        string.to_string(),
     );
 
     // format and output result
@@ -220,6 +222,11 @@ fn format_file(
     emit_output: bool,
 ) -> Result<FormattedFlags, String> {
     let path_buf = path.to_path_buf();
+    let format = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .and_then(SourceFormat::from_extension)
+        .unwrap_or(options.format);
 
     // read original file content
     let original_text = fs::read_to_string(&path_buf)
@@ -229,6 +236,7 @@ fn format_file(
     let source = Source::from_string(
         SourceId::new(0),
         Uri::from(&path_buf),
+        format,
         original_text.clone(),
     );
     let FormattedSource { formatted, session } = format_source(&source, options)
@@ -386,6 +394,15 @@ fn parse_options(ctx: &CommandArguments) -> Result<DystFormatOptions, String> {
             other => return Err(format!("invalid line ending: {other}")),
         };
         options = options.with_line_ending(ending);
+    }
+
+    // --format
+    if let Some(value) = ctx.option("format") {
+        let format = match SourceFormat::from_extension(value) {
+            Some(format) => format,
+            None => return Err(format!("invalid format: {value}")),
+        };
+        options = options.with_format(format);
     }
 
     Ok(options)

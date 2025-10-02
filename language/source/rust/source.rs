@@ -10,14 +10,14 @@ impl SourceId {
     }
 }
 
-/// A "source" inside the `SourceMap` (Like a file).
+/// A text "source" (like a file or a standalone string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
     /// The id of the SourceFile.
     pub id: SourceId,
     /// The URI of the SourceFile.
     pub uri: Uri,
-    /// The format of the source file.
+    /// The format of the source file (ds or dst).
     pub format: SourceFormat,
     /// The content of the source file.
     pub content: String,

@@ -5,6 +5,7 @@ use dyst_source::{Source, Uri};
 use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
 
+use crate::document::DocumentContent;
 use crate::{Workspace, byte_to_utf16_position, range_to_byte_span, token_length_utf16};
 
 /// All semantic token types supported by the LSP server.
@@ -46,7 +47,8 @@ pub fn legend() -> lsp::SemanticTokensLegend {
 pub fn collect_semantic_tokens(
     source: &Source,
     tokens: &Vec<TokenSpan>,
-    tree: Option<(&NodeTree, NodeId<Module>)>,
+    tree: &NodeTree,
+    module_id: Option<NodeId<Module>>,
     range: Option<&lsp::Range>,
 ) -> Option<Vec<lsp::SemanticToken>> {
     if tokens.is_empty() {
@@ -55,7 +57,7 @@ pub fn collect_semantic_tokens(
 
     // build semantic type mapping from AST if available
     let mut semantic_index = SemanticTokenIndex::from_tokens(source, tokens);
-    if let Some((tree, module_id)) = tree {
+    if let Some(module_id) = module_id {
         let module = tree.get(module_id);
         semantic_index.visit_module(tree, module_id, module);
     }
@@ -163,8 +165,16 @@ impl Workspace {
     /// Compute semantic tokens for a document.
     pub fn get_semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
-        let tree = doc.module_id.map(|root| (&doc.ast, root));
-        collect_semantic_tokens(&doc.source, &doc.all_tokens, tree, None)
+        match &doc.content {
+            DocumentContent::Text {
+                source,
+                all_tokens,
+                ast,
+                module_id,
+                ..
+            } => collect_semantic_tokens(source, all_tokens, ast, *module_id, None),
+            _ => None,
+        }
     }
 
     /// Compute semantic tokens for a document within a range.
@@ -174,7 +184,15 @@ impl Workspace {
         range: &lsp::Range,
     ) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
-        let tree = doc.module_id.map(|root| (&doc.ast, root));
-        collect_semantic_tokens(&doc.source, &doc.all_tokens, tree, Some(range))
+        match &doc.content {
+            DocumentContent::Text {
+                source,
+                all_tokens,
+                ast,
+                module_id,
+                ..
+            } => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range)),
+            _ => None,
+        }
     }
 }

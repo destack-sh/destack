@@ -3,7 +3,7 @@ use dyst_fir::format::{
 };
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Path, PathId, Source, Span, StringId};
+use dyst_source::{MultiSpan, Path, PathId, Source, SourceFormat, Span, StringId};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -16,6 +16,8 @@ pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 /// Dyst format options (mostly for testing).
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DystFormatOptions {
+    /// The format of the source.
+    pub format: SourceFormat = SourceFormat::Dyst,
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -50,6 +52,12 @@ impl DystFormatOptions {
             line_width,
             ..Self::default()
         }
+    }
+
+    /// Set the format.
+    pub fn with_format(mut self, format: SourceFormat) -> Self {
+        self.format = format;
+        self
     }
 
     /// Set the line ending.
