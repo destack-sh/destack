@@ -2,6 +2,7 @@ pub mod definition;
 pub mod node;
 pub mod path;
 pub mod symbol;
+pub mod expression;
 pub mod r#type;
 
 pub use definition::*;

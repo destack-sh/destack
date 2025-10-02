@@ -5,9 +5,10 @@ use std::marker::PhantomData;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
     // // Groupings
-    // Expression,
-    // Block,
+    Expression,
+    Block,
     // // Declarations
+    Definition,
     // Module,
     // Struct,
     // StructField,
@@ -29,9 +30,7 @@ pub enum NodeType {
     // UseItem,
     // // Control
     // If,
-    // While,
-    // For,
-    // Loop,
+    Loop,
     // Break,
     // Continue,
     // Defer,
@@ -52,19 +51,11 @@ pub enum NodeType {
     // Index,
     // Call,
     // Cast,
-    // Coalesce,
     // // Matching
-    // Match,
+    Match,
     // MatchCase,
     // Pattern,
     // PatternField,
-    // // Annotations
-    // Annotation,
-    // Blank,
-    // Doc,
-    // Comment,
-    // Tag,
-    // Decorator,
 }
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
