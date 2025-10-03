@@ -1,47 +1,8 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{
-    DystFormatter, FormatNode, Keyword, Match, MatchCase, NodeId,
-    empty_block_with_infix_annotations,
-};
+use crate::{DystFormatter, FormatNode, Keyword, MatchCase, NodeId};
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
-
-impl<'ast> FormatNode<'ast, Match> for Match {
-    fn format_node(
-        &self,
-        node_id: NodeId<Match>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // match <expression>
-        write!(f, [Keyword::Match, space(), self.value])?;
-
-        // empty match body
-        if self.cases.is_empty() {
-            write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
-            return Ok(());
-        }
-
-        // match cases
-        write!(f, [space(), token("{"), hard_line_break()])?;
-        write!(
-            f,
-            [group(&format_args![block_indent(&format_with(|f| f
-                .join_with(hard_line_break())
-                .entries(&self.cases)
-                .finish())),])]
-        )?;
-        write!(f, [f.context().block_infix_annotations(node_id)])?;
-        write!(f, [hard_line_break(), token("}")])?;
-
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
@@ -94,7 +55,7 @@ mod tests {
         assert_format!(
             "match x { 1 => 2; 3 => 4 }",
             "match x {\n\t1 => 2\n\t3 => 4\n}",
-            |p| p.eat_match(),
+            |p| p.eat_match(None),
             DystFormatOptions::default_tab()
         );
     }
@@ -104,7 +65,7 @@ mod tests {
         assert_format!(
             "match value { Pattern if cond => { let X = 1 } }",
             "match value {\n\tPattern if cond => {\n\t\tlet X = 1\n\t}\n}",
-            |p| p.eat_match(),
+            |p| p.eat_match(None),
             DystFormatOptions::default_tab()
         );
     }

@@ -1,22 +1,15 @@
 use std::borrow::Cow;
 
 use crate::{
-    ArrayLiteral, CompositeType, DystFormatContext, DystFormatter, FieldLiteral, FloatType,
-    FormatNode, IntType, Keyword, NodeId, RangeLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
-    TupleLiteralField, TypeLiteral,
+    CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, ScalarLiteral,
+    TypeLiteral,
 };
-use dyst_fir::format::{Format, FormatResult, group, text, token};
+use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::write;
 
-impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<ScalarLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
+impl<'ast> Format<DystFormatContext<'ast>> for ScalarLiteral {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let span = f.context().tree.get_span(node_id);
         let span_str = f.context().source.get_span_str(span);
         match self {
@@ -48,20 +41,12 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
             }
         }
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
         Ok(())
     }
 }
 
-impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<TypeLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
+impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("!")]),
             TypeLiteral::Any => write!(f, [token("$")]),
@@ -78,8 +63,6 @@ impl<'ast> FormatNode<'ast, TypeLiteral> for TypeLiteral {
             TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
             TypeLiteral::Self_ => write!(f, [token("Self")]),
         }?;
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -126,189 +109,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
             CompositeType::Trait => write!(f, [Keyword::Trait]),
             CompositeType::Function => write!(f, [Keyword::Function]),
         }
-    }
-}
-
-impl<'ast> FormatNode<'ast, RangeLiteral> for RangeLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<RangeLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        if self.is_inclusive {
-            write!(f, [self.start, token("..="), self.end,])?;
-        } else {
-            write!(f, [self.start, token(".."), self.end,])?;
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<TupleLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        if self.elements.len() == 1 {
-            // single element tuple needs trailing comma if single line
-            write!(
-                f,
-                [group(&format_args![
-                    token("("),
-                    soft_block_indent(&format_args![
-                        self.elements[0],
-                        if_group_fits_on_line(&token(","))
-                    ]),
-                    token(")")
-                ])]
-            )?;
-        } else {
-            // multi-element tuple
-            write!(
-                f,
-                [group(&format_args![
-                    token("("),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
-                            soft_line_break_or_space()
-                        ])
-                        .entries(&self.elements)
-                        .finish())),
-                    f.context().block_infix_annotations(node_id),
-                    token(")"),
-                ])]
-            )?;
-        }
-
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, TupleLiteralField> for TupleLiteralField {
-    fn format_node(
-        &self,
-        node_id: NodeId<TupleLiteralField>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        match self {
-            TupleLiteralField::Named {
-                name,
-                value: r#type,
-            } => {
-                write!(f, [name, token(": "), r#type])?;
-            }
-            TupleLiteralField::Positional { value: r#type } => {
-                write!(f, [r#type])?;
-            }
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, ArrayLiteral> for ArrayLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<ArrayLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        match self {
-            ArrayLiteral::Fixed { elements } => {
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("["),
-                        soft_block_indent(&format_with(|f| f
-                            .join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
-                                soft_line_break_or_space()
-                            ])
-                            .entries(elements)
-                            .finish())),
-                        f.context().block_infix_annotations(node_id),
-                        token("]"),
-                    ])]
-                )?;
-            }
-        }
-
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, StructLiteral> for StructLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<StructLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        write!(
-            f,
-            [group(&format_args![
-                self.r#type,
-                space(),
-                token("{"),
-                if_group_fits_on_line(&space()),
-                soft_block_indent(&format_with(|f| f
-                    .join_with(&format_args![
-                        if_group_fits_on_line(&token(",")),
-                        soft_line_break_or_space()
-                    ])
-                    .entries(&self.fields)
-                    .finish())),
-                if_group_fits_on_line(&space()),
-                f.context().block_infix_annotations(node_id),
-                token("}"),
-            ])]
-        )?;
-
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, FieldLiteral> for FieldLiteral {
-    fn format_node(
-        &self,
-        node_id: NodeId<FieldLiteral>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        match self {
-            FieldLiteral::Named { name, value } => {
-                write!(f, [name, token(": "), value])?;
-            }
-            FieldLiteral::NamedShorthand { name } => {
-                write!(f, [name])?;
-            }
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
     }
 }
 
@@ -525,81 +325,6 @@ mod tests {
             "\"Hello, world!\nHello, world!\"",
             "\"Hello, world!\nHello, world!\"",
             |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    /// Empty tuples should be retained.
-    #[test]
-    fn test_format_tuple_literal_empty() {
-        assert_format!("()", "()", |p| p.eat_tuple_literal());
-    }
-
-    /// One element tuples should retain their trailing comma if single line.
-    #[test]
-    fn test_format_tuple_literal_one_element_single_line() {
-        assert_format!("(1,)", "(1,)", |p| p.eat_tuple_literal());
-    }
-
-    /// If the tuple fits on a single line, it should print on a single line.
-    #[test]
-    fn test_format_tuple_literal_short() {
-        assert_format!("(1, 2, 3)", "(1, 2, 3)", |p| p.eat_tuple_literal());
-    }
-
-    /// If the tuple doesn't fit on a single line, it should print one element per line (indented).
-    #[test]
-    fn test_format_tuple_literal_long() {
-        assert_format!(
-            "(1, 2, 3, 4, 5)",
-            "(\n\t1\n\t2\n\t3\n\t4\n\t5\n)",
-            |p| p.eat_tuple_literal(),
-            DystFormatOptions::default_tab_with_line_width(10)
-        );
-    }
-
-    /// If the array fits on a single line, it should print on a single line.
-    #[test]
-    fn test_format_array_literal_short() {
-        assert_format!("[1, 2, 3]", "[1, 2, 3]", |p| p.eat_array_literal());
-    }
-
-    /// If the array doesn't fit on a single line, it should print one element per line (indented).
-    #[test]
-    fn test_format_array_literal_long() {
-        assert_format!(
-            "[1, 2, 3, 4, 5]",
-            "[\n\t1\n\t2\n\t3\n\t4\n\t5\n]",
-            |p| p.eat_array_literal(),
-            DystFormatOptions::default_tab_with_line_width(10)
-        );
-    }
-
-    /// If the struct fits on a single line, it should print on a single line.
-    #[test]
-    fn test_format_struct_literal_short() {
-        assert_format!("Vector2 { x: 1, y: 2 }", "Vector2 { x: 1, y: 2 }", |p| p
-            .eat_struct_literal());
-    }
-
-    /// If the struct doesn't fit on a single line, it should print one field per line (indented).
-    #[test]
-    fn test_format_struct_literal_long() {
-        assert_format!(
-            "Vector4 { x: 1, y: 2, z: 3, w: 4 }",
-            "Vector4 {\n\tx: 1\n\ty: 2\n\tz: 3\n\tw: 4\n}",
-            |p| p.eat_struct_literal(),
-            DystFormatOptions::default_tab_with_line_width(10)
-        );
-    }
-
-    #[test]
-    fn test_format_struct_literal_with_annotations() {
-        let source = r"Vector2 { #x x: 0.0, #y y: 0.0 }";
-        assert_format!(
-            source,
-            source,
-            |p| p.eat_struct_literal(),
             DystFormatOptions::default()
         );
     }

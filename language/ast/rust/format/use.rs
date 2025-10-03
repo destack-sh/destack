@@ -1,49 +1,8 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, NodeId, Use, UseClause, UseItem, Visibility};
+use crate::{DystFormatter, FormatNode, NodeId, UseClause, UseItem};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
-
-impl<'ast> FormatNode<'ast, Use> for Use {
-    fn format_node(
-        &self,
-        node_id: NodeId<Use>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // visibility
-        if let Some(visibility) = self.visibility {
-            let keyword = match visibility {
-                Visibility::Public => Keyword::Public,
-                Visibility::Private => Keyword::Private,
-            };
-            write!(f, [keyword, space()])?;
-        }
-
-        // keyword
-        write!(f, [Keyword::Use, space()])?;
-        {
-            let mut first = true;
-            for clause in &self.clauses {
-                if !first {
-                    write!(f, [token(", ")])?;
-                }
-                first = false;
-                write!(f, [*clause])?;
-            }
-        }
-
-        // scoped body
-        if let Some(body) = self.body {
-            write!(f, [space(), body])?;
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
 
 impl<'ast> FormatNode<'ast, UseClause> for UseClause {
     fn format_node(
