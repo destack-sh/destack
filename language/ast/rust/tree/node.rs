@@ -40,10 +40,6 @@ pub enum NodeType {
     Decorator,
 }
 
-/// Node types that contain other "non-trivial" nodes.
-pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 3] =
-    [NodeType::Block, NodeType::Definition, NodeType::MatchCase];
-
 /// Node types that are annotations.
 pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Annotation,

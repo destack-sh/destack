@@ -172,6 +172,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
@@ -267,6 +268,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
@@ -345,6 +347,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = &with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
@@ -424,6 +427,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
@@ -519,6 +523,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
@@ -622,6 +627,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(with) = with
                     && !with.is_empty()
                 {
+					write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 

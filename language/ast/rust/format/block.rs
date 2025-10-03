@@ -1,8 +1,8 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, CONTAINER_NODE_TYPES, DystFormatContext, DystFormatter, Expression, FormatNode, Node,
-    NodeId, NodeTree, NodeTreeStore, NodeType,
+    Block, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
+    NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -60,39 +60,25 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
         // check whether the block is inlinable based on its contents
         // if any expression is not inline, then the entire block shouldn't be
-        let is_inlinable = self.expressions.iter().all(|expr_id| {
-            let expr_node = f.context().get_node(*expr_id);
-            let is_blocky = matches!(
-                expr_node,
-                Expression::Definition(_)
-                    | Expression::Block(_)
-                    | Expression::With { .. }
-                    | Expression::Use { .. }
-                    | Expression::Let { .. }
-                    | Expression::While { .. }
-                    | Expression::Loop { .. }
-                    | Expression::Match { .. }
-                    | Expression::Break { .. }
-                    | Expression::Continue { .. }
-                    | Expression::Defer { .. }
-                    | Expression::Return { .. }
-                    | Expression::Assign { .. }
-            );
-            !is_blocky
-        });
+        let is_inlinable = self
+            .expressions
+            .iter()
+            .all(|expr_id| f.context().get_node(*expr_id).is_narrow());
 
-        // parent (default to self)
-        let (parent_node_id, parent_node_type) = f
+        // container (default to self, mostly for testing)
+        let (container_node_id, container_node_type) = f
             .context()
             .get_parent_by_id(node_id.id)
             .unwrap_or((node_id.id, NodeType::Block));
 
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // label
         if let Some(label) = &self.label {
             write!(f, [label, token(": ")])?;
         }
-        // statements
+
+        // empty block
         if self.expressions.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id),])?;
         }
@@ -100,9 +86,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         // (retain existing newline if it exists)
         else if self.expressions.len() == 1
             && !f.context().is_at_line_start(node_id.id)
-            && !f.context().is_at_line_start(parent_node_id)
-            && !CONTAINER_NODE_TYPES.contains(&parent_node_type)
+            && !f.context().is_at_line_start(container_node_id)
             && !f.context().has_newline(span)
+            && container_node_type != NodeType::Definition
             && is_inlinable
         {
             write!(
@@ -234,7 +220,6 @@ mod tests {
         );
     }
 
-    /// Block should break if the expression is used as a "statement".
     #[test]
     fn test_format_block_statement_like() {
         assert_format!(

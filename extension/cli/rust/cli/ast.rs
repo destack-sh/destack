@@ -31,7 +31,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // parse as implicit block of statements
     let mut parser = Parser::prepare(&source, &mut session);
-    let module_id = parser.with_recovery(
+    let definition_id = parser.with_recovery(
         parser.mark(),
         |parser| {
             parser
@@ -46,8 +46,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // dump AST statements to output
     let dump_options = DumperOptions::default();
     let mut dumper = parser.dumper(dump_options);
-    if let Some(module_id) = module_id {
-        dumper.visit_module(&parser.tree, module_id, parser.tree.get(module_id));
+    if let Some(definition_id) = definition_id {
+        dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
     }
     console::info(&dumper.finish());
 

@@ -1,6 +1,6 @@
 //! Semantic token LSP.
 
-use dyst_ast::{Definition, NodeId, NodeTree, SemanticTokenIndex, SemanticType};
+use dyst_ast::{Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType};
 use dyst_source::{Source, Uri};
 use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
