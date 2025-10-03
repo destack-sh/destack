@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{
     Block, BlockFormat, Break, Continue, Defer, Expression, Keyword, NodeId, NodeType, ParseError,
-    ParseResult, Parser, Return,
+    ParseResult, Parser,
 };
 use dyst_token::TokenType;
 
@@ -169,20 +169,21 @@ impl<'a> Parser<'a> {
     /// return
     /// return 17
     /// ```
-    pub fn eat_return(&mut self) -> ParseResult<NodeId<Return>> {
+    pub fn eat_return(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression().for_node_type(NodeType::Return)?;
+            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
             Some(value_id)
         } else {
             None
         };
         // return
-        let return_id = self
-            .tree
-            .allocate(Return { value: value_id }, self.get_span_from(start));
+        let return_id = self.tree.allocate(
+            Expression::Return { value: value_id },
+            self.get_span_from(start),
+        );
         Ok(return_id)
     }
 
@@ -243,8 +244,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Break, Continue, Defer, Expression, Match, Return, assert_expr_path, assert_int,
-        assert_node, assert_path, assert_string,
+        Break, Continue, Defer, Expression, Match, assert_expr_path, assert_int, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -342,7 +343,7 @@ mod tests {
         let mut test = TestParser::new("return");
         let mut parser = test.prepare();
         let return_id = parser.eat_return().unwrap();
-        assert_node!(parser.tree, return_id, Return { value } => {
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
             assert!(value.is_none());
         });
     }
@@ -352,7 +353,7 @@ mod tests {
         let mut test = TestParser::new("return 42");
         let mut parser = test.prepare();
         let return_id = parser.eat_return().unwrap();
-        assert_node!(parser.tree, return_id, Return { value } => {
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 42);

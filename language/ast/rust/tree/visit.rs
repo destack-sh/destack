@@ -4,17 +4,17 @@ use crate::{
     Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment, Continue, Decorator,
     Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index,
     Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral, Tag,
-    Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use, UseClause,
-    UseItem, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal,
-    walk_blank, walk_block, walk_break, walk_call, walk_comment, walk_continue, walk_decorator,
-    walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal,
-    walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match,
+    PatternField, RangeLiteral, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try,
+    TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use, UseClause, UseItem,
+    While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank,
+    walk_block, walk_break, walk_call, walk_comment, walk_continue, walk_decorator, walk_defer,
+    walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for,
+    walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match,
     walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_range_literal, walk_return, walk_scalar_literal, walk_struct, walk_struct_field,
-    walk_struct_literal, walk_tag, walk_trait, walk_try, walk_tuple_literal,
-    walk_tuple_literal_field, walk_type_literal, walk_union, walk_union_field, walk_use,
-    walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
+    walk_range_literal, walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal,
+    walk_tag, walk_trait, walk_try, walk_tuple_literal, walk_tuple_literal_field,
+    walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item,
+    walk_while, walk_with, walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the AST.
@@ -178,11 +178,6 @@ pub trait NodeVisitor {
     /// Visit a Defer.
     fn visit_defer(&mut self, tree: &NodeTree, id: NodeId<Defer>, defer: &Defer) {
         walk_defer(self, tree, id, defer);
-    }
-
-    /// Visit a Return.
-    fn visit_return(&mut self, tree: &NodeTree, id: NodeId<Return>, return_node: &Return) {
-        walk_return(self, tree, id, return_node);
     }
 
     /// Visit a Try.
@@ -533,10 +528,6 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_defer(&mut self, tree: &NodeTree, id: NodeId<Defer>, defer: &Defer) {
         self.visit_any(tree, NodeType::Defer, id.id);
-    }
-
-    fn visit_return(&mut self, tree: &NodeTree, id: NodeId<Return>, return_node: &Return) {
-        self.visit_any(tree, NodeType::Return, id.id);
     }
 
     fn visit_try(&mut self, tree: &NodeTree, id: NodeId<Try>, try_node: &Try) {

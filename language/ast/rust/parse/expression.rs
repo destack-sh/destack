@@ -436,9 +436,7 @@ impl<'a> Parser<'a> {
             }
             // return
             else if keyword == Some(Keyword::Return) {
-                let return_id = self.eat_return().for_node_type(NodeType::Return)?;
-                let expression = Expression::Return(return_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_return().for_node_type(NodeType::Expression)?
             }
             //
             // ------------------------------------------------------------

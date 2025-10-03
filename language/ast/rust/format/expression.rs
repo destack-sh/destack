@@ -38,7 +38,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Break(node) => node.format(f)?,
             Expression::Continue(node) => node.format(f)?,
             Expression::Defer(node) => node.format(f)?,
-            Expression::Return(node) => node.format(f)?,
+            Expression::Return { value } => {
+                write!(f, [token("return")])?;
+                if let Some(value) = value {
+                    write!(f, [space(), value])?;
+                }
+            }
 
             Expression::Path {
                 path,

@@ -2,9 +2,9 @@ use crate::{
     Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment, Continue, Decorator,
     Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index,
     Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral,
-    Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use,
-    UseClause, UseItem, While, With, WithClause,
+    Pattern, PatternField, RangeLiteral, ScalarLiteral, Struct, StructField, StructLiteral, Tag,
+    Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use, UseClause,
+    UseItem, While, With, WithClause,
 };
 
 // ----------------------------------------------------------------------------
@@ -55,7 +55,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Break(node) => visitor.visit_break(tree, *node, tree.get(*node)),
         Expression::Continue(node) => visitor.visit_continue(tree, *node, tree.get(*node)),
         Expression::Defer(node) => visitor.visit_defer(tree, *node, tree.get(*node)),
-        Expression::Return(node) => visitor.visit_return(tree, *node, tree.get(*node)),
+        Expression::Return { value } => {
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
+        }
 
         Expression::Path {
             path: _,
@@ -670,20 +675,6 @@ pub fn walk_defer<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Return.
-pub fn walk_return<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Return>,
-    return_node: &Return,
-) {
-    visitor.visit_any(tree, NodeType::Return, id.id);
-    if let Some(value) = &return_node.value {
-        let value_expr = tree.get(*value);
-        visitor.visit_expression(tree, *value, value_expr);
-    }
-}
-
 /// Walk the Match.
 pub fn walk_match<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -1292,10 +1283,6 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::Defer => {
             let defer = tree.defers.get(local_idx);
             walk_defer(visitor, tree, NodeId::new(node_id), defer);
-        }
-        NodeType::Return => {
-            let return_node = tree.returns.get(local_idx);
-            walk_return(visitor, tree, NodeId::new(node_id), return_node);
         }
         NodeType::Try => {
             let try_node = tree.trys.get(local_idx);

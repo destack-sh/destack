@@ -42,6 +42,12 @@ pub enum Expression {
     Loop,
     /// Match expression.
     Match,
-    /// Closure expression.
-    Closure,
+    /// Break expression.
+    Break,
+    /// Continue expression.
+    Continue,
+    /// Defer expression.
+    Defer,
+    /// Return expression.
+    Return,
 }

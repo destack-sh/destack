@@ -8,7 +8,7 @@ use crate::{
     Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment,
     Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
     Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeSpanIndex, NodeType,
-    Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField,
+    Parameter, Pattern, PatternField, RangeLiteral, ScalarLiteral, Struct, StructField,
     StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union,
     UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
@@ -57,7 +57,6 @@ pub struct NodeTree {
     pub(crate) breaks: NodeArena<Break>,
     pub(crate) continues: NodeArena<Continue>,
     pub(crate) defers: NodeArena<Defer>,
-    pub(crate) returns: NodeArena<Return>,
     pub(crate) trys: NodeArena<Try>,
     // bindings
     pub(crate) lets: NodeArena<Let>,
@@ -143,7 +142,6 @@ impl NodeTree {
             breaks: NodeArena::new(),
             continues: NodeArena::new(),
             defers: NodeArena::new(),
-            returns: NodeArena::new(),
             trys: NodeArena::new(),
             // bindings
             lets: NodeArena::new(),
@@ -328,7 +326,6 @@ impl NodeTree {
             NodeType::Break => self.breaks.deallocate(local_ids),
             NodeType::Continue => self.continues.deallocate(local_ids),
             NodeType::Defer => self.defers.deallocate(local_ids),
-            NodeType::Return => self.returns.deallocate(local_ids),
             NodeType::Try => self.trys.deallocate(local_ids),
             // bindings
             NodeType::Let => self.lets.deallocate(local_ids),
@@ -500,7 +497,6 @@ impl_node_tree_stores! {
     Break => breaks,
     Continue => continues,
     Defer => defers,
-    Return => returns,
     Try => trys,
     // bindings
     Let => lets,

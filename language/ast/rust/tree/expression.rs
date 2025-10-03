@@ -3,7 +3,7 @@ use dyst_token::TokenType;
 
 use crate::{
     Argument, ArrayLiteral, Block, Break, Call, Continue, Defer, Enum, For, Function, If,
-    Implement, Index, Let, Loop, Match, Module, Node, NodeId, NodeType, RangeLiteral, Return,
+    Implement, Index, Let, Loop, Match, Module, Node, NodeId, NodeType, RangeLiteral,
     ScalarLiteral, ScopedMutability, Struct, StructLiteral, Trait, Try, TupleLiteral, TypeLiteral,
     Union, Use, While, With,
 };
@@ -293,9 +293,6 @@ impl BinaryOperator {
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
     #[inline]
     pub fn from_token(token_str: &str, token_type: TokenType) -> Option<BinaryOperator> {
-        if token_str == "as" {
-            return Some(BinaryOperator::Cast);
-        }
         match token_type {
             // multiplication
             TokenType::Multiply => Some(BinaryOperator::Multiply),
@@ -333,7 +330,7 @@ impl BinaryOperator {
             TokenType::LogicalAnd => Some(BinaryOperator::And),
             TokenType::LogicalOr => Some(BinaryOperator::Or),
             TokenType::Coalesce => Some(BinaryOperator::Coalesce),
-            // cast handled up front
+            TokenType::Identifier if token_str == "as" => Some(BinaryOperator::Cast),
             _ => None,
         }
     }
@@ -536,7 +533,7 @@ impl InfixOperator {
 pub enum Expression {
     /// Module definition (used as an Expression, see Module).
     Module(NodeId<Module>),
-    // TODO #Incomplete?: type alias (type x = y)
+    // NOTE #Incomplete?: type alias (type x = y)
     // (or is that redundant with `let x = y`? need to disambiguate e.g. | and & though..)
     /// Struct definition (used as an Expression, see Struct).
     Struct(NodeId<Struct>),
@@ -578,7 +575,7 @@ pub enum Expression {
     /// Defer expression until scope exit (as an Expression, see Defer).
     Defer(NodeId<Defer>),
     /// Return expression (as an Expression, see Return).
-    Return(NodeId<Return>),
+    Return { value: Option<NodeId<Expression>> },
 
     // NOTE #Incomplete: multiply parameterized Expression Paths?
     //  (like `Foo<int32, boolean>.Bar<Yes: true>`)
@@ -669,7 +666,7 @@ impl Expression {
             Expression::Break(_) => Some(NodeType::Break),
             Expression::Continue(_) => Some(NodeType::Continue),
             Expression::Defer(_) => Some(NodeType::Defer),
-            Expression::Return(_) => Some(NodeType::Return),
+            Expression::Return { .. } => None,
 
             // literals
             Expression::Path { .. } => None,

@@ -3,7 +3,7 @@ use dyst_fir::format::FormatResult;
 use crate::{
     Block, Break, CONTAINER_NODE_TYPES, Continue, Defer, DystFormatContext, DystFormatter,
     Expression, FormatNode, INLINE_NODE_TYPES, Keyword, Node, NodeId, NodeTree, NodeTreeStore,
-    NodeType, Return,
+    NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -167,23 +167,6 @@ impl<'ast> FormatNode<'ast, Continue> for Continue {
         // label
         if let Some(label) = &self.label {
             write!(f, [token(": "), label])?;
-        }
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, Return> for Return {
-    fn format_node(
-        &self,
-        node_id: NodeId<Return>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        write!(f, [Keyword::Return])?;
-        // value
-        if let Some(value) = &self.value {
-            write!(f, [space(), value])?;
         }
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
