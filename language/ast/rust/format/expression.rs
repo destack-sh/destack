@@ -2,10 +2,12 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
+use crate::argument::list_like;
 use crate::r#let::FormatScopedMutability;
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
-    Mutability, NodeId, ScopedMutability, UnaryOperator,
+    Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator, Visibility,
+    empty_block_with_infix_annotations,
 };
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
@@ -17,27 +19,282 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Expression::Module(node) => node.format(f)?,
-            Expression::Struct(node) => node.format(f)?,
-            Expression::Enum(node) => node.format(f)?,
-            Expression::Union(node) => node.format(f)?,
-            Expression::Trait(node) => node.format(f)?,
-            Expression::Implement(node) => node.format(f)?,
-            Expression::Function(node) => node.format(f)?,
+            // definition
+            Expression::Definition(node) => node.format(f)?,
+
+            // block
             Expression::Block(node) => node.format(f)?,
 
-            Expression::With(node) => node.format(f)?,
-            Expression::Use(node) => node.format(f)?,
-            Expression::Let(node) => node.format(f)?,
-            Expression::If(node) => node.format(f)?,
-            Expression::While(node) => node.format(f)?,
-            Expression::For(node) => node.format(f)?,
-            Expression::Loop(node) => node.format(f)?,
-            Expression::Try(node) => node.format(f)?,
-            Expression::Match(node) => node.format(f)?,
-            Expression::Break(node) => node.format(f)?,
-            Expression::Continue(node) => node.format(f)?,
-            Expression::Defer(node) => node.format(f)?,
+            // with
+            Expression::With { clauses } => {
+                // keyword
+                write!(f, [Keyword::With])?;
+                if clauses.is_empty() {
+                    return Ok(());
+                }
+                write!(f, [space()])?;
+
+                // clauses
+                write!(
+                    f,
+                    [best_fit_parenthesize(&format_with(|f| {
+                        f.join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(clauses)
+                        .finish()
+                    }))]
+                )?;
+            }
+
+            // use
+            Expression::Use {
+                visibility,
+                clauses,
+                body,
+            } => {
+                // visibility
+                if let Some(visibility) = visibility {
+                    let keyword = match visibility {
+                        Visibility::Public => Keyword::Public,
+                        Visibility::Private => Keyword::Private,
+                    };
+                    write!(f, [keyword, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Use, space()])?;
+                {
+                    let mut first = true;
+                    for clause in clauses {
+                        if !first {
+                            write!(f, [token(", ")])?;
+                        }
+                        first = false;
+                        write!(f, [*clause])?;
+                    }
+                }
+
+                // scoped body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
+            }
+
+            // let
+            Expression::Let {
+                mutability,
+                visibility: _,
+                pattern,
+                r#type,
+                value,
+            } => {
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        // let
+                        if mutability.is_immutable() {
+                            write!(f, [Keyword::Let])?;
+                        }
+                        // mutability
+                        write!(
+                            f,
+                            [FormatScopedMutability::implicit_const(mutability.clone())]
+                        )?;
+                        // emit pattern with optional type and value
+                        write!(f, [space(), pattern])?;
+                        if let Some(r#type) = r#type {
+                            write!(f, [token(": "), r#type])?;
+                        }
+                        if let Some(value) = value {
+                            write!(
+                                f,
+                                [
+                                    space(),
+                                    token("="),
+                                    soft_block_indent(&format_args![
+                                        soft_line_break_or_space(),
+                                        value
+                                    ])
+                                ]
+                            )
+                        } else {
+                            Ok(())
+                        }
+                    }))]
+                )?;
+            }
+
+            // if
+            Expression::If {
+                runtime,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+                write!(f, [Keyword::If, space(), condition, space(), then_block])?;
+                if let Some(else_block) = else_block {
+                    write!(f, [space(), Keyword::Else, space(), else_block])?;
+                }
+            }
+
+            // while
+            Expression::While {
+                runtime,
+                condition,
+                body,
+            } => {
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+                write!(f, [Keyword::While, space(), condition, space(), body])?;
+            }
+
+            // for
+            Expression::For {
+                runtime,
+                pattern,
+                iterator,
+                body,
+            } => {
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+                write!(
+                    f,
+                    [
+                        Keyword::For,
+                        space(),
+                        pattern,
+                        space(),
+                        Keyword::In,
+                        space(),
+                        iterator,
+                        space(),
+                        body
+                    ]
+                )?;
+            }
+
+            // loop
+            Expression::Loop { runtime, body } => {
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+                write!(f, [Keyword::Loop, space(), body])?;
+            }
+
+            // try
+            Expression::Try {
+                runtime,
+                r#try,
+                catch,
+            } => {
+                // runtime
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+
+                // try <expression>
+                write!(f, [Keyword::Try, space(), r#try])?;
+
+                // catch <expression>
+                if let Some(catch) = catch {
+                    write!(f, [space(), Keyword::Catch, space(), catch])?;
+                }
+            }
+
+            // match
+            Expression::Match {
+                runtime,
+                value,
+                cases,
+            } => {
+                // runtime
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+
+                // match <expression>
+                write!(f, [Keyword::Match, space(), value])?;
+
+                // empty match body
+                if cases.is_empty() {
+                    write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                    return Ok(());
+                }
+
+                // match cases
+                write!(f, [space(), token("{"), hard_line_break()])?;
+                write!(
+                    f,
+                    [group(&format_args![block_indent(&format_with(|f| f
+                        .join_with(hard_line_break())
+                        .entries(cases)
+                        .finish())),])]
+                )?;
+                write!(f, [f.context().block_infix_annotations(node_id)])?;
+                write!(f, [hard_line_break(), token("}")])?;
+            }
+
+            // break
+            Expression::Break { label, value } => {
+                write!(f, [Keyword::Break])?;
+                if let Some(label) = label {
+                    write!(f, [space(), token(":"), label])?;
+                }
+                if let Some(value) = value {
+                    write!(f, [space(), value])?;
+                }
+            }
+
+            // continue
+            Expression::Continue { label } => {
+                write!(f, [Keyword::Continue])?;
+                if let Some(label) = label {
+                    write!(f, [space(), token(":"), label])?;
+                }
+            }
+
+            // defer
+            Expression::Defer { expression, catch } => {
+                write!(f, [Keyword::Defer])?;
+                if let Some(expression) = expression {
+                    write!(f, [space(), expression])?;
+                }
+                if let Some(catch) = catch {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            Keyword::Catch,
+                            space(),
+                            token("{"),
+                            catch,
+                            token("}")
+                        ]
+                    )?;
+                }
+            }
+
+            // return
             Expression::Return { value } => {
                 write!(f, [token("return")])?;
                 if let Some(value) = value {
@@ -45,6 +302,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             }
 
+            // path
             Expression::Path {
                 path,
                 static_arguments,
@@ -72,14 +330,54 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     )?;
                 }
             }
-            Expression::ScalarLiteral(node) => node.format(f)?,
-            Expression::TypeLiteral(node) => node.format(f)?,
-            Expression::RangeLiteral(node) => node.format(f)?,
-            Expression::TupleLiteral(node) => node.format(f)?,
-            Expression::ArrayLiteral(node) => node.format(f)?,
-            Expression::StructLiteral(node) => node.format(f)?,
 
+            // scalar literal
+            Expression::ScalarLiteral(node) => node.format(f)?,
+
+            // type literal
+            Expression::TypeLiteral(node) => node.format(f)?,
+
+            // range literal
+            Expression::RangeLiteral {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                if *is_inclusive {
+                    write!(f, [start, token("..="), end,])?;
+                } else {
+                    write!(f, [start, token(".."), end,])?;
+                }
+            }
+
+            // array literal
+            Expression::ArrayLiteral { elements } => {
+                write!(f, [list_like("[", "]", ",", elements)])?;
+            }
+
+            // tuple literal
+            Expression::TupleLiteral { elements } => {
+                if elements.len() == 1 {
+                    write!(f, [token("("), elements[0], token(","), token(")")])?;
+                } else {
+                    write!(f, [list_like("(", ")", ",", elements)])?;
+                }
+            }
+
+            // struct literal
+            Expression::StructLiteral { r#type, fields } => {
+                write!(f, [r#type, space(), list_like("{", "}", ",", fields)])?;
+            }
+
+            // parenthesized
+            Expression::Parenthesized { expression } => {
+                write!(f, [token("("), expression, token(")")])?
+            }
+
+            // unary
             Expression::Unary { operator, right } => write!(f, [operator, right])?,
+
+            // reference
             Expression::Reference { mutability, right } => {
                 write!(f, [token("&")])?;
                 write!(
@@ -98,14 +396,42 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
                 right.format(f)?;
             }
+
+            // member
             Expression::Member { receiver, path } => write!(f, [receiver, token("."), path])?,
-            Expression::Index(node) => node.format(f)?,
-            Expression::Call(node) => node.format(f)?,
-            Expression::Parenthesized { expression } => {
-                write!(f, [token("("), expression, token(")")])?
+
+            // index
+            Expression::Index { receiver, index } => {
+                if let Some(index) = index {
+                    write!(f, [receiver, token("["), index, token("]")])?;
+                } else {
+                    write!(f, [receiver, token("[]")])?;
+                }
             }
+
+            // call
+            Expression::Call {
+                runtime,
+                receiver,
+                dynamic_arguments,
+            } => {
+                let runtime = runtime.unwrap_or(Runtime::Dynamic);
+                if runtime == Runtime::Static {
+                    write!(f, [token("@")])?;
+                }
+                write!(f, [receiver])?;
+                if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
+                    write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+                }
+            }
+
+            // maybe
             Expression::Maybe(expr) => write!(f, [expr, token("?")])?,
+
+            // must
             Expression::Must(expr) => write!(f, [expr, token("!")])?,
+
+            // binary
             Expression::Binary {
                 left,
                 operator,
@@ -117,6 +443,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
                 write!(f, [operator, space(), right])?;
             }
+
+            // assign
             Expression::Assign {
                 left,
                 operator,
@@ -129,6 +457,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [operator, space(), right])?;
             }
 
+            // error
             Expression::Error => panic!("invalid expression: {self:?}"),
         };
 

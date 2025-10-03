@@ -1,9 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, Mutability, NodeId,
-    ScopedMutability,
-};
+use crate::{DystFormatContext, DystFormatter, Mutability, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -98,54 +95,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
                 self.format_mutability(f)?;
             }
         }
-
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, Let> for Let {
-    fn format_node(
-        &self,
-        node_id: NodeId<Let>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        write!(
-            f,
-            [group(&format_with(|f| {
-                // let
-                if self.mutability.is_immutable() {
-                    write!(f, [Keyword::Let])?;
-                }
-                // mutability
-                write!(
-                    f,
-                    [FormatScopedMutability::implicit_const(
-                        self.mutability.clone()
-                    )]
-                )?;
-                // emit pattern with optional type and value
-                write!(f, [space(), self.pattern])?;
-                if let Some(r#type) = self.r#type {
-                    write!(f, [token(": "), r#type])?;
-                }
-                if let Some(value) = self.value {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            token("="),
-                            soft_block_indent(&format_args![soft_line_break_or_space(), value])
-                        ]
-                    )
-                } else {
-                    Ok(())
-                }
-            }))]
-        )?;
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
