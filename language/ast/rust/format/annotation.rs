@@ -132,7 +132,7 @@ where
                 Annotation::Doc { position, .. } => (NodeType::Doc, *position),
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Tag { position, .. } => (NodeType::Tag, *position),
-                Annotation::Decorator { position, .. } => (NodeType::Call, *position),
+                Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
             };
 
             // filter annotation
