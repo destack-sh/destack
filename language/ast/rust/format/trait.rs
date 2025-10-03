@@ -24,7 +24,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_trait_with_with_clause() {
+    fn test_format_trait_with_with() {
         assert_format!(
             "trait Foo with Bar { }",
             "trait Foo with Bar { }",

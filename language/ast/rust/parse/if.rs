@@ -1,4 +1,4 @@
-use crate::{Expression, Keyword, NodeId, ParseResult, Parser, Runtime};
+use crate::{Expression, Keyword, NodeId, ParseError, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else expression.
@@ -46,6 +46,17 @@ impl<'a> Parser<'a> {
             self.bump(); // eat else
             self.eat_newlines_maybe()?;
             let else_expr_id = self.eat_expression()?;
+            
+            // else expression must be an if or block expression
+            let else_expr_node = self.tree.get(else_expr_id);
+            match else_expr_node {
+                Expression::If { .. } | Expression::Block(_) => {}
+                _ => {
+                    let else_span = self.tree.get_span_by_id(else_expr_id.id);
+                    return Err(ParseError::unexpected(else_span));
+                }
+            }
+
             Expression::If {
                 runtime,
                 condition: condition_id,

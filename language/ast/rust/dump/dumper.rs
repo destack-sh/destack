@@ -624,43 +624,43 @@ impl Dump for ScalarLiteral {
             ScalarLiteral::Boolean(value) => {
                 dumper
                     .object("ScalarLiteral::Boolean")
-                    .field("value", &value.to_string().as_str())
+                    .value(&value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Byte(value) => {
                 dumper
                     .object("ScalarLiteral::Byte")
-                    .field("value", &value.to_string().as_str())
+                    .value(&value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Integer(value) => {
                 dumper
                     .object("ScalarLiteral::Integer")
-                    .field("value", &value.to_string().as_str())
+                    .value(&value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Float(value) => {
                 dumper
                     .object("ScalarLiteral::Float")
-                    .field("value", &value.to_string().as_str())
+                    .value(&value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Character(value) => {
                 dumper
                     .object("ScalarLiteral::Character")
-                    .field("value", &value.to_string().as_str())
+                    .value(&value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::String(value) => {
                 dumper
                     .object("ScalarLiteral::String")
-                    .field("value", value)
+                    .value(value)
                     .end();
             }
             ScalarLiteral::ByteString(value) => {
                 dumper
                     .object("ScalarLiteral::ByteString")
-                    .field("value", value)
+                    .value(value)
                     .end();
             }
         }
@@ -704,19 +704,19 @@ impl Dump for TypeLiteral {
             TypeLiteral::Int(int_type) => {
                 dumper
                     .object("TypeLiteral::Int")
-                    .field("type", int_type)
+                    .value(int_type)
                     .end();
             }
             TypeLiteral::Float(float_type) => {
                 dumper
                     .object("TypeLiteral::Float")
-                    .field("type", float_type)
+                    .value(float_type)
                     .end();
             }
             TypeLiteral::Composite(composite_type) => {
                 dumper
                     .object("TypeLiteral::Composite")
-                    .field("type", composite_type)
+                    .value(composite_type)
                     .end();
             }
             TypeLiteral::Self_ => {
@@ -824,17 +824,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_arguments: _,
             } => {
                 self.node("Expression::Path", _id.id)
-                    .field("path", path)
+                    .value(path)
                     .end();
             }
             Expression::ScalarLiteral(lit) => {
                 self.node("Expression::ScalarLiteral", _id.id)
-                    .field("value", lit)
+                    .value(lit)
                     .end();
             }
             Expression::TypeLiteral(lit) => {
                 self.node("Expression::TypeLiteral", _id.id)
-                    .field("value", lit)
+                    .value(lit)
                     .end();
             }
             Expression::RangeLiteral { is_inclusive, .. } => {

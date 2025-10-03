@@ -1011,9 +1011,9 @@ let x =
         );
     }
 
-    /// Parse multi-line member access and calls.
+    /// Parse multi-line member and calls.
     #[test]
-    fn test_parse_member_access_multiline() {
+    fn test_parse_member_multiline() {
         let mut test = TestParser::new(
             r"
 self
@@ -1033,18 +1033,21 @@ self
                 assert_node!(
                     parser.tree,
                     *baz_recv,
-                    Expression::Call { receiver: foo_recv, .. } => {
-                        // self.foo
-                        assert_node!(
-                            parser.tree,
-                            *foo_recv,
-                            Expression::Member { receiver: self_recv, path: foo_path, .. } => {
-                                // self
-                                assert_expr_path!(parser.session, parser.tree.get(*self_recv), "self");
-                                // foo
-                                assert_path!(parser.session, *foo_path, "foo");
-                            }
-                        );
+                    Expression::Member { receiver, path, .. } => {
+                        assert_path!(parser.session, *path, "baz");
+                        assert_node!(parser.tree, *receiver, Expression::Call { receiver: foo_recv, .. } => {
+                            // self.foo
+                            assert_node!(
+                                parser.tree,
+                                *foo_recv,
+                                Expression::Member { receiver: self_recv, path: foo_path, .. } => {
+                                    // self
+                                    assert_expr_path!(parser.session, parser.tree.get(*self_recv), "self");
+                                    // foo
+                                    assert_path!(parser.session, *foo_path, "foo");
+                                }
+                            );
+                        })
                     }
                 );
             }

@@ -995,6 +995,34 @@ impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
 }
 
+impl Expression {
+    /// Whether the expression may be inlined into a statement.
+    #[inline]
+    pub fn is_narrow(&self) -> bool {
+        !self.is_wide()
+    }
+
+    /// Whether the expression is wide (can / should span a full "statement").
+    #[inline]
+    pub fn is_wide(&self) -> bool {
+        matches!(
+            self,
+            Expression::Definition(_)
+                | Expression::With { .. }
+                | Expression::Use { .. }
+                | Expression::Let { .. }
+                | Expression::While { .. }
+                | Expression::Loop { .. }
+                | Expression::Match { .. }
+                | Expression::Break { .. }
+                | Expression::Continue { .. }
+                | Expression::Defer { .. }
+                | Expression::Return { .. }
+                | Expression::Assign { .. }
+        )
+    }
+}
+
 /// A UseClause is a single clause in a use declaration.
 ///
 /// Examples:

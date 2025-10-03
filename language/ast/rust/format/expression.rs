@@ -134,15 +134,21 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 then_block,
                 else_block,
             } => {
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-                write!(f, [Keyword::If, space(), condition, space(), then_block])?;
-                if let Some(else_block) = else_block {
-                    write!(f, [space(), Keyword::Else, space(), else_block])?;
-                }
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        if let Some(runtime) = runtime
+                            && *runtime == Runtime::Static
+                        {
+                            write!(f, [token("@")])?;
+                        }
+                        write!(f, [Keyword::If, space(), condition, space(), then_block])?;
+                        if let Some(else_block) = else_block {
+                            write!(f, [space(), Keyword::Else, space(), else_block])?;
+                        }
+                        Ok(())
+                    }))]
+                )?;
             }
 
             // while

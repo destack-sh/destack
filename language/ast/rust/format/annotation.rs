@@ -3,9 +3,9 @@ use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 use crate::{
-    Annotation, AnnotationPosition, Blank, CONTAINER_NODE_TYPES, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree,
-    NodeTreeStore, NodeType, Tag,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
+    Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {
@@ -224,7 +224,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
                     .context()
                     .get_ancestors(node_id)
                     .into_iter()
-                    .find(|(_, node_type)| CONTAINER_NODE_TYPES.contains(node_type));
+                    .find(|(_, node_type)| *node_type == NodeType::Definition);
                 if let Some((container_id, _)) = container {
                     let container_span = f.context().get_span_by_id(container_id);
                     if container_span.end >= f.context().source.len - 1 {
