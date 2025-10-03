@@ -2,9 +2,11 @@ pub mod argument;
 pub mod block;
 pub mod definition;
 pub mod expression;
+pub mod literal;
 pub mod r#match;
 pub mod node;
 pub mod path;
+pub mod pattern;
 pub mod symbol;
 pub mod r#type;
 
@@ -15,7 +17,7 @@ pub use expression::*;
 pub use r#match::*;
 pub use node::*;
 pub use path::*;
+pub use pattern::*;
 pub use symbol::*;
 pub use r#type::*;
-
 pub use dyst_source::{PathId, PathPool, StringId, StringPool};

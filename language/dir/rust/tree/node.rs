@@ -23,40 +23,21 @@ pub enum NodeType {
     // TupleField,
     // Function,
     // // Context
-    // With,
     // WithDeclaration,
     // WithAssertion,
-    // Use,
     // UseClause,
     // UseDeclaration,
     // // Control
     // If,
     Loop,
-    // Break,
-    // Continue,
-    // Defer,
-    // Return,
-    // Try,
     // // Bindings
     // Let,
-    // Parameter,
-    // Argument,
-    // // Literals
-    // ScalarLiteral,
-    // RangeLiteral,
-    // TupleLiteral,
-    // ArrayLiteral,
-    // StructLiteral,
-    // FieldLiteral,
-    // // Calls
-    // Index,
-    // Call,
-    // Cast,
+    Parameter,
+    Argument,
     // // Matching
-    Match,
     MatchCase,
-    // Pattern,
-    // PatternField,
+    Pattern,
+    PatternField,
 }
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -95,4 +76,48 @@ impl<T: Node> NodeId<T> {
 /// A Node.
 pub trait Node: Sized {
     const KIND: NodeType;
+}
+
+/// A Visibility is the visibility of an item.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Visibility {
+    /// Public to everything.
+    Public,
+    /// Private to the closest module scope.
+    Private,
+}
+
+/// A Runtime is the evaluation context of an expression / function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Runtime {
+    /// The dynamic runtime (regular runtime).
+    Dynamic,
+    /// The static runtime ("comptime").
+    Static,
+}
+
+/// A Mutability is the mutability of a binding (const or mutable).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Mutability {
+    /// Cannot be modified (incl. inner even if they are mutable).
+    Immutable,
+    /// May be modified (incl. inner if they are also mutable).
+    Mutable,
+}
+
+/// Scoped Mutability is a mutability that is scoped to a specific pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScopedMutability {
+    /// Unscoped mutability (like just `var` or `const`)
+    Unscoped {
+        /// The mutability of the scoped mutability.
+        mutability: Mutability,
+    },
+    /// Scoped mutability (like `var(x, y)` or `const(session.source)`)
+    Scoped {
+        /// The mutability of the scoped mutability.
+        mutability: Mutability,
+        /// The scopes of the scoped mutability.
+        scopes: Vec<PathId>,
+    },
 }
