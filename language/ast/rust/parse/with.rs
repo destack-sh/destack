@@ -2,12 +2,12 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Expression, Keyword, NodeId, NodeType, ParseResult, Parser, WithClause};
+use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration maybe.
     #[inline]
-    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<NodeId<Expression>>> {
+    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<WithClause>>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with()?))
         } else {
@@ -34,17 +34,14 @@ impl<'a> Parser<'a> {
     ///    T > Y
     /// )
     /// ```
-    pub fn eat_with(&mut self) -> ParseResult<NodeId<Expression>> {
-        let start = self.mark();
+    pub fn eat_with(&mut self) -> ParseResult<Vec<NodeId<WithClause>>> {
         self.eat_keyword(Keyword::With)?;
-        let with = self.eat_with_body()?;
-        self.tree.set_span(with, self.get_span_from(start));
-        Ok(with)
+        let clauses = self.eat_with_body()?;
+        Ok(clauses)
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    pub fn eat_with_body(&mut self) -> ParseResult<NodeId<Expression>> {
-        let start = self.mark();
+    pub fn eat_with_body(&mut self) -> ParseResult<Vec<NodeId<WithClause>>> {
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -79,10 +76,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let with = self
-            .tree
-            .allocate(Expression::With { clauses }, self.get_span_from(start));
-        Ok(with)
+        Ok(clauses)
     }
 
     /// Eat a single with clause.
@@ -136,18 +130,16 @@ mod tests {
     fn test_parse_with_type_assertion() {
         let mut test = TestParser::new("with T: int32");
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
         // with T: int32
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "T");
-                });
-                assert_node!(parser.tree, *assertion, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                    assert_eq!(int_ty.width, Some(32));
-                    assert!(int_ty.is_signed);
-                });
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WithClause::Assertion { target, assertion } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "T");
+            });
+            assert_node!(parser.tree, *assertion, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
             });
         });
     }
@@ -156,14 +148,12 @@ mod tests {
     fn test_parse_with_simple_declaration() {
         let mut test = TestParser::new("with Foo");
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
         // with Foo
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Foo");
-                });
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Foo");
             });
         });
     }
@@ -172,14 +162,12 @@ mod tests {
     fn test_parse_with_path_declaration() {
         let mut test = TestParser::new("with Foo.Bar");
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
         // with Foo.Bar
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Foo.Bar");
-                });
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Foo.Bar");
             });
         });
     }
@@ -188,16 +176,14 @@ mod tests {
     fn test_parse_with_negated_declaration() {
         let mut test = TestParser::new("with !Bar");
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
         // with !Bar
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
-                    assert_eq!(*operator, UnaryOperator::Not);
-                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "Bar");
-                    });
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Not);
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Bar");
                 });
             });
         });
@@ -208,37 +194,35 @@ mod tests {
         let input = "with !Bar, Time, F: Numeric";
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
 
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 3);
+        assert_eq!(clauses.len(), 3);
 
-            // !Bar
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
-                    assert_eq!(*operator, UnaryOperator::Not);
-                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "Bar");
-                    });
+        // !Bar
+        assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Not);
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Bar");
                 });
             });
+        });
 
-            // Time
-            assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Time");
-                    assert!(static_arguments.is_none());
-                });
+        // Time
+        assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
+                assert_path!(parser.session, *path, "Time");
+                assert!(static_arguments.is_none());
             });
+        });
 
-            // F: Numeric
-            assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "F");
-                });
-                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Numeric");
-                });
+        // F: Numeric
+        assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "F");
+            });
+            assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Numeric");
             });
         });
     }
@@ -252,37 +236,35 @@ mod tests {
 )"##;
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
-        let with_id = parser.eat_with().unwrap();
+        let clauses = parser.eat_with().unwrap();
 
-        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
-            assert_eq!(clauses.len(), 3);
+        assert_eq!(clauses.len(), 3);
 
-            // !Bar
-            assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
-                    assert_eq!(*operator, UnaryOperator::Not);
-                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "Bar");
-                    });
+        // !Bar
+        assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Not);
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Bar");
                 });
             });
+        });
 
-            // Time
-            assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Time");
-                    assert!(static_arguments.is_none());
-                });
+        // Time
+        assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
+                assert_path!(parser.session, *path, "Time");
+                assert!(static_arguments.is_none());
             });
+        });
 
-            // F: Numeric
-            assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "F");
-                });
-                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Numeric");
-                });
+        // F: Numeric
+        assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
+            assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "F");
+            });
+            assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Numeric");
             });
         });
     }

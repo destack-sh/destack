@@ -171,7 +171,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, EnumField, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_int, assert_node, assert_path, assert_string
+        Definition, EnumField, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]

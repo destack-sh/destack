@@ -370,7 +370,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
                 assert_string!(parser.session, *name, "C");
                 assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
-                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style: _, fields, .. } => {
                         // boolean
                         assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
                             assert!(name.is_none());
@@ -387,7 +387,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
                 // (boolean, count: int32)
                 assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
-                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style: _, fields, .. } => {
                         // boolean
                         assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
                             assert!(name.is_none());
@@ -413,7 +413,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, fields[3], UnionField { name, r#type, .. } => {
                 assert_string!(parser.session, *name, "E");
                 assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
-                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style: _, fields, .. } => {
                         // x: int32
                         assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
                             // x
