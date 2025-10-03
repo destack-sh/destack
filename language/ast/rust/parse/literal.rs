@@ -537,7 +537,7 @@ mod tests {
     /// Parse string literal.
     #[test]
     fn test_parse_string_literal() {
-        let mut test = TestParser::new(r#"hello" b"abc"#);
+        let mut test = TestParser::new(r#""hello" b"abc""#);
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
