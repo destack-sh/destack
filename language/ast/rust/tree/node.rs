@@ -54,22 +54,6 @@ pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Decorator,
 ];
 
-/// Node types that may appear inline (instead of as a full statement).
-pub(crate) const INLINE_NODE_TYPES: [NodeType; 8] = [
-    // expressions
-    NodeType::Expression,
-    // declarations
-    NodeType::StructField,
-    NodeType::EnumField,
-    NodeType::UnionField,
-    // bindings
-    NodeType::Parameter,
-    NodeType::Argument,
-    // matching
-    NodeType::Pattern,
-    NodeType::PatternField,
-];
-
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]

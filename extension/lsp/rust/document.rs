@@ -1,4 +1,4 @@
-use dyst_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
+use dyst_ast::{Definition, ModuleFormat, NodeId, NodeTree, Parser};
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::{TokenSpan, TokenType};
@@ -35,8 +35,8 @@ pub enum DocumentContent {
         all_tokens: Vec<TokenSpan>,
         /// The AST of the document.
         ast: NodeTree,
-        /// The module ID of the document, when available.
-        module_id: Option<NodeId<Module>>,
+        /// The root definition ID of the document, when available.
+        root_definition_id: Option<NodeId<Definition>>,
     },
     Binary {
         /// The content of the document.
@@ -53,7 +53,7 @@ impl DocumentContent {
 
         // parse the document AST
         let mut parser = Parser::prepare(&source, session);
-        let module_id = parser.with_recovery(
+        let root_definition_id = parser.with_recovery(
             parser.mark(),
             |parser| {
                 parser
@@ -82,7 +82,7 @@ impl DocumentContent {
             side_span,
             all_tokens,
             ast,
-            module_id,
+            root_definition_id,
         }
     }
 

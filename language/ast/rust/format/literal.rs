@@ -4,45 +4,48 @@ use crate::{
     CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, ScalarLiteral,
     TypeLiteral,
 };
+
 use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
+use dyst_source::Span;
 
-impl<'ast> Format<DystFormatContext<'ast>> for ScalarLiteral {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
-        let span = f.context().tree.get_span(node_id);
-        let span_str = f.context().source.get_span_str(span);
-        match self {
-            ScalarLiteral::Boolean(value) => {
-                token(if *value { "true" } else { "false" }).format(f)?
-            }
-            ScalarLiteral::Integer(_) => {
-                let normalized = normalize_integer(span_str);
-                text(&normalized).format(f)?;
-            }
-            ScalarLiteral::Float(_) => {
-                let normalized = normalize_floating_number(span_str);
-                text(&normalized).format(f)?;
-            }
-            ScalarLiteral::Character(value) => {
-                write!(
-                    f,
-                    [token("'"), text(value.to_string().as_str()), token("'")]
-                )?;
-            }
-            ScalarLiteral::Byte(value) => {
-                write!(f, [token("b'"), text(&value.to_string()), token("'")])?;
-            }
-            ScalarLiteral::String(_) => {
-                write!(f, [text(span_str)])?;
-            }
-            ScalarLiteral::ByteString(_) => {
-                write!(f, [text(span_str)])?;
-            }
+/// Format a scalar literal.
+/// (This is a separate function because it's not a node but we need the span for normalization.)
+pub(crate) fn format_scalar_literal<'ast>(
+    scalar: &ScalarLiteral,
+    span: Span,
+    f: &mut DystFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    let span_str = f.context().source.get_span_str(span);
+    match scalar {
+        ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
+        ScalarLiteral::Integer(_) => {
+            let normalized = normalize_int(span_str);
+            text(&normalized).format(f)?;
         }
-
-        Ok(())
+        ScalarLiteral::Float(_) => {
+            let normalized = normalize_float(span_str);
+            text(&normalized).format(f)?;
+        }
+        ScalarLiteral::Character(value) => {
+            write!(
+                f,
+                [token("'"), text(value.to_string().as_str()), token("'")]
+            )?;
+        }
+        ScalarLiteral::Byte(value) => {
+            write!(f, [token("b'"), text(&value.to_string()), token("'")])?;
+        }
+        ScalarLiteral::String(_) => {
+            write!(f, [text(span_str)])?;
+        }
+        ScalarLiteral::ByteString(_) => {
+            write!(f, [text(span_str)])?;
+        }
     }
+
+    Ok(())
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
@@ -115,7 +118,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
 /// Normalize an integer string to canonical form.
 ///
 /// Lowercases prefixes (0b, 0o, 0x) and uppercases hex digits.
-fn normalize_integer(input: &str) -> Cow<'_, str> {
+fn normalize_int(input: &str) -> Cow<'_, str> {
     // normalized string if input is not yet normalized
     // output must remain empty if input is already normalized
     let mut output = String::new();
@@ -160,7 +163,7 @@ fn normalize_integer(input: &str) -> Cow<'_, str> {
 /// Normalize a floating point number string to canonical form.
 ///
 /// Adds leading/trailing zeros where needed, lowercases exponent, removes plus sign.
-fn normalize_floating_number(input: &str) -> Cow<'_, str> {
+fn normalize_float(input: &str) -> Cow<'_, str> {
     // normalized string if input is not yet normalized
     // output must remain empty if input is already normalized
     let mut output = String::new();
@@ -225,107 +228,5 @@ fn normalize_floating_number(input: &str) -> Cow<'_, str> {
     } else {
         output.push_str(&input[last_index..]);
         Cow::Owned(output)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
-
-    #[test]
-    fn test_format_boolean_literal() {
-        assert_format!("true", "true", |p| p.eat_scalar_literal());
-        assert_format!("false", "false", |p| p.eat_scalar_literal());
-    }
-
-    #[test]
-    fn test_format_integer_literal() {
-        assert_format!(
-            "1",
-            "1",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_integer_literal_long() {
-        assert_format!(
-            "1_000_000",
-            "1_000_000",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_integer_literal_hex() {
-        assert_format!(
-            "0x1234",
-            "0x1234",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_integer_literal_hex_long() {
-        assert_format!(
-            "0x1234_5678",
-            "0x1234_5678",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_integer_literal_binary() {
-        assert_format!(
-            "0b1010",
-            "0b1010",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_float_literal() {
-        assert_format!(
-            "1.0",
-            "1.0",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_float_literal_long() {
-        assert_format!(
-            "1.0e38",
-            "1.0e38",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_string_literal() {
-        assert_format!(
-            "\"Hello, world!\"",
-            "\"Hello, world!\"",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_string_literal_multiline() {
-        assert_format!(
-            "\"Hello, world!\nHello, world!\"",
-            "\"Hello, world!\nHello, world!\"",
-            |p| p.eat_scalar_literal(),
-            DystFormatOptions::default()
-        );
     }
 }

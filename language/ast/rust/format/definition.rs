@@ -1,11 +1,40 @@
 use crate::argument::list_like;
 use crate::r#let::FormatScopedMutability;
+use crate::with::format_with_clause;
 use crate::{
-    Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, StructField, StructStyle, Visibility, empty_block_with_infix_annotations
+    Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, StructField,
+    StructStyle, empty_block_with_infix_annotations,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
+
+pub(crate) fn format_super_types<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    super_types: &[NodeId<crate::Expression>],
+) -> FormatResult<()> {
+    // colon separator
+    write!(f, [token(":"), space()])?;
+
+    // super types
+    write!(
+        f,
+        [group(&format_args![
+            if_group_breaks(&token("(")),
+            soft_block_indent(&format_with(|f| {
+                f.join_with(&format_args![
+                    if_group_fits_on_line(&token(",")),
+                    soft_line_break_or_space()
+                ])
+                .entries(super_types)
+                .finish()
+            })),
+            if_group_breaks(&token(")")),
+        ])]
+    )?;
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
@@ -20,7 +49,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Module {
                 format,
                 name,
-                visibility,
+                visibility: _,
                 expressions,
             } => {
                 // implicit module (whole file)
@@ -70,7 +99,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // struct
             Definition::Struct {
                 name,
-                visibility,
+                visibility: _,
                 style,
                 super_types,
                 representation_type,
@@ -81,24 +110,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             } => {
                 // split tuple / struct fields
                 let tuple_fields: &[NodeId<StructField>] = if *style == StructStyle::Tuple {
-                    &fields
+                    fields
                 } else {
                     &[]
                 };
                 let struct_fields: &[NodeId<StructField>] = if *style == StructStyle::Struct {
-                    &fields
+                    fields
                 } else {
                     &[]
                 };
-
-                // visibility
-                if let Some(visibility) = visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
 
                 // keyword
                 write!(f, [Keyword::Struct])?;
@@ -145,27 +165,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(super_types) = &super_types
                     && !super_types.is_empty()
                 {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token(":"),
-                            space(),
-                            if_group_breaks(&token("(")),
-                            soft_block_indent(&format_with(|f| f
-                                .join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(super_types)
-                                .finish())),
-                            if_group_breaks(&token(")")),
-                        ])]
-                    )?;
+                    format_super_types(f, super_types)?;
                 }
 
                 // with declaration
-                if let Some(with) = with {
-                    write!(f, [space(), with])?;
+                if let Some(with) = with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 write!(f, [space()])?;
@@ -218,7 +225,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // enum
             Definition::Enum {
                 name,
-                visibility,
+                visibility: _,
                 tag_type,
                 static_parameters,
                 super_types,
@@ -249,9 +256,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space()])?;
                 }
 
+                // super types
+                if let Some(super_types) = &super_types
+                    && !super_types.is_empty()
+                {
+                    format_super_types(f, super_types)?;
+                }
+
                 // with declaration
-                if let Some(with) = with {
-                    write!(f, [space(), with])?;
+                if let Some(with) = with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 // empty block
@@ -296,21 +312,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // trait
             Definition::Trait {
                 name,
-                visibility,
+                visibility: _,
                 static_parameters,
                 super_types,
                 with,
                 expressions,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
-
                 // keyword
                 write!(f, [Keyword::Trait])?;
 
@@ -331,28 +338,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(super_types) = &super_types
                     && !super_types.is_empty()
                 {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token(":"),
-                            space(),
-                            if_group_breaks(&token("(")),
-                            soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_with(|f| {
-                                    if_group_fits_on_line(&token(",")).format(f)?;
-                                    soft_line_break_or_space().format(f)
-                                }))
-                                .entries(super_types)
-                                .finish()
-                            })),
-                            if_group_breaks(&token(")")),
-                        ])]
-                    )?;
+                    format_super_types(f, super_types)?;
                 }
 
                 // with clauses
-                if let Some(with) = &with {
-                    write!(f, [space(), *with])?;
+                if let Some(with) = &with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 // space before trait body
@@ -381,7 +374,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // union
             Definition::Union {
                 name,
-                visibility,
+                visibility: _,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -390,15 +383,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 fields,
                 expressions,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
-
                 // keyword
                 write!(f, [Keyword::Union])?;
 
@@ -433,28 +417,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(super_types) = &super_types
                     && !super_types.is_empty()
                 {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token(":"),
-                            space(),
-                            if_group_breaks(&token("(")),
-                            soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(super_types)
-                                .finish()
-                            })),
-                            if_group_breaks(&token(")")),
-                        ])]
-                    )?;
+                    format_super_types(f, super_types)?;
                 }
 
                 // with declaration
-                if let Some(with) = with {
-                    write!(f, [space(), with])?;
+                if let Some(with) = with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 // space before body braces
@@ -546,8 +516,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with declaration
-                if let Some(with) = with {
-                    write!(f, [space(), with])?;
+                if let Some(with) = with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 // body
@@ -571,25 +543,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // function
             Definition::Function {
                 name,
-                visibility,
+                visibility: _,
                 runtime,
-                style,
-				static_parameters,
-				self_parameter,
-				dynamic_parameters,
-				return_type,
-				with,
-				body,
+                style: _,
+                static_parameters,
+                self_parameter,
+                dynamic_parameters,
+                return_type,
+                with,
+                body,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
-
                 // keyword
                 write!(f, [Keyword::Function, space()])?;
 
@@ -656,8 +619,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with clause
-                if let Some(with_id) = with {
-                    write!(f, [space(), with_id])?;
+                if let Some(with) = with
+                    && !with.is_empty()
+                {
+                    format_with_clause(f, with)?;
                 }
 
                 // body

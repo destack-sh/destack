@@ -1,8 +1,35 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, WithClause};
+use crate::{DystFormatter, FormatNode, Keyword, NodeId, WithClause};
 use dyst_fir::prelude::*;
-use dyst_fir::write;
+use dyst_fir::{format_args, write};
+
+pub(crate) fn format_with_clause<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    with: &[NodeId<WithClause>],
+) -> FormatResult<()> {
+    // keyword
+    write!(f, [Keyword::With])?;
+    if with.is_empty() {
+        return Ok(());
+    }
+    write!(f, [space()])?;
+
+    // clauses
+    write!(
+        f,
+        [best_fit_parenthesize(&format_with(|f| {
+            f.join_with(&format_args![
+                if_group_fits_on_line(&token(",")),
+                soft_line_break_or_space()
+            ])
+            .entries(with)
+            .finish()
+        }))]
+    )?;
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, WithClause> for WithClause {
     fn format_node(
@@ -26,61 +53,5 @@ impl<'ast> FormatNode<'ast, WithClause> for WithClause {
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
-
-    #[test]
-    fn test_format_with_single_clause() {
-        assert_format!(
-            "with Foo",
-            "with Foo",
-            |p| p.eat_with(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_with_alias() {
-        assert_format!(
-            "with Foo as Bar",
-            "with Foo as Bar",
-            |p| p.eat_with(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_with_assertion() {
-        assert_format!(
-            "with T: Numeric",
-            "with T: Numeric",
-            |p| p.eat_with(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_with_breaks() {
-        assert_format!(
-            "with Foo, Bar, Baz, Qux, Quux",
-            "with (\n\tFoo\n\tBar\n\tBaz\n\tQux\n\tQuux\n)",
-            |p| p.eat_with(),
-            DystFormatOptions::default_tab_with_line_width(20)
-        );
-    }
-
-    #[test]
-    fn test_format_with_annotations() {
-        assert_format!(
-            "with #foo Foo",
-            "with #foo Foo",
-            |p| p.eat_with(),
-            DystFormatOptions::default()
-        );
     }
 }

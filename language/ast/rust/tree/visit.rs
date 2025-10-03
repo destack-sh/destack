@@ -1,7 +1,13 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, StructField, Tag, UnionField, UseClause, UseItem, WithClause, walk_annotation, walk_argument, walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_struct_field, walk_tag, walk_union_field, walk_use_clause, walk_use_item, walk_with_clause
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
+    MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, StructField, Tag,
+    UnionField, UseClause, UseItem, WithClause, walk_annotation, walk_argument, walk_blank,
+    walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field,
+    walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field,
+    walk_struct_field, walk_tag, walk_union_field, walk_use_clause, walk_use_item,
+    walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the AST.

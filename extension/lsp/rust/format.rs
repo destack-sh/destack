@@ -13,7 +13,7 @@ impl Workspace {
             side_tokens,
             side_span,
             ast,
-            module_id,
+            root_definition_id: module_id,
             ..
         } = &document.content
         else {

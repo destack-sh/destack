@@ -1,8 +1,8 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, CONTAINER_NODE_TYPES, DystFormatContext, DystFormatter, Expression, FormatNode,
-    INLINE_NODE_TYPES, Keyword, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
+    Block, CONTAINER_NODE_TYPES, DystFormatContext, DystFormatter, Expression, FormatNode, Node,
+    NodeId, NodeTree, NodeTreeStore, NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -62,16 +62,23 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         // if any expression is not inline, then the entire block shouldn't be
         let is_inlinable = self.expressions.iter().all(|expr_id| {
             let expr_node = f.context().get_node(*expr_id);
-            // assign counts as non-inline
-            if let Expression::Assign { .. } = &expr_node {
-                return false;
-            }
-            // anything that doesn't wrap an expression counts as inline
-            let Some(expr_node_type) = expr_node.to_wrapper_node_type() else {
-                return true;
-            };
-            // just check if the expression is inlinable
-            INLINE_NODE_TYPES.contains(&expr_node_type)
+            let is_blocky = matches!(
+                expr_node,
+                Expression::Definition(_)
+                    | Expression::Block(_)
+                    | Expression::With { .. }
+                    | Expression::Use { .. }
+                    | Expression::Let { .. }
+                    | Expression::While { .. }
+                    | Expression::Loop { .. }
+                    | Expression::Match { .. }
+                    | Expression::Break { .. }
+                    | Expression::Continue { .. }
+                    | Expression::Defer { .. }
+                    | Expression::Return { .. }
+                    | Expression::Assign { .. }
+            );
+            !is_blocky
         });
 
         // parent (default to self)

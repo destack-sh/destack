@@ -21,8 +21,7 @@ impl<'a> Parser<'a> {
     pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Use)?;
-        let use_node = self
-            .eat_use_header(visibility)?;
+        let use_node = self.eat_use_header(visibility)?;
         self.tree.set_span(use_node, self.get_span_from(start));
         Ok(use_node)
     }
@@ -38,7 +37,10 @@ impl<'a> Parser<'a> {
     /// foo.{} // valid but linted
     /// foo as baz
     /// ```
-    fn eat_use_header(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
+    fn eat_use_header(
+        &mut self,
+        visibility: Option<Visibility>,
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // parse one or more clauses separated by commas
