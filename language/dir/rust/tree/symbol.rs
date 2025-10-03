@@ -3,3 +3,8 @@
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SymbolId(pub u32);
 
+pub enum ResolvedPath {
+    Intrinsic,
+    External,
+    NotFound,
+}

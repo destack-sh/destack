@@ -91,6 +91,58 @@ impl FromStr for FloatType {
     }
 }
 
+/// A TypeLiteral is literal type node.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeLiteral {
+    /// Never type `!`.
+    Never,
+    /// Any type `$`.
+    Any,
+    /// Infer type `_`.
+    Infer,
+    /// Unknown / uninitialized type and value.
+    Undefined,
+    /// Void / empty / unit type.
+    Void,
+    /// Null type and value.
+    Null,
+    /// Boolean type.
+    Boolean,
+    /// Character type.
+    Character,
+    /// String type (unsized).
+    String,
+    /// "Number" type (alias).
+    Number,
+    /// Integer type.
+    Int(IntType),
+    /// Float type.
+    Float(FloatType),
+    /// Composite type.
+    Composite(CompositeType),
+    /// Self type.
+    Self_,
+}
+
+/// A CompositeType represents composite types.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompositeType {
+    /// Base type `type`.
+    Type,
+    /// Struct type `struct MyStruct { ... }`.
+    Struct,
+    /// Enum type `enum MyEnum { ... }`.
+    Enum,
+    /// Union type `A | B | C`.
+    Union,
+    /// Tuple type `(T1, T2, ...)`.
+    Tuple,
+    /// Trait type `trait MyTrait { ... }`.
+    Trait,
+    /// Function type `function (T1, T2, ...) => T`.
+    Function,
+}
+
 /// An (unresolved) Type declaration node.
 ///
 /// Type references don't support static evaluation directly for simplicity.
