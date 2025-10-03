@@ -19,6 +19,7 @@ where
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
+    include_space: bool,
     elements: &'e Vec<NodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
@@ -36,12 +37,22 @@ where
             [group(&format_args![
                 token(self.start_token),
                 soft_block_indent(&format_with(|f| {
+                    if self.include_space {
+                        write!(f, [if_group_fits_on_line(&space())])?;
+                    }
+
                     f.join_with(&format_args![
                         if_group_fits_on_line(&token(self.separator)),
                         soft_line_break_or_space()
                     ])
                     .entries(self.elements)
-                    .finish()
+                    .finish()?;
+
+                    if self.include_space && !self.elements.is_empty() {
+                        write!(f, [if_group_fits_on_line(&space())])?;
+                    }
+
+                    Ok(())
                 })),
                 token(self.end_token)
             ]),]
@@ -59,6 +70,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
+    include_space: bool,
     elements: &'e Vec<NodeId<T>>,
 ) -> ListLike<'ast, 'e, T>
 where
@@ -69,6 +81,7 @@ where
         start_token,
         end_token,
         separator,
+        include_space,
         elements,
         _phantom: PhantomData,
     }
