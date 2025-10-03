@@ -1,12 +1,8 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
-use crate::{
-    Call, Expression, Index, NodeId, NodeType, ParseError, ParseResult, Parser, Runtime,
-    ScalarLiteral,
-};
+use crate::{Expression, NodeId, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -22,7 +18,7 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_explicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> ParseResult<NodeId<Index>> {
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // open bracket
@@ -32,8 +28,9 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::CloseBracket).is_ok() {
             self.bump(); // eat close bracket
             let index_id = self.tree.allocate(
-                Index::Declarative {
+                Expression::Index {
                     receiver: receiver_id,
+                    index: None,
                 },
                 self.get_span_from(start),
             );
@@ -41,18 +38,17 @@ impl<'a> Parser<'a> {
         }
 
         // expression
-        let index = self
-            .with_options(self.options.in_nested(), |parser| parser.eat_expression())
-            .for_node_type(NodeType::Index)?;
+        let index =
+            self.with_options(self.options.in_nested(), |parser| parser.eat_expression())?;
 
         // close bracket
         self.eat_token(TokenType::CloseBracket)?;
 
         // index
         let index_id = self.tree.allocate(
-            Index::Explicit {
+            Expression::Index {
                 receiver: receiver_id,
-                index,
+                index: Some(index),
             },
             self.get_span_from(start),
         );
@@ -68,24 +64,24 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_implicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> ParseResult<NodeId<Index>> {
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dot
         self.eat_token(TokenType::Dot)?;
 
         // literal
-        let literal_id = self.eat_scalar_literal().for_node_type(NodeType::Index)?;
-        let index = match self.tree.get(literal_id) {
-            ScalarLiteral::Integer(index) => *index,
-            _ => return Err(ParseError::unexpected(self.peek()?.span)),
-        };
+        let literal_id = self.eat_scalar_literal()?;
+        let literal_id = self.tree.allocate(
+            Expression::ScalarLiteral(literal_id),
+            self.get_span_from(start),
+        );
 
         // index
         let index_id = self.tree.allocate(
-            Index::Member {
+            Expression::Index {
                 receiver: receiver_id,
-                index,
+                index: Some(literal_id),
             },
             self.get_span_from(start),
         );
@@ -106,7 +102,7 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         runtime: Option<Runtime>,
-    ) -> ParseResult<NodeId<Call>> {
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dynamic arguments (may be empty)
@@ -114,7 +110,7 @@ impl<'a> Parser<'a> {
 
         // call
         let call_id = self.tree.allocate(
-            Call {
+            Expression::Call {
                 runtime,
                 receiver: receiver_id,
                 dynamic_arguments,
@@ -129,8 +125,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, Index, NodeId, Parser, Runtime, ScalarLiteral, assert_node,
-        assert_string,
+        Argument, Expression, NodeId, Parser, Runtime, ScalarLiteral, assert_node, assert_string,
     };
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
@@ -153,11 +148,9 @@ mod tests {
         let recv = make_self_expression(&mut parser);
 
         let index_id = parser.eat_index_postfix_explicit(recv).unwrap();
-        assert_node!(parser.tree, index_id, Index::Explicit { receiver, index } => {
+        assert_node!(parser.tree, index_id, Expression::Index { receiver, index } => {
             assert_eq!(*receiver, recv);
-            assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
-                assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1));
-            });
+            assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
 
@@ -168,9 +161,9 @@ mod tests {
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let index_id = parser.eat_index_postfix_implicit(recv).unwrap();
-        assert_node!(parser.tree, index_id, Index::Member { receiver, index } => {
+        assert_node!(parser.tree, index_id, Expression::Index { receiver, index } => {
             assert_eq!(*receiver, recv);
-            assert_eq!(*index, 1);
+            assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
 
@@ -184,7 +177,7 @@ mod tests {
             .eat_call_postfix(recv, Some(Runtime::Dynamic))
             .unwrap();
 
-        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, dynamic_arguments } => {
+        assert_node!(parser.tree, call_id, Expression::Call { receiver, runtime, dynamic_arguments } => {
             assert_eq!(*receiver, recv);
             assert_eq!(*runtime, Some(Runtime::Dynamic));
 
@@ -193,17 +186,13 @@ mod tests {
 
             // 1
             assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
-                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1));
-                });
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // x: 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
                 assert_string!(parser.session, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
-                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2));
-                });
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
     }

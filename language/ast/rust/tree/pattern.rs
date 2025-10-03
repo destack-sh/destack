@@ -34,7 +34,7 @@ pub enum Pattern {
         mutability: Mutability,
     },
     /// Literal value pattern (like `1`).
-    Literal(ScalarLiteral),
+    ScalarLiteral(ScalarLiteral),
     /// Binding pattern (like `x`).
     Binding { name: StringId },
     /// Path pattern (like `MyEnum.A`).

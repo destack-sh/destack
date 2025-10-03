@@ -4,7 +4,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Enum, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
+    Definition, EnumField, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
     Visibility,
 };
 
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
+    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open parenthesis
                 let ty = self
                     .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                    .for_node_type(NodeType::Enum)?;
+                    .for_node_type(NodeType::Definition)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
             } else {
@@ -64,23 +64,24 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = self
             .eat_static_parameters_maybe()
-            .for_node_type(NodeType::Enum)?;
+            .for_node_type(NodeType::Definition)?;
 
         // optional super types: : ...
-        let super_types = self.eat_super_types_maybe().for_node_type(NodeType::Enum)?;
+        let super_types = self
+            .eat_super_types_maybe()
+            .for_node_type(NodeType::Definition)?;
 
         // optional with declaration
-        let with = self.eat_with_maybe().for_node_type(NodeType::Enum)?;
+        let with = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let (fields, expressions) = self.eat_enum_body().for_node_type(NodeType::Enum)?;
+        let (fields, expressions) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        // enum
         let enum_id = self.tree.allocate(
-            Enum {
+            Definition::Enum {
                 name,
                 visibility,
                 tag_type: explicit_type,
@@ -92,7 +93,6 @@ impl<'a> Parser<'a> {
             },
             self.get_span_from(start),
         );
-        self.tree.set_span(enum_id, self.get_span_from(start));
 
         Ok(enum_id)
     }
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
             }
             // enum field
             else if self.peek_enum_field().is_ok() {
-                let field = self.eat_enum_field().for_node_type(NodeType::Enum)?;
+                let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 fields.push(field);
             }
             // eat expressions
@@ -171,8 +171,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Enum, EnumField, Expression, IntType, Parameter, TypeLiteral, assert_int, assert_node,
-        assert_path, assert_string,
+        Definition, EnumField, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_int, assert_node, assert_path, assert_string
     };
 
     #[test]
@@ -186,7 +185,7 @@ enum Foo: Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, expressions, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
@@ -213,7 +212,7 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, tag_type, fields, expressions, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, expressions, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
@@ -252,14 +251,12 @@ enum(uint8) Foo: Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, tag_type, fields, super_types, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, .. } => {
             // enum name
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // enum type
-            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(8), is_signed: false }));
-            });
+            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(8), is_signed: false })));
 
             // super: Day
             let supers = super_types.as_ref().expect("expected super types");
@@ -273,17 +270,13 @@ enum(uint8) Foo: Day {
             // Baz = 1
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
                 assert_string!(parser.session, *name, "Baz");
-                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                    assert_int!(parser.tree, *literal_id, 1);
-                });
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // Qux = 2
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
                 assert_string!(parser.session, *name, "Qux");
-                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                    assert_int!(parser.tree, *literal_id, 2);
-                });
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
     }
@@ -304,7 +297,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, static_parameters, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, .. } => {
             // Machine
             assert_string!(parser.session, name.unwrap(), "Machine");
 

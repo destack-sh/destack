@@ -23,7 +23,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     write!(f, [token("&"), target])?
                 }
             }
-            Pattern::Literal(literal) => write!(f, [literal])?,
+            Pattern::ScalarLiteral(literal) => write!(f, [literal])?,
             Pattern::Binding { name } => write!(f, [name])?,
             Pattern::Path(path) => write!(f, [path])?,
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,

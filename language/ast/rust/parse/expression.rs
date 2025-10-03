@@ -1,11 +1,11 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use crate::parse::prelude::*;
-use crate::{RangeLiteral, ScopedMutability, StructLiteral, TupleLiteral, TupleLiteralField};
+use crate::{Argument, ScopedMutability};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
-    AssignOperator, BinaryOperator, Call, Expression, InfixOperator, Keyword, Mutability, NodeId,
+    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability, NodeId,
     NodeType, ParseError, ParseResult, Parser, ParserMark, Runtime, UnaryOperator, Visibility,
 };
 
@@ -295,57 +295,55 @@ impl<'a> Parser<'a> {
 
             // module
             else if keyword == Some(Keyword::Module) {
-                let module_id = self
-                    .eat_module(visibility)
-                    .for_node_type(NodeType::Module)?;
-                let expression = Expression::Module(module_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let module_id = self.eat_module(visibility)?;
+                self.tree
+                    .allocate(Expression::Definition(module_id), self.get_span_from(start))
             }
             // struct
             else if keyword == Some(Keyword::Struct) {
-                let struct_id = self
-                    .eat_struct(visibility)
-                    .for_node_type(NodeType::Struct)?;
-                let expression = Expression::Struct(struct_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let struct_id = self.eat_struct(visibility)?;
+                self.tree
+                    .allocate(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(visibility).for_node_type(NodeType::Enum)?;
-                let expression = Expression::Enum(enum_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let enum_id = self.eat_enum(visibility)?;
+                self.tree
+                    .allocate(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(visibility).for_node_type(NodeType::Union)?;
-                let expression = Expression::Union(union_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let union_id = self.eat_union(visibility)?;
+                self.tree
+                    .allocate(Expression::Definition(union_id), self.get_span_from(start))
             }
             // trait
             else if keyword == Some(Keyword::Trait) {
-                let trait_id = self.eat_trait(visibility).for_node_type(NodeType::Trait)?;
-                let expression = Expression::Trait(trait_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let trait_id = self.eat_trait(visibility)?;
+                self.tree
+                    .allocate(Expression::Definition(trait_id), self.get_span_from(start))
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement().for_node_type(NodeType::Implement)?;
-                let expression = Expression::Implement(implement_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let implement_id = self.eat_implement()?;
+                self.tree.allocate(
+                    Expression::Definition(implement_id),
+                    self.get_span_from(start),
+                )
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self
-                    .eat_function(visibility)
-                    .for_node_type(NodeType::Function)?;
-                let expression = Expression::Function(function_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let function_id = self.eat_function(visibility)?;
+                self.tree.allocate(
+                    Expression::Definition(function_id),
+                    self.get_span_from(start),
+                )
             }
             // block
             else if self.peek_block().is_ok() {
-                let block_id = self.eat_block().for_node_type(NodeType::Block)?;
-                let expression = Expression::Block(block_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let block_id = self.eat_block()?;
+                self.tree
+                    .allocate(Expression::Block(block_id), self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
@@ -354,82 +352,58 @@ impl<'a> Parser<'a> {
             //
             // with
             else if keyword == Some(Keyword::With) {
-                let with_id = self.eat_with().for_node_type(NodeType::With)?;
-                let expression = Expression::With(with_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_with()?
             }
             // use
             else if keyword == Some(Keyword::Use) {
-                let use_id = self.eat_use(visibility).for_node_type(NodeType::Use)?;
-                let expression = Expression::Use(use_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_use(visibility)?
             }
             // let
             else if keyword == Some(Keyword::Let)
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                let let_id = self.eat_let(visibility).for_node_type(NodeType::Let)?;
-                let expression = Expression::Let(let_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_let(visibility)?
             }
             // if
             else if keyword == Some(Keyword::If) {
-                let if_id = self.eat_if(runtime).for_node_type(NodeType::If)?;
-                let expression = Expression::If(if_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_if(runtime)?
             }
             // while
             else if keyword == Some(Keyword::While) {
-                let while_id = self.eat_while(runtime).for_node_type(NodeType::While)?;
-                let expression = Expression::While(while_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_while(runtime)?
             }
             // for
             else if keyword == Some(Keyword::For) {
-                let for_id = self.eat_for(runtime).for_node_type(NodeType::For)?;
-                let expression = Expression::For(for_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_for(runtime)?
             }
             // loop
             else if keyword == Some(Keyword::Loop) {
-                let loop_id = self.eat_loop(runtime).for_node_type(NodeType::Loop)?;
-                let expression = Expression::Loop(loop_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_loop(runtime)?
             }
             // try
             else if keyword == Some(Keyword::Try) {
-                let try_id = self.eat_try_catch().for_node_type(NodeType::Try)?;
-                let expression = Expression::Try(try_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_try(runtime)?
             }
             // match
             else if keyword == Some(Keyword::Match) {
-                let match_id = self.eat_match().for_node_type(NodeType::Match)?;
-                let expression = Expression::Match(match_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_match(runtime)?
             }
             // break
             else if keyword == Some(Keyword::Break) {
-                let break_id = self.eat_break().for_node_type(NodeType::Break)?;
-                let expression = Expression::Break(break_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_break()?
             }
             // continue
             else if keyword == Some(Keyword::Continue) {
-                let continue_id = self.eat_continue().for_node_type(NodeType::Continue)?;
-                let expression = Expression::Continue(continue_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_continue()?
             }
             // defer
             else if keyword == Some(Keyword::Defer) {
-                let defer_id = self.eat_defer().for_node_type(NodeType::Defer)?;
-                let expression = Expression::Defer(defer_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_defer()?
             }
             // return
             else if keyword == Some(Keyword::Return) {
-                self.eat_return().for_node_type(NodeType::Expression)?
+                self.eat_return()?
             }
             //
             // ------------------------------------------------------------
@@ -441,33 +415,33 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                let let_id = self.eat_let(visibility).for_node_type(NodeType::Let)?;
-                let expression = Expression::Let(let_id);
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.eat_let(visibility)?
             }
             // array
             else if token.token.r#type == TokenType::OpenBracket {
-                let array_literal = self
-                    .eat_array_literal()
-                    .for_node_type(NodeType::ArrayLiteral)?;
-                let expression = Expression::ArrayLiteral(array_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let array_literal = self.eat_array_literal()?;
+                self.tree.allocate(
+                    Expression::ArrayLiteral {
+                        elements: array_literal,
+                    },
+                    self.get_span_from(start),
+                )
             }
             // scalar
             else if self.peek_scalar_literal().is_ok() {
-                let scalar_literal = self
-                    .eat_scalar_literal()
-                    .for_node_type(NodeType::ScalarLiteral)?;
-                let expression = Expression::ScalarLiteral(scalar_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let scalar_literal = self.eat_scalar_literal()?;
+                self.tree.allocate(
+                    Expression::ScalarLiteral(scalar_literal),
+                    self.get_span_from(start),
+                )
             }
             // type
             else if self.peek_type_literal().is_ok() {
-                let type_literal = self
-                    .eat_type_literal()
-                    .for_node_type(NodeType::TypeLiteral)?;
-                let expression = Expression::TypeLiteral(type_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
+                let type_literal = self.eat_type_literal()?;
+                self.tree.allocate(
+                    Expression::TypeLiteral(type_literal),
+                    self.get_span_from(start),
+                )
             }
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
@@ -515,17 +489,14 @@ impl<'a> Parser<'a> {
             && let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenParenthesis).is_err()
         {
-            let call_id = self.tree.allocate(
-                Call {
+            left_expression_id = self.tree.allocate(
+                Expression::Call {
                     runtime,
                     receiver: left_expression_id,
                     dynamic_arguments: vec![],
                 },
                 self.get_span_from(start),
             );
-            left_expression_id = self
-                .tree
-                .allocate(Expression::Call(call_id), self.get_span_from(start));
             runtime = None;
         }
         // struct literal postfix with `{`
@@ -533,18 +504,12 @@ impl<'a> Parser<'a> {
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
         {
-            let fields = self
-                .eat_struct_literal_body()
-                .for_node_type(NodeType::StructLiteral)?;
-            let struct_literal_id = self.tree.allocate(
-                StructLiteral {
+            let fields = self.eat_struct_literal_body()?;
+            left_expression_id = self.tree.allocate(
+                Expression::StructLiteral {
                     r#type: left_expression_id,
                     fields,
                 },
-                self.get_span_from(start),
-            );
-            left_expression_id = self.tree.allocate(
-                Expression::StructLiteral(struct_literal_id),
                 self.get_span_from(start),
             );
         }
@@ -562,66 +527,56 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-                let right_expression_id = self
-                    .eat_expression()
-                    .for_node_type(NodeType::RangeLiteral)?;
-                let literal_id = self.tree.allocate(
-                    RangeLiteral {
+                let right_expression_id = self.eat_expression()?;
+                left_expression_id = self.tree.allocate(
+                    Expression::RangeLiteral {
                         start: left_expression_id,
                         end: right_expression_id,
                         is_inclusive,
                     },
                     self.get_span_from(start),
                 );
-                let expression = Expression::RangeLiteral(literal_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // member (also works across newline)
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
-                let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-                let expression = Expression::Member {
-                    receiver: left_expression_id,
-                    path: path_id,
-                };
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                let path_id = self.eat_path()?;
+                left_expression_id = self.tree.allocate(
+                    Expression::Member {
+                        receiver: left_expression_id,
+                        path: path_id,
+                    },
+                    self.get_span_from(start),
+                );
             }
             // index (implicit with `.0`)
             else if let Ok(distance) = self.peek_member(TokenType::Literal) {
                 self.bump_by(distance - 2); // eat only newlines
-                let index_id = self
-                    .eat_index_postfix_implicit(left_expression_id)
-                    .for_node_type(NodeType::Index)?;
-                let expression = Expression::Index(index_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.eat_index_postfix_implicit(left_expression_id)?;
             }
             // index (explicit with `[]`)
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
-                let index_id = self
-                    .eat_index_postfix_explicit(left_expression_id)
-                    .for_node_type(NodeType::Index)?;
-                let expression = Expression::Index(index_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.eat_index_postfix_explicit(left_expression_id)?;
             }
             // call
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let call_id = self
-                    .eat_call_postfix(left_expression_id, runtime)
-                    .for_node_type(NodeType::Call)?;
-                let expression = Expression::Call(call_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.eat_call_postfix(left_expression_id, runtime)?;
             }
             // unwrap
             else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
-                let expression = Expression::Maybe(left_expression_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.tree.allocate(
+                    Expression::Maybe(left_expression_id),
+                    self.get_span_from(start),
+                );
             }
             // force unwrap
             else if self.peek_token(TokenType::Not).is_ok() {
                 self.bump(); // eat !
-                let expression = Expression::Must(left_expression_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.tree.allocate(
+                    Expression::Must(left_expression_id),
+                    self.get_span_from(start),
+                );
             }
             // tuple (if we have a comma / newline following an expression inside parentheses)
             else if self.options.in_parenthesis
@@ -632,24 +587,20 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
                 // we already have the first element (the expression itself)
                 let first_element_id = self.tree.allocate(
-                    TupleLiteralField::Positional {
+                    Argument::Positional {
                         value: left_expression_id,
                     },
                     self.get_span_from(start),
                 );
                 // parse remaining elements
-                let tuple_elements = self
-                    .eat_tuple_literal_body(Some(first_element_id))
-                    .for_node_type(NodeType::TupleLiteral)?;
+                let tuple_elements = self.eat_tuple_literal_body(Some(first_element_id))?;
                 // build tuple literal
-                let tuple_literal_id = self.tree.allocate(
-                    TupleLiteral {
+                left_expression_id = self.tree.allocate(
+                    Expression::TupleLiteral {
                         elements: tuple_elements,
                     },
                     self.get_span_from(start),
                 );
-                let expression = Expression::TupleLiteral(tuple_literal_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // done
             else {
@@ -714,69 +665,53 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, BinaryOperator, Call, Expression, FieldLiteral, Let, Mutability, Pattern,
-        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral,
-        TupleLiteralField, UnaryOperator, assert_expr_path, assert_int, assert_lit_int,
-        assert_node, assert_path, assert_string,
+        Argument, BinaryOperator, Expression, Mutability, Pattern, Runtime, ScalarLiteral,
+        ScopedMutability, UnaryOperator, assert_expr_path, assert_node, assert_path, assert_string,
     };
 
-    /// Empty parenthesis are tuples.
+    /// Parse an empty parenthesis as a tuple literal.
     #[test]
     fn test_parse_empty_parenthesis_tuple() {
         let mut test = TestParser::new("()");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::TupleLiteral(tuple_literal_id) => {
-            assert_node!(parser.tree, *tuple_literal_id, TupleLiteral { elements } => {
-                assert_eq!(elements.len(), 0);
-            });
+        assert_node!(parser.tree, expr_id, Expression::TupleLiteral { elements, .. } => {
+            assert_eq!(elements.len(), 0);
         });
     }
 
-    /// Tuple literals are disambiguated.
-    /// (1, 2)
+    /// Parse a tuple literal with two elements.
     #[test]
     fn test_parse_tuple_literal() {
         let mut test = TestParser::new("(1, 2)");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        // (1, 2)
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::TupleLiteral(tuple_literal_id) => {
+            Expression::TupleLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 2);
+                // 1
                 assert_node!(
                     parser.tree,
-                    *tuple_literal_id,
-                    TupleLiteral { elements } => {
-                        assert_eq!(elements.len(), 2);
-                        // 1
+                    elements[0],
+                    Argument::Positional { value } => {
                         assert_node!(
                             parser.tree,
-                            elements[0],
-                            TupleLiteralField::Positional { value } => {
-                                assert_node!(
-                                    parser.tree,
-                                    *value,
-                                    Expression::ScalarLiteral(scalar_literal_id) => {
-                                        assert_int!(parser.tree, *scalar_literal_id, 1);
-                                    }
-                                );
-                            }
+                            *value,
+                            Expression::ScalarLiteral(ScalarLiteral::Integer(1))
                         );
-                        // 2
+                    }
+                );
+                // 2
+                assert_node!(
+                    parser.tree,
+                    elements[1],
+                    Argument::Positional { value } => {
                         assert_node!(
                             parser.tree,
-                            elements[1],
-                            TupleLiteralField::Positional { value } => {
-                                assert_node!(
-                                    parser.tree,
-                                    *value,
-                                    Expression::ScalarLiteral(scalar_literal_id) => {
-                                        assert_int!(parser.tree, *scalar_literal_id, 2);
-                                    }
-                                );
-                            }
+                            *value,
+                            Expression::ScalarLiteral(ScalarLiteral::Integer(2))
                         );
                     }
                 );
@@ -784,96 +719,69 @@ mod tests {
         );
     }
 
-    /// Range literals are disambiguated.
-    /// 1..3
+    /// Parse a range literal.
     #[test]
     fn test_parse_range_literal() {
         let mut test = TestParser::new("1..3");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
-        // 1..3
-        assert_node!(parser.tree, expr_id, Expression::RangeLiteral(range_literal_id) => {
-            assert_node!(parser.tree, *range_literal_id, RangeLiteral { start, end, .. } => {
-                assert_node!(parser.tree, *start, Expression::ScalarLiteral(scalar_literal_id) => {
-                    assert_lit_int!(parser.session, parser.tree.get(*scalar_literal_id), 1);
-                });
-                assert_node!(parser.tree, *end, Expression::ScalarLiteral(scalar_literal_id) => {
-                    assert_lit_int!(parser.session, parser.tree.get(*scalar_literal_id), 3);
-                });
+        assert_node!(parser.tree, expr_id, Expression::RangeLiteral { start, end, .. } => {
+            assert_node!(parser.tree, *start, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
+                assert_eq!(*val, 1);
+            });
+            assert_node!(parser.tree, *end, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
+                assert_eq!(*val, 3);
             });
         });
     }
 
-    /// Struct literals are disambiguated.
-    /// geom.Vector2 { x: 1, y }
+    /// Parse a struct literal with a path type and two fields.
     #[test]
     fn test_parse_struct_literal_path() {
         let mut test = TestParser::new("geom.Vector2 { x: 1, y }");
         let mut parser = test.prepare();
-
         let expr_id = parser.eat_expression().unwrap();
-
-        // geom.Vector2 { x: 1, y }
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral(struct_literal_id) => {
+            Expression::StructLiteral { r#type, fields, .. } => {
+                // geom.Vector2
                 assert_node!(
                     parser.tree,
-                    *struct_literal_id,
-                    StructLiteral { r#type, fields } => {
-                        // geom.Vector2
+                    *r#type,
+                    Expression::Path { path, .. } => {
+                        assert_path!(parser.session, *path, "geom.Vector2");
+                    }
+                );
+                assert_eq!(fields.len(), 2);
+                // x: 1
+                assert_node!(
+                    parser.tree,
+                    fields[0],
+                    Argument::Named { name, value } => {
+                        assert_string!(parser.session, *name, "x");
                         assert_node!(
                             parser.tree,
-                            *r#type,
-                            Expression::Path { path, static_arguments: _ } => {
-                                assert_path!(parser.session, *path, "geom.Vector2");
+                            *value,
+                            Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
+                                assert_eq!(*val, 1);
                             }
                         );
-                        // fields
-                        assert_eq!(fields.len(), 2);
-                        // x: 1
-                        assert_node!(
-                            parser.tree,
-                            fields[0],
-                            FieldLiteral::Named { name, value } => {
-                                // x
-                                assert_string!(parser.session, *name, "x");
-                                // 1
-                                assert_node!(
-                                    parser.tree,
-                                    *value,
-                                    Expression::ScalarLiteral(scalar_id) => {
-                                        assert_node!(
-                                            parser.tree,
-                                            *scalar_id,
-                                            ScalarLiteral::Integer(1)
-                                        );
-                                    }
-                                );
-                            }
-                        );
-                        // y
-                        assert_node!(
-                            parser.tree,
-                            fields[1],
-                            FieldLiteral::NamedShorthand { name } => {
-                                // y
-                                assert_string!(parser.session, *name, "y");
-                            }
-                        );
+                    }
+                );
+                // y
+                assert_node!(
+                    parser.tree,
+                    fields[1],
+                    Argument::NamedShorthand { name } => {
+                        assert_string!(parser.session, *name, "y");
                     }
                 );
             }
         );
     }
 
-    /// Struct literals with static parameters are disambiguated.
-    /// geom.Mesh<2, Dims: 4> {
-    ///     vertices: [1, 2]
-    ///     y  
-    /// }
+    /// Parse a struct literal with static parameters and two fields.
     #[test]
     fn test_parse_struct_literal_path_with_static_parameters() {
         let mut test = TestParser::new(
@@ -885,39 +793,32 @@ geom.Mesh<2, Dims: 4> {
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-
         let expr_id = parser.eat_expression().unwrap();
-
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral(struct_literal_id) => {
-                let struct_literal = parser.tree.get(*struct_literal_id);
-                // geom.Mesh<2, Dims: 4>
+            Expression::StructLiteral { r#type, fields, .. } => {
                 assert_node!(
                     parser.tree,
-                    struct_literal.r#type,
+                    *r#type,
                     Expression::Path { path, static_arguments } => {
-                        // geom.Mesh
                         assert_path!(parser.session, *path, "geom.Mesh");
-                        // <2, Dims: 4>
                         assert!(static_arguments.is_some());
                         let params = static_arguments.as_ref().unwrap();
                         assert_eq!(params.len(), 2);
                     }
                 );
-                let fields = &struct_literal.fields;
                 assert_eq!(fields.len(), 2);
                 // vertices: [1, 2]
                 assert_node!(
                     parser.tree,
                     fields[0],
-                    FieldLiteral::Named { name, value } => {
+                    Argument::Named { name, value } => {
                         assert_string!(parser.session, *name, "vertices");
                         assert_node!(
                             parser.tree,
                             *value,
-                            Expression::ArrayLiteral(_)
+                            Expression::ArrayLiteral { .. }
                         );
                     }
                 );
@@ -925,7 +826,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     fields[1],
-                    FieldLiteral::NamedShorthand { name } => {
+                    Argument::NamedShorthand { name } => {
                         assert_string!(parser.session, *name, "y");
                     }
                 );
@@ -933,34 +834,30 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
-    /// Types with static parameters are disambiguated as values.
-    /// let Alias = A<B<C>>
+    /// Parse a let binding with a type with static parameters as value.
     #[test]
     fn test_parse_type_with_static_parameters() {
         let mut test = TestParser::new("let Alias = A<B<C>>");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
         // let Alias = A<B<C>>
-        assert_node!(parser.tree, expr_id, Expression::Let(let_id) => {
-            assert_node!(parser.tree, *let_id, Let { mutability: _, pattern, r#type: _, value, visibility: _, .. } => {
-                // let Alias
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                    assert_string!(parser.session, *name, "Alias");
-                });
-                // A<B<C>>
-                assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "A");
-                    assert!(static_arguments.is_some());
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                        // B<C>
-                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
-                            assert_path!(parser.session, *path, "B");
-                            assert!(static_arguments.is_some());
-                            // C
-                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                                assert_expr_path!(parser.session, parser.tree.get(*value), "C");
-                            });
+        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
+            // Alias
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_string!(parser.session, *name, "Alias");
+            });
+            // A<B<C>>
+            assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
+                assert_path!(parser.session, *path, "A");
+                assert!(static_arguments.is_some());
+                // B<C>
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        assert_path!(parser.session, *path, "B");
+                        assert!(static_arguments.is_some());
+                        // C
+                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_expr_path!(parser.session, parser.tree.get(*value), "C");
                         });
                     });
                 });
@@ -968,36 +865,31 @@ geom.Mesh<2, Dims: 4> {
         });
     }
 
-    /// Dereference variable.
-    /// *x
+    /// Parse a dereference expression.
     #[test]
     fn test_parse_dereference_variable() {
         let mut test = TestParser::new("*x");
         let mut parser = test.prepare();
-
         let expr_id = parser.eat_expression().unwrap();
-
         // *x
-        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right, .. } => {
             assert_eq!(*operator, UnaryOperator::Dereference);
+            // x
             assert_expr_path!(parser.session, parser.tree.get(*right), "x");
         });
     }
 
-    /// Reference operator on variable.
-    /// &x
+    /// Parse a reference expression.
     #[test]
     fn test_parse_reference_variable() {
         let mut test = TestParser::new("&x");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
         // &x
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Reference { mutability, right } => {
-                // &
+            Expression::Reference { mutability, right, .. } => {
                 assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 // x
                 assert_expr_path!(parser.session, parser.tree.get(*right), "x");
@@ -1005,39 +897,30 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
-    /// Reference operator on member access with method call.
-    /// &var self.foo()
+    /// Parse a reference to a member call.
     #[test]
     fn test_parse_reference_member_call() {
         let mut test = TestParser::new("&var self.foo()");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
         // &var self.foo()
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Reference { mutability, right } => {
-                // &var
+            Expression::Reference { mutability, right, .. } => {
                 assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
                 // self.foo()
                 assert_node!(
                     parser.tree,
                     *right,
-                    Expression::Call(call_id) => {
+                    Expression::Call { runtime, receiver, .. } => {
+                        assert_eq!(*runtime, None);
+                        // self.foo
                         assert_node!(
                             parser.tree,
-                            *call_id,
-                            Call { runtime, receiver, dynamic_arguments: _ } => {
-                                assert_eq!(*runtime, None);
-                                // self.foo
-                                assert_node!(
-                                    parser.tree,
-                                    *receiver,
-                                    Expression::Path { path, static_arguments: _ } => {
-                                        assert_path!(parser.session, *path, "self.foo");
-                                    }
-                                );
+                            *receiver,
+                            Expression::Path { path, .. } => {
+                                assert_path!(parser.session, *path, "self.foo");
                             }
                         );
                     }
@@ -1046,11 +929,7 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
-    /// Test parse mult-line let with multi-linx infix.
-    /// let x =
-    ///     foo.parse()
-    ///         + 2
-    ///         + x
+    /// Parse a multi-line let with multi-line infix.
     #[test]
     fn test_parse_let_multiline_infix() {
         let mut test = TestParser::new(
@@ -1063,86 +942,63 @@ let x =
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-
         let expr_id = parser.eat_expression().unwrap();
-
         // let x = foo.parse() + 2 + x
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Let(let_id) => {
+            Expression::Let { mutability, pattern, value, .. } => {
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+                // x
                 assert_node!(
                     parser.tree,
-                    *let_id,
-                    Let { mutability, pattern, r#type: _, value, visibility: _, .. } => {
-                        assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
-                        // x
+                    *pattern,
+                    Pattern::Binding { name, .. } => {
+                        assert_eq!(parser.session.get_string(*name), "x");
+                    }
+                );
+                // foo.parse() + 2 + x
+                assert_node!(
+                    parser.tree,
+                    value.unwrap(),
+                    Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        // foo.parse() + 2
                         assert_node!(
                             parser.tree,
-                            *pattern,
-                            Pattern::Binding { name, .. } => {
-                                assert_eq!(parser.session.get_string(*name), "x");
-                            }
-                        );
-
-                        // foo.parse() + 2 + x
-                        assert_node!(
-                            parser.tree,
-                            value.unwrap(),
-                            Expression::Binary { left, operator, right } => {
+                            *left,
+                            Expression::Binary { left, operator, right, .. } => {
                                 assert_eq!(*operator, BinaryOperator::Add);
-                                // foo.parse() + 2
+                                // foo.parse()
                                 assert_node!(
                                     parser.tree,
                                     *left,
-                                    Expression::Binary { left, operator, right } => {
-                                        assert_eq!(*operator, BinaryOperator::Add);
-                                        // foo.parse()
+                                    Expression::Call { runtime, receiver, .. } => {
+                                        assert_eq!(*runtime, None);
+                                        // foo.parse
                                         assert_node!(
                                             parser.tree,
-                                            *left,
-                                            Expression::Call(call_id) => {
-                                                assert_node!(
-                                                    parser.tree,
-                                                    *call_id,
-                                                    Call { runtime, receiver, dynamic_arguments: _ } => {
-                                                        assert_eq!(*runtime, None);
-                                                        // foo.parse
-                                                        assert_node!(
-                                                            parser.tree,
-                                                            *receiver,
-                                                            Expression::Path { path, static_arguments: _ } => {
-                                                                assert_path!(parser.session, *path, "foo.parse");
-                                                            }
-                                                        );
-                                                    }
-                                                );
-                                            }
-                                        );
-                                        // 2
-                                        assert_node!(
-                                            parser.tree,
-                                            *right,
-                                            Expression::ScalarLiteral(scalar_id) => {
-                                                assert_node!(
-                                                    parser.tree,
-                                                    *scalar_id,
-                                                    ScalarLiteral::Integer(value) => {
-                                                        assert_eq!(*value, 2);
-                                                    }
-                                                );
+                                            *receiver,
+                                            Expression::Path { path, .. } => {
+                                                assert_path!(parser.session, *path, "foo.parse");
                                             }
                                         );
                                     }
                                 );
-                                // x
+                                // 2
                                 assert_node!(
                                     parser.tree,
                                     *right,
-                                    Expression::Path { path, static_arguments: _ } => {
-                                        assert_path!(parser.session, *path, "x");
-                                    }
+                                    Expression::ScalarLiteral(ScalarLiteral::Integer(2))
                                 );
+                            }
+                        );
+                        // x
+                        assert_node!(
+                            parser.tree,
+                            *right,
+                            Expression::Path { path, .. } => {
+                                assert_path!(parser.session, *path, "x");
                             }
                         );
                     }
@@ -1151,10 +1007,7 @@ let x =
         );
     }
 
-    /// Reference operator on member access with method call.
-    /// self
-    ///    .foo()
-    ///    .baz()
+    /// Parse multi-line member access and calls.
     #[test]
     fn test_parse_member_access_multiline() {
         let mut test = TestParser::new(
@@ -1166,51 +1019,26 @@ self
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-
         let expr_id = parser.eat_expression().unwrap();
-
         // self.foo().baz()
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Call(call_id) => {
+            Expression::Call { receiver: baz_recv, .. } => {
+                // self.foo()
                 assert_node!(
                     parser.tree,
-                    *call_id,
-                    Call { runtime, receiver, dynamic_arguments: _ } => {
-                        assert_eq!(*runtime, None);
-                        // self.foo().baz
+                    *baz_recv,
+                    Expression::Call { receiver: foo_recv, .. } => {
+                        // self.foo
                         assert_node!(
                             parser.tree,
-                            *receiver,
-                            Expression::Member { receiver, path } => {
-                                // self.foo()
-                                assert_node!(
-                                    parser.tree,
-                                    *receiver,
-                                    Expression::Call(call_id) => {
-                                        assert_node!(
-                                            parser.tree,
-                                            *call_id,
-                                            Call { runtime, receiver, dynamic_arguments: _ } => {
-                                                assert_eq!(*runtime, None);
-                                                // self.foo
-                                                assert_node!(
-                                                    parser.tree,
-                                                    *receiver,
-                                                    Expression::Member { receiver, path } => {
-                                                        // self
-                                                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "self");
-                                                        // foo
-                                                        assert_path!(parser.session, *path, "foo");
-                                                    }
-                                                );
-                                            }
-                                        );
-                                    }
-                                );
-                                // baz
-                                assert_path!(parser.session, *path, "baz");
+                            *foo_recv,
+                            Expression::Member { receiver: self_recv, path: foo_path, .. } => {
+                                // self
+                                assert_expr_path!(parser.session, parser.tree.get(*self_recv), "self");
+                                // foo
+                                assert_path!(parser.session, *foo_path, "foo");
                             }
                         );
                     }
@@ -1219,19 +1047,17 @@ self
         );
     }
 
-    /// Comparison operator should be disambiguated from static parameterisation.
-    /// x < y
+    /// Parse a less-than comparison.
     #[test]
     fn test_parse_comparison_less_than() {
         let mut test = TestParser::new("x < y");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
         // x < y
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
                 // x
                 assert_expr_path!(parser.session, parser.tree.get(*left), "x");
@@ -1242,28 +1068,24 @@ self
     }
 
     /// Addition is left associative.
-    /// a + b + c
-    /// => ((a + b) + c)
     #[test]
     fn test_parse_precedence_addition_left_associative() {
         let mut test = TestParser::new("a + b + c");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a + b + c
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a + b) + c)
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
+                // a + b
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (a + b)
-                    Expression::Binary { left, operator, right } => {
+                    Expression::Binary { left, operator, right, .. } => {
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*left), "a");
-                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
                         assert_expr_path!(parser.session, parser.tree.get(*right), "b");
@@ -1276,30 +1098,24 @@ self
     }
 
     /// Infix operators work across lines.
-    /// a +
-    /// b +
-    /// c
-    /// => ((a + b) + c)
     #[test]
     fn test_parse_precedence_addition_across_lines() {
         let mut test = TestParser::new("a +\n b +\n c");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a + b + c (across lines)
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a + b) + c)
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
+                // a + b
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (a + b)
-                    Expression::Binary { left, operator, right } => {
+                    Expression::Binary { left, operator, right, .. } => {
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*left), "a");
-                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
                         assert_expr_path!(parser.session, parser.tree.get(*right), "b");
@@ -1312,29 +1128,24 @@ self
     }
 
     /// Multiplication has higher precedence than addition.
-    /// a + b * c
-    /// => (a + (b * c))
     #[test]
     fn test_parse_precedence_multiply_before_addition() {
         let mut test = TestParser::new("a + b * c");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a + b * c
         assert_node!(
             parser.tree,
             expr_id,
-            // (a + (b * c))
-            Expression::Binary { left, operator, right } => {
-                // +
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
                 // a
                 assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                // b * c
                 assert_node!(
                     parser.tree,
                     *right,
-                    // (b * c)
-                    Expression::Binary { left, operator, right } => {
-                        // *
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Multiply);
                         // b
                         assert_expr_path!(parser.session, parser.tree.get(*left), "b");
@@ -1347,36 +1158,30 @@ self
     }
 
     /// Mixed precedence chain with addition and multiplication.
-    /// a + b * c + d
-    /// => ((a + (b * c)) + d)
     #[test]
     fn test_parse_precedence_chain_mixed() {
         let mut test = TestParser::new("a + b * c + d");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a + b * c + d
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a + (b * c)) + d)
-            Expression::Binary { left, operator, right } => {
-                // +
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
+                // a + b * c
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (a + (b * c))
-                    Expression::Binary { left, operator, right } => {
-                        // +
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        // b * c
                         assert_node!(
                             parser.tree,
                             *right,
-                            // (b * c)
-                            Expression::Binary { left, operator, right } => {
-                                // *
+                            Expression::Binary { left, operator, right, .. } => {
                                 assert_eq!(*operator, BinaryOperator::Multiply);
                                 // b
                                 assert_expr_path!(parser.session, parser.tree.get(*left), "b");
@@ -1393,27 +1198,22 @@ self
     }
 
     /// Addition has higher precedence than elementwise or.
-    /// a + b | c + d
-    /// => ((a + b) | (c + d))
     #[test]
     fn test_parse_precedence_elementwise_vs_addition() {
         let mut test = TestParser::new("a + b | c + d");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a + b | c + d
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a + b) | (c + d))
-            Expression::Binary { left, operator, right } => {
-                // |
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                // a + b
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (a + b)
-                    Expression::Binary { left, operator, right } => {
-                        // +
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*left), "a");
@@ -1421,12 +1221,11 @@ self
                         assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
+                // c + d
                 assert_node!(
                     parser.tree,
                     *right,
-                    // (c + d)
-                    Expression::Binary { left, operator, right } => {
-                        // +
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // c
                         assert_expr_path!(parser.session, parser.tree.get(*left), "c");
@@ -1439,27 +1238,22 @@ self
     }
 
     /// Comparison has higher precedence than logical and.
-    /// a == b && c == d
-    /// => ((a == b) && (c == d))
     #[test]
     fn test_parse_precedence_comparison_vs_logical() {
         let mut test = TestParser::new("a == b && c == d");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a == b && c == d
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a == b) && (c == d))
-            Expression::Binary { left, operator, right } => {
-                // &&
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::And);
+                // a == b
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (a == b)
-                    Expression::Binary { left, operator, right } => {
-                        // ==
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*left), "a");
@@ -1467,12 +1261,11 @@ self
                         assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
+                // c == d
                 assert_node!(
                     parser.tree,
                     *right,
-                    // (c == d)
-                    Expression::Binary { left, operator, right } => {
-                        // ==
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // c
                         assert_expr_path!(parser.session, parser.tree.get(*left), "c");
@@ -1485,26 +1278,22 @@ self
     }
 
     /// Unary prefix has higher precedence than multiplication.
-    /// -a * b
-    /// => ((-a) * b)
     #[test]
     fn test_parse_precedence_unary_before_multiply() {
         let mut test = TestParser::new("-a * b");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // -a * b
         assert_node!(
             parser.tree,
             expr_id,
-            // ((-a) * b)
-            Expression::Binary { left, operator, right } => {
-                // *
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Multiply);
+                // -a
                 assert_node!(
                     parser.tree,
                     *left,
-                    // (-a)
-                    Expression::Unary { operator: _, right } => {
+                    Expression::Unary { right, .. } => {
                         // a
                         assert_expr_path!(parser.session, parser.tree.get(*right), "a");
                     }
@@ -1516,60 +1305,41 @@ self
     }
 
     /// Postfix call has higher precedence than addition.
-    /// Static calls are right associative.
-    /// a() + @b() / c
-    /// => ((a()) + ((@b()) / c))
     #[test]
     fn test_parse_precedence_postfix_call_before_add() {
         let mut test = TestParser::new("a() + @b() / c");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // a() + @b() / c
         assert_node!(
             parser.tree,
             expr_id,
-            // ((a()) + ((@b()) / b))
-            Expression::Binary { left, operator, right } => {
-                // +
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
-                // (a())
+                // a()
                 assert_node!(
                     parser.tree,
                     *left,
-                    // a()
-                    Expression::Call(call_id) => {
-                        assert_node!(
-                            parser.tree,
-                            *call_id,
-                            Call { runtime, receiver, dynamic_arguments: _ } => {
-                                assert_eq!(*runtime, None);
-                                // a
-                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
-                            }
-                        );
+                    Expression::Call { runtime, receiver, .. } => {
+                        assert_eq!(*runtime, None);
+                        // a
+                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
                     }
                 );
-                // ((@b()) / c)
+                // @b() / c
                 assert_node!(
                     parser.tree,
                     *right,
-                    Expression::Binary { left, operator, right } => {
-                        // /
+                    Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Divide);
-                        // (@b())
+                        // @b()
                         assert_node!(
                             parser.tree,
                             *left,
-                            Expression::Call(call_id) => {
-                                assert_node!(
-                                    parser.tree,
-                                    *call_id,
-                                    Call { runtime, receiver, dynamic_arguments: _ } => {
-                                        assert_eq!(*runtime, Some(Runtime::Static));
-                                        // b
-                                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
-                                    }
-                                );
+                            Expression::Call { runtime, receiver, .. } => {
+                                assert_eq!(*runtime, Some(Runtime::Static));
+                                // b
+                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
                             }
                         );
                         // c
@@ -1581,40 +1351,27 @@ self
     }
 
     /// Combine postfix member access and call with coalesce.
-    /// y.sqrt() ?? 0
-    /// => ((   y.sqrt()) ?? 0)
     #[test]
     fn test_parse_precedence_postfix_call_before_coalesce() {
         let mut test = TestParser::new("y.sqrt() ?? 0");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-
+        // y.sqrt() ?? 0
         assert_node!(
             parser.tree,
             expr_id,
-            // ((y.sqrt()) ?? 0)
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Coalesce);
-
-                // (y.sqrt())
-                assert_node!(parser.tree, *left, Expression::Call(call_id) => {
-                    assert_node!(parser.tree, *call_id, Call { receiver, .. } => {
-                        // y.sqrt
-                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
-                    });
+                // y.sqrt()
+                assert_node!(parser.tree, *left, Expression::Call { receiver, .. } => {
+                    // y.sqrt
+                    assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
                 });
-
                 // 0
                 assert_node!(
                     parser.tree,
                     *right,
-                    Expression::ScalarLiteral(scalar_id) => {
-                        assert_node!(
-                            parser.tree,
-                            *scalar_id,
-                            ScalarLiteral::Integer(0)
-                        );
-                    }
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(0))
                 );
             }
         );

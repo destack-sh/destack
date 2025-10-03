@@ -3,17 +3,21 @@ use dyst_source::StringId;
 use dyst_token::TokenType;
 
 use crate::{
-    BlockFormat, Keyword, Module, ModuleFormat, NodeId, NodeType, ParseResult, Parser, Visibility,
+    BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, ParseResult, Parser,
+    Visibility,
 };
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Module>> {
+    pub fn eat_module(
+        &mut self,
+        visibility: Option<Visibility>,
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
         self.eat_keyword(Keyword::Module)
-            .for_node_type(NodeType::Module)?;
+            .for_node_type(NodeType::Definition)?;
 
         // name
         let name = if self.peek_identifier().is_ok() {
@@ -30,15 +34,15 @@ impl<'a> Parser<'a> {
                     .eat_block_body(BlockFormat::Explicit)
                     .for_node_type(NodeType::Block)?;
                 self.eat_token(TokenType::CloseBrace)
-                    .for_node_type(NodeType::Module)?;
-                Module {
+                    .for_node_type(NodeType::Definition)?;
+                Definition::Module {
                     format: ModuleFormat::Inline,
                     name,
                     visibility,
                     expressions,
                 }
             } else {
-                Module {
+                Definition::Module {
                     format: ModuleFormat::Forward,
                     name,
                     visibility,
@@ -47,7 +51,6 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // module
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
     }
@@ -58,12 +61,12 @@ impl<'a> Parser<'a> {
         visibility: Option<Visibility>,
         name: Option<StringId>,
         format: ModuleFormat,
-    ) -> ParseResult<NodeId<Module>> {
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
         let expressions = self
             .eat_block_body(BlockFormat::Implicit)
             .for_node_type(NodeType::Block)?;
-        let module = Module {
+        let module = Definition::Module {
             format,
             name,
             visibility,
@@ -77,14 +80,14 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Module, ModuleFormat, assert_node, assert_string};
+    use crate::{Definition, ModuleFormat, assert_node, assert_string};
 
     #[test]
     fn test_parse_empty_module() {
         let mut test = TestParser::new("module { }");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
-        assert_node!(parser.tree, module_id, Module { name, visibility, expressions, format, .. } => {
+        assert_node!(parser.tree, module_id, Definition::Module { name, visibility, expressions, format } => {
             assert!(name.is_none());
             assert!(visibility.is_none());
             assert!(expressions.is_empty());
@@ -97,7 +100,7 @@ mod tests {
         let mut test = TestParser::new("module x;");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
-        assert_node!(parser.tree, module_id, Module { name, visibility, expressions, format, .. } => {
+        assert_node!(parser.tree, module_id, Definition::Module { name, visibility, expressions, format } => {
             assert_string!(parser.session, name.unwrap(), "x");
             assert!(visibility.is_none());
             assert!(expressions.is_empty());

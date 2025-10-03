@@ -213,6 +213,9 @@ impl<'a> Parser<'a> {
                     },
                     self.get_span_from(start),
                 );
+                let struct_id = self
+                    .tree
+                    .allocate(Expression::Definition(struct_id), self.get_span_from(start));
                 Some(struct_id)
             } else {
                 None
@@ -243,8 +246,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Parameter, StructField, StructStyle, TypeLiteral, UnaryOperator, Definition,
-        UnionField, assert_int, assert_node, assert_path, assert_string,
+        Definition, Expression, IntType, Parameter, ScalarLiteral, StructField, TypeLiteral,
+        UnaryOperator, UnionField, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -328,17 +331,13 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // (uint4, uint60)
-            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, Some(4));
-                    assert!(!int_ty.is_signed);
-                });
+            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                assert_eq!(*width, Some(4));
+                assert!(!*is_signed);
             });
-            assert_node!(parser.tree, representation_type.unwrap(), Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, Some(60));
-                    assert!(!int_ty.is_signed);
-                });
+            assert_node!(parser.tree, representation_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                assert_eq!(*width, Some(60));
+                assert!(!*is_signed);
             });
 
             // <T>
@@ -370,18 +369,14 @@ union(uint4, uint60) Foo<T>: Boz {
             // C(boolean)
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
                 assert_string!(parser.session, *name, "C");
-                assert_node!(parser.tree, r#type.unwrap(), Expression::Struct(struct_id) => {
-                    let struct_ = parser.tree.get(*struct_id);
-                    assert_eq!(struct_.style, StructStyle::Tuple);
-                    assert_eq!(struct_.fields.len(), 1);
-
-                    // boolean
-                    assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
-                        assert!(name.is_none());
-                        assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                            assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
+                assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                        // boolean
+                        assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
+                            assert!(name.is_none());
+                            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(TypeLiteral::Boolean));
                         });
-                    });
+                });
                 });
                 assert!(value.is_none());
             });
@@ -391,24 +386,18 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_string!(parser.session, *name, "D");
 
                 // (boolean, count: int32)
-                assert_node!(parser.tree, r#type.unwrap(), Expression::Struct(struct_id) => {
-                    let struct_ = parser.tree.get(*struct_id);
-                    assert_eq!(struct_.style, StructStyle::Tuple);
-                    assert_eq!(struct_.fields.len(), 2);
-
-                    // boolean
-                    assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
-                        assert!(name.is_none());
-                        assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                            assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
+                assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                        // boolean
+                        assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
+                            assert!(name.is_none());
+                            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(TypeLiteral::Boolean));
                         });
-                    });
 
-                    // count: int32
-                    assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
-                        assert_string!(parser.session, name.unwrap(), "count");
-                        assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                            assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                        // count: int32
+                        assert_node!(parser.tree, fields[1], StructField { name, r#type, .. } => {
+                            assert_string!(parser.session, name.unwrap(), "count");
+                            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                                 assert_eq!(int_ty.width, Some(32));
                                 assert!(int_ty.is_signed);
                             });
@@ -417,39 +406,33 @@ union(uint4, uint60) Foo<T>: Boz {
                 });
 
                 // = 6
-                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                    assert_int!(parser.tree, *literal_id, 6);
-                });
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(6)));
             });
 
             // E { x: int32, y: T }
             assert_node!(parser.tree, fields[3], UnionField { name, r#type, .. } => {
                 assert_string!(parser.session, *name, "E");
-                assert_node!(parser.tree, r#type.unwrap(), Expression::Struct(struct_id) => {
-                    let struct_ = parser.tree.get(*struct_id);
-                    assert_eq!(struct_.style, StructStyle::Struct);
-                    assert_eq!(struct_.fields.len(), 2);
-
-                    // x: int32
-                    assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
-                        // x
-                        assert_string!(parser.session, name.unwrap(), "x");
-                        // int32
-                        assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                            assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
+                assert_node!(parser.tree, r#type.unwrap(), Expression::Definition(struct_id) => {
+                    assert_node!(parser.tree, *struct_id, Definition::Struct { style, fields, .. } => {
+                        // x: int32
+                        assert_node!(parser.tree, fields[0], StructField { name, r#type, .. } => {
+                            // x
+                            assert_string!(parser.session, name.unwrap(), "x");
+                            // int32
+                            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                                 assert_eq!(int_ty.width, Some(32));
                                 assert!(int_ty.is_signed);
                             });
                         });
-                    });
 
-                    // y: T
-                    assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
-                        // y
-                        assert_string!(parser.session, name.unwrap(), "y");
-                        // T
-                        assert_node!(parser.tree, *r#type, Expression::Path { path, static_arguments: _ } => {
-                            assert_path!(parser.session, *path, "T");
+                        // y: T
+                        assert_node!(parser.tree, fields[1], StructField { name, r#type, .. } => {
+                            // y
+                            assert_string!(parser.session, name.unwrap(), "y");
+                            // T
+                            assert_node!(parser.tree, *r#type, Expression::Path { path, static_arguments: _ } => {
+                                assert_path!(parser.session, *path, "T");
+                            });
                         });
                     });
                 });

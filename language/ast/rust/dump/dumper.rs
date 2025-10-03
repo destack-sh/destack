@@ -1434,7 +1434,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Pattern::Literal(_node) => {
+            Pattern::ScalarLiteral(_node) => {
                 self.node("Pattern::Literal", _id.id).end();
             }
             Pattern::Binding { name } => {

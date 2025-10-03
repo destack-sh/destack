@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Keyword, Match, MatchCase, NodeId, NodeType, ParseResult, Parser};
+use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement.
@@ -18,16 +18,16 @@ impl<'a> Parser<'a> {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
+    pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Expression>> {
         // keyword
         self.eat_keyword(Keyword::Match)?;
 
         // body
-        self.eat_match_body().for_node_type(NodeType::Match)
+        self.eat_match_body(runtime)
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self) -> ParseResult<NodeId<Match>> {
+    pub fn eat_match_body(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -37,12 +37,13 @@ impl<'a> Parser<'a> {
 
         // cases
         self.eat_token(TokenType::OpenBrace)?;
-        let cases_id = self.eat_match_cases().for_node_type(NodeType::Match)?;
+        let cases_id = self.eat_match_cases()?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
         let match_id = self.tree.allocate(
-            Match {
+            Expression::Match {
+                runtime,
                 value: value_id,
                 cases: cases_id,
             },
@@ -143,8 +144,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Match, MatchCase, Pattern, assert_bool, assert_expr_path, assert_int,
-        assert_node, assert_path,
+        Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
     };
 
     #[test]
@@ -161,9 +161,9 @@ match x {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match().unwrap();
+        let match_id = parser.eat_match(None).unwrap();
 
-        assert_node!(parser.tree, match_id, Match { value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
             // value: path x
             assert_expr_path!(parser.session, parser.tree.get(*value), "x");
 
@@ -172,32 +172,22 @@ match x {
             // case 0: 1 => 10
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 1);
-                });
-                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 10);
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
             });
 
             // case 1: 2 => 20
             assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 2);
-                });
-                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 20);
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
             });
 
             // case 2: _ => 0
             assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
-                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 0);
-                });
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
             });
         });
     }
@@ -214,27 +204,21 @@ match x {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, match_id, Match { value: _, cases } => {
+        let match_id = parser.eat_match(None).unwrap();
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value: _, cases } => {
             assert_eq!(cases.len(), 1);
 
             // case: 2 if true => 20
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 // guard: true
                 let guard_id = guard.expect("expected guard");
-                assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(lit_id) => {
-                    assert_bool!(parser.tree, *lit_id, true);
-                });
+                assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
 
                 // pattern: 2
-                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 2);
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
 
                 // body: 20
-                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
-                    assert_int!(parser.tree, *lit_id, 20);
-                });
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
             });
         });
     }
@@ -253,10 +237,10 @@ match self {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match().unwrap();
+        let match_id = parser.eat_match(None).unwrap();
 
         // match self { ... }
-        assert_node!(parser.tree, match_id, Match { value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
             // self
             assert_expr_path!(parser.session, parser.tree.get(*value), "self");
 

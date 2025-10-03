@@ -1,7 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{
-    Block, BlockFormat, Break, Continue, Defer, Expression, Keyword, NodeId, NodeType, ParseError,
-    ParseResult, Parser,
+    Block, BlockFormat, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
 };
 use dyst_token::TokenType;
 
@@ -109,26 +108,26 @@ impl<'a> Parser<'a> {
     /// break :label 17
     /// break 15
     /// ```
-    pub fn eat_break(&mut self) -> ParseResult<NodeId<Break>> {
+    pub fn eat_break(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Break)?;
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            Some(self.eat_identifier().for_node_type(NodeType::Break)?)
+            Some(self.eat_identifier()?)
         } else {
             None
         };
         // value (if not at a expression stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression().for_node_type(NodeType::Break)?;
+            let value_id = self.eat_expression()?;
             Some(value_id)
         } else {
             None
         };
         // break
         let break_id = self.tree.allocate(
-            Break {
+            Expression::Break {
                 label,
                 value: value_id,
             },
@@ -144,13 +143,13 @@ impl<'a> Parser<'a> {
     /// continue
     /// continue :label
     /// ```
-    pub fn eat_continue(&mut self) -> ParseResult<NodeId<Continue>> {
+    pub fn eat_continue(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Continue)?;
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            let label = self.eat_identifier().for_node_type(NodeType::Continue)?;
+            let label = self.eat_identifier()?;
             Some(label)
         } else {
             None
@@ -158,7 +157,7 @@ impl<'a> Parser<'a> {
         // continue
         let continue_id = self
             .tree
-            .allocate(Continue { label }, self.get_span_from(start));
+            .allocate(Expression::Continue { label }, self.get_span_from(start));
         Ok(continue_id)
     }
 
@@ -206,7 +205,7 @@ impl<'a> Parser<'a> {
     ///     _ => someErrorHandler(e)
     /// }
     /// ```
-    pub fn eat_defer(&mut self) -> ParseResult<NodeId<Defer>> {
+    pub fn eat_defer(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -215,26 +214,41 @@ impl<'a> Parser<'a> {
         // catch
         if self.peek_keyword(Keyword::Catch).is_ok() {
             self.bump(); // eat keyword
-            let match_id = self.eat_match_body().for_node_type(NodeType::Match)?;
-            let defer_id = self
-                .tree
-                .allocate(Defer::Catch(match_id), self.get_span_from(start));
+            let match_id = self.eat_match_body(None)?;
+            let defer_id = self.tree.allocate(
+                Expression::Defer {
+                    expression: None,
+                    catch: Some(match_id),
+                },
+                self.get_span_from(start),
+            );
             Ok(defer_id)
         }
         // block
         else if self.peek_block().is_ok() {
-            let block_id = self.eat_block().for_node_type(NodeType::Defer)?;
-            let defer_id = self
+            let block_id = self.eat_block()?;
+            let block_id = self
                 .tree
-                .allocate(Defer::Block(block_id), self.get_span_from(start));
+                .allocate(Expression::Block(block_id), self.get_span_from(start));
+            let defer_id = self.tree.allocate(
+                Expression::Defer {
+                    expression: Some(block_id),
+                    catch: None,
+                },
+                self.get_span_from(start),
+            );
             Ok(defer_id)
         }
         // expression
         else {
-            let expression_id = self.eat_expression().for_node_type(NodeType::Defer)?;
-            let defer_id = self
-                .tree
-                .allocate(Defer::Expression(expression_id), self.get_span_from(start));
+            let expression_id = self.eat_expression()?;
+            let defer_id = self.tree.allocate(
+                Expression::Defer {
+                    expression: Some(expression_id),
+                    catch: None,
+                },
+                self.get_span_from(start),
+            );
             Ok(defer_id)
         }
     }
@@ -244,8 +258,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Break, Continue, Defer, Expression, Match, assert_expr_path, assert_int, assert_node,
-        assert_path, assert_string,
+        Expression, ScalarLiteral, assert_expr_path, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -273,7 +286,7 @@ mod tests {
         let mut test = TestParser::new("break");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
             assert!(label.is_none());
             assert!(value.is_none());
         });
@@ -284,7 +297,7 @@ mod tests {
         let mut test = TestParser::new("break :label");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
             assert_string!(parser.session, label.unwrap(), "label");
             assert!(value.is_none());
         });
@@ -295,12 +308,10 @@ mod tests {
         let mut test = TestParser::new("break :label 17");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
             assert_string!(parser.session, label.unwrap(), "label");
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                assert_int!(parser.tree, *literal_id, 17);
-            });
+            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
         });
     }
 
@@ -309,12 +320,10 @@ mod tests {
         let mut test = TestParser::new("break 15");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
             assert!(label.is_none());
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                assert_int!(parser.tree, *literal_id, 15);
-            });
+            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(15)));
         });
     }
 
@@ -323,7 +332,7 @@ mod tests {
         let mut test = TestParser::new("continue");
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
-        assert_node!(parser.tree, continue_id, Continue { label } => {
+        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
             assert!(label.is_none());
         });
     }
@@ -333,7 +342,7 @@ mod tests {
         let mut test = TestParser::new("continue :label");
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
-        assert_node!(parser.tree, continue_id, Continue { label } => {
+        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
             assert_string!(parser.session, label.unwrap(), "label");
         });
     }
@@ -355,9 +364,7 @@ mod tests {
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Expression::Return { value } => {
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
-                assert_int!(parser.tree, *literal_id, 42);
-            });
+            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
     }
 
@@ -366,19 +373,12 @@ mod tests {
         let mut test = TestParser::new("defer someFunction()");
         let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Defer::Expression(expr_id) => {
-            assert_node!(parser.tree, *expr_id, Expression::Call(_));
-        });
-    }
-
-    #[test]
-    fn test_defer_block() {
-        let mut test = TestParser::new("defer {}");
-        let mut parser = test.prepare();
-        let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {
-            let block = parser.tree.get(*block_id);
-            assert!(block.expressions.is_empty());
+        assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
+            assert_node!(parser.tree, expression.unwrap(), Expression::Call { runtime: _, receiver, dynamic_arguments } => {
+                assert_expr_path!(parser.session, parser.tree.get(*receiver), "someFunction");
+                assert!(dynamic_arguments.is_empty());
+            });
+            assert!(catch.is_none());
         });
     }
 
@@ -387,10 +387,11 @@ mod tests {
         let mut test = TestParser::new("defer catch e { _ => someErrorHandler(e) }");
         let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Defer::Catch(match_id) => {
-            assert_node!(parser.tree, *match_id, Match { value, .. } => {
+        assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
+            assert_node!(parser.tree, catch.unwrap(), Expression::Match { value, .. } => {
                 assert_expr_path!(parser.session, parser.tree.get(*value), "e");
             });
+            assert!(expression.is_none());
         });
     }
 }
