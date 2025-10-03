@@ -320,6 +320,21 @@ impl<'ast> DystFormatContext<'ast> {
         })
     }
 
+    /// Check if a node has a block infix annotation.
+    #[inline]
+    pub fn has_infix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.get_annotations(node_id).is_some_and(|annotations| {
+            annotations.iter().any(|annotation| {
+                let position = self.tree.get::<Annotation>(*annotation).position();
+                position == AnnotationPosition::BlockInfix
+            })
+        })
+    }
+
     /// Check if a node has a postfix annotation.
     #[inline]
     pub fn has_postfix_annotation<T>(&self, node_id: NodeId<T>) -> bool

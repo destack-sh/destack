@@ -48,81 +48,144 @@ pub fn empty_block_with_infix_annotations<T: Node>(
     EmptyBlockWithInfixAnnotations { node_id }
 }
 
+/// Format a block inline with zero or one expression (including label and infix annotations).
+#[inline]
+pub(crate) fn format_block_body_narrow<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    block_id: NodeId<Block>,
+) -> FormatResult<()> {
+    let block = f.context().tree.get(block_id);
+    debug_assert!(block.expressions.len() <= 1);
+
+    // label
+    if let Some(label) = &block.label {
+        write!(f, [label, token(": ")])?;
+    }
+
+    // body
+    if block.expressions.is_empty() {
+        write!(f, [token("{"), space(), token("}")])?;
+    } else {
+        write!(
+            f,
+            [
+                token("{"),
+                soft_line_break_or_space(),
+                soft_block_indent(&format_args![
+                    &block.expressions[0],
+                    f.context().block_infix_annotations(block_id)
+                ]),
+                soft_line_break_or_space(),
+                token("}")
+            ]
+        )?;
+    }
+    Ok(())
+}
+
+/// Format a block multiline with multiple expressions (including label and infix annotations).
+#[inline]
+pub(crate) fn format_block_body_wide<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    block_id: NodeId<Block>,
+) -> FormatResult<()> {
+    let block = f.context().tree.get(block_id);
+
+    // label
+    if let Some(label) = &block.label {
+        write!(f, [label, token(": ")])?;
+    }
+
+    // body
+    write!(
+        f,
+        [
+            token("{"),
+            hard_line_break(),
+            soft_block_indent(&format_with(|f| f
+                .join_with(hard_line_break())
+                .entries(&block.expressions)
+                .finish())),
+            hard_line_break(),
+            block_indent(&f.context().block_infix_annotations(block_id)),
+            token("}"),
+        ]
+    )
+}
+
+#[inline]
+pub(crate) fn should_inline_block<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    block_id: NodeId<Block>,
+) -> bool {
+    let block = f.context().tree.get(block_id);
+    let span = f.context().get_span(block_id);
+
+    // can only inline if there is at most one expression
+    //  (on the flipside, always inline if there is nothing in it)
+    if block.expressions.len() > 1 || f.context().has_infix_annotation(block_id) {
+        return false;
+    } else if block.expressions.is_empty() {
+        return true;
+    }
+
+    // check whether the block is inlinable based on its contents
+    // if any expression is not inline, then the entire block shouldn't be
+    let is_body_inlinable = block.expressions.is_empty()
+        || block
+            .expressions
+            .iter()
+            .all(|expr_id| f.context().get_node(*expr_id).is_narrow());
+
+    // container (default to self, mostly for testing)
+    let (container_node_id, container_node_type) = f
+        .context()
+        .get_parent_by_id(block_id.id)
+        .unwrap_or((block_id.id, NodeType::Block));
+
+    is_body_inlinable
+        && !f.context().is_at_line_start(block_id.id)
+        && !f.context().is_at_line_start(container_node_id)
+        && !f.context().has_newline(span)
+        && container_node_type != NodeType::Definition
+}
+
+/// Format a block (without a nested group!).
+pub fn format_block<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Block>,
+) -> FormatResult<()> {
+    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    if should_inline_block(f, node_id) {
+        format_block_body_narrow(f, node_id)?;
+    } else {
+        format_block_body_wide(f, node_id)?;
+    }
+    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let span = f.context().get_span(node_id);
-        #[cfg(debug_assertions)]
-        let _span_str = f.context().get_span_str(span);
-
-        // check whether the block is inlinable based on its contents
-        // if any expression is not inline, then the entire block shouldn't be
-        let is_inlinable = self
-            .expressions
-            .iter()
-            .all(|expr_id| f.context().get_node(*expr_id).is_narrow());
-
-        // container (default to self, mostly for testing)
-        let (container_node_id, container_node_type) = f
-            .context()
-            .get_parent_by_id(node_id.id)
-            .unwrap_or((node_id.id, NodeType::Block));
-
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // label
-        if let Some(label) = &self.label {
-            write!(f, [label, token(": ")])?;
-        }
-
-        // empty block
-        if self.expressions.is_empty() {
-            write!(f, [empty_block_with_infix_annotations(node_id),])?;
-        }
-        // single-statement block may be inline
-        // (retain existing newline if it exists)
-        else if self.expressions.len() == 1
-            && !f.context().is_at_line_start(node_id.id)
-            && !f.context().is_at_line_start(container_node_id)
-            && !f.context().has_newline(span)
-            && container_node_type != NodeType::Definition
-            && is_inlinable
-        {
+        if should_inline_block(f, node_id) {
             write!(
                 f,
-                [group(&format_args![
-                    token("{"),
-                    soft_line_break_or_space(),
-                    soft_block_indent(&self.expressions[0]),
-                    soft_line_break_or_space(),
-                    f.context().block_infix_annotations(node_id),
-                    token("}"),
-                ]),]
+                [group(&format_with(|f| format_block_body_narrow(
+                    f, node_id
+                )))]
             )?;
-        }
-        // multi-statement block always gets newlines
-        else {
+        } else {
             write!(
                 f,
-                [group(&format_args![
-                    token("{"),
-                    hard_line_break(),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(&self.expressions)
-                        .finish())),
-                    hard_line_break(),
-                    f.context().block_infix_annotations(node_id),
-                    token("}"),
-                ])]
+                [group(&format_with(|f| format_block_body_wide(f, node_id)))]
             )?;
         }
-
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
-
         Ok(())
     }
 }
