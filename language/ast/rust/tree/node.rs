@@ -15,50 +15,19 @@ pub enum NodeType {
     // groupings
     Expression,
     Block,
-    // declarations
-    Module,
-    Struct,
+    // definitions
+    Definition,
     StructField,
-    Enum,
     EnumField,
-    Union,
     UnionField,
-    Trait,
-    Implement,
-    Function,
     // context
-    With,
     WithClause,
-    Use,
     UseClause,
     UseItem,
-    // control
-    If,
-    While,
-    For,
-    Loop,
-    Break,
-    Continue,
-    Defer,
-    Try,
     // bindings
-    Let,
     Parameter,
     Argument,
-    // literals
-    ScalarLiteral,
-    TypeLiteral,
-    RangeLiteral,
-    TupleLiteral,
-    TupleLiteralField,
-    ArrayLiteral,
-    StructLiteral,
-    FieldLiteral,
-    // calls
-    Index,
-    Call,
     // matching
-    Match,
     MatchCase,
     Pattern,
     PatternField,
@@ -72,18 +41,8 @@ pub enum NodeType {
 }
 
 /// Node types that contain other "non-trivial" nodes.
-pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 10] = [
-    NodeType::Block,
-    NodeType::Module,
-    NodeType::Struct,
-    NodeType::Enum,
-    NodeType::Union,
-    NodeType::Trait,
-    NodeType::Implement,
-    NodeType::Function,
-    NodeType::Match,
-    NodeType::MatchCase,
-];
+pub(crate) const CONTAINER_NODE_TYPES: [NodeType; 3] =
+    [NodeType::Block, NodeType::Definition, NodeType::MatchCase];
 
 /// Node types that are annotations.
 pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
@@ -96,7 +55,7 @@ pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
 ];
 
 /// Node types that may appear inline (instead of as a full statement).
-pub(crate) const INLINE_NODE_TYPES: [NodeType; 18] = [
+pub(crate) const INLINE_NODE_TYPES: [NodeType; 8] = [
     // expressions
     NodeType::Expression,
     // declarations
@@ -106,18 +65,6 @@ pub(crate) const INLINE_NODE_TYPES: [NodeType; 18] = [
     // bindings
     NodeType::Parameter,
     NodeType::Argument,
-    // literals
-    NodeType::ScalarLiteral,
-    NodeType::TypeLiteral,
-    NodeType::RangeLiteral,
-    NodeType::TupleLiteral,
-    NodeType::TupleLiteralField,
-    NodeType::ArrayLiteral,
-    NodeType::StructLiteral,
-    NodeType::FieldLiteral,
-    // calls
-    NodeType::Call,
-    NodeType::Index,
     // matching
     NodeType::Pattern,
     NodeType::PatternField,

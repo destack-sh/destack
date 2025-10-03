@@ -5,12 +5,9 @@ use dyst_source::Span;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment,
-    Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
-    Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeSpanIndex, NodeType,
-    Parameter, Pattern, PatternField, RangeLiteral, ScalarLiteral, Struct, StructField,
-    StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union,
-    UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
+    EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern,
+    PatternField, StructField, Tag, UnionField, UseClause, UseItem, WithClause,
 };
 
 /// The Node tree.
@@ -32,53 +29,22 @@ pub struct NodeTree {
     // groupings
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) blocks: NodeArena<Block>,
-    // declarations
-    pub(crate) modules: NodeArena<Module>,
-    pub(crate) structs: NodeArena<Struct>,
+    // definitions
+    pub(crate) definitions: NodeArena<Definition>,
     pub(crate) struct_fields: NodeArena<StructField>,
-    pub(crate) enums: NodeArena<Enum>,
     pub(crate) enum_fields: NodeArena<EnumField>,
-    pub(crate) unions: NodeArena<Union>,
     pub(crate) union_fields: NodeArena<UnionField>,
-    pub(crate) traits: NodeArena<Trait>,
-    pub(crate) implements: NodeArena<Implement>,
-    pub(crate) functions: NodeArena<Function>,
     // context
-    pub(crate) withs: NodeArena<With>,
     pub(crate) with_clauses: NodeArena<WithClause>,
-    pub(crate) uses: NodeArena<Use>,
     pub(crate) use_clauses: NodeArena<UseClause>,
     pub(crate) use_items: NodeArena<UseItem>,
-    // control
-    pub(crate) ifs: NodeArena<If>,
-    pub(crate) whiles: NodeArena<While>,
-    pub(crate) fors: NodeArena<For>,
-    pub(crate) loops: NodeArena<Loop>,
-    pub(crate) breaks: NodeArena<Break>,
-    pub(crate) continues: NodeArena<Continue>,
-    pub(crate) defers: NodeArena<Defer>,
-    pub(crate) trys: NodeArena<Try>,
     // bindings
-    pub(crate) lets: NodeArena<Let>,
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
-    // literals
-    pub(crate) scalar_literals: NodeArena<ScalarLiteral>,
-    pub(crate) type_literals: NodeArena<TypeLiteral>,
-    pub(crate) range_literals: NodeArena<RangeLiteral>,
-    pub(crate) tuple_literals: NodeArena<TupleLiteral>,
-    pub(crate) tuple_literal_fields: NodeArena<TupleLiteralField>,
-    pub(crate) array_literals: NodeArena<ArrayLiteral>,
-    pub(crate) struct_literals: NodeArena<StructLiteral>,
-    pub(crate) field_literals: NodeArena<FieldLiteral>,
-    // calls
-    pub(crate) indexes: NodeArena<Index>,
-    pub(crate) calls: NodeArena<Call>,
     // matching
-    pub(crate) matches: NodeArena<Match>,
+    pub(crate) match_cases: NodeArena<MatchCase>,
     pub(crate) patterns: NodeArena<Pattern>,
     pub(crate) pattern_fields: NodeArena<PatternField>,
-    pub(crate) match_cases: NodeArena<MatchCase>,
     // annotations
     pub(crate) annotations: NodeArena<Annotation>,
     pub(crate) blanks: NodeArena<Blank>,
@@ -117,53 +83,22 @@ impl NodeTree {
             // groupings
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
-            // declarations
-            modules: NodeArena::new(),
-            structs: NodeArena::new(),
+            // definitions
+            definitions: NodeArena::new(),
             struct_fields: NodeArena::new(),
-            enums: NodeArena::new(),
             enum_fields: NodeArena::new(),
-            unions: NodeArena::new(),
             union_fields: NodeArena::new(),
-            traits: NodeArena::new(),
-            implements: NodeArena::new(),
-            functions: NodeArena::new(),
             // context
-            withs: NodeArena::new(),
             with_clauses: NodeArena::new(),
-            uses: NodeArena::new(),
             use_clauses: NodeArena::new(),
             use_items: NodeArena::new(),
-            // control
-            ifs: NodeArena::new(),
-            whiles: NodeArena::new(),
-            fors: NodeArena::new(),
-            loops: NodeArena::new(),
-            breaks: NodeArena::new(),
-            continues: NodeArena::new(),
-            defers: NodeArena::new(),
-            trys: NodeArena::new(),
             // bindings
-            lets: NodeArena::new(),
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
-            // literals
-            scalar_literals: NodeArena::new(),
-            type_literals: NodeArena::new(),
-            range_literals: NodeArena::new(),
-            tuple_literals: NodeArena::new(),
-            tuple_literal_fields: NodeArena::new(),
-            array_literals: NodeArena::new(),
-            struct_literals: NodeArena::new(),
-            field_literals: NodeArena::new(),
-            // calls
-            indexes: NodeArena::new(),
-            calls: NodeArena::new(),
             // matching
-            matches: NodeArena::new(),
+            match_cases: NodeArena::new(),
             patterns: NodeArena::new(),
             pattern_fields: NodeArena::new(),
-            match_cases: NodeArena::new(),
             // annotations
             annotations: NodeArena::new(),
             blanks: NodeArena::new(),
@@ -301,53 +236,22 @@ impl NodeTree {
             // groupings
             NodeType::Expression => self.expressions.deallocate(local_ids),
             NodeType::Block => self.blocks.deallocate(local_ids),
-            // declarations
-            NodeType::Module => self.modules.deallocate(local_ids),
-            NodeType::Struct => self.structs.deallocate(local_ids),
+            // definitions
+            NodeType::Definition => self.definitions.deallocate(local_ids),
             NodeType::StructField => self.struct_fields.deallocate(local_ids),
-            NodeType::Enum => self.enums.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
-            NodeType::Union => self.unions.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
-            NodeType::Trait => self.traits.deallocate(local_ids),
-            NodeType::Implement => self.implements.deallocate(local_ids),
-            NodeType::Function => self.functions.deallocate(local_ids),
             // context
-            NodeType::With => self.withs.deallocate(local_ids),
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
-            NodeType::Use => self.uses.deallocate(local_ids),
             NodeType::UseClause => self.use_clauses.deallocate(local_ids),
             NodeType::UseItem => self.use_items.deallocate(local_ids),
-            // control
-            NodeType::If => self.ifs.deallocate(local_ids),
-            NodeType::While => self.whiles.deallocate(local_ids),
-            NodeType::For => self.fors.deallocate(local_ids),
-            NodeType::Loop => self.loops.deallocate(local_ids),
-            NodeType::Break => self.breaks.deallocate(local_ids),
-            NodeType::Continue => self.continues.deallocate(local_ids),
-            NodeType::Defer => self.defers.deallocate(local_ids),
-            NodeType::Try => self.trys.deallocate(local_ids),
             // bindings
-            NodeType::Let => self.lets.deallocate(local_ids),
             NodeType::Parameter => self.parameters.deallocate(local_ids),
             NodeType::Argument => self.arguments.deallocate(local_ids),
-            // literals
-            NodeType::ScalarLiteral => self.scalar_literals.deallocate(local_ids),
-            NodeType::TypeLiteral => self.type_literals.deallocate(local_ids),
-            NodeType::RangeLiteral => self.range_literals.deallocate(local_ids),
-            NodeType::TupleLiteral => self.tuple_literals.deallocate(local_ids),
-            NodeType::TupleLiteralField => self.tuple_literal_fields.deallocate(local_ids),
-            NodeType::ArrayLiteral => self.array_literals.deallocate(local_ids),
-            NodeType::StructLiteral => self.struct_literals.deallocate(local_ids),
-            NodeType::FieldLiteral => self.field_literals.deallocate(local_ids),
-            // calls
-            NodeType::Index => self.indexes.deallocate(local_ids),
-            NodeType::Call => self.calls.deallocate(local_ids),
             // matching
-            NodeType::Match => self.matches.deallocate(local_ids),
+            NodeType::MatchCase => self.match_cases.deallocate(local_ids),
             NodeType::Pattern => self.patterns.deallocate(local_ids),
             NodeType::PatternField => self.pattern_fields.deallocate(local_ids),
-            NodeType::MatchCase => self.match_cases.deallocate(local_ids),
             // annotations
             NodeType::Annotation => self.annotations.deallocate(local_ids),
             NodeType::Blank => self.blanks.deallocate(local_ids),
@@ -472,53 +376,22 @@ impl_node_tree_stores! {
     // groupings
     Expression => expressions,
     Block => blocks,
-    // declarations
-    Module => modules,
-    Struct => structs,
+    // definitions
+    Definition => definitions,
     StructField => struct_fields,
-    Enum => enums,
     EnumField => enum_fields,
-    Union => unions,
     UnionField => union_fields,
-    Trait => traits,
-    Implement => implements,
-    Function => functions,
     // context
-    With => withs,
     WithClause => with_clauses,
-    Use => uses,
     UseClause => use_clauses,
     UseItem => use_items,
-    // control
-    If => ifs,
-    While => whiles,
-    For => fors,
-    Loop => loops,
-    Break => breaks,
-    Continue => continues,
-    Defer => defers,
-    Try => trys,
     // bindings
-    Let => lets,
     Parameter => parameters,
     Argument => arguments,
-    // literals
-    ScalarLiteral => scalar_literals,
-    TypeLiteral => type_literals,
-    RangeLiteral => range_literals,
-    TupleLiteral => tuple_literals,
-    TupleLiteralField => tuple_literal_fields,
-    ArrayLiteral => array_literals,
-    StructLiteral => struct_literals,
-    FieldLiteral => field_literals,
-    // calls
-    Index => indexes,
-    Call => calls,
     // matching
-    Match => matches,
+    MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
-    MatchCase => match_cases,
     // annotations
     Annotation => annotations,
     Blank => blanks,

@@ -202,11 +202,8 @@ impl<'a> Parser<'a> {
                 // if we immediately see a closing parenthesis, it's an empty tuple
                 if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     self.bump(); // eat closing parenthesis
-                    let tuple_literal_id = self
-                        .tree
-                        .allocate(TupleLiteral { elements: vec![] }, self.get_span_from(start));
                     self.tree.allocate(
-                        Expression::TupleLiteral(tuple_literal_id),
+                        Expression::TupleLiteral { elements: vec![] },
                         self.get_span_from(start),
                     )
                 }
@@ -216,16 +213,12 @@ impl<'a> Parser<'a> {
                 {
                     let tuple_elements = self
                         .eat_tuple_literal_body(None)
-                        .for_node_type(NodeType::TupleLiteral)?;
+                        .for_node_type(NodeType::Expression)?;
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    let tuple_literal_id = self.tree.allocate(
-                        TupleLiteral {
+                    self.tree.allocate(
+                        Expression::TupleLiteral {
                             elements: tuple_elements,
                         },
-                        self.get_span_from(start),
-                    );
-                    self.tree.allocate(
-                        Expression::TupleLiteral(tuple_literal_id),
                         self.get_span_from(start),
                     )
                 }
@@ -240,7 +233,7 @@ impl<'a> Parser<'a> {
                     match self.tree.get(expression_id) {
                         // if it was a tuple starting here, expand it to cover the entire span
                         //  (except if that tuple has its own parenthesis already when nesting)
-                        Expression::TupleLiteral(_)
+                        Expression::TupleLiteral { .. }
                             if self.tokens[inner_start as usize].token.r#type
                                 != TokenType::OpenParenthesis =>
                         {

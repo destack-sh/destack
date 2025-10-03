@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId};
+use crate::StringId;
 
 /// A ScalarLiteral is literal scalar value node.
 ///
@@ -31,10 +31,6 @@ pub enum ScalarLiteral {
     String(StringId),
     /// Byte string value.
     ByteString(Vec<u8>),
-}
-
-impl Node for ScalarLiteral {
-    const KIND: NodeType = NodeType::ScalarLiteral;
 }
 
 /// A TypeLiteral is literal type node.
@@ -83,10 +79,6 @@ pub enum TypeLiteral {
     Composite(CompositeType),
     /// Self type.
     Self_,
-}
-
-impl Node for TypeLiteral {
-    const KIND: NodeType = NodeType::TypeLiteral;
 }
 
 /// An IntType represents arbitrary width integer with signedness.
@@ -154,123 +146,4 @@ pub enum CompositeType {
     Trait,
     /// Function type `function (T1, T2, ...) => T`.
     Function,
-}
-
-/// A RangeLiteral is range of an array or tuple node.
-///
-/// Examples:
-/// ```
-/// 1..3
-/// 1..n // exclusive
-/// 1..=n // inclusive
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct RangeLiteral {
-    pub start: NodeId<Expression>,
-    pub end: NodeId<Expression>,
-    pub is_inclusive: bool,
-}
-
-impl Node for RangeLiteral {
-    const KIND: NodeType = NodeType::RangeLiteral;
-}
-
-/// A TupleLiteral is an anonymous tuple of heterogeneous elements.
-/// For named tuple "literals", see the Call node.
-///
-/// Examples:
-/// ```
-/// (1, 2, 3)
-/// (1.0, 2.0, 3.0)
-/// (x: int32, y: boolean)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct TupleLiteral {
-    pub elements: Vec<NodeId<TupleLiteralField>>,
-}
-
-impl Node for TupleLiteral {
-    const KIND: NodeType = NodeType::TupleLiteral;
-}
-
-/// A TupleLiteralField is a tuple field definition.
-/// Tuple elements may be named or anonymous, but cannot have default values.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TupleLiteralField {
-    Named {
-        name: StringId,
-        value: NodeId<Expression>,
-    },
-    Positional {
-        value: NodeId<Expression>,
-    },
-}
-
-impl Node for TupleLiteralField {
-    const KIND: NodeType = NodeType::TupleLiteralField;
-}
-
-/// An ArrayLiteral is literal array of homogeneous elements node.
-///
-/// Examples:
-/// ```
-/// [] // empty array
-/// [1, 2, ] // trailing comma is allowed
-/// // multi-line array with implicit comma
-/// [
-///   1 // comma is optional here
-///   2 // comma is optional here too
-/// ]
-/// [10, false, "Hi"] // hetereogenous array is invalid but legal in AST
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum ArrayLiteral {
-    Fixed { elements: Vec<NodeId<Expression>> },
-}
-
-impl Node for ArrayLiteral {
-    const KIND: NodeType = NodeType::ArrayLiteral;
-}
-
-/// A StructLiteral is literal struct of heterogeneous fields node.
-/// Struct literals always have an explicit type prefix (unlike tuple literals).
-///
-/// Examples:
-/// ```
-/// Vector2 { x: 1, y: 2 }
-/// some_module.MyUnion.OptionB { a: true }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct StructLiteral {
-    /// The type of the struct.
-    pub r#type: NodeId<Expression>,
-    /// The fields of the struct.
-    pub fields: Vec<NodeId<FieldLiteral>>,
-}
-
-impl Node for StructLiteral {
-    const KIND: NodeType = NodeType::StructLiteral;
-}
-
-/// A FieldLiteral is a literal field value node.
-///
-/// Examples:
-/// ```
-/// x: 1,
-/// y: 2,
-/// z
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum FieldLiteral {
-    /// The name of the field to bind.
-    Named {
-        name: StringId,
-        value: NodeId<Expression>,
-    },
-    /// The name of the field to bind. Take the value from context.
-    NamedShorthand { name: StringId },
-}
-
-impl Node for FieldLiteral {
-    const KIND: NodeType = NodeType::FieldLiteral;
 }
