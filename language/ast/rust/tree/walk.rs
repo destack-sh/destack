@@ -101,7 +101,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *then_block, then_block_node);
             if let Some(else_block_id) = else_block {
                 let else_block_node = tree.get(*else_block_id);
-                visitor.visit_block(tree, *else_block_id, else_block_node);
+                visitor.visit_expression(tree, *else_block_id, else_block_node);
             }
         }
 

@@ -177,9 +177,8 @@ trait Baz<T> with T: Copy {
             assert_eq!(params.len(), 1);
 
             // with T: Copy
-            let with_id = with.expect("expected with declaration");
-            let with = parser.tree.get(with_id);
-            assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
+            let with = with.as_ref().unwrap();
+            assert_node!(parser.tree, with[0], WithClause::Assertion { target, assertion } => {
                 // T
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "T");

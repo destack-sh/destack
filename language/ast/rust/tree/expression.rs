@@ -531,6 +531,7 @@ impl InfixOperator {
 pub enum Expression {
     /// Definition (with a name or anonymous).
     Definition(NodeId<Definition>),
+
     /// Block of Statements.
     Block(NodeId<Block>),
 
@@ -643,7 +644,7 @@ pub enum Expression {
         runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
-        else_block: Option<NodeId<Block>>,
+        else_block: Option<NodeId<Expression>>,
     },
 
     /// A While is while loop.

@@ -254,12 +254,11 @@ function foo() => int32 with (
             // function name
             assert_string!(parser.session, name.unwrap(), "foo");
 
-            // with clause present
-            let with = parser.tree.get(with_id);
-            assert_eq!(with.clauses.len(), 3);
+            let with = with.as_ref().unwrap();
+            assert_eq!(with.len(), 3);
 
             // !Bar
-            assert_node!(parser.tree, with.clauses[0], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, with[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
                     assert_eq!(*operator, UnaryOperator::Not);
                     assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
@@ -269,7 +268,7 @@ function foo() => int32 with (
             });
 
             // Time
-            assert_node!(parser.tree, with.clauses[1], WithClause::Declaration { target, .. } => {
+            assert_node!(parser.tree, with[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
@@ -277,7 +276,7 @@ function foo() => int32 with (
             });
 
             // F: Numeric
-            assert_node!(parser.tree, with.clauses[2], WithClause::Assertion { target, assertion } => {
+            assert_node!(parser.tree, with[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "F");
                 });
