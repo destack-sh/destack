@@ -2,12 +2,12 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, With, WithClause};
+use crate::{Expression, Keyword, NodeId, NodeType, ParseResult, Parser, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration maybe.
     #[inline]
-    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<NodeId<With>>> {
+    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<NodeId<Expression>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with()?))
         } else {
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     ///    T > Y
     /// )
     /// ```
-    pub fn eat_with(&mut self) -> ParseResult<NodeId<With>> {
+    pub fn eat_with(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::With)?;
         let with = self.eat_with_body()?;
@@ -43,40 +43,36 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    pub fn eat_with_body(&mut self) -> ParseResult<NodeId<With>> {
+    pub fn eat_with_body(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.eat_token(TokenType::OpenParenthesis)
-                .for_node_type(NodeType::With)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
             self.eat_newlines_maybe()?;
             loop {
                 self.eat_newlines_maybe()?;
                 if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     break;
                 }
-                let next_clause = self.eat_with_clause().for_node_type(NodeType::With)?;
+                let next_clause = self.eat_with_clause()?;
                 clauses.push(next_clause);
                 // optional comma with newlines
                 if self.peek_token(TokenType::Comma).is_ok() {
-                    self.eat_token(TokenType::Comma)
-                        .for_node_type(NodeType::With)?;
+                    self.eat_token(TokenType::Comma)?;
                 }
             }
-            self.eat_token(TokenType::CloseParenthesis)
-                .for_node_type(NodeType::With)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
         }
         // plain list separated by commas
         else {
             loop {
-                let clause = self.eat_with_clause().for_node_type(NodeType::With)?;
+                let clause = self.eat_with_clause()?;
                 clauses.push(clause);
                 // required comma
                 if self.peek_token(TokenType::Comma).is_ok() {
-                    self.eat_token(TokenType::Comma)
-                        .for_node_type(NodeType::With)?;
+                    self.eat_token(TokenType::Comma)?;
                 } else {
                     break;
                 }
@@ -85,7 +81,7 @@ impl<'a> Parser<'a> {
 
         let with = self
             .tree
-            .allocate(With { clauses }, self.get_span_from(start));
+            .allocate(Expression::With { clauses }, self.get_span_from(start));
         Ok(with)
     }
 
@@ -134,9 +130,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{
-        Expression, TypeLiteral, UnaryOperator, With, WithClause, assert_node, assert_path,
-    };
+    use crate::{Expression, TypeLiteral, UnaryOperator, WithClause, assert_node, assert_path};
 
     #[test]
     fn test_parse_with_type_assertion() {
@@ -144,17 +138,15 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with T: int32
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "T");
                 });
-                assert_node!(parser.tree, *assertion, Expression::TypeLiteral(literal_id) => {
-                    assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                        assert_eq!(int_ty.width, Some(32));
-                        assert!(int_ty.is_signed);
-                    });
+                assert_node!(parser.tree, *assertion, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                    assert_eq!(int_ty.width, Some(32));
+                    assert!(int_ty.is_signed);
                 });
             });
         });
@@ -166,7 +158,7 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with Foo
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
@@ -182,7 +174,7 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with Foo.Bar
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
@@ -198,7 +190,7 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with !Bar
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
@@ -218,7 +210,7 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
 
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 3);
 
             // !Bar
@@ -262,7 +254,7 @@ mod tests {
         let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
 
-        assert_node!(parser.tree, with_id, With { clauses } => {
+        assert_node!(parser.tree, with_id, Expression::With { clauses } => {
             assert_eq!(clauses.len(), 3);
 
             // !Bar

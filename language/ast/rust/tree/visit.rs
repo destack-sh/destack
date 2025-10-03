@@ -1,20 +1,7 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment, Continue, Decorator,
-    Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index,
-    Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, RangeLiteral, ScalarLiteral, Struct, StructField, StructLiteral, Tag, Trait, Try,
-    TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use, UseClause, UseItem,
-    While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank,
-    walk_block, walk_break, walk_call, walk_comment, walk_continue, walk_decorator, walk_defer,
-    walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for,
-    walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match,
-    walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_range_literal, walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal,
-    walk_tag, walk_trait, walk_try, walk_tuple_literal, walk_tuple_literal_field,
-    walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item,
-    walk_while, walk_with, walk_with_clause,
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, StructField, Tag, UnionField, UseClause, UseItem, WithClause, walk_annotation, walk_argument, walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_struct_field, walk_tag, walk_union_field, walk_use_clause, walk_use_item, walk_with_clause
 };
 
 /// A NodeVisitor is a visitor for the AST.
@@ -44,17 +31,17 @@ pub trait NodeVisitor {
     }
 
     // ------------------------------------------------------------
-    // Declarations
+    // Definitions
     // ------------------------------------------------------------
 
-    /// Visit a Module.
-    fn visit_module(&mut self, tree: &NodeTree, id: NodeId<Module>, module: &Module) {
-        walk_module(self, tree, id, module);
-    }
-
-    /// Visit a Struct.
-    fn visit_struct(&mut self, tree: &NodeTree, id: NodeId<Struct>, struct_node: &Struct) {
-        walk_struct(self, tree, id, struct_node);
+    /// Visit a Definition.
+    fn visit_definition(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Definition>,
+        definition: &Definition,
+    ) {
+        walk_definition(self, tree, id, definition);
     }
 
     /// Visit a StructField.
@@ -67,19 +54,9 @@ pub trait NodeVisitor {
         walk_struct_field(self, tree, id, struct_field);
     }
 
-    /// Visit an Enum.
-    fn visit_enum(&mut self, tree: &NodeTree, id: NodeId<Enum>, enum_node: &Enum) {
-        walk_enum(self, tree, id, enum_node);
-    }
-
     /// Visit an EnumField.
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
         walk_enum_field(self, tree, id, enum_field);
-    }
-
-    /// Visit a Union.
-    fn visit_union(&mut self, tree: &NodeTree, id: NodeId<Union>, union_node: &Union) {
-        walk_union(self, tree, id, union_node);
     }
 
     /// Visit a UnionField.
@@ -92,29 +69,9 @@ pub trait NodeVisitor {
         walk_union_field(self, tree, id, union_field);
     }
 
-    /// Visit a Trait.
-    fn visit_trait(&mut self, tree: &NodeTree, id: NodeId<Trait>, trait_node: &Trait) {
-        walk_trait(self, tree, id, trait_node);
-    }
-
-    /// Visit an Implement.
-    fn visit_implement(&mut self, tree: &NodeTree, id: NodeId<Implement>, implement: &Implement) {
-        walk_implement(self, tree, id, implement);
-    }
-
-    /// Visit a Function.
-    fn visit_function(&mut self, tree: &NodeTree, id: NodeId<Function>, function: &Function) {
-        walk_function(self, tree, id, function);
-    }
-
     // ------------------------------------------------------------
     // Context
     // ------------------------------------------------------------
-
-    /// Visit a With.
-    fn visit_with(&mut self, tree: &NodeTree, id: NodeId<With>, with: &With) {
-        walk_with(self, tree, id, with);
-    }
 
     /// Visit a WithClause.
     fn visit_with_clause(
@@ -124,11 +81,6 @@ pub trait NodeVisitor {
         with_clause: &WithClause,
     ) {
         walk_with_clause(self, tree, id, with_clause);
-    }
-
-    /// Visit a Use.
-    fn visit_use(&mut self, tree: &NodeTree, id: NodeId<Use>, use_node: &Use) {
-        walk_use(self, tree, id, use_node);
     }
 
     /// Visit a UseClause.
@@ -142,57 +94,8 @@ pub trait NodeVisitor {
     }
 
     // ------------------------------------------------------------
-    // Control
-    // ------------------------------------------------------------
-
-    /// Visit an If.
-    fn visit_if(&mut self, tree: &NodeTree, id: NodeId<If>, if_node: &If) {
-        walk_if(self, tree, id, if_node);
-    }
-
-    /// Visit a While.
-    fn visit_while(&mut self, tree: &NodeTree, id: NodeId<While>, while_node: &While) {
-        walk_while(self, tree, id, while_node);
-    }
-
-    /// Visit a For.
-    fn visit_for(&mut self, tree: &NodeTree, id: NodeId<For>, for_node: &For) {
-        walk_for(self, tree, id, for_node);
-    }
-
-    /// Visit a Loop.
-    fn visit_loop(&mut self, tree: &NodeTree, id: NodeId<Loop>, loop_node: &Loop) {
-        walk_loop(self, tree, id, loop_node);
-    }
-
-    /// Visit a Break.
-    fn visit_break(&mut self, tree: &NodeTree, id: NodeId<Break>, break_node: &Break) {
-        walk_break(self, tree, id, break_node);
-    }
-
-    /// Visit a Continue.
-    fn visit_continue(&mut self, tree: &NodeTree, id: NodeId<Continue>, continue_node: &Continue) {
-        walk_continue(self, tree, id, continue_node);
-    }
-
-    /// Visit a Defer.
-    fn visit_defer(&mut self, tree: &NodeTree, id: NodeId<Defer>, defer: &Defer) {
-        walk_defer(self, tree, id, defer);
-    }
-
-    /// Visit a Try.
-    fn visit_try(&mut self, tree: &NodeTree, id: NodeId<Try>, try_node: &Try) {
-        walk_try(self, tree, id, try_node);
-    }
-
-    // ------------------------------------------------------------
     // Bindings
     // ------------------------------------------------------------
-
-    /// Visit a Let.
-    fn visit_let(&mut self, tree: &NodeTree, id: NodeId<Let>, let_node: &Let) {
-        walk_let(self, tree, id, let_node);
-    }
 
     /// Visit a Parameter.
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
@@ -205,111 +108,8 @@ pub trait NodeVisitor {
     }
 
     // ------------------------------------------------------------
-    // Literals
-    // ------------------------------------------------------------
-
-    /// Visit a ScalarLiteral.
-    fn visit_scalar_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ScalarLiteral>,
-        scalar_literal: &ScalarLiteral,
-    ) {
-        walk_scalar_literal(self, tree, id, scalar_literal);
-    }
-
-    /// Visit a TypeLiteral.
-    fn visit_type_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TypeLiteral>,
-        type_literal: &TypeLiteral,
-    ) {
-        walk_type_literal(self, tree, id, type_literal);
-    }
-
-    /// Visit a RangeLiteral.
-    fn visit_range_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<RangeLiteral>,
-        range_literal: &RangeLiteral,
-    ) {
-        walk_range_literal(self, tree, id, range_literal);
-    }
-
-    /// Visit a TupleLiteral.
-    fn visit_tuple_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TupleLiteral>,
-        tuple_literal: &TupleLiteral,
-    ) {
-        walk_tuple_literal(self, tree, id, tuple_literal);
-    }
-
-    /// Visit a TupleLiteralField.
-    fn visit_tuple_literal_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TupleLiteralField>,
-        tuple_literal_field: &TupleLiteralField,
-    ) {
-        walk_tuple_literal_field(self, tree, id, tuple_literal_field);
-    }
-
-    /// Visit an ArrayLiteral.
-    fn visit_array_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ArrayLiteral>,
-        array_literal: &ArrayLiteral,
-    ) {
-        walk_array_literal(self, tree, id, array_literal);
-    }
-
-    /// Visit a StructLiteral.
-    fn visit_struct_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<StructLiteral>,
-        struct_literal: &StructLiteral,
-    ) {
-        walk_struct_literal(self, tree, id, struct_literal);
-    }
-
-    /// Visit a FieldLiteral.
-    fn visit_field_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<FieldLiteral>,
-        field_literal: &FieldLiteral,
-    ) {
-        walk_field_literal(self, tree, id, field_literal);
-    }
-
-    // ------------------------------------------------------------
-    // Calls
-    // ------------------------------------------------------------
-
-    /// Visit an Index.
-    fn visit_index(&mut self, tree: &NodeTree, id: NodeId<Index>, index: &Index) {
-        walk_index(self, tree, id, index);
-    }
-
-    /// Visit a Call.
-    fn visit_call(&mut self, tree: &NodeTree, id: NodeId<Call>, call: &Call) {
-        walk_call(self, tree, id, call);
-    }
-
-    // ------------------------------------------------------------
     // Matching
     // ------------------------------------------------------------
-
-    /// Visit a Match.
-    fn visit_match(&mut self, tree: &NodeTree, id: NodeId<Match>, match_node: &Match) {
-        walk_match(self, tree, id, match_node);
-    }
 
     /// Visit a MatchCase.
     fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
@@ -419,12 +219,13 @@ impl NodeVisitor for CapturingNodeVisitor {
     // Declarations
     // ------------------------------------------------------------
 
-    fn visit_module(&mut self, tree: &NodeTree, id: NodeId<Module>, module: &Module) {
-        self.visit_any(tree, NodeType::Module, id.id);
-    }
-
-    fn visit_struct(&mut self, tree: &NodeTree, id: NodeId<Struct>, struct_node: &Struct) {
-        self.visit_any(tree, NodeType::Struct, id.id);
+    fn visit_definition(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Definition>,
+        definition: &Definition,
+    ) {
+        self.visit_any(tree, NodeType::Definition, id.id);
     }
 
     fn visit_struct_field(
@@ -436,16 +237,8 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::StructField, id.id);
     }
 
-    fn visit_enum(&mut self, tree: &NodeTree, id: NodeId<Enum>, enum_node: &Enum) {
-        self.visit_any(tree, NodeType::Enum, id.id);
-    }
-
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
         self.visit_any(tree, NodeType::EnumField, id.id);
-    }
-
-    fn visit_union(&mut self, tree: &NodeTree, id: NodeId<Union>, union_node: &Union) {
-        self.visit_any(tree, NodeType::Union, id.id);
     }
 
     fn visit_union_field(
@@ -457,25 +250,9 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::UnionField, id.id);
     }
 
-    fn visit_trait(&mut self, tree: &NodeTree, id: NodeId<Trait>, trait_node: &Trait) {
-        self.visit_any(tree, NodeType::Trait, id.id);
-    }
-
-    fn visit_implement(&mut self, tree: &NodeTree, id: NodeId<Implement>, implement: &Implement) {
-        self.visit_any(tree, NodeType::Implement, id.id);
-    }
-
-    fn visit_function(&mut self, tree: &NodeTree, id: NodeId<Function>, function: &Function) {
-        self.visit_any(tree, NodeType::Function, id.id);
-    }
-
     // ------------------------------------------------------------
     // Context
     // ------------------------------------------------------------
-
-    fn visit_with(&mut self, tree: &NodeTree, id: NodeId<With>, with: &With) {
-        self.visit_any(tree, NodeType::With, id.id);
-    }
 
     fn visit_with_clause(
         &mut self,
@@ -484,10 +261,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         with_clause: &WithClause,
     ) {
         self.visit_any(tree, NodeType::WithClause, id.id);
-    }
-
-    fn visit_use(&mut self, tree: &NodeTree, id: NodeId<Use>, use_node: &Use) {
-        self.visit_any(tree, NodeType::Use, id.id);
     }
 
     fn visit_use_clause(&mut self, tree: &NodeTree, id: NodeId<UseClause>, use_clause: &UseClause) {
@@ -499,48 +272,8 @@ impl NodeVisitor for CapturingNodeVisitor {
     }
 
     // ------------------------------------------------------------
-    // Control
-    // ------------------------------------------------------------
-
-    fn visit_if(&mut self, tree: &NodeTree, id: NodeId<If>, if_node: &If) {
-        self.visit_any(tree, NodeType::If, id.id);
-    }
-
-    fn visit_while(&mut self, tree: &NodeTree, id: NodeId<While>, while_node: &While) {
-        self.visit_any(tree, NodeType::While, id.id);
-    }
-
-    fn visit_for(&mut self, tree: &NodeTree, id: NodeId<For>, for_node: &For) {
-        self.visit_any(tree, NodeType::For, id.id);
-    }
-
-    fn visit_loop(&mut self, tree: &NodeTree, id: NodeId<Loop>, loop_node: &Loop) {
-        self.visit_any(tree, NodeType::Loop, id.id);
-    }
-
-    fn visit_break(&mut self, tree: &NodeTree, id: NodeId<Break>, break_node: &Break) {
-        self.visit_any(tree, NodeType::Break, id.id);
-    }
-
-    fn visit_continue(&mut self, tree: &NodeTree, id: NodeId<Continue>, continue_node: &Continue) {
-        self.visit_any(tree, NodeType::Continue, id.id);
-    }
-
-    fn visit_defer(&mut self, tree: &NodeTree, id: NodeId<Defer>, defer: &Defer) {
-        self.visit_any(tree, NodeType::Defer, id.id);
-    }
-
-    fn visit_try(&mut self, tree: &NodeTree, id: NodeId<Try>, try_node: &Try) {
-        self.visit_any(tree, NodeType::Try, id.id);
-    }
-
-    // ------------------------------------------------------------
     // Bindings
     // ------------------------------------------------------------
-
-    fn visit_let(&mut self, tree: &NodeTree, id: NodeId<Let>, let_node: &Let) {
-        self.visit_any(tree, NodeType::Let, id.id);
-    }
 
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
@@ -551,91 +284,8 @@ impl NodeVisitor for CapturingNodeVisitor {
     }
 
     // ------------------------------------------------------------
-    // Literals
-    // ------------------------------------------------------------
-
-    fn visit_scalar_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ScalarLiteral>,
-        scalar_literal: &ScalarLiteral,
-    ) {
-        self.visit_any(tree, NodeType::ScalarLiteral, id.id);
-    }
-
-    fn visit_range_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<RangeLiteral>,
-        range_literal: &RangeLiteral,
-    ) {
-        self.visit_any(tree, NodeType::RangeLiteral, id.id);
-    }
-
-    fn visit_array_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ArrayLiteral>,
-        array_literal: &ArrayLiteral,
-    ) {
-        self.visit_any(tree, NodeType::ArrayLiteral, id.id);
-    }
-
-    fn visit_tuple_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TupleLiteral>,
-        tuple_literal: &TupleLiteral,
-    ) {
-        self.visit_any(tree, NodeType::TupleLiteral, id.id);
-    }
-
-    fn visit_tuple_literal_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TupleLiteralField>,
-        tuple_literal_field: &TupleLiteralField,
-    ) {
-        self.visit_any(tree, NodeType::TupleLiteralField, id.id);
-    }
-
-    fn visit_struct_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<StructLiteral>,
-        struct_literal: &StructLiteral,
-    ) {
-        self.visit_any(tree, NodeType::StructLiteral, id.id);
-    }
-
-    fn visit_field_literal(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<FieldLiteral>,
-        field_literal: &FieldLiteral,
-    ) {
-        self.visit_any(tree, NodeType::FieldLiteral, id.id);
-    }
-
-    // ------------------------------------------------------------
-    // Calls
-    // ------------------------------------------------------------
-
-    fn visit_index(&mut self, tree: &NodeTree, id: NodeId<Index>, index: &Index) {
-        self.visit_any(tree, NodeType::Index, id.id);
-    }
-
-    fn visit_call(&mut self, tree: &NodeTree, id: NodeId<Call>, call: &Call) {
-        self.visit_any(tree, NodeType::Call, id.id);
-    }
-
-    // ------------------------------------------------------------
     // Matching
     // ------------------------------------------------------------
-
-    fn visit_match(&mut self, tree: &NodeTree, id: NodeId<Match>, match_node: &Match) {
-        self.visit_any(tree, NodeType::Match, id.id);
-    }
 
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
         self.visit_any(tree, NodeType::Pattern, id.id);

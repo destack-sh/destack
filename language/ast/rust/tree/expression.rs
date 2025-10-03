@@ -1,11 +1,9 @@
-use dyst_source::PathId;
+use dyst_source::{PathId, StringId};
 use dyst_token::TokenType;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Continue, Defer, Enum, For, Function, If,
-    Implement, Index, Let, Loop, Match, Module, Node, NodeId, NodeType, RangeLiteral,
-    ScalarLiteral, ScopedMutability, Struct, StructLiteral, Trait, Try, TupleLiteral, TypeLiteral,
-    Union, Use, While, With,
+    Argument, Block, Definition, Node, NodeId, NodeType, Pattern, Runtime, ScalarLiteral,
+    ScopedMutability, TypeLiteral, Visibility,
 };
 
 /// The operator group (for precedence parsing).
@@ -531,104 +529,456 @@ impl InfixOperator {
 ///  that is, they have a place in memory we can point to and get the address of.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Module definition (used as an Expression, see Module).
-    Module(NodeId<Module>),
-    // NOTE #Incomplete?: type alias (type x = y)
-    // (or is that redundant with `let x = y`? need to disambiguate e.g. | and & though..)
-    /// Struct definition (used as an Expression, see Struct).
-    Struct(NodeId<Struct>),
-    /// Enum definition (used as an Expression, see Enum).
-    Enum(NodeId<Enum>),
-    /// Union definition (used as an Expression, see Union).
-    Union(NodeId<Union>),
-    /// Trait definition (used as an Expression, see Trait).
-    Trait(NodeId<Trait>),
-    /// Implement definition (used as an Expression, see Implement).
-    Implement(NodeId<Implement>),
-    /// Function definition (used as an Expression, see Function).
-    Function(NodeId<Function>),
-    /// Block of Statements (as an Expression, see Block).
+    /// Definition (with a name or anonymous).
+    Definition(NodeId<Definition>),
+    /// Block of Statements.
     Block(NodeId<Block>),
 
-    /// With declaration for context management (see With).
-    With(NodeId<With>),
-    /// Use declaration for dependency management (see Use).
-    Use(NodeId<Use>),
-    /// Let or var binding (as an Expression, see Let).
-    Let(NodeId<Let>),
-    /// An If is an if/then/else expression (as an Expression, see If).
-    If(NodeId<If>),
-    /// A While is a while loop (as an Expression, see While).
-    While(NodeId<While>),
-    /// A For is a for loop (as an Expression, see For).
-    For(NodeId<For>),
-    /// A Loop is an unconditional loop (as an Expression, see Loop).
-    Loop(NodeId<Loop>),
-    /// A Try is try/catch statement (as an Expression, see Try).
-    Try(NodeId<Try>),
-    /// A Match is match expression (as an Expression, see Match).
-    Match(NodeId<Match>),
-    /// Break out of a scope (as an Expression, see Break).
-    Break(NodeId<Break>),
-    /// Continue to the next iteration of a scope (as an Expression, see Continue).
-    Continue(NodeId<Continue>),
-    /// Defer expression until scope exit (as an Expression, see Defer).
-    Defer(NodeId<Defer>),
-    /// Return expression (as an Expression, see Return).
+    /// A With is a with declaration for context management.
+    /// With can declare the use of an item in a scope and refine type bounds.
+    ///
+    /// Examples:
+    /// ```
+    /// with T: int32
+    /// with Foo
+    /// with Foo as Bar
+    /// with Foo, Bar
+    /// with Foo.Bar
+    /// with !Bar
+    /// with (
+    ///    !Bar,
+    ///    Time<F> // optional comma
+    ///    F: Numeric
+    ///    T > Y
+    /// )
+    /// ```
+    With { clauses: Vec<NodeId<WithClause>> },
+
+    /// A Use is a use declaration for dependency management.
+    /// Use can be used as statement for the containing scope or in block form.
+    /// `use` includes all or some items from a definition in the relevant scope.
+    ///
+    /// Examples:
+    /// ```
+    /// use foo
+    /// use foo, bar
+    /// use foo.bar
+    /// use foo.{bar, baz}
+    /// use foo.{} // valid but linted
+    /// use foo as baz
+    ///
+    /// use Heap {
+    ///   ...
+    /// }
+    ///
+    /// use Time, !Disk, !Network, !Allocation {
+    ///   ...
+    /// }
+    ///
+    /// use someLock() {
+    ///
+    /// }
+    /// ```
+    Use {
+        visibility: Option<Visibility>,
+        clauses: Vec<NodeId<UseClause>>,
+        body: Option<NodeId<Block>>,
+    },
+
+    /// Let or var binding for constant or mutable variables.
+    /// Both let and var may destructure and pattern match.
+    ///
+    /// Examples:
+    /// ```
+    /// let x = 1
+    /// let x: int32 = 1
+    /// let (x, y) = foo()
+    /// if let Some(x) = someFunction() {
+    ///     ...
+    /// }
+    /// var x = 1
+    /// var x: int32 = 1
+    /// var x: int32 // implicitly uninitialized, must be set before use
+    /// if var Some(x) = someFunction() {
+    ///     ...
+    /// }
+    ///
+    /// let t? = foo() else { return }
+    /// let t = foo() ?? return;
+    Let {
+        mutability: ScopedMutability,
+        visibility: Option<Visibility>,
+        pattern: NodeId<Pattern>,
+        r#type: Option<NodeId<Expression>>,
+        value: Option<NodeId<Expression>>,
+    },
+
+    /// If/then/else expression.
+    /// Then and else must be blocks.
+    ///
+    /// Examples:
+    /// ```
+    /// // if
+    /// @if x > 0 {
+    ///     print("positive")
+    /// }
+    ///
+    /// // if else
+    /// if x > 0 {
+    ///     print("positive")
+    /// } else {
+    ///     print("not positive")
+    /// }
+    ///
+    /// // if else if
+    /// if x > 0 {
+    ///     print("positive")
+    /// } else if x == 0 {
+    ///     print("zero")
+    /// } else {
+    ///     print("negative")
+    /// }
+    /// ```
+    If {
+        runtime: Option<Runtime>,
+        condition: NodeId<Expression>,
+        then_block: NodeId<Block>,
+        else_block: Option<NodeId<Block>>,
+    },
+
+    /// A While is while loop.
+    ///
+    /// Examples:
+    /// ```
+    /// @while x > 1 {
+    ///     y = 2
+    /// }
+    ///
+    /// while y < 10 l: {
+    ///     y = 2
+    ///     break :l
+    /// }
+    /// ```
+    While {
+        runtime: Option<Runtime>,
+        condition: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
+
+    /// A For is a for loop over an iterator with a pattern.
+    ///
+    /// Examples:
+    /// ```
+    /// @for x in 1..10 {
+    ///     y = 2
+    /// }
+    ///
+    /// for x in 1..10 a: {
+    ///     if y > 5 {
+    ///         continue :a
+    ///     }
+    ///     y = 2
+    /// }
+    /// ```
+    For {
+        runtime: Option<Runtime>,
+        pattern: NodeId<Pattern>,
+        iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
+
+    /// A Loop is an unconditional loop.
+    ///
+    /// Examples:
+    /// ```
+    /// loop {
+    ///     y = getNext()
+    ///     if y < 0 {
+    ///         break
+    ///     }
+    /// }
+    /// ```
+    Loop {
+        runtime: Option<Runtime>,
+        body: NodeId<Block>,
+    },
+
+    /// A Try is try/catch statement.
+    /// The try expression may be a single statement or a block of statements.
+    /// Any error Result within the try expression aborts the try expression and:
+    ///  1. If there is a catch, jumps to the catch pattern matching for handling.
+    ///  2. If there is no catch, the error is propagated to the caller explicitly.
+    ///
+    /// Examples:
+    /// ```
+    /// try fileOperation() // implicitly unwraps the Result, returns Error case
+    ///
+    /// try { // implicitly unwraps all Results inside
+    ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
+    ///     riskyOperationB(a)
+    /// } // no catch needed if containing function has compatible Result type (Into suffices)
+    ///
+    /// try { // explicitly unwraps all Results inside
+    ///     ...
+    /// } catch e { // match all errors
+    ///     NumericError(x) => Error(@format("bad number: {x}"))
+    ///     FormatError => Error(@format("bad format {e}"))
+    ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
+    /// }
+    /// ```
+    Try {
+        runtime: Option<Runtime>,
+        try_block: NodeId<Block>,
+        catch: Option<NodeId<Expression>>,
+    },
+
+    /// A Match is match expression with case patterns.
+    /// The clauses must be exhaustive and return the same type.
+    /// Match statements are Expressions and also used in catch patterns.
+    /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
+    ///
+    /// Examples:
+    /// ```
+    /// match <expr> {
+    ///     (x, y) => {
+    ///         ...
+    ///     }
+    ///     (x, y, z) => {
+    ///         ...
+    ///     }
+    /// }
+    /// ```
+    Match {
+        runtime: Option<Runtime>,
+        value: NodeId<Expression>,
+        cases: Vec<NodeId<MatchCase>>,
+    },
+
+    /// A Break is break statement.
+    ///
+    /// Examples:
+    /// ```
+    /// break
+    /// break :label
+    /// break :label 17
+    /// break 15
+    /// ```
+    Break {
+        label: Option<StringId>,
+        value: Option<NodeId<Expression>>,
+    },
+
+    /// A Continue is continue statement.
+    ///
+    /// Examples:
+    /// ```
+    /// continue
+    /// continue :label
+    /// ```
+    Continue { label: Option<StringId> },
+
+    /// Defer expression until scope exit.
+    ///
+    /// Examples:
+    /// ```
+    /// defer someFunction()
+    ///
+    /// defer {
+    ///     someFunction()
+    ///     someOtherFunction()
+    /// }
+    ///
+    /// defer :label {
+    ///     someOtherFunction()
+    /// }
+    ///
+    /// defer catch e {
+    ///     _ => someErrorHandler(e)
+    /// }
+    /// ```/// Defer expression until scope exit..
+    Defer {
+        expression: Option<NodeId<Expression>>,
+        catch: Option<NodeId<Expression>>,
+    },
+
+    /// Return expression.
+    ///
+    /// Examples:
+    /// ```
+    /// return
+    /// return 17
+    /// ```
     Return { value: Option<NodeId<Expression>> },
 
     // NOTE #Incomplete: multiply parameterized Expression Paths?
     //  (like `Foo<int32, boolean>.Bar<Yes: true>`)
-    /// Alias reference to some path, statically parameterized (as an Expression).
+    /// Alias reference to some path, statically parameterized.
     Path {
         path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// Literal scalar value (as an Expression, see ScalarLiteral).
-    ScalarLiteral(NodeId<ScalarLiteral>),
-    /// Type literal (as an Expression, see TypeLiteral).
-    TypeLiteral(NodeId<TypeLiteral>),
-    /// Range literal (as an Expression, see RangeLiteral).
-    RangeLiteral(NodeId<RangeLiteral>),
-    /// Array literal (as an Expression, see ArrayLiteral).
-    ArrayLiteral(NodeId<ArrayLiteral>),
-    /// Tuple literal (as an Expression, see TupleLiteral).
-    TupleLiteral(NodeId<TupleLiteral>),
-    /// Struct literal (as an Expression, see StructLiteral).
-    StructLiteral(NodeId<StructLiteral>),
 
-    /// Parenthesized expression (as an Expression).
+    /// Literal scalar value.
+    ///
+    /// Examples:
+    /// ```
+    /// true
+    /// false
+    /// 1
+    /// 0x21
+    /// 1.0
+    /// "Hello, world!"
+    /// 'a'
+    /// b'a'
+    /// b"abc"
+    /// 0x1234
+    /// ```
+    ScalarLiteral(ScalarLiteral),
+
+    /// Type literal.
+    ///
+    /// Examples:
+    /// ```
+    /// !
+    /// $
+    /// _
+    /// undefined
+    /// void
+    /// null
+    /// int2
+    /// float64
+    /// boolean
+    /// Self
+    /// ```
+    TypeLiteral(TypeLiteral),
+
+    /// A RangeLiteral is range of values.
+    ///
+    /// Examples:
+    /// ```
+    /// 1..3
+    /// 1..n // exclusive
+    /// 1..=n // inclusive
+    /// ```
+    RangeLiteral {
+        start: NodeId<Expression>,
+        end: NodeId<Expression>,
+        is_inclusive: bool,
+    },
+
+    /// An ArrayLiteral is literal array of homogeneous elements node.
+    ///
+    /// Examples:
+    /// ```
+    /// [] // empty array
+    /// [1, 2, ] // trailing comma is allowed
+    /// // multi-line array with implicit comma
+    /// [
+    ///   1 // comma is optional here
+    ///   2 // comma is optional here too
+    /// ]
+    /// [10, false, "Hi"] // hetereogenous array is invalid but legal in AST
+    /// ```
+    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+
+    /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
+    /// For named tuple "literals", see the Call node.
+    ///
+    /// Examples:
+    /// ```
+    /// (1, 2, 3)
+    /// (1.0, 2.0, 3.0)
+    /// (x: int32, y: boolean)
+    /// ```
+    TupleLiteral { elements: Vec<NodeId<Argument>> },
+
+    /// A StructLiteral is literal struct of heterogeneous fields node.
+    /// Struct literals always have an explicit type prefix (unlike tuple literals).
+    ///
+    /// Examples:
+    /// ```
+    /// Vector2 { x: 1, y: 2 }
+    /// some_module.MyUnion.OptionB { a: true }
+    /// ```
+    StructLiteral {
+        r#type: NodeId<Expression>,
+        fields: Vec<NodeId<Argument>>,
+    },
+
+    /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
-    /// Unary operation (simple prefix as Expression).
+
+    /// Unary operation.
     Unary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
     },
-    /// Reference operation (prefix as an Expression).
+
+    /// Reference operation.
     Reference {
         mutability: ScopedMutability,
         right: NodeId<Expression>,
     },
-    /// Member access (postfix as an Expression, see Member).
+
+    /// Member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.bar
+    /// ```
     Member {
         receiver: NodeId<Expression>,
         path: PathId,
     },
-    /// Index access (postfix as an Expression, see Index).
-    Index(NodeId<Index>),
-    /// Call to a function (postfix as an Expression, see Call).
-    Call(NodeId<Call>),
-    /// Maybe unwrap an expression with `?` and propagate (postfix as an Expression).
+
+    /// Index into a receiver expression.
+    ///
+    /// Examples:
+    /// ```
+    /// T[] // special declarative
+    /// foo[1]
+    /// foo[1..3]
+    /// foo["bar"]
+    /// foo().result[0][variable+1]
+    /// foo.1 // for member access tuple
+    Index {
+        receiver: NodeId<Expression>,
+        index: NodeId<Expression>,
+    },
+
+    /// A Call is call to a function OR an instantiation of a tuple type.
+    /// The static arguments are expressed in the receiver, not the call.
+    ///
+    /// The function may or may not be declared as comptime (with a `@ prefix),
+    ///  but the call must be prefixed with a `@` to qualify as a static call.
+    ///
+    /// Examples:
+    /// ```
+    /// foo()
+    /// @foo(1, 2, 3)
+    /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// Bar(1, 2, 3)
+    /// MyUnion.Baz(2, 3)
+    /// ```
+    Call {
+        receiver: NodeId<Expression>,
+        dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+
+    /// Maybe unwrap an expression with `?` and propagate.
     Maybe(NodeId<Expression>),
-    /// Force unwrap an expression with `!` and propagate (postfix as an Expression).
+
+    /// Force unwrap an expression with `!` and propagate.
     Must(NodeId<Expression>),
-    /// Binary operation (infix between Expressions, see BinaryOperator).
+
+    /// Binary operation.
     Binary {
         left: NodeId<Expression>,
         operator: BinaryOperator,
         right: NodeId<Expression>,
     },
-    /// Assignment operation (infix as an Expression, see AssignOperator).
+
+    /// Assignment operation.
     Assign {
         left: NodeId<Expression>,
         operator: AssignOperator,
@@ -639,66 +989,115 @@ pub enum Expression {
     Error,
 }
 
-impl Expression {
-    /// Map the expression to its inner node type (if any).
-    pub fn to_wrapper_node_type(&self) -> Option<NodeType> {
-        match self {
-            // definitions
-            Expression::Module(_) => Some(NodeType::Module),
-            Expression::Struct(_) => Some(NodeType::Struct),
-            Expression::Enum(_) => Some(NodeType::Enum),
-            Expression::Union(_) => Some(NodeType::Union),
-            Expression::Trait(_) => Some(NodeType::Trait),
-            Expression::Implement(_) => Some(NodeType::Implement),
-            Expression::Function(_) => Some(NodeType::Function),
-            Expression::Block(_) => Some(NodeType::Block),
-
-            // declarations
-            Expression::With(_) => Some(NodeType::With),
-            Expression::Use(_) => Some(NodeType::Use),
-            Expression::Let(_) => Some(NodeType::Let),
-            Expression::If(_) => Some(NodeType::If),
-            Expression::While(_) => Some(NodeType::While),
-            Expression::For(_) => Some(NodeType::For),
-            Expression::Loop(_) => Some(NodeType::Loop),
-            Expression::Try(_) => Some(NodeType::Try),
-            Expression::Match(_) => Some(NodeType::Match),
-            Expression::Break(_) => Some(NodeType::Break),
-            Expression::Continue(_) => Some(NodeType::Continue),
-            Expression::Defer(_) => Some(NodeType::Defer),
-            Expression::Return { .. } => None,
-
-            // literals
-            Expression::Path { .. } => None,
-            Expression::ScalarLiteral(_) => Some(NodeType::ScalarLiteral),
-            Expression::TypeLiteral(_) => Some(NodeType::TypeLiteral),
-            Expression::RangeLiteral(_) => Some(NodeType::RangeLiteral),
-            Expression::TupleLiteral(_) => Some(NodeType::TupleLiteral),
-            Expression::ArrayLiteral(_) => Some(NodeType::ArrayLiteral),
-            Expression::StructLiteral(_) => Some(NodeType::StructLiteral),
-
-            // unary operations
-            Expression::Parenthesized { .. } => None,
-            Expression::Unary { .. } => None,
-            Expression::Reference { .. } => None,
-
-            // postfix operations
-            Expression::Member { .. } => None,
-            Expression::Index(_) => Some(NodeType::Index),
-            Expression::Call(_) => Some(NodeType::Call),
-            Expression::Maybe(_) => None,
-            Expression::Must(_) => None,
-
-            // binary operations
-            Expression::Binary { .. } => None,
-            Expression::Assign { .. } => None,
-
-            // error
-            Expression::Error => None,
-        }
-    }
-}
+impl Expression {}
 
 impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
+}
+
+/// A UseClause is a single clause in a use declaration.
+///
+/// Examples:
+/// ```
+/// foo
+/// foo as bar
+/// foo.bar as baz
+/// foo.{baz, qux}
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UseClause {
+    /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux}`)
+    pub target: NodeId<Expression>,
+    /// The alias to use for the definition (like `bar` in `use foo as bar`)
+    pub alias: Option<StringId>,
+    /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux}`)
+    pub items: Option<Vec<NodeId<UseItem>>>,
+}
+
+impl Node for UseClause {
+    const KIND: NodeType = NodeType::UseClause;
+}
+
+/// A UseItem is an item to use in a use clause.
+///
+/// Examples:
+/// ```
+/// baz
+/// qux as quux
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UseItem {
+    /// The source name of the item (like `foo` in `foo as bar`)
+    pub name: StringId,
+    /// The alias to use for the item (like `bar` in `foo as bar`)
+    pub alias: Option<StringId>,
+}
+
+impl Node for UseItem {
+    const KIND: NodeType = NodeType::UseItem;
+}
+
+/// A WithClause is a single clause in a with declaration.
+/// It can be a type assertion (`T: Y`) or a use declaration (`Foo` or `Foo.Bar as Zeb`).
+/// Only positive declarations should have aliases (checked later).
+///
+/// Examples:
+/// ```
+/// // declaration
+/// Foo
+/// Foo as Bar
+/// Foo.Bar as Baz
+///
+/// // assertion
+/// T: int32
+/// Self: geom.Mesh<T>
+/// T.Item: Copy
+/// T > Y
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum WithClause {
+    Declaration {
+        /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
+        target: NodeId<Expression>,
+    },
+    Assertion {
+        /// The target to assert (like `T` in `with T: int32`)
+        target: NodeId<Expression>,
+        /// The assertion type (like `int32` in `with T: int32`)
+        assertion: NodeId<Expression>,
+    },
+}
+
+impl Node for WithClause {
+    const KIND: NodeType = NodeType::WithClause;
+}
+
+/// A MatchCase is a match case inside a Match expression.
+/// MatchCases can be any Pattern and can have an optional `if` guard.
+///
+/// Examples:
+/// ```
+/// 2 => parse_int(2)
+/// (x, y) if x > y => {
+///     ...
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchCase {
+    /// A match case with an expression body.
+    Expression {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Expression>,
+        guard: Option<NodeId<Expression>>,
+    },
+    /// A match case with a block body.
+    Block {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Block>,
+        guard: Option<NodeId<Expression>>,
+    },
+}
+
+impl Node for MatchCase {
+    const KIND: NodeType = NodeType::MatchCase;
 }

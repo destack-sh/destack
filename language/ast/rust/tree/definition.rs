@@ -1,0 +1,416 @@
+use dyst_source::StringId;
+
+use crate::{
+    Argument, Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
+    Visibility, WithClause,
+};
+
+// NOTE #Incomplete?: type alias (type x = y)
+// (or is that redundant with `let x = y`? need to disambiguate e.g. | and & though..)
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    /// A Module is a module declaration.
+    /// Modules may be whole directories, single files, or nested within a file.
+    /// NOTE #Incomplete: Module-level static parameterisation?
+    ///  (just use `let` somehow?)
+    ///  (or maybe something like `module self { ... }`?)
+    ///
+    /// Examples:
+    /// ```
+    /// module foo {
+    ///     ...
+    /// }
+    /// ```
+    Module {
+        format: ModuleFormat,
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// A Struct is struct definition node.
+    /// The ',' separator is optional if newline-delimited.
+    /// Structs may `use` other structs to include them (just like traits).
+    /// Structs may also have super structs as semantic sugar for `use`-ing other structs.
+    ///
+    /// Examples:
+    /// ```
+    /// struct {} // empty anonymous struct
+    ///
+    /// struct _ {} // explicit anonymous struct (for disambiguation)
+    ///
+    /// struct A() // unit struct (no fields)
+    ///
+    /// struct Number(int32) // tuple struct (1 field)
+    ///
+    /// struct Number(int32, isAwesome: boolean) { // tuple struct (2 fields)
+    ///     ...
+    /// }
+    ///
+    /// struct { a: int32, b: boolean }
+    ///
+    /// struct { // anonymous struct (for use as a value)
+    ///     myField: int32 // colon optional
+    ///     myOtherField: boolean
+    /// }
+    ///
+    /// struct(uint64) Bar { // 64-bit representation
+    ///     myField: int32
+    ///     myOtherField: boolean
+    /// }
+    ///
+    /// struct Foo<T>: Baz { // Foo has a Baz
+    ///     myField: int32
+    ///     myOtherField: T
+    ///
+    ///     ..Baz
+    //      let x: int32 = 7 // constant
+    ///
+    ///     function myFunc() { // nested declaration
+    ///     }
+    /// }
+    /// ```
+    Struct {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        style: StructStyle,
+        super_types: Option<Vec<NodeId<Expression>>>,
+        representation_type: Option<NodeId<Expression>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        fields: Vec<NodeId<StructField>>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// An Enum is an enumeration definition node.
+    /// Like with structs, the ',' separator is optional if newline-delimited.
+    /// Like other types, enums can have super types - since "super" types are just
+    ///  sugar for `use`-ing other types and not implicit subtypes, this is fine and useful.
+    ///
+    /// Examples:
+    /// ```
+    /// // anonymous enum (for use as a value)
+    /// enum { Success, Failure }
+    ///
+    /// enum _ {} // explicit anonymous enum (for disambiguation)
+    ///
+    /// enum Foo {
+    ///     A // colon optional
+    ///     B
+    ///     C
+    ///
+    ///     function myFunc() { // nested declaration
+    ///     }
+    /// }
+    ///
+    /// enum(u8) Foo {
+    ///     Baz = 1
+    ///     Qux = 2
+    /// }
+    ///
+    /// enum ExtendedDay: Day { // ExtendedDay has Day as super
+    ///     Surfday = 8
+    /// }
+    ///
+    /// enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+    ///     A = 1
+    ///     B = T
+    ///     @if(IsSomething)
+    ///     C = 3
+    /// }
+    /// ```
+    Enum {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        tag_type: Option<NodeId<Expression>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        super_types: Option<Vec<NodeId<Expression>>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        fields: Vec<NodeId<EnumField>>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// A Union is a tagged sum type of structs.
+    /// Like with structs, the ',' separator is optional if newline-delimited.
+    ///
+    /// Examples:
+    /// ```
+    /// union { // anonymous union (for use as a value)
+    ///     myField: int32
+    ///     myOtherField: boolean
+    /// }
+    ///
+    /// union _ {} // explicit anonymous union (for disambiguation)
+    ///
+    /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
+    ///     A
+    ///     B { x: int32, y: T } = 4
+    ///     C(boolean)
+    ///     D(boolean, count: int32) = 6
+    /// }
+    ///
+    /// // unions can be tagged with enums and include other types with use (like structs)
+    /// union(TetrisShapeType) TetrisShape { // TetrisShape has Entity as super
+    ///     ..TetrisGameObject
+    ///
+    ///     function myFunc() { // nested declaration
+    ///     }
+    /// }
+    /// ```
+    Union {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        tag_type: Option<NodeId<Expression>>,
+        representation_type: Option<NodeId<Expression>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        super_types: Option<Vec<NodeId<Expression>>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        fields: Vec<NodeId<UnionField>>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// A Trait is trait definition node defining behavior and constants.
+    /// Traits can `use` other traits to include them (just like structs / unions).
+    /// Traits can also have super traits as semantic sugar for `use`-ing other traits.
+    ///
+    /// Examples:
+    /// ```
+    /// trait { // anonymous trait
+    ///     ...
+    /// }
+    ///
+    /// trait _ {} // explicit anonymous trait (for disambiguation)
+    ///
+    /// trait Foo: Baz { // Foo is a super
+    ///     ..Bar
+    ///     ..Boz
+    ///     
+    ///     let x: int32 // constant
+    ///     function foo() => int32
+    ///
+    ///     function myFunc() { // nested declaration, default implementation
+    ///     }
+    /// }
+    ///
+    /// trait Baz<T> {
+    ///     use Bar
+    ///
+    ///     function baz() => T // semicolon optional
+    /// }
+    /// ```
+    Trait {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        super_types: Option<Vec<NodeId<Expression>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// An Implement defines the implementation of a concrete type node.
+    /// There may be multiple Impls for the same type, and even impls for different modules.
+    /// (To add a module's implementation to your own just use the corresponding module.)
+    ///
+    /// Examples:
+    /// ```
+    /// implement Foo {
+    ///     ...
+    /// }
+    ///
+    /// implement Foo<int32> {
+    ///     ...
+    /// }
+    ///
+    /// implement Bar<int32> for Baz {
+    ///     ...
+    /// }
+    ///
+    /// implement<T> Bar<T> for Baz {
+    ///     ...
+    /// }
+    /// ```
+    Implement {
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+        receiver: NodeId<Expression>,
+        for_trait: Option<NodeId<Expression>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        expressions: Vec<NodeId<Expression>>,
+    },
+
+    /// A Function is function or "lambda" definition or declaration node.
+    /// If no body is provided, it is a declaration for a function defined elsewhere.
+    ///
+    /// Examples:
+    /// ```
+    /// // function style
+    ///
+    /// function () // anonymous function with empty signature
+    ///
+    /// function foo() // just declaration, no body, no opening `{`
+    ///
+    /// function foo<T, U>(x: T) => (int32, boolean) with (
+    ///    T: Copy
+    ///    U: Numeric
+    /// ) {
+    ///    print("Hello, world!")
+    /// }
+    ///
+    /// function baz(a: int32, b: boolean) => (
+    ///    MyStruct,
+    ///    boolean
+    /// ) with Disk, Time { // with can be on next line
+    ///    ...
+    /// }
+    ///
+    /// function @comptime() {
+    ///    ...
+    /// }
+    ///
+    /// // optional , if newline-delimited
+    /// function longBar<Validate: boolean>(
+    ///   /// doc comment for `a`
+    ///   a: int32
+    ///   /// doc comment for `b`
+    ///   b: boolean
+    ///   // regular comment
+    ///   c: Vector2
+    /// ) => (
+    ///    int32,
+    ///    isGood: boolean
+    /// ) with (
+    ///   Time
+    /// ) {
+    ///    ...
+    /// }
+    /// ```
+    Function {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        runtime: Runtime,
+        style: FunctionStyle,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        self_parameter: Option<SelfParameter>,
+        dynamic_parameters: Vec<NodeId<Parameter>>,
+        return_type: Option<NodeId<Expression>>,
+        with: Option<Vec<NodeId<WithClause>>>,
+        body: Option<NodeId<Block>>,
+    },
+}
+
+impl Node for Definition {
+    const KIND: NodeType = NodeType::Definition;
+}
+
+/// The style of a module.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ModuleFormat {
+    /// Implicit module source (e.g., whole file).
+    Source,
+    /// Forward declaration for a module (e.g., `module x;)
+    Forward,
+    /// Inline module with explicit braces (e.g., `module x { ... }`).
+    Inline,
+}
+
+/// A EnumField is a enum field declaration.
+///
+/// Examples:
+/// ```
+/// A
+/// B = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumField {
+    /// The name of the enum field.
+    pub name: StringId,
+    /// The default value of the enum field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for EnumField {
+    const KIND: NodeType = NodeType::EnumField;
+}
+
+/// A UnionField is a union field declaration.
+///
+/// Examples:
+/// ```
+/// A
+/// A(int32)
+/// B { x: int32, y: int32 } = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnionField {
+    /// The name of the union field.
+    pub name: StringId,
+    /// The type of the union field.
+    pub r#type: Option<NodeId<Expression>>,
+    /// The default value of the union field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for UnionField {
+    const KIND: NodeType = NodeType::UnionField;
+}
+
+/// The style of a struct.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum StructStyle {
+    /// A tuple struct with explicit representation.
+    Tuple,
+    /// A struct with explicit representation.
+    Struct,
+}
+
+/// A StructField is a (struct) field declaration.
+///
+/// Examples:
+/// ```
+/// bar: int32
+/// baz: T
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    /// The name of the field (may be unset for tuple fields).
+    pub name: Option<StringId>,
+    /// The type of the field.
+    pub r#type: NodeId<Expression>,
+    /// The default value of the field.
+    pub default: Option<NodeId<Expression>>,
+}
+
+// NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
+//  (how does this interact with traits and unions?)
+//  (how does this relate with Entities?)
+//  (how does this relate to $ virtualness/dynamicness?)
+
+impl Node for StructField {
+    const KIND: NodeType = NodeType::StructField;
+}
+
+/// A FunctionStyle is the style of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionStyle {
+    /// A normal function.
+    Function,
+    /// A lambda function.
+    Lambda,
+}
+
+/// The "self" parameter for a function (also accepts `this` and `&`).
+///
+/// Examples:
+/// ```
+/// self
+/// var self
+/// &self
+/// &var self
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelfParameter {
+    /// Whether the self parameter is mutable.
+    pub mutability: ScopedMutability,
+    /// Whether the self parameter is a pointer.
+    pub is_pointer: bool,
+}

@@ -4,8 +4,8 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Struct, StructStyle,
-    Union, UnionField, Visibility,
+    Definition, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
+    StructStyle, UnionField, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     /// // desugars to
     /// union { boolean(boolean) = boolean, int32(&int32) = &int32 }
     /// ```
-    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Union>> {
+    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -49,24 +49,20 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 // tag type
-                let ty = self
-                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                    .for_node_type(NodeType::Union)?;
+                let ty =
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
 
                 // representation type
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.bump(); // eat comma
                     let representation_type = self
-                        .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                        .for_node_type(NodeType::Union)?;
-                    self.eat_token(TokenType::CloseParenthesis)
-                        .for_node_type(NodeType::Union)?;
+                        .with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                     (Some(ty), Some(representation_type))
                 }
                 // no representation type
                 else {
-                    self.eat_token(TokenType::CloseParenthesis)
-                        .for_node_type(NodeType::Union)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                     (Some(ty), None)
                 }
             } else {
@@ -77,29 +73,23 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
-        let static_parameters = self
-            .eat_static_parameters_maybe()
-            .for_node_type(NodeType::Union)?;
+        let static_parameters = self.eat_static_parameters_maybe()?;
 
         // optional super types: : ...
-        let super_types = self
-            .eat_super_types_maybe()
-            .for_node_type(NodeType::Union)?;
+        let super_types = self.eat_super_types_maybe()?;
 
         // optional with declaration
-        let with = self.eat_with_maybe().for_node_type(NodeType::Union)?;
+        let with = self.eat_with_maybe()?;
 
         // body
-        self.eat_token(TokenType::OpenBrace)
-            .for_node_type(NodeType::Union)?;
+        self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let (fields, expressions) = self.eat_union_body().for_node_type(NodeType::Union)?;
-        self.eat_token(TokenType::CloseBrace)
-            .for_node_type(NodeType::Union)?;
+        let (fields, expressions) = self.eat_union_body()?;
+        self.eat_token(TokenType::CloseBrace)?;
 
         // union
         let union_id = self.tree.allocate(
-            Union {
+            Definition::Union {
                 name,
                 visibility,
                 static_parameters,
@@ -136,7 +126,7 @@ impl<'a> Parser<'a> {
             }
             // union field
             else if self.peek_union_field().is_ok() {
-                let field = self.eat_union_field().for_node_type(NodeType::Union)?;
+                let field = self.eat_union_field()?;
                 fields.push(field);
             }
             // eat expressions
@@ -190,21 +180,15 @@ impl<'a> Parser<'a> {
                 // struct tuple type
                 if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                     self.bump(); // eat open parenthesis
-                    let tuple_fields = self
-                        .eat_struct_tuple_body()
-                        .for_node_type(NodeType::Union)?;
-                    self.eat_token(TokenType::CloseParenthesis)
-                        .for_node_type(NodeType::Union)?;
+                    let tuple_fields = self.eat_struct_tuple_body()?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                     Some((StructStyle::Tuple, tuple_fields))
                 }
                 // struct struct type
                 else if self.peek_token(TokenType::OpenBrace).is_ok() {
                     self.bump(); // eat open brace
-                    let (fields, _) = self
-                        .eat_struct_body(StructStyle::Struct)
-                        .for_node_type(NodeType::Union)?;
-                    self.eat_token(TokenType::CloseBrace)
-                        .for_node_type(NodeType::Union)?;
+                    let (fields, _) = self.eat_struct_body(StructStyle::Struct)?;
+                    self.eat_token(TokenType::CloseBrace)?;
                     Some((StructStyle::Struct, fields))
                 }
                 // no payload type
@@ -216,7 +200,7 @@ impl<'a> Parser<'a> {
             // map to struct type
             if let Some((style, fields)) = fields {
                 let struct_id = self.tree.allocate(
-                    Struct {
+                    Definition::Struct {
                         name: None,
                         visibility: None,
                         style,
@@ -229,10 +213,7 @@ impl<'a> Parser<'a> {
                     },
                     self.get_span_from(start),
                 );
-                Some(
-                    self.tree
-                        .allocate(Expression::Struct(struct_id), self.get_span_from(start)),
-                )
+                Some(struct_id)
             } else {
                 None
             }
@@ -241,7 +222,7 @@ impl<'a> Parser<'a> {
         // optional default value: `= <expr>`
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
-            Some(self.eat_expression().for_node_type(NodeType::Union)?)
+            Some(self.eat_expression()?)
         } else {
             None
         };
@@ -262,7 +243,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Parameter, StructField, StructStyle, TypeLiteral, UnaryOperator, Union,
+        Expression, Parameter, StructField, StructStyle, TypeLiteral, UnaryOperator, Definition,
         UnionField, assert_int, assert_node, assert_path, assert_string,
     };
 
@@ -277,7 +258,7 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, fields, expressions, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, fields, expressions, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
@@ -310,7 +291,7 @@ union Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, super_types, fields, expressions, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
@@ -343,7 +324,7 @@ union(uint4, uint60) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
 
             // (uint4, uint60)

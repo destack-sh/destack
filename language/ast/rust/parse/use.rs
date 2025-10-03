@@ -3,7 +3,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Expression, Keyword, NodeId, NodeType, ParseResult, Parser, Use, UseClause, UseItem, Visibility,
+    Expression, Keyword, NodeId, NodeType, ParseResult, Parser, UseClause, UseItem, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -18,12 +18,11 @@ impl<'a> Parser<'a> {
     /// use foo.{} // valid but linted
     /// use foo as baz
     /// ```
-    pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Use>> {
+    pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Use)?;
         let use_node = self
-            .eat_use_header(visibility)
-            .for_node_type(NodeType::Use)?;
+            .eat_use_header(visibility)?;
         self.tree.set_span(use_node, self.get_span_from(start));
         Ok(use_node)
     }
@@ -39,7 +38,7 @@ impl<'a> Parser<'a> {
     /// foo.{} // valid but linted
     /// foo as baz
     /// ```
-    fn eat_use_header(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Use>> {
+    fn eat_use_header(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // parse one or more clauses separated by commas
@@ -61,7 +60,7 @@ impl<'a> Parser<'a> {
         }
 
         let using = self.tree.allocate(
-            Use {
+            Expression::Use {
                 clauses,
                 body: None,
                 visibility,
@@ -181,7 +180,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Expression, Use, UseClause, UseItem, assert_node, assert_path, assert_string};
+    use crate::{Expression, UseClause, UseItem, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_use_simple() {
@@ -191,7 +190,7 @@ mod tests {
         let use_id = parser.eat_use(None).unwrap();
 
         // use
-        assert_node!(parser.tree, use_id, Use { body, visibility, clauses } => {
+        assert_node!(parser.tree, use_id, Expression::Use { body, visibility, clauses } => {
             assert_eq!(*body, None);
             assert_eq!(*visibility, None);
             assert_eq!(clauses.len(), 1);
@@ -213,7 +212,7 @@ mod tests {
         let use_id = parser.eat_use(None).unwrap();
 
         // use dyst.geometry
-        assert_node!(parser.tree, use_id, Use { clauses, .. } => {
+        assert_node!(parser.tree, use_id, Expression::Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
             // use dyst.geometry
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
@@ -233,7 +232,7 @@ mod tests {
         let use_id = parser.eat_use(None).unwrap();
 
         // use dyst as ds
-        assert_node!(parser.tree, use_id, Use { clauses, .. } => {
+        assert_node!(parser.tree, use_id, Expression::Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
             // use dyst as ds
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
@@ -253,7 +252,7 @@ mod tests {
         let use_id = parser.eat_use(None).unwrap();
 
         // use ds.geometry.{Vector2, Vector3 as V3}
-        assert_node!(parser.tree, use_id, Use { clauses, .. } => {
+        assert_node!(parser.tree, use_id, Expression::Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
             // use ds.geometry.{Vector2, Vector3 as V3}
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
@@ -284,7 +283,7 @@ mod tests {
         let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
         // use dyst, dyst
-        assert_node!(parser.tree, use_id, Use { body, clauses, .. } => {
+        assert_node!(parser.tree, use_id, Expression::Use { body, clauses, .. } => {
             assert_eq!(*body, None);
             assert_eq!(clauses.len(), 2);
             // use dyst
