@@ -8,7 +8,7 @@ use crate::source::byte_span_to_range;
 pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &Source) -> lsp::Diagnostic {
     // span
     let range = byte_span_to_range(source, diagnostic.primary_span.span);
-    
+
     // severity
     let severity = match diagnostic.severity {
         Severity::Error => Some(lsp::DiagnosticSeverity::ERROR),

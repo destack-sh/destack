@@ -68,10 +68,10 @@ impl<'a> Parser<'a> {
 
         // optional super types: : ...
         let super_types = self.eat_super_types_maybe().for_node_type(NodeType::Enum)?;
-        
+
         // optional with declaration
         let with = self.eat_with_maybe().for_node_type(NodeType::Enum)?;
-        
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;

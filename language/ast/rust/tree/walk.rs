@@ -1,10 +1,10 @@
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
-    Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
-    Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor,
-    Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField,
-    StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union,
-    UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment, Continue, Decorator,
+    Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index,
+    Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField, StructLiteral,
+    Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause,
 };
 
 // ----------------------------------------------------------------------------
@@ -112,10 +112,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Index(node) => visitor.visit_index(tree, *node, tree.get(*node)),
         Expression::Call(node) => visitor.visit_call(tree, *node, tree.get(*node)),
-        Expression::Cast(node) => visitor.visit_cast(tree, *node, tree.get(*node)),
         Expression::Maybe(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Expression::Must(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
-        Expression::Coalesce(node) => visitor.visit_coalesce(tree, *node, tree.get(*node)),
 
         Expression::Error => {}
     }
@@ -931,34 +929,6 @@ pub fn walk_call<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Cast.
-pub fn walk_cast<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Cast>,
-    cast: &Cast,
-) {
-    visitor.visit_any(tree, NodeType::Cast, id.id);
-    let receiver = tree.get(cast.receiver);
-    visitor.visit_expression(tree, cast.receiver, receiver);
-    let type_node = tree.get(cast.r#type);
-    visitor.visit_expression(tree, cast.r#type, type_node);
-}
-
-/// Walk the Coalesce.
-pub fn walk_coalesce<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<Coalesce>,
-    coalesce: &Coalesce,
-) {
-    visitor.visit_any(tree, NodeType::Coalesce, id.id);
-    let receiver = tree.get(coalesce.receiver);
-    visitor.visit_expression(tree, coalesce.receiver, receiver);
-    let default = tree.get(coalesce.default);
-    visitor.visit_expression(tree, coalesce.default, default);
-}
-
 // ----------------------------------------------------------------------------
 // Patterns
 // ----------------------------------------------------------------------------
@@ -1389,14 +1359,6 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::Call => {
             let call = tree.calls.get(local_idx);
             walk_call(visitor, tree, NodeId::new(node_id), call);
-        }
-        NodeType::Cast => {
-            let cast = tree.casts.get(local_idx);
-            walk_cast(visitor, tree, NodeId::new(node_id), cast);
-        }
-        NodeType::Coalesce => {
-            let coalesce = tree.coalesce.get(local_idx);
-            walk_coalesce(visitor, tree, NodeId::new(node_id), coalesce);
         }
         // --------------------------------------------------------------------
         // Matching

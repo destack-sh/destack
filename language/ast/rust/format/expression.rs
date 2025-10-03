@@ -96,13 +96,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Member { receiver, path } => write!(f, [receiver, token("."), path])?,
             Expression::Index(node) => node.format(f)?,
             Expression::Call(node) => node.format(f)?,
-            Expression::Cast(node) => node.format(f)?,
             Expression::Parenthesized { expression } => {
                 write!(f, [token("("), expression, token(")")])?
             }
             Expression::Maybe(expr) => write!(f, [expr, token("?")])?,
             Expression::Must(expr) => write!(f, [expr, token("!")])?,
-            Expression::Coalesce(node) => node.format(f)?,
             Expression::Binary {
                 left,
                 operator,
@@ -189,6 +187,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             // logical
             BinaryOperator::And => token("&&"),
             BinaryOperator::Or => token("||"),
+            BinaryOperator::Coalesce => token("??"),
+            BinaryOperator::Cast => token("as"),
         };
         write!(f, [token])
     }

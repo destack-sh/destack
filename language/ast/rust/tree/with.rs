@@ -38,7 +38,7 @@ impl Node for With {
 /// Foo
 /// Foo as Bar
 /// Foo.Bar as Baz
-/// 
+///
 /// // assertion
 /// T: int32
 /// Self: geom.Mesh<T>

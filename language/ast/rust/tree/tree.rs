@@ -5,12 +5,12 @@ use dyst_source::Span;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
-    Coalesce, Comment, Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral,
-    For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
-    NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
-    Struct, StructField, StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField,
-    TypeLiteral, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Comment,
+    Continue, Decorator, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If,
+    Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeSpanIndex, NodeType,
+    Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Struct, StructField,
+    StructLiteral, Tag, Trait, Try, TupleLiteral, TupleLiteralField, TypeLiteral, Union,
+    UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -75,8 +75,6 @@ pub struct NodeTree {
     // calls
     pub(crate) indexes: NodeArena<Index>,
     pub(crate) calls: NodeArena<Call>,
-    pub(crate) casts: NodeArena<Cast>,
-    pub(crate) coalesce: NodeArena<Coalesce>,
     // matching
     pub(crate) matches: NodeArena<Match>,
     pub(crate) patterns: NodeArena<Pattern>,
@@ -163,8 +161,6 @@ impl NodeTree {
             // calls
             indexes: NodeArena::new(),
             calls: NodeArena::new(),
-            casts: NodeArena::new(),
-            coalesce: NodeArena::new(),
             // matching
             matches: NodeArena::new(),
             patterns: NodeArena::new(),
@@ -350,8 +346,6 @@ impl NodeTree {
             // calls
             NodeType::Index => self.indexes.deallocate(local_ids),
             NodeType::Call => self.calls.deallocate(local_ids),
-            NodeType::Cast => self.casts.deallocate(local_ids),
-            NodeType::Coalesce => self.coalesce.deallocate(local_ids),
             // matching
             NodeType::Match => self.matches.deallocate(local_ids),
             NodeType::Pattern => self.patterns.deallocate(local_ids),
@@ -524,8 +518,6 @@ impl_node_tree_stores! {
     // calls
     Index => indexes,
     Call => calls,
-    Cast => casts,
-    Coalesce => coalesce,
     // matching
     Match => matches,
     Pattern => patterns,

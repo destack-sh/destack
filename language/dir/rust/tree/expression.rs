@@ -6,10 +6,10 @@ pub enum Expression {
     AssignOp,
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary,
-	/// Reference operation (e.g., `&x`).
-	Reference,
-	/// Dereference operation (e.g., `*x`).
-	Dereference,
+    /// Reference operation (e.g., `&x`).
+    Reference,
+    /// Dereference operation (e.g., `*x`).
+    Dereference,
     /// Binary operation.
     Binary,
     /// Drop locals.
@@ -18,6 +18,8 @@ pub enum Expression {
     Field,
     /// Call to a function.
     Call,
+    /// Index into an array or slice.
+    Index,
     /// Cast to a type.
     Cast,
     /// --------------------------------
@@ -36,8 +38,8 @@ pub enum Expression {
     /// --------------------------------
     /// If expression.
     If,
-	/// Loop expression.
-	Loop,
+    /// Loop expression.
+    Loop,
     /// Match expression.
     Match,
     /// Closure expression.

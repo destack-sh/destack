@@ -4,8 +4,8 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, NodeType, ParseError, ParseResult,
-    Parser, Runtime, ScalarLiteral,
+    Call, Expression, Index, NodeId, NodeType, ParseError, ParseResult, Parser, Runtime,
+    ScalarLiteral,
 };
 
 impl<'a> Parser<'a> {
@@ -123,59 +123,14 @@ impl<'a> Parser<'a> {
         );
         Ok(call_id)
     }
-
-    /// Eat an as cast (postfix, excluding the receiver).
-    ///
-    /// Examples:
-    /// ```
-    /// as int32
-    /// as Vector2
-    /// as some_module.MyType
-    /// ```
-    pub fn eat_as_postfix(&mut self, receiver_id: NodeId<Expression>) -> ParseResult<NodeId<Cast>> {
-        let start = self.mark();
-        self.eat_keyword(Keyword::As)?;
-        let r#type = self.eat_expression().for_node_type(NodeType::Cast)?;
-        let cast_id = self.tree.allocate(
-            Cast {
-                receiver: receiver_id,
-                r#type,
-            },
-            self.get_span_from(start),
-        );
-        Ok(cast_id)
-    }
-
-    /// Eat a coalesce (postfix, excluding the receiver).
-    ///
-    /// Examples:
-    /// ```
-    /// ?? 0
-    /// ```
-    pub fn eat_coalesce_postfix(
-        &mut self,
-        receiver_id: NodeId<Expression>,
-    ) -> ParseResult<NodeId<Coalesce>> {
-        let start = self.mark();
-        self.eat_token(TokenType::Coalesce)?;
-        let default = self.eat_expression().for_node_type(NodeType::Coalesce)?;
-        let coalesce_id = self.tree.allocate(
-            Coalesce {
-                receiver: receiver_id,
-                default,
-            },
-            self.get_span_from(start),
-        );
-        Ok(coalesce_id)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Cast, Expression, Index, IntType, NodeId, Parser, Runtime, ScalarLiteral,
-        TypeLiteral, assert_node, assert_string,
+        Argument, Expression, Index, NodeId, Parser, Runtime, ScalarLiteral, assert_node,
+        assert_string,
     };
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
@@ -249,39 +204,6 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2));
                 });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_call_postfix_empty() {
-        // ()
-        let mut test = TestParser::new("()");
-        let mut parser = test.prepare();
-        let recv = make_self_expression(&mut parser);
-
-        let call_id = parser
-            .eat_call_postfix(recv, Some(Runtime::Dynamic))
-            .unwrap();
-        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, dynamic_arguments } => {
-            assert_eq!(*receiver, recv);
-            assert_eq!(*runtime, Some(Runtime::Dynamic));
-            assert_eq!(dynamic_arguments.len(), 0);
-        });
-    }
-
-    #[test]
-    fn test_parse_as_postfix() {
-        // as int32
-        let mut test = TestParser::new("as int32");
-        let mut parser = test.prepare();
-        let recv = make_self_expression(&mut parser);
-
-        let cast_id = parser.eat_as_postfix(recv).unwrap();
-        assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {
-            assert_eq!(*receiver, recv);
-            assert_node!(parser.tree, *r#type, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(32), is_signed: true }));
             });
         });
     }
