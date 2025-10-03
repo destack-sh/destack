@@ -54,7 +54,7 @@ pub enum NodeType {
     // Cast,
     // // Matching
     Match,
-    // MatchCase,
+    MatchCase,
     // Pattern,
     // PatternField,
 }
