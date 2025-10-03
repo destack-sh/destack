@@ -1,6 +1,6 @@
 //! Semantic token LSP.
 
-use dyst_ast::{Module, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType};
+use dyst_ast::{Definition, NodeId, NodeTree, SemanticTokenIndex, SemanticType};
 use dyst_source::{Source, Uri};
 use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
@@ -48,7 +48,7 @@ pub fn collect_semantic_tokens(
     source: &Source,
     tokens: &Vec<TokenSpan>,
     tree: &NodeTree,
-    module_id: Option<NodeId<Module>>,
+    root_definition_id: Option<NodeId<Definition>>,
     range: Option<&lsp::Range>,
 ) -> Option<Vec<lsp::SemanticToken>> {
     if tokens.is_empty() {
@@ -57,9 +57,9 @@ pub fn collect_semantic_tokens(
 
     // build semantic type mapping from AST if available
     let mut semantic_index = SemanticTokenIndex::from_tokens(source, tokens);
-    if let Some(module_id) = module_id {
-        let module = tree.get(module_id);
-        semantic_index.visit_module(tree, module_id, module);
+    if let Some(definition_id) = root_definition_id {
+        let definition = tree.get(definition_id);
+        semantic_index.visit_definition(tree, definition_id, definition);
     }
 
     // convert range to byte span for filtering
@@ -170,7 +170,7 @@ impl Workspace {
                 source,
                 all_tokens,
                 ast,
-                module_id,
+                root_definition_id: module_id,
                 ..
             } => collect_semantic_tokens(source, all_tokens, ast, *module_id, None),
             _ => None,
@@ -189,7 +189,7 @@ impl Workspace {
                 source,
                 all_tokens,
                 ast,
-                module_id,
+                root_definition_id: module_id,
                 ..
             } => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range)),
             _ => None,

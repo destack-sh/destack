@@ -4,6 +4,7 @@ use dyst_fir::{format_args, write};
 
 use crate::argument::list_like;
 use crate::r#let::FormatScopedMutability;
+use crate::literal::format_scalar_literal;
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
     Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator, Visibility,
@@ -332,7 +333,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // scalar literal
-            Expression::ScalarLiteral(node) => node.format(f)?,
+            Expression::ScalarLiteral(node) => {
+                format_scalar_literal(node, f.context().tree.get_span(node_id), f)?;
+            }
 
             // type literal
             Expression::TypeLiteral(node) => node.format(f)?,
