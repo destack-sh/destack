@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{BlockFormat, Keyword, NodeId, NodeType, ParseResult, Parser, Trait, Visibility};
+use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, ParseResult, Parser, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -30,12 +30,12 @@ impl<'a> Parser<'a> {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_trait(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Trait>> {
+    pub fn eat_trait(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
         self.eat_keyword(Keyword::Trait)
-            .for_node_type(NodeType::Trait)?;
+            .for_node_type(NodeType::Definition)?;
 
         // optional name
         let name = self.eat_identifier_or_wildcard_maybe()?;
@@ -51,16 +51,16 @@ impl<'a> Parser<'a> {
 
         // body
         self.eat_token(TokenType::OpenBrace)
-            .for_node_type(NodeType::Trait)?;
+            .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let statements = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)
-            .for_node_type(NodeType::Trait)?;
+            .for_node_type(NodeType::Definition)?;
 
         let trait_id = self.tree.allocate(
-            Trait {
+            Definition::Trait {
                 name,
                 visibility,
                 static_parameters,
@@ -77,7 +77,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Expression, Function, Trait, WithClause, assert_node, assert_path, assert_string};
+    use crate::{
+        Definition, Expression, WithClause, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
@@ -85,7 +87,7 @@ mod tests {
         let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, with, expressions, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with, expressions, .. } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
             assert!(with.is_none());
@@ -99,7 +101,7 @@ mod tests {
         let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, super_types, expressions, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, super_types, expressions, .. } => {
             assert_eq!(expressions.len(), 0);
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
@@ -129,7 +131,7 @@ trait Foo: Baz {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, expressions, super_types, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, expressions, super_types, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert_eq!(expressions.len(), 3);
 
@@ -148,7 +150,7 @@ trait Foo: Baz {
         let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, .. } => {
             assert_string!(parser.session, name.unwrap(), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -168,7 +170,7 @@ trait Baz<T> with T: Copy {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, with, expressions, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
@@ -192,8 +194,8 @@ trait Baz<T> with T: Copy {
 
             // function baz() => T
             let expression_id = expressions[0];
-            assert_node!(parser.tree, expression_id, Expression::Function(func_id) => {
-                assert_node!(parser.tree, *func_id, Function { name, return_type, .. } => {
+            assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { name, return_type, .. } => {
                     // baz
                     assert_string!(parser.session, name.unwrap(), "baz");
                     // => T

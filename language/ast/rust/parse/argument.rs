@@ -246,7 +246,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, TypeLiteral, assert_bool, assert_int, assert_node, assert_string,
+        Argument, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_string,
     };
 
     #[test]
@@ -273,13 +273,13 @@ mod tests {
         assert_string!(parser.session, parameter.name, "x");
 
         // int32
-        assert_node!(parser.tree, parameter.r#type.unwrap(),
-            Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, Some(32));
-                    assert!(int_ty.is_signed);
-                });
-            }
+        assert_node!(
+            parser.tree,
+            parameter.r#type.unwrap(),
+            Expression::TypeLiteral(TypeLiteral::Int(IntType {
+                width: Some(32),
+                is_signed: true
+            }))
         );
         assert!(parameter.default.is_none());
     }
@@ -299,16 +299,16 @@ mod tests {
         assert_node!(
             parser.tree,
             parameter.r#type.unwrap(),
-            Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Boolean);
-            }
+            Expression::TypeLiteral(TypeLiteral::Boolean)
         );
 
         // false
         assert!(parameter.default.is_some());
-        assert_node!(parser.tree, parameter.default.unwrap(), Expression::ScalarLiteral(literal_id) => {
-            assert_bool!(parser.tree, *literal_id, false);
-        });
+        assert_node!(
+            parser.tree,
+            parameter.default.unwrap(),
+            Expression::ScalarLiteral(ScalarLiteral::Boolean(false))
+        );
     }
 
     #[test]
@@ -322,9 +322,7 @@ mod tests {
             // x
             assert_string!(parser.session, *name, "x");
             // 1
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
-                assert_int!(parser.tree, *literal_id, 1);
-            });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
 
@@ -337,9 +335,7 @@ mod tests {
 
         assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
             // 3
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
-                assert_int!(parser.tree, *literal_id, 3);
-            });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
     }
 }

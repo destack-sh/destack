@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
                 let scalar_literal_id =
                     self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
                 self.tree.allocate(
-                    Pattern::Literal(scalar_literal_id),
+                    Pattern::ScalarLiteral(scalar_literal_id),
                     self.get_span_from(start),
                 )
             }
@@ -314,9 +314,7 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, target } => {
             assert_eq!(*mutability, Mutability::Immutable);
             // 1
-            assert_node!(parser.tree, *target, Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1))
-            });
+            assert_node!(parser.tree, *target, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
         })
     }
 
@@ -353,16 +351,12 @@ mod tests {
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser.session, *name, "x");
-                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
 
             // var y
@@ -429,16 +423,12 @@ mod tests {
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser.session, *name, "x");
-                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
-                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
-                });
+                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
 
             // ..
@@ -459,19 +449,13 @@ mod tests {
             assert_eq!(fields.len(), 3);
 
             // 1
-            assert_node!(parser.tree, fields[0], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1));
-            });
+            assert_node!(parser.tree, fields[0], Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
 
             // 2
-            assert_node!(parser.tree, fields[1], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2));
-            });
+            assert_node!(parser.tree, fields[1], Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
 
             // 3
-            assert_node!(parser.tree, fields[2], Pattern::Literal(literal) => {
-                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(3));
-            });
+            assert_node!(parser.tree, fields[2], Pattern::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
     }
 }

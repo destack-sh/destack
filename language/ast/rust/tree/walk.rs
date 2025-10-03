@@ -141,11 +141,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         // Try/catch statement.
         Expression::Try {
             runtime: _,
-            try_block,
+            r#try,
             catch,
         } => {
-            let try_block_node = tree.get(*try_block);
-            visitor.visit_block(tree, *try_block, try_block_node);
+            let try_expr_node = tree.get(*r#try);
+            visitor.visit_expression(tree, *r#try, try_expr_node);
             if let Some(catch_id) = catch {
                 let catch_expr = tree.get(*catch_id);
                 visitor.visit_expression(tree, *catch_id, catch_expr);
@@ -289,12 +289,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Index { receiver, index } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
-            let index_expr = tree.get(*index);
-            visitor.visit_expression(tree, *index, index_expr);
+            if let Some(index_id) = index {
+                let index_expr = tree.get(*index_id);
+                visitor.visit_expression(tree, *index_id, index_expr);
+            }
         }
 
         // Call operation.
         Expression::Call {
+            runtime: _,
             receiver,
             dynamic_arguments,
         } => {
@@ -780,7 +783,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let target_pattern = tree.get(*target);
             visitor.visit_pattern(tree, *target, target_pattern);
         }
-        Pattern::Literal(_) => {
+        Pattern::ScalarLiteral(_) => {
             // no child nodes to visit
         }
         Pattern::Binding { name: _ } => {

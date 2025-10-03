@@ -1,10 +1,8 @@
-use crate::parse::prelude::*;
+use crate::Expression;
 use dyst_source::PathId;
 use dyst_token::TokenType;
 
-use crate::{
-    Keyword, Let, Mutability, NodeId, NodeType, ParseResult, Parser, ScopedMutability, Visibility,
-};
+use crate::{Keyword, Mutability, NodeId, ParseResult, Parser, ScopedMutability, Visibility};
 
 impl Mutability {
     /// Get the keyword for this mutability.
@@ -111,12 +109,12 @@ impl<'a> Parser<'a> {
     /// let t? = foo() else { return }
     /// let t = foo() ?? return;
     /// ```
-    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Let>> {
+    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability
         let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
-            self.eat_scoped_mutability().for_node_type(NodeType::Let)?
+            self.eat_scoped_mutability()?
         } else {
             self.bump();
             ScopedMutability::Unscoped {
@@ -125,14 +123,13 @@ impl<'a> Parser<'a> {
         };
 
         // pattern
-        let pattern = self.eat_pattern().for_node_type(NodeType::Let)?;
+        let pattern = self.eat_pattern()?;
 
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
-            let r#type = self
-                .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                .for_node_type(NodeType::Let)?;
+            let r#type =
+                self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
             Some(r#type)
         } else {
             None
@@ -142,7 +139,7 @@ impl<'a> Parser<'a> {
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            Some(self.eat_expression().for_node_type(NodeType::Let)?)
+            Some(self.eat_expression()?)
         } else {
             // implicitly uninitialized
             None
@@ -150,7 +147,7 @@ impl<'a> Parser<'a> {
 
         // let
         let let_id = self.tree.allocate(
-            Let {
+            Expression::Let {
                 pattern,
                 mutability,
                 visibility,
@@ -167,8 +164,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Call, Expression, FloatType, Index, IntType, Let, Mutability, Pattern, PatternField,
-        ScopedMutability, TypeLiteral, assert_int, assert_node, assert_path, assert_string,
+        Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
+        TypeLiteral, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -183,7 +180,7 @@ var(x, y) pos: Vector4
         let let_id = parser.eat_let(None).unwrap();
 
         // var(x, y) pos: Vector2 = --
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type: ty, value: _, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type: ty, value: _, .. } => {
             // var(x, y)
             match mutability {
                 ScopedMutability::Scoped { mutability, scopes } => {
@@ -217,7 +214,7 @@ let x: int32 = 1
 
         let let_id = parser.eat_let(None).unwrap();
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser.session, *name, "x");
@@ -226,16 +223,14 @@ let x: int32 = 1
 
             // int32
             let ty_id = r#type.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width: Some(32), is_signed: _ }) => {
-                });
+            assert_node!(parser.tree, ty_id, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
             });
 
             // 1
             let value_id = value.expect("expected value");
-            assert_node!(parser.tree, value_id, Expression::ScalarLiteral(lit_id) => {
-                assert_int!(parser.tree, *lit_id, 1);
-            });
+            assert_node!(parser.tree, value_id, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
 
@@ -252,7 +247,7 @@ var x: float64[3] = undefined
         let let_id = parser.eat_let(None).unwrap();
         let x = parser.intern_string("x");
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type,  .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type,  .. } => {
             // var (mutable)
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
@@ -263,15 +258,11 @@ var x: float64[3] = undefined
 
             // float64[3]
             let ty_id = r#type.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, Expression::Index(index) => {
-                assert_node!(parser.tree, *index, Index::Explicit { receiver, index } => {
-                    assert_node!(parser.tree, *receiver, Expression::TypeLiteral(literal_id) => {
-                        assert_node!(parser.tree, *literal_id, TypeLiteral::Float(FloatType { width: Some(64) }));
-                    });
-                    assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
-                        assert_int!(parser.tree, *lit_id, 3);
-                    });
+            assert_node!(parser.tree, ty_id, Expression::Index { receiver, index } => {
+                assert_node!(parser.tree, *receiver, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
+                    assert_eq!(float_ty.width, Some(64));
                 });
+                assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
         });
     }
@@ -290,7 +281,7 @@ let (x, y) = foo()
         let x = parser.intern_string("x");
         let y = parser.intern_string("y");
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
             // (x, y)
             assert_node!(parser.tree, *pattern, Pattern::Tuple { fields, .. } => {
                 assert_eq!(fields.len(), 2);
@@ -322,7 +313,7 @@ let (x, y) = foo()
         let x = parser.intern_string("x");
 
         // let x: int32
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
@@ -349,7 +340,7 @@ let x =
         let x = parser.intern_string("x");
 
         // let x = foo.parse()
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
@@ -358,12 +349,10 @@ let x =
 
             // foo.parse()
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::Call(call_id) => {
-                assert_node!(parser.tree, *call_id, Call { runtime, receiver, dynamic_arguments: _ } => {
-                    assert_eq!(*runtime, None);
-                    assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "foo.parse");
-                    });
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { runtime, receiver, dynamic_arguments: _ } => {
+                assert_eq!(*runtime, None);
+                assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
+                    assert_path!(parser.session, *path, "foo.parse");
                 });
             });
         });

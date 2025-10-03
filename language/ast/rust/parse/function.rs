@@ -5,7 +5,7 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Function, FunctionStyle, Keyword, Mutability, NodeId, NodeType, ParseResult, Parser, Runtime,
+    Definition, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
     SelfParameter, Visibility,
 };
 
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     pub fn eat_function(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> ParseResult<NodeId<Function>> {
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // function
@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
 
         // name
         let name = if self.peek_identifier().is_ok() {
-            Some(self.eat_identifier().for_node_type(NodeType::Function)?)
+            Some(self.eat_identifier()?)
         } else {
             None
         };
@@ -104,9 +104,7 @@ impl<'a> Parser<'a> {
         // static parameters
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let static_parameters = self
-                .eat_parameters_body()
-                .for_node_type(NodeType::Function)?;
+            let static_parameters = self.eat_parameters_body()?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_parameters)
         } else {
@@ -122,10 +120,8 @@ impl<'a> Parser<'a> {
         let self_parameter: Option<SelfParameter> = {
             // var_ self
             if self.peek_keyword(Keyword::Var).is_ok() {
-                let mutability = self
-                    .eat_scoped_mutability()
-                    .for_node_type(NodeType::Function)?;
-                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
+                let mutability = self.eat_scoped_mutability()?;
+                self.eat_self_keyword()?; // eat self
                 Some(SelfParameter {
                     mutability,
                     is_pointer: false,
@@ -147,10 +143,8 @@ impl<'a> Parser<'a> {
                 && self.peek_next_keyword(Keyword::Var).is_ok()
             {
                 self.bump(); // eat &
-                let mutability = self
-                    .eat_scoped_mutability()
-                    .for_node_type(NodeType::Function)?;
-                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
+                let mutability = self.eat_scoped_mutability()?;
+                self.eat_self_keyword()?; // eat self
                 Some(SelfParameter {
                     mutability,
                     is_pointer: true,
@@ -161,7 +155,7 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
                 self.bump(); // eat &
-                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
+                self.eat_self_keyword()?; // eat self
                 Some(SelfParameter {
                     mutability: ScopedMutability::Unscoped {
                         mutability: Mutability::Immutable,
@@ -184,8 +178,7 @@ impl<'a> Parser<'a> {
         let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             vec![]
         } else {
-            self.eat_parameters_body()
-                .for_node_type(NodeType::Function)?
+            self.eat_parameters_body()?
         };
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -196,8 +189,7 @@ impl<'a> Parser<'a> {
             let return_type = self
                 .with_options(self.options.nested_in_before_block(), |parser| {
                     parser.eat_expression()
-                })
-                .for_node_type(NodeType::Function)?;
+                })?;
             Some(return_type)
         } else {
             None
@@ -208,13 +200,13 @@ impl<'a> Parser<'a> {
 
         // body
         let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-            Some(self.eat_block().for_node_type(NodeType::Function)?)
+            Some(self.eat_block()?)
         } else {
             None
         };
 
         let function_id = self.tree.allocate(
-            Function {
+            Definition::Function {
                 name,
                 visibility,
                 runtime,
@@ -238,8 +230,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Function, Mutability, ScopedMutability, TypeLiteral, UnaryOperator, WithClause,
-        assert_node, assert_path, assert_string,
+        Definition, Expression, Mutability, ScopedMutability, TypeLiteral, UnaryOperator,
+        WithClause, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -258,12 +250,11 @@ function foo() => int32 with (
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Function { name, with, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, with, return_type, .. } => {
             // function name
             assert_string!(parser.session, name.unwrap(), "foo");
 
             // with clause present
-            let with_id = with.expect("expected with declaration");
             let with = parser.tree.get(with_id);
             assert_eq!(with.clauses.len(), 3);
 
@@ -297,11 +288,9 @@ function foo() => int32 with (
 
             // return type
             let ret = return_type.expect("expected return type");
-            assert_node!(parser.tree, ret, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, Some(32));
-                    assert!(int_ty.is_signed);
-                });
+            assert_node!(parser.tree, ret, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
             });
         });
     }
@@ -312,7 +301,7 @@ function foo() => int32 with (
         let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_string!(parser.session, name.unwrap(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
@@ -337,7 +326,7 @@ function b(
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_string!(parser.session, name.unwrap(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
@@ -349,11 +338,9 @@ function b(
             assert_string!(parser.session, param.name, "x");
 
             let param_type = param.r#type.expect("expected type for parameter x");
-            assert_node!(parser.tree, param_type, Expression::TypeLiteral(literal_id) => {
-                assert_node!(parser.tree, *literal_id, TypeLiteral::Int(int_ty) => {
-                    assert_eq!(int_ty.width, Some(32));
-                    assert!(int_ty.is_signed);
-                });
+            assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
             });
         });
     }
@@ -364,7 +351,7 @@ function b(
         let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_string!(parser.session, name.unwrap(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");

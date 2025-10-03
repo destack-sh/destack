@@ -728,7 +728,7 @@ pub enum Expression {
     /// ```
     Try {
         runtime: Option<Runtime>,
-        try_block: NodeId<Block>,
+        r#try: NodeId<Expression>,
         catch: Option<NodeId<Expression>>,
     },
 
@@ -943,7 +943,7 @@ pub enum Expression {
     /// foo.1 // for member access tuple
     Index {
         receiver: NodeId<Expression>,
-        index: NodeId<Expression>,
+        index: Option<NodeId<Expression>>,
     },
 
     /// A Call is call to a function OR an instantiation of a tuple type.
@@ -961,6 +961,7 @@ pub enum Expression {
     /// MyUnion.Baz(2, 3)
     /// ```
     Call {
+        runtime: Option<Runtime>,
         receiver: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },

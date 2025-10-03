@@ -1,5 +1,4 @@
-use crate::parse::prelude::*;
-use crate::{BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser};
+use crate::{BlockFormat, Definition, Keyword, NodeId, ParseResult, Parser};
 use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -23,7 +22,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self) -> ParseResult<NodeId<Implement>> {
+    pub fn eat_implement(&mut self) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -33,39 +32,33 @@ impl<'a> Parser<'a> {
         let static_arguments = self.eat_static_arguments_maybe()?;
 
         // receiver
-        let receiver = self
-            .with_options(self.options.in_before_block(), |parser| {
-                parser.eat_expression()
-            })
-            .for_node_type(NodeType::Implement)?;
+        let receiver = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.bump(); // eat for
-            let for_trait = self
-                .with_options(self.options.in_before_block(), |parser| {
-                    parser.eat_expression()
-                })
-                .for_node_type(NodeType::Implement)?;
+            let for_trait = self.with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })?;
             Some(for_trait)
         } else {
             None
         };
 
         // optional with declaration
-        let with = self.eat_with_maybe().for_node_type(NodeType::Implement)?;
+        let with = self.eat_with_maybe()?;
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
-        let expressions = self
-            .eat_block_body(BlockFormat::Explicit)
-            .for_node_type(NodeType::Implement)?;
+        let expressions = self.eat_block_body(BlockFormat::Explicit)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // implement
         let implement_id = self.tree.allocate(
-            Implement {
+            Definition::Implement {
                 static_arguments,
                 receiver,
                 for_trait,
@@ -81,7 +74,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Argument, Expression, Implement, IntType, TypeLiteral, assert_node, assert_path};
+    use crate::{Argument, Definition, Expression, IntType, TypeLiteral, assert_node, assert_path};
 
     #[test]
     fn test_parse_implement_simple() {
@@ -95,7 +88,7 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(for_trait.is_none());
             assert!(expressions.is_empty());
@@ -119,7 +112,7 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(for_trait.is_none());
             assert!(expressions.is_empty());
@@ -132,11 +125,9 @@ implement Foo<int32> {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
-                        assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                            assert_eq!(*width, Some(32));
-                            assert!(*is_signed);
-                        });
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                        assert_eq!(*width, Some(32));
+                        assert!(*is_signed);
                     });
                 });
             });
@@ -155,7 +146,7 @@ implement Bar<int32> for Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(expressions.is_empty());
 
@@ -167,11 +158,9 @@ implement Bar<int32> for Baz {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(literal_id) => {
-                        assert_node!(parser.tree, *literal_id, TypeLiteral::Int(IntType { width, is_signed }) => {
-                            assert_eq!(*width, Some(32));
-                            assert!(*is_signed);
-                        });
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                        assert_eq!(*width, Some(32));
+                        assert!(*is_signed);
                     });
                 });
             });
@@ -195,7 +184,7 @@ implement<T> Bar<T> for Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Implement { static_arguments, receiver, for_trait, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, expressions, .. } => {
             assert!(expressions.is_empty());
 
             // <T>
