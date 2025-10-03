@@ -991,8 +991,6 @@ pub enum Expression {
     Error,
 }
 
-impl Expression {}
-
 impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
 }

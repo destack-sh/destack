@@ -1,9 +1,8 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, Break, CONTAINER_NODE_TYPES, Continue, Defer, DystFormatContext, DystFormatter,
-    Expression, FormatNode, INLINE_NODE_TYPES, Keyword, Node, NodeId, NodeTree, NodeTreeStore,
-    NodeType,
+    Block, CONTAINER_NODE_TYPES, DystFormatContext, DystFormatter, Expression, FormatNode,
+    INLINE_NODE_TYPES, Keyword, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -131,68 +130,6 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, Break> for Break {
-    fn format_node(
-        &self,
-        node_id: NodeId<Break>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        write!(f, [Keyword::Break])?;
-        // label
-        if let Some(label) = &self.label {
-            write!(f, [token(": "), label])?;
-        }
-        // value
-        if let Some(value) = &self.value {
-            write!(f, [space(), value])?;
-        }
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, Continue> for Continue {
-    fn format_node(
-        &self,
-        node_id: NodeId<Continue>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        write!(f, [Keyword::Continue])?;
-        // label
-        if let Some(label) = &self.label {
-            write!(f, [token(": "), label])?;
-        }
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-        Ok(())
-    }
-}
-
-impl<'ast> FormatNode<'ast, Defer> for Defer {
-    fn format_node(
-        &self,
-        node_id: NodeId<Defer>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        write!(f, [Keyword::Defer])?;
-        match self {
-            Defer::Expression(expression) => {
-                write!(f, [space(), expression])?;
-            }
-            Defer::Block(block) => {
-                write!(f, [space(), block])?;
-            }
-            Defer::Catch(match_) => {
-                write!(f, [space(), Keyword::Catch, space(), match_])?;
-            }
-        }
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
