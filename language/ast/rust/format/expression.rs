@@ -43,7 +43,12 @@ pub(crate) fn format_if_chain<'ast>(
 
                 // next node
                 if let Some(else_block) = else_block {
-                    write!(f, [space(), Keyword::Else, space()])?;
+                    if !f.context().has_prefix_annotation(*else_block)
+                        && !f.context().has_postfix_annotation(*then_block)
+                    {
+                        write!(f, [space()])?;
+                    }
+                    write!(f, [Keyword::Else, space()])?;
                     match f.context().tree.get(*else_block) {
                         // else if
                         Expression::If { .. } => {
@@ -422,7 +427,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // array literal
             Expression::ArrayLiteral { elements } => {
-                write!(f, [list_like("[", "]", ",", elements)])?;
+                write!(f, [list_like("[", "]", ",", false, elements)])?;
             }
 
             // tuple literal
@@ -430,13 +435,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if elements.len() == 1 {
                     write!(f, [token("("), elements[0], token(","), token(")")])?;
                 } else {
-                    write!(f, [list_like("(", ")", ",", elements)])?;
+                    write!(f, [list_like("(", ")", ",", false, elements)])?;
                 }
             }
 
             // struct literal
             Expression::StructLiteral { r#type, fields } => {
-                write!(f, [r#type, space(), list_like("{", "}", ",", fields)])?;
+                write!(f, [r#type, space(), list_like("{", "}", ",", true, fields)])?;
             }
 
             // parenthesized
@@ -491,7 +496,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
                 write!(f, [receiver])?;
                 if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
-                    write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+                    write!(f, [list_like("(", ")", ",", false, dynamic_arguments)])?;
                 }
             }
 
