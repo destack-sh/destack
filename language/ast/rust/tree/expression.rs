@@ -19,8 +19,7 @@ use crate::{
 /// << >> <<|                 // shift
 /// & ^ |                     // elementwise
 /// == != < > <= >=           // comparison
-/// && ||                     // logical
-/// ?? as                     // coalesce
+/// && || ?? as               // logical
 /// =                         // assignment
 /// *= /= %= **= *%= *|=      // assignment multiplication
 /// += -= +%= -%= +|= -|=     // assignment addition
@@ -156,9 +155,13 @@ pub enum BinaryOperator {
 
     // logical
     /// `&&`
-    And = 171,
+    And = 173,
     /// `||`
-    Or = 170,
+    Or = 172,
+    /// `??`
+    Coalesce = 171,
+    /// `as`
+    Cast = 170,
 }
 
 /// An AssignOperator is assignment type.
@@ -276,6 +279,8 @@ impl BinaryOperator {
             // logical
             BinaryOperator::And => OperatorPrecedence::Logical,
             BinaryOperator::Or => OperatorPrecedence::Logical,
+            BinaryOperator::Coalesce => OperatorPrecedence::Logical,
+            BinaryOperator::Cast => OperatorPrecedence::Logical,
         }
     }
 
@@ -287,7 +292,10 @@ impl BinaryOperator {
 
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_token_type(token_type: TokenType) -> Option<BinaryOperator> {
+    pub fn from_token(token_str: &str, token_type: TokenType) -> Option<BinaryOperator> {
+        if token_str == "as" {
+            return Some(BinaryOperator::Cast);
+        }
         match token_type {
             // multiplication
             TokenType::Multiply => Some(BinaryOperator::Multiply),
@@ -324,7 +332,8 @@ impl BinaryOperator {
             // logical
             TokenType::LogicalAnd => Some(BinaryOperator::And),
             TokenType::LogicalOr => Some(BinaryOperator::Or),
-
+            TokenType::Coalesce => Some(BinaryOperator::Coalesce),
+            // cast handled up front
             _ => None,
         }
     }
@@ -424,7 +433,7 @@ impl AssignOperator {
 
     /// Convert a TokenType to an AssignOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_token_type(token_type: TokenType) -> Option<AssignOperator> {
+    pub fn from_token(token_type: TokenType) -> Option<AssignOperator> {
         match token_type {
             TokenType::Assign => Some(AssignOperator::Assign),
 
@@ -517,48 +526,6 @@ impl InfixOperator {
             InfixOperator::Assign(assign_operator) => assign_operator.precedence(),
         }
     }
-}
-
-/// A Cast is an `as` infallible type cast or transmutation.
-///
-/// Examples:
-/// ```
-/// x as int32
-/// x as Vector2
-/// y() as Mesh<Dims: 2>
-/// ```
-///
-#[derive(Debug, Clone, PartialEq)]
-pub struct Cast {
-    /// The receiver of the cast (including expression to cast).
-    pub receiver: NodeId<Expression>,
-    /// The type to cast to.
-    pub r#type: NodeId<Expression>,
-}
-
-impl Node for Cast {
-    const KIND: NodeType = NodeType::Cast;
-}
-
-/// A Coalesce is an `??` coalesce operation.
-///
-/// Examples:
-/// ```
-/// x ?? 0
-/// x ?? false
-/// y() ?? 0
-/// ```
-///
-#[derive(Debug, Clone, PartialEq)]
-pub struct Coalesce {
-    /// The receiver of the coalesce (including expression to coalesce).
-    pub receiver: NodeId<Expression>,
-    /// The default value to return if the expression is `null`.
-    pub default: NodeId<Expression>,
-}
-
-impl Node for Coalesce {
-    const KIND: NodeType = NodeType::Coalesce;
 }
 
 /// An Expression is a generic container for value-producing forms.
@@ -654,14 +621,10 @@ pub enum Expression {
     Index(NodeId<Index>),
     /// Call to a function (postfix as an Expression, see Call).
     Call(NodeId<Call>),
-    /// Cast to a type (postfix as an Expression, see As).
-    Cast(NodeId<Cast>),
     /// Maybe unwrap an expression with `?` and propagate (postfix as an Expression).
     Maybe(NodeId<Expression>),
     /// Force unwrap an expression with `!` and propagate (postfix as an Expression).
     Must(NodeId<Expression>),
-    /// Coalesce an expression with `??` (postfix as an Expression).
-    Coalesce(NodeId<Coalesce>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
     Binary {
         left: NodeId<Expression>,
@@ -726,10 +689,8 @@ impl Expression {
             Expression::Member { .. } => None,
             Expression::Index(_) => Some(NodeType::Index),
             Expression::Call(_) => Some(NodeType::Call),
-            Expression::Cast(_) => Some(NodeType::Cast),
             Expression::Maybe(_) => None,
             Expression::Must(_) => None,
-            Expression::Coalesce(_) => Some(NodeType::Coalesce),
 
             // binary operations
             Expression::Binary { .. } => None,

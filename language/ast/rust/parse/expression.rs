@@ -26,6 +26,7 @@ static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
 /// Make an infix operator.
 #[inline]
 fn to_infix_operator(
+    token_str: &str,
     token: &TokenSpan,
     next_token: &TokenSpan,
     options: ParserOptions,
@@ -39,7 +40,7 @@ fn to_infix_operator(
     }
     // regular binary operator
     // (only a subset of binary operators are allowed in static types)
-    else if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
+    else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.r#type)
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
@@ -48,7 +49,7 @@ fn to_infix_operator(
     // (not allowed in static arguments)
     else if !options.in_static
         && !options.in_type
-        && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
+        && let Some(assign_operator) = AssignOperator::from_token(token.token.r#type)
     {
         Ok((InfixOperator::Assign(assign_operator), 1))
     }
@@ -77,16 +78,18 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek()?;
+        let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next()?;
-        to_infix_operator(token, next_token, self.options)
+        to_infix_operator(token_str, token, next_token, self.options)
     }
 
     /// Peek a next infix operator.
     #[inline]
     pub fn peek_next_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
+        let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next_next()?;
-        to_infix_operator(token, next_token, self.options)
+        to_infix_operator(token_str, token, next_token, self.options)
     }
 
     /// Make an expression from an infix operator.
@@ -629,23 +632,6 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Must(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // NOTE: shouldn't cast / coalesce be handled like infix operators?
-            // cast
-            else if self.peek_keyword(Keyword::As).is_ok() {
-                let cast_id = self
-                    .eat_as_postfix(left_expression_id)
-                    .for_node_type(NodeType::Cast)?;
-                let expression = Expression::Cast(cast_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            }
-            // coalesce
-            else if self.peek_token(TokenType::Coalesce).is_ok() {
-                let coalesce_id = self
-                    .eat_coalesce_postfix(left_expression_id)
-                    .for_node_type(NodeType::Coalesce)?;
-                let expression = Expression::Coalesce(coalesce_id);
-                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            }
             // tuple (if we have a comma / newline following an expression inside parentheses)
             else if self.options.in_parenthesis
                 && (self.peek_token(TokenType::Comma).is_ok()
@@ -737,10 +723,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability,
-        Pattern, RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral,
-        TupleLiteral, TupleLiteralField, UnaryOperator, assert_expr_path, assert_int,
-        assert_lit_int, assert_node, assert_path, assert_string,
+        Argument, BinaryOperator, Call, Expression, FieldLiteral, Let, Mutability, Pattern,
+        RangeLiteral, Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral,
+        TupleLiteralField, UnaryOperator, assert_expr_path, assert_int, assert_lit_int,
+        assert_node, assert_path, assert_string,
     };
 
     /// Empty parenthesis are tuples.
@@ -1616,30 +1602,26 @@ self
             parser.tree,
             expr_id,
             // ((y.sqrt()) ?? 0)
-            Expression::Coalesce(coalesce_id) => {
+            Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Coalesce);
+
+                // (y.sqrt())
+                assert_node!(parser.tree, *left, Expression::Call(call_id) => {
+                    assert_node!(parser.tree, *call_id, Call { receiver, .. } => {
+                        // y.sqrt
+                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
+                    });
+                });
+
+                // 0
                 assert_node!(
                     parser.tree,
-                    *coalesce_id,
-                    Coalesce { receiver, default } => {
-                        // (y.sqrt())
-                        assert_node!(parser.tree, *receiver, Expression::Call(call_id) => {
-                            assert_node!(parser.tree, *call_id, Call { receiver, .. } => {
-                                // y.sqrt
-                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
-                            });
-                        });
-
-                        // 0
+                    *right,
+                    Expression::ScalarLiteral(scalar_id) => {
                         assert_node!(
                             parser.tree,
-                            *default,
-                            Expression::ScalarLiteral(scalar_id) => {
-                                assert_node!(
-                                    parser.tree,
-                                    *scalar_id,
-                                    ScalarLiteral::Integer(0)
-                                );
-                            }
+                            *scalar_id,
+                            ScalarLiteral::Integer(0)
                         );
                     }
                 );

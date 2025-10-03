@@ -1269,7 +1269,11 @@ mod tests {
     /// Token properly handles escaped string literals
     #[test]
     fn test_token_handles_escaped_strings() {
-        let nodes = format!(SimpleFormatContext::empty_dyst(), [token("\"Hello\\tWorld\"")]).unwrap();
+        let nodes = format!(
+            SimpleFormatContext::empty_dyst(),
+            [token("\"Hello\\tWorld\"")]
+        )
+        .unwrap();
 
         assert_eq!(r#""Hello\tWorld""#, nodes.print().unwrap().as_str());
     }

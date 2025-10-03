@@ -58,8 +58,6 @@ pub enum NodeType {
     // calls
     Index,
     Call,
-    Cast,
-    Coalesce,
     // matching
     Match,
     MatchCase,
@@ -99,7 +97,7 @@ pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
 ];
 
 /// Node types that may appear inline (instead of as a full statement).
-pub(crate) const INLINE_NODE_TYPES: [NodeType; 20] = [
+pub(crate) const INLINE_NODE_TYPES: [NodeType; 18] = [
     // expressions
     NodeType::Expression,
     // declarations
@@ -120,8 +118,6 @@ pub(crate) const INLINE_NODE_TYPES: [NodeType; 20] = [
     NodeType::FieldLiteral,
     // calls
     NodeType::Call,
-    NodeType::Cast,
-    NodeType::Coalesce,
     NodeType::Index,
     // matching
     NodeType::Pattern,

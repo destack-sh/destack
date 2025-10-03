@@ -24,22 +24,21 @@ use std::borrow::Cow;
 
 use crate::{
     Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
-    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, CompositeType,
-    Continue, Decorator, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral,
-    FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match,
-    MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor,
-    Parameter, PathId, PathPool, Pattern, PatternField, RangeLiteral, Return, Runtime,
-    ScalarLiteral, ScopedMutability, StringId, StringPool, Struct, StructField, StructLiteral, Tag,
-    Trait, Try, TupleLiteral, TypeLiteral, UnaryOperator, Union, UnionField, Use, UseClause,
-    UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument,
-    walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce,
-    walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc, walk_enum, walk_enum_field,
-    walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement,
-    walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
-    walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait, walk_try,
-    walk_tuple_literal, walk_type_literal, walk_union, walk_union_field, walk_use, walk_use_clause,
-    walk_use_item, walk_while, walk_with, walk_with_clause,
+    Block, BlockFormat, Break, Call, Comment, CommentStyle, CompositeType, Continue, Decorator,
+    Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function,
+    FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability,
+    Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool,
+    Pattern, PatternField, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability,
+    StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, TupleLiteral,
+    TypeLiteral, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While,
+    With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_blank, walk_block,
+    walk_break, walk_call, walk_comment, walk_continue, walk_decorator, walk_defer, walk_doc,
+    walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function,
+    walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case,
+    walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
+    walk_scalar_literal, walk_struct, walk_struct_field, walk_struct_literal, walk_tag, walk_trait,
+    walk_try, walk_tuple_literal, walk_type_literal, walk_union, walk_union_field, walk_use,
+    walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// The console colors.
@@ -788,17 +787,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Call(_node) => {
                 self.node("Expression::Call", _id.id).end();
             }
-            Expression::Cast(_node) => {
-                self.node("Expression::Cast", _id.id).end();
-            }
             Expression::Maybe(_node) => {
                 self.node("Expression::Maybe", _id.id).end();
             }
             Expression::Must(_node) => {
                 self.node("Expression::Must", _id.id).end();
-            }
-            Expression::Coalesce(_node) => {
-                self.node("Expression::Coalesce", _id.id).end();
             }
             Expression::Binary {
                 left: _,
@@ -1393,20 +1386,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             walk_call(dumper, _tree, _id, call);
-        });
-    }
-
-    fn visit_cast(&mut self, _tree: &NodeTree, _id: NodeId<Cast>, _cast: &Cast) {
-        self.node("Cast", _id.id).end();
-        self.with_depth(|dumper| {
-            walk_cast(dumper, _tree, _id, _cast);
-        });
-    }
-
-    fn visit_coalesce(&mut self, _tree: &NodeTree, _id: NodeId<Coalesce>, _coalesce: &Coalesce) {
-        self.node("Coalesce", _id.id).end();
-        self.with_depth(|dumper| {
-            walk_coalesce(dumper, _tree, _id, _coalesce);
         });
     }
 
