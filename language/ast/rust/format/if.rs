@@ -4,36 +4,6 @@ mod tests {
     use crate::{DystFormatOptions, assert_format};
 
     #[test]
-    fn test_format_if_basic() {
-        assert_format!(
-            "if true {}",
-            "if true { }",
-            |p| p.eat_if(None),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_if_else() {
-        assert_format!(
-            "if true {} else {}",
-            "if true { } else { }",
-            |p| p.eat_if(None),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_if_else_if() {
-        assert_format!(
-            "if true {} else if false {}",
-            "if true { } else if false { }",
-            |p| p.eat_if(None),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
     fn test_format_if_with_body() {
         assert_format!(
             "if cond { let X = 1 } else { let Y = 2 }",

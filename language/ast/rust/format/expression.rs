@@ -1,8 +1,8 @@
-use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 use crate::argument::list_like;
+use crate::block::format_block;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::format_scalar_literal;
 use crate::{
@@ -10,6 +10,116 @@ use crate::{
     Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator, Visibility,
     empty_block_with_infix_annotations,
 };
+
+/// Walk a chain of if expressions and collect the if/else if/else nodes.
+pub(crate) fn format_if_chain<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    // walk the chain
+    let mut next_if_id = node_id;
+    loop {
+        let if_node = f.context().tree.get(next_if_id);
+        match if_node {
+            // if or else if
+            Expression::If {
+                runtime,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                // runtime
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+
+                // if <condition>
+                write!(f, [Keyword::If, space(), condition, space()])?;
+
+                // then block
+                format_block(f, *then_block)?;
+
+                // next node
+                if let Some(else_block) = else_block {
+                    write!(f, [space(), Keyword::Else, space()])?;
+                    match f.context().tree.get(*else_block) {
+                        // else if
+                        Expression::If { .. } => {
+                            next_if_id = *else_block;
+                        }
+                        // else
+                        Expression::Block(else_block_id) => {
+                            format_block(f, *else_block_id)?;
+                            break;
+                        }
+                        _ => panic!("invalid if chain: {else_block:?}"),
+                    }
+                } else {
+                    // bare if
+                    break;
+                }
+            }
+            // shouldn't be anything else
+            _ => panic!("invalid if chain: {if_node:?}"),
+        }
+    }
+    Ok(())
+}
+
+/// Format a match expression.
+#[inline]
+pub(crate) fn format_match<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+    include_prefix: bool,
+) -> FormatResult<()> {
+    let match_node = f.context().tree.get(node_id);
+    let Expression::Match {
+        runtime,
+        value,
+        cases,
+    } = &match_node
+    else {
+        panic!("invalid match expression: {match_node:?}");
+    };
+
+    if include_prefix {
+        // runtime
+        if let Some(runtime) = runtime
+            && *runtime == Runtime::Static
+        {
+            write!(f, [token("@")])?;
+        }
+
+        // match <expression>
+        write!(f, [Keyword::Match, space()])?;
+    }
+
+    write!(f, [value])?;
+
+    // empty match body
+    if cases.is_empty() {
+        write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        return Ok(());
+    }
+
+    // match cases
+    write!(f, [space(), token("{"), hard_line_break()])?;
+    write!(
+        f,
+        [group(&format_args![block_indent(&format_with(|f| f
+            .join_with(hard_line_break())
+            .entries(cases)
+            .finish())),])]
+    )?;
+    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    write!(f, [hard_line_break(), token("}")])?;
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
@@ -128,27 +238,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // if
-            Expression::If {
-                runtime,
-                condition,
-                then_block,
-                else_block,
-            } => {
-                write!(
-                    f,
-                    [group(&format_with(|f| {
-                        if let Some(runtime) = runtime
-                            && *runtime == Runtime::Static
-                        {
-                            write!(f, [token("@")])?;
-                        }
-                        write!(f, [Keyword::If, space(), condition, space(), then_block])?;
-                        if let Some(else_block) = else_block {
-                            write!(f, [space(), Keyword::Else, space(), else_block])?;
-                        }
-                        Ok(())
-                    }))]
-                )?;
+            Expression::If { .. } => {
+                write!(f, [group(&format_with(|f| format_if_chain(f, node_id)))])?;
             }
 
             // while
@@ -221,44 +312,14 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
                 // catch <expression>
                 if let Some(catch) = catch {
-                    write!(f, [space(), Keyword::Catch, space(), catch])?;
+                    write!(f, [space(), Keyword::Catch, space()])?;
+                    format_match(f, *catch, false)?;
                 }
             }
 
             // match
-            Expression::Match {
-                runtime,
-                value,
-                cases,
-            } => {
-                // runtime
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-
-                // match <expression>
-                write!(f, [Keyword::Match, space(), value])?;
-
-                // empty match body
-                if cases.is_empty() {
-                    write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
-                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
-                    return Ok(());
-                }
-
-                // match cases
-                write!(f, [space(), token("{"), hard_line_break()])?;
-                write!(
-                    f,
-                    [group(&format_args![block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(cases)
-                        .finish())),])]
-                )?;
-                write!(f, [f.context().block_infix_annotations(node_id)])?;
-                write!(f, [hard_line_break(), token("}")])?;
+            Expression::Match { .. } => {
+                format_match(f, node_id, true)?;
             }
 
             // break
