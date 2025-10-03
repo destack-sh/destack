@@ -40,7 +40,6 @@ pub enum NodeType {
     Break,
     Continue,
     Defer,
-    Return,
     Try,
     // bindings
     Let,

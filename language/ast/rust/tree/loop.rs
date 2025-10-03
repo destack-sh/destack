@@ -151,19 +151,3 @@ pub enum Defer {
 impl Node for Defer {
     const KIND: NodeType = NodeType::Defer;
 }
-
-/// Return expression.
-///
-/// Examples:
-/// ```
-/// return
-/// return 1
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Return {
-    pub value: Option<NodeId<Expression>>,
-}
-
-impl Node for Return {
-    const KIND: NodeType = NodeType::Return;
-}
