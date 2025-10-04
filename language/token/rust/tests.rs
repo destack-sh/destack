@@ -12,7 +12,7 @@ macro_rules! assert_tokenize_eq_roundtrip {
         // must match the expected tokens
         let mut expected_tokens = vec![$($expected),*];
         // ensure the last token is an EOF token
-        if !matches!(expected_tokens.last(), Some(token) if token.r#type == TokenType::End) {
+        if !matches!(expected_tokens.last(), Some(token) if token.ty == TokenType::End) {
             expected_tokens.push(Token::eof());
         }
         assert_eq!(tokens, expected_tokens);

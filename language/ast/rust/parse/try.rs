@@ -1,6 +1,6 @@
 use dyst_token::TokenType;
 
-use crate::{Expression, Keyword, NodeId, AstResult, Parser, Runtime};
+use crate::{AstResult, Expression, Keyword, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.
@@ -61,8 +61,8 @@ impl<'a> Parser<'a> {
                 let try_id = self.tree.allocate(
                     Expression::Try {
                         runtime,
-                        r#try: block_id,
-                        catch: Some(catch_match_id),
+                        try_block: block_id,
+                        catch_block: Some(catch_match_id),
                     },
                     self.get_span_from(start),
                 );
@@ -73,8 +73,8 @@ impl<'a> Parser<'a> {
                 let try_id = self.tree.allocate(
                     Expression::Try {
                         runtime,
-                        r#try: block_id,
-                        catch: None,
+                        try_block: block_id,
+                        catch_block: None,
                     },
                     self.get_span_from(start),
                 );
@@ -87,8 +87,8 @@ impl<'a> Parser<'a> {
             let try_id = self.tree.allocate(
                 Expression::Try {
                     runtime,
-                    r#try: expression_id,
-                    catch: None,
+                    try_block: expression_id,
+                    catch_block: None,
                 },
                 self.get_span_from(start),
             );
@@ -115,8 +115,8 @@ try foo()
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, r#try, catch: _ } => {
-            assert_node!(parser.tree, *r#try, Expression::Call { runtime: _, receiver, dynamic_arguments: _ } => {
+        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_block, catch_block: _ } => {
+            assert_node!(parser.tree, *try_block, Expression::Call { runtime: _, receiver, dynamic_arguments: _ } => {
                 assert_expr_path!(parser.session, parser.tree.get(*receiver), "foo");
             });
         });
@@ -135,8 +135,8 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, r#try, catch: _ } => {
-            assert_node!(parser.tree, *r#try, Expression::Block(block_id) => {
+        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_block, catch_block: _ } => {
+            assert_node!(parser.tree, *try_block, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
                     assert_node!(parser.tree, expressions[0], Expression::Call { runtime: _, receiver, dynamic_arguments: _ } => {
@@ -164,9 +164,9 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, r#try: _, catch } => {
+        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_block: _, catch_block } => {
             // catch match: value is path e, one case with wildcard and block body
-            assert_node!(parser.tree, catch.unwrap(), Expression::Match { runtime: _, value, cases } => {
+            assert_node!(parser.tree, catch_block.unwrap(), Expression::Match { runtime: _, value, cases } => {
                 assert_expr_path!(parser.session, parser.tree.get(*value), "e");
 
                 assert_eq!(cases.len(), 1);

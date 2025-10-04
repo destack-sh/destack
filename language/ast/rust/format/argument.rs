@@ -99,8 +99,8 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
         write!(f, [self.name])?;
 
         // type
-        if let Some(r#type) = self.r#type {
-            write!(f, [token(": "), r#type])?;
+        if let Some(ty) = self.ty {
+            write!(f, [token(": "), ty])?;
         }
 
         // default

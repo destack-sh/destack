@@ -336,7 +336,7 @@ function b(
             let param = parser.tree.get(dynamic_parameters[0]);
             assert_string!(parser.session, param.name, "x");
 
-            let param_type = param.r#type.expect("expected type for parameter x");
+            let param_type = param.ty.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);

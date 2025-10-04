@@ -5,7 +5,7 @@ impl Token {
     #[inline]
     pub fn render(&self, source: &str, offset: usize) -> String {
         let len = self.len as usize;
-        match self.r#type {
+        match self.ty {
             // structural
             TokenType::Newline => "\n".to_string(),
             TokenType::Whitespace => {

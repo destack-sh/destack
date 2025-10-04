@@ -8,7 +8,7 @@ pub use destack_unicode::UNICODE_VERSION;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     /// The Token tag.
-    pub r#type: TokenType,
+    pub ty: TokenType,
     /// The length of the token in bytes.
     pub len: u32,
     /// The literal body of the token.
@@ -17,18 +17,18 @@ pub struct Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Token {:?}, {}>", self.r#type, self.len)
+        write!(f, "<Token {:?}, {}>", self.ty, self.len)
     }
 }
 
 impl Token {
-    pub const fn new(r#type: TokenType, len: u32, body: Option<RawLiteralType>) -> Token {
-        Token { r#type, len, body }
+    pub const fn new(ty: TokenType, len: u32, body: Option<RawLiteralType>) -> Token {
+        Token { ty, len, body }
     }
 
     pub const fn eof() -> Token {
         Token {
-            r#type: TokenType::End,
+            ty: TokenType::End,
             len: 0,
             body: None,
         }

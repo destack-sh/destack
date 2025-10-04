@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
         loop {
             if self.peek_token(TokenType::Dot).is_ok()
                 && let Ok(after_dot) = self.peek_next()
-                && after_dot.token.r#type == TokenType::Identifier
+                && after_dot.token.ty == TokenType::Identifier
             {
                 self.eat_token(TokenType::Dot)?;
                 let seg = self.eat_identifier()?;
@@ -61,7 +61,7 @@ mod tests {
         assert_path!(parser.session, path, "ds.geometry");
         // ensure next token is the `.` for the group
         let next = parser.peek().unwrap();
-        assert_eq!(next.token.r#type, dyst_token::TokenType::Dot);
+        assert_eq!(next.token.ty, dyst_token::TokenType::Dot);
     }
 
     #[test]
@@ -72,6 +72,6 @@ mod tests {
         assert_path!(parser.session, path, "geom.Vector");
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
-        assert_eq!(next.token.r#type, dyst_token::TokenType::LessThan);
+        assert_eq!(next.token.ty, dyst_token::TokenType::LessThan);
     }
 }

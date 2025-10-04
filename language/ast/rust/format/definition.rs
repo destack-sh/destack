@@ -237,8 +237,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // header
                 write!(f, [Keyword::Enum])?;
                 // type
-                if let Some(r#type) = tag_type {
-                    write!(f, [token("("), r#type, token(")"), space()])?;
+                if let Some(ty) = tag_type {
+                    write!(f, [token("("), ty, token(")"), space()])?;
                 } else {
                     write!(f, [space()])?;
                 }

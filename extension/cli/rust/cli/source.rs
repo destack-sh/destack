@@ -84,7 +84,7 @@ pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<Semantic
     let semantic_types = index.semantic_types;
     let mut spans = Vec::with_capacity(all_tokens.len());
     for (token, semantic_type) in all_tokens.iter().zip(semantic_types.into_iter()) {
-        if token.token.r#type == TokenType::End {
+        if token.token.ty == TokenType::End {
             continue;
         }
         let slice = &source.content[token.span.start as usize..token.span.end as usize];

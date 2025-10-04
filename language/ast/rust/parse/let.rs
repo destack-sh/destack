@@ -2,7 +2,7 @@ use crate::Expression;
 use dyst_source::PathId;
 use dyst_token::TokenType;
 
-use crate::{Keyword, Mutability, NodeId, AstResult, Parser, ScopedMutability, Visibility};
+use crate::{AstResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
 
 impl Mutability {
     /// Get the keyword for this mutability.
@@ -126,11 +126,10 @@ impl<'a> Parser<'a> {
         let pattern = self.eat_pattern()?;
 
         // type
-        let r#type = if self.peek_colon().is_ok() {
+        let ty = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
-            let r#type =
-                self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-            Some(r#type)
+            let ty = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+            Some(ty)
         } else {
             None
         };
@@ -151,7 +150,7 @@ impl<'a> Parser<'a> {
                 pattern,
                 mutability,
                 visibility,
-                r#type,
+                ty,
                 value,
             },
             self.get_span_from(start),
@@ -180,7 +179,7 @@ var(x, y) pos: Vector4
         let let_id = parser.eat_let(None).unwrap();
 
         // var(x, y) pos: Vector2 = --
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type: ty, value: _, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value: _, .. } => {
             // var(x, y)
             match mutability {
                 ScopedMutability::Scoped { mutability, scopes } => {
@@ -214,7 +213,7 @@ let x: int32 = 1
 
         let let_id = parser.eat_let(None).unwrap();
 
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser.session, *name, "x");
@@ -222,7 +221,7 @@ let x: int32 = 1
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             // int32
-            let ty_id = r#type.expect("expected explicit type");
+            let ty_id = ty.expect("expected explicit type");
             assert_node!(parser.tree, ty_id, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);
@@ -247,7 +246,7 @@ var x: float64[3] = undefined
         let let_id = parser.eat_let(None).unwrap();
         let x = parser.intern_string("x");
 
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type,  .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty,  .. } => {
             // var (mutable)
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
@@ -257,7 +256,7 @@ var x: float64[3] = undefined
             });
 
             // float64[3]
-            let ty_id = r#type.expect("expected explicit type");
+            let ty_id = ty.expect("expected explicit type");
             assert_node!(parser.tree, ty_id, Expression::Index { receiver, index } => {
                 assert_node!(parser.tree, *receiver, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
                     assert_eq!(float_ty.width, Some(64));
@@ -281,7 +280,7 @@ let (x, y) = foo()
         let x = parser.intern_string("x");
         let y = parser.intern_string("y");
 
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // (x, y)
             assert_node!(parser.tree, *pattern, Pattern::Tuple { fields, .. } => {
                 assert_eq!(fields.len(), 2);
@@ -297,7 +296,7 @@ let (x, y) = foo()
 
             // let (immutable), no explicit type
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
-            assert!(r#type.is_none());
+            assert!(ty.is_none());
 
             // foo()
             assert!(value.is_some());
@@ -313,14 +312,14 @@ let (x, y) = foo()
         let x = parser.intern_string("x");
 
         // let x: int32
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, r#type, value, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
             });
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
             // int32
-            assert!(r#type.is_some());
+            assert!(ty.is_some());
             assert!(value.is_none());
         });
     }

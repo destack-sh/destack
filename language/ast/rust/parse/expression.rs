@@ -33,14 +33,14 @@ fn to_infix_operator(
 ) -> AstResult<(InfixOperator, u8)> {
     // special case for shift right to avoid ungluing ambiguity
     if !options.in_static
-        && token.token.r#type == TokenType::GreaterThan
-        && next_token.token.r#type == TokenType::GreaterThan
+        && token.token.ty == TokenType::GreaterThan
+        && next_token.token.ty == TokenType::GreaterThan
     {
         Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
     }
     // regular binary operator
     // (only a subset of binary operators are allowed in static types)
-    else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.r#type)
+    else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
@@ -49,7 +49,7 @@ fn to_infix_operator(
     // (not allowed in static arguments)
     else if !options.in_static
         && !options.in_type
-        && let Some(assign_operator) = AssignOperator::from_token(token.token.r#type)
+        && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
     {
         Ok((InfixOperator::Assign(assign_operator), 1))
     }
@@ -64,14 +64,14 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> AstResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.r#type).ok_or(AstError::unexpected(token.span))
+        UnaryOperator::from_token_type(token.token.ty).ok_or(AstError::unexpected(token.span))
     }
 
     /// Peek a next unary operator.
     #[inline]
     pub fn peek_next_unary_operator(&self) -> AstResult<UnaryOperator> {
         let token = self.peek_next()?;
-        UnaryOperator::from_token_type(token.token.r#type).ok_or(AstError::unexpected(token.span))
+        UnaryOperator::from_token_type(token.token.ty).ok_or(AstError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
@@ -195,7 +195,7 @@ impl<'a> Parser<'a> {
             //
 
             // parenthesis (may be tuple or just a parenthesized expression)
-            if token.token.r#type == TokenType::OpenParenthesis {
+            if token.token.ty == TokenType::OpenParenthesis {
                 self.bump(); // eat open paranthesis
                 self.eat_newlines_maybe()?;
 
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
                         // if it was a tuple starting here, expand it to cover the entire span
                         //  (except if that tuple has its own parenthesis already when nesting)
                         Expression::TupleLiteral { .. }
-                            if self.tokens[inner_start as usize].token.r#type
+                            if self.tokens[inner_start as usize].token.ty
                                 != TokenType::OpenParenthesis =>
                         {
                             self.tree.set_span(expression_id, self.get_span_from(start));
@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
                 self.eat_let(visibility)?
             }
             // array
-            else if token.token.r#type == TokenType::OpenBracket {
+            else if token.token.ty == TokenType::OpenBracket {
                 let array_literal = self.eat_array_literal()?;
                 self.tree.allocate(
                     Expression::ArrayLiteral {
@@ -448,7 +448,7 @@ impl<'a> Parser<'a> {
                 )
             }
             // alias / path
-            else if token.token.r#type == TokenType::Identifier {
+            else if token.token.ty == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
 
                 // speculatively unwrap postfix static parameterisation with `<`
@@ -511,7 +511,7 @@ impl<'a> Parser<'a> {
             let fields = self.eat_struct_literal_body()?;
             left_expression_id = self.tree.allocate(
                 Expression::StructLiteral {
-                    r#type: left_expression_id,
+                    ty: left_expression_id,
                     fields,
                 },
                 self.get_span_from(start),
@@ -748,11 +748,11 @@ mod tests {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { r#type, fields, .. } => {
+            Expression::StructLiteral { ty, fields, .. } => {
                 // geom.Vector2
                 assert_node!(
                     parser.tree,
-                    *r#type,
+                    *ty,
                     Expression::Path { path, .. } => {
                         assert_path!(parser.session, *path, "geom.Vector2");
                     }
@@ -801,10 +801,10 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { r#type, fields, .. } => {
+            Expression::StructLiteral { ty, fields, .. } => {
                 assert_node!(
                     parser.tree,
-                    *r#type,
+                    *ty,
                     Expression::Path { path, static_arguments } => {
                         assert_path!(parser.session, *path, "geom.Mesh");
                         assert!(static_arguments.is_some());

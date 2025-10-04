@@ -1,5 +1,6 @@
 use crate::StringId;
 
+/// A ScalarLiteral is literal scalar value node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
     /// Boolean value.

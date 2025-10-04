@@ -30,7 +30,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
             return None;
         }
         let token = cursor.advance();
-        if token.r#type == TokenType::End {
+        if token.ty == TokenType::End {
             done = true;
         }
         Some(token)
@@ -57,7 +57,7 @@ pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>,
         };
         tokens.push(token_span);
         pos = pos.saturating_add(token.len);
-        if token.r#type == TokenType::End {
+        if token.ty == TokenType::End {
             break;
         }
     }

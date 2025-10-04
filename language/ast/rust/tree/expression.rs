@@ -610,7 +610,7 @@ pub enum Expression {
         mutability: ScopedMutability,
         visibility: Option<Visibility>,
         pattern: NodeId<Pattern>,
-        r#type: Option<NodeId<Expression>>,
+        ty: Option<NodeId<Expression>>,
         value: Option<NodeId<Expression>>,
     },
 
@@ -729,8 +729,8 @@ pub enum Expression {
     /// ```
     Try {
         runtime: Option<Runtime>,
-        r#try: NodeId<Expression>,
-        catch: Option<NodeId<Expression>>,
+        try_block: NodeId<Expression>,
+        catch_block: Option<NodeId<Expression>>,
     },
 
     /// A Match is match expression with case patterns.
@@ -902,7 +902,7 @@ pub enum Expression {
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
     StructLiteral {
-        r#type: NodeId<Expression>,
+        ty: NodeId<Expression>,
         fields: Vec<NodeId<Argument>>,
     },
 

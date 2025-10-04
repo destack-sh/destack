@@ -20,12 +20,12 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier()?;
 
         // : type
-        let r#type = if self.peek_colon().is_ok() {
+        let ty = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
-            let r#type = self
+            let ty = self
                 .with_options(self.options.in_type(), |parser| parser.eat_expression())
                 .for_node_type(NodeType::Parameter)?;
-            Some(r#type)
+            Some(ty)
         } else {
             None
         };
@@ -37,14 +37,14 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
             Parameter {
                 name,
-                r#type,
+                ty,
                 default: Some(value),
             }
         } else {
             // no default value
             Parameter {
                 name,
-                r#type,
+                ty,
                 default: None,
             }
         };
@@ -257,7 +257,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
         assert_string!(parser.session, parameter.name, "T");
-        assert!(parameter.r#type.is_none());
+        assert!(parameter.ty.is_none());
         assert!(parameter.default.is_none());
     }
 
@@ -275,7 +275,7 @@ mod tests {
         // int32
         assert_node!(
             parser.tree,
-            parameter.r#type.unwrap(),
+            parameter.ty.unwrap(),
             Expression::TypeLiteral(TypeLiteral::Int(IntType {
                 width: Some(32),
                 is_signed: true
@@ -298,7 +298,7 @@ mod tests {
         // boolean
         assert_node!(
             parser.tree,
-            parameter.r#type.unwrap(),
+            parameter.ty.unwrap(),
             Expression::TypeLiteral(TypeLiteral::Boolean)
         );
 

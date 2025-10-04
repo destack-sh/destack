@@ -16,7 +16,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
         write!(f, [self.name])?;
 
         // payload type
-        if let Some(ty) = self.r#type {
+        if let Some(ty) = self.ty {
             let payload = f.context().get_node(ty).clone();
             match payload {
                 Expression::Definition(definition_id) => {

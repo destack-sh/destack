@@ -253,7 +253,7 @@ impl<'ast> DystFormatContext<'ast> {
         while let Some(token) = self.tokens.get(token_idx)
             && token.span.end < span.end
         {
-            if token.token.r#type == TokenType::Newline {
+            if token.token.ty == TokenType::Newline {
                 return true;
             }
             token_idx += 1;
@@ -278,7 +278,7 @@ impl<'ast> DystFormatContext<'ast> {
 
         // can we reach newline or start before hitting something not in side span
         while let Some(prev_token) = self.tokens.get(token_idx) {
-            if token_idx == 0 || prev_token.token.r#type == TokenType::Newline {
+            if token_idx == 0 || prev_token.token.ty == TokenType::Newline {
                 return true; // reached start
             } else if self.side_span.contains(&prev_token.span) {
                 token_idx -= 1; // keep looking

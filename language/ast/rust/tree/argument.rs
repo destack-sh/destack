@@ -16,7 +16,7 @@ pub struct Parameter {
     /// The name of the parameter.
     pub name: StringId,
     /// The type of the parameter.
-    pub r#type: Option<NodeId<Expression>>,
+    pub ty: Option<NodeId<Expression>>,
     /// The default value of the parameter.
     pub default: Option<NodeId<Expression>>,
 }

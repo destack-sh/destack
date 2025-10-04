@@ -1179,7 +1179,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Pattern::Slice", _id.id).end();
             }
             Pattern::Struct {
-                r#type: _,
+                ty: _,
                 fields: _,
             } => {
                 self.node("Pattern::Struct", _id.id).end();

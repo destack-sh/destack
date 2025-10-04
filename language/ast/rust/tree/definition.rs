@@ -346,7 +346,7 @@ pub struct UnionField {
     /// The name of the union field.
     pub name: StringId,
     /// The type of the union field.
-    pub r#type: Option<NodeId<Expression>>,
+    pub ty: Option<NodeId<Expression>>,
     /// The default value of the union field.
     pub value: Option<NodeId<Expression>>,
 }
@@ -376,7 +376,7 @@ pub struct StructField {
     /// The name of the field (may be unset for tuple fields).
     pub name: Option<StringId>,
     /// The type of the field.
-    pub r#type: NodeId<Expression>,
+    pub ty: NodeId<Expression>,
     /// The default value of the field.
     pub default: Option<NodeId<Expression>>,
 }

@@ -203,7 +203,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 mutability,
                 visibility: _,
                 pattern,
-                r#type,
+                ty,
                 value,
             } => {
                 write!(
@@ -220,8 +220,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         )?;
                         // emit pattern with optional type and value
                         write!(f, [space(), pattern])?;
-                        if let Some(r#type) = r#type {
-                            write!(f, [token(": "), r#type])?;
+                        if let Some(ty) = ty {
+                            write!(f, [token(": "), ty])?;
                         }
                         if let Some(value) = value {
                             write!(
@@ -302,8 +302,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // try
             Expression::Try {
                 runtime,
-                r#try,
-                catch,
+                try_block: r#try,
+                catch_block: catch,
             } => {
                 // runtime
                 if let Some(runtime) = runtime
@@ -440,8 +440,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // struct literal
-            Expression::StructLiteral { r#type, fields } => {
-                write!(f, [r#type, space(), list_like("{", "}", ",", true, fields)])?;
+            Expression::StructLiteral { ty, fields } => {
+                write!(f, [ty, space(), list_like("{", "}", ",", true, fields)])?;
             }
 
             // parenthesized

@@ -7,7 +7,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_item_stop(&self) -> AstResult<&TokenSpan> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline || token.token.r#type == TokenType::Comma)
+            && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
         {
             Ok(token)
         } else {
@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_item_stop_with_newlines(&mut self) -> AstResult<()> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline || token.token.r#type == TokenType::Comma)
+            && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
         {
             self.bump();
         } else {
@@ -40,9 +40,9 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_statement_stop(&self) -> AstResult<&TokenSpan> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::End)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             Ok(token)
         } else {
@@ -57,9 +57,9 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_statement_stop(&mut self) -> AstResult<()> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::End)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -76,9 +76,9 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_statement_stop_with_newlines(&mut self) -> AstResult<()> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::End)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -95,10 +95,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_any_stop(&self) -> AstResult<&TokenSpan> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::Comma
-                || token.token.r#type == TokenType::End)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
         {
             Ok(token)
         } else {
@@ -114,10 +114,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_any_stop_with_newlines(&mut self) -> AstResult<()> {
         if let Ok(token) = self.peek()
-            && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::Comma
-                || token.token.r#type == TokenType::End)
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
         {
             self.bump();
         } else {

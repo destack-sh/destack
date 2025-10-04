@@ -63,10 +63,10 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     token("]"),
                 ])]
             )?,
-            Pattern::Struct { r#type, fields } => write!(
+            Pattern::Struct { ty, fields } => write!(
                 f,
                 [group(&format_args![
-                    r#type,
+                    ty,
                     token("{"),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
