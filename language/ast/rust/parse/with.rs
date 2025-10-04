@@ -2,7 +2,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Keyword, NodeId, NodeType, AstResult, Parser, WithClause};
+use crate::{AstResult, Keyword, NodeId, NodeType, Parser, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration maybe.

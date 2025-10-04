@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, AstResult, Parser, Visibility};
+use crate::{AstResult, BlockFormat, Definition, Keyword, NodeId, NodeType, Parser, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.

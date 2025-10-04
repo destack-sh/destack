@@ -3,7 +3,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Expression, Keyword, NodeId, NodeType, AstResult, Parser, UseClause, UseItem, Visibility,
+    AstResult, Expression, Keyword, NodeId, NodeType, Parser, UseClause, UseItem, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -37,10 +37,7 @@ impl<'a> Parser<'a> {
     /// foo.{} // valid but linted
     /// foo as baz
     /// ```
-    fn eat_use_header(
-        &mut self,
-        visibility: Option<Visibility>,
-    ) -> AstResult<NodeId<Expression>> {
+    fn eat_use_header(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // parse one or more clauses separated by commas

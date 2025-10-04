@@ -5,7 +5,7 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Definition, FunctionStyle, Keyword, Mutability, NodeId, AstResult, Parser, Runtime,
+    AstResult, Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, Runtime,
     SelfParameter, Visibility,
 };
 

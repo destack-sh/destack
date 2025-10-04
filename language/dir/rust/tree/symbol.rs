@@ -6,7 +6,7 @@ pub struct SymbolId(pub u32);
 /// A resolved path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedPath {
-	/// Built-in path.
+    /// Built-in path.
     Intrinsic,
     /// External path.
     External,

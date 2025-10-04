@@ -1,4 +1,4 @@
-use crate::{BlockFormat, Definition, Keyword, NodeId, AstResult, Parser};
+use crate::{AstResult, BlockFormat, Definition, Keyword, NodeId, Parser};
 use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {

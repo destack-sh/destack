@@ -5,8 +5,8 @@ use dyst_token::{TokenSpan, TokenType};
 
 use crate::parse::prelude::*;
 use crate::{
-    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, NodeId, NodeSearch, NodeType, AstResult, Parser, Tag,
+    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, AstResult, Blank, Comment, CommentStyle,
+    Decorator, Doc, DocStyle, NodeId, NodeSearch, NodeType, Parser, Tag,
 };
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [

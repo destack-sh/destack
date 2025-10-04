@@ -3,16 +3,12 @@ use dyst_source::StringId;
 use dyst_token::TokenType;
 
 use crate::{
-    BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, AstResult, Parser,
-    Visibility,
+    AstResult, BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, Parser, Visibility,
 };
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(
-        &mut self,
-        visibility: Option<Visibility>,
-    ) -> AstResult<NodeId<Definition>> {
+    pub fn eat_module(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

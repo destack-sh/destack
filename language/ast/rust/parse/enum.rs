@@ -4,7 +4,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, EnumField, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
+    AstError, AstResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser,
     Visibility,
 };
 

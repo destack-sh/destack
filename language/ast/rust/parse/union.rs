@@ -4,8 +4,8 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
-    StructStyle, UnionField, Visibility,
+    AstError, AstResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, StructStyle,
+    UnionField, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -109,9 +109,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a union body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_union_body(
-        &mut self,
-    ) -> AstResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
+    fn eat_union_body(&mut self) -> AstResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -154,10 +152,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(AstError::expected(
-                self.peek()?.span,
-                TokenType::Identifier,
-            ))
+            Err(AstError::expected(self.peek()?.span, TokenType::Identifier))
         }
     }
 

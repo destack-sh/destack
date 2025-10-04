@@ -8,4 +8,3 @@ pub struct Union {
 impl Node for Union {
     const KIND: NodeType = NodeType::Union;
 }
- 

@@ -1,6 +1,6 @@
 //! Parse loops, for, while, etc.
 
-use crate::{Expression, Keyword, NodeId, AstResult, Parser, Runtime};
+use crate::{AstResult, Expression, Keyword, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
