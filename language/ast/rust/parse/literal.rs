@@ -248,9 +248,9 @@ impl<'a> Parser<'a> {
     /// Peek a primitive type literal.
     pub fn peek_type_literal(&self) -> AstResult<TypeLiteral> {
         let next = self.peek()?;
-        let next_type = next.token.r#type;
+        let next_type = next.token.ty;
         let next_next = self.peek_next();
-        let next_next_type = next_next.as_ref().map(|next| next.token.r#type).ok();
+        let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
 
         // !, $, _
         if (next_type == TokenType::Not

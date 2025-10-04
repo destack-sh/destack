@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_newline_maybe(&mut self) -> AstResult<()> {
         let token = self.peek()?;
-        if token.token.r#type == TokenType::Newline {
+        if token.token.ty == TokenType::Newline {
             self.bump();
         }
         Ok(())
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_arrow(&self) -> AstResult<&TokenSpan> {
         let token = self.peek()?;
-        if token.token.r#type == TokenType::FatArrow || token.token.r#type == TokenType::ThinArrow {
+        if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
             Ok(token)
         } else {
             Err(AstError::expected(token.span, TokenType::FatArrow))
@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_arrow(&mut self) -> AstResult<&TokenSpan> {
         let token = self.eat()?;
-        if token.token.r#type == TokenType::FatArrow || token.token.r#type == TokenType::ThinArrow {
+        if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
             Ok(token)
         } else {
             Err(AstError::expected(token.span, TokenType::FatArrow))

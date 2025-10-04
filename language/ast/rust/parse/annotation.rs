@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
         while let Ok(token) = self.peek() {
             // #
             // tags are line and block scoped
-            if token.token.r#type == TokenType::Tag {
+            if token.token.ty == TokenType::Tag {
                 let _ = self.with_recovery(
                     self.mark(),
                     |parser| parser.eat_tag().map(Some),
@@ -49,10 +49,10 @@ impl<'a> Parser<'a> {
             }
             // @
             // decorators are block scoped only
-            else if token.token.r#type == TokenType::At
+            else if token.token.ty == TokenType::At
                 // must be block scoped
                 && (self.prev().is_none()
-                    || self.prev().unwrap().token.r#type == TokenType::Newline)
+                    || self.prev().unwrap().token.ty == TokenType::Newline)
                 && let Ok(next) = self.peek_next()
                 && let next_span_str = self.get_span_str(next.span)
                 && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
         tokens.extend(
             self.side_tokens
                 .iter()
-                .filter(|token| token.token.r#type != TokenType::Whitespace),
+                .filter(|token| token.token.ty != TokenType::Whitespace),
         );
         tokens.sort_by_key(|token| token.span.start);
         if tokens.is_empty() {
@@ -208,24 +208,24 @@ impl<'a> Parser<'a> {
     /// Attach comment and doc annotations to the tokens.
     fn attach_side_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
         // build annotation groups
-        let mut current_token_type: TokenType = tokens[0].token.r#type;
+        let mut current_token_type: TokenType = tokens[0].token.ty;
         let mut current_token_group: Vec<TokenSpan> = Vec::new();
         for (i, token) in tokens.iter().enumerate() {
-            if token.token.r#type != current_token_type {
+            if token.token.ty != current_token_type {
                 let start_token = current_token_group[0];
                 let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
                 let is_line_postfix = current_token_group.len() == 1
                     && self.is_same_line(start_token.span, start_token.span)
                     && prev_token.is_some()
                     && self.is_same_line(start_token.span, prev_token.unwrap().span)
-                    && prev_token.unwrap().token.r#type != TokenType::Newline;
+                    && prev_token.unwrap().token.ty != TokenType::Newline;
 
                 // skip up to one newline in-between non-blank annotations
                 //  (unless the current token is a suffix comment)
-                if token.token.r#type == TokenType::Newline
+                if token.token.ty == TokenType::Newline
                     && current_token_type != TokenType::Newline
                     && let Some(next_token) = tokens.get(i + 1)
-                    && next_token.token.r#type == current_token_type
+                    && next_token.token.ty == current_token_type
                     && !is_line_postfix
                 {
                     continue;
@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // begin new group
-                current_token_type = token.token.r#type;
+                current_token_type = token.token.ty;
                 current_token_group.clear();
             }
             current_token_group.push(*token);
@@ -407,7 +407,7 @@ impl<'a> Parser<'a> {
             // line postfix: check for directly preceding node that ends at the start token
             if let Some(prev_token) = prev_token
                 && self.is_same_line(prev_token.span, end_token.span)
-                && prev_token.token.r#type != TokenType::Newline
+                && prev_token.token.ty != TokenType::Newline
                 && let Some(target_node_id) = self
                     .find_node_ending_at(
                         &prev_token.span,
@@ -421,8 +421,8 @@ impl<'a> Parser<'a> {
             {
                 // line postfix boundary if next token is newline (or end)
                 if next_token.is_none()
-                    || next_token.unwrap().token.r#type == TokenType::Newline
-                    || next_token.unwrap().token.r#type == TokenType::End
+                    || next_token.unwrap().token.ty == TokenType::Newline
+                    || next_token.unwrap().token.ty == TokenType::End
                 {
                     return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
                 }
@@ -433,7 +433,7 @@ impl<'a> Parser<'a> {
             }
             // line prefix: check for directly following node that starts at the end token
             else if let Some(next_token) = next_token
-                && next_token.token.r#type != TokenType::Newline
+                && next_token.token.ty != TokenType::Newline
                 && self.is_same_line(end_token.span, next_token.span)
                 && let Some(target_node_id) = self
                     .find_node_starting_at(&next_token.span, NodeSearch::Inner)
@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
                 let Some(next_token) = tokens.get(next_token_idx) else {
                     break None;
                 };
-                if !ANNOTATION_TOKEN_TYPES.contains(&next_token.token.r#type)
+                if !ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
                     && !ignore_span.contains(&next_token.span)
                 {
                     break Some(next_token);
@@ -473,7 +473,7 @@ impl<'a> Parser<'a> {
                 let Some(prev_token) = tokens.get(prev_token_idx) else {
                     break None;
                 };
-                if !ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.r#type)
+                if !ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
                     && !ignore_span.contains(&prev_token.span)
                 {
                     break Some(prev_token);
@@ -528,8 +528,8 @@ impl<'a> Parser<'a> {
         let _span_str = self.get_span_str(span);
 
         // find the node to attach to
-        let is_line_comment = start_token.token.r#type == TokenType::LineComment
-            || start_token.token.r#type == TokenType::DocLineComment;
+        let is_line_comment = start_token.token.ty == TokenType::LineComment
+            || start_token.token.ty == TokenType::DocLineComment;
         let Some((position, target_node_id)) = self.find_annotation_position(
             token_idx,
             tokens,

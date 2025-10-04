@@ -1,6 +1,6 @@
 use dyst_ast::StringId;
 
-use crate::{Argument, Block, MatchCase, Node, NodeId, NodeType, PathId};
+use crate::{Argument, Block, MatchCase, Node, NodeId, NodeType, PathId, Type};
 
 /// A UnaryOperator is unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -169,6 +169,7 @@ pub enum Expression {
         operator: AssignOperator,
         right: NodeId<Expression>,
     },
+
     /// Drop locals.
     Drop,
     /// Member access.
@@ -182,26 +183,36 @@ pub enum Expression {
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// Index into an array or slice.
-    Index,
+    Index {
+        left: NodeId<Expression>,
+        right: NodeId<Expression>,
+    },
     /// Cast to a type.
-    Cast,
+    Cast {
+        value: NodeId<Expression>,
+        ty: NodeId<Type>,
+    },
+
     /// --------------------------------
     /// Literals.
     /// --------------------------------
+
     /// Scalar literal value.
     ScalarLiteral,
     /// Struct creation.
     StructLiteral {
-        r#type: NodeId<Expression>,
+        ty: NodeId<Type>,
         fields: Vec<NodeId<Argument>>,
     },
     /// Tuple creation.
     TupleLiteral { elements: Vec<NodeId<Argument>> },
     /// Array creation.
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
+
     /// --------------------------------
     /// Control flow.
     /// --------------------------------
+
     /// If expression.
     If {
         condition: NodeId<Expression>,

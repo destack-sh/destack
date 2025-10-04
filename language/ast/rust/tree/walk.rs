@@ -73,12 +73,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             mutability: _,
             visibility: _,
             pattern,
-            r#type,
+            ty,
             value,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(type_id) = r#type {
+            if let Some(type_id) = ty {
                 let type_expr = tree.get(*type_id);
                 visitor.visit_expression(tree, *type_id, type_expr);
             }
@@ -141,8 +141,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         // Try/catch statement.
         Expression::Try {
             runtime: _,
-            r#try,
-            catch,
+            try_block: r#try,
+            catch_block: catch,
         } => {
             let try_expr_node = tree.get(*r#try);
             visitor.visit_expression(tree, *r#try, try_expr_node);
@@ -249,9 +249,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         // Struct literal.
-        Expression::StructLiteral { r#type, fields } => {
-            let type_expr = tree.get(*r#type);
-            visitor.visit_expression(tree, *r#type, type_expr);
+        Expression::StructLiteral { ty, fields } => {
+            let type_expr = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_expr);
             for field_id in fields {
                 let field_arg = tree.get(*field_id);
                 visitor.visit_argument(tree, *field_id, field_arg);
@@ -614,8 +614,8 @@ pub fn walk_struct_field<V: NodeVisitor + ?Sized>(
     field: &StructField,
 ) {
     visitor.visit_any(tree, NodeType::StructField, id.id);
-    let type_node = tree.get(field.r#type);
-    visitor.visit_expression(tree, field.r#type, type_node);
+    let type_node = tree.get(field.ty);
+    visitor.visit_expression(tree, field.ty, type_node);
 
     if let Some(default) = &field.default {
         let expression = tree.get(*default);
@@ -645,7 +645,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
     field: &UnionField,
 ) {
     visitor.visit_any(tree, NodeType::UnionField, id.id);
-    if let Some(type_node) = &field.r#type {
+    if let Some(type_node) = &field.ty {
         let type_ref = tree.get(*type_node);
         visitor.visit_expression(tree, *type_node, type_ref);
     }
@@ -719,7 +719,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     parameter: &Parameter,
 ) {
     visitor.visit_any(tree, NodeType::Parameter, id.id);
-    if let Some(type_node) = &parameter.r#type {
+    if let Some(type_node) = &parameter.ty {
         let type_ref = tree.get(*type_node);
         visitor.visit_expression(tree, *type_node, type_ref);
     }
@@ -818,9 +818,9 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Struct { r#type, fields } => {
-            let type_node = tree.get(*r#type);
-            visitor.visit_expression(tree, *r#type, type_node);
+        Pattern::Struct { ty, fields } => {
+            let type_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_node);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);

@@ -53,7 +53,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let (tokens, _) = tokenize_with_spans(source.id, &source.content);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
-        .filter(|token| filter(token.token.r#type))
+        .filter(|token| filter(token.token.ty))
         .collect();
 
     for (index, token) in tokens.iter().enumerate() {
@@ -74,9 +74,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
         let slice = &source.content[start_offset..end_offset.min(source.len as usize)];
 
-        let kind_str = format_token(token.token.r#type, use_color);
+        let kind_str = format_token(token.token.ty, use_color);
         let lexeme_preview =
-            truncate_tokeneme(slice, max_tokeneme_len, token.token.r#type, use_color);
+            truncate_tokeneme(slice, max_tokeneme_len, token.token.ty, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {

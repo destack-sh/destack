@@ -47,7 +47,7 @@ struct Identity {
     /// The Space the Entity is in.
     space: Reference<Space>
     /// The Branch this Entity is part of (in its Space).
-    // branch: Reference<Branch>
+    branch: Reference<Branch>
 }
 
 /// A named, versioned, mutable object in the system.

@@ -175,7 +175,7 @@ impl AstError {
         let token_at_primary_span = tokens
             .iter()
             .find(|token| token.span.start == span.start)
-            .map(|token| token.token.r#type)
+            .map(|token| token.token.ty)
             .unwrap_or(TokenType::End);
         let in_node_str = match node_type {
             Some(node_type) => format!(" in {node_type:?}"),

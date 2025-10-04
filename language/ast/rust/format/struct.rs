@@ -18,7 +18,7 @@ impl<'ast> FormatNode<'ast, StructField> for StructField {
         }
 
         // type
-        write!(f, [self.r#type])?;
+        write!(f, [self.ty])?;
 
         // default
         if let Some(default) = self.default {

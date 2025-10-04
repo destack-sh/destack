@@ -6,44 +6,30 @@ use crate::{PathId, StringId};
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NodeType {
-    // // Groupings
+    // Groupings
     Expression,
     Block,
-    // // Declarations
+    // Definitions
     Definition,
+    // Types
+    Type,
     Variant,
     VariantField,
-    // // Types
-    Type,
-    // Enum,
-    // EnumField,
-    // Union,
-    // UnionField,
-    // Trait,
-    // Implement,
-    // Tuple,
-    // TupleField,
-    // Function,
-    // // Context
-    // WithDeclaration,
-    // WithAssertion,
-    // UseClause,
-    // UseDeclaration,
-    // // Control
-    // If,
+    Union,
+    // Control
     Loop,
-    // // Bindings
-    // Let,
+    // Bindings
+    Let,
     Parameter,
     Argument,
-    // // Matching
+    // Matching
     MatchCase,
     Pattern,
     PatternField,
 }
 
 /// Unique identifier for nodes with dynamic type.
-#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Hash, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeIdAny {
     pub id: u32,
     pub ty: NodeType,

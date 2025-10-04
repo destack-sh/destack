@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use crate::{Node, NodeId, NodeType, PathId};
+use crate::{
+    Argument, Expression, Node, NodeId, NodeType, PathId, ScalarLiteral, ScopedMutability, Variant,
+};
 
 impl IntType {
     /// 8-bit signed integer
@@ -143,41 +145,7 @@ pub enum CompositeType {
     Function,
 }
 
-/// An (unresolved) Type declaration node.
-///
-/// Type references don't support static evaluation directly for simplicity.
-/// They can refer to Paths that are themselves any static Types
-///  (which enables the same feature set in a more structured way).
-///
-/// Examples:
-/// ```
-/// void
-/// null
-/// int32
-/// boolean
-/// boolean | &int32
-/// float32[]
-/// float64[3]
-/// (int32, int32)
-/// &T // reference to T
-/// &var T // mutable reference to T
-/// &var(x, y) // mutable reference to tuple of x and y
-/// &T[] // reference to slice of T
-/// &T[5] // reference to array of T
-/// &T[] // slice of references to T
-/// &T[5] // array of references to T
-/// $T // virtual type T
-/// T<int32>
-/// T<Validate: false>
-/// MyEnum
-/// simulation.geometry.Vector2
-///
-/// A | B // implicit anonymous union
-/// A & B // implicit anonymous intersection
-///
-/// function (int32) => int32
-/// function () => Result<int32, Error>
-/// ```
+/// An Type in the type system.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Infer placeholder `_`.
@@ -188,35 +156,43 @@ pub enum Type {
     Not(NodeId<Type>),
     /// Never `!`.
     Never,
-    /// Self type (only inside associated scopes for types).
-    Self_,
     /// Scalar primitive type.
-    // Primitive(NodeId<TypeLiteral>),
+    TypeLiteral(TypeLiteral),
     /// Literal value type.
-    // Value(NodeId<ScalarLiteral>),
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
-    Path {
-        path: PathId,
-        // static_arguments: Option<Vec<NodeId<Argument>>>,
-    },
+    ScalarLiteral(ScalarLiteral),
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
-        // mutability: ScopedMutability,
+        mutability: ScopedMutability,
         target: NodeId<Type>,
     },
     /// Virtual type `$T`.
     Virtual(NodeId<Type>),
+
+    /// An expression yet to be evaluated.
+    Expression(NodeId<Expression>),
+    /// Self type (only inside associated scopes for types).
+    Self_,
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
+    Path {
+        path: PathId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Variant type.
+    Variant(NodeId<Variant>),
+
     /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
     /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,
-        // count: NodeId<Type>,
+        count: NodeId<Expression>,
     },
     /// Slice type `T[]`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },
-    /// Tuple type `(T1, T2, ...)` (no tuple keyword).
-    // Tuple(NodeId<Tuple>),
+    /// Tuple type.
+    Tuple(Vec<NodeId<Type>>),
+    /// Union type `A | B | C`.
+    Union(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
 }

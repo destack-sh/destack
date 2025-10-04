@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
         let (all_tokens, eof_token) = tokenize_with_spans(source.id, &source.content);
         let (tokens, side_tokens) = all_tokens
             .iter()
-            .partition(|token| is_semantic(token.token.r#type));
+            .partition(|token| is_semantic(token.token.ty));
 
         // make parser
         let mut parser = Self {
@@ -185,7 +185,7 @@ impl<'a> Parser<'a> {
         let side_span = parser.get_side_span();
         let (tokens, side_tokens) = all_tokens
             .iter()
-            .partition(|token| is_semantic(token.token.r#type) && !side_span.contains(&token.span));
+            .partition(|token| is_semantic(token.token.ty) && !side_span.contains(&token.span));
         parser.tokens = tokens;
         parser.side_tokens = side_tokens;
 
@@ -398,7 +398,7 @@ impl<'a> Parser<'a> {
             "peek_token requires semantic token type"
         );
         let next = self.peek()?;
-        if next.token.r#type == token_type {
+        if next.token.ty == token_type {
             Ok(next)
         } else {
             Err(AstError::unexpected(next.span))
@@ -413,7 +413,7 @@ impl<'a> Parser<'a> {
             "peek_next_token requires semantic token type"
         );
         let next = self.peek_next()?;
-        if next.token.r#type == token_type {
+        if next.token.ty == token_type {
             Ok(next)
         } else {
             Err(AstError::unexpected(next.span))
@@ -428,7 +428,7 @@ impl<'a> Parser<'a> {
             "peek_next_next_token requires semantic token type"
         );
         let next = self.peek_next_next()?;
-        if next.token.r#type == token_type {
+        if next.token.ty == token_type {
             Ok(next)
         } else {
             Err(AstError::unexpected(next.span))
@@ -443,7 +443,7 @@ impl<'a> Parser<'a> {
             "eat_token requires semantic token type"
         );
         let current = self.eat()?;
-        if current.token.r#type == token_type {
+        if current.token.ty == token_type {
             Ok(current)
         } else {
             Err(AstError::unexpected(current.span))
@@ -478,7 +478,7 @@ impl<'a> Parser<'a> {
         // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
             // recover from here (but report error)
-            if token.token.r#type == recover {
+            if token.token.ty == recover {
                 let error = AstError::from_source_maybe(self.get_span_from(start), error);
                 self.handle_error(&error);
                 return Ok(());
@@ -507,10 +507,10 @@ impl<'a> Parser<'a> {
         // try to recover
         let start = self.mark();
         while let Ok(token) = self.peek()
-            && token.token.r#type != bail
+            && token.token.ty != bail
         {
             // ok with error if we finally hit the expected token
-            if token.token.r#type == expected {
+            if token.token.ty == expected {
                 let error = AstError::unexpected(self.get_span_from(start));
                 self.bump();
                 self.handle_error(&error);

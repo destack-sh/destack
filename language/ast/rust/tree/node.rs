@@ -1,4 +1,4 @@
-//! Thes in Dyst.
+//! Nodes in Dyst.
 //!
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
@@ -49,6 +49,33 @@ pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Tag,
     NodeType::Decorator,
 ];
+
+/// Unique identifier for nodes with dynamic type.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeIdAny {
+    pub id: u32,
+    pub ty: NodeType,
+}
+
+impl NodeIdAny {
+    pub fn new(id: u32, ty: NodeType) -> Self {
+        Self { id, ty }
+    }
+
+    #[inline]
+    pub fn get(&self) -> usize {
+        self.id as usize
+    }
+}
+
+impl Debug for NodeIdAny {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeIdAny")
+            .field("id", &self.id)
+            .field("ty", &self.ty)
+            .finish()
+    }
+}
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]

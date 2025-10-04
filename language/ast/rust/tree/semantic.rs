@@ -36,7 +36,7 @@ pub enum SemanticType {
 impl SemanticType {
     /// Map TokenType to *lexical* SemanticType.
     pub fn from_token(source: &Source, token: TokenSpan) -> Self {
-        match token.token.r#type {
+        match token.token.ty {
             // whitespace
             TokenType::Newline | TokenType::Whitespace | TokenType::Unknown | TokenType::End => {
                 SemanticType::Whitespace
@@ -231,7 +231,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_struct_field(self, tree, id, struct_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
-        self.set_semantic_span(tree, struct_field.r#type, SemanticType::Type);
+        self.set_semantic_span(tree, struct_field.ty, SemanticType::Type);
     }
 
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
@@ -247,7 +247,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_union_field(self, tree, id, union_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
-        if let Some(type_id) = union_field.r#type {
+        if let Some(type_id) = union_field.ty {
             self.set_semantic_span(tree, type_id, SemanticType::Type);
         }
     }
@@ -259,7 +259,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
-        if let Some(type_id) = parameter.r#type {
+        if let Some(type_id) = parameter.ty {
             self.set_semantic_span(tree, type_id, SemanticType::Type);
         }
     }
