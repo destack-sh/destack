@@ -4,7 +4,7 @@ use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::TokenSpan;
 
-use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, ParseResult, Parser};
+use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, AstResult, Parser};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -19,9 +19,9 @@ pub(crate) struct TestFormatter {
 
 impl TestFormatter {
     /// Make a TestFormatter over a parse function on an input.
-    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParseResult<(Self, N)>
+    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> AstResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser<'_>) -> ParseResult<N>,
+        F: FnOnce(&mut Parser<'_>) -> AstResult<N>,
     {
         let source_id = SourceId::new(0);
         let source = Source::from_string(

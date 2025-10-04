@@ -3,18 +3,18 @@
 use dyst_source::StringId;
 use dyst_token::{TokenSpan, TokenType};
 
-use crate::{ParseError, ParseResult, Parser};
+use crate::{AstError, AstResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek an identifier.
     #[inline]
-    pub fn peek_identifier(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_identifier(&self) -> AstResult<&TokenSpan> {
         self.peek_token(TokenType::Identifier)
     }
 
     /// Eat an identifier.
     #[inline]
-    pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
+    pub fn eat_identifier(&mut self) -> AstResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
         let string_id = self.intern_string(self.get_token_str(token));
         Ok(string_id)
@@ -22,18 +22,18 @@ impl<'a> Parser<'a> {
 
     /// Peek an identifier that matches a given string.
     #[inline]
-    pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
+    pub fn peek_identifier_str(&self, string: &str) -> AstResult<&TokenSpan> {
         let span = self.peek_token(TokenType::Identifier)?;
         if self.get_token_str(*span) == string {
             Ok(span)
         } else {
-            Err(ParseError::expected(span.span, TokenType::Identifier))
+            Err(AstError::expected(span.span, TokenType::Identifier))
         }
     }
 
     /// Eat an identifier that matches a given string.
     #[inline]
-    pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
+    pub fn eat_identifier_str(&mut self, string: &str) -> AstResult<StringId> {
         let span = self.peek_identifier_str(string)?;
         let string_id = self.intern_string(self.get_token_str(*span));
         self.bump();
@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
 
     /// Eat an identifier or a wildcard maybe.
     #[inline]
-    pub fn eat_identifier_or_wildcard_maybe(&mut self) -> ParseResult<Option<StringId>> {
+    pub fn eat_identifier_or_wildcard_maybe(&mut self) -> AstResult<Option<StringId>> {
         if self.peek_token(TokenType::Wildcard).is_ok() {
             self.bump();
             Ok(None)

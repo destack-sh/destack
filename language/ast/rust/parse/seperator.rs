@@ -1,58 +1,58 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{AstError, AstResult, Parser};
 use dyst_token::{TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a colon.
     #[inline]
-    pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_colon(&self) -> AstResult<&TokenSpan> {
         self.peek_token(TokenType::Colon)
     }
 
     /// Eat a colon.
     #[inline]
-    pub fn eat_colon(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat_colon(&mut self) -> AstResult<&TokenSpan> {
         self.eat_token(TokenType::Colon)
     }
 
     /// Peek a semicolon.
     #[inline]
-    pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_semicolon(&self) -> AstResult<&TokenSpan> {
         self.peek_token(TokenType::Semicolon)
     }
 
     /// Eat a semicolon.
     #[inline]
-    pub fn eat_semicolon(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat_semicolon(&mut self) -> AstResult<&TokenSpan> {
         self.eat_token(TokenType::Semicolon)
     }
 
     /// Peek a comma.
     #[inline]
-    pub fn peek_comma(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_comma(&self) -> AstResult<&TokenSpan> {
         self.peek_token(TokenType::Comma)
     }
 
     /// Eat a comma.
     #[inline]
-    pub fn eat_comma(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat_comma(&mut self) -> AstResult<&TokenSpan> {
         self.eat_token(TokenType::Comma)
     }
 
     /// Peek a newline.
     #[inline]
-    pub fn peek_newline(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_newline(&self) -> AstResult<&TokenSpan> {
         self.peek_token(TokenType::Newline)
     }
 
     /// Eat a newline.
     #[inline]
-    pub fn eat_newline(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat_newline(&mut self) -> AstResult<&TokenSpan> {
         self.eat_token(TokenType::Newline)
     }
 
     /// Eat 0 or 1 newline.
     #[inline]
-    pub fn eat_newline_maybe(&mut self) -> ParseResult<()> {
+    pub fn eat_newline_maybe(&mut self) -> AstResult<()> {
         let token = self.peek()?;
         if token.token.r#type == TokenType::Newline {
             self.bump();
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
 
     /// Eat 0 or more newlines.
     #[inline]
-    pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
+    pub fn eat_newlines_maybe(&mut self) -> AstResult<()> {
         while self.peek_newline().is_ok() {
             self.eat_newline()?;
         }
@@ -71,23 +71,23 @@ impl<'a> Parser<'a> {
 
     /// Peek an arrow.
     #[inline]
-    pub fn peek_arrow(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_arrow(&self) -> AstResult<&TokenSpan> {
         let token = self.peek()?;
         if token.token.r#type == TokenType::FatArrow || token.token.r#type == TokenType::ThinArrow {
             Ok(token)
         } else {
-            Err(ParseError::expected(token.span, TokenType::FatArrow))
+            Err(AstError::expected(token.span, TokenType::FatArrow))
         }
     }
 
     /// Eat an arrow.
     #[inline]
-    pub fn eat_arrow(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat_arrow(&mut self) -> AstResult<&TokenSpan> {
         let token = self.eat()?;
         if token.token.r#type == TokenType::FatArrow || token.token.r#type == TokenType::ThinArrow {
             Ok(token)
         } else {
-            Err(ParseError::expected(token.span, TokenType::FatArrow))
+            Err(AstError::expected(token.span, TokenType::FatArrow))
         }
     }
 }

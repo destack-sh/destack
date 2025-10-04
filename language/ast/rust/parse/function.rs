@@ -5,29 +5,29 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Definition, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
+    Definition, FunctionStyle, Keyword, Mutability, NodeId, AstResult, Parser, Runtime,
     SelfParameter, Visibility,
 };
 
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
-    fn peek_self_keyword(&mut self) -> ParseResult<Keyword> {
+    fn peek_self_keyword(&mut self) -> AstResult<Keyword> {
         let keyword = self.peek_any_keyword()?;
         if keyword == Keyword::Self_ || keyword == Keyword::This {
             Ok(keyword)
         } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            Err(AstError::unexpected(self.peek()?.span))
         }
     }
 
     /// Eat a self keyword (also accepts `this`).
-    fn eat_self_keyword(&mut self) -> ParseResult<Keyword> {
+    fn eat_self_keyword(&mut self) -> AstResult<Keyword> {
         let keyword = self.peek_any_keyword()?;
         if keyword == Keyword::Self_ || keyword == Keyword::This {
             self.bump(); // eat self
             Ok(keyword)
         } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            Err(AstError::unexpected(self.peek()?.span))
         }
     }
 
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     pub fn eat_function(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // function

@@ -6,7 +6,7 @@ use dyst_token::{TokenSpan, TokenType};
 use crate::parse::prelude::*;
 use crate::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, NodeId, NodeSearch, NodeType, ParseResult, Parser, Tag,
+    Doc, DocStyle, NodeId, NodeSearch, NodeType, AstResult, Parser, Tag,
 };
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
     /// #Foo
     /// #Foo(x: 1)
     /// ```
-    pub(crate) fn eat_tag(&mut self) -> ParseResult<NodeId<Tag>> {
+    pub(crate) fn eat_tag(&mut self) -> AstResult<NodeId<Tag>> {
         let start = self.mark();
 
         // #
@@ -137,7 +137,7 @@ impl<'a> Parser<'a> {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
-    pub(crate) fn eat_decorator(&mut self) -> ParseResult<NodeId<Decorator>> {
+    pub(crate) fn eat_decorator(&mut self) -> AstResult<NodeId<Decorator>> {
         let start = self.mark();
 
         // @
@@ -279,7 +279,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_position(tokens, ignore_span, false, span)
             else {
                 // error if no position found
-                let error = ParseError::unexpected_for(span, NodeType::Tag);
+                let error = AstError::unexpected_for(span, NodeType::Tag);
                 self.handle_error(&error);
                 continue;
             };
@@ -304,7 +304,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_position(tokens, ignore_span, true, span)
             else {
                 // error if no position found
-                let error = ParseError::unexpected_for(span, NodeType::Decorator);
+                let error = AstError::unexpected_for(span, NodeType::Decorator);
                 self.handle_error(&error);
                 continue;
             };
@@ -546,7 +546,7 @@ impl<'a> Parser<'a> {
                 TokenType::DocBlockComment => NodeType::Doc,
                 _ => panic!("unexpected token type: {token_type:?}"),
             };
-            let error = ParseError::unexpected_for(span, node_type);
+            let error = AstError::unexpected_for(span, node_type);
             self.handle_error(&error);
             return; // could not find a position
         };

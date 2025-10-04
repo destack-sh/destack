@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, ParseResult, Parser, Visibility};
+use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, AstResult, Parser, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_trait(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_trait(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

@@ -2,12 +2,12 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, WithClause};
+use crate::{Keyword, NodeId, NodeType, AstResult, Parser, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration maybe.
     #[inline]
-    pub fn eat_with_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<WithClause>>>> {
+    pub fn eat_with_maybe(&mut self) -> AstResult<Option<Vec<NodeId<WithClause>>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with()?))
         } else {
@@ -34,14 +34,14 @@ impl<'a> Parser<'a> {
     ///    T > Y
     /// )
     /// ```
-    pub fn eat_with(&mut self) -> ParseResult<Vec<NodeId<WithClause>>> {
+    pub fn eat_with(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         self.eat_keyword(Keyword::With)?;
         let clauses = self.eat_with_body()?;
         Ok(clauses)
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    pub fn eat_with_body(&mut self) -> ParseResult<Vec<NodeId<WithClause>>> {
+    pub fn eat_with_body(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
     ///
     /// A clause can be a declaration (`Foo`, `Foo as Bar`, `Foo.Bar as Baz`)
     /// or an assertion (`T: int32`, `Self: geom.Mesh<T>`, `T.Item: Copy`).
-    pub fn eat_with_clause(&mut self) -> ParseResult<NodeId<WithClause>> {
+    pub fn eat_with_clause(&mut self) -> AstResult<NodeId<WithClause>> {
         let start = self.mark();
 
         // first parse the left-hand side type target

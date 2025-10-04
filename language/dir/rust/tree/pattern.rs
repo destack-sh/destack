@@ -1,5 +1,6 @@
-use crate::{Expression, Node, NodeId, NodeType, PathId, StringId, literal::ScalarLiteral};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, PathId, StringId, literal::ScalarLiteral};
 
+/// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
@@ -45,6 +46,7 @@ impl Node for Pattern {
     const KIND: NodeType = NodeType::Pattern;
 }
 
+/// A PatternField is a field in a pattern (tuple, struct, union, etc.).
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4`).

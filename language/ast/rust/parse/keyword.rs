@@ -2,15 +2,15 @@ use std::str::FromStr;
 
 use dyst_token::{TokenSpan, TokenType};
 
-use crate::{Keyword, ParseError, ParseResult, Parser};
+use crate::{Keyword, AstError, AstResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek a keyword.
     #[inline]
-    pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+    pub fn peek_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
+            Err(AstError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }
@@ -18,21 +18,21 @@ impl<'a> Parser<'a> {
 
     /// Peek any keyword.
     #[inline]
-    pub fn peek_any_keyword(&self) -> ParseResult<Keyword> {
+    pub fn peek_any_keyword(&self) -> AstResult<Keyword> {
         let current = self.peek_token(TokenType::Identifier)?;
         if let Ok(keyword) = Keyword::from_str(self.get_span_str(current.span)) {
             Ok(keyword)
         } else {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
+            Err(AstError::expected(current.span, TokenType::Identifier))
         }
     }
 
     /// Peek the next keyword.
     #[inline]
-    pub fn peek_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
+            Err(AstError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }
@@ -40,17 +40,17 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next keyword.
     #[inline]
-    pub fn peek_next_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_next_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_next_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::expected(current.span, TokenType::Identifier))
+            Err(AstError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }
     }
 
     /// Eat a keyword.
-    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> AstResult<&TokenSpan> {
         self.peek_keyword(keyword)?;
         self.eat_token(TokenType::Identifier)
     }

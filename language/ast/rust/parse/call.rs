@@ -2,7 +2,7 @@
 
 use dyst_token::TokenType;
 
-use crate::{Expression, NodeId, ParseResult, Parser, Runtime};
+use crate::{Expression, NodeId, AstResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_explicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // open bracket
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_implicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dot
@@ -102,7 +102,7 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         runtime: Option<Runtime>,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dynamic arguments (may be empty)

@@ -3,7 +3,7 @@ use dyst_source::StringId;
 use dyst_token::TokenType;
 
 use crate::{
-    BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, ParseResult, Parser,
+    BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, AstResult, Parser,
     Visibility,
 };
 
@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
     pub fn eat_module(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
         visibility: Option<Visibility>,
         name: Option<StringId>,
         format: ModuleFormat,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
         let expressions = self
             .eat_block_body(BlockFormat::Implicit)
