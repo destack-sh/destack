@@ -2,7 +2,7 @@
 
 use dyst_token::TokenType;
 
-use crate::{Expression, NodeId, AstResult, Parser, Runtime};
+use crate::{AstResult, Expression, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).

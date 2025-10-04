@@ -1,6 +1,4 @@
-use crate::{
-    Expression, Node, NodeId, NodeType, Pattern, ScopedMutability, Type, Visibility,
-};
+use crate::{Expression, Node, NodeId, NodeType, Pattern, ScopedMutability, Type, Visibility};
 
 /// A Let is a let or var binding for constant or mutable variables.
 #[derive(Debug, Clone, PartialEq)]

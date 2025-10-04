@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{
-    Block, BlockFormat, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
+    AstError, AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser,
 };
 use dyst_token::TokenType;
 

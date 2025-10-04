@@ -652,10 +652,7 @@ impl Dump for ScalarLiteral {
                     .end();
             }
             ScalarLiteral::String(value) => {
-                dumper
-                    .object("ScalarLiteral::String")
-                    .value(value)
-                    .end();
+                dumper.object("ScalarLiteral::String").value(value).end();
             }
             ScalarLiteral::ByteString(value) => {
                 dumper
@@ -702,16 +699,10 @@ impl Dump for TypeLiteral {
                 dumper.object("TypeLiteral::Number").end();
             }
             TypeLiteral::Int(int_type) => {
-                dumper
-                    .object("TypeLiteral::Int")
-                    .value(int_type)
-                    .end();
+                dumper.object("TypeLiteral::Int").value(int_type).end();
             }
             TypeLiteral::Float(float_type) => {
-                dumper
-                    .object("TypeLiteral::Float")
-                    .value(float_type)
-                    .end();
+                dumper.object("TypeLiteral::Float").value(float_type).end();
             }
             TypeLiteral::Composite(composite_type) => {
                 dumper
@@ -823,9 +814,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::Path", _id.id)
-                    .value(path)
-                    .end();
+                self.node("Expression::Path", _id.id).value(path).end();
             }
             Expression::ScalarLiteral(lit) => {
                 self.node("Expression::ScalarLiteral", _id.id)
@@ -1178,10 +1167,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", _id.id).end();
             }
-            Pattern::Struct {
-                ty: _,
-                fields: _,
-            } => {
+            Pattern::Struct { ty: _, fields: _ } => {
                 self.node("Pattern::Struct", _id.id).end();
             }
             Pattern::Union { fields: _ } => {

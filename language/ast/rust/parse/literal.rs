@@ -4,7 +4,7 @@ use dyst_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, Expression, FloatType, IntType, NodeId, NodeType, AstError, AstResult, Parser,
+    Argument, AstError, AstResult, Expression, FloatType, IntType, NodeId, NodeType, Parser,
     ScalarLiteral, TypeLiteral, UnaryOperator,
 };
 

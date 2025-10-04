@@ -5,8 +5,8 @@ use crate::{Argument, ScopedMutability};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
-    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability, NodeId,
-    NodeType, AstError, AstResult, Parser, ParserMark, Runtime, UnaryOperator, Visibility,
+    AssignOperator, AstError, AstResult, BinaryOperator, Expression, InfixOperator, Keyword,
+    Mutability, NodeId, NodeType, Parser, ParserMark, Runtime, UnaryOperator, Visibility,
 };
 
 // can't use anything with `<` or `>` in static arguments

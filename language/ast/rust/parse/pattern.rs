@@ -3,7 +3,7 @@
 use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
-use crate::{Keyword, Mutability, NodeId, NodeType, AstResult, Parser, Pattern, PatternField};
+use crate::{AstResult, Keyword, Mutability, NodeId, NodeType, Parser, Pattern, PatternField};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.

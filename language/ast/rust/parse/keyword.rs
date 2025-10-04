@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use dyst_token::{TokenSpan, TokenType};
 
-use crate::{Keyword, AstError, AstResult, Parser};
+use crate::{AstError, AstResult, Keyword, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek a keyword.

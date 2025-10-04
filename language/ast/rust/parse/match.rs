@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, AstResult, Parser, Runtime};
+use crate::{AstResult, Expression, Keyword, MatchCase, NodeId, NodeType, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement.

@@ -4,7 +4,7 @@ use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::TokenSpan;
 
-use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, AstResult, Parser};
+use crate::{AstResult, DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, Parser};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]

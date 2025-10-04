@@ -12,7 +12,7 @@ use crate::{
 pub enum Definition {
     /// A Module is a module declaration.
     /// Modules may be whole directories, single files, or nested within a file.
-    /// 
+    ///
     /// NOTE #Incomplete: Module-level static parameterisation?
     ///  (just use `let` somehow?)
     ///  (or maybe something like `module self { ... }`?)

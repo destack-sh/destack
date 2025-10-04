@@ -75,8 +75,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         let slice = &source.content[start_offset..end_offset.min(source.len as usize)];
 
         let kind_str = format_token(token.token.ty, use_color);
-        let lexeme_preview =
-            truncate_tokeneme(slice, max_tokeneme_len, token.token.ty, use_color);
+        let lexeme_preview = truncate_tokeneme(slice, max_tokeneme_len, token.token.ty, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {

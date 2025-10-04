@@ -1,7 +1,7 @@
 use crate::{Expression, Node, NodeId, NodeType};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MatchCase {	
+pub struct MatchCase {
     pub body: NodeId<Expression>,
     pub guard: Option<NodeId<Expression>>,
 }

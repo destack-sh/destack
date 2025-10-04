@@ -5,8 +5,8 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
-    StructField, StructStyle, Visibility,
+    AstError, AstResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, StructField,
+    StructStyle, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -50,10 +50,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(
-        &mut self,
-        visibility: Option<Visibility>,
-    ) -> AstResult<NodeId<Definition>> {
+    pub fn eat_struct(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -201,10 +198,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(AstError::expected(
-                self.peek()?.span,
-                TokenType::Identifier,
-            ))
+            Err(AstError::expected(self.peek()?.span, TokenType::Identifier))
         }
     }
 
@@ -235,14 +229,9 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let field_id = self.tree.allocate(
-            StructField {
-                name,
-                ty,
-                default,
-            },
-            self.get_span_from(start),
-        );
+        let field_id = self
+            .tree
+            .allocate(StructField { name, ty, default }, self.get_span_from(start));
         Ok(field_id)
     }
 }
