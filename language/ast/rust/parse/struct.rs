@@ -5,7 +5,7 @@ use crate::parse::prelude::*;
 use dyst_token::TokenType;
 
 use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
+    Definition, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
     StructField, StructStyle, Visibility,
 };
 
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a struct tuple body (without the parenthesis).
     /// Because it's just a tuple body, it doesn't have any expressions.
-    pub fn eat_struct_tuple_body(&mut self) -> ParseResult<Vec<NodeId<StructField>>> {
+    pub fn eat_struct_tuple_body(&mut self) -> AstResult<Vec<NodeId<StructField>>> {
         let mut tuple_fields: Vec<NodeId<StructField>> = Vec::new();
         loop {
             // stop at closing parenthesis
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_body(
         &mut self,
         style: StructStyle,
-    ) -> ParseResult<(Vec<NodeId<StructField>>, Vec<NodeId<Expression>>)> {
+    ) -> AstResult<(Vec<NodeId<StructField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<StructField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a struct field: `name: Type` with optional default `= <expr>`.
-    fn peek_struct_field(&self) -> ParseResult<()> {
+    fn peek_struct_field(&self) -> AstResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Colon).is_ok()
                 || self.peek_next_token(TokenType::Assign).is_ok()
@@ -201,7 +201,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParseError::expected(
+            Err(AstError::expected(
                 self.peek()?.span,
                 TokenType::Identifier,
             ))
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single struct field: `T`,`name: T`, or `name: T = <expr>`.
-    fn eat_struct_field(&mut self) -> ParseResult<NodeId<StructField>> {
+    fn eat_struct_field(&mut self) -> AstResult<NodeId<StructField>> {
         let start = self.mark();
 
         // name:

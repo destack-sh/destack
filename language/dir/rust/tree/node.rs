@@ -1,18 +1,20 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
+use crate::{PathId, StringId};
+
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NodeType {
     // // Groupings
     Expression,
     Block,
     // // Declarations
     Definition,
-    Module,
+    Variant,
+    VariantField,
+    // // Types
     Type,
-    // Struct,
-    // StructField,
     // Enum,
     // EnumField,
     // Union,
@@ -38,6 +40,33 @@ pub enum NodeType {
     MatchCase,
     Pattern,
     PatternField,
+}
+
+/// Unique identifier for nodes with dynamic type.
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub struct NodeIdAny {
+    pub id: u32,
+    pub ty: NodeType,
+}
+
+impl NodeIdAny {
+    pub fn new(id: u32, ty: NodeType) -> Self {
+        Self { id, ty }
+    }
+
+    #[inline]
+    pub fn get(&self) -> usize {
+        self.id as usize
+    }
+}
+
+impl Debug for NodeIdAny {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeIdAny")
+            .field("id", &self.id)
+            .field("ty", &self.ty)
+            .finish()
+    }
 }
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -120,4 +149,10 @@ pub enum ScopedMutability {
         /// The scopes of the scoped mutability.
         scopes: Vec<PathId>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedLocation {
+    pub label: Option<StringId>,
+    pub target_id: Option<NodeIdAny>,
 }

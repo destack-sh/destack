@@ -2,7 +2,7 @@ use crate::Expression;
 use dyst_source::PathId;
 use dyst_token::TokenType;
 
-use crate::{Keyword, Mutability, NodeId, ParseResult, Parser, ScopedMutability, Visibility};
+use crate::{Keyword, Mutability, NodeId, AstResult, Parser, ScopedMutability, Visibility};
 
 impl Mutability {
     /// Get the keyword for this mutability.
@@ -46,7 +46,7 @@ impl<'a> Parser<'a> {
     /// var(x, y)
     /// const(session.source)
     /// ```
-    pub fn eat_scoped_mutability(&mut self) -> ParseResult<ScopedMutability> {
+    pub fn eat_scoped_mutability(&mut self) -> AstResult<ScopedMutability> {
         // mutability
         let mutability = {
             if self.peek_keyword(Keyword::Var).is_ok() {
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
     /// let t? = foo() else { return }
     /// let t = foo() ?? return;
     /// ```
-    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability

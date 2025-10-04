@@ -1,4 +1,4 @@
-use crate::{BlockFormat, Definition, Keyword, NodeId, ParseResult, Parser};
+use crate::{BlockFormat, Definition, Keyword, NodeId, AstResult, Parser};
 use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_implement(&mut self) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

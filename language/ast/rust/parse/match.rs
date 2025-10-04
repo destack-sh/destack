@@ -1,7 +1,7 @@
 use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, ParseResult, Parser, Runtime};
+use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, AstResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement.
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_match(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
         // keyword
         self.eat_keyword(Keyword::Match)?;
 
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_match_body(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub(crate) fn eat_match_cases(&mut self) -> ParseResult<Vec<NodeId<MatchCase>>> {
+    pub(crate) fn eat_match_cases(&mut self) -> AstResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
         loop {
             // stop on closing brace
@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self) -> AstResult<NodeId<MatchCase>> {
         let start = self.mark();
 
         // pattern

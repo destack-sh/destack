@@ -1,6 +1,6 @@
 use dyst_token::TokenType;
 
-use crate::{Expression, Keyword, NodeId, ParseResult, Parser, Runtime};
+use crate::{Expression, Keyword, NodeId, AstResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
     ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
     /// }
     /// ```
-    pub fn eat_try(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_try(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
 

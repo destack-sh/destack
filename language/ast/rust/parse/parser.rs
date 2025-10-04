@@ -5,7 +5,7 @@ use dyst_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
 use dyst_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::{
-    Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParseError, ParseResult,
+    Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, AstError, AstResult,
 };
 use dyst_session::Session;
 
@@ -142,7 +142,7 @@ pub struct Parser<'ast> {
     /// The session.
     pub session: &'ast mut Session,
     /// The errors encountered so far.
-    pub errors: Vec<ParseError>,
+    pub errors: Vec<AstError>,
 }
 
 impl Debug for Parser<'_> {
@@ -239,8 +239,8 @@ impl<'a> Parser<'a> {
     pub(crate) fn with_options<T>(
         &mut self,
         options: ParserOptions,
-        func: impl FnOnce(&mut Self) -> ParseResult<T>,
-    ) -> ParseResult<T> {
+        func: impl FnOnce(&mut Self) -> AstResult<T>,
+    ) -> AstResult<T> {
         let old_options = self.options;
         self.options = options;
         let result = func(self);
@@ -251,7 +251,7 @@ impl<'a> Parser<'a> {
     /// Handle an error as a Diagnostic.
     /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
     #[inline]
-    pub(crate) fn handle_error(&mut self, e: &ParseError) {
+    pub(crate) fn handle_error(&mut self, e: &AstError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.source, &self.tokens);
@@ -337,37 +337,37 @@ impl<'a> Parser<'a> {
 
     /// Peek the next Token or error.
     #[inline]
-    pub fn peek(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek(&self) -> AstResult<&TokenSpan> {
         self.tokens
             .get(self.pos)
-            .ok_or(ParseError::unexpected(self.eof_token.span))
+            .ok_or(AstError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_next(&self) -> AstResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 1)
-            .ok_or(ParseError::unexpected(self.eof_token.span))
+            .ok_or(AstError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_next(&self) -> AstResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 2)
-            .ok_or(ParseError::unexpected(self.eof_token.span))
+            .ok_or(AstError::unexpected(self.eof_token.span))
     }
 
     /// Eat the next Token or error.
     #[inline]
-    pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat(&mut self) -> AstResult<&TokenSpan> {
         if self.pos < self.tokens.len() {
             self.bump();
             let next = &self.tokens[self.pos - 1];
             Ok(next)
         } else {
-            Err(ParseError::unexpected(self.eof_token.span))
+            Err(AstError::unexpected(self.eof_token.span))
         }
     }
 
@@ -392,7 +392,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn peek_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_token requires semantic token type"
@@ -401,13 +401,13 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::unexpected(next.span))
+            Err(AstError::unexpected(next.span))
         }
     }
 
     /// Peek the next next token.
     #[inline]
-    pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_next_token requires semantic token type"
@@ -416,13 +416,13 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::unexpected(next.span))
+            Err(AstError::unexpected(next.span))
         }
     }
 
     /// Peek the next next next token.
     #[inline]
-    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_next_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_next_next_token requires semantic token type"
@@ -431,13 +431,13 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::unexpected(next.span))
+            Err(AstError::unexpected(next.span))
         }
     }
 
     /// Eat a token.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> AstResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "eat_token requires semantic token type"
@@ -446,7 +446,7 @@ impl<'a> Parser<'a> {
         if current.token.r#type == token_type {
             Ok(current)
         } else {
-            Err(ParseError::unexpected(current.span))
+            Err(AstError::unexpected(current.span))
         }
     }
 
@@ -454,7 +454,7 @@ impl<'a> Parser<'a> {
     pub fn with_recovery<T>(
         &mut self,
         start: ParserMark,
-        func: impl FnOnce(&mut Self) -> ParseResult<T>,
+        func: impl FnOnce(&mut Self) -> AstResult<T>,
         default: T,
         bail: TokenType,
     ) -> T {
@@ -473,13 +473,13 @@ impl<'a> Parser<'a> {
         &mut self,
         start: ParserMark,
         recover: TokenType,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
+        error: Option<AstError>,
+    ) -> AstResult<()> {
         // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
             // recover from here (but report error)
             if token.token.r#type == recover {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                let error = AstError::from_source_maybe(self.get_span_from(start), error);
                 self.handle_error(&error);
                 return Ok(());
             } else {
@@ -488,7 +488,7 @@ impl<'a> Parser<'a> {
             }
         }
         // error if we didn't hit the expected token
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        let error = AstError::from_source_maybe(self.get_span_from(start), error);
         self.handle_error(&error);
         Err(error)
     }
@@ -497,7 +497,7 @@ impl<'a> Parser<'a> {
     /// If we don't get the token, it's an error, but:
     ///  1) If we do hit the expected token later, we recover from there.
     ///  2) Otherwise, we try to recover forward until the bail token.
-    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
+    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> AstResult<()> {
         // we're good if it's the expected token
         if self.peek_token(expected).is_ok() {
             self.bump();
@@ -511,7 +511,7 @@ impl<'a> Parser<'a> {
         {
             // ok with error if we finally hit the expected token
             if token.token.r#type == expected {
-                let error = ParseError::unexpected(self.get_span_from(start));
+                let error = AstError::unexpected(self.get_span_from(start));
                 self.bump();
                 self.handle_error(&error);
                 return Ok(());
@@ -523,7 +523,7 @@ impl<'a> Parser<'a> {
         }
 
         // error if we didn't hit the expected token, we're either at recovery or EOF
-        let error = ParseError::unexpected(self.get_span_from(start));
+        let error = AstError::unexpected(self.get_span_from(start));
         self.handle_error(&error);
         Err(error)
     }

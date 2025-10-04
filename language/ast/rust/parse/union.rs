@@ -4,7 +4,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser,
+    Definition, Expression, Keyword, NodeId, NodeType, AstError, AstResult, Parser,
     StructStyle, UnionField, Visibility,
 };
 
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     /// // desugars to
     /// union { boolean(boolean) = boolean, int32(&int32) = &int32 }
     /// ```
-    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
     #[allow(clippy::type_complexity)]
     fn eat_union_body(
         &mut self,
-    ) -> ParseResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
+    ) -> AstResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a union field.
-    fn peek_union_field(&self) -> ParseResult<()> {
+    fn peek_union_field(&self) -> AstResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::OpenParenthesis).is_ok()
                 || self.peek_next_token(TokenType::OpenBrace).is_ok()
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParseError::expected(
+            Err(AstError::expected(
                 self.peek()?.span,
                 TokenType::Identifier,
             ))
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
     /// C(boolean, vec: Vector2) // struct struct
     /// D { x: int32, y: int32 } = 4 // struct struct with tag value
     /// ```
-    fn eat_union_field(&mut self) -> ParseResult<NodeId<UnionField>> {
+    fn eat_union_field(&mut self) -> AstResult<NodeId<UnionField>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
 

@@ -3,7 +3,7 @@ use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Expression, Keyword, NodeId, NodeType, ParseResult, Parser, UseClause, UseItem, Visibility,
+    Expression, Keyword, NodeId, NodeType, AstResult, Parser, UseClause, UseItem, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     /// use foo.{} // valid but linted
     /// use foo as baz
     /// ```
-    pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_use(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Use)?;
         let use_node = self.eat_use_header(visibility)?;
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     fn eat_use_header(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // parse one or more clauses separated by commas
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     /// foo as bar
     /// foo.{a, b}
     /// ```
-    pub fn eat_use_clause(&mut self) -> ParseResult<NodeId<UseClause>> {
+    pub fn eat_use_clause(&mut self) -> AstResult<NodeId<UseClause>> {
         let start = self.mark();
         let path = self.eat_path().for_node_type(NodeType::Expression)?;
 
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
     /// geometry
     /// geometry as geom
     /// ```
-    pub fn eat_use_item(&mut self) -> ParseResult<NodeId<UseItem>> {
+    pub fn eat_use_item(&mut self) -> AstResult<NodeId<UseItem>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
         let alias = if let Ok(next) = self.peek_token(TokenType::Identifier) {
