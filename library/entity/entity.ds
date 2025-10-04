@@ -1,5 +1,8 @@
 use destack
 
+@if(condition)
+use something
+
 /// An Entity Epoch.
 struct Epoch: uint64 {
     let Zero = Epoch(0)

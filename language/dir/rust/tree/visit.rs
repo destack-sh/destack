@@ -29,3 +29,9 @@ impl CapturingNodeVisitor {
         &self.visited
     }
 }
+
+impl NodeVisitor for CapturingNodeVisitor {
+    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+        self.visited.push(id);
+    }
+}

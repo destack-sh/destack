@@ -26,27 +26,27 @@ pub enum AnnotationPosition {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Annotation {
-    /// A blank annotation.
+    /// A blank annotation (just newlines).
     Blank {
         node: NodeId<Blank>,
         position: AnnotationPosition,
     },
-    /// A doc annotation.
+    /// A doc annotation (like `///` or `/**`).
     Doc {
         node: NodeId<Doc>,
         position: AnnotationPosition,
     },
-    /// A comment annotation.
+    /// A comment annotation (like `//` or `/*`).
     Comment {
         node: NodeId<Comment>,
         position: AnnotationPosition,
     },
-    /// A tag annotation.
+    /// A tag annotation (like `#Foo` or `#Foo(x: 1)`).
     Tag {
         node: NodeId<Tag>,
         position: AnnotationPosition,
     },
-    /// A decorator annotation.
+    /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         node: NodeId<Decorator>,
         position: AnnotationPosition,
