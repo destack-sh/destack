@@ -1,6 +1,6 @@
 use dyst_ast::StringId;
 
-use crate::{Argument, Block, MatchCase, Node, NodeId, NodeType, PathId, Type};
+use crate::{Argument, Block, Definition, Node, NodeId, NodeType, PathId, Pattern, Type};
 
 /// A UnaryOperator is unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -143,15 +143,40 @@ pub enum AssignOperator {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
+    // Definition
+    Definition(NodeId<Definition>),
+
+    // Block
+    Block(NodeId<Block>),
+
+    // With
+    WithDeclaration {
+        declarations: Vec<NodeId<WithDeclaration>>,
+    },
+
+    // WithAssertion
+    WithAssertion {
+        declarations: Vec<NodeId<WithAssertion>>,
+    },
+
+    // Use
+    Use {
+        declarations: Vec<NodeId<UseItem>>,
+    },
+
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
     },
     /// Reference operation (e.g., `&x`).
-    Reference { right: NodeId<Expression> },
+    Reference {
+        right: NodeId<Expression>,
+    },
     /// Dereference operation (e.g., `*x`).
-    Dereference { right: NodeId<Expression> },
+    Dereference {
+        right: NodeId<Expression>,
+    },
     /// Binary operation.
     Binary {
         left: NodeId<Expression>,
@@ -205,9 +230,13 @@ pub enum Expression {
         fields: Vec<NodeId<Argument>>,
     },
     /// Tuple creation.
-    TupleLiteral { elements: Vec<NodeId<Argument>> },
+    TupleLiteral {
+        elements: Vec<NodeId<Argument>>,
+    },
     /// Array creation.
-    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    ArrayLiteral {
+        elements: Vec<NodeId<Expression>>,
+    },
 
     /// --------------------------------
     /// Control flow.
@@ -236,11 +265,17 @@ pub enum Expression {
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
-    Continue { label: Option<StringId> },
+    Continue {
+        label: Option<StringId>,
+    },
     /// Defer expression.
-    Defer { body: NodeId<Expression> },
+    Defer {
+        body: NodeId<Expression>,
+    },
     /// Return expression.
-    Return { value: Option<NodeId<Expression>> },
+    Return {
+        value: Option<NodeId<Expression>>,
+    },
 
     /// Error expression.
     Error,
@@ -259,4 +294,65 @@ pub enum LoopSource {
     While,
     /// Loop loop.
     Loop,
+}
+
+/// A UseItem is an item to use in a use clause.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UseItem {
+    /// The source of the item.
+    pub source: PathId,
+    /// The source name of the item (like `foo` in `foo as bar`)
+    pub name: StringId,
+    /// The alias to use for the item (like `bar` in `foo as bar`)
+    pub alias: Option<StringId>,
+}
+
+impl Node for UseItem {
+    const KIND: NodeType = NodeType::UseItem;
+}
+
+/// A WithDeclaration is a single clause in a with declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WithDeclaration {
+    /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
+    pub target: NodeId<Expression>,
+}
+
+impl Node for WithDeclaration {
+    const KIND: NodeType = NodeType::WithDeclaration;
+}
+
+/// A WithAssertion is a single clause in a with declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WithAssertion {
+    /// The target to assert (like `T` in `with T: int32`)
+    pub target: NodeId<Expression>,
+    /// The assertion type (like `int32` in `with T: int32`)
+    pub assertion: NodeId<Expression>,
+}
+
+impl Node for WithAssertion {
+    const KIND: NodeType = NodeType::WithAssertion;
+}
+
+/// A MatchCase is a match case inside a Match expression.
+/// MatchCases can be any Pattern and can have an optional `if` guard.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchCase {
+    /// A match case with an expression body.
+    Expression {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Expression>,
+        guard: Option<NodeId<Expression>>,
+    },
+    /// A match case with a block body.
+    Block {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Block>,
+        guard: Option<NodeId<Expression>>,
+    },
+}
+
+impl Node for MatchCase {
+    const KIND: NodeType = NodeType::MatchCase;
 }
