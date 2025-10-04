@@ -20,6 +20,7 @@ pub mod variant;
 pub mod visit;
 pub mod walk;
 
+pub use annotation::*;
 pub use arena::*;
 pub use argument::*;
 pub use block::*;
