@@ -1,4 +1,4 @@
-use crate::{Let, Node, NodeId, NodeType, StringId, Union, Variant, Visibility};
+use crate::{Node, NodeId, NodeType, StringId, Variant, Visibility};
 
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +27,7 @@ pub enum Definition {
     Union {
         name: StringId,
         visibility: Option<Visibility>,
-        variant: NodeId<Union>,
+        variants: Vec<NodeId<Variant>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Trait definition.

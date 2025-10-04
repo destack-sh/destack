@@ -15,17 +15,19 @@ pub enum NodeType {
     Type,
     Variant,
     VariantField,
-    Union,
-    // Control
-    Loop,
+    // Context
+    WithDeclaration,
+    WithAssertion,
+    UseItem,
     // Bindings
-    Let,
     Parameter,
     Argument,
     // Matching
     MatchCase,
     Pattern,
     PatternField,
+    // Annotations
+    Annotation,
 }
 
 /// Unique identifier for nodes with dynamic type.
