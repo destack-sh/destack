@@ -3,7 +3,14 @@ use crate::{
     MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
     StructField, Tag, UnionField, UseClause, UseItem, WithClause,
 };
-pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeType, node_id: u32) {
+
+/// Walk any node.
+pub fn walk_any<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    node_type: NodeType,
+    node_id: u32,
+) {
     let local_idx = tree.local_id_by_node[node_id as usize];
     match node_type {
         // --------------------------------------------------------------------
