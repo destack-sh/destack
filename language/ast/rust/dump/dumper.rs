@@ -1,8 +1,3 @@
-//! The Dumper is a helper for ugly-printing AST nodes for debugging and inspection.
-//! Unlike the pretty Printer, Dumper makes no attempt to look like source code;
-//!  instead, Dumper is optimized for checking parse trees.
-//! ```
-
 #![allow(clippy::match_like_matches_macro)]
 
 use std::borrow::Cow;
@@ -746,10 +741,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Block(_) => {
                 self.node("Expression::Block", _id.id).end();
             }
-            Expression::With { .. } => {
+            Expression::With { clauses: _ } => {
                 self.node("Expression::With", _id.id).end();
             }
-            Expression::Use { visibility, .. } => {
+            Expression::Use {
+                visibility,
+                clauses: _,
+                body: _,
+            } => {
                 self.node("Expression::Use", _id.id)
                     .field_optional("visibility", visibility)
                     .end();
@@ -757,44 +756,74 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Let {
                 mutability,
                 visibility,
-                ..
+                pattern: _,
+                ty: _,
+                value: _,
             } => {
                 self.node("Expression::Let", _id.id)
                     .field("mutability", mutability)
                     .field_optional("visibility", visibility)
                     .end();
             }
-            Expression::If { runtime, .. } => {
+            Expression::If {
+                runtime,
+                condition: _,
+                then_block: _,
+                else_block: _,
+            } => {
                 self.node("Expression::If", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::While { runtime, .. } => {
+            Expression::While {
+                runtime,
+                condition: _,
+                body: _,
+            } => {
                 self.node("Expression::While", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::For { runtime, .. } => {
+            Expression::For {
+                runtime,
+                pattern: _,
+                iterator: _,
+                body: _,
+            } => {
                 self.node("Expression::For", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Loop { runtime, .. } => {
+            Expression::Loop {
+                runtime,
+                body: _,
+            } => {
                 self.node("Expression::Loop", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Try { runtime, .. } => {
+            Expression::Try {
+                runtime,
+                try_block: _,
+                catch_block: _,
+            } => {
                 self.node("Expression::Try", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Match { runtime, .. } => {
+            Expression::Match {
+                runtime,
+                value: _,
+                cases: _,
+            } => {
                 self.node("Expression::Match", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Break { label, .. } => {
+            Expression::Break {
+                label,
+                value: _,
+            } => {
                 self.node("Expression::Break", _id.id)
                     .field_optional("label", label)
                     .end();
@@ -804,10 +833,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("label", label)
                     .end();
             }
-            Expression::Defer { .. } => {
+            Expression::Defer {
+                expression: _,
+                catch: _,
+            } => {
                 self.node("Expression::Defer", _id.id).end();
             }
-            Expression::Return { .. } => {
+            Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();
             }
             Expression::Path {
@@ -826,42 +858,65 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(lit)
                     .end();
             }
-            Expression::RangeLiteral { is_inclusive, .. } => {
+            Expression::RangeLiteral {
+                start: _,
+                end: _,
+                is_inclusive,
+            } => {
                 self.node("Expression::RangeLiteral", _id.id)
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Expression::ArrayLiteral { .. } => {
+            Expression::ArrayLiteral { elements: _ } => {
                 self.node("Expression::ArrayLiteral", _id.id).end();
             }
-            Expression::TupleLiteral { .. } => {
+            Expression::TupleLiteral { elements: _ } => {
                 self.node("Expression::TupleLiteral", _id.id).end();
             }
-            Expression::StructLiteral { .. } => {
+            Expression::StructLiteral {
+                ty: _,
+                fields: _,
+            } => {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
-            Expression::Parenthesized { .. } => {
+            Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }
-            Expression::Unary { operator, .. } => {
+            Expression::Unary {
+                operator,
+                right: _,
+            } => {
                 self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Reference { mutability, .. } => {
+            Expression::Reference {
+                mutability,
+                right: _,
+            } => {
                 self.node("Expression::Reference", _id.id)
                     .field("mutability", mutability)
                     .end();
             }
-            Expression::Member { path, .. } => {
+            Expression::Member {
+                receiver: _,
+                path,
+            } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)
                     .end();
             }
-            Expression::Index { .. } => {
+            Expression::Index {
+                receiver: _,
+                index: _,
+            } => {
                 self.node("Expression::Index", _id.id).end();
             }
-            Expression::Call { runtime, .. } => {
+            Expression::Call {
+                runtime,
+                receiver: _,
+                dynamic_arguments: _,
+            } => {
                 self.node("Expression::Call", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
@@ -872,12 +927,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Must(_) => {
                 self.node("Expression::Must", _id.id).end();
             }
-            Expression::Binary { operator, .. } => {
+            Expression::Binary {
+                left: _,
+                operator,
+                right: _,
+            } => {
                 self.node("Expression::Binary", _id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Assign { operator, .. } => {
+            Expression::Assign {
+                left: _,
+                operator,
+                right: _,
+            } => {
                 self.node("Expression::Assign", _id.id)
                     .field("operator", operator)
                     .end();
@@ -916,7 +979,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 format,
                 name,
                 visibility,
-                ..
+                expressions: _,
             } => {
                 self.node("Definition::Module", id.id)
                     .field("format", format)
@@ -928,7 +991,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 style,
-                ..
+                super_types: _,
+                representation_type: _,
+                static_parameters: _,
+                with: _,
+                fields: _,
+                expressions: _,
             } => {
                 self.node("Definition::Struct", id.id)
                     .field_optional("name", name)
@@ -937,7 +1005,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Enum {
-                name, visibility, ..
+                name,
+                visibility,
+                tag_type: _,
+                static_parameters: _,
+                super_types: _,
+                with: _,
+                fields: _,
+                expressions: _,
             } => {
                 self.node("Definition::Enum", id.id)
                     .field_optional("name", name)
@@ -945,7 +1020,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Union {
-                name, visibility, ..
+                name,
+                visibility,
+                tag_type: _,
+                representation_type: _,
+                static_parameters: _,
+                super_types: _,
+                with: _,
+                fields: _,
+                expressions: _,
             } => {
                 self.node("Definition::Union", id.id)
                     .field_optional("name", name)
@@ -953,14 +1036,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Trait {
-                name, visibility, ..
+                name,
+                visibility,
+                super_types: _,
+                static_parameters: _,
+                with: _,
+                expressions: _,
             } => {
                 self.node("Definition::Trait", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
-            Definition::Implement { .. } => {
+            Definition::Implement {
+                static_arguments: _,
+                receiver: _,
+                for_trait: _,
+                with: _,
+                expressions: _,
+            } => {
                 self.node("Definition::Implement", id.id).end();
             }
             Definition::Function {
@@ -968,7 +1062,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 visibility,
                 runtime,
                 style,
-                ..
+                static_parameters: _,
+                self_parameter: _,
+                dynamic_parameters: _,
+                return_type: _,
+                with: _,
+                body: _,
             } => {
                 self.node("Definition::Function", id.id)
                     .field_optional("name", name)
@@ -1227,27 +1326,42 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Blank { position, .. } => {
+            Annotation::Blank {
+                node: _,
+                position,
+            } => {
                 self.node("Annotation::Blank", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Doc { position, .. } => {
+            Annotation::Doc {
+                node: _,
+                position,
+            } => {
                 self.node("Annotation::Doc", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Comment { position, .. } => {
+            Annotation::Comment {
+                node: _,
+                position,
+            } => {
                 self.node("Annotation::Comment", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Tag { position, .. } => {
+            Annotation::Tag {
+                node: _,
+                position,
+            } => {
                 self.node("Annotation::Tag", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Decorator { position, .. } => {
+            Annotation::Decorator {
+                node: _,
+                position,
+            } => {
                 self.node("Annotation::Decorator", _id.id)
                     .field("position", position)
                     .end();

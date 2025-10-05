@@ -1031,19 +1031,34 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Annotation, id.id);
     match annotation {
-        Annotation::Blank { node, .. } => {
+        Annotation::Blank {
+            node,
+            position: _,
+        } => {
             visitor.visit_blank(tree, *node, tree.get(*node));
         }
-        Annotation::Doc { node, .. } => {
+        Annotation::Doc {
+            node,
+            position: _,
+        } => {
             visitor.visit_doc(tree, *node, tree.get(*node));
         }
-        Annotation::Comment { node, .. } => {
+        Annotation::Comment {
+            node,
+            position: _,
+        } => {
             visitor.visit_comment(tree, *node, tree.get(*node));
         }
-        Annotation::Tag { node, .. } => {
+        Annotation::Tag {
+            node,
+            position: _,
+        } => {
             visitor.visit_tag(tree, *node, tree.get(*node));
         }
-        Annotation::Decorator { node, .. } => {
+        Annotation::Decorator {
+            node,
+            position: _,
+        } => {
             visitor.visit_decorator(tree, *node, tree.get(*node));
         }
     }
