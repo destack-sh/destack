@@ -25,7 +25,7 @@ pub enum Expression {
 
     // Use
     Use {
-        declarations: Vec<NodeId<UseItem>>,
+        items: Vec<NodeId<UseItem>>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).

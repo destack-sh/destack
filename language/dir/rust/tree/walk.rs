@@ -4,11 +4,13 @@ use crate::{
     WithAssertion, WithDeclaration,
 };
 
-// ----------------------------------------------------------------------------
-// Traversal functions
-// ----------------------------------------------------------------------------
-
-pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeType, node_id: u32) {
+/// Walk any node.
+pub fn walk_any<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    node_type: NodeType,
+    node_id: u32,
+) {
     let local_idx = tree.local_id_by_node[node_id as usize];
     match node_type {
         // --------------------------------------------------------------------
@@ -100,23 +102,168 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
 // ----------------------------------------------------------------------------
 
 /// Walk the Expression.
-pub fn walk_expression(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_expression<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Expression>,
     expression: &Expression,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Expression, id.id);
+    match expression {
+        Expression::Definition(definition_id) => {
+            let definition = tree.get(*definition_id);
+            walk_definition(visitor, tree, *definition_id, definition);
+        }
+        Expression::Block(block_id) => {
+            let block = tree.get(*block_id);
+            walk_block(visitor, tree, *block_id, block);
+        }
+        Expression::WithDeclaration { declarations } => {
+            for declaration_id in declarations {
+                let declaration = tree.get(*declaration_id);
+                walk_with_declaration(visitor, tree, *declaration_id, declaration);
+            }
+        }
+        Expression::WithAssertion { declarations } => {
+            for declaration_id in declarations {
+                let declaration = tree.get(*declaration_id);
+                walk_with_assertion(visitor, tree, *declaration_id, declaration);
+            }
+        }
+        Expression::Use { items } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                walk_use_item(visitor, tree, *item_id, item);
+            }
+        }
+        Expression::Unary { right, .. }
+        | Expression::Reference { right }
+        | Expression::Dereference { right } => {
+            let right_expression = tree.get(*right);
+            walk_expression(visitor, tree, *right, right_expression);
+        }
+        Expression::Binary { left, right, .. }
+        | Expression::AssignDirect { left, right }
+        | Expression::AssignBinary { left, right, .. } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
+            let right_expression = tree.get(*right);
+            walk_expression(visitor, tree, *right, right_expression);
+        }
+        Expression::Drop => {}
+        Expression::Member { left, .. } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
+        }
+        Expression::Call {
+            left,
+            dynamic_arguments,
+        } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
+            for argument_id in dynamic_arguments {
+                let argument = tree.get(*argument_id);
+                walk_argument(visitor, tree, *argument_id, argument);
+            }
+        }
+        Expression::Index { left, right } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
+            let right_expression = tree.get(*right);
+            walk_expression(visitor, tree, *right, right_expression);
+        }
+        Expression::Cast { value, ty } => {
+            let value_expression = tree.get(*value);
+            walk_expression(visitor, tree, *value, value_expression);
+            let ty_node = tree.get(*ty);
+            walk_type(visitor, tree, *ty, ty_node);
+        }
+        Expression::ScalarLiteral => {}
+        Expression::StructLiteral { ty, fields } => {
+            let ty_node = tree.get(*ty);
+            walk_type(visitor, tree, *ty, ty_node);
+            for field_id in fields {
+                let argument = tree.get(*field_id);
+                walk_argument(visitor, tree, *field_id, argument);
+            }
+        }
+        Expression::TupleLiteral { elements } => {
+            for argument_id in elements {
+                let argument = tree.get(*argument_id);
+                walk_argument(visitor, tree, *argument_id, argument);
+            }
+        }
+        Expression::ArrayLiteral { elements } => {
+            for element_id in elements {
+                let element = tree.get(*element_id);
+                walk_expression(visitor, tree, *element_id, element);
+            }
+        }
+        Expression::If {
+            condition,
+            then_block,
+            else_block,
+        } => {
+            let condition_expression = tree.get(*condition);
+            walk_expression(visitor, tree, *condition, condition_expression);
+            let then_block_node = tree.get(*then_block);
+            walk_block(visitor, tree, *then_block, then_block_node);
+            if let Some(else_block_id) = else_block {
+                let else_expression = tree.get(*else_block_id);
+                walk_expression(visitor, tree, *else_block_id, else_expression);
+            }
+        }
+        Expression::Loop {
+            condition,
+            body,
+            source: _,
+        } => {
+            let condition_expression = tree.get(*condition);
+            walk_expression(visitor, tree, *condition, condition_expression);
+            let body_block = tree.get(*body);
+            walk_block(visitor, tree, *body, body_block);
+        }
+        Expression::Match { value, cases } => {
+            let value_expression = tree.get(*value);
+            walk_expression(visitor, tree, *value, value_expression);
+            for case_id in cases {
+                let case = tree.get(*case_id);
+                walk_match_case(visitor, tree, *case_id, case);
+            }
+        }
+        Expression::Break { value, .. } => {
+            if let Some(value_id) = value {
+                let value_expression = tree.get(*value_id);
+                walk_expression(visitor, tree, *value_id, value_expression);
+            }
+        }
+        Expression::Continue { .. } => {}
+        Expression::Defer { body } => {
+            let body_expression = tree.get(*body);
+            walk_expression(visitor, tree, *body, body_expression);
+        }
+        Expression::Return { value } => {
+            if let Some(value_id) = value {
+                let value_expression = tree.get(*value_id);
+                walk_expression(visitor, tree, *value_id, value_expression);
+            }
+        }
+        Expression::Error => {}
+    }
 }
 
 /// Walk the Block.
-pub fn walk_block(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_block<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Block>,
     block: &Block,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Block, id.id);
+    for expression_id in &block.expressions {
+        let expression = tree.get(*expression_id);
+        walk_expression(visitor, tree, *expression_id, expression);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -124,13 +271,56 @@ pub fn walk_block(
 // ----------------------------------------------------------------------------
 
 /// Walk the Definition.
-pub fn walk_definition(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_definition<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Definition>,
     definition: &Definition,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Definition, id.id);
+    match definition {
+        Definition::Module { definitions, .. }
+        | Definition::Trait { definitions, .. }
+        | Definition::Function { definitions, .. }
+        | Definition::Implement { definitions, .. } => {
+            for definition_id in definitions {
+                let child_definition = tree.get(*definition_id);
+                walk_definition(visitor, tree, *definition_id, child_definition);
+            }
+        }
+        Definition::Struct {
+            variant,
+            definitions,
+            ..
+        }
+        | Definition::Enum {
+            variant,
+            definitions,
+            ..
+        } => {
+            let variant_node = tree.get(*variant);
+            walk_variant(visitor, tree, *variant, variant_node);
+            for definition_id in definitions {
+                let child_definition = tree.get(*definition_id);
+                walk_definition(visitor, tree, *definition_id, child_definition);
+            }
+        }
+        Definition::Union {
+            variants,
+            definitions,
+            ..
+        } => {
+            for variant_id in variants {
+                let variant_node = tree.get(*variant_id);
+                walk_variant(visitor, tree, *variant_id, variant_node);
+            }
+            for definition_id in definitions {
+                let child_definition = tree.get(*definition_id);
+                walk_definition(visitor, tree, *definition_id, child_definition);
+            }
+        }
+        Definition::Let { .. } => {}
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -138,28 +328,94 @@ pub fn walk_definition(
 // ----------------------------------------------------------------------------
 
 /// Walk the Type.
-pub fn walk_type(visitor: &mut dyn NodeVisitor, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
-    todo!()
+pub fn walk_type<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Type>,
+    ty: &Type,
+) {
+    visitor.visit_any(tree, NodeType::Type, id.id);
+    match ty {
+        Type::Infer | Type::Never | Type::TypeLiteral(_) | Type::ScalarLiteral(_) | Type::Self_ => {
+        }
+        Type::Maybe(inner) | Type::Not(inner) | Type::Virtual(inner) | Type::Variadic(inner) => {
+            let inner_type = tree.get(*inner);
+            walk_type(visitor, tree, *inner, inner_type);
+        }
+        Type::Reference { target, .. } => {
+            let target_type = tree.get(*target);
+            walk_type(visitor, tree, *target, target_type);
+        }
+        Type::Expression(expression_id) => {
+            let expression = tree.get(*expression_id);
+            walk_expression(visitor, tree, *expression_id, expression);
+        }
+        Type::Path {
+            static_arguments, ..
+        } => {
+            if let Some(arguments) = static_arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    walk_argument(visitor, tree, *argument_id, argument);
+                }
+            }
+        }
+        Type::Variant(variant_id) => {
+            let variant = tree.get(*variant_id);
+            walk_variant(visitor, tree, *variant_id, variant);
+        }
+        Type::Array { element, count } => {
+            let element_type = tree.get(*element);
+            walk_type(visitor, tree, *element, element_type);
+            let count_expression = tree.get(*count);
+            walk_expression(visitor, tree, *count, count_expression);
+        }
+        Type::Slice { element } => {
+            let element_type = tree.get(*element);
+            walk_type(visitor, tree, *element, element_type);
+        }
+        Type::Tuple(elements) | Type::Union(elements) | Type::Intersection(elements) => {
+            for element_id in elements {
+                let element_type = tree.get(*element_id);
+                walk_type(visitor, tree, *element_id, element_type);
+            }
+        }
+    }
 }
 
 /// Walk the Variant.
-pub fn walk_variant(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_variant<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Variant>,
     variant: &Variant,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Variant, id.id);
+    match variant {
+        Variant::Struct { fields, .. } | Variant::Tuple { fields, .. } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                walk_variant_field(visitor, tree, *field_id, field);
+            }
+        }
+        Variant::Unit { .. } => {}
+    }
 }
 
 /// Walk the VariantField.
-pub fn walk_variant_field(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<VariantField>,
     variant_field: &VariantField,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::VariantField, id.id);
+    match variant_field {
+        VariantField::Named { ty, .. } | VariantField::Positional { ty } => {
+            let ty_node = tree.get(*ty);
+            walk_type(visitor, tree, *ty, ty_node);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -167,33 +423,39 @@ pub fn walk_variant_field(
 // ----------------------------------------------------------------------------
 
 /// Walk the WithDeclaration.
-pub fn walk_with_declaration(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_with_declaration<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<WithDeclaration>,
     with_declaration: &WithDeclaration,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::WithDeclaration, id.id);
+    let target = tree.get(with_declaration.target);
+    walk_expression(visitor, tree, with_declaration.target, target);
 }
 
 /// Walk the WithAssertion.
-pub fn walk_with_assertion(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_with_assertion<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<WithAssertion>,
     with_assertion: &WithAssertion,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::WithAssertion, id.id);
+    let target = tree.get(with_assertion.target);
+    walk_expression(visitor, tree, with_assertion.target, target);
+    let assertion = tree.get(with_assertion.assertion);
+    walk_expression(visitor, tree, with_assertion.assertion, assertion);
 }
 
 /// Walk the UseItem.
-pub fn walk_use_item(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_use_item<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<UseItem>,
-    use_item: &UseItem,
+    _use_item: &UseItem,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::UseItem, id.id);
 }
 
 // ----------------------------------------------------------------------------
@@ -201,23 +463,37 @@ pub fn walk_use_item(
 // ----------------------------------------------------------------------------
 
 /// Walk the Parameter.
-pub fn walk_parameter(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_parameter<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Parameter>,
     parameter: &Parameter,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Parameter, id.id);
+    if let Some(ty_id) = parameter.ty {
+        let ty_node = tree.get(ty_id);
+        walk_type(visitor, tree, ty_id, ty_node);
+    }
+    if let Some(default_id) = parameter.default {
+        let default_expression = tree.get(default_id);
+        walk_expression(visitor, tree, default_id, default_expression);
+    }
 }
 
 /// Walk the Argument.
-pub fn walk_argument(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_argument<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Argument>,
     argument: &Argument,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Argument, id.id);
+    match argument {
+        Argument::Named { value, .. } | Argument::Positional(value) => {
+            let value_expression = tree.get(*value);
+            walk_expression(visitor, tree, *value, value_expression);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -225,33 +501,121 @@ pub fn walk_argument(
 // ----------------------------------------------------------------------------
 
 /// Walk the Pattern.
-pub fn walk_pattern(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_pattern<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Pattern>,
     pattern: &Pattern,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Pattern, id.id);
+    match pattern {
+        Pattern::Wildcard
+        | Pattern::Rest
+        | Pattern::ScalarLiteral(_)
+        | Pattern::Binding { .. }
+        | Pattern::Path(_) => {}
+        Pattern::Maybe(inner) => {
+            let inner_pattern = tree.get(*inner);
+            walk_pattern(visitor, tree, *inner, inner_pattern);
+        }
+        Pattern::Reference { target, .. } => {
+            let target_pattern = tree.get(*target);
+            walk_pattern(visitor, tree, *target, target_pattern);
+        }
+        Pattern::Range { start, end, .. } => {
+            if let Some(start_id) = start {
+                let start_pattern = tree.get(*start_id);
+                walk_pattern(visitor, tree, *start_id, start_pattern);
+            }
+            if let Some(end_id) = end {
+                let end_pattern = tree.get(*end_id);
+                walk_pattern(visitor, tree, *end_id, end_pattern);
+            }
+        }
+        Pattern::Tuple { fields, .. } | Pattern::Slice { fields } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                walk_pattern_field(visitor, tree, *field_id, field);
+            }
+        }
+        Pattern::Struct { ty, fields } => {
+            let ty_expression = tree.get(*ty);
+            walk_expression(visitor, tree, *ty, ty_expression);
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                walk_pattern_field(visitor, tree, *field_id, field);
+            }
+        }
+        Pattern::Union { fields } => {
+            for pattern_id in fields {
+                let union_pattern = tree.get(*pattern_id);
+                walk_pattern(visitor, tree, *pattern_id, union_pattern);
+            }
+        }
+    }
 }
 
 /// Walk the PatternField.
-pub fn walk_pattern_field(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<PatternField>,
     pattern_field: &PatternField,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::PatternField, id.id);
+    match pattern_field {
+        PatternField::Named { pattern, .. } => {
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                walk_pattern(visitor, tree, *pattern_id, pattern_node);
+            }
+        }
+        PatternField::NamedAlias { .. } => {}
+        PatternField::Positional { pattern } => {
+            let pattern_node = tree.get(*pattern);
+            walk_pattern(visitor, tree, *pattern, pattern_node);
+        }
+    }
 }
 
 /// Walk the MatchCase.
-pub fn walk_match_case(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_match_case<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<MatchCase>,
     match_case: &MatchCase,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::MatchCase, id.id);
+    match match_case {
+        MatchCase::Expression {
+            pattern,
+            body,
+            guard,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            walk_pattern(visitor, tree, *pattern, pattern_node);
+            let body_expression = tree.get(*body);
+            walk_expression(visitor, tree, *body, body_expression);
+            if let Some(guard_id) = guard {
+                let guard_expression = tree.get(*guard_id);
+                walk_expression(visitor, tree, *guard_id, guard_expression);
+            }
+        }
+        MatchCase::Block {
+            pattern,
+            body,
+            guard,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            walk_pattern(visitor, tree, *pattern, pattern_node);
+            let body_block = tree.get(*body);
+            walk_block(visitor, tree, *body, body_block);
+            if let Some(guard_id) = guard {
+                let guard_expression = tree.get(*guard_id);
+                walk_expression(visitor, tree, *guard_id, guard_expression);
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -259,11 +623,22 @@ pub fn walk_match_case(
 // ----------------------------------------------------------------------------
 
 /// Walk the Annotation.
-pub fn walk_annotation(
-    visitor: &mut dyn NodeVisitor,
+pub fn walk_annotation<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Annotation>,
     annotation: &Annotation,
 ) {
-    todo!()
+    visitor.visit_any(tree, NodeType::Annotation, id.id);
+    match annotation {
+        Annotation::Blank { .. } | Annotation::Doc { .. } | Annotation::Comment { .. } => {}
+        Annotation::Tag { arguments, .. } | Annotation::Decorator { arguments, .. } => {
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    walk_argument(visitor, tree, *argument_id, argument);
+                }
+            }
+        }
+    }
 }
