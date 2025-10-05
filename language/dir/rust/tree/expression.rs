@@ -23,7 +23,7 @@ pub enum Expression {
         declarations: Vec<NodeId<WithAssertion>>,
     },
 
-    // Use
+    // Use declaration (flattened, like `use foo` or `use foo.bar, baz.quz`)
     Use {
         items: Vec<NodeId<UseItem>>,
     },
