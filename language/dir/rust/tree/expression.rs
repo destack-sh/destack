@@ -7,10 +7,10 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    // Definition
+    // Definition (with a name or anonymous)
     Definition(NodeId<Definition>),
 
-    // Block
+    // Block of "statements" (inside `{}` usually)
     Block(NodeId<Block>),
 
     // With
