@@ -142,7 +142,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Block(node) => node.format(f)?,
 
             // with
-            Expression::With { clauses } => {
+            Expression::With { clauses, body } => {
                 // keyword
                 write!(f, [Keyword::With])?;
                 if clauses.is_empty() {
@@ -162,6 +162,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         .finish()
                     }))]
                 )?;
+
+                // scoped body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
             }
 
             // use

@@ -352,11 +352,7 @@ impl<'a> Parser<'a> {
             //
             // with
             else if keyword == Some(Keyword::With) {
-                let with_id = self.eat_with()?;
-                self.tree.allocate(
-                    Expression::With { clauses: with_id },
-                    self.get_span_from(start),
-                )
+                self.eat_with()?
             }
             // use
             else if keyword == Some(Keyword::Use) {

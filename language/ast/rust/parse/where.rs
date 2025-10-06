@@ -5,6 +5,15 @@ use crate::{AstResult, Keyword, NodeId, Parser, WhereClause};
 
 impl<'a> Parser<'a> {
     /// Eat a where context declaration or assignment maybe.
+    ///
+    /// Examples:
+    /// ```
+    /// where T: int32
+    /// where Foo
+    /// where Foo, Bar
+    /// where Foo.Bar
+    /// where !Bar
+    /// ```
     #[inline]
     pub fn eat_where_maybe(&mut self) -> AstResult<Option<Vec<NodeId<WhereClause>>>> {
         if self.peek_keyword(Keyword::Where).is_ok() {
@@ -16,15 +25,13 @@ impl<'a> Parser<'a> {
 
     /// Eat a where context declaration or assignment.
     ///
-    /// Where can declare the use of an item in a scope and refine type bounds.
-    ///
     /// Examples:
     /// ```
     /// where T: int32
     /// where Foo
     /// where Foo, Bar
     /// where Foo.Bar
-    /// where !Bar
+    /// where !Bar, Time > Limit, F: Numeric
     /// where (
     ///    !Bar,
     ///    F: Numeric // optional comma
@@ -40,6 +47,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat the clauses of a `where` declaration (without the `where` keyword).
+    /// Separated by commas.
     fn eat_where_body(&mut self) -> AstResult<Vec<NodeId<WhereClause>>> {
         let mut clauses: Vec<NodeId<WhereClause>> = Vec::new();
 

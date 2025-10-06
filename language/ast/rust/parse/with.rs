@@ -1,14 +1,63 @@
 //! Parse use and with declarations.
 use dyst_token::TokenType;
 
-use crate::{AstResult, Keyword, NodeId, Parser, WithClause};
+use crate::{AstResult, Expression, Keyword, NodeId, Parser, WithClause};
 
 impl<'a> Parser<'a> {
-    /// Eat a with context declaration or assignment maybe.
+    /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).
     #[inline]
-    pub fn eat_with_maybe(&mut self) -> AstResult<Option<Vec<NodeId<WithClause>>>> {
+    pub fn eat_with_maybe(&mut self) -> AstResult<Option<NodeId<Expression>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Eat a with context declaration or assignment (including the `with` keyword and an optional body).
+    ///
+    /// Examples:
+    /// ```
+    /// with T: int32
+    /// with Foo
+    /// with Foo, Bar
+    /// with Foo.Bar
+    ///
+    /// with x, y {
+    ///   ...
+    /// }
+    /// ```
+    pub fn eat_with(&mut self) -> AstResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::With)?;
+
+        // clauses
+        let clauses = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_with_clauses()
+        })?;
+
+        // body
+        let body = if self.peek_block().is_ok() {
+            Some(self.eat_block()?)
+        } else {
+            None
+        };
+
+        // with
+        let with_id = self.tree.allocate(
+            Expression::With { clauses, body },
+            self.get_span_from(start),
+        );
+        Ok(with_id)
+    }
+
+    /// Eat a with context declaration or assignment maybe.
+    #[inline]
+    pub fn eat_with_header_maybe(&mut self) -> AstResult<Option<Vec<NodeId<WithClause>>>> {
+        if self.peek_keyword(Keyword::With).is_ok() {
+            Ok(Some(self.eat_with_header()?))
         } else {
             Ok(None)
         }
@@ -24,23 +73,22 @@ impl<'a> Parser<'a> {
     /// with Foo
     /// with Foo, Bar
     /// with Foo.Bar
-    /// with !Bar
     /// with (
-    ///    !Bar,
     ///    Time<float32> // optional comma
     ///    F: Numeric
     /// )
     /// ```
-    pub fn eat_with(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
+    pub fn eat_with_header(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         self.eat_keyword(Keyword::With)?;
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_with_body()
+            parser.eat_with_clauses()
         })?;
         Ok(clauses)
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    fn eat_with_body(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
+    /// Separated by commas.
+    fn eat_with_clauses(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -118,7 +166,7 @@ mod tests {
     fn test_parse_with_type_assertion() {
         let mut test = TestParser::new("with T: int32");
         let mut parser = test.prepare();
-        let clauses = parser.eat_with().unwrap();
+        let clauses = parser.eat_with_header().unwrap();
         // with T: int32
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias, right } => {
@@ -134,7 +182,7 @@ mod tests {
     fn test_parse_with_simple_declaration() {
         let mut test = TestParser::new("with Foo");
         let mut parser = test.prepare();
-        let clauses = parser.eat_with().unwrap();
+        let clauses = parser.eat_with_header().unwrap();
         // with Foo
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
@@ -146,7 +194,7 @@ mod tests {
     fn test_parse_with_path_declaration() {
         let mut test = TestParser::new("with Foo.Bar");
         let mut parser = test.prepare();
-        let clauses = parser.eat_with().unwrap();
+        let clauses = parser.eat_with_header().unwrap();
         // with Foo.Bar
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
@@ -156,25 +204,15 @@ mod tests {
 
     #[test]
     fn test_parse_with_multiple_clauses() {
-        let input = "with !Bar, Time, F: Numeric";
+        let input = "with Time, F: Numeric";
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
-        let clauses = parser.eat_with().unwrap();
+        let clauses = parser.eat_with_header().unwrap();
 
-        assert_eq!(clauses.len(), 3);
-
-        // !Bar
-        assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
-                assert_eq!(*operator, UnaryOperator::Not);
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Bar");
-                });
-            });
-        });
+        assert_eq!(clauses.len(), 2);
 
         // Time
-        assert_node!(parser.tree, clauses[1], WithClause { alias: _, right } => {
+        assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
             assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
                 assert_path!(parser.session, *path, "Time");
                 assert!(static_arguments.is_none());
@@ -182,7 +220,7 @@ mod tests {
         });
 
         // F: Numeric
-        assert_node!(parser.tree, clauses[2], WithClause { alias, right } => {
+        assert_node!(parser.tree, clauses[1], WithClause { alias, right } => {
             assert_string!(parser.session, alias.unwrap(), "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser.session, *path, "Numeric");
@@ -199,7 +237,7 @@ mod tests {
 )"##;
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
-        let clauses = parser.eat_with().unwrap();
+        let clauses = parser.eat_with_header().unwrap();
 
         assert_eq!(clauses.len(), 3);
 

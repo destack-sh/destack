@@ -27,7 +27,6 @@ pub enum Expression {
     /// with Foo as Bar
     /// with Foo, Bar
     /// with Foo.Bar
-    /// with !Bar
     /// with (
     ///    !Bar,
     ///    Time<F> // optional comma
@@ -35,7 +34,10 @@ pub enum Expression {
     ///    T > Y
     /// )
     /// ```
-    With { clauses: Vec<NodeId<WithClause>> },
+    With {
+        clauses: Vec<NodeId<WithClause>>,
+        body: Option<NodeId<Block>>,
+    },
 
     /// A Use is a use declaration for dependency management.
     /// Use can be used as statement for the containing scope or in block form.
@@ -50,16 +52,8 @@ pub enum Expression {
     /// use foo.{} // valid but linted
     /// use foo as baz
     ///
-    /// use Heap {
+    /// use destack as ds {
     ///   ...
-    /// }
-    ///
-    /// use Time, !Disk, !Network, !Allocation {
-    ///   ...
-    /// }
-    ///
-    /// use someLock() {
-    ///
     /// }
     /// ```
     Use {
