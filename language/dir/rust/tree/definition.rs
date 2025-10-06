@@ -1,4 +1,4 @@
-use crate::{Node, NodeId, NodeType, StringId, Type, Variant, Visibility};
+use crate::{Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause};
 
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
@@ -7,6 +7,8 @@ pub enum Definition {
     Module {
         name: StringId,
         visibility: Option<Visibility>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Struct definition.
@@ -15,6 +17,8 @@ pub enum Definition {
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variant: NodeId<Variant>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.
@@ -23,6 +27,8 @@ pub enum Definition {
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variant: NodeId<Variant>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Union definition.
@@ -31,6 +37,8 @@ pub enum Definition {
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variants: Vec<NodeId<Variant>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Trait definition.
@@ -38,18 +46,25 @@ pub enum Definition {
         name: StringId,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Function definition.
     Function {
         name: StringId,
         visibility: Option<Visibility>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Implement definition.
     Implement {
         name: StringId,
         visibility: Option<Visibility>,
+        for_type: Option<NodeId<Type>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Let definition.

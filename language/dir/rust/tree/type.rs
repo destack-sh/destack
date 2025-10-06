@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use crate::{
-    Argument, Expression, Node, NodeId, NodeType, PathId, ScalarLiteral, ScopedMutability, Variant,
+    Argument, Expression, Node, NodeId, NodeType, PathId, ScalarLiteral, ScopedMutability,
+    StringId, Variant,
 };
 
 impl IntType {
@@ -217,4 +218,25 @@ pub enum FloatType {
     Float32,
     /// 64-bit IEEE-754 float.
     Float64,
+}
+
+/// A WhereClause is a single clause in a where type declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WhereClause {
+    /// Where assertion (like `T: int32`).
+    Assertion {
+        /// The target to assert (like `T` in `T: int32`)
+        left: StringId,
+        /// The assertion type (like `int32` in `T: int32`)
+        right: NodeId<Expression>,
+    },
+    /// Where guard (like `T > Y`).
+    Guard {
+        /// The guard (like `T > Y` in `with T > Y`)
+        guard: NodeId<Expression>,
+    },
+}
+
+impl Node for WhereClause {
+    const KIND: NodeType = NodeType::WhereClause;
 }

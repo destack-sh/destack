@@ -2,10 +2,10 @@
 
 use crate::{
     Annotation, Argument, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WithAssertion,
-    WithDeclaration, walk_annotation, walk_argument, walk_block, walk_definition, walk_expression,
+    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause,
+    WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_expression,
     walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type, walk_use_item,
-    walk_variant, walk_variant_field, walk_with_assertion, walk_with_declaration,
+    walk_variant, walk_variant_field, walk_where_clause, walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the DIR.
@@ -72,28 +72,28 @@ pub trait NodeVisitor {
         walk_variant_field(self, tree, id, variant_field);
     }
 
+    /// Visit a WhereClause.
+    fn visit_where_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<WhereClause>,
+        where_clause: &WhereClause,
+    ) {
+        walk_where_clause(self, tree, id, where_clause);
+    }
+
     // ------------------------------------------------------------
     // Context
     // ------------------------------------------------------------
 
-    /// Visit a WithDeclaration.
-    fn visit_with_declaration(
+    /// Visit a WithClause.
+    fn visit_with_clause(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<WithDeclaration>,
-        with_declaration: &WithDeclaration,
+        id: NodeId<WithClause>,
+        with_clause: &WithClause,
     ) {
-        walk_with_declaration(self, tree, id, with_declaration);
-    }
-
-    /// Visit a WithAssertion.
-    fn visit_with_assertion(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<WithAssertion>,
-        with_assertion: &WithAssertion,
-    ) {
-        walk_with_assertion(self, tree, id, with_assertion);
+        walk_with_clause(self, tree, id, with_clause);
     }
 
     /// Visit a UseItem.
@@ -232,26 +232,26 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::VariantField, id.id);
     }
 
+    fn visit_where_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<WhereClause>,
+        _where_clause: &WhereClause,
+    ) {
+        self.visit_any(tree, NodeType::WhereClause, id.id);
+    }
+
     // ------------------------------------------------------------
     // Context
     // ------------------------------------------------------------
 
-    fn visit_with_declaration(
+    fn visit_with_clause(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<WithDeclaration>,
-        _with_declaration: &WithDeclaration,
+        id: NodeId<WithClause>,
+        _with_clause: &WithClause,
     ) {
-        self.visit_any(tree, NodeType::WithDeclaration, id.id);
-    }
-
-    fn visit_with_assertion(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<WithAssertion>,
-        _with_assertion: &WithAssertion,
-    ) {
-        self.visit_any(tree, NodeType::WithAssertion, id.id);
+        self.visit_any(tree, NodeType::WithClause, id.id);
     }
 
     fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, _use_item: &UseItem) {

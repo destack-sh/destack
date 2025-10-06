@@ -7,8 +7,8 @@ use crate::annotation::Annotation;
 use crate::tree::arena::NodeArena;
 use crate::{
     Argument, Block, Definition, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType,
-    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WithAssertion,
-    WithDeclaration,
+    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause,
+    WithClause,
 };
 
 /// The Node tree.
@@ -36,9 +36,9 @@ pub struct NodeTree {
     pub(crate) types: NodeArena<Type>,
     pub(crate) variants: NodeArena<Variant>,
     pub(crate) variant_fields: NodeArena<VariantField>,
+    pub(crate) where_clauses: NodeArena<WhereClause>,
     // context
-    pub(crate) with_declarations: NodeArena<WithDeclaration>,
-    pub(crate) with_assertions: NodeArena<WithAssertion>,
+    pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) use_items: NodeArena<UseItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
@@ -86,9 +86,9 @@ impl NodeTree {
             types: NodeArena::new(),
             variants: NodeArena::new(),
             variant_fields: NodeArena::new(),
+            where_clauses: NodeArena::new(),
             // context
-            with_declarations: NodeArena::new(),
-            with_assertions: NodeArena::new(),
+            with_clauses: NodeArena::new(),
             use_items: NodeArena::new(),
             // bindings
             parameters: NodeArena::new(),
@@ -235,9 +235,9 @@ impl NodeTree {
             NodeType::Type => self.types.deallocate(local_ids),
             NodeType::Variant => self.variants.deallocate(local_ids),
             NodeType::VariantField => self.variant_fields.deallocate(local_ids),
+            NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
             // context
-            NodeType::WithDeclaration => self.with_declarations.deallocate(local_ids),
-            NodeType::WithAssertion => self.with_assertions.deallocate(local_ids),
+            NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::UseItem => self.use_items.deallocate(local_ids),
             // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
@@ -274,16 +274,6 @@ impl NodeTree {
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
-    }
-
-    /// Sort all annotations.
-    #[inline]
-    pub(crate) fn sort_annotations(&mut self) {
-        self.annotations_per_node
-            .values_mut()
-            .for_each(|annotations| {
-                annotations.sort_by_key(|annotation| self.spans.get(*annotation).start)
-            });
     }
 }
 
@@ -335,9 +325,9 @@ impl_node_tree_stores! {
     Type => types,
     Variant => variants,
     VariantField => variant_fields,
+    WhereClause => where_clauses,
     // context
-    WithDeclaration => with_declarations,
-    WithAssertion => with_assertions,
+    WithClause => with_clauses,
     UseItem => use_items,
     // bindings
     Parameter => parameters,
