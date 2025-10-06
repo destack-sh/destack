@@ -81,7 +81,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Definition, Expression, WhereClause, assert_node, assert_path, assert_string};
+    use crate::{
+        Definition, Expression, WhereClause, WithClause, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
@@ -166,7 +168,7 @@ trait Foo: Baz {
     fn test_parse_trait_with_clause() {
         let mut test = TestParser::new(
             r###"
-trait Baz<T> where T: Copy {
+trait Baz<T> with T: Copy where Requirement: Trait {
     function baz() => T
 }
 "###,
@@ -175,20 +177,29 @@ trait Baz<T> where T: Copy {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
             assert_string!(parser.session, name.unwrap(), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
 
-            // where T: Copy
-            let where_clauses = where_clauses.as_ref().unwrap();
-            assert_node!(parser.tree, where_clauses[0], WhereClause::Assertion { left, right } => {
-                // T
-                assert_string!(parser.session, *left, "T");
-                // Copy
+            // with T: Copy
+            let with_items = with_clauses.as_ref().expect("expected with clauses");
+            assert_eq!(with_items.len(), 1);
+            assert_node!(parser.tree, with_items[0], WithClause { alias, right } => {
+                assert_string!(parser.session, alias.unwrap(), "T");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Copy");
+                });
+            });
+
+            // where Requirement: Trait
+            let where_items = where_clauses.as_ref().expect("expected where clauses");
+            assert_eq!(where_items.len(), 1);
+            assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
+                assert_string!(parser.session, *left, "Requirement");
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Trait");
                 });
             });
 

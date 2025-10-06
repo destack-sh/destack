@@ -267,4 +267,24 @@ mod tests {
             });
         });
     }
+
+    #[test]
+    fn test_parse_with_expression_via_expression_parser() {
+        let mut test = TestParser::new("with Context");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // with Context
+        assert_node!(parser.tree, expression_id, Expression::With { clauses, body } => {
+            assert_eq!(clauses.len(), 1);
+            assert!(body.is_none());
+
+            assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser.session, *path, "Context");
+                    assert!(static_arguments.is_none());
+                });
+            });
+        });
+    }
 }

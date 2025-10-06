@@ -246,8 +246,9 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, Expression, IntType, Parameter, ScalarLiteral, StructField, TypeLiteral,
-        UnaryOperator, UnionField, assert_node, assert_path, assert_string,
+        BinaryOperator, Definition, Expression, IntType, Parameter, ScalarLiteral, StructField,
+        TypeLiteral, UnaryOperator, UnionField, WhereClause, WithClause, assert_expr_path,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -449,6 +450,45 @@ union(uint4, uint60) Foo<T>: Boz {
                 });
             });
 
+        });
+    }
+
+    #[test]
+    fn test_parse_union_with_with_and_where() {
+        let mut test = TestParser::new(
+            r###"
+union Foo with Context where Guard > Limit {
+    Value
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let union_id = parser.eat_union(None).unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { with_clauses, where_clauses, fields: _, expressions, .. } => {
+            assert!(expressions.is_empty());
+
+            // with Context
+            let with_clauses = with_clauses.as_ref().expect("expected with clauses");
+            assert_eq!(with_clauses.len(), 1);
+            assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser.session, *path, "Context");
+                    assert!(static_arguments.is_none());
+                });
+            });
+
+            // where Guard > Limit
+            let where_clauses = where_clauses.as_ref().expect("expected where clauses");
+            assert_eq!(where_clauses.len(), 1);
+            assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
+                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                });
+            });
         });
     }
 }

@@ -322,7 +322,7 @@ implement TetrisGame {
     /// Create a new Tetris game.
     function new(width: int32, height: int32) => TetrisGame {
         TetrisGame {
-             board: Board.new(width, height)
+            board: Board.new(width, height)
             currentPiece: null
             currentPosition: Position { x: 4, y: 0 }
             nextPiece: null
@@ -331,7 +331,7 @@ implement TetrisGame {
             linesCleared: 0
             state: GameState.Playing
             dropTimer: 0.0
-            dropInterval: 1.0 
+            dropInterval: 1.0
         }
     }
 
