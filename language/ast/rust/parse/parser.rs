@@ -115,12 +115,12 @@ impl ParserOptions {
 }
 
 /// A parser for a single Dyst source's AST.
-/// 
+///
 /// Basically:
 /// ```ignore
 /// fn parse(source: Source, tokens: source::Token[]) -> (tree: ast::NodeTree)
 /// ```
-/// 
+///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
 pub struct Parser<'ast> {
