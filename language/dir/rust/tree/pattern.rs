@@ -1,5 +1,5 @@
 use crate::literal::ScalarLiteral;
-use crate::{Expression, Mutability, Node, NodeId, NodeType, PathId, StringId};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +20,7 @@ pub enum Pattern {
     /// Binding pattern (like `x`).
     Binding { name: StringId },
     /// Path pattern (like `MyEnum.A`).
-    Path(PathId),
+    Path(Path),
     /// Range pattern (like `1..3`).
     Range {
         start: Option<NodeId<Pattern>>,
@@ -29,7 +29,7 @@ pub enum Pattern {
     },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
     Tuple {
-        path: Option<PathId>,
+        path: Option<Path>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).

@@ -84,8 +84,6 @@ impl Default for DumperOptions {
 pub struct Dumper<'a> {
     /// The string pool.
     pub strings: &'a StringPool,
-    /// The path pool.
-    pub paths: &'a PathPool,
     /// The node tree.
     pub tree: &'a NodeTree,
     /// The dump options.

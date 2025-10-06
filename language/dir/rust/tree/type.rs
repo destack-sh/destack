@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    Argument, Expression, Node, NodeId, NodeType, PathId, ScalarLiteral, ScopedMutability,
-    StringId, Variant,
+    Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId, Variant,
 };
 
 impl IntType {
@@ -181,7 +180,7 @@ pub enum Type {
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
 
-    /// An expression yet to be evaluated into a Type.
+    /// An expression yet to be evaluated into a Type (like a Path).
     Expression(NodeId<Expression>),
     /// Scalar primitive type.
     TypeLiteral(TypeLiteral),
@@ -189,13 +188,11 @@ pub enum Type {
     ScalarLiteral(ScalarLiteral),
     /// Self type (only inside associated scopes for types).
     Self_,
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
-    Path {
-        path: PathId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-    },
     /// Variant type.
     Variant(NodeId<Variant>),
+
+    /// Error type that could not be evaluated.
+    Error,
 }
 
 impl Node for Type {

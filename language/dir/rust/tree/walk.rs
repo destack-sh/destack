@@ -241,18 +241,27 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 walk_match_case(visitor, tree, *case_id, case);
             }
         }
-        Expression::Break { label: _, value } => {
+        Expression::Break {
+            destination: _,
+            value,
+        } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 walk_expression(visitor, tree, *value_id, value_expression);
             }
         }
-        Expression::Continue { label: _ } => {}
-        Expression::Defer { body } => {
+        Expression::Continue { destination: _ } => {}
+        Expression::Defer {
+            destination: _,
+            body,
+        } => {
             let body_expression = tree.get(*body);
             walk_expression(visitor, tree, *body, body_expression);
         }
-        Expression::Return { value } => {
+        Expression::Return {
+            destination: _,
+            value,
+        } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 walk_expression(visitor, tree, *value_id, value_expression);
@@ -289,6 +298,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
+        Definition::Intrinsic { intrinsic: _ } => {
+            // nothing to do
+        }
         Definition::Module {
             name: _,
             visibility: _,
@@ -538,17 +550,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let expression = tree.get(*expression_id);
             walk_expression(visitor, tree, *expression_id, expression);
         }
-        Type::Path {
-            path: _,
-            static_arguments,
-        } => {
-            if let Some(arguments) = static_arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    walk_argument(visitor, tree, *argument_id, argument);
-                }
-            }
-        }
         Type::Variant(variant_id) => {
             let variant = tree.get(*variant_id);
             walk_variant(visitor, tree, *variant_id, variant);
@@ -569,6 +570,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 walk_type(visitor, tree, *element_id, element_type);
             }
         }
+        Type::Error => {}
     }
 }
 
