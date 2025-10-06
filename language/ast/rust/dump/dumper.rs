@@ -794,10 +794,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Loop {
-                runtime,
-                body: _,
-            } => {
+            Expression::Loop { runtime, body: _ } => {
                 self.node("Expression::Loop", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
@@ -820,10 +817,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Break {
-                label,
-                value: _,
-            } => {
+            Expression::Break { label, value: _ } => {
                 self.node("Expression::Break", _id.id)
                     .field_optional("label", label)
                     .end();
@@ -873,19 +867,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::TupleLiteral { elements: _ } => {
                 self.node("Expression::TupleLiteral", _id.id).end();
             }
-            Expression::StructLiteral {
-                ty: _,
-                fields: _,
-            } => {
+            Expression::StructLiteral { ty: _, fields: _ } => {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }
-            Expression::Unary {
-                operator,
-                right: _,
-            } => {
+            Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
                     .end();
@@ -898,10 +886,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Expression::Member {
-                receiver: _,
-                path,
-            } => {
+            Expression::Member { receiver: _, path } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)
                     .end();
@@ -1124,17 +1109,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<WithClause>,
         clause: &WithClause,
     ) {
-        match clause {
-            WithClause::Declaration { target: _ } => {
-                self.node("WithClause::Declaration", _id.id).end();
-            }
-            WithClause::Assertion {
-                target: _,
-                assertion: _,
-            } => {
-                self.node("WithClause::Assertion", _id.id).end();
-            }
-        }
+        self.node("WithClause", _id.id)
+            .field_optional("alias", &clause.alias)
+            .end();
         self.with_depth(|dumper| {
             walk_with_clause(dumper, _tree, _id, clause);
         });
@@ -1326,42 +1303,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Blank {
-                node: _,
-                position,
-            } => {
+            Annotation::Blank { node: _, position } => {
                 self.node("Annotation::Blank", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Doc {
-                node: _,
-                position,
-            } => {
+            Annotation::Doc { node: _, position } => {
                 self.node("Annotation::Doc", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Comment {
-                node: _,
-                position,
-            } => {
+            Annotation::Comment { node: _, position } => {
                 self.node("Annotation::Comment", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Tag {
-                node: _,
-                position,
-            } => {
+            Annotation::Tag { node: _, position } => {
                 self.node("Annotation::Tag", _id.id)
                     .field("position", position)
                     .end();
             }
-            Annotation::Decorator {
-                node: _,
-                position,
-            } => {
+            Annotation::Decorator { node: _, position } => {
                 self.node("Annotation::Decorator", _id.id)
                     .field("position", position)
                     .end();

@@ -7,7 +7,7 @@ use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
     EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern,
-    PatternField, StructField, Tag, UnionField, UseClause, UseItem, WithClause,
+    PatternField, StructField, Tag, UnionField, UseClause, UseItem, WithClause, WhereClause,
 };
 
 /// The Node tree.
@@ -36,6 +36,7 @@ pub struct NodeTree {
     pub(crate) union_fields: NodeArena<UnionField>,
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
+    pub(crate) where_clauses: NodeArena<WhereClause>,
     pub(crate) use_clauses: NodeArena<UseClause>,
     pub(crate) use_items: NodeArena<UseItem>,
     // bindings
@@ -90,6 +91,7 @@ impl NodeTree {
             union_fields: NodeArena::new(),
             // context
             with_clauses: NodeArena::new(),
+            where_clauses: NodeArena::new(),
             use_clauses: NodeArena::new(),
             use_items: NodeArena::new(),
             // bindings
@@ -243,6 +245,7 @@ impl NodeTree {
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
             // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
+            NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
             NodeType::UseClause => self.use_clauses.deallocate(local_ids),
             NodeType::UseItem => self.use_items.deallocate(local_ids),
             // bindings
@@ -383,6 +386,7 @@ impl_node_tree_stores! {
     UnionField => union_fields,
     // context
     WithClause => with_clauses,
+    WhereClause => where_clauses,
     UseClause => use_clauses,
     UseItem => use_items,
     // bindings

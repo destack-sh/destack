@@ -39,16 +39,10 @@ impl<'ast> FormatNode<'ast, WithClause> for WithClause {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        match self {
-            WithClause::Declaration { target } => {
-                // target
-                write!(f, [*target])?;
-            }
-            WithClause::Assertion { target, assertion } => {
-                // target and assertion
-                write!(f, [*target, token(": "), *assertion])?;
-            }
+        if let Some(alias) = self.alias {
+            write!(f, [alias, token(": ")])?;
         }
+        write!(f, [self.right])?;
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
