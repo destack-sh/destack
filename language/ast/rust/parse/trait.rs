@@ -176,13 +176,11 @@ trait Baz<T> with T: Copy {
 
             // with T: Copy
             let with = with.as_ref().unwrap();
-            assert_node!(parser.tree, with[0], WithClause::Assertion { target, assertion } => {
+            assert_node!(parser.tree, with[0], WithClause { alias, right } => {
                 // T
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "T");
-                });
+                assert_string!(parser.session, alias.unwrap(), "T");
                 // Copy
-                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Copy");
                 });
             });

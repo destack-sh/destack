@@ -1,7 +1,5 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    StructField, Tag, UnionField, UseClause, UseItem, WithClause,
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause
 };
 
 /// Walk any node.
@@ -49,6 +47,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::WithClause => {
             let with_clause = tree.with_clauses.get(local_idx);
             walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
+        }
+        NodeType::WhereClause => {
+            let where_clause = tree.where_clauses.get(local_idx);
+            walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
         }
         NodeType::UseClause => {
             let use_clause = tree.use_clauses.get(local_idx);
@@ -777,16 +779,28 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     with_clause: &WithClause,
 ) {
     visitor.visit_any(tree, NodeType::WithClause, id.id);
-    match with_clause {
-        WithClause::Declaration { target } => {
-            let target_type = tree.get(*target);
-            visitor.visit_expression(tree, *target, target_type);
+    let right = tree.get(with_clause.right);
+    visitor.visit_expression(tree, with_clause.right, right);
+}
+
+/// Walk the WhereClause.
+pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<WhereClause>,
+    where_clause: &WhereClause,
+) {
+    visitor.visit_any(tree, NodeType::WhereClause, id.id);
+    match where_clause {
+        WhereClause::Assertion { left, right } => {
+            let left_expression = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expression);
+            let right_expression = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expression);
         }
-        WithClause::Assertion { target, assertion } => {
-            let target_type = tree.get(*target);
-            visitor.visit_expression(tree, *target, target_type);
-            let assertion_type = tree.get(*assertion);
-            visitor.visit_expression(tree, *assertion, assertion_type);
+        WhereClause::Guard { guard } => {
+            let guard_expression = tree.get(*guard);
+            visitor.visit_expression(tree, *guard, guard_expression);
         }
     }
 }
@@ -1031,34 +1045,19 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Annotation, id.id);
     match annotation {
-        Annotation::Blank {
-            node,
-            position: _,
-        } => {
+        Annotation::Blank { node, position: _ } => {
             visitor.visit_blank(tree, *node, tree.get(*node));
         }
-        Annotation::Doc {
-            node,
-            position: _,
-        } => {
+        Annotation::Doc { node, position: _ } => {
             visitor.visit_doc(tree, *node, tree.get(*node));
         }
-        Annotation::Comment {
-            node,
-            position: _,
-        } => {
+        Annotation::Comment { node, position: _ } => {
             visitor.visit_comment(tree, *node, tree.get(*node));
         }
-        Annotation::Tag {
-            node,
-            position: _,
-        } => {
+        Annotation::Tag { node, position: _ } => {
             visitor.visit_tag(tree, *node, tree.get(*node));
         }
-        Annotation::Decorator {
-            node,
-            position: _,
-        } => {
+        Annotation::Decorator { node, position: _ } => {
             visitor.visit_decorator(tree, *node, tree.get(*node));
         }
     }

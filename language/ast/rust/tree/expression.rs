@@ -547,39 +547,59 @@ impl Node for UseItem {
     const KIND: NodeType = NodeType::UseItem;
 }
 
-/// A WithClause is a single clause in a with declaration.
-/// It can be a type assertion (`T: Y`) or a use declaration (`Foo` or `Foo.Bar as Zeb`).
+/// A WithClause is a single clause in a with Context declaration or definition.
+/// It can declare the use of a Context or assign it.
+/// The type must resolve to a type with the Context trait.
+/// NOTE: in the AST we can't disambiguate between with declaration and with assignment.
+///  (The right side might also be a `foo` of type `Foo`, and we check that later.)
+///
+/// Examples:
+/// ```
+/// Foo
+/// !Foo
+/// T: Foo
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct WithClause {
+    /// The name of the declaration (the `T` in `T: Foo`).
+    pub alias: Option<StringId>,
+    /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
+    pub right: NodeId<Expression>,
+}
+
+impl Node for WithClause {
+    const KIND: NodeType = NodeType::WithClause;
+}
+
+/// A WhereClause is a single clause in a where type declaration.
+/// It can be a type assertion (`T: Y`) or a conditional guard.
 /// Only positive declarations should have aliases (checked later).
 ///
 /// Examples:
 /// ```
-/// // declaration
-/// Foo
-/// Foo as Bar
-/// Foo.Bar as Baz
-///
-/// // assertion
 /// T: int32
 /// Self: geom.Mesh<T>
 /// T.Item: Copy
 /// T > Y
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum WithClause {
-    Declaration {
-        /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
-        target: NodeId<Expression>,
-    },
+pub enum WhereClause {
+    /// Where assertion (like `T: int32`).
     Assertion {
         /// The target to assert (like `T` in `with T: int32`)
-        target: NodeId<Expression>,
+        left: StringId,
         /// The assertion type (like `int32` in `with T: int32`)
-        assertion: NodeId<Expression>,
+        right: NodeId<Expression>,
+    },
+    /// Where guard (like `T > Y`).
+    Guard {
+        /// The guard (like `T > Y` in `with T > Y`)
+        guard: NodeId<Expression>,
     },
 }
 
-impl Node for WithClause {
-    const KIND: NodeType = NodeType::WithClause;
+impl Node for WhereClause {
+    const KIND: NodeType = NodeType::WhereClause;
 }
 
 /// A MatchCase is a match case inside a Match expression.

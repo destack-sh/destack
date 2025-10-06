@@ -22,6 +22,7 @@ pub enum NodeType {
     UnionField,
     // context
     WithClause,
+    WhereClause,
     UseClause,
     UseItem,
     // bindings

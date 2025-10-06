@@ -28,6 +28,7 @@ mod r#type;
 mod union;
 mod r#use;
 mod visibility;
+mod r#where;
 mod with;
 
 pub use prelude::*;

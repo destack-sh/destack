@@ -230,8 +230,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, Expression, Mutability, ScopedMutability, TypeLiteral, UnaryOperator,
-        WithClause, assert_node, assert_path, assert_string,
+        Definition, Expression, Mutability, ScopedMutability, TypeLiteral, WithClause, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -239,7 +239,6 @@ mod tests {
         let mut test = TestParser::new(
             r###"
 function foo() => int32 with (
-  !Bar,
   Time,
   F: Numeric,
 ) {
@@ -255,32 +254,20 @@ function foo() => int32 with (
             assert_string!(parser.session, name.unwrap(), "foo");
 
             let with = with.as_ref().unwrap();
-            assert_eq!(with.len(), 3);
-
-            // !Bar
-            assert_node!(parser.tree, with[0], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Unary { operator, right } => {
-                    assert_eq!(*operator, UnaryOperator::Not);
-                    assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "Bar");
-                    });
-                });
-            });
+            assert_eq!(with.len(), 2);
 
             // Time
-            assert_node!(parser.tree, with[1], WithClause::Declaration { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, with[0], WithClause { alias: _, right } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
             });
 
             // F: Numeric
-            assert_node!(parser.tree, with[2], WithClause::Assertion { target, assertion } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "F");
-                });
-                assert_node!(parser.tree, *assertion, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, with[1], WithClause { alias, right } => {
+                assert_string!(parser.session, alias.unwrap(), "F");
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
                 });
             });
