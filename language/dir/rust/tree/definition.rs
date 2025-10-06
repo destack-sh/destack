@@ -1,8 +1,12 @@
-use crate::{Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause};
+use crate::{Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause, Intrinsic};
 
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
+    /// Intrinsic definition.
+    Intrinsic {
+        intrinsic: Intrinsic,
+    },
     /// Module definition.
     Module {
         name: StringId,
@@ -79,6 +83,7 @@ impl Definition {
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self {
+            Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
             Definition::Module { name, .. } => Some(*name),
             Definition::Struct { name, .. } => Some(*name),
             Definition::Enum { name, .. } => Some(*name),
@@ -94,6 +99,7 @@ impl Definition {
     #[inline]
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
+            Definition::Intrinsic { .. } => Some(Visibility::Public),
             Definition::Module { visibility, .. } => *visibility,
             Definition::Struct { visibility, .. } => *visibility,
             Definition::Enum { visibility, .. } => *visibility,
@@ -109,6 +115,7 @@ impl Definition {
     #[inline]
     pub fn definitions(&self) -> Option<&Vec<NodeId<Definition>>> {
         match self {
+            Definition::Intrinsic { .. } => None,
             Definition::Module { definitions, .. } => Some(definitions),
             Definition::Struct { definitions, .. } => Some(definitions),
             Definition::Enum { definitions, .. } => Some(definitions),

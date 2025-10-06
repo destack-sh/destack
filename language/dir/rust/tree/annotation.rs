@@ -1,5 +1,4 @@
-use crate::path::PathId;
-use crate::{Argument, Node, NodeId, NodeType, StringId};
+use crate::{Argument, Node, NodeId, NodeType, Path, StringId};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {
@@ -31,12 +30,12 @@ pub enum Annotation {
     /// A tag annotation (like `#Foo` or `#Foo(x: 1)`).
     Tag {
         position: AnnotationPosition,
-        receiver: PathId,
+        receiver: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     Decorator {
         position: AnnotationPosition,
-        receiver: PathId,
+        receiver: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
 }

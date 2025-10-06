@@ -1,8 +1,8 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, PathId,
-    Pattern, Type, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId,
+    NodeType, Path, Pattern, Type, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +61,7 @@ pub enum Expression {
     /// Member access.
     Member {
         left: NodeId<Expression>,
-        path: PathId,
+        path: Path,
     },
     /// Call to a function.
     Call {
@@ -122,19 +122,21 @@ pub enum Expression {
     },
     /// Break expression.
     Break {
-        label: Option<StringId>,
+        destination: Destination,
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
     Continue {
-        label: Option<StringId>,
+        destination: Destination,
     },
     /// Defer expression.
     Defer {
+        destination: Destination,
         body: NodeId<Expression>,
     },
     /// Return expression.
     Return {
+        destination: Destination,
         value: Option<NodeId<Expression>>,
     },
 
@@ -161,7 +163,7 @@ pub enum LoopSource {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseItem {
     /// The source of the item.
-    pub source: PathId,
+    pub source: Path,
     /// The source name of the item (like `foo` in `foo as bar`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar`)

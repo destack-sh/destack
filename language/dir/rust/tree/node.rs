@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::{PathId, StringId};
+use crate::Path;
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -109,7 +109,7 @@ pub enum Visibility {
 pub enum Runtime {
     /// The dynamic runtime (regular runtime).
     Dynamic,
-    /// The static runtime ("comptime").
+    /// The static runtime (before dynamic evaluation, "comptime").
     Static,
 }
 
@@ -135,12 +135,6 @@ pub enum ScopedMutability {
         /// The mutability of the scoped mutability.
         mutability: Mutability,
         /// The scopes of the scoped mutability.
-        scopes: Vec<PathId>,
+        scopes: Vec<Path>,
     },
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ResolvedLocation {
-    pub label: Option<StringId>,
-    pub target_id: Option<NodeIdAny>,
 }

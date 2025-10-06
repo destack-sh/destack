@@ -186,15 +186,6 @@ impl NodeTree {
         self.spans.get_by_id(node_id)
     }
 
-    /// Set the span for a node.
-    #[inline]
-    pub(crate) fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
-    where
-        T: Node,
-    {
-        self.spans.set(node_id, span);
-    }
-
     /// Get the spans for all nodes of a given type.
     #[inline]
     pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
