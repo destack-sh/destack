@@ -150,16 +150,12 @@ pub enum CompositeType {
 pub enum Type {
     /// Infer placeholder `_`.
     Infer,
-    /// Maybe '?T'.
-    Maybe(NodeId<Type>),
-    /// Not `!T`.
-    Not(NodeId<Type>),
     /// Never `!`.
     Never,
-    /// Scalar primitive type.
-    TypeLiteral(TypeLiteral),
-    /// Literal value type.
-    ScalarLiteral(ScalarLiteral),
+    /// Not `!T`.
+    Not(NodeId<Type>),
+    /// Maybe '?T'.
+    Maybe(NodeId<Type>),
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
         mutability: ScopedMutability,
@@ -167,18 +163,6 @@ pub enum Type {
     },
     /// Virtual type `$T`.
     Virtual(NodeId<Type>),
-
-    /// An expression yet to be evaluated.
-    Expression(NodeId<Expression>),
-    /// Self type (only inside associated scopes for types).
-    Self_,
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
-    Path {
-        path: PathId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-    },
-    /// Variant type.
-    Variant(NodeId<Variant>),
 
     /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
@@ -195,6 +179,22 @@ pub enum Type {
     Union(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
+
+    /// An expression yet to be evaluated into a Type.
+    Expression(NodeId<Expression>),
+    /// Scalar primitive type.
+    TypeLiteral(TypeLiteral),
+    /// Literal value type.
+    ScalarLiteral(ScalarLiteral),
+    /// Self type (only inside associated scopes for types).
+    Self_,
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
+    Path {
+        path: PathId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Variant type.
+    Variant(NodeId<Variant>),
 }
 
 impl Node for Type {

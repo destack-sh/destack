@@ -33,6 +33,8 @@ pub enum Keyword {
     Use,
     /// With expression to declare use of items for a scope.
     With,
+    /// Where assertion.
+    Where,
     /// Alias or cast an item.
     As,
     /// Constant modifier.
@@ -88,6 +90,7 @@ impl Keyword {
             Keyword::Implement => "implement",
             Keyword::Use => "use",
             Keyword::With => "with",
+            Keyword::Where => "where",
             Keyword::As => "as",
             Keyword::Const => "const",
             Keyword::Let => "let",
@@ -129,6 +132,7 @@ impl FromStr for Keyword {
             "implement" => Ok(Keyword::Implement),
             "use" => Ok(Keyword::Use),
             "with" => Ok(Keyword::With),
+            "where" => Ok(Keyword::Where),
             "as" => Ok(Keyword::As),
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
