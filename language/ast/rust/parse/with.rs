@@ -33,12 +33,14 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_with(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         self.eat_keyword(Keyword::With)?;
-        let clauses = self.eat_with_body()?;
+        let clauses = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_with_body()
+        })?;
         Ok(clauses)
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    pub fn eat_with_body(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
+    fn eat_with_body(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -77,7 +79,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single with clause. May be a declaration or a assignment.
-    pub fn eat_with_clause(&mut self) -> AstResult<NodeId<WithClause>> {
+    fn eat_with_clause(&mut self) -> AstResult<NodeId<WithClause>> {
         let start = self.mark();
 
         // alias

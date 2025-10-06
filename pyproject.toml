@@ -4,7 +4,7 @@
 
 [project]
 name = "destack"
-version = "2025.10.04.0"
+version = "2025.10.06.0"
 description = "Universal Software Engine (i.e. insanely integrated full stack technology platform)"
 
 [tool.uv]

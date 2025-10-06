@@ -33,12 +33,14 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_where(&mut self) -> AstResult<Vec<NodeId<WhereClause>>> {
         self.eat_keyword(Keyword::Where)?;
-        let clauses = self.eat_where_body()?;
+        let clauses = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_where_body()
+        })?;
         Ok(clauses)
     }
 
     /// Eat the clauses of a `where` declaration (without the `where` keyword).
-    pub fn eat_where_body(&mut self) -> AstResult<Vec<NodeId<WhereClause>>> {
+    fn eat_where_body(&mut self) -> AstResult<Vec<NodeId<WhereClause>>> {
         let mut clauses: Vec<NodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -77,7 +79,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single where clause. May be a declaration or a assignment.
-    pub fn eat_where_clause(&mut self) -> AstResult<NodeId<WhereClause>> {
+    fn eat_where_clause(&mut self) -> AstResult<NodeId<WhereClause>> {
         let start = self.mark();
 
         let clause = {

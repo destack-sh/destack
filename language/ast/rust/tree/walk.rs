@@ -150,12 +150,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let definition = tree.get(*definition_id);
             visitor.visit_definition(tree, *definition_id, definition);
         }
-    
+
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
             visitor.visit_block(tree, *block_id, block);
         }
-    
+
         Expression::With { clauses } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);
@@ -213,7 +213,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        
         Expression::While {
             runtime: _,
             condition,
