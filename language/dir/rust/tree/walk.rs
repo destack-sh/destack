@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField,
-    WithAssertion, WithDeclaration,
+    WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -46,16 +46,16 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let variant_field = tree.variant_fields.get(local_idx);
             walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
         }
+        NodeType::WhereClause => {
+            let where_clause = tree.where_clauses.get(local_idx);
+            walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
+        }
         // --------------------------------------------------------------------
         // Context
         // --------------------------------------------------------------------
-        NodeType::WithDeclaration => {
-            let with_declaration = tree.with_declarations.get(local_idx);
-            walk_with_declaration(visitor, tree, NodeId::new(node_id), with_declaration);
-        }
-        NodeType::WithAssertion => {
-            let with_assertion = tree.with_assertions.get(local_idx);
-            walk_with_assertion(visitor, tree, NodeId::new(node_id), with_assertion);
+        NodeType::WithClause => {
+            let with_clause = tree.with_clauses.get(local_idx);
+            walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
         }
         NodeType::UseItem => {
             let use_item = tree.use_items.get(local_idx);
@@ -118,22 +118,24 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let block = tree.get(*block_id);
             walk_block(visitor, tree, *block_id, block);
         }
-        Expression::WithDeclaration { declarations } => {
-            for declaration_id in declarations {
-                let declaration = tree.get(*declaration_id);
-                walk_with_declaration(visitor, tree, *declaration_id, declaration);
+        Expression::With { clauses, body } => {
+            for clause_id in clauses {
+                let clause = tree.get(*clause_id);
+                walk_with_clause(visitor, tree, *clause_id, clause);
+            }
+            if let Some(body_id) = body {
+                let block = tree.get(*body_id);
+                walk_block(visitor, tree, *body_id, block);
             }
         }
-        Expression::WithAssertion { declarations } => {
-            for declaration_id in declarations {
-                let declaration = tree.get(*declaration_id);
-                walk_with_assertion(visitor, tree, *declaration_id, declaration);
-            }
-        }
-        Expression::Use { items } => {
+        Expression::Use { items, body } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 walk_use_item(visitor, tree, *item_id, item);
+            }
+            if let Some(body_id) = body {
+                let block = tree.get(*body_id);
+                walk_block(visitor, tree, *body_id, block);
             }
         }
         Expression::Unary { right, .. }
@@ -418,34 +420,40 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the WhereClause.
+pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<WhereClause>,
+    where_clause: &WhereClause,
+) {
+    visitor.visit_any(tree, NodeType::WhereClause, id.id);
+    match where_clause {
+        WhereClause::Assertion { left: _, right } => {
+            let right_expression = tree.get(*right);
+            walk_expression(visitor, tree, *right, right_expression);
+        }
+        WhereClause::Guard { guard } => {
+            let guard_expression = tree.get(*guard);
+            walk_expression(visitor, tree, *guard, guard_expression);
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Context
 // ----------------------------------------------------------------------------
 
-/// Walk the WithDeclaration.
-pub fn walk_with_declaration<V: NodeVisitor + ?Sized>(
+/// Walk the WithClause.
+pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<WithDeclaration>,
-    with_declaration: &WithDeclaration,
+    id: NodeId<WithClause>,
+    with_clause: &WithClause,
 ) {
-    visitor.visit_any(tree, NodeType::WithDeclaration, id.id);
-    let target = tree.get(with_declaration.target);
-    walk_expression(visitor, tree, with_declaration.target, target);
-}
-
-/// Walk the WithAssertion.
-pub fn walk_with_assertion<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<WithAssertion>,
-    with_assertion: &WithAssertion,
-) {
-    visitor.visit_any(tree, NodeType::WithAssertion, id.id);
-    let target = tree.get(with_assertion.target);
-    walk_expression(visitor, tree, with_assertion.target, target);
-    let assertion = tree.get(with_assertion.assertion);
-    walk_expression(visitor, tree, with_assertion.assertion, assertion);
+    visitor.visit_any(tree, NodeType::WithClause, id.id);
+    let right = tree.get(with_clause.right);
+    walk_expression(visitor, tree, with_clause.right, right);
 }
 
 /// Walk the UseItem.

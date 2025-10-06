@@ -16,8 +16,8 @@ pub enum NodeType {
     Variant,
     VariantField,
     // Context
-    WithDeclaration,
-    WithAssertion,
+    WithClause,
+    WhereClause,
     UseItem,
     // Bindings
     Parameter,

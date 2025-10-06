@@ -13,19 +13,16 @@ pub enum Expression {
     // Block of "statements" (inside `{}` usually)
     Block(NodeId<Block>),
 
-    // With
-    WithDeclaration {
-        declarations: Vec<NodeId<WithDeclaration>>,
+    // With declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
+    With {
+        clauses: Vec<NodeId<WithClause>>,
+        body: Option<NodeId<Block>>,
     },
 
-    // WithAssertion
-    WithAssertion {
-        declarations: Vec<NodeId<WithAssertion>>,
-    },
-
-    // Use declaration (flattened, like `use foo` or `use foo.bar, baz.quz`)
+    // Use declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
     Use {
         items: Vec<NodeId<UseItem>>,
+        body: Option<NodeId<Block>>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).
@@ -175,29 +172,19 @@ impl Node for UseItem {
     const KIND: NodeType = NodeType::UseItem;
 }
 
-/// A WithDeclaration is a single clause in a with declaration.
+/// A WithClause is a single clause in a with Context declaration or definition.
 #[derive(Debug, Clone, PartialEq)]
-pub struct WithDeclaration {
-    /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
-    pub target: NodeId<Expression>,
+pub struct WithClause {
+    /// The name of the declaration (the `T` in `T: Foo`).
+    pub alias: Option<StringId>,
+    /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
+    pub right: NodeId<Expression>,
 }
 
-impl Node for WithDeclaration {
-    const KIND: NodeType = NodeType::WithDeclaration;
+impl Node for WithClause {
+    const KIND: NodeType = NodeType::WithClause;
 }
 
-/// A WithAssertion is a single clause in a with declaration.
-#[derive(Debug, Clone, PartialEq)]
-pub struct WithAssertion {
-    /// The target to assert (like `T` in `with T: int32`)
-    pub target: NodeId<Expression>,
-    /// The assertion type (like `int32` in `with T: int32`)
-    pub assertion: NodeId<Expression>,
-}
-
-impl Node for WithAssertion {
-    const KIND: NodeType = NodeType::WithAssertion;
-}
 
 /// A MatchCase is a match case inside a Match expression.
 /// MatchCases can be any Pattern and can have an optional `if` guard.
