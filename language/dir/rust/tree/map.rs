@@ -101,6 +101,7 @@ pub struct NodeParentIndex {
 }
 
 impl NodeParentIndex {
+    /// Create a new NodeParentIndex from a NodeTree.
     pub fn from_tree(tree: &NodeTree) -> Self {
         let mut capturing_visitor = CapturingNodeVisitor::default();
         let mut parent_by_node: HashMap<u32, u32> = HashMap::new();

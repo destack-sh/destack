@@ -6,11 +6,13 @@ pub enum Variant {
     /// Struct type.
     Struct {
         name: Option<StringId>,
+        representation_type: Option<NodeId<Type>>,
         fields: Vec<NodeId<VariantField>>,
     },
     /// Tuple type.
     Tuple {
         name: Option<StringId>,
+        representation_type: Option<NodeId<Type>>,
         fields: Vec<NodeId<VariantField>>,
     },
     /// Unit / void type.
@@ -29,6 +31,22 @@ impl Variant {
             Variant::Struct { name, .. } => *name,
             Variant::Tuple { name, .. } => *name,
             Variant::Unit { name, .. } => *name,
+        }
+    }
+
+    /// Get the representation type of the variant.
+    #[inline]
+    pub fn representation_type(&self) -> Option<NodeId<Type>> {
+        match self {
+            Variant::Struct {
+                representation_type,
+                ..
+            } => *representation_type,
+            Variant::Tuple {
+                representation_type,
+                ..
+            } => *representation_type,
+            Variant::Unit { .. } => None,
         }
     }
 }
