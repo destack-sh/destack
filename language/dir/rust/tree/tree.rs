@@ -7,8 +7,8 @@ use crate::annotation::Annotation;
 use crate::tree::arena::NodeArena;
 use crate::{
     Argument, Block, Definition, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType,
-    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField,
-    WithAssertion, WithDeclaration,
+    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WithAssertion,
+    WithDeclaration,
 };
 
 /// The Node tree.

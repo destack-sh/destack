@@ -91,7 +91,9 @@ impl<'a> Parser<'a> {
             };
 
         // right
-        let right = self.eat_expression()?;
+        let right = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // clause
         let clause = self

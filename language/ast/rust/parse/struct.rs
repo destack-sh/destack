@@ -92,8 +92,10 @@ impl<'a> Parser<'a> {
             .eat_super_types_maybe()
             .for_node_type(NodeType::Definition)?;
 
-        // optional with declaration
-        let with = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
+        // with
+        let with_clauses = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
+        // where
+        let where_clauses = self.eat_where_maybe().for_node_type(NodeType::Definition)?;
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
@@ -117,7 +119,8 @@ impl<'a> Parser<'a> {
                 super_types,
                 static_parameters,
                 representation_type,
-                with,
+                with_clauses,
+                where_clauses,
                 fields,
                 expressions,
             },
@@ -257,11 +260,12 @@ struct { x: int32, y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { name, static_parameters, fields, expressions, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { name, static_parameters, fields, expressions, where_clauses, .. } => {
             assert_eq!(*name, None);
             assert_eq!(*static_parameters, None);
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
+            assert!(where_clauses.is_none());
 
             // x: int32
             assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
@@ -290,10 +294,11 @@ struct Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { name, super_types, fields, expressions, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { name, super_types, fields, expressions, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
+            assert!(where_clauses.is_none());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
@@ -314,11 +319,12 @@ struct Foo(int32, boolean) {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { name, style, fields, expressions, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { name, style, fields, expressions, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert_eq!(*style, StructStyle::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
+            assert!(where_clauses.is_none());
 
             // int32
             assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
@@ -358,8 +364,9 @@ struct Foo<T: Numeric>: Boz {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { name, static_parameters, fields, expressions, super_types, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { name, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
+            assert!(where_clauses.is_none());
 
             // T: Numeric
             assert!(static_parameters.is_some());

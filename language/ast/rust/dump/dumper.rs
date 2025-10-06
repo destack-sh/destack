@@ -979,7 +979,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 super_types: _,
                 representation_type: _,
                 static_parameters: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 fields: _,
                 expressions: _,
             } => {
@@ -995,7 +996,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 tag_type: _,
                 static_parameters: _,
                 super_types: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 fields: _,
                 expressions: _,
             } => {
@@ -1011,7 +1013,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 representation_type: _,
                 static_parameters: _,
                 super_types: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 fields: _,
                 expressions: _,
             } => {
@@ -1025,7 +1028,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 visibility,
                 super_types: _,
                 static_parameters: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 expressions: _,
             } => {
                 self.node("Definition::Trait", id.id)
@@ -1037,7 +1041,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_arguments: _,
                 receiver: _,
                 for_trait: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 expressions: _,
             } => {
                 self.node("Definition::Implement", id.id).end();
@@ -1051,7 +1056,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self_parameter: _,
                 dynamic_parameters: _,
                 return_type: _,
-                with: _,
+                with_clauses: _,
+                where_clauses: _,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
@@ -1114,6 +1120,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             walk_with_clause(dumper, _tree, _id, clause);
+        });
+    }
+
+    fn visit_where_clause(
+        &mut self,
+        _tree: &NodeTree,
+        _id: NodeId<WhereClause>,
+        clause: &WhereClause,
+    ) {
+        match clause {
+            WhereClause::Assertion { left, .. } => {
+                self.node("WhereClause::Assertion", _id.id)
+                    .field("left", left)
+                    .end();
+            }
+            WhereClause::Guard { .. } => {
+                self.node("WhereClause::Guard", _id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_where_clause(dumper, _tree, _id, clause);
         });
     }
 

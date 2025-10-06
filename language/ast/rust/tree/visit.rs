@@ -3,11 +3,11 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
     MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, StructField, Tag,
-    UnionField, UseClause, UseItem, WithClause, walk_annotation, walk_argument, walk_blank,
-    walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field,
-    walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_struct_field, walk_tag, walk_union_field, walk_use_clause, walk_use_item,
-    walk_with_clause,
+    UnionField, UseClause, UseItem, WhereClause, WithClause, walk_annotation, walk_argument,
+    walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
+    walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_struct_field, walk_tag, walk_union_field, walk_use_clause,
+    walk_use_item, walk_where_clause, walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the AST.
@@ -87,6 +87,16 @@ pub trait NodeVisitor {
         with_clause: &WithClause,
     ) {
         walk_with_clause(self, tree, id, with_clause);
+    }
+
+    /// Visit a WhereClause.
+    fn visit_where_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<WhereClause>,
+        where_clause: &WhereClause,
+    ) {
+        walk_where_clause(self, tree, id, where_clause);
     }
 
     /// Visit a UseClause.

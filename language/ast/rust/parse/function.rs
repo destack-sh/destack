@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     ///
-    /// function foo<T, U>(x: T) => (int32, boolean) with (
+    /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
     ///    U: Numeric
     /// ) {
@@ -196,7 +196,10 @@ impl<'a> Parser<'a> {
         };
 
         // with
-        let with = self.eat_with_maybe()?;
+        let with_clauses = self.eat_with_maybe()?;
+
+        // where
+        let where_clauses = self.eat_where_maybe()?;
 
         // body
         let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -217,7 +220,8 @@ impl<'a> Parser<'a> {
                 self_parameter,
                 dynamic_parameters,
                 return_type,
-                with,
+                with_clauses,
+                where_clauses,
                 body,
             },
             self.get_span_from(start),
@@ -240,7 +244,7 @@ mod tests {
             r###"
 function foo() => int32 with (
   Time,
-  F: Numeric,
+  F: Numeric, // should be a where clause, linted later
 ) {
 }
 "###,
@@ -249,15 +253,16 @@ function foo() => int32 with (
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { name, with, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, with_clauses, where_clauses, return_type, .. } => {
             // function name
             assert_string!(parser.session, name.unwrap(), "foo");
 
-            let with = with.as_ref().unwrap();
-            assert_eq!(with.len(), 2);
+            let with_clauses = with_clauses.as_ref().unwrap();
+            assert_eq!(with_clauses.len(), 2);
+            assert!(where_clauses.is_none());
 
             // Time
-            assert_node!(parser.tree, with[0], WithClause { alias: _, right } => {
+            assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
                     assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
@@ -265,7 +270,7 @@ function foo() => int32 with (
             });
 
             // F: Numeric
-            assert_node!(parser.tree, with[1], WithClause { alias, right } => {
+            assert_node!(parser.tree, with_clauses[1], WithClause { alias, right } => {
                 assert_string!(parser.session, alias.unwrap(), "F");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
@@ -287,7 +292,7 @@ function foo() => int32 with (
         let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
@@ -295,6 +300,7 @@ function foo() => int32 with (
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert!(dynamic_parameters.is_empty());
+            assert!(where_clauses.is_none());
         });
     }
 
@@ -312,7 +318,7 @@ function b(
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
@@ -328,6 +334,7 @@ function b(
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);
             });
+            assert!(where_clauses.is_none());
         });
     }
 
@@ -337,7 +344,7 @@ function b(
         let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
@@ -345,6 +352,7 @@ function b(
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
             assert!(dynamic_parameters.is_empty());
+            assert!(where_clauses.is_none());
         });
     }
 }

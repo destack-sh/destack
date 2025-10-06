@@ -135,12 +135,7 @@ pub trait NodeVisitor {
     }
 
     /// Visit a MatchCase.
-    fn visit_match_case(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<MatchCase>,
-        match_case: &MatchCase,
-    ) {
+    fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
         walk_match_case(self, tree, id, match_case);
     }
 
@@ -267,12 +262,7 @@ impl NodeVisitor for CapturingNodeVisitor {
     // Bindings
     // ------------------------------------------------------------
 
-    fn visit_parameter(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Parameter>,
-        _parameter: &Parameter,
-    ) {
+    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, _parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
@@ -319,4 +309,3 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Annotation, id.id);
     }
 }
-

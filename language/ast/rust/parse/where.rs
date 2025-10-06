@@ -37,11 +37,11 @@ impl<'a> Parser<'a> {
         Ok(clauses)
     }
 
-    /// Eat the clauses of a `where` declaration (whereout the `where` keyword).
+    /// Eat the clauses of a `where` declaration (without the `where` keyword).
     pub fn eat_where_body(&mut self) -> AstResult<Vec<NodeId<WhereClause>>> {
         let mut clauses: Vec<NodeId<WhereClause>> = Vec::new();
 
-        // parenthesized list where newlines
+        // parenthesized list with newlines
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_token(TokenType::OpenParenthesis)?;
             self.eat_newlines_maybe()?;
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
                 }
                 let next_clause = self.eat_where_clause()?;
                 clauses.push(next_clause);
-                // optional comma where newlines
+                // optional comma with newlines
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.eat_token(TokenType::Comma)?;
                 }
@@ -107,7 +107,115 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, TypeLiteral, UnaryOperator, WhereClause, assert_expr_path, assert_node,
-        assert_path, assert_string,
+        BinaryOperator, Expression, TypeLiteral, UnaryOperator, WhereClause, assert_expr_path,
+        assert_node, assert_path, assert_string,
     };
+
+    #[test]
+    fn test_parse_where_type_assertion() {
+        let mut test = TestParser::new("where T: int32");
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        // where T: int32
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WhereClause::Assertion { left, right } => {
+            assert_string!(parser.session, *left, "T");
+            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_where_guard_comparison() {
+        let mut test = TestParser::new("where T > Y");
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        // where T > Y
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
+            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                assert_expr_path!(parser.session, parser.tree.get(*left), "T");
+                assert_expr_path!(parser.session, parser.tree.get(*right), "Y");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_where_multiple_clauses() {
+        let input = "where !Bar, Time > Limit, F: Numeric";
+        let mut test = TestParser::new(input);
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        assert_eq!(clauses.len(), 3);
+
+        // !Bar
+        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
+            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Not);
+                assert_expr_path!(parser.session, parser.tree.get(*right), "Bar");
+            });
+        });
+
+        // Time > Limit
+        assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
+            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                assert_expr_path!(parser.session, parser.tree.get(*left), "Time");
+                assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+            });
+        });
+
+        // F: Numeric
+        assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
+            assert_string!(parser.session, *left, "F");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Numeric");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_where_parenthesized_multiline() {
+        let input = r##"where (
+  !Bar
+  Time > Limit,
+  F: Numeric
+)"##;
+        let mut test = TestParser::new(input);
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        assert_eq!(clauses.len(), 3);
+
+        // !Bar
+        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
+            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Not);
+                assert_expr_path!(parser.session, parser.tree.get(*right), "Bar");
+            });
+        });
+
+        // Time > Limit
+        assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
+            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                assert_expr_path!(parser.session, parser.tree.get(*left), "Time");
+                assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+            });
+        });
+
+        // F: Numeric
+        assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
+            assert_string!(parser.session, *left, "F");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Numeric");
+            });
+        });
+    }
 }
