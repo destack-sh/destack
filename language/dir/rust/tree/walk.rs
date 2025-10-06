@@ -189,7 +189,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let ty_node = tree.get(*ty);
             walk_type(visitor, tree, *ty, ty_node);
         }
-        Expression::ScalarLiteral => {}
+        Expression::ScalarLiteral { value: _ } => {
+            // nothing to do
+        }
+        Expression::TypeLiteral { value: _ } => {
+            // nothing to do
+        }
         Expression::StructLiteral { ty, fields } => {
             let ty_node = tree.get(*ty);
             walk_type(visitor, tree, *ty, ty_node);

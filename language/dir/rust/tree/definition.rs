@@ -1,12 +1,12 @@
-use crate::{Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause, Intrinsic};
+use crate::{
+    Intrinsic, Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause,
+};
 
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// Intrinsic definition.
-    Intrinsic {
-        intrinsic: Intrinsic,
-    },
+    Intrinsic { intrinsic: Intrinsic },
     /// Module definition.
     Module {
         name: StringId,

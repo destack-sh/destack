@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId,
-    NodeType, Path, Pattern, Type, UnaryOperator,
+    NodeType, Path, Pattern, ScalarLiteral, Type, TypeLiteral, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +82,13 @@ pub enum Expression {
         definition: NodeId<Definition>,
     },
     /// Scalar literal value.
-    ScalarLiteral,
+    ScalarLiteral {
+        value: ScalarLiteral,
+    },
+    /// Type literal value.
+    TypeLiteral {
+        value: TypeLiteral,
+    },
     /// Struct creation.
     StructLiteral {
         ty: NodeId<Type>,
