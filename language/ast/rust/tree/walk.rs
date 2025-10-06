@@ -450,14 +450,28 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 
     match definition {
         Definition::Module {
-            format: _,
             name: _,
             visibility: _,
+            format: _,
+            with_clauses,
+            where_clauses,
             expressions,
         } => {
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
                 visitor.visit_expression(tree, *expr_id, expr);
+            }
+            if let Some(with_clauses) = with_clauses {
+                for with_id in with_clauses {
+                    let with_clause = tree.get(*with_id);
+                    visitor.visit_with_clause(tree, *with_id, with_clause);
+                }
+            }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
             }
         }
         Definition::Struct {
@@ -467,7 +481,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             super_types,
             representation_type,
             static_parameters,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             fields,
             expressions,
@@ -488,7 +502,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *param_id, param);
                 }
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
@@ -515,7 +529,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             tag_type,
             static_parameters,
             super_types,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             fields,
             expressions,
@@ -536,7 +550,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_expression(tree, *super_type_id, expr);
                 }
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
@@ -615,7 +629,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visibility: _,
             super_types,
             static_parameters,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             expressions,
         } => {
@@ -631,7 +645,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *param_id, param);
                 }
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
@@ -652,7 +666,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             static_arguments,
             receiver,
             for_trait,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             expressions,
         } => {
@@ -668,7 +682,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let trait_expr = tree.get(*for_trait);
                 visitor.visit_expression(tree, *for_trait, trait_expr);
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
@@ -694,7 +708,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             self_parameter: _,
             dynamic_parameters,
             return_type,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             body,
         } => {
@@ -712,7 +726,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let expr = tree.get(*return_type);
                 visitor.visit_expression(tree, *return_type, expr);
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);

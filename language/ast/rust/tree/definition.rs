@@ -24,9 +24,11 @@ pub enum Definition {
     /// }
     /// ```
     Module {
-        format: ModuleFormat,
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        format: ModuleFormat,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
     },
 

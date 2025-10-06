@@ -48,52 +48,80 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         match self {
             // module
             Definition::Module {
-                format,
                 name,
+                format,
                 visibility: _,
+                with_clauses,
+                where_clauses,
                 expressions,
             } => {
-                // implicit module (whole file)
+                if format == &ModuleFormat::Source {
+                    // only print expressions for source modules (?)
+                    if !expressions.is_empty() {
+                        write!(
+                            f,
+                            [format_with(|f| f
+                                .join_with(hard_line_break())
+                                .entries(expressions)
+                                .finish())]
+                        )?;
+                    }
+                    return Ok(());
+                }
+
+                // keyword
+                write!(f, [Keyword::Module])?;
+                if let Some(name) = name {
+                    write!(f, [space(), name])?;
+                }
+
+                // with
+                if let Some(with_clauses) = with_clauses
+                    && !with_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_with_clause(f, with_clauses)?;
+                }
+
+                // where
+                if let Some(where_clauses) = where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
+                }
+
+                // body
                 match format {
-                    ModuleFormat::Source => write!(
-                        f,
-                        [format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(expressions)
-                            .finish()),]
-                    )?,
-                    // declaration module (module x;)
-                    ModuleFormat::Forward => write!(f, [Keyword::Module, space(), name])?,
-                    // explicit module (module { ... })
+                    ModuleFormat::Forward => {
+                        write!(f, [token(";")])?;
+                        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                    }
                     ModuleFormat::Inline => {
-                        // header
-                        if let Some(name) = name {
-                            write!(f, [Keyword::Module, space(), name, space()])?;
-                        } else {
-                            write!(f, [Keyword::Module, space()])?;
-                        }
-                        // empty body
+                        write!(f, [space()])?;
                         if expressions.is_empty() {
                             write!(f, [empty_block_with_infix_annotations(node_id)])?;
                             write!(f, [f.context().any_postfix_annotations(node_id)])?;
-                            return Ok(());
-                        }
-                        // body
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("{"),
-                                hard_line_break(),
-                                format_with(|f| f
+                        } else {
+                            write!(f, [token("{"), hard_line_break()])?;
+                            write!(
+                                f,
+                                [group(&format_args![block_indent(&format_with(|f| f
                                     .join_with(hard_line_break())
                                     .entries(expressions)
-                                    .finish()),
-                                hard_line_break(),
-                                f.context().block_infix_annotations(node_id),
-                                token("}")
-                            ])]
-                        )?
+                                    .finish())),])]
+                            )?;
+                            write!(
+                                f,
+                                [
+                                    hard_line_break(),
+                                    f.context().block_infix_annotations(node_id),
+                                    token("}")
+                                ]
+                            )?;
+                        }
                     }
+                    ModuleFormat::Source => unreachable!(),
                 }
             }
 
@@ -105,7 +133,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 super_types,
                 representation_type,
                 static_parameters,
-                with_clauses: with,
+                with_clauses,
                 where_clauses,
                 fields,
                 expressions,
@@ -171,14 +199,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with
-                if let Some(with) = with
+                if let Some(with) = with_clauses
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
                 }
 
-                if let Some(where_clauses) = &where_clauses
+                if let Some(where_clauses) = where_clauses
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
