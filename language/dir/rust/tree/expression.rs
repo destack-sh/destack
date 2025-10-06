@@ -7,9 +7,6 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    // Definition (with a name or anonymous)
-    Definition(NodeId<Definition>),
-
     // Block of "statements" (inside `{}` usually)
     Block(NodeId<Block>),
 
@@ -56,8 +53,6 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
-    /// Drop locals.
-    Drop,
     /// Member access.
     Member {
         left: NodeId<Expression>,
@@ -82,7 +77,10 @@ pub enum Expression {
     /// --------------------------------
     /// Literals.
     /// --------------------------------
-
+    // Inline definition as a value (with a name or anonymous)
+    InlineDefinition {
+        definition: NodeId<Definition>,
+    },
     /// Scalar literal value.
     ScalarLiteral,
     /// Struct creation.
@@ -119,6 +117,7 @@ pub enum Expression {
     Match {
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
+        source: MatchSource,
     },
     /// Break expression.
     Break {
@@ -185,6 +184,19 @@ pub struct WithClause {
 
 impl Node for WithClause {
     const KIND: NodeType = NodeType::WithClause;
+}
+
+/// A MatchSource is where the match was lowered from.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum MatchSource {
+    /// Match expression (regular match with cases).
+    Match,
+    /// Explicit try expression or block (`try { ... }` with optional catch).
+    Try,
+    /// Maybe unary expression (postfix `?`).
+    Maybe,
+    /// Must unary expression (postfix `!`).
+    Must,
 }
 
 /// A MatchCase is a match case inside a Match expression.

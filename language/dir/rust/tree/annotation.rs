@@ -33,6 +33,7 @@ pub enum Annotation {
         receiver: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
+    /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         position: AnnotationPosition,
         receiver: Path,
@@ -42,4 +43,17 @@ pub enum Annotation {
 
 impl Node for Annotation {
     const KIND: NodeType = NodeType::Annotation;
+}
+
+impl Annotation {
+    /// Get the position of the annotation.
+    pub fn position(&self) -> AnnotationPosition {
+        match self {
+            Annotation::Blank { position, .. } => *position,
+            Annotation::Doc { position, .. } => *position,
+            Annotation::Comment { position, .. } => *position,
+            Annotation::Tag { position, .. } => *position,
+            Annotation::Decorator { position, .. } => *position,
+        }
+    }
 }

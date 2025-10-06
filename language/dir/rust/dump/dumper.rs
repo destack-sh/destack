@@ -91,7 +91,7 @@ pub struct Dumper<'a> {
 
     /// The buffer we're writing to.
     buffer: String,
-    /// The current depth (see with_depth).
+    /// The current depth (see with_depth). 
     depth: usize,
     /// Tracks, for each depth level, whether there are more siblings after the current one
     /// at that level. Used to render tree branches with gaps correctly.
