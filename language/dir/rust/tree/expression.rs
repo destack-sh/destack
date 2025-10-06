@@ -185,7 +185,6 @@ impl Node for WithClause {
     const KIND: NodeType = NodeType::WithClause;
 }
 
-
 /// A MatchCase is a match case inside a Match expression.
 /// MatchCases can be any Pattern and can have an optional `if` guard.
 #[derive(Debug, Clone, PartialEq)]

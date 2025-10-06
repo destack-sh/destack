@@ -964,15 +964,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Module {
-                format,
                 name,
                 visibility,
+                format,
                 expressions: _,
+                with_clauses: _,
+                where_clauses: _,
             } => {
                 self.node("Definition::Module", id.id)
-                    .field("format", format)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field("format", format)
                     .end();
             }
             Definition::Struct {
