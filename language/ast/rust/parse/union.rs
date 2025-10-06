@@ -78,8 +78,11 @@ impl<'a> Parser<'a> {
         // optional super types: : ...
         let super_types = self.eat_super_types_maybe()?;
 
-        // optional with declaration
-        let with = self.eat_with_maybe()?;
+        // with
+        let with_clauses = self.eat_with_maybe()?;
+        
+        // where
+        let where_clauses = self.eat_where_maybe()?;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
@@ -96,7 +99,8 @@ impl<'a> Parser<'a> {
                 super_types,
                 tag_type: explicit_type,
                 representation_type,
-                with,
+                with_clauses,
+                where_clauses,
                 fields,
                 expressions,
             },
@@ -202,7 +206,8 @@ impl<'a> Parser<'a> {
                         super_types: None,
                         representation_type: None,
                         static_parameters: None,
-                        with: None,
+                        with_clauses: None,
+                        where_clauses: None,
                         fields,
                         expressions: Vec::new(),
                     },
@@ -219,7 +224,7 @@ impl<'a> Parser<'a> {
 
         // optional default value: `= <expr>`
         let value = if self.peek_token(TokenType::Assign).is_ok() {
-            self.bump(); // eat assign
+            self.bump(); // eat assign 
             Some(self.eat_expression()?)
         } else {
             None
@@ -256,11 +261,12 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, fields, expressions, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, fields, expressions, where_clauses, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
+            assert!(where_clauses.is_none());
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, ty, value } => {
@@ -289,10 +295,11 @@ union Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
+            assert!(where_clauses.is_none());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
@@ -322,8 +329,9 @@ union(uint4, uint60) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
+            assert!(where_clauses.is_none());
 
             // (uint4, uint60)
             assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {

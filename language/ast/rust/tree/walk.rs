@@ -1,5 +1,7 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
+    MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -144,19 +146,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        // Definition (with a name or anonymous).
         Expression::Definition(definition_id) => {
             let definition = tree.get(*definition_id);
             visitor.visit_definition(tree, *definition_id, definition);
         }
-
-        // Block of Statements.
+    
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
             visitor.visit_block(tree, *block_id, block);
         }
-
-        // With declaration for context management.
+    
         Expression::With { clauses } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);
@@ -164,7 +163,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Use declaration for dependency management.
         Expression::Use {
             visibility: _,
             clauses,
@@ -180,7 +178,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Let or var binding for variables.
         Expression::Let {
             mutability: _,
             visibility: _,
@@ -200,7 +197,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // If/then/else expression.
         Expression::If {
             runtime: _,
             condition,
@@ -217,7 +213,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // While loop.
+        
         Expression::While {
             runtime: _,
             condition,
@@ -229,7 +225,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
 
-        // For loop.
         Expression::For {
             runtime: _,
             pattern,
@@ -244,13 +239,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
 
-        // Loop (unconditional).
         Expression::Loop { runtime: _, body } => {
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
 
-        // Try/catch statement.
         Expression::Try {
             runtime: _,
             try_block: r#try,
@@ -264,7 +257,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Match expression.
         Expression::Match {
             runtime: _,
             value,
@@ -278,7 +270,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Break statement.
         Expression::Break { label: _, value } => {
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);
@@ -286,10 +277,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Continue statement.
         Expression::Continue { label: _ } => {}
 
-        // Defer expression.
         Expression::Defer { expression, catch } => {
             if let Some(expr_id) = expression {
                 let expr = tree.get(*expr_id);
@@ -301,7 +290,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Return expression.
         Expression::Return { value } => {
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);
@@ -309,7 +297,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Path (with optional static arguments).
         Expression::Path {
             path: _,
             static_arguments,
@@ -322,17 +309,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Scalar literal.
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit
         }
 
-        // Type literal.
         Expression::TypeLiteral(_) => {
             // no child nodes to visit
         }
 
-        // Range literal.
         Expression::RangeLiteral {
             start,
             end,
@@ -344,7 +328,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *end, end_expr);
         }
 
-        // Array literal.
         Expression::ArrayLiteral { elements } => {
             for element_id in elements {
                 let element_expr = tree.get(*element_id);
@@ -352,7 +335,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Tuple literal.
         Expression::TupleLiteral { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
@@ -360,7 +342,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Struct literal.
         Expression::StructLiteral { ty, fields } => {
             let type_expr = tree.get(*ty);
             visitor.visit_expression(tree, *ty, type_expr);
@@ -370,19 +351,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Parenthesized expression.
         Expression::Parenthesized { expression } => {
             let expr = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expr);
         }
 
-        // Unary operation.
         Expression::Unary { operator: _, right } => {
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        // Reference operation.
         Expression::Reference {
             mutability: _,
             right,
@@ -391,13 +369,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        // Member access.
         Expression::Member { receiver, path: _ } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
         }
 
-        // Index operation.
         Expression::Index { receiver, index } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
@@ -407,7 +383,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Call operation.
         Expression::Call {
             runtime: _,
             receiver,
@@ -421,19 +396,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        // Maybe unwrap.
         Expression::Maybe(expr_id) => {
             let expr = tree.get(*expr_id);
             visitor.visit_expression(tree, *expr_id, expr);
         }
 
-        // Must unwrap.
         Expression::Must(expr_id) => {
             let expr = tree.get(*expr_id);
             visitor.visit_expression(tree, *expr_id, expr);
         }
 
-        // Binary operation.
         Expression::Binary {
             left,
             operator: _,
@@ -445,7 +417,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        // Assignment operation.
         Expression::Assign {
             left,
             operator: _,
@@ -457,7 +428,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        // Error placeholder.
         Expression::Error => {}
     }
 }
@@ -466,7 +436,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 // Declarations
 // ----------------------------------------------------------------------------
 
-/// Walk the Definition.
 /// Walk the Definition and visit all child nodes.
 pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -495,7 +464,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             super_types,
             representation_type,
             static_parameters,
-            with,
+            with_clauses: with,
+            where_clauses,
             fields,
             expressions,
         } => {
@@ -521,6 +491,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_with_clause(tree, *with_id, with_clause);
                 }
             }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
+            }
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_struct_field(tree, *field_id, field);
@@ -536,7 +512,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             tag_type,
             static_parameters,
             super_types,
-            with,
+            with_clauses: with,
+            where_clauses,
             fields,
             expressions,
         } => {
@@ -560,6 +537,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
+                }
+            }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
             }
             for field_id in fields {
@@ -578,7 +561,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             representation_type,
             static_parameters,
             super_types,
-            with,
+            with_clauses: with,
+            where_clauses,
             fields,
             expressions,
         } => {
@@ -608,6 +592,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_with_clause(tree, *with_id, with_clause);
                 }
             }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
+            }
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_union_field(tree, *field_id, field);
@@ -622,7 +612,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visibility: _,
             super_types,
             static_parameters,
-            with,
+            with_clauses: with,
+            where_clauses,
             expressions,
         } => {
             if let Some(super_types) = super_types {
@@ -643,6 +634,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_with_clause(tree, *with_id, with_clause);
                 }
             }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
+            }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
                 visitor.visit_expression(tree, *expr_id, expr);
@@ -652,7 +649,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             static_arguments,
             receiver,
             for_trait,
-            with,
+            with_clauses: with,
+            where_clauses,
             expressions,
         } => {
             if let Some(static_arguments) = static_arguments {
@@ -673,6 +671,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_with_clause(tree, *with_id, with_clause);
                 }
             }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
+            }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
                 visitor.visit_expression(tree, *expr_id, expr);
@@ -687,7 +691,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             self_parameter: _,
             dynamic_parameters,
             return_type,
-            with,
+            with_clauses: with,
+            where_clauses,
             body,
         } => {
             if let Some(static_parameters) = static_parameters {
@@ -708,6 +713,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
+                }
+            }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
             }
             if let Some(body_id) = body {
@@ -792,9 +803,7 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::WhereClause, id.id);
     match where_clause {
-        WhereClause::Assertion { left, right } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
+        WhereClause::Assertion { left: _, right } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }

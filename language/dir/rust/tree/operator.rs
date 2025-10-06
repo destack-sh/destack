@@ -1,4 +1,3 @@
-
 /// A UnaryOperator is unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {

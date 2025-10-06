@@ -1,5 +1,6 @@
 use crate::argument::list_like;
 use crate::r#let::FormatScopedMutability;
+use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
     Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, StructField,
@@ -104,7 +105,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 super_types,
                 representation_type,
                 static_parameters,
-                with,
+                with_clauses: with,
+                where_clauses,
                 fields,
                 expressions,
             } => {
@@ -168,12 +170,19 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_super_types(f, super_types)?;
                 }
 
-                // with declaration
+                // with
                 if let Some(with) = with
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
+                }
+
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 write!(f, [space()])?;
@@ -230,7 +239,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 tag_type,
                 static_parameters,
                 super_types,
-                with,
+                with_clauses: with,
+                where_clauses,
                 fields,
                 expressions,
             } => {
@@ -264,12 +274,19 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_super_types(f, super_types)?;
                 }
 
-                // with declaration
+                // with
                 if let Some(with) = with
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
+                }
+
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 // empty block
@@ -317,7 +334,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 visibility: _,
                 static_parameters,
                 super_types,
-                with,
+                with_clauses: with,
+                where_clauses,
                 expressions,
             } => {
                 // keyword
@@ -351,6 +369,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_with_clause(f, with)?;
                 }
 
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
+                }
+
                 // space before trait body
                 write!(f, [space()])?;
 
@@ -382,7 +407,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 representation_type,
                 static_parameters,
                 super_types,
-                with,
+                with_clauses: with,
+                where_clauses,
                 fields,
                 expressions,
             } => {
@@ -423,12 +449,19 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_super_types(f, super_types)?;
                 }
 
-                // with declaration
+                // with
                 if let Some(with) = with
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
+                }
+
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 // space before body braces
@@ -484,7 +517,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 static_arguments,
                 receiver,
                 for_trait,
-                with,
+                with_clauses: with,
+                where_clauses,
                 expressions,
             } => {
                 // keyword
@@ -519,12 +553,20 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space(), Keyword::For, space(), for_trait])?;
                 }
 
-                // with declaration
+                // with
                 if let Some(with) = with
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
+                }
+
+                // where
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 // body
@@ -555,7 +597,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 self_parameter,
                 dynamic_parameters,
                 return_type,
-                with,
+                with_clauses: with,
+                where_clauses,
                 body,
             } => {
                 // keyword
@@ -629,6 +672,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 {
                     write!(f, [space()])?;
                     format_with_clause(f, with)?;
+                }
+
+                if let Some(where_clauses) = &where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
                 }
 
                 // body

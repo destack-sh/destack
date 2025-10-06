@@ -12,7 +12,7 @@ pub enum Definition {
     /// Struct definition.
     Struct {
         name: StringId,
-        visibility: Option<Visibility>, 
+        visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variant: NodeId<Variant>,
         definitions: Vec<NodeId<Definition>>,

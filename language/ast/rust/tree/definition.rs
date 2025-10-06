@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
-    Visibility, WithClause,
+    Visibility, WhereClause, WithClause,
 };
 
 // NOTE #Incomplete?: type alias (type x = y)
@@ -79,7 +79,8 @@ pub enum Definition {
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<StructField>>,
         expressions: Vec<NodeId<Expression>>,
     },
@@ -127,7 +128,8 @@ pub enum Definition {
         tag_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         super_types: Option<Vec<NodeId<Expression>>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<EnumField>>,
         expressions: Vec<NodeId<Expression>>,
     },
@@ -166,7 +168,8 @@ pub enum Definition {
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         super_types: Option<Vec<NodeId<Expression>>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<UnionField>>,
         expressions: Vec<NodeId<Expression>>,
     },
@@ -205,7 +208,8 @@ pub enum Definition {
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Expression>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -235,7 +239,8 @@ pub enum Definition {
         static_arguments: Option<Vec<NodeId<Argument>>>,
         receiver: NodeId<Expression>,
         for_trait: Option<NodeId<Expression>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -294,7 +299,8 @@ pub enum Definition {
         self_parameter: Option<SelfParameter>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
         return_type: Option<NodeId<Expression>>,
-        with: Option<Vec<NodeId<WithClause>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         body: Option<NodeId<Block>>,
     },
 }

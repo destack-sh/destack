@@ -71,8 +71,11 @@ impl<'a> Parser<'a> {
             .eat_super_types_maybe()
             .for_node_type(NodeType::Definition)?;
 
-        // optional with declaration
-        let with = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
+        // with
+        let with_clauses = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
+
+        // where
+        let where_clauses = self.eat_where_maybe().for_node_type(NodeType::Definition)?;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
@@ -87,7 +90,8 @@ impl<'a> Parser<'a> {
                 tag_type: explicit_type,
                 static_parameters,
                 super_types,
-                with,
+                with_clauses,
+                where_clauses,
                 fields,
                 expressions,
             },
@@ -186,10 +190,11 @@ enum Foo: Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, where_clauses, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
+            assert!(where_clauses.is_none());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
@@ -213,11 +218,12 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, expressions, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, expressions, where_clauses, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
+            assert!(where_clauses.is_none());
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
@@ -252,9 +258,10 @@ enum(uint8) Foo: Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, where_clauses, .. } => {
             // enum name
             assert_string!(parser.session, name.unwrap(), "Foo");
+            assert!(where_clauses.is_none());
 
             // enum type
             assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(8), is_signed: false })));
@@ -298,9 +305,10 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, where_clauses, .. } => {
             // Machine
             assert_string!(parser.session, name.unwrap(), "Machine");
+            assert!(where_clauses.is_none());
 
             // <T: int32 = 3, IsSomething: boolean = true>
             assert!(static_parameters.is_some());

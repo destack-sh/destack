@@ -19,6 +19,7 @@ pub mod r#trait;
 pub mod r#try;
 pub mod union;
 pub mod r#use;
+pub mod r#where;
 pub mod with;
 
 pub use block::{EmptyBlockWithInfixAnnotations, empty_block_with_infix_annotations};
