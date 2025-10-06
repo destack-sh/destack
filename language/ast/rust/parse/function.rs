@@ -234,8 +234,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, Expression, Mutability, ScopedMutability, TypeLiteral, WithClause, assert_node,
-        assert_path, assert_string,
+        BinaryOperator, Definition, Expression, Mutability, ScopedMutability, TypeLiteral,
+        WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -244,8 +244,8 @@ mod tests {
             r###"
 function foo() => int32 with (
   Time,
-  F: Numeric, // should be a where clause, linted later
-) {
+  F: Numeric,
+) where Guard > Limit {
 }
 "###,
         );
@@ -259,7 +259,6 @@ function foo() => int32 with (
 
             let with_clauses = with_clauses.as_ref().unwrap();
             assert_eq!(with_clauses.len(), 2);
-            assert!(where_clauses.is_none());
 
             // Time
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
@@ -274,6 +273,17 @@ function foo() => int32 with (
                 assert_string!(parser.session, alias.unwrap(), "F");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser.session, *path, "Numeric");
+                });
+            });
+
+            // where Guard > Limit
+            let where_clauses = where_clauses.as_ref().expect("expected where clauses");
+            assert_eq!(where_clauses.len(), 1);
+            assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
+                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
                 });
             });
 

@@ -178,7 +178,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Definition, EnumField, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral,
-        assert_node, assert_path, assert_string,
+        WhereClause, WithClause, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -326,6 +326,44 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
             });
 
             assert_eq!(fields.len(), 3);
+        });
+    }
+
+    #[test]
+    fn test_parse_enum_with_with_and_where() {
+        let mut test = TestParser::new(
+            r###"
+enum Foo with Context where Requirement: Trait {
+    Value
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let enum_id = parser.eat_enum(None).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { with_clauses, where_clauses, fields, .. } => {
+            // with Context
+            let with_clauses = with_clauses.as_ref().expect("expected with clauses");
+            assert_eq!(with_clauses.len(), 1);
+            assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser.session, *path, "Context");
+                    assert!(static_arguments.is_none());
+                });
+            });
+
+            // where Requirement: Trait
+            let where_clauses = where_clauses.as_ref().expect("expected where clauses");
+            assert_eq!(where_clauses.len(), 1);
+            assert_node!(parser.tree, where_clauses[0], WhereClause::Assertion { left, right } => {
+                assert_string!(parser.session, *left, "Requirement");
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                    assert_path!(parser.session, *path, "Trait");
+                });
+            });
+
+            assert_eq!(fields.len(), 1);
         });
     }
 }

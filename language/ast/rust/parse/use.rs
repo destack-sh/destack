@@ -218,6 +218,29 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_use_expression_via_expression_parser() {
+        let mut test = TestParser::new("use core.memory");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // use core.memory
+        assert_node!(parser.tree, expression_id, Expression::Use { visibility, body, clauses } => {
+            assert!(visibility.is_none());
+            assert!(body.is_none());
+            assert_eq!(clauses.len(), 1);
+
+            assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
+                assert!(alias.is_none());
+                assert!(items.is_none());
+                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser.session, *path, "core.memory");
+                    assert!(static_arguments.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_use_path() {
         let mut test = TestParser::new("use dyst.geometry");
         let mut parser = test.prepare();
