@@ -110,7 +110,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        Expression::Definition(definition_id) => {
+        Expression::InlineDefinition {
+            definition: definition_id,
+        } => {
             let definition = tree.get(*definition_id);
             walk_definition(visitor, tree, *definition_id, definition);
         }
@@ -160,7 +162,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expression = tree.get(*right);
             walk_expression(visitor, tree, *right, right_expression);
         }
-        Expression::Drop => {}
         Expression::Member { left, path: _ } => {
             let left_expression = tree.get(*left);
             walk_expression(visitor, tree, *left, left_expression);
@@ -233,7 +234,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let body_block = tree.get(*body);
             walk_block(visitor, tree, *body, body_block);
         }
-        Expression::Match { value, cases } => {
+        Expression::Match {
+            value,
+            cases,
+            source: _,
+        } => {
             let value_expression = tree.get(*value);
             walk_expression(visitor, tree, *value, value_expression);
             for case_id in cases {
