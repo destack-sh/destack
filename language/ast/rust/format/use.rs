@@ -73,7 +73,7 @@ mod tests {
         assert_format!(
             "use foo",
             "use foo",
-            |p| p.eat_use(None),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
@@ -83,7 +83,7 @@ mod tests {
         assert_format!(
             "use foo, bar, baz",
             "use foo, bar, baz",
-            |p| p.eat_use(None),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
@@ -93,7 +93,7 @@ mod tests {
         assert_format!(
             "use foo as bar",
             "use foo as bar",
-            |p| p.eat_use(None),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
@@ -103,7 +103,7 @@ mod tests {
         assert_format!(
             "use foo.{bar, baz}",
             "use foo.{bar, baz}",
-            |p| p.eat_use(None),
+            |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(60)
         );
     }
@@ -113,7 +113,7 @@ mod tests {
         assert_format!(
             "use #foo foo",
             "use #foo foo",
-            |p| p.eat_use(None),
+            |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }

@@ -156,10 +156,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *block_id, block);
         }
 
-        Expression::With { clauses } => {
+        Expression::With { clauses, body } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);
                 visitor.visit_with_clause(tree, *clause_id, clause);
+            }
+            if let Some(body_id) = body {
+                let block = tree.get(*body_id);
+                visitor.visit_block(tree, *body_id, block);
             }
         }
 

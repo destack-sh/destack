@@ -48,7 +48,7 @@ impl<'a> Parser<'a> {
         };
 
         // with
-        let with_clauses = self.eat_with_maybe()?;
+        let with_clauses = self.eat_with_header_maybe()?;
 
         // where
         let where_clauses = self.eat_where_maybe()?;

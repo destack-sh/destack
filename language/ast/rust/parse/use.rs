@@ -7,26 +7,48 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
-    /// Eat a use declaration.
+    /// Eat a use declaration (including the `use` keyword and an optional body).
     ///
     /// Examples:
     /// ```
     /// use foo
     /// use foo, bar
     /// use foo.bar
-    /// use foo.{bar, baz}
-    /// use foo.{} // valid but linted
-    /// use foo as baz
+    /// use foo.{bar, baz} {
+    ///   ...
+    /// }
     /// ```
     pub fn eat_use(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Use)?;
-        let use_node = self.eat_use_header(visibility)?;
-        self.tree.set_span(use_node, self.get_span_from(start));
-        Ok(use_node)
+
+        // clauses
+        let clauses = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_use_clauses()
+        })?;
+
+        // body
+        let body = if self.peek_block().is_ok() {
+            Some(self.eat_block()?)
+        } else {
+            None
+        };
+
+        // use
+        let use_id = self.tree.allocate(
+            Expression::Use {
+                clauses,
+                body,
+                visibility,
+            },
+            self.get_span_from(start),
+        );
+        Ok(use_id)
     }
 
-    /// Eat the content of a use declaration (without the `use` keyword).
+    /// Eat the header of a use declaration (without the `use` keyword).
     ///
     /// Examples:
     /// ```
@@ -37,9 +59,7 @@ impl<'a> Parser<'a> {
     /// foo.{} // valid but linted
     /// foo as baz
     /// ```
-    fn eat_use_header(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
-        let start = self.mark();
-
+    fn eat_use_clauses(&mut self) -> AstResult<Vec<NodeId<UseClause>>> {
         // parse one or more clauses separated by commas
         let mut clauses: Vec<NodeId<UseClause>> = Vec::new();
         let clause = self.eat_use_clause().for_node_type(NodeType::UseClause)?;
@@ -58,15 +78,7 @@ impl<'a> Parser<'a> {
             break;
         }
 
-        let using = self.tree.allocate(
-            Expression::Use {
-                clauses,
-                body: None,
-                visibility,
-            },
-            self.get_span_from(start),
-        );
-        Ok(using)
+        Ok(clauses)
     }
 
     /// Eat a single use clause (like `foo`, `foo as bar`, `foo.{a, b}`).
@@ -77,7 +89,7 @@ impl<'a> Parser<'a> {
     /// foo as bar
     /// foo.{a, b}
     /// ```
-    pub fn eat_use_clause(&mut self) -> AstResult<NodeId<UseClause>> {
+    fn eat_use_clause(&mut self) -> AstResult<NodeId<UseClause>> {
         let start = self.mark();
         let path = self.eat_path().for_node_type(NodeType::Expression)?;
 
@@ -113,9 +125,10 @@ impl<'a> Parser<'a> {
 
         // optional alias `as Ident` (only when no grouped items were present)
         let alias = if items.is_none() {
-            if let Ok(next) = self.peek_token(TokenType::Identifier) {
-                if self.get_token_str(*next) == Keyword::As.as_str() {
-                    self.eat_keyword(Keyword::As)?;
+            if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
+                // support both `as` and `:`
+                if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
+                    self.bump(); // eat `as` or `:`
                     Some(self.eat_identifier()?)
                 } else {
                     None
@@ -158,9 +171,9 @@ impl<'a> Parser<'a> {
     pub fn eat_use_item(&mut self) -> AstResult<NodeId<UseItem>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
-        let alias = if let Ok(next) = self.peek_token(TokenType::Identifier) {
-            if self.get_token_str(*next) == Keyword::As.as_str() {
-                self.eat_keyword(Keyword::As)?;
+        let alias = if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
+            if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
+                self.bump(); // eat `as` or `:`
                 Some(self.eat_identifier()?)
             } else {
                 None

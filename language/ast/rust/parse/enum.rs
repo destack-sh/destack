@@ -72,7 +72,9 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // with
-        let with_clauses = self.eat_with_maybe().for_node_type(NodeType::Definition)?;
+        let with_clauses = self
+            .eat_with_header_maybe()
+            .for_node_type(NodeType::Definition)?;
 
         // where
         let where_clauses = self.eat_where_maybe().for_node_type(NodeType::Definition)?;

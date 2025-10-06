@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         let super_types = self.eat_super_types_maybe()?;
 
         // with
-        let with_clauses = self.eat_with_maybe()?;
+        let with_clauses = self.eat_with_header_maybe()?;
 
         // where
         let where_clauses = self.eat_where_maybe()?;
