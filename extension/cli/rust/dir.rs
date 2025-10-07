@@ -1,8 +1,10 @@
 //! AST parsing subcommand.
 
 use destack_terminal::{CommandArguments, console};
-use dyst_ast::{DumperOptions, ModuleFormat, NodeVisitor, TokenType};
+use dyst_ast::{ModuleFormat, TokenType};
+use dyst_compiler::{AstNodeId, Compiler};
 use dyst_diagnostic::Severity;
+use dyst_dir::{DumperOptions, NodeVisitor};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, annotate_source};
@@ -11,11 +13,16 @@ use crate::source::read_source;
 
 pub const HELP: &str = r"Parse source into DIR (implicit module).
 	--file <path>      Read input from file
-	--string <string>  Read input from provided string";
+	--string <string>  Read input from provided string
+    --module <path>    The module to compile (default: auto-detect)
+    --standalone       Compile as standalone package (disable auto-detect)
+    ";
 
 /// Parse source into an DIR and dump the module.
 pub fn run(ctx: CommandArguments) -> i32 {
     let mut session = Session::new();
+    let module = ctx.option("module");
+    let standalone = ctx.flag("standalone");
 
     // read input source
     let source = match read_source(&ctx) {
@@ -42,11 +49,24 @@ pub fn run(ctx: CommandArguments) -> i32 {
     );
     parser.finalize();
 
-    // dump AST module to output
+    // parse rest of module
+    
+
+    // compile the AST to DIR
+    let mut compiler = Compiler::new(&parser.tree, &mut session);
+
+    // dump DIR module to output
     let dump_options = DumperOptions::default();
-    let mut dumper = parser.dumper(dump_options);
+    let mut dumper = compiler.dumper(dump_options);
     if let Some(definition_id) = definition_id {
-        dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
+        let definition_id = compiler.lower_definition(AstNodeId::new(definition_id, source.id));
+        if let Some(definition_id) = definition_id {
+            dumper.visit_definition(
+                &compiler.tree,
+                definition_id,
+                compiler.tree.get(definition_id),
+            );
+        }
     }
     console::info(&dumper.finish());
 
