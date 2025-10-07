@@ -5,7 +5,7 @@ use dyst_source::{Source, Uri};
 use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::document::DocumentContent;
+use crate::document::DocumentBody;
 use crate::{Workspace, byte_to_utf16_position, range_to_byte_span, token_length_utf16};
 
 /// All semantic token types supported by the LSP server.
@@ -165,8 +165,8 @@ impl Workspace {
     /// Compute semantic tokens for a document.
     pub fn get_semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
-        match &doc.content {
-            DocumentContent::Text {
+        match &doc.body {
+            DocumentBody::Text {
                 source,
                 all_tokens,
                 ast,
@@ -184,8 +184,8 @@ impl Workspace {
         range: &lsp::Range,
     ) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
-        match &doc.content {
-            DocumentContent::Text {
+        match &doc.body {
+            DocumentBody::Text {
                 source,
                 all_tokens,
                 ast,

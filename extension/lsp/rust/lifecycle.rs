@@ -10,7 +10,7 @@ use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::DestackLanguageServer;
 use crate::diagnostic::diagnostic_to_lsp_diagnostic;
-use crate::document::DocumentContent;
+use crate::document::DocumentBody;
 use crate::workspace::{TRACKED_FORMATS, Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
 
 impl DestackLanguageServer {
@@ -232,7 +232,7 @@ impl DestackLanguageServer {
         let Some(document) = workspace.get_document(uri) else {
             return Vec::new();
         };
-        let DocumentContent::Text { source, .. } = &document.content else {
+        let DocumentBody::Text { source, .. } = &document.body else {
             return Vec::new();
         };
         workspace

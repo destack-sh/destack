@@ -1,4 +1,8 @@
-use dyst_ast::{Definition, ModuleFormat, NodeId, NodeTree, Parser};
+use dyst_ast::{
+    Definition, DystFormatContext, DystFormatOptions, ModuleFormat, NodeId, NodeParentIndex,
+    NodeTree, Parser,
+};
+use dyst_fir::format;
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
 use dyst_token::{TokenSpan, TokenType};
@@ -15,13 +19,13 @@ pub struct Document {
     /// Whether the document is currently open.
     pub is_open: bool,
     /// The content of the document.
-    pub content: DocumentContent,
+    pub body: DocumentBody,
 }
 
 /// The content of a document.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
-pub enum DocumentContent {
+pub enum DocumentBody {
     Text {
         /// The source of the document.
         source: Source,
@@ -44,7 +48,7 @@ pub enum DocumentContent {
     },
 }
 
-impl DocumentContent {
+impl DocumentBody {
     /// Build a document for the provided text source.
     pub(crate) fn from_text(source: Source, session: &mut Session) -> Self {
         // module name
@@ -65,7 +69,7 @@ impl DocumentContent {
         );
         parser.finalize();
 
-        // turn into document
+        // combine tokens and AST into document body
         let side_span = parser.get_side_span();
         let side_tokens = parser.side_tokens;
         let tokens = parser.tokens;
@@ -75,7 +79,7 @@ impl DocumentContent {
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
 
-        DocumentContent::Text {
+        DocumentBody::Text {
             source,
             tokens,
             side_tokens,
@@ -88,7 +92,7 @@ impl DocumentContent {
 
     /// Build a document for the provided binary source.
     pub(crate) fn from_binary(content: Vec<u8>) -> Self {
-        DocumentContent::Binary { content }
+        DocumentBody::Binary { content }
     }
 }
 
@@ -103,14 +107,14 @@ impl Document {
         session: &mut Session,
     ) -> Self {
         let source = Source::from_string(id, uri.clone(), format, content);
-        let content = DocumentContent::from_text(source, session);
+        let content = DocumentBody::from_text(source, session);
 
         Document {
             id,
             uri,
             format,
             is_open,
-            content,
+            body: content,
         }
     }
 
@@ -127,7 +131,41 @@ impl Document {
             uri,
             format,
             is_open,
-            content: DocumentContent::from_binary(content),
+            body: DocumentBody::from_binary(content),
         }
+    }
+
+    /// Format a (text) document.
+    pub fn format(&self, session: &Session) -> Option<String> {
+        let DocumentBody::Text {
+            source,
+            tokens,
+            side_tokens,
+            side_span,
+            ast,
+            root_definition_id: module_id,
+            ..
+        } = &self.body
+        else {
+            return None;
+        };
+
+        // format with default options
+        // NOTE #Incomplete: configure LSP formatting options from Workspace
+        let options = DystFormatOptions::default();
+        let context = DystFormatContext {
+            options,
+            source,
+            tokens,
+            side_tokens,
+            side_span,
+            tree: ast,
+            spans: &ast.spans,
+            parents: NodeParentIndex::from_tree(ast),
+            session,
+        };
+        let formatted = format!(context, [module_id]).unwrap();
+        let printed = formatted.print();
+        Some(printed.unwrap().as_str().to_string())
     }
 }

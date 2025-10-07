@@ -37,7 +37,7 @@ pub struct Workspace {
 
     /// The next source ID to use for a new document.
     next_source_id: u32,
-    /// All the source states.
+    /// All the documents.
     documents: HashMap<Uri, Document>,
 
     /// The LSP registration ID for the file watcher.
