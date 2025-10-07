@@ -57,12 +57,6 @@ impl NodeSpanIndex {
         self.spans_per_node.truncate(from_idx as usize);
     }
 
-    /// Set the span for a node.
-    #[inline]
-    pub(crate) fn set<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {
-        self.spans_per_node[node_id.id as usize] = span;
-    }
-
     /// Get the span for a node.
     #[inline]
     pub fn get<T: Node>(&self, node_id: NodeId<T>) -> Span {

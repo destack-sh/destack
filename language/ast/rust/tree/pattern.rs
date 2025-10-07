@@ -30,7 +30,7 @@ pub enum Pattern {
     Maybe(NodeId<Pattern>),
     /// Reference pattern (like `&x`).
     Reference {
-        target: NodeId<Pattern>,
+        right: NodeId<Pattern>,
         mutability: Mutability,
     },
     /// Literal value pattern (like `1`).
@@ -52,7 +52,7 @@ pub enum Pattern {
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice { fields: Vec<NodeId<PatternField>> },
-    /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
+    /// Struct pattern (like `Vector2 { x: 0, y, z: zed  }`).
     Struct {
         ty: NodeId<Expression>,
         fields: Vec<NodeId<PatternField>>,

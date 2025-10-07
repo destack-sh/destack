@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
                 self.tree.allocate(
                     Pattern::Reference {
                         mutability,
-                        target: target_id,
+                        right: target_id,
                     },
                     self.get_span_from(start),
                 )
@@ -298,11 +298,11 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
         // &
         assert_node!(parser.tree, pattern_id,
-            Pattern::Reference { mutability, target } => {
+            Pattern::Reference { mutability, right } => {
                 // var
                 assert_eq!(*mutability, Mutability::Mutable);
                 // _
-                assert_node!(parser.tree, *target, Pattern::Wildcard)
+                assert_node!(parser.tree, *right, Pattern::Wildcard)
             }
         );
 
@@ -311,10 +311,10 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         // &
-        assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, target } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, right } => {
             assert_eq!(*mutability, Mutability::Immutable);
             // 1
-            assert_node!(parser.tree, *target, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *right, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
         })
     }
 

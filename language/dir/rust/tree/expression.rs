@@ -10,13 +10,13 @@ pub enum Expression {
     // Block of "statements" (inside `{}` usually)
     Block(NodeId<Block>),
 
-    // With declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
+    // With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
     With {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
 
-    // Use declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
+    // Use dependency declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
     Use {
         items: Vec<NodeId<UseItem>>,
         body: Option<NodeId<Block>>,

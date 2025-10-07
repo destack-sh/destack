@@ -3,13 +3,11 @@ resolver = "2"
 members = [
 	# language
 	"language/ast",
-	"language/cranelift",
 	"language/container",
 	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
 	"language/fir",
-	"language/llvm",
 	"language/mir",
 	"language/prelude",
 	"language/source",
@@ -68,13 +66,11 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # language
 dyst_ast = { path = "language/ast" }
-dyst_cranelift = { path = "language/cranelift" }
 dyst_concurrency = { path = "language/concurrency" }
 dyst_container = { path = "language/container" }
 dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
-dyst_llvm = { path = "language/llvm" }
 dyst_mir = { path = "language/mir" }
 dyst_memory = { path = "language/memory" }
 dyst_session = { path = "language/session" }

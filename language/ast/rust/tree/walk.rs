@@ -927,7 +927,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
         }
         Pattern::Reference {
-            target,
+            right: target,
             mutability: _,
         } => {
             let target_pattern = tree.get(*target);

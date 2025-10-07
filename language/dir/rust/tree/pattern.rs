@@ -1,5 +1,4 @@
-use crate::literal::ScalarLiteral;
-use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, StringId};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, ScalarLiteral, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
