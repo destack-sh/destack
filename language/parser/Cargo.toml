@@ -1,0 +1,30 @@
+[package]
+name = "dyst_parser"
+description = "Dyst Parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_ast = { workspace = true }
+dyst_diagnostic = { workspace = true }
+dyst_session = { workspace = true }
+dyst_source = { workspace = true }
+
+destack_file = { workspace = true }
+destack_unicode = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+pprof = { workspace = true }
+criterion = { workspace = true }
+
+[lints]
+workspace = true

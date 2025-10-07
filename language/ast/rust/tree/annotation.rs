@@ -57,6 +57,18 @@ impl Node for Annotation {
     const KIND: NodeType = NodeType::Annotation;
 }
 
+impl Annotation {
+    pub fn position(&self) -> AnnotationPosition {
+        match self {
+            Annotation::Blank { position, .. } => *position,
+            Annotation::Doc { position, .. } => *position,
+            Annotation::Comment { position, .. } => *position,
+            Annotation::Tag { position, .. } => *position,
+            Annotation::Decorator { position, .. } => *position,
+        }
+    }
+}
+
 /// A Blank is a newline or special whitespace.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Blank {

@@ -350,9 +350,10 @@ dependencies = [
  "dyst_ast",
  "dyst_diagnostic",
  "dyst_fir",
+ "dyst_format",
+ "dyst_parser",
  "dyst_session",
  "dyst_source",
- "dyst_token",
  "tokio",
 ]
 
@@ -411,7 +412,6 @@ dependencies = [
  "dyst_prelude",
  "dyst_session",
  "dyst_source",
- "dyst_token",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -443,7 +443,7 @@ dependencies = [
  "dyst_fir",
  "dyst_session",
  "dyst_source",
- "dyst_token",
+ "dyst_workspace",
  "libc",
  "serde",
  "serde_json",
@@ -488,7 +488,6 @@ dependencies = [
  "dyst_prelude",
  "dyst_session",
  "dyst_source",
- "dyst_token",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -502,7 +501,6 @@ dependencies = [
  "dyst_prelude",
  "dyst_session",
  "dyst_source",
- "dyst_token",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -658,12 +656,29 @@ version = "2025.10.7-0"
 dependencies = [
  "criterion",
  "destack_file",
+ "destack_unicode",
  "dyst_diagnostic",
  "dyst_fir",
  "dyst_session",
  "dyst_source",
- "dyst_token",
  "pprof",
+]
+
+[[package]]
+name = "dyst_compiler"
+version = "2025.10.7-0"
+dependencies = [
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_dir",
+ "dyst_fir",
+ "dyst_mir",
+ "dyst_parser",
+ "dyst_session",
+ "dyst_source",
+ "dyst_workspace",
+ "quickcheck",
+ "quickcheck_macros",
 ]
 
 [[package]]
@@ -700,7 +715,7 @@ dependencies = [
  "dyst_fir",
  "dyst_session",
  "dyst_source",
- "dyst_token",
+ "dyst_workspace",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -713,7 +728,20 @@ dependencies = [
  "dyst_diagnostic",
  "dyst_session",
  "dyst_source",
- "dyst_token",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_format"
+version = "2025.10.7-0"
+dependencies = [
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_fir",
+ "dyst_parser",
+ "dyst_session",
+ "dyst_source",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -737,7 +765,22 @@ dependencies = [
  "dyst_fir",
  "dyst_session",
  "dyst_source",
- "dyst_token",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_parser"
+version = "2025.10.7-0"
+dependencies = [
+ "criterion",
+ "destack_file",
+ "destack_unicode",
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_session",
+ "dyst_source",
+ "pprof",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -777,19 +820,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_token"
-version = "2025.10.7-0"
-dependencies = [
- "criterion",
- "destack_file",
- "destack_unicode",
- "dyst_source",
- "pprof",
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
 name = "dyst_vm"
 version = "2025.10.7-0"
 dependencies = [
@@ -806,6 +836,20 @@ dependencies = [
  "dyst_string",
  "quickcheck",
  "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_workspace"
+version = "2025.10.7-0"
+dependencies = [
+ "destack_file",
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_fir",
+ "dyst_format",
+ "dyst_parser",
+ "dyst_session",
+ "dyst_source",
 ]
 
 [[package]]

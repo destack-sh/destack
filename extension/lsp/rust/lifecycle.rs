@@ -4,8 +4,8 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_dir::{DocumentBody, Workspace};
 use dyst_source::SourceFormat;
+use dyst_workspace::{DocumentBody, Workspace};
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 

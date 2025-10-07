@@ -1,0 +1,30 @@
+[package]
+name = "dyst_compiler"
+description = "Dyst Compiler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_ast = { workspace = true }
+dyst_diagnostic = { workspace = true }
+dyst_dir = { workspace = true }
+dyst_fir = { workspace = true }
+dyst_mir = { workspace = true }
+dyst_parser = { workspace = true }
+dyst_session = { workspace = true }
+dyst_source = { workspace = true }
+dyst_workspace = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[lints]
+workspace = true

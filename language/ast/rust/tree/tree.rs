@@ -111,6 +111,12 @@ impl NodeTree {
         }
     }
 
+    /// Get the next id.
+    #[inline]
+    pub fn next_id(&self) -> u32 {
+        self.next_id
+    }
+
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
@@ -197,7 +203,7 @@ impl NodeTree {
 
     /// Set the span for a node.
     #[inline]
-    pub(crate) fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
+    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
     where
         T: Node,
     {
@@ -292,7 +298,7 @@ impl NodeTree {
 
     /// Sort all annotations.
     #[inline]
-    pub(crate) fn sort_annotations(&mut self) {
+    pub fn sort_annotations(&mut self) {
         self.annotations_per_node
             .values_mut()
             .for_each(|annotations| {

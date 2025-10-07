@@ -7,7 +7,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::PathId;
+use crate::{Keyword, PathId};
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -42,7 +42,7 @@ pub enum NodeType {
 }
 
 /// Node types that are annotations.
-pub(crate) const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
+pub const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Annotation,
     NodeType::Blank,
     NodeType::Doc,
@@ -143,6 +143,17 @@ pub enum Mutability {
     Mutable,
 }
 
+impl Mutability {
+    /// Get the keyword for this mutability.
+    #[inline]
+    pub fn to_keyword(&self) -> Keyword {
+        match self {
+            Mutability::Immutable => Keyword::Const,
+            Mutability::Mutable => Keyword::Var,
+        }
+    }
+}
+
 /// Scoped Mutability is a mutability that is scoped to a specific pattern.
 ///
 /// Examples:
@@ -164,4 +175,24 @@ pub enum ScopedMutability {
         /// The scopes of the scoped mutability.
         scopes: Vec<PathId>,
     },
+}
+
+impl ScopedMutability {
+    /// Whether the mutability is mutable.
+    #[inline]
+    pub fn is_mutable(&self) -> bool {
+        match self {
+            ScopedMutability::Unscoped { mutability } => *mutability == Mutability::Mutable,
+            ScopedMutability::Scoped { mutability, .. } => *mutability == Mutability::Mutable,
+        }
+    }
+
+    /// Whether the mutability is immutable.
+    #[inline]
+    pub fn is_immutable(&self) -> bool {
+        match self {
+            ScopedMutability::Unscoped { mutability } => *mutability == Mutability::Immutable,
+            ScopedMutability::Scoped { mutability, .. } => *mutability == Mutability::Immutable,
+        }
+    }
 }

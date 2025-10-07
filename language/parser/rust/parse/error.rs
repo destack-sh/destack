@@ -1,0 +1,202 @@
+use core::fmt;
+
+use crate::{NodeType, TokenSpan, TokenType};
+use dyst_diagnostic::{Diagnostic, DiagnosticKind, Severity};
+use dyst_source::{LabeledSpan, Source, Span};
+
+/// Error when parsing the AST.
+#[derive(Debug, Clone)]
+pub struct AstError {
+    /// The span of the error.
+    pub span: Span,
+    /// The expected token type.
+    pub expected: Option<TokenType>,
+    /// The node type we tried to parse.
+    pub node_type: Option<NodeType>,
+    /// The source error.
+    pub source: Option<Box<AstError>>,
+}
+
+/// The result of an AST parse.
+pub type AstResult<T> = Result<T, AstError>;
+
+pub trait AstResultExt<T> {
+    /// Set the node type of the error.
+    fn for_node_type(self, node_type: NodeType) -> Result<T, AstError>;
+}
+
+impl<T> AstResultExt<T> for Result<T, AstError> {
+    /// Set the node type of the error (if not already set)
+    #[inline]
+    fn for_node_type(self, node_type: NodeType) -> Self {
+        if let Err(e) = &self
+            && e.node_type.is_none()
+        {
+            Err(e.clone().for_node_type(node_type))
+        } else {
+            self
+        }
+    }
+}
+
+impl AstError {
+    /// Create a ParseError leaf without an expected alternative.
+    #[inline]
+    pub fn unexpected(span: Span) -> Self {
+        AstError {
+            span,
+            expected: None,
+            node_type: None,
+            source: None,
+        }
+    }
+
+    /// Create a ParseError leaf with an unexpected token and node type.
+    #[inline]
+    pub fn unexpected_for(span: Span, node_type: NodeType) -> Self {
+        AstError {
+            span,
+            expected: None,
+            node_type: Some(node_type),
+            source: None,
+        }
+    }
+
+    /// Create a ParseError leaf with an expected alternative.
+    #[inline]
+    pub fn expected(span: Span, expected: TokenType) -> Self {
+        AstError {
+            span,
+            expected: Some(expected),
+            node_type: None,
+            source: None,
+        }
+    }
+
+    /// Create a ParseError leaf with an expected alternative and node type.
+    #[inline]
+    pub fn expected_for(span: Span, expected: TokenType, node_type: NodeType) -> Self {
+        AstError {
+            span,
+            expected: Some(expected),
+            node_type: Some(node_type),
+            source: None,
+        }
+    }
+
+    /// Create a ParseError leaf from a source error with a new span.
+    #[inline]
+    pub fn from_source(span: Span, source: AstError) -> Self {
+        AstError {
+            span,
+            expected: None,
+            node_type: source.node_type,
+            source: Some(Box::new(source)),
+        }
+    }
+
+    /// Create a ParseError leaf from a source error with a new span.
+    #[inline]
+    pub fn from_source_maybe(span: Span, source: Option<AstError>) -> Self {
+        AstError {
+            span,
+            expected: None,
+            node_type: source.as_ref().and_then(|s| s.node_type),
+            source: source.map(Box::new),
+        }
+    }
+
+    /// Set the node type of the error.
+    #[inline]
+    pub fn for_node_type(mut self, node_type: NodeType) -> Self {
+        self.node_type = Some(node_type);
+        self
+    }
+
+    /// Compare content.
+    pub fn eq_content(&self, other: &Self) -> bool {
+        let (self_span, self_node_type, self_expected) = self.leaf_content();
+        let (other_span, other_node_type, other_expected) = other.leaf_content();
+        self_span == other_span
+            && self_node_type == other_node_type
+            && self_expected == other_expected
+    }
+
+    /// Get the leaf error.
+    pub fn leaf(&self) -> &AstError {
+        if let Some(source) = &self.source {
+            source.leaf()
+        } else {
+            self
+        }
+    }
+
+    /// Get the leaf content.
+    pub fn leaf_content(&self) -> (Span, Option<NodeType>, Option<TokenType>) {
+        let leaf = self.leaf();
+        (leaf.span, leaf.node_type, leaf.expected)
+    }
+
+    /// Get the leaf span.
+    pub fn leaf_span(&self) -> Span {
+        let leaf = self.leaf();
+        leaf.span
+    }
+}
+
+impl fmt::Display for AstError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let span = self.span;
+        match self.expected {
+            Some(tok) => write!(f, "expected {tok} at {span:?}")?,
+            None => write!(f, "unexpected token at {span:?}")?,
+        }
+        Ok(())
+    }
+}
+
+// Optional: implement std::error::Error so callers can use `source()` if they like.
+impl std::error::Error for AstError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let Some(source) = &self.source {
+            Some(&**source)
+        } else {
+            None
+        }
+    }
+}
+
+impl AstError {
+    pub fn to_diagnostic(&self, _source: &Source, tokens: &[TokenSpan]) -> Diagnostic {
+        let (span, node_type, expected) = self.leaf_content();
+
+        let token_at_primary_span = tokens
+            .iter()
+            .find(|token| token.span.start == span.start)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End);
+        let in_node_str = match node_type {
+            Some(node_type) => format!(" in {node_type:?}"),
+            None => "".to_string(),
+        };
+        Diagnostic {
+            kind: DiagnosticKind::Parse,
+            code: "E001".to_string(),
+            severity: Severity::Error,
+            message: match expected {
+                Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),
+                None => format!("parse error: unexpected {token_at_primary_span}{in_node_str}"),
+            },
+            source: span.source,
+            primary_span: LabeledSpan {
+                span,
+                label: match expected {
+                    Some(token_type) => format!("expected {token_type}{in_node_str}"),
+                    None => format!("unexpected {token_at_primary_span}{in_node_str}"),
+                },
+            },
+            secondary_spans: None,
+            suggestions: None,
+        }
+    }
+}

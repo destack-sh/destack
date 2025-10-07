@@ -16,9 +16,9 @@ dyst_diagnostic = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_source = { workspace = true }
 dyst_session = { workspace = true }
-dyst_token = { workspace = true }
 
 destack_file = { workspace = true }
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

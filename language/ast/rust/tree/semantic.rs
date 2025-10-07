@@ -1,13 +1,12 @@
 use std::str::FromStr;
 
-use dyst_source::Source;
-use dyst_token::{RawLiteralType, TokenSpan, TokenType};
-
 use crate::{
     Argument, Definition, EnumField, Keyword, Node, NodeId, NodeTree, NodeVisitor, Parameter,
-    PatternField, StructField, UnionField, walk_argument, walk_definition, walk_enum_field,
-    walk_parameter, walk_pattern_field, walk_struct_field, walk_union_field,
+    PatternField, RawLiteralType, StructField, TokenSpan, TokenType, UnionField, walk_argument,
+    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_struct_field,
+    walk_union_field,
 };
+use dyst_source::Source;
 
 /// The semantic type of a Span or Token.
 #[derive(Debug, Copy, Clone, PartialEq)]
