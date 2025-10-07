@@ -20,6 +20,7 @@ dyst_session = { workspace = true }
 dyst_token = { workspace = true }
 
 destack_unicode = { workspace = true }
+destack_file = { workspace = true }
 
 [dev-dependencies]
 quickcheck = { workspace = true }

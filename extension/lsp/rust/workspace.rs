@@ -192,7 +192,7 @@ impl Workspace {
     }
 
     /// Refresh a single document from disk when it is not open.
-    pub fn sync_document_from_disk(&mut self, uri: &Uri) -> io::Result<()> {
+    pub fn reload_document_from_disk(&mut self, uri: &Uri) -> io::Result<()> {
         // infer the format
         let format = infer_source_format_from_uri(uri).unwrap_or(SourceFormat::Dyst);
 

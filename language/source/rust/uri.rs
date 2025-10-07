@@ -1,9 +1,10 @@
 use core::fmt;
 use std::borrow::Borrow;
 use std::fmt::Display;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+/// A generic URI.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Uri(String);
 
@@ -48,5 +49,18 @@ impl Display for Uri {
 impl Borrow<str> for Uri {
     fn borrow(&self) -> &str {
         &self.0
+    }
+}
+
+impl Uri {
+    /// Convert a URI to a Path.
+    pub fn to_file_path(&self) -> Option<&Path> {
+        let path = Path::new(&self.0);
+        Some(path)
+    }
+
+    /// Convert a file Path to a URI.
+    pub fn from_file_path<A: AsRef<Path>>(path: A) -> Self {
+        Self(path.as_ref().to_string_lossy().into_owned())
     }
 }

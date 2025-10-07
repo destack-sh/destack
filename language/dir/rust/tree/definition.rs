@@ -111,6 +111,22 @@ impl Definition {
         }
     }
 
+    /// Get the variant of the definition.
+    #[inline]
+    pub fn variant(&self) -> Option<NodeId<Variant>> {
+        match self {
+            Definition::Intrinsic { .. } => None,
+            Definition::Module { .. } => None,
+            Definition::Struct { variant, .. } => Some(*variant),
+            Definition::Enum { variant, .. } => Some(*variant),
+            Definition::Union { .. } => None,
+            Definition::Trait { .. } => None,
+            Definition::Function { .. } => None,
+            Definition::Implement { .. } => None,
+            Definition::Let { .. } => None,
+        }
+    }
+
     /// Get the definitions inside the definition.
     #[inline]
     pub fn definitions(&self) -> Option<&Vec<NodeId<Definition>>> {

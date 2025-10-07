@@ -1,4 +1,4 @@
-use crate::{Definition, Intrinsic, NodeId, NodeIdAny, StringId, Type};
+use crate::{Definition, Intrinsic, NodeId, StringId, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
