@@ -2,11 +2,12 @@
 
 use std::str::FromStr;
 
+use dyst_diagnostic::Severity;
 use tower_lsp_server::{LanguageServer, jsonrpc};
 
 use dyst_source::SourceFormat;
 
-use crate::document::DocumentContent;
+use crate::document::DocumentBody;
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
 use tower_lsp_server::lsp_types as lsp;
@@ -519,11 +520,20 @@ impl LanguageServer for DestackLanguageServer {
         let Some(document) = workspace.get_document(&lsp_uri_to_uri(&uri)) else {
             return Ok(None);
         };
-        let DocumentContent::Text { source, .. } = &document.content else {
+        let DocumentBody::Text { source, .. } = &document.body else {
             return Ok(None);
         };
 
-        let Some(formatted) = workspace.format_document(document) else {
+        // bail if document is malformed
+        if workspace
+            .get_diagnostics_for_source(document.id)
+            .iter()
+            .any(|d| d.severity == Severity::Error)
+        {
+            return Ok(None);
+        }
+
+        let Some(formatted) = document.format(&workspace.session) else {
             return Ok(None);
         };
         let Some((end_line, end_character)) = source.get_position(source.len) else {
