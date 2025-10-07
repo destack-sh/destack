@@ -42,7 +42,7 @@ mod tests {
         let mut test = TestParser::new("destack");
         let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
-        assert_path!(parser.session, path, "destack");
+        assert_path!(parser, path, "destack");
     }
 
     #[test]
@@ -50,7 +50,7 @@ mod tests {
         let mut test = TestParser::new("destack.geometry.math");
         let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
-        assert_path!(parser.session, path, "destack.geometry.math");
+        assert_path!(parser, path, "destack.geometry.math");
     }
 
     #[test]
@@ -58,7 +58,7 @@ mod tests {
         let mut test = TestParser::new("ds.geometry.{Vector2}");
         let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
-        assert_path!(parser.session, path, "ds.geometry");
+        assert_path!(parser, path, "ds.geometry");
         // ensure next token is the `.` for the group
         let next = parser.peek().unwrap();
         assert_eq!(next.token.ty, dyst_token::TokenType::Dot);
@@ -69,7 +69,7 @@ mod tests {
         let mut test = TestParser::new("geom.Vector<Dims: 2, float32>");
         let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
-        assert_path!(parser.session, path, "geom.Vector");
+        assert_path!(parser, path, "geom.Vector");
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
         assert_eq!(next.token.ty, dyst_token::TokenType::LessThan);

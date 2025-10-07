@@ -130,7 +130,7 @@ mod tests {
         // where T: int32
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WhereClause::Assertion { left, right } => {
-            assert_string!(parser.session, *left, "T");
+            assert_string!(parser, *left, "T");
             assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);
@@ -149,8 +149,8 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser.session, parser.tree.get(*left), "T");
-                assert_expr_path!(parser.session, parser.tree.get(*right), "Y");
+                assert_expr_path!(parser, parser.tree.get(*left), "T");
+                assert_expr_path!(parser, parser.tree.get(*right), "Y");
             });
         });
     }
@@ -168,7 +168,7 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser.session, parser.tree.get(*right), "Bar");
+                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
             });
         });
 
@@ -176,16 +176,16 @@ mod tests {
         assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser.session, parser.tree.get(*left), "Time");
-                assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                assert_expr_path!(parser, parser.tree.get(*left), "Time");
+                assert_expr_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
 
         // F: Numeric
         assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
-            assert_string!(parser.session, *left, "F");
+            assert_string!(parser, *left, "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Numeric");
+                assert_path!(parser, *path, "Numeric");
             });
         });
     }
@@ -207,7 +207,7 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser.session, parser.tree.get(*right), "Bar");
+                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
             });
         });
 
@@ -215,16 +215,16 @@ mod tests {
         assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser.session, parser.tree.get(*left), "Time");
-                assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                assert_expr_path!(parser, parser.tree.get(*left), "Time");
+                assert_expr_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
 
         // F: Numeric
         assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
-            assert_string!(parser.session, *left, "F");
+            assert_string!(parser, *left, "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Numeric");
+                assert_path!(parser, *path, "Numeric");
             });
         });
     }

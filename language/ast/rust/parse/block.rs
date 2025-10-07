@@ -277,7 +277,7 @@ mod tests {
         let mut parser = test.prepare();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
-        assert_string!(parser.session, block.label.unwrap(), "label");
+        assert_string!(parser, block.label.unwrap(), "label");
         assert!(block.expressions.is_empty());
     }
 
@@ -298,7 +298,7 @@ mod tests {
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
-            assert_string!(parser.session, label.unwrap(), "label");
+            assert_string!(parser, label.unwrap(), "label");
             assert!(value.is_none());
         });
     }
@@ -309,7 +309,7 @@ mod tests {
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
-            assert_string!(parser.session, label.unwrap(), "label");
+            assert_string!(parser, label.unwrap(), "label");
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
         });
@@ -343,7 +343,7 @@ mod tests {
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
-            assert_string!(parser.session, label.unwrap(), "label");
+            assert_string!(parser, label.unwrap(), "label");
         });
     }
 
@@ -375,7 +375,7 @@ mod tests {
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
             assert_node!(parser.tree, expression.unwrap(), Expression::Call { runtime: _, receiver, dynamic_arguments } => {
-                assert_expr_path!(parser.session, parser.tree.get(*receiver), "someFunction");
+                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
             assert!(catch.is_none());
@@ -389,7 +389,7 @@ mod tests {
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
             assert_node!(parser.tree, catch.unwrap(), Expression::Match { value, .. } => {
-                assert_expr_path!(parser.session, parser.tree.get(*value), "e");
+                assert_expr_path!(parser, parser.tree.get(*value), "e");
             });
             assert!(expression.is_none());
         });

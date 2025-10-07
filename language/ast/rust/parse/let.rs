@@ -184,18 +184,18 @@ var(x, y) pos: Vector4
                 ScopedMutability::Scoped { mutability, scopes } => {
                     assert_eq!(*mutability, Mutability::Mutable);
                     assert_eq!(scopes.len(), 2);
-                    assert_path!(parser.session, scopes[0], "x");
-                    assert_path!(parser.session, scopes[1], "y");
+                    assert_path!(parser, scopes[0], "x");
+                    assert_path!(parser, scopes[1], "y");
                 }
                 _ => panic!("expected ScopedMutability::Scoped"),
             }
 
             // pos: Vector4
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser.session, *name, "pos");
+                assert_string!(parser, *name, "pos");
             });
             assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Vector4");
+                assert_path!(parser, *path, "Vector4");
             });
         });
     }
@@ -215,7 +215,7 @@ let x: int32 = 1
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser.session, *name, "x");
+                assert_string!(parser, *name, "x");
             });
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
@@ -350,7 +350,7 @@ let x =
             assert_node!(parser.tree, value.unwrap(), Expression::Call { runtime, receiver, dynamic_arguments: _ } => {
                 assert_eq!(*runtime, None);
                 assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "foo.parse");
+                    assert_path!(parser, *path, "foo.parse");
                 });
             });
         });

@@ -324,7 +324,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Binding { name } => {
-            assert_string!(parser.session, *name, "x");
+            assert_string!(parser, *name, "x");
         });
     }
 
@@ -334,7 +334,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
-            assert_path!(parser.session, *path, "MyEnum.A");
+            assert_path!(parser, *path, "MyEnum.A");
         });
     }
 
@@ -350,7 +350,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser.session, *name, "x");
+                assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
@@ -361,13 +361,13 @@ mod tests {
 
             // var y
             assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability) } => {
-                assert_string!(parser.session, *name, "y");
+                assert_string!(parser, *name, "y");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const z
             assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(mutability) } => {
-                assert_string!(parser.session, *name, "z");
+                assert_string!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Immutable);
             });
 
@@ -422,7 +422,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser.session, *name, "x");
+                assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 

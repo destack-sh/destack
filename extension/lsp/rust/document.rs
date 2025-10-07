@@ -1,6 +1,6 @@
 use dyst_ast::{
     Definition, DystFormatContext, DystFormatOptions, ModuleFormat, NodeId, NodeParentIndex,
-    NodeTree, Parser,
+    NodeTree, Parser, PathPool, StringPool,
 };
 use dyst_fir::format;
 use dyst_session::Session;
@@ -41,6 +41,10 @@ pub enum DocumentBody {
         ast: NodeTree,
         /// The root definition ID of the document, when available.
         root_definition_id: Option<NodeId<Definition>>,
+        /// The string pool.
+        strings: StringPool,
+        /// The path pool.
+        paths: PathPool,
     },
     Binary {
         /// The content of the document.
@@ -53,10 +57,10 @@ impl DocumentBody {
     pub(crate) fn from_text(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
-        let module_name_id = session.intern_string(module_name);
 
         // parse the document AST
         let mut parser = Parser::prepare(&source, session);
+        let module_name_id = parser.intern_string(module_name);
         let root_definition_id = parser.with_recovery(
             parser.mark(),
             |parser| {
@@ -78,6 +82,8 @@ impl DocumentBody {
         all_tokens.extend(side_tokens.iter());
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
+        let strings = parser.strings;
+        let paths = parser.paths;
 
         DocumentBody::Text {
             source,
@@ -87,6 +93,8 @@ impl DocumentBody {
             all_tokens,
             ast,
             root_definition_id,
+            strings,
+            paths,
         }
     }
 
@@ -144,6 +152,8 @@ impl Document {
             side_span,
             ast,
             root_definition_id: module_id,
+            strings,
+            paths,
             ..
         } = &self.body
         else {
@@ -163,6 +173,8 @@ impl Document {
             spans: &ast.spans,
             parents: NodeParentIndex::from_tree(ast),
             session,
+            strings,
+            paths,
         };
         let formatted = format!(context, [module_id]).unwrap();
         let printed = formatted.print();

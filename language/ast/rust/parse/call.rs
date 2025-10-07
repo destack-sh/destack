@@ -191,7 +191,7 @@ mod tests {
 
             // x: 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
-                assert_string!(parser.session, *name, "x");
+                assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });

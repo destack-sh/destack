@@ -750,7 +750,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_string!(parser.session, *string, "Test doc");
+                assert_string!(parser, *string, "Test doc");
                 assert_eq!(*style, DocStyle::Slash);
             });
         });
@@ -759,18 +759,18 @@ struct Test {}
         assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "dyst.BeginGroup");
+                assert_path!(parser, *receiver, "dyst.BeginGroup");
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 2);
                 // "MyGroup"
                 assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser.session, *string_id, "MyGroup");
+                        assert_string!(parser, *string_id, "MyGroup");
                     });
                 });
                 // 1
                 assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
-                    assert_string!(parser.session, *name, "length");
+                    assert_string!(parser, *name, "length");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
             });
@@ -780,7 +780,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "dyst.EndGroup");
+                assert_path!(parser, *receiver, "dyst.EndGroup");
                 assert!(arguments.is_none());
             });
         });
@@ -801,7 +801,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "foo");
+                assert_path!(parser, *receiver, "foo");
                 assert!(arguments.is_none());
             });
         });
@@ -822,7 +822,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "if");
+                assert_path!(parser, *receiver, "if");
                 assert!(arguments.is_none());
             });
         });
@@ -831,7 +831,7 @@ struct Test {}
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
             assert_node!(parser.tree, *node, Definition::Function { name, body, .. } => {
                 // foo
-                assert_string!(parser.session, name.unwrap(), "foo");
+                assert_string!(parser, name.unwrap(), "foo");
                 assert!(body.is_some());
                 assert_node!(parser.tree, body.unwrap(), Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
@@ -860,7 +860,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "A");
+                assert_path!(parser, *receiver, "A");
                 assert!(arguments.is_none());
             });
         });
@@ -868,7 +868,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePrefix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "B");
+                assert_path!(parser, *receiver, "B");
                 assert!(arguments.is_none());
             });
         });
@@ -876,7 +876,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "C");
+                assert_path!(parser, *receiver, "C");
                 assert!(arguments.is_none());
             });
         });
@@ -884,7 +884,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "D");
+                assert_path!(parser, *receiver, "D");
                 assert!(arguments.is_none());
             });
         });
@@ -892,7 +892,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[4], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "E");
+                assert_path!(parser, *receiver, "E");
                 assert!(arguments.is_none());
             });
         });
@@ -900,7 +900,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[5], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "F");
+                assert_path!(parser, *receiver, "F");
                 assert!(arguments.is_none());
             });
         });
@@ -908,7 +908,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[6], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser.session, *receiver, "G");
+                assert_path!(parser, *receiver, "G");
                 assert!(arguments.is_none());
             });
         });
@@ -1007,7 +1007,7 @@ over multiple lines with trailing space    */",
                 assert_eq!(*operator, BinaryOperator::And);
                 // A
                 assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "A");
+                    assert_path!(parser, *path, "A");
                 });
                 let annotations = parser.tree.get_annotations_for(left.id);
                 // line prefix, pre-A comment
@@ -1030,7 +1030,7 @@ over multiple lines with trailing space    */",
 
                 // B
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "B");
+                    assert_path!(parser, *path, "B");
                 });
                 // line postfix boundary, B comment
                 let annotations = parser.tree.get_annotations_for(right.id);
@@ -1220,7 +1220,7 @@ struct Floof {
                 // a: int32
                 assert_eq!(fields.len(), 1);
                 assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                    assert_string!(parser.session, name.unwrap(), "a");
+                    assert_string!(parser, name.unwrap(), "a");
                     let annotations = parser.tree.get_annotations_for(fields[0].id);
                     assert_eq!(annotations.len(), 4);
 

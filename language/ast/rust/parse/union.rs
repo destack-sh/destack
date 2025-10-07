@@ -271,14 +271,14 @@ union { A, B }
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, ty, value } => {
-                assert_string!(parser.session, *name, "A");
+                assert_string!(parser, *name, "A");
                 assert!(ty.is_none());
                 assert!(value.is_none());
             });
 
             // B
             assert_node!(parser.tree, fields[1], UnionField { name, ty, value } => {
-                assert_string!(parser.session, *name, "B");
+                assert_string!(parser, *name, "B");
                 assert!(ty.is_none());
                 assert!(value.is_none());
             });
@@ -297,7 +297,7 @@ union Foo: Bar {}
 
         let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -305,7 +305,7 @@ union Foo: Bar {}
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Bar");
+                assert_path!(parser, *path, "Bar");
             });
         });
     }
@@ -331,7 +331,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
         let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
 
             // (uint4, uint60)
@@ -349,7 +349,7 @@ union(uint4, uint60) Foo<T>: Boz {
             let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, .. } => {
-                assert_string!(parser.session, *name, "T");
+                assert_string!(parser, *name, "T");
                 assert!(ty.is_none());
             });
 
@@ -357,7 +357,7 @@ union(uint4, uint60) Foo<T>: Boz {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Boz");
+                assert_path!(parser, *path, "Boz");
             });
 
             assert_eq!(expressions.len(), 2);
@@ -365,14 +365,14 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, ty, value } => {
-                assert_string!(parser.session, *name, "A");
+                assert_string!(parser, *name, "A");
                 assert!(ty.is_none());
                 assert!(value.is_none());
             });
 
             // C(boolean)
             assert_node!(parser.tree, fields[1], UnionField { name, ty, value } => {
-                assert_string!(parser.session, *name, "C");
+                assert_string!(parser, *name, "C");
                 assert_node!(parser.tree, ty.unwrap(), Expression::Definition(struct_id) => {
                     assert_node!(parser.tree, *struct_id, Definition::Struct { style: _, fields, .. } => {
                         // boolean
@@ -387,7 +387,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // D(boolean, count: int32) = 6
             assert_node!(parser.tree, fields[2], UnionField { name, ty, value } => {
-                assert_string!(parser.session, *name, "D");
+                assert_string!(parser, *name, "D");
 
                 // (boolean, count: int32)
                 assert_node!(parser.tree, ty.unwrap(), Expression::Definition(struct_id) => {
@@ -400,7 +400,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
                         // count: int32
                         assert_node!(parser.tree, fields[1], StructField { name, ty, .. } => {
-                            assert_string!(parser.session, name.unwrap(), "count");
+                            assert_string!(parser, name.unwrap(), "count");
                             assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                                 assert_eq!(int_ty.width, Some(32));
                                 assert!(int_ty.is_signed);
@@ -415,13 +415,13 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // E { x: int32, y: T }
             assert_node!(parser.tree, fields[3], UnionField { name, ty, .. } => {
-                assert_string!(parser.session, *name, "E");
+                assert_string!(parser, *name, "E");
                 assert_node!(parser.tree, ty.unwrap(), Expression::Definition(struct_id) => {
                     assert_node!(parser.tree, *struct_id, Definition::Struct { style: _, fields, .. } => {
                         // x: int32
                         assert_node!(parser.tree, fields[0], StructField { name, ty, .. } => {
                             // x
-                            assert_string!(parser.session, name.unwrap(), "x");
+                            assert_string!(parser, name.unwrap(), "x");
                             // int32
                             assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                                 assert_eq!(int_ty.width, Some(32));
@@ -432,10 +432,10 @@ union(uint4, uint60) Foo<T>: Boz {
                         // y: T
                         assert_node!(parser.tree, fields[1], StructField { name, ty, .. } => {
                             // y
-                            assert_string!(parser.session, name.unwrap(), "y");
+                            assert_string!(parser, name.unwrap(), "y");
                             // T
                             assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: _ } => {
-                                assert_path!(parser.session, *path, "T");
+                                assert_path!(parser, *path, "T");
                             });
                         });
                     });
@@ -446,7 +446,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, expressions[0], Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Spread);
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Bar");
+                    assert_path!(parser, *path, "Bar");
                 });
             });
 
@@ -474,7 +474,7 @@ union Foo with Context where Guard > Limit {
             assert_eq!(with_clauses.len(), 1);
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -485,8 +485,8 @@ union Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
         });

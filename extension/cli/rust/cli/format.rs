@@ -268,10 +268,10 @@ fn format_file(
 fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormattedSource, String> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
-    let module_name_id = session.intern_string(module_name);
-
+    
     // parse the source into an AST
     let mut parser = Parser::prepare(source, &mut session);
+    let module_name_id = parser.intern_string(module_name);
     let module_id = parser.with_recovery(
         parser.mark(),
         |parser| {
@@ -289,6 +289,8 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
     let tokens = parser.tokens;
     let side_tokens = parser.side_tokens;
     let tree = parser.tree;
+    let strings = parser.strings;
+    let paths = parser.paths;
     let context = DystFormatContext {
         options: options.clone(),
         source,
@@ -299,6 +301,8 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
         spans: &tree.spans,
         parents: NodeParentIndex::from_tree(&tree),
         session: &session,
+        strings: &strings,
+        paths: &paths,
     };
 
     // format and print the document

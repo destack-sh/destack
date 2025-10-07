@@ -1,10 +1,10 @@
 use dyst_ast::{
     Definition, DystFormatContext, DystFormatOptions, ModuleFormat, NodeId, NodeParentIndex,
-    NodeTree, Parser,
+    NodeTree, Parser, PathPool,
 };
 use dyst_fir::format;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 use dyst_token::{TokenSpan, TokenType};
 
 /// A document.
@@ -41,6 +41,10 @@ pub enum DocumentBody {
         ast: NodeTree,
         /// The root definition ID of the document, when available.
         root_definition_id: Option<NodeId<Definition>>,
+        /// The string pool.
+        strings: StringPool,
+        /// The path pool.
+        paths: PathPool,
     },
     Binary {
         /// The content of the document.
@@ -53,7 +57,7 @@ impl DocumentBody {
     pub(crate) fn from_text(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
-        
+
         // parse the document AST
         let mut parser = Parser::prepare(&source, session);
         let module_name_id = parser.intern_string(module_name);
@@ -78,6 +82,8 @@ impl DocumentBody {
         all_tokens.extend(side_tokens.iter());
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
+        let strings = parser.strings;
+        let paths = parser.paths;
 
         DocumentBody::Text {
             source,
@@ -87,6 +93,8 @@ impl DocumentBody {
             all_tokens,
             ast,
             root_definition_id,
+            strings,
+            paths,
         }
     }
 
