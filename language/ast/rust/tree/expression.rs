@@ -499,7 +499,7 @@ impl Expression {
     }
 }
 
-/// A UseClause is a single clause in a use declaration.
+/// A UseClause is a single clause in a use dependency declaration.
 ///
 /// Examples:
 /// ```

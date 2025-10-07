@@ -683,14 +683,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_cranelift"
-version = "2025.10.7-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
 name = "dyst_diagnostic"
 version = "2025.10.7-0"
 dependencies = [
@@ -722,14 +714,6 @@ dependencies = [
  "dyst_session",
  "dyst_source",
  "dyst_token",
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "dyst_llvm"
-version = "2025.10.7-0"
-dependencies = [
  "quickcheck",
  "quickcheck_macros",
 ]

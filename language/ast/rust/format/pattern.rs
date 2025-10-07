@@ -17,7 +17,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Rest => write!(f, [token("..")])?,
             Pattern::Maybe(unwrap) => write!(f, [unwrap, token("?")])?,
-            Pattern::Reference { target, mutability } => {
+            Pattern::Reference { right: target, mutability } => {
                 if *mutability == Mutability::Mutable {
                     write!(f, [token("&var "), target])?
                 } else {

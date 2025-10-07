@@ -7,13 +7,17 @@ pub enum Keyword {
     Public,
     /// Mark the following item as private (with optional qualifier)
     Private,
+    /// Import (reserved).
+    Import,
+    /// Export (reserved).
+    Export,
     /// Refer to the containing instance type / value.
     Self_,
     /// Refer to the containing instance type / value.
     This,
     /// Declare a Module (inline).
     Module,
-    /// Declare a tuple.
+    /// Declare a tuple (reserved).
     Tuple,
     /// Declare a type.
     Type,
@@ -77,6 +81,8 @@ impl Keyword {
         match self {
             Keyword::Public => "public",
             Keyword::Private => "private",
+            Keyword::Import => "import",
+            Keyword::Export => "export",
             Keyword::Self_ => "self",
             Keyword::This => "this",
             Keyword::Module => "module",
@@ -119,6 +125,8 @@ impl FromStr for Keyword {
         match s {
             "public" => Ok(Keyword::Public),
             "private" => Ok(Keyword::Private),
+            "import" => Ok(Keyword::Import),
+            "export" => Ok(Keyword::Export),
             "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
             "tuple" => Ok(Keyword::Tuple),
