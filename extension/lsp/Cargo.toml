@@ -21,6 +21,8 @@ dyst_fir = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 dyst_token = { workspace = true }
+dyst_dir = { workspace = true }
+
 destack_file = { workspace = true }
 
 serde = { version = "1.0", features = ["derive"] }

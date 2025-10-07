@@ -49,12 +49,7 @@ impl Workspace {
     pub fn from_sources(root_uri: Uri, sources: impl IntoIterator<Item = Source>) -> Self {
         let mut workspace = Self::empty(root_uri);
         for source in sources {
-            workspace.upsert_text_document(
-                &source.uri,
-                source.format,
-                false,
-                source.content,
-            );
+            workspace.upsert_text_document(&source.uri, source.format, false, source.content);
         }
         workspace
     }

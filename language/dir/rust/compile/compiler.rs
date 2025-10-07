@@ -12,8 +12,8 @@ use crate::{NodeTree, Workspace};
 pub struct Compiler<'s> {
     /// The workspace to compile.
     pub workspace: &'s Workspace,
-	/// The node tree of the compiled DIR.
-	pub tree: NodeTree,
+    /// The node tree of the compiled DIR.
+    pub tree: NodeTree,
 }
 
 impl<'s> Compiler<'s> {

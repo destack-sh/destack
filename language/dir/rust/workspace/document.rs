@@ -27,9 +27,9 @@ pub struct Document {
 #[allow(clippy::large_enum_variant)]
 pub enum DocumentBody {
     Text {
-        /// The source of the document.
+        /// The text source of the document.
         source: Source,
-        /// The tokens of the document.
+        /// The main tokens of the document.
         tokens: Vec<TokenSpan>,
         /// The side tokens of the document.
         side_tokens: Vec<TokenSpan>,
@@ -47,7 +47,7 @@ pub enum DocumentBody {
         paths: PathPool,
     },
     Binary {
-        /// The content of the document.
+        /// The binary content of the document.
         content: Vec<u8>,
     },
 }

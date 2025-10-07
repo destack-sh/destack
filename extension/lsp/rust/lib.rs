@@ -4,7 +4,6 @@
 //! document storage and semantic token computation.
 
 pub mod diagnostic;
-pub mod document;
 pub mod language_server;
 pub mod lifecycle;
 pub mod semantic;
@@ -12,10 +11,10 @@ pub mod server;
 pub mod source;
 pub mod workspace;
 
-pub use document::Document;
 pub use server::DestackLanguageServer;
 pub use source::*;
-pub use workspace::Workspace;
+
+pub use dyst_dir::{Document, Workspace};
 
 use tower_lsp_server::{LspService, Server};
 

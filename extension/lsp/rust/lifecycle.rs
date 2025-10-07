@@ -4,14 +4,14 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use dyst_dir::{DocumentBody, Workspace};
 use dyst_source::SourceFormat;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::DestackLanguageServer;
 use crate::diagnostic::diagnostic_to_lsp_diagnostic;
-use crate::document::DocumentBody;
-use crate::workspace::{TRACKED_FORMATS, Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
+use crate::workspace::{TRACKED_FORMATS, lsp_uri_to_uri, uri_to_lsp_uri};
 
 impl DestackLanguageServer {
     /// Register file watchers for all existing workspaces.
@@ -45,8 +45,12 @@ impl DestackLanguageServer {
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
     ) -> jsonrpc::Result<()> {
-        let mut workspace = workspace_handle.write().await;
-        if workspace.watch_registration_id.is_some() {
+        let workspace = workspace_handle.read().await;
+        let mut workspace_watch_ids = self.workspace_watch_ids.write().await;
+        let watch_registration_id = workspace_watch_ids
+            .get(&workspace.root.to_string())
+            .cloned();
+        if watch_registration_id.is_some() {
             return Ok(());
         }
 
@@ -77,7 +81,7 @@ impl DestackLanguageServer {
         };
 
         self.client.register_capability(vec![registration]).await?;
-        workspace.watch_registration_id = Some(registration_id.clone());
+        workspace_watch_ids.insert(workspace.root.to_string(), registration_id.clone());
 
         self.client
             .log_message(
@@ -97,17 +101,18 @@ impl DestackLanguageServer {
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
     ) -> jsonrpc::Result<()> {
-        let mut workspace = workspace_handle.write().await;
-        let Some(registration_id) = workspace
-            .watch_registration_id
-            .clone()
+        let workspace = workspace_handle.read().await;
+        let mut workspace_watch_ids = self.workspace_watch_ids.write().await;
+        let Some(registration_id) = workspace_watch_ids
+            .get(&workspace.root.to_string())
+            .cloned()
             .as_deref()
             .map(ToOwned::to_owned)
         else {
             return Ok(());
         };
 
-        workspace.watch_registration_id = None;
+        workspace_watch_ids.remove(&workspace.root.to_string());
         self.client
             .unregister_capability(vec![lsp::Unregistration {
                 id: registration_id,
@@ -180,7 +185,7 @@ impl DestackLanguageServer {
         let mut guard = self.workspaces.write().await;
         let (workspace_handle, inserted) = match guard.entry(key.clone()) {
             Entry::Vacant(vacant) => {
-                let workspace = Workspace::new(lsp_uri_to_uri(&root));
+                let workspace = Workspace::empty(lsp_uri_to_uri(&root));
                 let workspace_handle = Arc::new(RwLock::new(workspace));
                 vacant.insert(workspace_handle.clone());
                 (workspace_handle, true)

@@ -268,7 +268,7 @@ fn format_file(
 fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormattedSource, String> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
-    
+
     // parse the source into an AST
     let mut parser = Parser::prepare(source, &mut session);
     let module_name_id = parser.intern_string(module_name);
