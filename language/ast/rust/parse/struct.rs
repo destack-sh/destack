@@ -272,14 +272,14 @@ struct { x: int32, y: boolean
 
             // x: int32
             assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
-                assert_string!(parser.session, name.unwrap(), "x");
+                assert_string!(parser, name.unwrap(), "x");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // y: boolean
             assert_node!(parser.tree, fields[1], StructField { name, ty, default } => {
-                assert_string!(parser.session, name.unwrap(), "y");
+                assert_string!(parser, name.unwrap(), "y");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
@@ -298,7 +298,7 @@ struct Foo: Bar {}
 
         let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Definition::Struct { name, super_types, fields, expressions, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -306,7 +306,7 @@ struct Foo: Bar {}
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Bar");
+                assert_path!(parser, *path, "Bar");
             });
         });
     }
@@ -323,7 +323,7 @@ struct Foo(int32, boolean) {}
 
         let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Definition::Struct { name, style, fields, expressions, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(*style, StructStyle::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
@@ -368,7 +368,7 @@ struct Foo<T: Numeric>: Boz {
 
         let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Definition::Struct { name, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
 
             // T: Numeric
@@ -377,11 +377,11 @@ struct Foo<T: Numeric>: Boz {
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, .. } => {
                 // T
-                assert_string!(parser.session, *name, "T");
+                assert_string!(parser, *name, "T");
                 // Numeric
                 assert!(ty.is_some());
                 assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Numeric");
+                    assert_path!(parser, *path, "Numeric");
                 });
             });
             // Boz
@@ -389,21 +389,21 @@ struct Foo<T: Numeric>: Boz {
             let super_types = super_types.as_ref().unwrap();
             assert_eq!(super_types.len(), 1);
             assert_node!(parser.tree, super_types[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Boz");
+                assert_path!(parser, *path, "Boz");
             });
 
             assert_eq!(fields.len(), 2);
             // a: T
             assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
-                assert_string!(parser.session, name.unwrap(), "a");
+                assert_string!(parser, name.unwrap(), "a");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "T");
+                    assert_path!(parser, *path, "T");
                 });
             });
             // b: int32 = 4
             assert_node!(parser.tree, fields[1], StructField { name, ty, default } => {
-                assert_string!(parser.session, name.unwrap(), "b");
+                assert_string!(parser, name.unwrap(), "b");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 assert!(default.is_some());
             });
@@ -433,7 +433,7 @@ struct Foo with Context where Guard > Limit {
             assert_eq!(with_clauses.len(), 1);
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -444,8 +444,8 @@ struct Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
         });

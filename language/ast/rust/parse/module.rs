@@ -125,7 +125,7 @@ mod tests {
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
         assert_node!(parser.tree, module_id, Definition::Module { name, visibility, expressions, format, with_clauses, where_clauses } => {
-            assert_string!(parser.session, name.unwrap(), "x");
+            assert_string!(parser, name.unwrap(), "x");
             assert!(visibility.is_none());
             assert_eq!(*format, ModuleFormat::Forward);
             assert!(expressions.is_empty());
@@ -148,7 +148,7 @@ module Foo with Context where Guard > Limit {
         // module Foo with Context where Guard > Limit { }
         let module_id = parser.eat_module(None).unwrap();
         assert_node!(parser.tree, module_id, Definition::Module { name, format, expressions, with_clauses, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(*format, ModuleFormat::Inline);
             assert!(expressions.is_empty());
 
@@ -158,7 +158,7 @@ module Foo with Context where Guard > Limit {
             // with Context
             assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -170,8 +170,8 @@ module Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
         });
@@ -184,7 +184,7 @@ module Foo with Context where Guard > Limit {
         let module_id = parser.eat_module(None).unwrap();
 
         assert_node!(parser.tree, module_id, Definition::Module { name, format, expressions, with_clauses, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(*format, ModuleFormat::Forward);
             assert!(expressions.is_empty());
 
@@ -194,7 +194,7 @@ module Foo with Context where Guard > Limit {
             // with Context
             assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -204,9 +204,9 @@ module Foo with Context where Guard > Limit {
 
             // where Requirement: Trait
             assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
-                assert_string!(parser.session, *left, "Requirement");
+                assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Trait");
+                    assert_path!(parser, *path, "Trait");
                 });
             });
         });

@@ -193,7 +193,7 @@ enum Foo: Day {}
 
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -201,7 +201,7 @@ enum Foo: Day {}
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Day");
+                assert_path!(parser, *path, "Day");
             });
         });
     }
@@ -229,13 +229,13 @@ enum {
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_string!(parser.session, *name, "Success");
+                assert_string!(parser, *name, "Success");
                 assert!(value.is_none());
             });
 
             // Failure
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_string!(parser.session, *name, "Failure");
+                assert_string!(parser, *name, "Failure");
                 assert!(value.is_none());
             });
         });
@@ -262,7 +262,7 @@ enum(uint8) Foo: Day {
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, where_clauses, .. } => {
             // enum name
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
 
             // enum type
@@ -272,20 +272,20 @@ enum(uint8) Foo: Day {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Day");
+                assert_path!(parser, *path, "Day");
             });
 
             assert_eq!(fields.len(), 2);
 
             // Baz = 1
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_string!(parser.session, *name, "Baz");
+                assert_string!(parser, *name, "Baz");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // Qux = 2
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_string!(parser.session, *name, "Qux");
+                assert_string!(parser, *name, "Qux");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
@@ -309,7 +309,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, where_clauses, .. } => {
             // Machine
-            assert_string!(parser.session, name.unwrap(), "Machine");
+            assert_string!(parser, name.unwrap(), "Machine");
             assert!(where_clauses.is_none());
 
             // <T: int32 = 3, IsSomething: boolean = true>
@@ -318,11 +318,11 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
             assert_eq!(static_parameters.len(), 2);
             // T: int32 = 3
             assert_node!(parser.tree, static_parameters[0], Parameter { name, .. } => {
-                assert_string!(parser.session, *name, "T");
+                assert_string!(parser, *name, "T");
             });
             // IsSomething: boolean = true
             assert_node!(parser.tree, static_parameters[1], Parameter { name, .. } => {
-                assert_string!(parser.session, *name, "IsSomething");
+                assert_string!(parser, *name, "IsSomething");
             });
 
             assert_eq!(fields.len(), 3);
@@ -348,7 +348,7 @@ enum Foo with Context where Requirement: Trait {
             assert_eq!(with_clauses.len(), 1);
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -357,9 +357,9 @@ enum Foo with Context where Requirement: Trait {
             let where_clauses = where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
             assert_node!(parser.tree, where_clauses[0], WhereClause::Assertion { left, right } => {
-                assert_string!(parser.session, *left, "Requirement");
+                assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Trait");
+                    assert_path!(parser, *path, "Trait");
                 });
             });
 

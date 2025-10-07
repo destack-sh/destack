@@ -211,7 +211,7 @@ mod tests {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "dyst");
+                    assert_path!(parser, *path, "dyst");
                 });
             });
         });
@@ -233,7 +233,7 @@ mod tests {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "core.memory");
+                    assert_path!(parser, *path, "core.memory");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -254,7 +254,7 @@ mod tests {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "dyst.geometry");
+                    assert_path!(parser, *path, "dyst.geometry");
                 });
             });
         });
@@ -271,10 +271,10 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             // use dyst as ds
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
-                assert_string!(parser.session, alias.unwrap(), "ds");
+                assert_string!(parser, alias.unwrap(), "ds");
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "dyst");
+                    assert_path!(parser, *path, "dyst");
                 });
             });
         });
@@ -296,17 +296,17 @@ mod tests {
                 assert_eq!(items.len(), 2);
                 // Vector2
                 assert_node!(parser.tree, items[0], UseItem { name, alias } => {
-                    assert_string!(parser.session, *name, "Vector2");
+                    assert_string!(parser, *name, "Vector2");
                     assert_eq!(*alias, None);
                 });
                 // Vector3 as V3
                 assert_node!(parser.tree, items[1], UseItem { name, alias } => {
-                    assert_string!(parser.session, *name, "Vector3");
-                    assert_string!(parser.session, alias.unwrap(), "V3");
+                    assert_string!(parser, *name, "Vector3");
+                    assert_string!(parser, alias.unwrap(), "V3");
                 });
                 // ds.geometry
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "ds.geometry");
+                    assert_path!(parser, *path, "ds.geometry");
                 });
             });
         });
@@ -324,13 +324,13 @@ mod tests {
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "dyst");
+                    assert_path!(parser, *path, "dyst");
                 });
             });
             // use dyst
             assert_node!(parser.tree, clauses[1], UseClause { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "dyst");
+                    assert_path!(parser, *path, "dyst");
                 });
             });
         });

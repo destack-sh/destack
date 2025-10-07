@@ -165,7 +165,7 @@ match x {
 
         assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
             // value: path x
-            assert_expr_path!(parser.session, parser.tree.get(*value), "x");
+            assert_expr_path!(parser, parser.tree.get(*value), "x");
 
             assert_eq!(cases.len(), 3);
 
@@ -242,7 +242,7 @@ match self {
         // match self { ... }
         assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
             // self
-            assert_expr_path!(parser.session, parser.tree.get(*value), "self");
+            assert_expr_path!(parser, parser.tree.get(*value), "self");
 
             assert_eq!(cases.len(), 3);
 
@@ -251,10 +251,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
                 assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    assert_path!(parser.session, *path_id, "TetrisPieceShape.I");
+                    assert_path!(parser, *path_id, "TetrisPieceShape.I");
                 });
                 // Color.Blue
-                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Blue");
+                assert_expr_path!(parser, parser.tree.get(*body), "Color.Blue");
             });
 
             // TetrisPieceShape.J => Color.Red
@@ -262,10 +262,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
                 assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    assert_path!(parser.session, *path_id, "TetrisPieceShape.J");
+                    assert_path!(parser, *path_id, "TetrisPieceShape.J");
                 });
                 // Color.Red
-                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Red");
+                assert_expr_path!(parser, parser.tree.get(*body), "Color.Red");
             });
 
             // _ => Color.Gray
@@ -273,7 +273,7 @@ match self {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // Color.Gray
-                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Gray");
+                assert_expr_path!(parser, parser.tree.get(*body), "Color.Gray");
             });
         });
     }

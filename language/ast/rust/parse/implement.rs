@@ -103,7 +103,7 @@ implement Foo {
 
             // Foo
             assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Foo");
+                assert_path!(parser, *path, "Foo");
             });
         });
     }
@@ -128,7 +128,7 @@ implement Foo<int32> {
 
             // Foo<int32>
             assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
-                assert_path!(parser.session, *path, "Foo");
+                assert_path!(parser, *path, "Foo");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_args.len(), 1);
@@ -162,7 +162,7 @@ implement Bar<int32> for Baz {
 
             // Bar<int32>
             assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
-                assert_path!(parser.session, *path, "Bar");
+                assert_path!(parser, *path, "Bar");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_args.len(), 1);
@@ -177,7 +177,7 @@ implement Bar<int32> for Baz {
 
             // for Baz
             assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Baz");
+                assert_path!(parser, *path, "Baz");
             });
         });
     }
@@ -203,20 +203,20 @@ implement<T> Bar<T> for Baz<T> {
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "T");
+                    assert_path!(parser, *path, "T");
                 });
             });
 
             // Bar<T>
             assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
                 // Bar
-                assert_path!(parser.session, *path, "Bar");
+                assert_path!(parser, *path, "Bar");
                 // <T>
                 let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(receiver_static_args.len(), 1);
                 assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "T");
+                        assert_path!(parser, *path, "T");
                     });
                 });
             });
@@ -224,13 +224,13 @@ implement<T> Bar<T> for Baz<T> {
             // for Baz<T>
             assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
                 // Baz
-                assert_path!(parser.session, *path, "Baz");
+                assert_path!(parser, *path, "Baz");
                 // <T>
                 let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(receiver_static_args.len(), 1);
                 assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "T");
+                        assert_path!(parser, *path, "T");
                     });
                 });
             });
@@ -257,7 +257,7 @@ implement Foo with Context where Guard > Limit {
             assert_eq!(with_items.len(), 1);
             assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -268,14 +268,14 @@ implement Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
 
             // Foo receiver
             assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Foo");
+                assert_path!(parser, *path, "Foo");
             });
         });
     }

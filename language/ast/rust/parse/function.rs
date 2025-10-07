@@ -255,7 +255,7 @@ function foo() => int32 with (
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, with_clauses, where_clauses, return_type, .. } => {
             // function name
-            assert_string!(parser.session, name.unwrap(), "foo");
+            assert_string!(parser, name.unwrap(), "foo");
 
             let with_clauses = with_clauses.as_ref().unwrap();
             assert_eq!(with_clauses.len(), 2);
@@ -263,16 +263,16 @@ function foo() => int32 with (
             // Time
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Time");
+                    assert_path!(parser, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
             });
 
             // F: Numeric
             assert_node!(parser.tree, with_clauses[1], WithClause { alias, right } => {
-                assert_string!(parser.session, alias.unwrap(), "F");
+                assert_string!(parser, alias.unwrap(), "F");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Numeric");
+                    assert_path!(parser, *path, "Numeric");
                 });
             });
 
@@ -282,8 +282,8 @@ function foo() => int32 with (
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser.session, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser.session, parser.tree.get(*right), "Limit");
+                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
 
@@ -303,7 +303,7 @@ function foo() => int32 with (
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "a");
+            assert_string!(parser, name.unwrap(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(!self_param.is_pointer);
@@ -329,7 +329,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "b");
+            assert_string!(parser, name.unwrap(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
@@ -337,7 +337,7 @@ function b(
 
             assert_eq!(dynamic_parameters.len(), 1);
             let param = parser.tree.get(dynamic_parameters[0]);
-            assert_string!(parser.session, param.name, "x");
+            assert_string!(parser, param.name, "x");
 
             let param_type = param.ty.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
@@ -355,7 +355,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "c");
+            assert_string!(parser, name.unwrap(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);

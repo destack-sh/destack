@@ -750,7 +750,7 @@ mod tests {
                     parser.tree,
                     *ty,
                     Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "geom.Vector2");
+                        assert_path!(parser, *path, "geom.Vector2");
                     }
                 );
                 assert_eq!(fields.len(), 2);
@@ -759,7 +759,7 @@ mod tests {
                     parser.tree,
                     fields[0],
                     Argument::Named { name, value } => {
-                        assert_string!(parser.session, *name, "x");
+                        assert_string!(parser, *name, "x");
                         assert_node!(
                             parser.tree,
                             *value,
@@ -774,7 +774,7 @@ mod tests {
                     parser.tree,
                     fields[1],
                     Argument::NamedShorthand { name } => {
-                        assert_string!(parser.session, *name, "y");
+                        assert_string!(parser, *name, "y");
                     }
                 );
             }
@@ -802,7 +802,7 @@ geom.Mesh<2, Dims: 4> {
                     parser.tree,
                     *ty,
                     Expression::Path { path, static_arguments } => {
-                        assert_path!(parser.session, *path, "geom.Mesh");
+                        assert_path!(parser, *path, "geom.Mesh");
                         assert!(static_arguments.is_some());
                         let params = static_arguments.as_ref().unwrap();
                         assert_eq!(params.len(), 2);
@@ -814,7 +814,7 @@ geom.Mesh<2, Dims: 4> {
                     parser.tree,
                     fields[0],
                     Argument::Named { name, value } => {
-                        assert_string!(parser.session, *name, "vertices");
+                        assert_string!(parser, *name, "vertices");
                         assert_node!(
                             parser.tree,
                             *value,
@@ -827,7 +827,7 @@ geom.Mesh<2, Dims: 4> {
                     parser.tree,
                     fields[1],
                     Argument::NamedShorthand { name } => {
-                        assert_string!(parser.session, *name, "y");
+                        assert_string!(parser, *name, "y");
                     }
                 );
             }
@@ -844,20 +844,20 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
             // Alias
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser.session, *name, "Alias");
+                assert_string!(parser, *name, "Alias");
             });
             // A<B<C>>
             assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
-                assert_path!(parser.session, *path, "A");
+                assert_path!(parser, *path, "A");
                 assert!(static_arguments.is_some());
                 // B<C>
                 assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
-                        assert_path!(parser.session, *path, "B");
+                        assert_path!(parser, *path, "B");
                         assert!(static_arguments.is_some());
                         // C
                         assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                            assert_expr_path!(parser.session, parser.tree.get(*value), "C");
+                            assert_expr_path!(parser, parser.tree.get(*value), "C");
                         });
                     });
                 });
@@ -875,7 +875,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(parser.tree, expr_id, Expression::Unary { operator, right, .. } => {
             assert_eq!(*operator, UnaryOperator::Dereference);
             // x
-            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
+            assert_expr_path!(parser, parser.tree.get(*right), "x");
         });
     }
 
@@ -892,7 +892,7 @@ geom.Mesh<2, Dims: 4> {
             Expression::Reference { mutability, right, .. } => {
                 assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 // x
-                assert_expr_path!(parser.session, parser.tree.get(*right), "x");
+                assert_expr_path!(parser, parser.tree.get(*right), "x");
             }
         );
     }
@@ -920,7 +920,7 @@ geom.Mesh<2, Dims: 4> {
                             parser.tree,
                             *receiver,
                             Expression::Path { path, .. } => {
-                                assert_path!(parser.session, *path, "self.foo");
+                                assert_path!(parser, *path, "self.foo");
                             }
                         );
                     }
@@ -954,7 +954,7 @@ let x =
                     parser.tree,
                     *pattern,
                     Pattern::Binding { name, .. } => {
-                        assert_string!(parser.session, *name, "x");
+                        assert_string!(parser, *name, "x");
                     }
                 );
                 // foo.parse() + 2 + x
@@ -980,7 +980,7 @@ let x =
                                             parser.tree,
                                             *receiver,
                                             Expression::Path { path, .. } => {
-                                                assert_path!(parser.session, *path, "foo.parse");
+                                                assert_path!(parser, *path, "foo.parse");
                                             }
                                         );
                                     }
@@ -998,7 +998,7 @@ let x =
                             parser.tree,
                             *right,
                             Expression::Path { path, .. } => {
-                                assert_path!(parser.session, *path, "x");
+                                assert_path!(parser, *path, "x");
                             }
                         );
                     }
@@ -1030,7 +1030,7 @@ self
                     parser.tree,
                     *baz_recv,
                     Expression::Member { receiver, path, .. } => {
-                        assert_path!(parser.session, *path, "baz");
+                        assert_path!(parser, *path, "baz");
                         assert_node!(parser.tree, *receiver, Expression::Call { receiver: foo_recv, .. } => {
                             // self.foo
                             assert_node!(
@@ -1038,9 +1038,9 @@ self
                                 *foo_recv,
                                 Expression::Member { receiver: self_recv, path: foo_path, .. } => {
                                     // self
-                                    assert_expr_path!(parser.session, parser.tree.get(*self_recv), "self");
+                                    assert_expr_path!(parser, parser.tree.get(*self_recv), "self");
                                     // foo
-                                    assert_path!(parser.session, *foo_path, "foo");
+                                    assert_path!(parser, *foo_path, "foo");
                                 }
                             );
                         })
@@ -1063,9 +1063,9 @@ self
             Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
                 // x
-                assert_expr_path!(parser.session, parser.tree.get(*left), "x");
+                assert_expr_path!(parser, parser.tree.get(*left), "x");
                 // y
-                assert_expr_path!(parser.session, parser.tree.get(*right), "y");
+                assert_expr_path!(parser, parser.tree.get(*right), "y");
             }
         );
     }
@@ -1088,14 +1088,14 @@ self
                     *left,
                     Expression::Binary { left, operator, right, .. } => {
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     }
                 );
                 // c
-                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+                assert_expr_path!(parser, parser.tree.get(*right), "c");
             }
         );
     }
@@ -1118,14 +1118,14 @@ self
                     *left,
                     Expression::Binary { left, operator, right, .. } => {
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     }
                 );
                 // c
-                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+                assert_expr_path!(parser, parser.tree.get(*right), "c");
             }
         );
     }
@@ -1143,7 +1143,7 @@ self
             Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Add);
                 // a
-                assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                assert_expr_path!(parser, parser.tree.get(*left), "a");
                 // b * c
                 assert_node!(
                     parser.tree,
@@ -1151,9 +1151,9 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Multiply);
                         // b
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "b");
+                        assert_expr_path!(parser, parser.tree.get(*left), "b");
                         // c
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+                        assert_expr_path!(parser, parser.tree.get(*right), "c");
                     }
                 );
             }
@@ -1179,7 +1179,7 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                         // b * c
                         assert_node!(
                             parser.tree,
@@ -1187,15 +1187,15 @@ self
                             Expression::Binary { left, operator, right, .. } => {
                                 assert_eq!(*operator, BinaryOperator::Multiply);
                                 // b
-                                assert_expr_path!(parser.session, parser.tree.get(*left), "b");
+                                assert_expr_path!(parser, parser.tree.get(*left), "b");
                                 // c
-                                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+                                assert_expr_path!(parser, parser.tree.get(*right), "c");
                             }
                         );
                     }
                 );
                 // d
-                assert_expr_path!(parser.session, parser.tree.get(*right), "d");
+                assert_expr_path!(parser, parser.tree.get(*right), "d");
             }
         );
     }
@@ -1219,9 +1219,9 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                         // b
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     }
                 );
                 // c + d
@@ -1231,9 +1231,9 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Add);
                         // c
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "c");
+                        assert_expr_path!(parser, parser.tree.get(*left), "c");
                         // d
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "d");
+                        assert_expr_path!(parser, parser.tree.get(*right), "d");
                     }
                 );
             }
@@ -1259,9 +1259,9 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                         // b
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     }
                 );
                 // c == d
@@ -1271,9 +1271,9 @@ self
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // c
-                        assert_expr_path!(parser.session, parser.tree.get(*left), "c");
+                        assert_expr_path!(parser, parser.tree.get(*left), "c");
                         // d
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "d");
+                        assert_expr_path!(parser, parser.tree.get(*right), "d");
                     }
                 );
             }
@@ -1298,11 +1298,11 @@ self
                     *left,
                     Expression::Unary { right, .. } => {
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "a");
+                        assert_expr_path!(parser, parser.tree.get(*right), "a");
                     }
                 );
                 // b
-                assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                assert_expr_path!(parser, parser.tree.get(*right), "b");
             }
         );
     }
@@ -1326,7 +1326,7 @@ self
                     Expression::Call { runtime, receiver, .. } => {
                         assert_eq!(*runtime, None);
                         // a
-                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
+                        assert_expr_path!(parser, parser.tree.get(*receiver), "a");
                     }
                 );
                 // @b() / c
@@ -1342,11 +1342,11 @@ self
                             Expression::Call { runtime, receiver, .. } => {
                                 assert_eq!(*runtime, Some(Runtime::Static));
                                 // b
-                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
+                                assert_expr_path!(parser, parser.tree.get(*receiver), "b");
                             }
                         );
                         // c
-                        assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+                        assert_expr_path!(parser, parser.tree.get(*right), "c");
                     }
                 );
             }
@@ -1368,7 +1368,7 @@ self
                 // y.sqrt()
                 assert_node!(parser.tree, *left, Expression::Call { receiver, .. } => {
                     // y.sqrt
-                    assert_expr_path!(parser.session, parser.tree.get(*receiver), "y.sqrt");
+                    assert_expr_path!(parser, parser.tree.get(*receiver), "y.sqrt");
                 });
                 // 0
                 assert_node!(

@@ -170,7 +170,7 @@ mod tests {
         // with T: int32
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias, right } => {
-            assert_string!(parser.session, alias.unwrap(), "T");
+            assert_string!(parser, alias.unwrap(), "T");
             assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);
@@ -186,7 +186,7 @@ mod tests {
         // with Foo
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_expr_path!(parser.session, parser.tree.get(*right), "Foo");
+            assert_expr_path!(parser, parser.tree.get(*right), "Foo");
         });
     }
 
@@ -198,7 +198,7 @@ mod tests {
         // with Foo.Bar
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_expr_path!(parser.session, parser.tree.get(*right), "Foo.Bar");
+            assert_expr_path!(parser, parser.tree.get(*right), "Foo.Bar");
         });
     }
 
@@ -214,16 +214,16 @@ mod tests {
         // Time
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
             assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                assert_path!(parser.session, *path, "Time");
+                assert_path!(parser, *path, "Time");
                 assert!(static_arguments.is_none());
             });
         });
 
         // F: Numeric
         assert_node!(parser.tree, clauses[1], WithClause { alias, right } => {
-            assert_string!(parser.session, alias.unwrap(), "F");
+            assert_string!(parser, alias.unwrap(), "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Numeric");
+                assert_path!(parser, *path, "Numeric");
             });
         });
     }
@@ -246,7 +246,7 @@ mod tests {
             assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Bar");
+                    assert_path!(parser, *path, "Bar");
                 });
             });
         });
@@ -254,16 +254,16 @@ mod tests {
         // Time
         assert_node!(parser.tree, clauses[1], WithClause { alias: _, right } => {
             assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                assert_path!(parser.session, *path, "Time");
+                assert_path!(parser, *path, "Time");
                 assert!(static_arguments.is_none());
             });
         });
 
         // F: Numeric
         assert_node!(parser.tree, clauses[2], WithClause { alias, right } => {
-            assert_string!(parser.session, alias.unwrap(), "F");
+            assert_string!(parser, alias.unwrap(), "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Numeric");
+                assert_path!(parser, *path, "Numeric");
             });
         });
     }
@@ -281,7 +281,7 @@ mod tests {
 
             assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser.session, *path, "Context");
+                    assert_path!(parser, *path, "Context");
                     assert!(static_arguments.is_none());
                 });
             });

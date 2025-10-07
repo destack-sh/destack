@@ -173,8 +173,8 @@ macro_rules! assert_char {
 /// Assert a `StringId` directly against an expected string.
 #[macro_export]
 macro_rules! assert_string {
-    ($session:expr, $id:expr, $expected:expr) => {{
-        let got = $session.get_string($id);
+    ($parser:expr, $id:expr, $expected:expr) => {{
+        let got = $parser.get_string($id);
         assert_eq!(got, $expected, "expected string");
     }};
 }
@@ -182,10 +182,10 @@ macro_rules! assert_string {
 /// Assert a `ScalarLiteral::String`.
 #[macro_export]
 macro_rules! assert_lit_string {
-    ($session:expr, $id:expr, $expected:expr) => {{
+    ($parser:expr, $id:expr, $expected:expr) => {{
         match $id {
             $crate::ScalarLiteral::String(s) => {
-                let got = $session.get_string(*s);
+                let got = $parser.get_string(*s);
                 assert_eq!(got, $expected, "expected string");
             }
             other => panic!("expected ScalarLiteral::String, got {other:?}"),
@@ -196,7 +196,7 @@ macro_rules! assert_lit_string {
 /// Assert a `ScalarLiteral::Integer`.
 #[macro_export]
 macro_rules! assert_lit_int {
-    ($session:expr, $id:expr, $expected:expr) => {{
+    ($parser:expr, $id:expr, $expected:expr) => {{
         match $id {
             $crate::ScalarLiteral::Integer(n) => {
                 assert_eq!(*n, $expected, "expected integer");
@@ -209,12 +209,12 @@ macro_rules! assert_lit_int {
 /// Assert a `Path` directly against an expected string.
 #[macro_export]
 macro_rules! assert_path {
-    ($session:expr, $id:expr, $expected:expr) => {{
-        let got = $session.get_path($id);
+    ($parser:expr, $id:expr, $expected:expr) => {{
+        let got = $parser.get_path($id);
         let got_str = got
             .segments
             .iter()
-            .map(|s| $session.get_string(*s))
+            .map(|s| $parser.get_string(*s))
             .collect::<Vec<_>>()
             .join(".");
         assert_eq!(got_str, $expected, "expected path");
@@ -224,13 +224,13 @@ macro_rules! assert_path {
 /// Assert an "Expression::Path(path)" directly against an expected string.
 #[macro_export]
 macro_rules! assert_expr_path {
-    ($session:expr, $expr:expr, $expected:expr) => {{
+    ($parser:expr, $expr:expr, $expected:expr) => {{
         match $expr {
             $crate::Expression::Path {
                 path,
                 static_arguments: _,
             } => {
-                assert_path!($session, *path, $expected);
+                assert_path!($parser, *path, $expected);
             }
             other => panic!("expected Expression::Path, got {other:?}"),
         }

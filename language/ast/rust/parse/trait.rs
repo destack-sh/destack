@@ -108,14 +108,14 @@ mod tests {
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Definition::Trait { name, super_types, where_clauses, expressions, .. } => {
             assert_eq!(expressions.len(), 0);
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Bar");
+                assert_path!(parser, *path, "Bar");
             });
         });
     }
@@ -138,7 +138,7 @@ trait Foo: Baz {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Definition::Trait { name, expressions, super_types, where_clauses, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Foo");
+            assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(expressions.len(), 3);
             assert!(where_clauses.is_none());
 
@@ -146,7 +146,7 @@ trait Foo: Baz {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
-                assert_path!(parser.session, *path, "Baz");
+                assert_path!(parser, *path, "Baz");
             });
         });
     }
@@ -158,7 +158,7 @@ trait Foo: Baz {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Baz");
+            assert_string!(parser, name.unwrap(), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
         });
@@ -178,7 +178,7 @@ trait Baz<T> with T: Copy where Requirement: Trait {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
-            assert_string!(parser.session, name.unwrap(), "Baz");
+            assert_string!(parser, name.unwrap(), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -187,9 +187,9 @@ trait Baz<T> with T: Copy where Requirement: Trait {
             let with_items = with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
             assert_node!(parser.tree, with_items[0], WithClause { alias, right } => {
-                assert_string!(parser.session, alias.unwrap(), "T");
+                assert_string!(parser, alias.unwrap(), "T");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Copy");
+                    assert_path!(parser, *path, "Copy");
                 });
             });
 
@@ -197,9 +197,9 @@ trait Baz<T> with T: Copy where Requirement: Trait {
             let where_items = where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
             assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
-                assert_string!(parser.session, *left, "Requirement");
+                assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser.session, *path, "Trait");
+                    assert_path!(parser, *path, "Trait");
                 });
             });
 
@@ -210,11 +210,11 @@ trait Baz<T> with T: Copy where Requirement: Trait {
             assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
                 assert_node!(parser.tree, *definition_id, Definition::Function { name, return_type, .. } => {
                     // baz
-                    assert_string!(parser.session, name.unwrap(), "baz");
+                    assert_string!(parser, name.unwrap(), "baz");
                     // => T
                     let ret = return_type.expect("expected return type");
                     assert_node!(parser.tree, ret, Expression::Path { path, .. } => {
-                        assert_path!(parser.session, *path, "T");
+                        assert_path!(parser, *path, "T");
                     });
                 });
             })

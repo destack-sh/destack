@@ -256,7 +256,7 @@ mod tests {
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
-        assert_string!(parser.session, parameter.name, "T");
+        assert_string!(parser, parameter.name, "T");
         assert!(parameter.ty.is_none());
         assert!(parameter.default.is_none());
     }
@@ -270,7 +270,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // x
-        assert_string!(parser.session, parameter.name, "x");
+        assert_string!(parser, parameter.name, "x");
 
         // int32
         assert_node!(
@@ -293,7 +293,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // validate
-        assert_string!(parser.session, parameter.name, "validate");
+        assert_string!(parser, parameter.name, "validate");
 
         // boolean
         assert_node!(
@@ -320,7 +320,7 @@ mod tests {
 
         assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
             // x
-            assert_string!(parser.session, *name, "x");
+            assert_string!(parser, *name, "x");
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });

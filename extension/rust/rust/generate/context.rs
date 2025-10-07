@@ -1,7 +1,7 @@
 use dyst_fir::format::{FormatContext, FormatOptions, Formatter, IndentStyle, LineEnding};
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
-use dyst_source::{Path, PathId, Source, Span, StringId};
+use dyst_source::{Source, Span};
 use dyst_token::TokenSpan;
 
 pub type RustFormatter<'ast, 'buf> = Formatter<'buf, RustFormatContext<'ast>>;
@@ -120,16 +120,6 @@ impl<'ast> RustFormatContext<'ast> {
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'ast str {
         &self.source.content[token.span.start as usize..token.span.end as usize]
-    }
-
-    /// Get an interned string.
-    pub fn get_string(&self, string_id: StringId) -> &str {
-        self.session.get_string(string_id)
-    }
-
-    /// Get an interned path.
-    pub fn get_path(&self, path_id: PathId) -> &Path {
-        self.session.get_path(path_id)
     }
 }
 
