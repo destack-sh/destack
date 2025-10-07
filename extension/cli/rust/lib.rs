@@ -1,6 +1,13 @@
-//! Destack CLI public API – console utilities and CLI registration.
+//! Destack CLI public API – command handlers and runtime integration.
 
-#![feature(default_field_values)]
+pub mod ast;
+pub mod dir;
+pub mod format;
+pub mod lsp;
+pub mod print;
+pub mod source;
+pub mod tokei;
+pub mod token;
+pub mod version;
 
-pub mod cli;
-pub mod console;
+pub use destack_terminal as terminal;

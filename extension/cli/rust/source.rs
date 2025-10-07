@@ -6,8 +6,7 @@ use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{Source, SourceFormat, SourceId, Uri};
 
-use crate::console::console;
-use crate::console::parse::CommandArguments;
+use destack_terminal::{CommandArguments, console};
 
 /// Read a source either from a file or inline string argument.
 pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {

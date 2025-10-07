@@ -5,6 +5,7 @@ pub mod parse;
 pub mod table;
 pub mod tree;
 
+pub use console::*;
 pub use parse::*;
 pub use table::*;
 pub use tree::*;

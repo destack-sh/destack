@@ -1,6 +1,6 @@
 //! Simple ASCII tree rendering.
 
-use super::console::color;
+use super::style;
 use std::collections::BTreeMap;
 
 /// Render a tree from a mapping of id -> children and labels.
@@ -24,7 +24,7 @@ pub fn render_tree(
             .cloned()
             .unwrap_or_else(|| id.to_string());
         if Some(id) == highlight {
-            color(&label, "97;1")
+            style(&label, &["97", "1"])
         } else {
             label
         }

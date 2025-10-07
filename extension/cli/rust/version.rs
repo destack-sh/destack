@@ -1,7 +1,6 @@
 //! Version bump CLI ported from Python.
 
-use crate::console::console;
-use crate::console::parse::{CommandApp, CommandArguments};
+use destack_terminal::{CommandApp, CommandArguments, console};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

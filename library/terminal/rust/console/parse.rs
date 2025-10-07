@@ -1,6 +1,6 @@
 //! Minimal clap-like parser and CLI dispatcher.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 
 /// Parsed context for a command execution.
@@ -76,6 +76,16 @@ impl CommandArguments {
     pub fn option(&self, name: &str) -> Option<&str> {
         self.flags.get(name).and_then(|v| v.as_deref())
     }
+
+    /// Get a positional argument by index if present.
+    pub fn positional(&self, index: usize) -> Option<&str> {
+        self.positionals.get(index).map(|value| value.as_str())
+    }
+
+    /// Get the first positional argument if present.
+    pub fn first_positional(&self) -> Option<&str> {
+        self.positional(0)
+    }
 }
 
 /// Command function signature; return exit code.
@@ -94,6 +104,8 @@ pub struct CommandApp {
     commands: HashMap<String, (CommandFn, Option<String>)>,
     /// Nested sub-applications
     sub_apps: HashMap<String, CommandApp>,
+    /// Alias mapping from shorthand name to command or CLI id
+    aliases: HashMap<String, String>,
 }
 
 impl CommandApp {
@@ -105,6 +117,7 @@ impl CommandApp {
             default_command: None,
             commands: HashMap::new(),
             sub_apps: HashMap::new(),
+            aliases: HashMap::new(),
         }
     }
 
@@ -137,6 +150,16 @@ impl CommandApp {
         self
     }
 
+    /// Register an alias pointing to a command or CLI name.
+    pub fn alias(mut self, alias: impl Into<String>, target: impl Into<String>) -> Self {
+        let alias = alias.into();
+        let target = target.into();
+        if alias != target {
+            self.aliases.insert(alias, target);
+        }
+        self
+    }
+
     /// Run from process arguments.
     pub fn run(&self) -> i32 {
         // collect command line arguments, skipping program name, and delegate
@@ -154,12 +177,19 @@ impl CommandApp {
         // if no args or first arg looks like a flag, try default command
         if args.is_empty() || args[0].starts_with('-') {
             if let Some(default) = &self.default_command {
+                let resolved_default = match self.resolve_alias(default) {
+                    Ok(value) => value,
+                    Err(message) => {
+                        super::error(&message);
+                        return 1;
+                    }
+                };
                 // if default refers to a sub-app, delegate with current args
-                if let Some(app) = self.sub_apps.get(default) {
+                if let Some(app) = self.sub_apps.get(&resolved_default) {
                     return app.run_with_args(args);
                 }
                 // if default refers to a command, execute it with parsed args
-                if let Some((func, _)) = self.commands.get(default) {
+                if let Some((func, _)) = self.commands.get(&resolved_default) {
                     let ctx = CommandArguments::parse(args);
                     return (func)(ctx);
                 }
@@ -168,36 +198,55 @@ impl CommandApp {
             return self._show_help();
         }
 
-        // extract first argument as command/sub-app name
+        // extract first argument as command/sub-app name and resolve aliases
         let mut rest = args.clone();
-        let first = rest.remove(0);
+        let original_first = rest.remove(0);
+        let token = match self.resolve_alias(&original_first) {
+            Ok(value) => value,
+            Err(message) => {
+                super::error(&message);
+                return 1;
+            }
+        };
 
         // try to run as sub-app first
-        if let Some(app) = self.sub_apps.get(&first) {
+        if let Some(app) = self.sub_apps.get(&token) {
             return app.run_with_args(rest);
         }
 
         // try to run as command
-        if let Some((func, _)) = self.commands.get(&first) {
+        if let Some((func, _)) = self.commands.get(&token) {
             let ctx = CommandArguments::parse(rest);
             return (func)(ctx);
         }
 
         // command not found, show error and help
-        super::console::error(&format!("unknown command: `{first}`"));
+        super::error(&format!("unknown command: `{original_first}`"));
         self._show_help()
+    }
+
+    fn resolve_alias(&self, name: &str) -> Result<String, String> {
+        let mut current = name.to_string();
+        let mut visited = HashSet::new();
+        while let Some(mapped) = self.aliases.get(&current) {
+            if !visited.insert(current.clone()) {
+                return Err(format!("alias loop detected for `{current}`"));
+            }
+            current = mapped.clone();
+        }
+        Ok(current)
     }
 
     /// Display help information for this app.
     fn _show_help(&self) -> i32 {
         // show main help text if available
         if let Some(help) = &self.help {
-            super::console::print(help);
+            super::print(help);
         }
 
         // list available sub-apps
         if !self.sub_apps.is_empty() {
-            super::console::info("CLIs:");
+            super::info("CLIs:");
             let mut names: Vec<_> = self.sub_apps.keys().cloned().collect();
             names.sort();
             for n in names {
@@ -207,7 +256,7 @@ impl CommandApp {
 
         // list available commands with help text
         if !self.commands.is_empty() {
-            super::console::info("Commands:");
+            super::info("Commands:");
             let mut names: Vec<_> = self.commands.keys().cloned().collect();
             names.sort();
             for n in names {
@@ -217,6 +266,38 @@ impl CommandApp {
                     .and_then(|(_, h)| h.as_deref())
                     .unwrap_or("");
                 println!("  {n}  {help}");
+            }
+        }
+
+        if !self.aliases.is_empty() {
+            super::info("Aliases:");
+            let mut names: Vec<_> = self.aliases.keys().cloned().collect();
+            names.sort();
+            for alias in names {
+                if let Some(target) = self.aliases.get(&alias) {
+                    match self.resolve_alias(target) {
+                        Ok(resolved) => {
+                            let kind = if self.sub_apps.contains_key(&resolved) {
+                                "cli"
+                            } else if self.commands.contains_key(&resolved) {
+                                "command"
+                            } else {
+                                "target"
+                            };
+                            println!(
+                                "  {} -> {} ({kind})",
+                                super::bold(&alias),
+                                super::bold(&resolved)
+                            );
+                        }
+                        Err(message) => {
+                            super::warn(&format!(
+                                "{} -> {target} ({message})",
+                                super::bold(&alias)
+                            ));
+                        }
+                    }
+                }
             }
         }
         1

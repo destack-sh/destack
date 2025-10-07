@@ -1,9 +1,8 @@
+use destack_terminal::{CommandArguments, console, table};
 use dyst_ast::{TokenSpan, TokenType};
 use dyst_parser::{is_semantic, tokenize_with_spans};
 
-use crate::cli::source::read_source;
-use crate::console::parse::CommandArguments;
-use crate::console::{console, table};
+use crate::source::read_source;
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
@@ -121,12 +120,24 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let table_str = table::render_table(&headers, &rows, true, 2, secondary);
     let framed_table_str = console::frame(&table_str, Some("Lexer Tokens"), 2);
 
-    if use_pager {
-        if console::page_with_less(&framed_table_str).is_err() {
-            println!("{framed_table_str}");
-        }
+    let previous_mode = console::color_mode();
+    if !use_color {
+        console::disable_color();
+    }
+
+    let display_result = if use_pager {
+        console::page_or_print(&framed_table_str)
     } else {
-        println!("{framed_table_str}");
+        console::print(&framed_table_str);
+        Ok(())
+    };
+
+    if let Err(error) = display_result {
+        console::error(&format!("failed to display tokens: {error}"));
+    }
+
+    if !use_color {
+        console::set_color_mode(previous_mode);
     }
 
     0

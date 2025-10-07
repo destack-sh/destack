@@ -1,10 +1,10 @@
-//! Print subcommand for syntax-highlighted output without formatting.
+use destack_terminal::{CommandArguments, console};
 
-use crate::cli::source::{read_source, render_semantic_spans, semantic_spans_from_source};
-use crate::console::console;
-use crate::console::parse::CommandArguments;
+use crate::source::{read_source, render_semantic_spans, semantic_spans_from_source};
 
-pub const HELP: &str = "Print Dyst source with semantic highlighting.\n\t--file <path>      Read input from file\n\t--string <string>  Read input from provided string";
+pub const HELP: &str = r"Print Dyst source with semantic highlighting.
+	--file <path>      Read input from file
+	--string <string>  Read input from provided string";
 
 /// Parse input and render the semantic-colored output.
 pub fn run(ctx: CommandArguments) -> i32 {

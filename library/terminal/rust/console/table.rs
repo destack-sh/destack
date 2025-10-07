@@ -1,6 +1,6 @@
 //! Simple, readable table renderer.
 
-use super::console::color;
+use super::{dim, visible_width};
 
 /// Alignment of a table column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,14 +26,14 @@ pub fn render_table(
     let mut col_widths = vec![0usize; col_count];
 
     // calculate column widths from headers
-    for (i, h) in headers.iter().enumerate() {
-        col_widths[i] = col_widths[i].max(visible_len(h));
+    for (i, header) in headers.iter().enumerate() {
+        col_widths[i] = col_widths[i].max(visible_width(header));
     }
 
     // include secondary headers in width calculation
     if let Some(sec) = secondary_headers {
-        for (i, h) in sec.iter().enumerate().take(col_count) {
-            col_widths[i] = col_widths[i].max(visible_len(h));
+        for (i, header) in sec.iter().enumerate().take(col_count) {
+            col_widths[i] = col_widths[i].max(visible_width(header));
         }
     }
 
@@ -69,7 +69,7 @@ pub fn render_table(
 
     // render secondary headers if provided
     if let Some(sec) = secondary_headers {
-        let dimmed: Vec<String> = sec.iter().map(|s| color(s, "2")).collect();
+        let dimmed: Vec<String> = sec.iter().map(|value| dim(value)).collect();
         push_row(&mut out, &dimmed, &col_widths, &right_align_cols, padding);
     }
 
@@ -127,12 +127,12 @@ fn push_row(
 
             // apply alignment and padding (use visible length to ignore ANSI)
             if right_align.get(i).copied().unwrap_or(false) {
-                let pad = widths[i].saturating_sub(visible_len(text));
+                let pad = widths[i].saturating_sub(visible_width(text));
                 out.push_str(&" ".repeat(pad));
                 out.push_str(text);
             } else {
                 out.push_str(text);
-                let pad = widths[i].saturating_sub(visible_len(text));
+                let pad = widths[i].saturating_sub(visible_width(text));
                 out.push_str(&" ".repeat(pad));
             }
         }
@@ -153,32 +153,7 @@ fn is_numeric_like(s: &str) -> bool {
     t.parse::<f64>().is_ok()
 }
 
-/// Calculate the visible length of a string, ignoring ANSI escape sequences.
-fn visible_len(s: &str) -> usize {
-    strip_ansi(s).chars().count()
-}
-
 /// Find the maximum visible line length in a potentially multiline string.
 fn max_visible_line_len(s: &str) -> usize {
-    s.split('\n').map(visible_len).max().unwrap_or(0)
-}
-
-/// Remove ANSI escape sequences from a string.
-fn strip_ansi(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut it = s.chars().peekable();
-    while let Some(ch) = it.next() {
-        if ch == '\u{1b}' && it.peek() == Some(&'[') {
-            let _ = it.next(); // skip [
-            // skip until 'm' or end
-            for c in it.by_ref() {
-                if c == 'm' {
-                    break;
-                }
-            }
-            continue;
-        }
-        out.push(ch);
-    }
-    out
+    s.split('\n').map(visible_width).max().unwrap_or(0)
 }
