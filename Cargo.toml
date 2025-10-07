@@ -4,16 +4,19 @@ members = [
 	# language
 	"language/ast",
 	"language/container",
+	"language/compiler",
 	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
 	"language/fir",
+	"language/format",
+	"language/machine",
 	"language/mir",
+	"language/parser",
 	"language/prelude",
 	"language/source",
 	"language/string",
-	"language/token",
-	"language/vm",
+	"language/workspace",
 	# library
 	"library/access",
 	"library/animation",
@@ -66,19 +69,22 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # language
 dyst_ast = { path = "language/ast" }
+dyst_compiler = { path = "language/compiler" }
 dyst_concurrency = { path = "language/concurrency" }
 dyst_container = { path = "language/container" }
 dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
-dyst_mir = { path = "language/mir" }
+dyst_format = { path = "language/format" }
 dyst_memory = { path = "language/memory" }
+dyst_machine = { path = "language/machine" }
+dyst_mir = { path = "language/mir" }
+dyst_parser = { path = "language/parser" }
+dyst_prelude = { path = "language/prelude" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
 dyst_string = { path = "language/string" }
-dyst_token = { path = "language/token" }
-dyst_vm = { path = "language/vm" }
-dyst_prelude = { path = "language/prelude" }
+dyst_workspace = { path = "language/workspace" }
 # library
 destack_access = { path = "library/access" }
 destack_animation = { path = "library/animation" }

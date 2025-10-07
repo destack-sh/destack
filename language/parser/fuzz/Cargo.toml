@@ -1,0 +1,26 @@
+[workspace]
+# fuzzer is in its own workspace
+
+[package]
+name = "dyst_parser_fuzz"
+description = "Dyst Parser Fuzz"
+edition = "2024"
+authors = ["Symbol Industries"]
+license = "proprietary"
+rust-version = "1.88.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+dyst_parser = { path = ".." }
+dyst_source = { path = "../../source" }
+
+arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys = "0.4.10"
+
+[[bin]]
+name = "dyst_parser_fuzz"
+path = "fuzz_targets/parser.rs"
+test = false
+doc = false

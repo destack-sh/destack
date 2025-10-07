@@ -4,13 +4,14 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use destack_file::walk::{WalkOptions, walk};
-use dyst_ast::{DystFormatContext, DystFormatOptions, ModuleFormat, NodeParentIndex, Parser};
+use dyst_ast::{ModuleFormat, NodeParentIndex, TokenType};
 use dyst_diagnostic::Severity;
 use dyst_fir::format::{IndentStyle, LineEnding, format as format_fir};
 use dyst_fir::format_args;
+use dyst_format::{DystFormatContext, DystFormatOptions};
+use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, Source, SourceFormat, SourceId, Uri, annotate_source};
-use dyst_token::TokenType;
 
 use crate::cli::source::{render_semantic_spans, semantic_spans_from_text};
 use crate::console::console;

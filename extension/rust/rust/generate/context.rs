@@ -1,8 +1,8 @@
+use dyst_ast::TokenSpan;
 use dyst_fir::format::{FormatContext, FormatOptions, Formatter, IndentStyle, LineEnding};
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
 use dyst_source::{Source, Span};
-use dyst_token::TokenSpan;
 
 pub type RustFormatter<'ast, 'buf> = Formatter<'buf, RustFormatContext<'ast>>;
 

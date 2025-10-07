@@ -1,4 +1,4 @@
-use dyst_token::TokenType;
+use crate::TokenType;
 
 /// The operator group (for precedence parsing).
 ///

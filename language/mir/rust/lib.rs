@@ -1,4 +1,3 @@
-pub mod parse;
-pub mod tree;
+mod tree;
 
 pub use tree::*;

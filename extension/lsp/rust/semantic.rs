@@ -1,15 +1,16 @@
 //! Semantic token LSP.
 
-use dyst_ast::{Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType};
+use dyst_ast::{
+    Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
+};
 use dyst_source::{Source, Uri};
-use dyst_token::TokenSpan;
+use dyst_workspace::DocumentBody;
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::{
     DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span,
     token_length_utf16,
 };
-use dyst_dir::DocumentBody;
 
 /// All semantic token types supported by the LSP server.
 pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 23] = [

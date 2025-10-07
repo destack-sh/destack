@@ -14,7 +14,7 @@ pub mod workspace;
 pub use server::DestackLanguageServer;
 pub use source::*;
 
-pub use dyst_dir::{Document, Workspace};
+pub use dyst_workspace::{Document, DocumentBody, Workspace};
 
 use tower_lsp_server::{LspService, Server};
 
