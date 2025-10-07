@@ -27,7 +27,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
     let module_name = source.uri.last_segment().unwrap_or("<string>");
-    
+
     // parse as implicit block of statements
     let mut parser = Parser::prepare(&source, &mut session);
     let module_name_id = parser.intern_string(module_name);

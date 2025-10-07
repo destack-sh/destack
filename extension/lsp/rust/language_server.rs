@@ -7,9 +7,9 @@ use tower_lsp_server::{LanguageServer, jsonrpc};
 
 use dyst_source::SourceFormat;
 
-use crate::document::DocumentBody;
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
+use dyst_dir::DocumentBody;
 use tower_lsp_server::lsp_types as lsp;
 
 impl LanguageServer for DestackLanguageServer {
@@ -452,7 +452,8 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let workspace = workspace_handle.read().await;
-        let Some(semantic_tokens) = workspace.get_semantic_tokens_full(&lsp_uri_to_uri(&uri))
+        let Some(semantic_tokens) =
+            self.get_semantic_tokens_full(&workspace, &lsp_uri_to_uri(&uri))
         else {
             return Ok(None);
         };
@@ -482,7 +483,7 @@ impl LanguageServer for DestackLanguageServer {
         };
         let workspace = workspace_handle.read().await;
         let Some(semantic_tokens) =
-            workspace.get_semantic_tokens_range(&lsp_uri_to_uri(&uri), &params.range)
+            self.get_semantic_tokens_range(&workspace, &lsp_uri_to_uri(&uri), &params.range)
         else {
             return Ok(None);
         };

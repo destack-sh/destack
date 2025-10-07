@@ -5,8 +5,11 @@ use dyst_source::{Source, Uri};
 use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::document::DocumentBody;
-use crate::{Workspace, byte_to_utf16_position, range_to_byte_span, token_length_utf16};
+use crate::{
+    DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span,
+    token_length_utf16,
+};
+use dyst_dir::DocumentBody;
 
 /// All semantic token types supported by the LSP server.
 pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 23] = [
@@ -161,10 +164,14 @@ fn get_semantic_type_index(semantic_type: SemanticType) -> Option<u32> {
         .map(|idx| idx as u32)
 }
 
-impl Workspace {
+impl DestackLanguageServer {
     /// Compute semantic tokens for a document.
-    pub fn get_semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = self.get_document(uri)?;
+    pub fn get_semantic_tokens_full(
+        &self,
+        workspace: &Workspace,
+        uri: &Uri,
+    ) -> Option<Vec<lsp::SemanticToken>> {
+        let doc = workspace.get_document(uri)?;
         match &doc.body {
             DocumentBody::Text {
                 source,
@@ -180,10 +187,11 @@ impl Workspace {
     /// Compute semantic tokens for a document within a range.
     pub fn get_semantic_tokens_range(
         &self,
+        workspace: &Workspace,
         uri: &Uri,
         range: &lsp::Range,
     ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = self.get_document(uri)?;
+        let doc = workspace.get_document(uri)?;
         match &doc.body {
             DocumentBody::Text {
                 source,
