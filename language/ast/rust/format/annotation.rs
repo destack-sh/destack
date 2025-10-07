@@ -260,7 +260,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         _node_id: NodeId<Doc>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let string = f.context().session.strings.get(self.string);
+        let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
             DocStyle::Star if !is_multi_line => {
@@ -291,7 +291,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         _node_id: NodeId<Comment>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let string = f.context().session.strings.get(self.string);
+        let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
             CommentStyle::Star if !is_multi_line => {
@@ -301,7 +301,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
             }
             _ => {
                 // prefix every line with `//`
-                let string = f.context().session.strings.get(self.string);
+                let string = f.context().strings.get(self.string);
                 for (i, line) in string.lines().enumerate() {
                     write!(f, [token("//"), space(), text(line)])?;
                     if i < string.lines().count() - 1 {

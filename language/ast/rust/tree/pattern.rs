@@ -1,6 +1,6 @@
-use dyst_source::{PathId, StringId};
+use dyst_source::StringId;
 
-use crate::{Expression, Mutability, Node, NodeId, NodeType, ScalarLiteral};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, PathId, ScalarLiteral};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).

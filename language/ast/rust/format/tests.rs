@@ -1,10 +1,12 @@
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 use dyst_token::TokenSpan;
 
-use crate::{AstResult, DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, Parser};
+use crate::{
+    AstResult, DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, Parser, PathPool,
+};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -15,6 +17,8 @@ pub(crate) struct TestFormatter {
     pub side_tokens: Vec<TokenSpan>,
     pub side_span: MultiSpan,
     pub tree: NodeTree,
+    pub strings: StringPool,
+    pub paths: PathPool,
 }
 
 impl TestFormatter {
@@ -23,6 +27,7 @@ impl TestFormatter {
     where
         F: FnOnce(&mut Parser<'_>) -> AstResult<N>,
     {
+        // tokenize source
         let source_id = SourceId::new(0);
         let source = Source::from_string(
             source_id,
@@ -30,15 +35,20 @@ impl TestFormatter {
             SourceFormat::Dyst,
             input.to_string(),
         );
-        let mut session = Session::new();
 
+        // parse
+        let mut session = Session::new();
         let mut parser = Parser::prepare(&source, &mut session);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
+
+        // take out results
         let side_span = parser.get_side_span();
         let tree = parser.tree;
         let tokens = parser.tokens;
         let side_tokens = parser.side_tokens;
+        let strings = parser.strings;
+        let paths = parser.paths;
 
         let formatter = Self {
             session,
@@ -47,6 +57,8 @@ impl TestFormatter {
             side_tokens,
             side_span,
             tree,
+            strings,
+            paths,
         };
 
         Ok((formatter, n))
@@ -67,6 +79,8 @@ impl TestFormatter {
             tokens: &self.tokens,
             side_tokens: &self.side_tokens,
             side_span: &self.side_span,
+            strings: &self.strings,
+            paths: &self.paths,
         };
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();
