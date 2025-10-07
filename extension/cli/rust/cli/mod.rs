@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod dir;
 pub mod format;
 pub mod lsp;
 pub mod print;

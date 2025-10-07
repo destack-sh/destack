@@ -23,6 +23,7 @@ enum(uint4) ProcessFlag {
     Sleeping
 }
 
+/// How an Entity can be extended.
 @flag
 enum(uint4) ExtensionFlag {
     Default = 0

@@ -10,11 +10,11 @@ use crate::cli::source::read_source;
 use crate::console::console;
 use crate::console::parse::CommandArguments;
 
-pub const HELP: &str = r"Parse source into AST (implicit module).
+pub const HELP: &str = r"Parse source into DIR (implicit module).
 	--file <path>      Read input from file
 	--string <string>  Read input from provided string";
 
-/// Parse source into an AST and dump the statements.
+/// Parse source into an DIR and dump the module.
 pub fn run(ctx: CommandArguments) -> i32 {
     let mut session = Session::new();
 
