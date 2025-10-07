@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
             // path or identifier
             else {
                 let path_id = self.eat_path().for_node_type(NodeType::Pattern)?;
-                let path = self.session.paths.get(path_id);
+                let path = self.paths.get(path_id);
                 // tuple with path
                 if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                     self.bump(); // eat open parenthesis

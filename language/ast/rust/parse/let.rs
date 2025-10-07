@@ -1,5 +1,4 @@
-use crate::Expression;
-use dyst_source::PathId;
+use crate::{Expression, PathId};
 use dyst_token::TokenType;
 
 use crate::{AstResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};

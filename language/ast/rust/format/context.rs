@@ -1,9 +1,10 @@
+use crate::{Path, PathId, PathPool};
 use dyst_fir::format::{
     Format, FormatContext, FormatOptions, FormatResult, Formatter, IndentStyle, LineEnding,
 };
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Path, PathId, Source, SourceFormat, Span, StringId};
+use dyst_source::{MultiSpan, Source, SourceFormat, Span, StringId, StringPool};
 use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
@@ -132,6 +133,10 @@ pub struct DystFormatContext<'ast> {
     pub spans: &'ast NodeSpanIndex,
     /// The parent index.
     pub parents: NodeParentIndex,
+    /// The string pool.
+    pub strings: &'ast StringPool,
+    /// The path pool.
+    pub paths: &'ast PathPool,
     /// The session.
     pub session: &'ast Session,
 }
@@ -151,12 +156,12 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Get an interned string.
     pub fn get_string(&self, string_id: StringId) -> &str {
-        self.session.get_string(string_id)
+        self.strings.get(string_id)
     }
 
     /// Get an interned path.
     pub fn get_path(&self, path_id: PathId) -> &Path {
-        self.session.get_path(path_id)
+        self.paths.get(path_id)
     }
 
     /// Get a Node from the tree.

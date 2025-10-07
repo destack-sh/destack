@@ -1,8 +1,8 @@
-use dyst_source::{PathId, StringId};
+use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, Pattern,
-    Runtime, ScalarLiteral, ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, PathId,
+    Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
 };
 
 /// An Expression is a generic container for value-producing forms.

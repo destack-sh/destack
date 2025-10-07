@@ -1,11 +1,12 @@
 use core::fmt;
 use std::fmt::Debug;
 
-use dyst_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
+use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
 use dyst_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::{
     AstError, AstResult, Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType,
+    Path, PathId, PathPool,
 };
 use dyst_session::Session;
 
@@ -144,6 +145,11 @@ pub struct Parser<'ast> {
 
     /// The Node AST tree.
     pub tree: NodeTree,
+    /// The string pool.
+    pub strings: StringPool,
+    /// The path pool.
+    pub paths: PathPool,
+
     /// The session.
     pub session: &'ast mut Session,
     /// The errors encountered so far.
@@ -179,6 +185,8 @@ impl<'a> Parser<'a> {
             is_finalized: false,
             // result
             tree: NodeTree::new(),
+            strings: StringPool::new(),
+            paths: PathPool::new(),
             session,
             eof_token,
             errors: Vec::new(),
@@ -224,12 +232,7 @@ impl<'a> Parser<'a> {
 
     /// Create a new Dumper.
     pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
-        Dumper::new(
-            &self.session.strings,
-            &self.session.paths,
-            &self.tree,
-            options,
-        )
+        Dumper::new(&self.strings, &self.paths, &self.tree, options)
     }
 
     /// Get the current position in the tokens.
@@ -266,22 +269,22 @@ impl<'a> Parser<'a> {
 
     /// Intern a string.
     pub fn intern_string<S: AsRef<str>>(&mut self, string: S) -> StringId {
-        self.session.intern_string(string)
+        self.strings.intern(string)
     }
 
     /// Get an interned string.
     pub fn get_string(&self, string_id: StringId) -> &str {
-        self.session.get_string(string_id)
+        self.strings.get(string_id)
     }
 
     /// Intern a path.
     pub fn intern_path<T: AsRef<[StringId]>>(&mut self, path: T) -> PathId {
-        self.session.intern(path)
+        self.paths.intern(path)
     }
 
     /// Get an interned path.
     pub fn get_path(&self, path_id: PathId) -> &Path {
-        self.session.get_path(path_id)
+        self.paths.get(path_id)
     }
 
     /// Gets a mark of the current position.

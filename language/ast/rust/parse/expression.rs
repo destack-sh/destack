@@ -954,7 +954,7 @@ let x =
                     parser.tree,
                     *pattern,
                     Pattern::Binding { name, .. } => {
-                        assert_eq!(parser.session.get_string(*name), "x");
+                        assert_string!(parser.session, *name, "x");
                     }
                 );
                 // foo.parse() + 2 + x
