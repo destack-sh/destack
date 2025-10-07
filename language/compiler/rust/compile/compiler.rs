@@ -1,7 +1,8 @@
+use dyst_ast::StringPool;
 use dyst_session::Session;
 use dyst_workspace::Workspace;
 
-use dyst_dir::NodeTree;
+use dyst_dir::{Dumper, DumperOptions, NodeTree};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -12,6 +13,8 @@ pub struct CompilerOptions {}
 pub struct Compiler<'s> {
     /// The node tree of the compiled DIR.
     pub tree: NodeTree,
+    /// The string pool.
+    pub strings: StringPool,
     /// The options for compiling the Workspace.
     pub options: CompilerOptions,
 
@@ -26,9 +29,15 @@ impl<'s> Compiler<'s> {
     pub fn new(workspace: &'s Workspace, options: CompilerOptions) -> Self {
         Self {
             tree: NodeTree::new(),
+            strings: StringPool::new(),
             options,
             workspace,
             session: &workspace.session,
         }
+    }
+
+    /// Create a new Dumper.
+    pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
+        Dumper::new(&self.strings, &self.tree, options)
     }
 }
