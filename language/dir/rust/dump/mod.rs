@@ -1,3 +1,3 @@
-pub mod dumper;
+mod dumper;
 
 pub use dumper::*;

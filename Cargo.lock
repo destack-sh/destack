@@ -700,6 +700,7 @@ dependencies = [
 name = "dyst_dir"
 version = "2025.10.6-2"
 dependencies = [
+ "destack_file",
  "destack_unicode",
  "dyst_ast",
  "dyst_diagnostic",

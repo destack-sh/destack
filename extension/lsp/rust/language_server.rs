@@ -234,7 +234,7 @@ impl LanguageServer for DestackLanguageServer {
             match change.typ {
                 // sync the document if created/changed
                 lsp::FileChangeType::CREATED | lsp::FileChangeType::CHANGED => {
-                    match workspace.sync_document_from_disk(&source_uri) {
+                    match workspace.reload_document_from_disk(&source_uri) {
                         Ok(_) => {}
                         Err(error) => {
                             self.client
@@ -294,7 +294,7 @@ impl LanguageServer for DestackLanguageServer {
             if workspace.has_open_document(&uri) {
                 continue; // do not override open documents
             }
-            match workspace.sync_document_from_disk(&uri) {
+            match workspace.reload_document_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
                     self.client
@@ -372,7 +372,7 @@ impl LanguageServer for DestackLanguageServer {
             if workspace.has_open_document(&uri) {
                 continue; // do not override open documents
             }
-            match workspace.sync_document_from_disk(&uri) {
+            match workspace.reload_document_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
                     self.client

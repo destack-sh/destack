@@ -1080,8 +1080,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Self_ => {
                 self.node("Type::Self_", id.id).end();
             }
-            Type::Variant(_) => {
-                self.node("Type::Variant", id.id).end();
+            Type::Definition(_) => {
+                self.node("Type::Definition", id.id).end();
             }
             Type::Error => {
                 self.node("Type::Error", id.id).end();

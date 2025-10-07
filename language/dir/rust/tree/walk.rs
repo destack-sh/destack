@@ -560,9 +560,9 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let expression = tree.get(*expression_id);
             walk_expression(visitor, tree, *expression_id, expression);
         }
-        Type::Variant(variant_id) => {
-            let variant = tree.get(*variant_id);
-            walk_variant(visitor, tree, *variant_id, variant);
+        Type::Definition(definition_id) => {
+            let definition = tree.get(*definition_id);
+            walk_definition(visitor, tree, *definition_id, definition);
         }
         Type::Array { element, count } => {
             let element_type = tree.get(*element);

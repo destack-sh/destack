@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId, Variant,
+    Definition, Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId,
 };
 
 impl IntType {
@@ -188,8 +188,8 @@ pub enum Type {
     ScalarLiteral(ScalarLiteral),
     /// Self type (only inside associated scopes for types).
     Self_,
-    /// Variant type.
-    Variant(NodeId<Variant>),
+    /// Definition type.
+    Definition(NodeId<Definition>),
 
     /// Error type that could not be evaluated.
     Error,

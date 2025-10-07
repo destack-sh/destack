@@ -378,7 +378,7 @@ impl DestackLanguageServer {
         let uri = lsp_uri_to_uri(lsp_uri);
 
         // resync the document
-        match workspace.sync_document_from_disk(&uri) {
+        match workspace.reload_document_from_disk(&uri) {
             Ok(_) => {
                 let diagnostics = Self::get_diagnostics_for_uri(&workspace, &uri);
                 self.client
