@@ -1,7 +1,6 @@
 //! Tokei-like line counter command.
 
-use crate::console::parse::{CommandApp, CommandArguments};
-use crate::console::{console, table};
+use destack_terminal::{CommandApp, CommandArguments, console, table};
 use destack_tokei as tokei;
 
 struct LanguageDeclaration<'a> {

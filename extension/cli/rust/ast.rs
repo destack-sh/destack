@@ -1,20 +1,19 @@
 //! AST parsing subcommand.
 
+use destack_terminal::{CommandArguments, console};
 use dyst_ast::{DumperOptions, ModuleFormat, NodeVisitor, TokenType};
 use dyst_diagnostic::Severity;
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, annotate_source};
 
-use crate::cli::source::read_source;
-use crate::console::console;
-use crate::console::parse::CommandArguments;
+use crate::source::read_source;
 
-pub const HELP: &str = r"Parse source into DIR (implicit module).
+pub const HELP: &str = r"Parse source into AST (implicit module).
 	--file <path>      Read input from file
 	--string <string>  Read input from provided string";
 
-/// Parse source into an DIR and dump the module.
+/// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {
     let mut session = Session::new();
 
