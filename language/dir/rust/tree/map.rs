@@ -54,24 +54,24 @@ impl NodeSpanIndex {
     /// Get the span for a node.
     #[inline]
     pub fn get<T: Node>(&self, node_id: NodeId<T>) -> Span {
-        self.spans_by_node.get(&node_id.id).unwrap()
+        *self.spans_by_node.get(&node_id.id).unwrap()
     }
 
     /// Get the span for a node by its id.
     #[inline]
     pub fn get_by_id(&self, node_id: u32) -> Span {
-        self.spans_by_node.get(&node_id).unwrap()
+        *self.spans_by_node.get(&node_id).unwrap()
     }
 
     /// Gets all enclosing spans in the given range (including index).
     #[inline]
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans: Vec<EnclosingSpan> = Vec::new();
-        for (i, span) in self.spans_by_node.iter().enumerate() {
+        for (idx, span) in self.spans_by_node.iter() {
             if span.contains(start) && span.contains(end_inclusive) {
                 let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end_inclusive);
                 spans.push(EnclosingSpan {
-                    idx: i as u32,
+                    idx: *idx,
                     distance,
                     length: span.end.saturating_sub(span.start),
                     span: *span,
