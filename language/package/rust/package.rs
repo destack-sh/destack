@@ -1,6 +1,4 @@
-use dyst_source::Uri;
-
-pub const PACKAGE_FILE_NAME: &str = "package.dst";
+use dyst_source::{SourceId, Uri};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,7 +10,7 @@ impl PackageId {
     }
 }
 
-/// A Package is a collection of sources.
+/// A Package is a collection of sources in a Workspace.
 #[derive(Debug, Clone)]
 pub struct Package {
     /// The ID of the package.
@@ -20,24 +18,27 @@ pub struct Package {
     /// The name of the package.
     pub name: String,
     /// The root URI of the package.
-    pub root: Uri,
+    pub root_uri: Uri,
+    /// The manifest of the package.
+    pub manifest: SourceId,
     /// The dependencies of the package.
     pub dependencies: Vec<PackageId>,
 }
 
 impl Package {
     /// Create an empty package.
-    pub fn empty(id: PackageId, name: String, root: Uri) -> Self {
+    pub fn new(id: PackageId, name: String, root: Uri, manifest: SourceId) -> Self {
         Self {
             id,
             name,
-            root,
+            root_uri: root,
+            manifest,
             dependencies: Vec::new(),
         }
     }
 
     /// Check if a URI is contained in the package.
     pub fn is_parent_of(&self, uri: &Uri) -> bool {
-        uri.starts_with(&self.root) // is that it? 
+        uri.starts_with(&self.root_uri) // is that it? 
     }
 }

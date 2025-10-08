@@ -9,7 +9,7 @@
             "stopOnEntry": true
         },
         {
-            "name": "destack_cli",
+            "name": "destack_cli_fmt",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -17,6 +17,18 @@
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
             "args": ["fmt", "--string", "#A struct #B Test #C { #D } #E"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "destack_cli_dir",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["run", "--bin", "destack_cli"],
+                "filter": { "kind": "bin", "name": "destack_cli" }
+            },
+            "args": ["dir", "--file", "library/entity/entity.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         }

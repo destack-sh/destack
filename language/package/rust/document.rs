@@ -9,6 +9,22 @@ use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
 use crate::PackageId;
 
+pub const PACKAGE_FILE_NAME: &str = "package.dst";
+pub const MODULE_FILE_NAME: &str = "module.ds";
+
+/// The special intent of a document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DocumentIntent {
+    /// Generic source file (`.ds`)
+    Source,
+    /// Generic data file (`.dst`, `.dsb`, `.dsx`)
+    Data,
+    /// Package file (`package.dst`)
+    Package,
+    /// Module file (`module.ds`)
+    Module,
+}
+
 /// A source Document (pre-parsed).
 #[derive(Debug, Clone)]
 pub struct Document {
@@ -22,6 +38,8 @@ pub struct Document {
     pub uri: Uri,
     /// The format of the document.
     pub format: SourceFormat,
+    /// The special intent of the document.
+    pub intent: DocumentIntent,
     /// Whether the document is currently open.
     pub is_open: bool,
     /// The content of the document.
@@ -125,6 +143,24 @@ impl Document {
     ) -> Self {
         let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
         let content = DocumentBody::parse_text(source, session);
+        let intent = match format {
+            SourceFormat::Dyst => {
+                if name.eq(MODULE_FILE_NAME) {
+                    DocumentIntent::Module
+                } else {
+                    DocumentIntent::Source
+                }
+            }
+            SourceFormat::DystText => {
+                if name.eq(PACKAGE_FILE_NAME) {
+                    DocumentIntent::Package
+                } else {
+                    DocumentIntent::Data
+                }
+            }
+            SourceFormat::DystBinary => DocumentIntent::Data,
+            SourceFormat::DystExecutable => DocumentIntent::Data,
+        };
 
         Document {
             id,
@@ -132,6 +168,7 @@ impl Document {
             name,
             uri,
             format,
+            intent,
             is_open,
             body: content,
         }
@@ -154,6 +191,7 @@ impl Document {
             name,
             uri,
             format,
+            intent: DocumentIntent::Data,
             is_open,
             body: DocumentBody::wrap_binary(content),
         }
