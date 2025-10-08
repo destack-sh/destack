@@ -33,14 +33,17 @@ pub fn run(ctx: CommandArguments) -> i32 {
         // package workspace
         if package.is_some() {
             let package_uri = Uri::from_string(package.unwrap());
-            Workspace::load(package_uri).unwrap_or_else(|error| {
-                console::error(&format!("Failed to load package workspace: {error}"));
+            if let Ok(Some(workspace)) = Workspace::load_containing(&package_uri) {
+                workspace
+            } else {
+                console::error(&format!("Failed to load package workspace"));
                 return 1;
-            })
+            }
         }
         // detect package workspace from file
         else if file.is_some()
-            && let Some(workspace) = Workspace::load_containing(&Uri::from_string(file.unwrap()))
+            && let Ok(Some(workspace)) =
+                Workspace::load_containing(&Uri::from_string(file.unwrap()))
         {
             workspace
         }

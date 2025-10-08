@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 use std::{fs, io};
 
 use destack_file::glob::glob;
 use dyst_diagnostic::Diagnostic;
 use dyst_session::Session;
-use dyst_source::{Source, SourceFormat, SourceId, Uri};
+use dyst_source::{SourceFormat, SourceId, Uri};
 
-use crate::{Document, Package, PackageId, infer_source_format_from_uri};
+use crate::{Document, PACKAGE_FILE_NAME, Package, PackageId, infer_source_format_from_uri};
 
 pub const TRACKED_FORMATS: [SourceFormat; 4] = [
     SourceFormat::Dyst,
@@ -66,15 +65,33 @@ impl Workspace {
 
     /// Find the containing workspace package for a source URI (if any).
     /// Scans the file system upwards looking for a containing package root.
-    pub fn load_containing(uri: &Uri) -> Option<Self> {
+    pub fn load_containing(uri: &Uri) -> io::Result<Option<Self>> {
         // find containing root
-        let mut root_id = {
-            todo!()
+        let root_uri = {
+            // loop until we find the `package.dst` file in the directory
+            let mut current = uri.to_file_path();
+            let mut root_uri = None;
+            while let Some(current_path) = current {
+                if current_path.is_dir() {
+                    let package_file = current_path.join(PACKAGE_FILE_NAME);
+                    if package_file.exists() {
+                        root_uri = Some(Uri::from_file_path(current_path));
+                        break;
+                    }
+                } else {
+                    current = current_path.parent();
+                }
+            }
+            root_uri
         };
 
         // load workspace
-        let workspace = Self::load(root_uri);
-        Ok(workspace)
+        if let Some(root_uri) = root_uri {
+            let workspace = Self::load(root_uri)?;
+            Ok(Some(workspace))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get or create a source ID for a URI.

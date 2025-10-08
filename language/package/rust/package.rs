@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-
 use dyst_source::Uri;
+
+pub const PACKAGE_FILE_NAME: &str = "package.dst";
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
