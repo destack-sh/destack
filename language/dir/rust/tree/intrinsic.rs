@@ -7,6 +7,6 @@ impl Intrinsic {
     /// Get the name of the intrinsic.
     #[inline]
     pub fn name(&self) -> StringId {
-        todo!()
+        todo!("intrinsics")
     }
 }
