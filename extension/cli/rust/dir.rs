@@ -13,7 +13,7 @@ use dyst_source::{AnnotateOptions, Color, Uri, annotate_source};
 
 use crate::source::read_source;
 
-pub const HELP: &str = r"Parse source into DIR (implicit module).
+pub const HELP: &str = r"Parse and compile source into DIR (implicit module).
 	--file <path>      Read input from file
 	--string <string>  Read input from provided string
     --package <path>   The package to compile (default: auto-detect)
@@ -23,7 +23,6 @@ pub const HELP: &str = r"Parse source into DIR (implicit module).
 /// Parse source into an DIR and dump the module.
 pub fn run(ctx: CommandArguments) -> i32 {
     let mut session = Session::new();
-    let string = ctx.option("string");
     let file = ctx.option("file");
     let package = ctx.option("package");
     let standalone = ctx.flag("standalone");
@@ -31,25 +30,30 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // load workspace
     let workspace: Workspace = {
         // package workspace
-        if package.is_some() {
-            let package_uri = Uri::from_string(package.unwrap());
+        if let Some(package) = package {
+            let package_uri = Uri::from_string(package);
             if let Ok(Some(workspace)) = Workspace::load_containing(&package_uri) {
                 workspace
             } else {
-                console::error(&format!("Failed to load package workspace"));
+                console::error("Failed to load package workspace");
                 return 1;
             }
         }
         // detect package workspace from file
         else if file.is_some()
+            && !standalone
             && let Ok(Some(workspace)) =
                 Workspace::load_containing(&Uri::from_string(file.unwrap()))
         {
             workspace
         }
         // standalone
+        else if let Some(file) = file {
+            Workspace::empty(Uri::from_string(file))
+        }
+        // no file or package
         else {
-            Workspace::empty(Uri::from_string(file.unwrap()))
+            Workspace::empty(Uri::from_string("<string>"))
         }
     };
 
@@ -62,12 +66,24 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // get the passed definition
+    // get the definition
     let definition_id = {
-        // parse as implicit module if file is not in workspace
-        if string.is_none()
-            || file.is_none() && !workspace.has_document(&Uri::from_string(file.unwrap()))
+        // get the definition from the workspace
+        if let Some(file) = file
+            && !workspace.has_document(&Uri::from_string(file))
         {
+            let document = workspace
+                .get_document(&Uri::from_string(file))
+                .unwrap();
+            match document.body {
+                DocumentBody::Text {
+                    root_definition_id, ..
+                } => root_definition_id,
+                DocumentBody::Binary { .. } => None,
+            }
+        }
+        // parse as implicit module if file is not in workspace
+        else {
             let mut parser = Parser::prepare(&source, &mut session);
             let module_name = source.uri.last_segment().unwrap_or("<string>");
             let module_name_id = parser.intern_string(module_name);
@@ -84,18 +100,6 @@ pub fn run(ctx: CommandArguments) -> i32 {
             parser.finalize();
             definition_id
         }
-        // get the definition from the workspace
-        else {
-            let document = workspace
-                .get_document(&Uri::from_string(file.unwrap()))
-                .unwrap();
-            match document.body {
-                DocumentBody::Text {
-                    root_definition_id, ..
-                } => root_definition_id,
-                DocumentBody::Binary { .. } => None,
-            }
-        }
     };
 
     // compile the AST to DIR
@@ -103,18 +107,18 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // dump DIR module to output
     let dump_options = DumperOptions::default();
-    let mut dumper = compiler.dumper(dump_options);
     if let Some(definition_id) = definition_id {
         let definition_id = compiler.lower_definition(AstNodeId::new(definition_id, source.id));
         if let Some(definition_id) = definition_id {
+            let mut dumper = compiler.dumper(dump_options);
             dumper.visit_definition(
                 &compiler.tree,
                 definition_id,
                 compiler.tree.get(definition_id),
             );
+            console::info(&dumper.finish());
         }
     }
-    console::info(&dumper.finish());
 
     // print diagnostics
     for diagnostic in &session.diagnostics {

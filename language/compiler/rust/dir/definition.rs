@@ -7,6 +7,6 @@ impl<'a> Compiler<'a> {
         &mut self,
         definition: AstNodeId<ast::Definition>,
     ) -> Option<NodeId<Definition>> {
-        todo!()
+        todo!("Compiler.lower_definition")
     }
 }

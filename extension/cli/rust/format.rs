@@ -236,7 +236,7 @@ fn format_file(
     // create source and format it
     let name = path_buf
         .iter()
-        .last()
+        .next_back()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or("<file>".to_string());
     let uri = Uri::from(&path_buf);
