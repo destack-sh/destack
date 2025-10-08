@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::Span;
+use dyst_source::{SourceId, Span};
 
 use crate::tree::arena::NodeArena;
 use crate::{
@@ -19,6 +19,8 @@ pub struct NodeTree {
     pub(crate) local_id_by_node: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node: Vec<NodeType>,
+    /// The sources of all nodes. Index is the global node id.
+    pub(crate) source_by_node: Vec<SourceId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
 
@@ -74,6 +76,7 @@ impl NodeTree {
             next_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
             type_by_node: Vec::with_capacity(capacity),
+            source_by_node: Vec::with_capacity(capacity),
             annotations_per_node: HashMap::new(),
             spans: NodeSpanIndex::new(),
             // groupings
@@ -102,7 +105,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    pub(super) fn allocate<T>(&mut self, node: T) -> NodeId<T>
+    pub(super) fn allocate<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -112,17 +115,17 @@ impl NodeTree {
         self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
-        let node_id = NodeId::new(global_id);
-        node_id
+        self.source_by_node.push(source_id);
+        NodeId::new(global_id)
     }
 
     /// Allocate a new node in the tree with a span.
-    pub fn allocate_with_span<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub fn allocate_with_span<T>(&mut self, node: T, source_id: SourceId, span: Span) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let node_id = self.allocate(node);
+        let node_id = self.allocate(node, source_id);
         self.spans.set(node_id.id, span);
         node_id
     }
