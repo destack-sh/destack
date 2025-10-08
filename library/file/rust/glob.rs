@@ -5,12 +5,12 @@ use std::path::PathBuf;
 use crate::walk::{WalkOptions, walk};
 
 /// Match a glob-style `pattern` against raw `text` bytes.
-///
-/// The matcher works over byte slices so callers can supply UTF-8 or
-/// filesystem-encoded data. `*` keeps its classic greedy semantics, `?`
-/// matches a single byte, and a `**/` segment optionally consumes a directory
-/// separator so that `**/*.rs` matches files in the root directory as well as
-/// nested subdirectories.
+///The matcher works over byte slices so callers can supply UTF-8 or filesystem-encoded data:
+/// - `*` keeps its classic greedy semantics
+/// - `?` matches a single byte, and
+/// - `**/` segment optionally consumes a directory
+/// - separator so that `**/*.rs` matches files in the root directory as well as
+/// - nested subdirectories.
 pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx: usize) -> bool {
     let pattern_length = pattern.len();
     let text_length = text.len();
@@ -31,6 +31,7 @@ pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx
                 return true;
             }
         }
+
         // match single character or '?'
         if pattern_idx < pattern_length
             && (pattern[pattern_idx] == b'?' || pattern[pattern_idx] == text[text_idx])
@@ -87,7 +88,7 @@ pub fn glob(pattern: &str) -> Vec<PathBuf> {
 fn split_base_directory(pattern: &str) -> (PathBuf, String) {
     // normalize separators to '/'
     let normalized = pattern.replace('\\', "/");
-    
+
     // find earliest wildcard position
     let mut first_wildcard: Option<usize> = None;
     for (idx, ch) in normalized.char_indices() {
@@ -98,7 +99,7 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
     }
     let scan_upto = first_wildcard.unwrap_or(normalized.len());
     let prefix = &normalized[..scan_upto];
-    
+
     // base is up to the last '/'
     let base_end = prefix.rfind('/').map(|i| i + 1).unwrap_or(0);
     let base = if base_end > 0 {

@@ -2,12 +2,14 @@ use std::collections::{HashMap, HashSet};
 use std::{fs, io};
 
 use destack_file::glob::glob;
+use dyst_ast::NodeTree;
 use dyst_diagnostic::Diagnostic;
 use dyst_session::Session;
 use dyst_source::{SourceFormat, SourceId, Uri};
 
 use crate::{
-    Document, DocumentIntent, PACKAGE_FILE_NAME, Package, PackageId, infer_source_format_from_uri,
+    Document, DocumentBody, DocumentIntent, PACKAGE_FILE_NAME, Package, PackageId,
+    infer_source_format_from_uri,
 };
 
 pub const TRACKED_FORMATS: [SourceFormat; 4] = [
@@ -35,6 +37,8 @@ pub struct Workspace {
     packages: HashMap<Uri, Package>,
     /// All the documents.
     documents: HashMap<Uri, Document>,
+    /// Index documents by their ID.
+    documents_by_id: HashMap<SourceId, Uri>,
     /// The shared session for the workspace.
     pub session: Session,
 }
@@ -57,6 +61,7 @@ impl Workspace {
             packages: HashMap::new(),
             session: Session::new(),
             documents: HashMap::new(),
+            documents_by_id: HashMap::new(),
         }
     }
 
@@ -179,6 +184,21 @@ impl Workspace {
         self.session.reset_diagnostics_for_source(source);
     }
 
+    /// Get a document by its ID.
+    pub fn get_document_by_id(&self, id: SourceId) -> Option<&Document> {
+        self.documents_by_id
+            .get(&id)
+            .and_then(|uri| self.documents.get(uri))
+    }
+
+    /// Get a document's AST by its ID.
+    pub fn get_document_ast_by_id(&self, id: SourceId) -> Option<&NodeTree> {
+        self.get_document_by_id(id).and_then(|doc| match &doc.body {
+            DocumentBody::Text { ast, .. } => Some(ast),
+            DocumentBody::Binary { .. } => None,
+        })
+    }
+
     /// Upsert any document into the workspace.
     pub fn upsert_document(
         &mut self,
@@ -226,6 +246,7 @@ impl Workspace {
             &mut self.session,
         );
         self.documents.insert(uri.clone(), document);
+        self.documents_by_id.insert(source_id, uri.clone());
 
         source_id
     }
@@ -254,6 +275,7 @@ impl Workspace {
             content,
         );
         self.documents.insert(uri.clone(), document);
+        self.documents_by_id.insert(source_id, uri.clone());
 
         source_id
     }
@@ -262,6 +284,7 @@ impl Workspace {
     pub fn remove_document(&mut self, uri: &Uri) {
         if let Some(document) = self.documents.remove(uri) {
             self.reset_diagnostics_for_source(document.id);
+            self.documents_by_id.remove(&document.id);
         }
     }
 

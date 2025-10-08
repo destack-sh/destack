@@ -3,8 +3,8 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_source::{Source, Uri};
 use dyst_package::DocumentBody;
+use dyst_source::{Source, Uri};
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::{
