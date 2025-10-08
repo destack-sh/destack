@@ -6,7 +6,9 @@ use dyst_diagnostic::Diagnostic;
 use dyst_session::Session;
 use dyst_source::{SourceFormat, SourceId, Uri};
 
-use crate::{Document, PACKAGE_FILE_NAME, Package, PackageId, infer_source_format_from_uri};
+use crate::{
+    Document, DocumentIntent, PACKAGE_FILE_NAME, Package, PackageId, infer_source_format_from_uri,
+};
 
 pub const TRACKED_FORMATS: [SourceFormat; 4] = [
     SourceFormat::Dyst,
@@ -16,10 +18,12 @@ pub const TRACKED_FORMATS: [SourceFormat; 4] = [
 ];
 
 /// A workspace of Packages with Documents in a shared Session.
+/// Packages are used for dependency management and comprise logical modules.
+/// (Modules are tracked at the AST-level, even for file/directory scoped modules).
 #[derive(Debug)]
 pub struct Workspace {
     /// The root URI of the workspace.
-    pub root: Uri,
+    pub root_uri: Uri,
 
     /// The next package ID to use for a new package.
     next_package_id: u32,
@@ -46,7 +50,7 @@ impl Workspace {
     /// Create a new empty workspace.
     pub fn empty(root_uri: Uri) -> Self {
         Self {
-            root: root_uri,
+            root_uri,
             next_source_id: 1,
             next_package_id: 1,
             orphan_package_id: PackageId::new(0),
@@ -59,13 +63,13 @@ impl Workspace {
     /// Load workspace from disk.
     pub fn load(root_uri: Uri) -> io::Result<Self> {
         let mut workspace = Self::empty(root_uri);
-        workspace.reload_all_documents_from_disk()?;
+        workspace.reload_from_disk()?;
         Ok(workspace)
     }
 
     /// Find the containing workspace package for a source URI (if any).
     /// Scans the file system upwards looking for a containing package root.
-    pub fn load_containing(uri: &Uri) -> io::Result<Option<Self>> {
+    pub fn load_containing_maybe(uri: &Uri) -> io::Result<Option<Self>> {
         // find containing root
         let root_uri = {
             // loop until we find the `package.dst` file in the directory
@@ -75,7 +79,8 @@ impl Workspace {
                 if current_path.is_dir() {
                     let package_file = current_path.join(PACKAGE_FILE_NAME);
                     if package_file.exists() {
-                        root_uri = Some(Uri::from_file_path(current_path));
+                        let root_dir = current_path.canonicalize()?;
+                        root_uri = Some(Uri::from_file_path(root_dir));
                         break;
                     }
                 } else {
@@ -104,15 +109,6 @@ impl Workspace {
                 self.next_source_id = self.next_source_id.wrapping_add(1);
                 id
             })
-    }
-
-    /// Get or create a package ID for a URI.
-    fn get_or_create_package_id(&mut self, uri: &Uri) -> PackageId {
-        self.packages.get(uri).map(|pkg| pkg.id).unwrap_or_else(|| {
-            let id = PackageId::new(self.next_package_id);
-            self.next_package_id = self.next_package_id.wrapping_add(1);
-            id
-        })
     }
 
     /// Get the containing package ID for a URI.
@@ -288,9 +284,9 @@ impl Workspace {
     }
 
     /// Rebuild the workspace state from disk for all sources.
-    pub fn reload_all_documents_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
+    pub fn reload_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
         // build pattern
-        let root_uri = &self.root;
+        let root_uri = &self.root_uri;
         let root_path = root_uri
             .to_file_path()
             .ok_or_else(|| {
@@ -324,7 +320,7 @@ impl Workspace {
             }
         }
 
-        // drop documents that disappeared from disk
+        // drop documents & packages that disappeared from disk
         let stale_uris: Vec<Uri> = self
             .documents
             .iter()
@@ -333,13 +329,60 @@ impl Workspace {
             .collect();
         for uri in stale_uris {
             self.remove_document(&uri);
+            self.packages.remove(&uri);
             index.removed.push(uri);
         }
 
-        // re-index packages from new documents
-        todo!("re-index packages from new documents (and assign them)");
+        // re-index packages
+        self.reindex_packages();
 
         Ok(index)
+    }
+
+    /// Reindex packages and their associated documents.
+    /// Does not reload from disk, just checks and assigns documents to packages.
+    pub fn reindex_packages(&mut self) {
+        // re-index packages
+        // create packages for missing manifests
+        for document in self.documents.values_mut() {
+            if document.intent == DocumentIntent::Package
+                && !self.packages.contains_key(&document.uri)
+            {
+                let uri = document.uri.clone();
+                let package_id = PackageId::new(self.next_package_id);
+                document.package_id = package_id;
+                self.next_package_id += 1;
+                let package = Package::new(
+                    package_id,
+                    document.name.clone(), // NOTE @Broken: read package name from document?
+                    uri,
+                    document.id,
+                );
+                self.packages.insert(document.uri.clone(), package);
+            }
+        }
+
+        // assign documents to packages
+        let mut package_id_by_url = HashMap::new();
+        for package in self.packages.values() {
+            package_id_by_url.insert(package.root_uri.clone(), package.id);
+        }
+        for document in self.documents.values_mut() {
+            if document.intent != DocumentIntent::Package {
+                let package_id = package_id_by_url.iter().find_map(|(package_uri, id)| {
+                    if &document.uri == package_uri {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                });
+                if let Some(package_id) = package_id {
+                    document.package_id = *package_id;
+                } else {
+                    document.package_id = self.orphan_package_id;
+                }
+            }
+        }
     }
 }
 

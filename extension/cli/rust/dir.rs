@@ -1,12 +1,11 @@
 //! AST parsing subcommand.
 
-use destack_lsp::DocumentBody;
 use destack_terminal::{CommandArguments, console};
 use dyst_ast::{ModuleFormat, TokenType};
 use dyst_compiler::{AstNodeId, Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
-use dyst_package::Workspace;
+use dyst_package::{DocumentBody, Workspace};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, Uri, annotate_source};
@@ -18,6 +17,7 @@ pub const HELP: &str = r"Parse and compile source into DIR (implicit module).
 	--string <string>  Read input from provided string
     --package <path>   The package to compile (default: auto-detect)
     --standalone       Compile as standalone package (disable auto-detect)
+    --verbose          Print verbose output
     ";
 
 /// Parse source into an DIR and dump the module.
@@ -26,13 +26,14 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let file = ctx.option("file");
     let package = ctx.option("package");
     let standalone = ctx.flag("standalone");
+    let verbose = ctx.flag("verbose");
 
     // load workspace
     let workspace: Workspace = {
         // package workspace
         if let Some(package) = package {
             let package_uri = Uri::from_string(package);
-            if let Ok(Some(workspace)) = Workspace::load_containing(&package_uri) {
+            if let Ok(Some(workspace)) = Workspace::load_containing_maybe(&package_uri) {
                 workspace
             } else {
                 console::error("Failed to load package workspace");
@@ -43,7 +44,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         else if file.is_some()
             && !standalone
             && let Ok(Some(workspace)) =
-                Workspace::load_containing(&Uri::from_string(file.unwrap()))
+                Workspace::load_containing_maybe(&Uri::from_string(file.unwrap()))
         {
             workspace
         }
@@ -56,6 +57,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
             Workspace::empty(Uri::from_string("<string>"))
         }
     };
+    if verbose {
+        console::debug(&format!("Workspace: {workspace:?}"));
+    }
 
     // read input source
     let source = match read_source(&ctx) {
@@ -70,11 +74,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let definition_id = {
         // get the definition from the workspace
         if let Some(file) = file
-            && !workspace.has_document(&Uri::from_string(file))
+            && workspace.has_document(&Uri::from_string(file))
         {
-            let document = workspace
-                .get_document(&Uri::from_string(file))
-                .unwrap();
+            let document = workspace.get_document(&Uri::from_string(file)).unwrap();
             match document.body {
                 DocumentBody::Text {
                     root_definition_id, ..

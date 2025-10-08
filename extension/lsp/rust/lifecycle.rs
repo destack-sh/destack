@@ -48,7 +48,7 @@ impl DestackLanguageServer {
         let workspace = workspace_handle.read().await;
         let mut workspace_watch_ids = self.workspace_watch_ids.write().await;
         let watch_registration_id = workspace_watch_ids
-            .get(&workspace.root.to_string())
+            .get(&workspace.root_uri.to_string())
             .cloned();
         if watch_registration_id.is_some() {
             return Ok(());
@@ -60,7 +60,7 @@ impl DestackLanguageServer {
         );
 
         // track all supported source formats beneath the workspace root
-        let base_uri = uri_to_lsp_uri(&workspace.root);
+        let base_uri = uri_to_lsp_uri(&workspace.root_uri);
         let watchers: Vec<lsp::FileSystemWatcher> = TRACKED_FORMATS
             .iter()
             .map(|format| lsp::FileSystemWatcher {
@@ -81,7 +81,7 @@ impl DestackLanguageServer {
         };
 
         self.client.register_capability(vec![registration]).await?;
-        workspace_watch_ids.insert(workspace.root.to_string(), registration_id.clone());
+        workspace_watch_ids.insert(workspace.root_uri.to_string(), registration_id.clone());
 
         self.client
             .log_message(
@@ -104,7 +104,7 @@ impl DestackLanguageServer {
         let workspace = workspace_handle.read().await;
         let mut workspace_watch_ids = self.workspace_watch_ids.write().await;
         let Some(registration_id) = workspace_watch_ids
-            .get(&workspace.root.to_string())
+            .get(&workspace.root_uri.to_string())
             .cloned()
             .as_deref()
             .map(ToOwned::to_owned)
@@ -112,7 +112,7 @@ impl DestackLanguageServer {
             return Ok(());
         };
 
-        workspace_watch_ids.remove(&workspace.root.to_string());
+        workspace_watch_ids.remove(&workspace.root_uri.to_string());
         self.client
             .unregister_capability(vec![lsp::Unregistration {
                 id: registration_id,
@@ -310,12 +310,12 @@ impl DestackLanguageServer {
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!("destack.reindex_workspace.start root={}", workspace.root),
+                format!("destack.reindex_workspace.start root={}", workspace.root_uri),
             )
             .await;
 
         // reindex the workspace
-        let uris = match workspace.reload_all_documents_from_disk() {
+        let uris = match workspace.reload_from_disk() {
             Ok(outcome) => {
                 // merge updates and removals so diagnostics clear for former files
                 let mut combined = outcome.updated;
@@ -323,7 +323,7 @@ impl DestackLanguageServer {
                 combined
             }
             Err(error) => {
-                let root_display = workspace.root.as_ref().to_string();
+                let root_display = workspace.root_uri.as_ref().to_string();
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
@@ -333,7 +333,7 @@ impl DestackLanguageServer {
                 return;
             }
         };
-        let root = workspace.root.clone();
+        let root = workspace.root_uri.clone();
         let num_diagnostics = workspace.diagnostics().len();
         drop(workspace);
 
@@ -391,7 +391,6 @@ impl DestackLanguageServer {
                     .await;
             }
             Err(error) => {
-                workspace.remove_document(&uri);
                 self.client
                     .log_message(
                         lsp::MessageType::WARNING,
