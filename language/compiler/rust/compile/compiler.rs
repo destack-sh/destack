@@ -1,9 +1,9 @@
-use dyst_ast as ast;
-use dyst_ast::StringPool;
+use dyst_ast::{self as ast, StringId, StringPool};
 use dyst_package::{DocumentBody, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
+use dyst_source::SourceId;
 
 use crate::AstNodeId;
 
@@ -44,22 +44,38 @@ impl<'s> Compiler<'s> {
         Dumper::new(&self.strings, &self.tree, options)
     }
 
+    /// Get the document body by its source ID.
+    pub fn get_document_body(&self, source_id: SourceId) -> &DocumentBody {
+        let document = self
+            .workspace
+            .get_document_by_id(source_id)
+            .unwrap_or_else(|| panic!("document not found"));
+        &document.body
+    }
+
     /// Resolve an AST node.
     pub fn get_ast_node<T>(&self, node: AstNodeId<T>) -> (&ast::NodeTree, &T)
     where
         T: ast::Node,
         ast::NodeTree: ast::NodeTreeStore<T>,
     {
-        // get the document
-        let document = self
-            .workspace
-            .get_document_by_id(node.source_id)
-            .unwrap_or_else(|| panic!("document not found"));
-        // get the AST
-        let DocumentBody::Text { ast, .. } = &document.body else {
-            panic!("document is not a text document");
+        let body = self.get_document_body(node.source_id);
+        if let DocumentBody::Text { ast, .. } = body {
+            let node = ast.get(node.id);
+            (ast, node)
+        } else {
+            panic!("document {:?} is not a text document", node.source_id);
+        }
+    }
+
+    // Intern an AST string for a certain source.
+    pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
+        let body = self.get_document_body(source_id);
+        let DocumentBody::Text { strings, .. } = body else {
+            panic!("document {:?} is not a text document", source_id);
         };
-        let node = ast.get(node.id);
-        (ast, node)
+        let string = strings.get(string_id).to_string(); // nocheckin
+        let string_id = self.strings.intern(string);
+        string_id
     }
 }
