@@ -1,6 +1,6 @@
 use dyst_ast::StringPool;
 use dyst_session::Session;
-use dyst_workspace::Workspace;
+use dyst_package::Workspace;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
 

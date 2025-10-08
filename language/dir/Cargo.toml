@@ -15,9 +15,9 @@ doctest = false
 dyst_ast = { workspace = true }
 dyst_diagnostic = { workspace = true }
 dyst_fir = { workspace = true }
+dyst_package = { workspace = true }
 dyst_source = { workspace = true }
 dyst_session = { workspace = true }
-dyst_workspace = { workspace = true }
 
 destack_unicode = { workspace = true }
 destack_file = { workspace = true }

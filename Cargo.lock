@@ -354,6 +354,7 @@ dependencies = [
  "dyst_dir",
  "dyst_fir",
  "dyst_format",
+ "dyst_package",
  "dyst_parser",
  "dyst_session",
  "dyst_source",
@@ -444,9 +445,9 @@ dependencies = [
  "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
+ "dyst_package",
  "dyst_session",
  "dyst_source",
- "dyst_workspace",
  "libc",
  "serde",
  "serde_json",
@@ -676,10 +677,10 @@ dependencies = [
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
+ "dyst_package",
  "dyst_parser",
  "dyst_session",
  "dyst_source",
- "dyst_workspace",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -716,9 +717,9 @@ dependencies = [
  "dyst_ast",
  "dyst_diagnostic",
  "dyst_fir",
+ "dyst_package",
  "dyst_session",
  "dyst_source",
- "dyst_workspace",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -792,6 +793,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dyst_package"
+version = "2025.10.7-1"
+dependencies = [
+ "destack_file",
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_fir",
+ "dyst_format",
+ "dyst_parser",
+ "dyst_session",
+ "dyst_source",
+]
+
+[[package]]
 name = "dyst_parser"
 version = "2025.10.7-1"
 dependencies = [
@@ -839,20 +854,6 @@ version = "2025.10.7-1"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
-]
-
-[[package]]
-name = "dyst_workspace"
-version = "2025.10.7-1"
-dependencies = [
- "destack_file",
- "dyst_ast",
- "dyst_diagnostic",
- "dyst_fir",
- "dyst_format",
- "dyst_parser",
- "dyst_session",
- "dyst_source",
 ]
 
 [[package]]

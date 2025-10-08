@@ -2,7 +2,7 @@ use crate::{SourceFormat, Span, Uri};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SourceId(u32);
+pub struct SourceId(pub u32);
 
 impl SourceId {
     pub fn new(id: u32) -> Self {
@@ -15,6 +15,8 @@ impl SourceId {
 pub struct Source {
     /// The id of the SourceFile.
     pub id: SourceId,
+    /// The name of the source (usually the last segment of the URI).
+    pub name: String,
     /// The URI of the SourceFile.
     pub uri: Uri,
     /// The format of the source file (ds or dst).
@@ -32,6 +34,7 @@ impl Source {
     pub fn empty(format: SourceFormat) -> Self {
         Self::from_string(
             SourceId::new(0),
+            "<empty>".to_string(),
             Uri::from_string("<empty>"),
             format,
             String::new(),
@@ -40,7 +43,13 @@ impl Source {
 
     /// Create a new Source.
     /// Precomputes indexing information immediately.
-    pub fn from_string(id: SourceId, uri: Uri, format: SourceFormat, content: String) -> Self {
+    pub fn from_string(
+        id: SourceId,
+        name: String,
+        uri: Uri,
+        format: SourceFormat,
+        content: String,
+    ) -> Self {
         let len = content.len() as u32;
 
         // precompute line start byte offsets for O(1) line -> byte lookup
@@ -53,6 +62,7 @@ impl Source {
 
         Self {
             id,
+            name,
             uri,
             format,
             content,

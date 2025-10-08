@@ -15,6 +15,7 @@ impl TestParser {
         let source_id = SourceId::new(0);
         let source = Source::from_string(
             source_id,
+            "<string>".to_string(),
             Uri::from_string("<string>"),
             SourceFormat::Dyst,
             input.to_string(),
@@ -246,7 +247,7 @@ mod tests {
     use crate::TokenType;
     use destack_file::glob;
     use dyst_session::Session;
-    use dyst_source::{Source, SourceFormat, SourceId};
+    use dyst_source::{Source, SourceFormat, SourceId, Uri};
 
     use crate::{BlockFormat, Parser};
 
@@ -271,9 +272,16 @@ mod tests {
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
             let source_id = SourceId::new(i as u32);
+            let name = ds_file
+                .iter()
+                .next_back()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or("<file>".to_string());
+            let path = ds_file.to_string_lossy().into_owned();
             let source = Source::from_string(
                 source_id,
-                ds_file.into(),
+                name,
+                Uri::from_string(path),
                 SourceFormat::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );

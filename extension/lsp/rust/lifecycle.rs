@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use dyst_source::SourceFormat;
-use dyst_workspace::{DocumentBody, Workspace};
+use dyst_package::{DocumentBody, Workspace};
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
@@ -315,7 +315,7 @@ impl DestackLanguageServer {
             .await;
 
         // reindex the workspace
-        let uris = match workspace.reindex_all_from_disk() {
+        let uris = match workspace.reload_all_documents_from_disk() {
             Ok(outcome) => {
                 // merge updates and removals so diagnostics clear for former files
                 let mut combined = outcome.updated;

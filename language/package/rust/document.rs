@@ -7,11 +7,17 @@ use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
-/// A document.
+use crate::PackageId;
+
+/// A source Document (pre-parsed).
 #[derive(Debug, Clone)]
 pub struct Document {
     /// The ID of the source.
     pub id: SourceId,
+    /// The ID of the containing package.
+    pub package_id: PackageId,
+    /// The name of the document.
+    pub name: String,
     /// The URI of the SourceFile.
     pub uri: Uri,
     /// The format of the document.
@@ -22,7 +28,7 @@ pub struct Document {
     pub body: DocumentBody,
 }
 
-/// The content of a document.
+/// The content of a Document.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum DocumentBody {
@@ -54,7 +60,7 @@ pub enum DocumentBody {
 
 impl DocumentBody {
     /// Build a document for the provided text source.
-    pub(crate) fn from_text(source: Source, session: &mut Session) -> Self {
+    pub(crate) fn parse_text(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
 
@@ -99,26 +105,31 @@ impl DocumentBody {
     }
 
     /// Build a document for the provided binary source.
-    pub(crate) fn from_binary(content: Vec<u8>) -> Self {
+    pub(crate) fn wrap_binary(content: Vec<u8>) -> Self {
         DocumentBody::Binary { content }
     }
 }
 
 impl Document {
     /// Build a parsed Document for the provided text source.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn parse_text(
         id: SourceId,
+        package_id: PackageId,
+        name: String,
         uri: Uri,
         format: SourceFormat,
         is_open: bool,
         content: String,
         session: &mut Session,
     ) -> Self {
-        let source = Source::from_string(id, uri.clone(), format, content);
-        let content = DocumentBody::from_text(source, session);
+        let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
+        let content = DocumentBody::parse_text(source, session);
 
         Document {
             id,
+            package_id,
+            name,
             uri,
             format,
             is_open,
@@ -126,9 +137,12 @@ impl Document {
         }
     }
 
-    /// Build a parsed Document for the provided binary source.
-    pub(crate) fn parse_binary(
+    /// Build a parsed Document for the provided binary content.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn wrap_binary(
         id: SourceId,
+        package_id: PackageId,
+        name: String,
         uri: Uri,
         format: SourceFormat,
         is_open: bool,
@@ -136,10 +150,12 @@ impl Document {
     ) -> Self {
         Document {
             id,
+            package_id,
+            name,
             uri,
             format,
             is_open,
-            body: DocumentBody::from_binary(content),
+            body: DocumentBody::wrap_binary(content),
         }
     }
 
@@ -181,4 +197,19 @@ impl Document {
         let printed = formatted.print();
         Some(printed.unwrap().as_str().to_string())
     }
+}
+
+/// Infer a source format from a URI.
+pub fn infer_source_format_from_uri(uri: &Uri) -> Option<SourceFormat> {
+    infer_source_format_from_str(uri.as_ref())
+}
+
+/// Infer a source format from a string.
+fn infer_source_format_from_str(value: &str) -> Option<SourceFormat> {
+    let trimmed = value.split(['?', '#']).next().unwrap_or(value);
+    let extension = trimmed.rsplit('.').next()?;
+    if extension.contains('/') || extension.contains('\\') {
+        return None;
+    }
+    SourceFormat::from_extension(&extension.to_ascii_lowercase())
 }
