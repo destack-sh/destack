@@ -1,28 +1,54 @@
 //! AST parsing subcommand.
 
+use destack_lsp::DocumentBody;
 use destack_terminal::{CommandArguments, console};
 use dyst_ast::{ModuleFormat, TokenType};
-use dyst_compiler::{AstNodeId, Compiler};
+use dyst_compiler::{AstNodeId, Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
+use dyst_package::Workspace;
 use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{AnnotateOptions, Color, annotate_source};
+use dyst_source::{AnnotateOptions, Color, Uri, annotate_source};
 
 use crate::source::read_source;
 
 pub const HELP: &str = r"Parse source into DIR (implicit module).
 	--file <path>      Read input from file
 	--string <string>  Read input from provided string
-    --module <path>    The module to compile (default: auto-detect)
+    --package <path>   The package to compile (default: auto-detect)
     --standalone       Compile as standalone package (disable auto-detect)
     ";
 
 /// Parse source into an DIR and dump the module.
 pub fn run(ctx: CommandArguments) -> i32 {
     let mut session = Session::new();
-    let module = ctx.option("module");
+    let string = ctx.option("string");
+    let file = ctx.option("file");
+    let package = ctx.option("package");
     let standalone = ctx.flag("standalone");
+
+    // load workspace
+    let workspace: Workspace = {
+        // package workspace
+        if package.is_some() {
+            let package_uri = Uri::from_string(package.unwrap());
+            Workspace::load(package_uri).unwrap_or_else(|error| {
+                console::error(&format!("Failed to load package workspace: {error}"));
+                return 1;
+            })
+        }
+        // detect package workspace from file
+        else if file.is_some()
+            && let Some(workspace) = Workspace::load_containing(&Uri::from_string(file.unwrap()))
+        {
+            workspace
+        }
+        // standalone
+        else {
+            Workspace::empty(Uri::from_string(file.unwrap()))
+        }
+    };
 
     // read input source
     let source = match read_source(&ctx) {
@@ -32,28 +58,45 @@ pub fn run(ctx: CommandArguments) -> i32 {
             return 1;
         }
     };
-    let module_name = source.uri.last_segment().unwrap_or("<string>");
 
-    // parse as implicit module
-    let mut parser = Parser::prepare(&source, &mut session);
-    let module_name_id = parser.intern_string(module_name);
-    let definition_id = parser.with_recovery(
-        parser.mark(),
-        |parser| {
-            parser
-                .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
-                .map(Some)
-        },
-        None,
-        TokenType::End,
-    );
-    parser.finalize();
-
-    // parse rest of module
-    
+    // get the passed definition
+    let definition_id = {
+        // parse as implicit module if file is not in workspace
+        if string.is_none()
+            || file.is_none() && !workspace.has_document(&Uri::from_string(file.unwrap()))
+        {
+            let mut parser = Parser::prepare(&source, &mut session);
+            let module_name = source.uri.last_segment().unwrap_or("<string>");
+            let module_name_id = parser.intern_string(module_name);
+            let definition_id = parser.with_recovery(
+                parser.mark(),
+                |parser| {
+                    parser
+                        .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
+                        .map(Some)
+                },
+                None,
+                TokenType::End,
+            );
+            parser.finalize();
+            definition_id
+        }
+        // get the definition from the workspace
+        else {
+            let document = workspace
+                .get_document(&Uri::from_string(file.unwrap()))
+                .unwrap();
+            match document.body {
+                DocumentBody::Text {
+                    root_definition_id, ..
+                } => root_definition_id,
+                DocumentBody::Binary { .. } => None,
+            }
+        }
+    };
 
     // compile the AST to DIR
-    let mut compiler = Compiler::new(&parser.tree, &mut session);
+    let mut compiler = Compiler::new(&workspace, CompilerOptions::default());
 
     // dump DIR module to output
     let dump_options = DumperOptions::default();

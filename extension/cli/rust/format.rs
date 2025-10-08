@@ -174,6 +174,7 @@ fn run_for_string(string: &str, options: &DystFormatOptions) -> i32 {
     // create source from string input
     let source = Source::from_string(
         SourceId::new(0),
+        "<string>".to_string(),
         Uri::from_string("<string>"),
         options.format,
         string.to_string(),
@@ -233,12 +234,13 @@ fn format_file(
         .map_err(|error| format!("failed to read {}: {error}", path_buf.display()))?;
 
     // create source and format it
-    let source = Source::from_string(
-        SourceId::new(0),
-        Uri::from(&path_buf),
-        format,
-        original_text.clone(),
-    );
+    let name = path_buf
+        .iter()
+        .last()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or("<file>".to_string());
+    let uri = Uri::from(&path_buf);
+    let source = Source::from_string(SourceId::new(0), name, uri, format, original_text.clone());
     let FormattedSource { formatted, session } = format_source(&source, options)
         .map_err(|error| format!("{error} ({})", path_buf.display()))?;
 

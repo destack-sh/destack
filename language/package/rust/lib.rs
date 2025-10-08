@@ -1,7 +1,7 @@
 mod document;
-mod file;
+mod package;
 mod workspace;
 
 pub use document::*;
-pub use file::*;
+pub use package::*;
 pub use workspace::*;

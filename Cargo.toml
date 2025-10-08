@@ -13,10 +13,10 @@ members = [
 	"language/machine",
 	"language/mir",
 	"language/parser",
+	"language/package",
 	"language/prelude",
 	"language/source",
 	"language/string",
-	"language/workspace",
 	# library
 	"library/access",
 	"library/animation",
@@ -80,11 +80,11 @@ dyst_memory = { path = "language/memory" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
+dyst_package = { path = "language/package" }
 dyst_prelude = { path = "language/prelude" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
 dyst_string = { path = "language/string" }
-dyst_workspace = { path = "language/workspace" }
 # library
 destack_access = { path = "library/access" }
 destack_animation = { path = "library/animation" }

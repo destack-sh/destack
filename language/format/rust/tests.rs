@@ -30,6 +30,7 @@ impl TestFormatter {
         let source_id = SourceId::new(0);
         let source = Source::from_string(
             source_id,
+            "<string>".to_string(),
             Uri::from_string("<string>"),
             SourceFormat::Dyst,
             input.to_string(),

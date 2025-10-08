@@ -15,16 +15,18 @@ pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
         fs::read_to_string(path_ref)
             .map_err(|error| format!("failed to read {path}: {error}"))
             .map(|content| {
-                Source::from_string(
-                    SourceId::new(0),
-                    Uri::from_string(path),
-                    SourceFormat::Dyst,
-                    content,
-                )
+                let name = path_ref
+                    .iter()
+                    .next_back()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or("<file>".to_string());
+                let uri = Uri::from_string(path);
+                Source::from_string(SourceId::new(0), name, uri, SourceFormat::Dyst, content)
             })
     } else if let Some(string) = ctx.option("string") {
         Ok(Source::from_string(
             SourceId::new(0),
+            "<string>".to_string(),
             Uri::from_string("<string>"),
             SourceFormat::Dyst,
             string.to_string(),
@@ -47,7 +49,8 @@ pub(crate) fn semantic_spans_from_text(
 ) -> Result<Vec<SemanticSpan>, String> {
     let source = Source::from_string(
         SourceId::new(1),
-        Uri::from_string(label),
+        label.to_string(),
+        Uri::from_string("<string>"),
         SourceFormat::Dyst,
         text.to_string(),
     );

@@ -18,6 +18,11 @@ impl Uri {
     pub fn last_segment(&self) -> Option<&str> {
         self.0.split("/").last()
     }
+
+    /// Check if a URI starts with another URI.
+    pub fn starts_with(&self, other: &Uri) -> bool {
+        self.0.starts_with(&other.0)
+    }
 }
 
 impl FromStr for Uri {

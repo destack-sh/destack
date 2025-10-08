@@ -46,6 +46,7 @@ fn bench_parse(c: &mut Criterion) {
     }
     let source = Source::from_string(
         SourceId::new(0),
+        "<string>".to_string(),
         Uri::from_string("<string>"),
         SourceFormat::Dyst,
         ds_str,

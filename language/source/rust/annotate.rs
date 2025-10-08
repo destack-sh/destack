@@ -438,6 +438,7 @@ mod tests {
         .to_string();
         let source = Source::from_string(
             id,
+            "<test>".to_string(),
             Uri::from_string("<test>"),
             SourceFormat::Dyst,
             content.clone(),
@@ -474,6 +475,7 @@ mod tests {
         let id = SourceId::new(0);
         let source = Source::from_string(
             id,
+            "<test>".to_string(),
             Uri::from_string("<test>"),
             SourceFormat::Dyst,
             content.to_string(),
