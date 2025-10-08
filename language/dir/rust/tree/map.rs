@@ -17,7 +17,7 @@ pub enum NodeSearch {
 #[derive(Debug, Clone)]
 pub struct NodeSpanIndex {
     /// The spans of all nodes. Index is the global node id.
-    spans_per_node: Vec<Span>,
+    spans_by_node: HashMap<u32, Span>,
 }
 
 impl Default for NodeSpanIndex {
@@ -41,39 +41,33 @@ pub struct EnclosingSpan {
 impl NodeSpanIndex {
     pub fn new() -> Self {
         Self {
-            spans_per_node: Vec::new(),
+            spans_by_node: HashMap::new(),
         }
     }
 
     /// Append a span to the map.
     #[inline]
-    pub(crate) fn append(&mut self, span: Span) {
-        self.spans_per_node.push(span);
-    }
-
-    /// Prune spans from the map.
-    #[inline]
-    pub(crate) fn prune_from(&mut self, from_idx: u32) {
-        self.spans_per_node.truncate(from_idx as usize);
+    pub(crate) fn set(&mut self, node_id: u32, span: Span) {
+        self.spans_by_node.insert(node_id, span);
     }
 
     /// Get the span for a node.
     #[inline]
     pub fn get<T: Node>(&self, node_id: NodeId<T>) -> Span {
-        self.spans_per_node[node_id.id as usize]
+        self.spans_by_node.get(&node_id.id).unwrap()
     }
 
     /// Get the span for a node by its id.
     #[inline]
     pub fn get_by_id(&self, node_id: u32) -> Span {
-        self.spans_per_node[node_id as usize]
+        self.spans_by_node.get(&node_id).unwrap()
     }
 
     /// Gets all enclosing spans in the given range (including index).
     #[inline]
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans: Vec<EnclosingSpan> = Vec::new();
-        for (i, span) in self.spans_per_node.iter().enumerate() {
+        for (i, span) in self.spans_by_node.iter().enumerate() {
             if span.contains(start) && span.contains(end_inclusive) {
                 let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end_inclusive);
                 spans.push(EnclosingSpan {

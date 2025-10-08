@@ -3,7 +3,7 @@
 use destack_terminal::{CommandArguments, console};
 use dyst_ast as ast;
 use dyst_ast::{ModuleFormat, TokenType};
-use dyst_compiler::{AstNodeId, Compiler, CompilerOptions};
+use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
 use dyst_package::{DocumentBody, Workspace};
@@ -72,7 +72,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // get the definition
-    let definition: Option<(&ast::NodeTree, ast::NodeId<ast::Definition>)> = {
+    let definition: Option<(ast::NodeTree, ast::NodeId<ast::Definition>)> = {
         // get the definition from the workspace
         if let Some(file) = file
             && workspace.has_document(&Uri::from_string(file))
@@ -83,13 +83,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
                     root_definition_id,
                     ast,
                     ..
-                } => {
-                    if let Some(root_definition_id) = root_definition_id {
-                        Some((ast, *root_definition_id))
-                    } else {
-                        None
-                    }
-                }
+                } => root_definition_id
+                    .as_ref()
+                    .map(|root_definition_id| (ast.clone(), *root_definition_id)),
                 DocumentBody::Binary { .. } => None,
             }
         }
@@ -110,7 +106,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
             );
             parser.finalize();
             if let Some(definition_id) = definition_id {
-                Some((&parser.tree, definition_id))
+                Some((parser.tree, definition_id))
             } else {
                 None
             }

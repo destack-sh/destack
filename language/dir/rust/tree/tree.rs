@@ -102,9 +102,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    ///
-    /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub(super) fn allocate<T>(&mut self, node: T) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -114,32 +112,19 @@ impl NodeTree {
         self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
-        self.spans.append(span);
-        NodeId::new(global_id)
+        let node_id = NodeId::new(global_id);
+        node_id
     }
 
-    /// Prune nodes from the tree. Resets the next id to the given index.
-    #[inline]
-    pub fn reset_to(&mut self, from_idx: u32) {
-        // collect local ids by node type
-        let mut local_ids_by_node: HashMap<NodeType, Vec<u32>> = HashMap::new();
-        for idx in from_idx..self.next_id {
-            let node_type = self.type_by_node[idx as usize];
-            let local_id = self.local_id_by_node[idx as usize];
-            local_ids_by_node
-                .entry(node_type)
-                .or_default()
-                .push(local_id);
-        }
-        // deallocate nodes
-        for (node_type, local_ids) in local_ids_by_node {
-            self.deallocate(node_type, local_ids);
-        }
-        self.type_by_node.truncate(from_idx as usize);
-        self.local_id_by_node.truncate(from_idx as usize);
-        // reset spans & next_id
-        self.spans.prune_from(from_idx);
-        self.next_id = from_idx;
+    /// Allocate a new node in the tree with a span.
+    pub fn allocate_with_span<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let node_id = self.allocate(node);
+        self.spans.set(node_id.id, span);
+        node_id
     }
 
     /// Get the type of an untyped node id.
