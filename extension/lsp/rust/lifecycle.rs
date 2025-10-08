@@ -4,8 +4,8 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_source::SourceFormat;
 use dyst_package::{DocumentBody, Workspace};
+use dyst_source::SourceFormat;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
@@ -310,7 +310,10 @@ impl DestackLanguageServer {
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!("destack.reindex_workspace.start root={}", workspace.root_uri),
+                format!(
+                    "destack.reindex_workspace.start root={}",
+                    workspace.root_uri
+                ),
             )
             .await;
 

@@ -146,11 +146,14 @@ fn get_ancestors_between(root: &Path, end: &Path) -> Vec<PathBuf> {
         if current == root_cleaned {
             break;
         }
-        if let Some(parent) = current.parent() {
-            current = parent.to_path_buf();
-        } else {
+        let Some(parent) = current.parent() else {
+            break;
+        };
+        let parent_path = parent.to_path_buf();
+        if parent_path == current {
             break;
         }
+        current = parent_path;
     }
     while let Some(path) = stack.pop() {
         result.push(path);
@@ -187,6 +190,7 @@ fn strip_prefix<'a>(path: &'a Path, base: &Path) -> Option<&'a Path> {
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::path::Path;
 
     #[test]
     fn test_parse_and_match_ignore() {
@@ -209,6 +213,14 @@ mod tests {
 
         let keep_file = subdirectory.join("keep.log");
         assert!(!ignore_set.is_ignored(&temp_directory, &keep_file, false));
+    }
+
+    /// Ensure ancestor discovery stops when the filesystem root is reached.
+    #[test]
+    fn test_get_ancestors_between_handles_filesystem_root() {
+        let root = Path::new("workspace/root");
+        let ancestors = get_ancestors_between(root, Path::new("/"));
+        assert_eq!(ancestors, vec![PathBuf::from("/")]);
     }
 
     fn tempdir() -> PathBuf {

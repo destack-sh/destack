@@ -1,7 +1,8 @@
-Package {
-    version: "0.0.1"
-    license: "proprietary"
-    authors: ["Symbol Industries"]
-    name: "entity"
-    dependencies: []
-}
+let package =
+    Package {
+        version: "0.0.1"
+        license: "proprietary"
+        authors: ["Symbol Industries"]
+        name: "entity"
+        dependencies: []
+    }

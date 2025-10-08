@@ -1,6 +1,7 @@
 //! AST parsing subcommand.
 
 use destack_terminal::{CommandArguments, console};
+use dyst_ast as ast;
 use dyst_ast::{ModuleFormat, TokenType};
 use dyst_compiler::{AstNodeId, Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
@@ -71,16 +72,24 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // get the definition
-    let definition_id = {
+    let definition: Option<(&ast::NodeTree, ast::NodeId<ast::Definition>)> = {
         // get the definition from the workspace
         if let Some(file) = file
             && workspace.has_document(&Uri::from_string(file))
         {
             let document = workspace.get_document(&Uri::from_string(file)).unwrap();
-            match document.body {
+            match &document.body {
                 DocumentBody::Text {
-                    root_definition_id, ..
-                } => root_definition_id,
+                    root_definition_id,
+                    ast,
+                    ..
+                } => {
+                    if let Some(root_definition_id) = root_definition_id {
+                        Some((ast, *root_definition_id))
+                    } else {
+                        None
+                    }
+                }
                 DocumentBody::Binary { .. } => None,
             }
         }
@@ -100,7 +109,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
                 TokenType::End,
             );
             parser.finalize();
-            definition_id
+            if let Some(definition_id) = definition_id {
+                Some((&parser.tree, definition_id))
+            } else {
+                None
+            }
         }
     };
 
@@ -109,8 +122,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // dump DIR module to output
     let dump_options = DumperOptions::default();
-    if let Some(definition_id) = definition_id {
-        let definition_id = compiler.lower_definition(AstNodeId::new(definition_id, source.id));
+    if let Some((ast, definition_id)) = definition {
+        let definition_id = compiler.lower_definition(&ast, definition_id);
         if let Some(definition_id) = definition_id {
             let mut dumper = compiler.dumper(dump_options);
             dumper.visit_definition(
