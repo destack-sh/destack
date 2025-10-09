@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::Span;
+use dyst_source::{SourceId, Span};
 
 use crate::tree::arena::NodeArena;
 use crate::{
@@ -10,18 +10,19 @@ use crate::{
     PatternField, StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
 };
 
-/// The Node tree.
+/// The AST Node tree for a single source unit.
 #[derive(Clone)]
 pub struct NodeTree {
+    /// The source id of the source unit.
+    pub(crate) source_id: SourceId,
     /// The next id to allocate.
-    pub(crate) next_id: u32,
+    pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
     pub(crate) local_id_by_node: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node: Vec<NodeType>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
-
     /// The spans of the NodeTree.
     pub spans: NodeSpanIndex,
 
@@ -57,26 +58,25 @@ pub struct NodeTree {
 
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree").finish()
-    }
-}
-
-impl Default for NodeTree {
-    fn default() -> Self {
-        Self::new()
+        f.debug_struct("NodeTree")
+            .field("source_id", &self.source_id)
+            .field("next_global_id", &self.next_global_id)
+            .field("node_count", &self.local_id_by_node.len())
+            .finish()
     }
 }
 
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new() -> Self {
-        Self::with_capacity(0)
+    pub fn new(source_id: SourceId) -> Self {
+        Self::with_capacity(source_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(source_id: SourceId, capacity: usize) -> Self {
         Self {
-            next_id: 0,
+            source_id,
+            next_global_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
             type_by_node: Vec::with_capacity(capacity),
             annotations_per_node: HashMap::new(),
@@ -114,7 +114,7 @@ impl NodeTree {
     /// Get the next id.
     #[inline]
     pub fn next_id(&self) -> u32 {
-        self.next_id
+        self.next_global_id
     }
 
     /// Allocate a new node in the tree.
@@ -125,8 +125,8 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let global_id = self.next_id;
-        self.next_id = global_id + 1;
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
         self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
@@ -139,7 +139,7 @@ impl NodeTree {
     pub fn reset_to(&mut self, from_idx: u32) {
         // collect local ids by node type
         let mut local_ids_by_node: HashMap<NodeType, Vec<u32>> = HashMap::new();
-        for idx in from_idx..self.next_id {
+        for idx in from_idx..self.next_global_id {
             let node_type = self.type_by_node[idx as usize];
             let local_id = self.local_id_by_node[idx as usize];
             local_ids_by_node
@@ -155,7 +155,7 @@ impl NodeTree {
         self.local_id_by_node.truncate(from_idx as usize);
         // reset spans & next_id
         self.spans.prune_from(from_idx);
-        self.next_id = from_idx;
+        self.next_global_id = from_idx;
     }
 
     /// Get the type of an untyped node id.
@@ -274,7 +274,7 @@ impl NodeTree {
     /// Append a doc to a node by its global id.
     #[inline]
     pub fn append_annotation(&mut self, global_id: u32, annotation: NodeId<Annotation>) {
-        debug_assert!(global_id < self.next_id);
+        debug_assert!(global_id < self.next_global_id);
         self.annotations_per_node
             .entry(global_id)
             .or_default()

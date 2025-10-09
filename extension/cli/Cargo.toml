@@ -30,9 +30,9 @@ dyst_source = { workspace = true }
 destack_tokei = { workspace = true }
 destack_file = { workspace = true }
 destack_terminal = { workspace = true }
-destack_lsp = { workspace = true, optional = true }
+destack_lsp = { workspace = true }
 
-tokio = { version = "1.47.1", optional = true }
+tokio = { version = "1.47.1" }
 
 [dev-dependencies]
 

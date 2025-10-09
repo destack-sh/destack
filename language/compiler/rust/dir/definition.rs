@@ -1,11 +1,13 @@
 use crate::{AstNodeId, Compiler};
 use dyst_ast as ast;
 use dyst_dir::{Definition, NodeId};
+use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
     /// Lower a definition to a DIR definition.
     pub fn lower_definition(
         &mut self,
+        source_id: SourceId,
         ast: &ast::NodeTree,
         definition_id: ast::NodeId<ast::Definition>,
     ) -> Option<NodeId<Definition>> {

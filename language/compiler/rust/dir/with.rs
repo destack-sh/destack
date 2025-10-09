@@ -13,11 +13,12 @@ impl<'a> Compiler<'a> {
         with_clause: ast::NodeId<ast::WithClause>,
     ) -> NodeId<WithClause> {
         let with_clause = ast.get(with_clause);
-        self.tree.allocate(WithClause {
-            alias: with_clause
-                .alias
-                .map(|alias| self.intern_string(source_id, alias)),
-            right: self.lower_expression(source_id, ast, with_clause.right),
-        })
+        // self.tree.allocate(WithClause {
+        //     alias: with_clause
+        //         .alias
+        //         .map(|alias| self.intern_string(source_id, alias)),
+        //     right: self.lower_expression(source_id, ast, with_clause.right),
+        // })
+        todo!("Compiler::lower_with_clause")
     }
 }

@@ -11,7 +11,7 @@ use crate::AstNodeId;
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {}
 
-/// A compiler for a Workspace of Dyst sources on Dyst DIR.
+/// A compiler for a related set of Dyst sources on Dyst DIR.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
     /// The node tree of the compiled DIR.
@@ -72,10 +72,9 @@ impl<'s> Compiler<'s> {
     pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
         let body = self.get_document_body(source_id);
         let DocumentBody::Text { strings, .. } = body else {
-            panic!("document {:?} is not a text document", source_id);
+            panic!("document {source_id:?} is not a text document");
         };
         let string = strings.get(string_id).to_string(); // nocheckin
-        let string_id = self.strings.intern(string);
-        string_id
+        self.strings.intern(string)
     }
 }
