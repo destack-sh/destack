@@ -50,7 +50,7 @@ impl<'s> Compiler<'s> {
         let document = self
             .workspace
             .get_document_by_id(source_id)
-            .unwrap_or_else(|| panic!("document not found"));
+            .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
         &document.body
     }
 
@@ -65,7 +65,7 @@ impl<'s> Compiler<'s> {
             let node = ast.get(node.id);
             (ast, node)
         } else {
-            panic!("document {:?} is not a text document", node.source_id);
+            panic!("node is not in a text document: {node:?}");
         }
     }
 
@@ -73,7 +73,7 @@ impl<'s> Compiler<'s> {
     pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
         let body = self.get_document_body(source_id);
         let DocumentBody::Text { strings, .. } = body else {
-            panic!("document {source_id:?} is not a text document");
+            panic!("source is not a text document: {source_id:?}");
         };
         // nocheckin TODO #Performance: Compiler.intern_string clone?
         let string = strings.get(string_id).to_string();

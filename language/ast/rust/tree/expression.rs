@@ -31,7 +31,6 @@ pub enum Expression {
     ///    !Bar,
     ///    Time<F> // optional comma
     ///    F: Numeric
-    ///    T > Y
     /// )
     /// ```
     With {

@@ -1,6 +1,6 @@
-use crate::{Node, NodeId, NodeType, StringId, Type};
+use crate::{Node, NodeId, NodeType, StringId, Type, Expression};
 
-/// A Variant is structured type.
+/// A Variant is structured data type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Variant {
     /// Struct type.
@@ -8,15 +8,20 @@ pub enum Variant {
         name: Option<StringId>,
         representation_type: Option<NodeId<Type>>,
         fields: Vec<NodeId<VariantField>>,
+        value: Option<NodeId<Expression>>,
     },
     /// Tuple type.
     Tuple {
         name: Option<StringId>,
         representation_type: Option<NodeId<Type>>,
         fields: Vec<NodeId<VariantField>>,
+        value: Option<NodeId<Expression>>,
     },
-    /// Unit / void type.
-    Unit { name: Option<StringId> },
+    /// Unit / "void" type.
+    Unit {
+        name: Option<StringId>,
+        value: Option<NodeId<Expression>>,
+    },
 }
 
 impl Node for Variant {

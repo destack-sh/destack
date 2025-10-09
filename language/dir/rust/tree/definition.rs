@@ -9,7 +9,7 @@ pub enum Definition {
     Intrinsic { intrinsic: Intrinsic },
     /// Module definition.
     Module {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -17,7 +17,7 @@ pub enum Definition {
     },
     /// Struct definition.
     Struct {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variant: NodeId<Variant>,
@@ -27,7 +27,7 @@ pub enum Definition {
     },
     /// Enum definition.
     Enum {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variant: NodeId<Variant>,
@@ -37,7 +37,7 @@ pub enum Definition {
     },
     /// Union definition.
     Union {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         variants: Vec<NodeId<Variant>>,
@@ -47,7 +47,7 @@ pub enum Definition {
     },
     /// Trait definition.
     Trait {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -56,7 +56,7 @@ pub enum Definition {
     },
     /// Function definition.
     Function {
-        name: StringId,
+        name: Option<StringId>,
         visibility: Option<Visibility>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -64,7 +64,6 @@ pub enum Definition {
     },
     /// Implement definition.
     Implement {
-        name: StringId,
         visibility: Option<Visibility>,
         for_type: Option<NodeId<Type>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -84,13 +83,13 @@ impl Definition {
     pub fn name(&self) -> Option<StringId> {
         match self {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
-            Definition::Module { name, .. } => Some(*name),
-            Definition::Struct { name, .. } => Some(*name),
-            Definition::Enum { name, .. } => Some(*name),
-            Definition::Union { name, .. } => Some(*name),
-            Definition::Trait { name, .. } => Some(*name),
-            Definition::Function { name, .. } => Some(*name),
-            Definition::Implement { name, .. } => Some(*name),
+            Definition::Module { name, .. } => *name,
+            Definition::Struct { name, .. } => *name,
+            Definition::Enum { name, .. } => *name,
+            Definition::Union { name, .. } => *name,
+            Definition::Trait { name, .. } => *name,
+            Definition::Function { name, .. } => *name,
+            Definition::Implement { .. } => None,
             Definition::Let { name, .. } => Some(*name),
         }
     }

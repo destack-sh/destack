@@ -61,8 +61,9 @@ pub enum DocumentBody {
         all_tokens: Vec<TokenSpan>,
         /// The AST of the document.
         ast: NodeTree,
-        /// The root definition ID of the document, when available.
-        root_definition_id: Option<NodeId<Definition>>,
+        /// The root definition ID of the document.
+        /// (In case of irrecoverable errors, this is an empty module.)
+        root_definition_id: NodeId<Definition>,
         /// The string pool.
         strings: StringPool,
     },
@@ -91,6 +92,20 @@ impl DocumentBody {
             None,
             TokenType::End,
         );
+        // default to empty module if no root definition is found
+        let root_definition_id = root_definition_id.unwrap_or_else(|| {
+            parser.tree.allocate(
+                Definition::Module {
+                    name: Some(module_name_id),
+                    format: ModuleFormat::Source,
+                    visibility: None,
+                    with_clauses: None,
+                    where_clauses: None,
+                    expressions: vec![],
+                },
+                source.whole_span(),
+            )
+        });
         parser.finalize();
 
         // combine tokens and AST into document body

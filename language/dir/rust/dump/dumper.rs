@@ -917,7 +917,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Module", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -931,7 +931,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Struct", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -945,7 +945,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -959,7 +959,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Union", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -972,7 +972,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Trait", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -984,12 +984,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("name", name)
+                    .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Implement {
-                name,
                 visibility,
                 for_type: _,
                 with_clauses: _,
@@ -997,7 +996,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Implement", id.id)
-                    .field("name", name)
                     .field_optional("visibility", visibility)
                     .end();
             }
@@ -1063,9 +1061,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Intersection(_) => {
                 self.node("Type::Intersection", id.id).end();
             }
-            Type::Expression(_) => {
-                self.node("Type::Expression", id.id).end();
-            }
             Type::TypeLiteral(literal) => {
                 self.node("Type::TypeLiteral", id.id)
                     .field("literal", literal)
@@ -1081,6 +1076,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Type::Definition(_) => {
                 self.node("Type::Definition", id.id).end();
+            }
+            Type::Expression(_) => {
+                self.node("Type::Expression", id.id).end();
             }
             Type::Error => {
                 self.node("Type::Error", id.id).end();

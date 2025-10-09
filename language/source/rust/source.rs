@@ -153,4 +153,9 @@ impl Source {
         self.get_line_bounds(line_index)
             .and_then(|(s, e)| self.content.get(s..e))
     }
+
+    /// Get entire source Span.
+    pub fn whole_span(&self) -> Span {
+        Span::new(self.id, 0, self.len)
+    }
 }
