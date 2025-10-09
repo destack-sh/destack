@@ -2,7 +2,7 @@ use crate::{Definition, Intrinsic, NodeId, StringId, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
-    // nocheckin TODO #Incomplete: Symbol?
+    // NOTE #Incomplete: Symbol?
 }
 
 /// The id of a symbol.

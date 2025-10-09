@@ -45,23 +45,17 @@ impl<'s> Compiler<'s> {
         Dumper::new(&self.strings, &self.tree, options)
     }
 
-    /// Get the document body by its source ID.
-    pub fn get_document_body(&self, source_id: SourceId) -> &DocumentBody {
-        let document = self
-            .workspace
-            .get_document_by_id(source_id)
-            .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
-        &document.body
-    }
-
     /// Resolve an AST node.
     pub fn get_ast_node<T>(&self, node: AstNodeId<T>) -> (&ast::NodeTree, &T)
     where
         T: ast::Node,
         ast::NodeTree: ast::NodeTreeStore<T>,
     {
-        let body = self.get_document_body(node.source_id);
-        if let DocumentBody::Text { ast, .. } = body {
+        let document = self
+            .workspace
+            .get_document_by_id(node.source_id)
+            .unwrap_or_else(|| panic!("document not found: {node:?}"));
+        if let DocumentBody::Text { ast, .. } = &document.body {
             let node = ast.get(node.id);
             (ast, node)
         } else {
@@ -71,12 +65,16 @@ impl<'s> Compiler<'s> {
 
     // Intern an AST string for a certain source.
     pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
-        let body = self.get_document_body(source_id);
-        let DocumentBody::Text { strings, .. } = body else {
-            panic!("source is not a text document: {source_id:?}");
-        };
-        // nocheckin TODO #Performance: Compiler.intern_string clone?
-        let string = strings.get(string_id).to_string();
-        self.strings.intern(string)
+        let document = self
+            .workspace
+            .get_document_by_id(source_id)
+            .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
+        match &document.body {
+            DocumentBody::Text { strings, .. } => {
+                let string = strings.get(string_id);
+                self.strings.intern(string)
+            }
+            DocumentBody::Binary { .. } => panic!("binary document not supported"),
+        }
     }
 }
