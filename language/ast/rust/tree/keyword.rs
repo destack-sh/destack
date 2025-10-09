@@ -73,6 +73,8 @@ pub enum Keyword {
     Try,
     /// Catch expression.
     Catch,
+    /// Finally expression.
+    Finally,
 }
 
 impl Keyword {
@@ -114,6 +116,7 @@ impl Keyword {
             Keyword::Match => "match",
             Keyword::Try => "try",
             Keyword::Catch => "catch",
+            Keyword::Finally => "finally",
         }
     }
 }
@@ -158,6 +161,7 @@ impl FromStr for Keyword {
             "match" => Ok(Keyword::Match),
             "try" => Ok(Keyword::Try),
             "catch" => Ok(Keyword::Catch),
+            "finally" => Ok(Keyword::Finally),
             _ => Err(()),
         }
     }

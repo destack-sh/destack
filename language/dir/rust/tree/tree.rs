@@ -1,31 +1,31 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{SourceId, Span};
+use dyst_ast as ast;
+use dyst_source::SourceId;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, MatchCase, Node, NodeId, NodeSpanIndex,
-    NodeType, Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause,
+    Annotation, Argument, Block, Definition, Expression, MatchCase, Node, NodeId, NodeType,
+    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause,
     WithClause,
 };
 
-/// The Node tree.
+/// The DIR Node tree across a set of related source units.
 #[derive(Clone)]
 pub struct NodeTree {
     /// The next id to allocate.
-    pub(crate) next_id: u32,
+    pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
     pub(crate) local_id_by_node: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
     pub(crate) source_by_node: Vec<SourceId>,
+    /// The source AST ids of all nodes. Index is the global node id.
+    pub(crate) source_ast_id_by_node: Vec<u32>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
-
-    /// The spans of the NodeTree.
-    pub spans: NodeSpanIndex,
 
     // per-node arenas
     // groupings
@@ -54,13 +54,10 @@ pub struct NodeTree {
 
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree").finish()
-    }
-}
-
-impl Default for NodeTree {
-    fn default() -> Self {
-        Self::new()
+        f.debug_struct("NodeTree")
+            .field("next_global_id", &self.next_global_id)
+            .field("node_count", &self.local_id_by_node.len())
+            .finish()
     }
 }
 
@@ -73,12 +70,12 @@ impl NodeTree {
     /// Create a new NodeTree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            next_id: 0,
+            next_global_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
             type_by_node: Vec::with_capacity(capacity),
             source_by_node: Vec::with_capacity(capacity),
+            source_ast_id_by_node: Vec::with_capacity(capacity),
             annotations_per_node: HashMap::new(),
-            spans: NodeSpanIndex::new(),
             // groupings
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
@@ -105,29 +102,26 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    pub(super) fn allocate<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
+    pub fn allocate<T, U>(
+        &mut self,
+        node: T,
+        source_id: SourceId,
+        source_ast_id: ast::NodeId<U>,
+    ) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
+        U: ast::Node,
+        ast::NodeTree: ast::NodeTreeStore<U>,
     {
-        let global_id = self.next_id;
-        self.next_id = global_id + 1;
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
         self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
         self.source_by_node.push(source_id);
+        self.source_ast_id_by_node.push(source_ast_id.id);
         NodeId::new(global_id)
-    }
-
-    /// Allocate a new node in the tree with a span.
-    pub fn allocate_with_span<T>(&mut self, node: T, source_id: SourceId, span: Span) -> NodeId<T>
-    where
-        T: Node,
-        Self: NodeTreeStore<T>,
-    {
-        let node_id = self.allocate(node, source_id);
-        self.spans.set(node_id.id, span);
-        node_id
     }
 
     /// Get the type of an untyped node id.
@@ -156,33 +150,6 @@ impl NodeTree {
     {
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
-    }
-
-    /// Get the span for a node.
-    #[inline]
-    pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
-    where
-        T: Node,
-    {
-        self.spans.get(node_id)
-    }
-
-    /// Get the span for a node by its id.
-    #[inline]
-    pub fn get_span_by_id(&self, node_id: u32) -> Span {
-        self.spans.get_by_id(node_id)
-    }
-
-    /// Get the spans for all nodes of a given type.
-    #[inline]
-    pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
-        let mut spans = Vec::new();
-        for (idx, ty) in self.type_by_node.iter().enumerate() {
-            if *ty == node_type {
-                spans.push(self.spans.get_by_id(idx as u32));
-            }
-        }
-        spans
     }
 
     /// Get the nodes for all nodes of a given type.
@@ -232,7 +199,7 @@ impl NodeTree {
     /// Append a doc to a node by its global id.
     #[inline]
     pub fn append_annotation(&mut self, global_id: u32, annotation: NodeId<Annotation>) {
-        debug_assert!(global_id < self.next_id);
+        debug_assert!(global_id < self.next_global_id);
         self.annotations_per_node
             .entry(global_id)
             .or_default()

@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
             options: ParserOptions::default(),
             is_finalized: false,
             // result
-            tree: NodeTree::new(),
+            tree: NodeTree::new(source.id),
             strings: StringPool::new(),
             paths: PathPool::new(),
             session,

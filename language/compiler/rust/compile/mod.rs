@@ -1,5 +1,5 @@
+mod ast;
 mod compiler;
-mod node;
 
+pub use ast::*;
 pub use compiler::*;
-pub use node::*;

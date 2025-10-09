@@ -119,7 +119,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // dump DIR module to output
     let dump_options = DumperOptions::default();
     if let Some((ast, definition_id)) = definition {
-        let definition_id = compiler.lower_definition(&ast, definition_id);
+        let definition_id = compiler.lower_definition(source.id, &ast, definition_id);
         if let Some(definition_id) = definition_id {
             let mut dumper = compiler.dumper(dump_options);
             dumper.visit_definition(
