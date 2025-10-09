@@ -1,7 +1,9 @@
 mod annotation;
 mod argument;
+mod block;
 mod definition;
 mod expression;
+mod function;
 mod r#loop;
 mod r#match;
 mod path;

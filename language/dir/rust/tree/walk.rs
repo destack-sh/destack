@@ -504,7 +504,11 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Function {
             name: _,
             visibility: _,
+            runtime: _,
             static_parameters,
+            self_parameter: _,
+            dynamic_parameters,
+            return_type,
             with_clauses,
             where_clauses,
             definitions,
@@ -514,6 +518,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     let parameter = tree.get(*parameter_id);
                     walk_parameter(visitor, tree, *parameter_id, parameter);
                 }
+            }
+            for parameter_id in dynamic_parameters.iter() {
+                let parameter = tree.get(*parameter_id);
+                walk_parameter(visitor, tree, *parameter_id, parameter);
+            }
+            if let Some(return_type) = return_type {
+                let return_type_node = tree.get(*return_type);
+                walk_type(visitor, tree, *return_type, return_type_node);
             }
             if let Some(with_clauses) = with_clauses {
                 for clause_id in with_clauses.iter() {
@@ -533,21 +545,24 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            for_type,
             static_parameters,
+            receiver,
+            for_type,
             with_clauses,
             where_clauses,
             definitions,
         } => {
-            if let Some(for_type_id) = for_type {
-                let implement_type = tree.get(*for_type_id);
-                walk_type(visitor, tree, *for_type_id, implement_type);
-            }
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
                     let parameter = tree.get(*parameter_id);
                     walk_parameter(visitor, tree, *parameter_id, parameter);
                 }
+            }
+            let receiver_type = tree.get(*receiver);
+            walk_type(visitor, tree, *receiver, receiver_type);
+            if let Some(for_type_id) = for_type {
+                let implement_type = tree.get(*for_type_id);
+                walk_type(visitor, tree, *for_type_id, implement_type);
             }
             if let Some(with_clauses) = with_clauses {
                 for clause_id in with_clauses.iter() {

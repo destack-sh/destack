@@ -480,6 +480,17 @@ impl Dump for ScopedMutability {
     }
 }
 
+/// Dump a SelfParameter as a string.
+impl Dump for SelfParameter {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("SelfParameter")
+            .field("mutability", &self.mutability)
+            .field("is_reference", &self.is_reference)
+            .end();
+    }
+}
+
 /// Dump a LoopSource as a string.
 impl Dump for LoopSource {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -983,19 +994,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 name,
                 visibility,
+                runtime,
                 static_parameters: _,
+                self_parameter,
+                dynamic_parameters: _,
+                return_type: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
             } => {
                 self.node("Definition::Function", id.id)
+                    .field("runtime", runtime)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("self_parameter", self_parameter)
                     .end();
             }
             Definition::Implement {
-                for_type: _,
                 static_parameters: _,
+                receiver: _,
+                for_type: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,

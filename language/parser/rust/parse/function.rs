@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
                 self.eat_self_keyword()?; // eat self
                 Some(SelfParameter {
                     mutability,
-                    is_pointer: false,
+                    is_reference: false,
                 })
             }
             // self
@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
                     mutability: ScopedMutability::Unscoped {
                         mutability: Mutability::Immutable,
                     },
-                    is_pointer: false,
+                    is_reference: false,
                 })
             }
             // &var_ self
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
                 self.eat_self_keyword()?; // eat self
                 Some(SelfParameter {
                     mutability,
-                    is_pointer: true,
+                    is_reference: true,
                 })
             }
             // &self
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
                     mutability: ScopedMutability::Unscoped {
                         mutability: Mutability::Immutable,
                     },
-                    is_pointer: true,
+                    is_reference: true,
                 })
             }
             // other
@@ -305,7 +305,7 @@ function foo() => int32 with (
             assert_string!(parser, name.unwrap(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(!self_param.is_pointer);
+            assert!(!self_param.is_reference);
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert!(dynamic_parameters.is_empty());
@@ -331,7 +331,7 @@ function b(
             assert_string!(parser, name.unwrap(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(self_param.is_pointer);
+            assert!(self_param.is_reference);
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert_eq!(dynamic_parameters.len(), 1);
@@ -357,7 +357,7 @@ function b(
             assert_string!(parser, name.unwrap(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(self_param.is_pointer);
+            assert!(self_param.is_reference);
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
             assert!(dynamic_parameters.is_empty());

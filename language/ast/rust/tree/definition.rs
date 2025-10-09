@@ -1,8 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
-    Visibility, WhereClause, WithClause,
+    Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility,
+    WhereClause, WithClause,
 };
 
 // NOTE #Incomplete?: type alias (type x = y)
@@ -238,7 +238,7 @@ pub enum Definition {
     /// }
     /// ```
     Implement {
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         receiver: NodeId<Expression>,
         for_type: Option<NodeId<Expression>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -422,5 +422,5 @@ pub struct SelfParameter {
     /// Whether the self parameter is mutable.
     pub mutability: ScopedMutability,
     /// Whether the self parameter is a pointer.
-    pub is_pointer: bool,
+    pub is_reference: bool,
 }

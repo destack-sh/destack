@@ -1034,7 +1034,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Implement {
-                static_arguments: _,
+                static_parameters: _,
                 receiver: _,
                 for_type: _,
                 with_clauses: _,
