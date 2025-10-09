@@ -1,6 +1,6 @@
 use crate::{
     Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,
-    NodeTreeStore, NodeType, Path, PathId, PathPool, TokenSpan, TokenType,
+    NodeTreeStore, NodeType, TokenSpan, TokenType,
 };
 use dyst_fir::format::{
     Format, FormatContext, FormatOptions, FormatResult, Formatter, IndentStyle, LineEnding,
@@ -132,8 +132,6 @@ pub struct DystFormatContext<'ast> {
     pub parents: NodeParentIndex,
     /// The string pool.
     pub strings: &'ast StringPool,
-    /// The path pool.
-    pub paths: &'ast PathPool,
     /// The session.
     pub session: &'ast Session,
 }
@@ -154,11 +152,6 @@ impl<'ast> DystFormatContext<'ast> {
     /// Get an interned string.
     pub fn get_string(&self, string_id: StringId) -> &str {
         self.strings.get(string_id)
-    }
-
-    /// Get an interned path.
-    pub fn get_path(&self, path_id: PathId) -> &Path {
-        self.paths.get(path_id)
     }
 
     /// Get a Node from the tree.

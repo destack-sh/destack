@@ -94,8 +94,7 @@ impl<'a> Parser<'a> {
             }
             // path or identifier
             else {
-                let path_id = self.eat_path().for_node_type(NodeType::Pattern)?;
-                let path = self.paths.get(path_id);
+                let path = self.eat_path().for_node_type(NodeType::Pattern)?;
                 // tuple with path
                 if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                     self.bump(); // eat open parenthesis
@@ -104,7 +103,7 @@ impl<'a> Parser<'a> {
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Pattern)?;
                     let pattern = Pattern::Tuple {
-                        path: Some(path_id),
+                        path: Some(path),
                         fields,
                     };
                     self.eat_token(TokenType::CloseParenthesis)?;
@@ -113,7 +112,7 @@ impl<'a> Parser<'a> {
                 // path
                 else if path.segments.len() > 1 {
                     self.tree
-                        .allocate(Pattern::Path(path_id), self.get_span_from(start))
+                        .allocate(Pattern::Path { path }, self.get_span_from(start))
                 }
                 // identifier (without mutability)
                 else {
@@ -333,7 +332,7 @@ mod tests {
         let mut test = TestParser::new("MyEnum.A");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
+        assert_node!(parser.tree, pattern_id, Pattern::Path { path } => {
             assert_path!(parser, *path, "MyEnum.A");
         });
     }

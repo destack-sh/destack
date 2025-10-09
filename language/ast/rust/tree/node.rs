@@ -7,7 +7,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::{Keyword, PathId};
+use crate::{Keyword, Path};
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -173,7 +173,7 @@ pub enum ScopedMutability {
         /// The mutability of the scoped mutability.
         mutability: Mutability,
         /// The scopes of the scoped mutability.
-        scopes: Vec<PathId>,
+        scopes: Vec<Path>,
     },
 }
 

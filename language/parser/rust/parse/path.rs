@@ -1,9 +1,9 @@
-use crate::{AstResult, Parser, PathId, TokenType};
+use crate::{AstResult, Parser, Path, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {
     /// Eat a Path.
-    pub fn eat_path(&mut self) -> AstResult<PathId> {
+    pub fn eat_path(&mut self) -> AstResult<Path> {
         let mut segments: Vec<StringId> = Vec::new();
 
         // first identifier
@@ -26,8 +26,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let path_id = self.intern_path(segments);
-        Ok(path_id)
+        let path = Path { segments };
+        Ok(path)
     }
 }
 

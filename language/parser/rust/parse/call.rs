@@ -123,6 +123,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Path;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, NodeId, Parser, Runtime, ScalarLiteral, assert_node, assert_string,
@@ -130,7 +132,9 @@ mod tests {
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let self_str = parser.intern_string("self");
-        let self_path = parser.intern_path(vec![self_str]);
+        let self_path = Path {
+            segments: vec![self_str],
+        };
         parser.tree.allocate(
             Expression::Path {
                 path: self_path,

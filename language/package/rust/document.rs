@@ -1,6 +1,4 @@
-use dyst_ast::{
-    Definition, ModuleFormat, NodeId, NodeParentIndex, NodeTree, PathPool, TokenSpan, TokenType,
-};
+use dyst_ast::{Definition, ModuleFormat, NodeId, NodeParentIndex, NodeTree, TokenSpan, TokenType};
 use dyst_fir::format;
 use dyst_format::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
@@ -67,8 +65,6 @@ pub enum DocumentBody {
         root_definition_id: Option<NodeId<Definition>>,
         /// The string pool.
         strings: StringPool,
-        /// The path pool.
-        paths: PathPool,
     },
     Binary {
         /// The binary content of the document.
@@ -107,7 +103,6 @@ impl DocumentBody {
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
         let strings = parser.strings;
-        let paths = parser.paths;
 
         DocumentBody::Text {
             source,
@@ -118,7 +113,6 @@ impl DocumentBody {
             ast,
             root_definition_id,
             strings,
-            paths,
         }
     }
 
@@ -208,7 +202,6 @@ impl Document {
             ast,
             root_definition_id: module_id,
             strings,
-            paths,
             ..
         } = &self.body
         else {
@@ -229,7 +222,6 @@ impl Document {
             parents: NodeParentIndex::from_tree(ast),
             session,
             strings,
-            paths,
         };
         let formatted = format!(context, [module_id]).unwrap();
         let printed = formatted.print();

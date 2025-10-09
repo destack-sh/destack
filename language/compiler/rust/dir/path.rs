@@ -9,9 +9,9 @@ impl<'a> Compiler<'a> {
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        path_id: ast::PathId,
+        path: &ast::Path,
     ) -> Path {
-		// let path = document = ...
+        // let path = document = ...
         todo!("Compiler::lower_path")
     }
 }

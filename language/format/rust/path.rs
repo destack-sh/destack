@@ -1,14 +1,6 @@
-use crate::{DystFormatContext, DystFormatter, Path, PathId};
+use crate::{DystFormatContext, DystFormatter, Path};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-
-impl<'ast> Format<DystFormatContext<'ast>> for PathId {
-    #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
-        let path = f.context().get_path(*self).clone();
-        path.format(f)
-    }
-}
 
 impl<'ast> Format<DystFormatContext<'ast>> for Path {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {

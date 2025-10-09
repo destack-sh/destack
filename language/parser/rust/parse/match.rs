@@ -250,8 +250,8 @@ match self {
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
-                assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    assert_path!(parser, *path_id, "TetrisPieceShape.I");
+                assert_node!(parser.tree, *pattern, Pattern::Path { path } => {
+                    assert_path!(parser, *path, "TetrisPieceShape.I");
                 });
                 // Color.Blue
                 assert_expr_path!(parser, parser.tree.get(*body), "Color.Blue");
@@ -261,8 +261,8 @@ match self {
             assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
-                assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    assert_path!(parser, *path_id, "TetrisPieceShape.J");
+                assert_node!(parser.tree, *pattern, Pattern::Path { path } => {
+                    assert_path!(parser, *path, "TetrisPieceShape.J");
                 });
                 // Color.Red
                 assert_expr_path!(parser, parser.tree.get(*body), "Color.Red");

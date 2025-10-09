@@ -6,7 +6,6 @@ use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
 
 use crate::{
     AstError, AstResult, Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType,
-    Path, PathId, PathPool,
 };
 use dyst_session::Session;
 
@@ -142,8 +141,6 @@ pub struct Parser<'ast> {
     pub tree: NodeTree,
     /// The string pool.
     pub strings: StringPool,
-    /// The path pool.
-    pub paths: PathPool,
 
     /// The session.
     pub session: &'ast mut Session,
@@ -181,7 +178,6 @@ impl<'a> Parser<'a> {
             // result
             tree: NodeTree::new(source.id),
             strings: StringPool::new(),
-            paths: PathPool::new(),
             session,
             eof_token,
             errors: Vec::new(),
@@ -227,7 +223,7 @@ impl<'a> Parser<'a> {
 
     /// Create a new Dumper.
     pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
-        Dumper::new(&self.strings, &self.paths, &self.tree, options)
+        Dumper::new(&self.strings, &self.tree, options)
     }
 
     /// Get the current position in the tokens.
@@ -270,16 +266,6 @@ impl<'a> Parser<'a> {
     /// Get an interned string.
     pub fn get_string(&self, string_id: StringId) -> &str {
         self.strings.get(string_id)
-    }
-
-    /// Intern a path.
-    pub fn intern_path<T: AsRef<[StringId]>>(&mut self, path: T) -> PathId {
-        self.paths.intern(path)
-    }
-
-    /// Get an interned path.
-    pub fn get_path(&self, path_id: PathId) -> &Path {
-        self.paths.get(path_id)
     }
 
     /// Gets a mark of the current position.

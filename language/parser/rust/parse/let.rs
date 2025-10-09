@@ -1,4 +1,4 @@
-use crate::{Expression, PathId, TokenType};
+use crate::{Expression, Path, TokenType};
 
 use crate::{AstResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
 
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
         let scoped_mutability = {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
-                let mut scopes: Vec<PathId> = Vec::new();
+                let mut scopes: Vec<Path> = Vec::new();
                 loop {
                     // break on close parenthesis
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {

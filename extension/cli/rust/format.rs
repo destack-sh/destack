@@ -292,7 +292,6 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
     let side_tokens = parser.side_tokens;
     let tree = parser.tree;
     let strings = parser.strings;
-    let paths = parser.paths;
     let context = DystFormatContext {
         options: options.clone(),
         source,
@@ -304,7 +303,6 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
         parents: NodeParentIndex::from_tree(&tree),
         session: &session,
         strings: &strings,
-        paths: &paths,
     };
 
     // format and print the document
