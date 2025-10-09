@@ -27,8 +27,8 @@ impl<'a> Parser<'a> {
         // keyword
         self.eat_keyword(Keyword::Implement)?;
 
-        // static arguments
-        let static_arguments = self.eat_static_arguments_maybe()?;
+        // static parameters
+        let static_parameters = self.eat_static_parameters_maybe()?;
 
         // receiver
         let receiver = self.with_options(self.options.in_before_block(), |parser| {
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
         // implement
         let implement_id = self.tree.allocate(
             Definition::Implement {
-                static_arguments,
+                static_parameters,
                 receiver,
                 for_type,
                 with_clauses,
@@ -76,10 +76,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Parameter;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, BinaryOperator, Definition, Expression, IntType, TypeLiteral, WhereClause,
-        WithClause, assert_expr_path, assert_node, assert_path,
+        WithClause, assert_expr_path, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -94,8 +96,8 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
-            assert!(static_arguments.is_none());
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+            assert!(static_parameters.is_none());
             assert!(for_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -119,8 +121,8 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
-            assert!(static_arguments.is_none());
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+            assert!(static_parameters.is_none());
             assert!(for_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -154,8 +156,8 @@ implement Bar<int32> for Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
-            assert!(static_arguments.is_none());
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+            assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -182,10 +184,10 @@ implement Bar<int32> for Baz {
     }
 
     #[test]
-    fn test_parse_implement_with_generic_parameters() {
+    fn test_parse_implement_with_static_parameters() {
         let mut test = TestParser::new(
             r###"
-implement<T> Bar<T> for Baz<T> {
+implement<U> Bar<T> for Baz<T> {
 }
 "###,
         );
@@ -193,17 +195,17 @@ implement<T> Bar<T> for Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
-            // <T>
-            let static_args = static_arguments.as_ref().expect("expected static arguments");
-            assert_eq!(static_args.len(), 1);
-            assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "T");
-                });
+            // implement<U>
+            let static_parameters = static_parameters.as_ref().expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, default } => {
+                assert_string!(parser, *name, "U");
+                assert!(ty.is_none());
+                assert!(default.is_none());
             });
 
             // Bar<T>
@@ -211,9 +213,9 @@ implement<T> Bar<T> for Baz<T> {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
-                let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(receiver_static_args.len(), 1);
-                assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
@@ -221,13 +223,13 @@ implement<T> Bar<T> for Baz<T> {
             });
 
             // for Baz<T>
-            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, .. } => {
+            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
-                let receiver_static_args = static_arguments.as_ref().expect("expected static arguments");
-                assert_eq!(receiver_static_args.len(), 1);
-                assert_node!(parser.tree, receiver_static_args[0], Argument::Positional { value } => {
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });

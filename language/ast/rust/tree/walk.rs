@@ -663,17 +663,17 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            static_arguments,
+            static_parameters,
             receiver,
             for_type,
             with_clauses,
             where_clauses,
             expressions,
         } => {
-            if let Some(static_arguments) = static_arguments {
-                for arg_id in static_arguments {
-                    let arg = tree.get(*arg_id);
-                    visitor.visit_argument(tree, *arg_id, arg);
+            if let Some(static_parameters) = static_parameters {
+                for argument_id in static_parameters {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_parameter(tree, *argument_id, argument);
                 }
             }
             let receiver_expr = tree.get(*receiver);

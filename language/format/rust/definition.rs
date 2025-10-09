@@ -542,7 +542,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
-                static_arguments,
+                static_parameters: static_arguments,
                 receiver,
                 for_type,
                 with_clauses: with,
@@ -660,11 +660,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                             });
                             let mut join = f.join_with(&separator);
                             if let Some(self_parameter) = self_parameter.as_ref() {
-                                let is_pointer = self_parameter.is_pointer;
+                                let is_reference = self_parameter.is_reference;
                                 let mutability = &self_parameter.mutability;
                                 join.entry(&format_with(move |f| {
                                     // pointer
-                                    if is_pointer {
+                                    if is_reference {
                                         write!(f, [token("&")])?;
                                     }
                                     // mutability

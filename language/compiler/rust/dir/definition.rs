@@ -338,7 +338,7 @@ impl<'a> Compiler<'a> {
                 name,
                 visibility,
                 runtime,
-                style,
+                style: _,
                 self_parameter,
                 dynamic_parameters,
                 return_type,
@@ -348,18 +348,86 @@ impl<'a> Compiler<'a> {
                 body,
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
-                todo!("Compiler::lower_definition->Function");
+                let visibility = visibility.map(|v| self.lower_visibility(v));
+                let runtime = self.lower_runtime(*runtime);
+                let static_parameters = static_parameters.as_ref().map(|params| {
+                    params
+                        .iter()
+                        .map(|param| self.lower_parameter(source_id, ast, *param))
+                        .collect()
+                });
+                let self_parameter = self_parameter
+                    .as_ref()
+                    .map(|param| self.lower_self_parameter(source_id, ast, param));
+                let dynamic_parameters = dynamic_parameters
+                    .iter()
+                    .map(|param| self.lower_parameter(source_id, ast, *param))
+                    .collect();
+                let return_type = return_type
+                    .as_ref()
+                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
+                let with_clauses = with_clauses.as_ref().map(|clauses| {
+                    clauses
+                        .iter()
+                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
+                        .collect()
+                });
+                let where_clauses = where_clauses.as_ref().map(|clauses| {
+                    clauses
+                        .iter()
+                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
+                        .collect()
+                });
+                let definitions = {
+                    if let Some(body) = body {
+                        let body = ast.get(*body);
+                        body.expressions
+                            .iter()
+                            .filter_map(|expr| {
+                                self.lower_expression_to_definition(source_id, ast, *expr)
+                            })
+                            .collect()
+                    } else {
+                        vec![]
+                    }
+                };
+                self.tree.allocate(
+                    Definition::Function {
+                        name,
+                        visibility,
+                        runtime,
+                        static_parameters,
+                        self_parameter,
+                        dynamic_parameters,
+                        return_type,
+                        with_clauses,
+                        where_clauses,
+                        definitions,
+                    },
+                    source_id,
+                    definition_id,
+                )
             }
 
             // Implement definition
             ast::Definition::Implement {
-                static_arguments,
+                static_parameters,
                 receiver,
                 for_type,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
+                let static_parameters = static_parameters.as_ref().map(|params| {
+                    params
+                        .iter()
+                        .map(|param| self.lower_parameter(source_id, ast, *param))
+                        .collect()
+                });
+                let receiver = self.lower_expression_to_type(source_id, ast, *receiver);
+                let for_type = for_type
+                    .as_ref()
+                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -376,19 +444,11 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                let static_parameters = static_arguments.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|arg| self.lower_argument(source_id, ast, *arg))
-                        .collect()
-                });
-                let for_type = for_type.as_ref().map(|ty| {
-                    self.lower_expression_to_type(source_id, ast, *ty)
-                });
                 self.tree.allocate(
                     Definition::Implement {
-                        for_type,
                         static_parameters,
+                        receiver,
+                        for_type,
                         with_clauses,
                         where_clauses,
                         definitions,

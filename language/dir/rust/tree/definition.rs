@@ -1,5 +1,5 @@
 use crate::{
-    Intrinsic, Node, NodeId, NodeType, Parameter, StringId, Type, Variant, Visibility, WhereClause, WithClause
+    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause
 };
 
 /// Definition introduces a type or function into its scope.
@@ -58,19 +58,24 @@ pub enum Definition {
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
-    /// Function definition.
+    /// Function definition. Nested definitions are lifted from the body.
     Function {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        runtime: Runtime,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        self_parameter: Option<SelfParameter>,
+        dynamic_parameters: Vec<NodeId<Parameter>>,
+        return_type: Option<NodeId<Type>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Implement definition.
     Implement {
-        for_type: Option<NodeId<Type>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        receiver: NodeId<Type>,
+        for_type: Option<NodeId<Type>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
@@ -150,4 +155,11 @@ impl Definition {
 
 impl Node for Definition {
     const KIND: NodeType = NodeType::Definition;
+}
+
+/// The "self" parameter for a function (also accepts `this` and `&`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelfParameter {
+    pub mutability: ScopedMutability,
+    pub is_reference: bool,
 }
