@@ -758,16 +758,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Use { items: _, body: _ } => {
                 self.node("Expression::Use", id.id).end();
             }
+            Expression::Let {
+                mutability,
+                visibility,
+                pattern: _,
+                ty: _,
+                value: _,
+            } => {
+                self.node("Expression::Let", id.id)
+                    .field("mutability", mutability)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
+
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Reference { right: _ } => {
-                self.node("Expression::Reference", id.id).end();
-            }
-            Expression::Dereference { right: _ } => {
-                self.node("Expression::Dereference", id.id).end();
+            Expression::Reference {
+                mutability,
+                right: _,
+            } => {
+                self.node("Expression::Reference", id.id)
+                    .field("mutability", mutability)
+                    .end();
             }
             Expression::Binary {
                 left: _,

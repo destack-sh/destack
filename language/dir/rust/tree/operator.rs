@@ -9,6 +9,8 @@ pub enum UnaryOperator {
     WrappingNegate = 235,
     /// `~`
     ElementwiseNot = 234,
+    /// `*`
+    Dereference = 233,
     /// `$`
     Virtual = 232,
     /// `..`
@@ -85,7 +87,7 @@ pub enum BinaryOperator {
     Cast = 170,
 }
 
-/// An AssignOperator is assignment type.
+/// An AssignOperator is an assignment type.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
     // assignment multiplication

@@ -1,25 +1,31 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId,
-    NodeType, Path, Pattern, ScalarLiteral, Type, TypeLiteral, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId, NodeType, Path, Pattern, ScalarLiteral, ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    // Block of "statements" (inside `{}` usually)
+    /// Block of "statements" (inside `{}` usually)
     Block(NodeId<Block>),
 
-    // With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
+    /// With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
     With {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-
-    // Use dependency declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
+    /// Use dependency declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
     Use {
         items: Vec<NodeId<UseItem>>,
         body: Option<NodeId<Block>>,
+    },
+    /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
+    Let {
+        mutability: ScopedMutability,
+        visibility: Option<Visibility>,
+        pattern: NodeId<Pattern>,
+        ty: Option<NodeId<Type>>,
+        value: Option<NodeId<Expression>>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).
@@ -29,10 +35,7 @@ pub enum Expression {
     },
     /// Reference operation (e.g., `&x`).
     Reference {
-        right: NodeId<Expression>,
-    },
-    /// Dereference operation (e.g., `*x`).
-    Dereference {
+        mutability: ScopedMutability,
         right: NodeId<Expression>,
     },
     /// Binary operation.
@@ -73,7 +76,6 @@ pub enum Expression {
         value: NodeId<Expression>,
         ty: NodeId<Type>,
     },
-    // nocheckin TODO #Incomplete: Expression.Let?
     /// --------------------------------
     /// Literals.
     /// --------------------------------

@@ -25,7 +25,6 @@ pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
     /// Wildcard rest pattern (`..`).
-    /// nocheckin TODO #Incomplete: support Rest patterns (`..`)
     Rest,
     /// Maybe pattern (like `T?`).
     Maybe(NodeId<Pattern>),

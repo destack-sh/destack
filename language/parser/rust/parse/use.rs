@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
         // optional alias `as Ident` (only when no grouped items were present)
         let alias = if items.is_none() {
             if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
-                // support both `as` and `:`
+                // handle both `as` and `:`
                 if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
                     self.bump(); // eat `as` or `:`
                     Some(self.eat_identifier()?)
