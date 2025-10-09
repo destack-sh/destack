@@ -1,5 +1,5 @@
 use crate::{
-    Intrinsic, Node, NodeId, NodeType, StringId, Type, Variant, Visibility, WhereClause, WithClause,
+    Intrinsic, Node, NodeId, NodeType, Parameter, StringId, Type, Variant, Visibility, WhereClause, WithClause
 };
 
 /// Definition introduces a type or function into its scope.
@@ -20,6 +20,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         variant: NodeId<Variant>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -30,6 +31,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         variant: NodeId<Variant>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -40,6 +42,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         variants: Vec<NodeId<Variant>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -50,6 +53,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
@@ -58,14 +62,15 @@ pub enum Definition {
     Function {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Implement definition.
     Implement {
-        visibility: Option<Visibility>,
         for_type: Option<NodeId<Type>>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
@@ -98,14 +103,14 @@ impl Definition {
     #[inline]
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
-            Definition::Intrinsic { .. } => Some(Visibility::Public),
+            Definition::Intrinsic { .. } => None,
             Definition::Module { visibility, .. } => *visibility,
             Definition::Struct { visibility, .. } => *visibility,
             Definition::Enum { visibility, .. } => *visibility,
             Definition::Union { visibility, .. } => *visibility,
             Definition::Trait { visibility, .. } => *visibility,
             Definition::Function { visibility, .. } => *visibility,
-            Definition::Implement { visibility, .. } => *visibility,
+            Definition::Implement { .. } => None,
             Definition::Let { visibility, .. } => *visibility,
         }
     }

@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::OpenBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let statements = self
+        let expressions = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)
@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
                 super_types,
                 with_clauses,
                 where_clauses,
-                expressions: statements,
+                expressions,
             },
             self.get_span_from(start),
         );

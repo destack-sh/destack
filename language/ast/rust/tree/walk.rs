@@ -665,7 +665,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Implement {
             static_arguments,
             receiver,
-            for_trait,
+            for_type,
             with_clauses,
             where_clauses,
             expressions,
@@ -678,9 +678,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
-            if let Some(for_trait) = for_trait {
-                let trait_expr = tree.get(*for_trait);
-                visitor.visit_expression(tree, *for_trait, trait_expr);
+            if let Some(for_type) = for_type {
+                let trait_expr = tree.get(*for_type);
+                visitor.visit_expression(tree, *for_type, trait_expr);
             }
             if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {

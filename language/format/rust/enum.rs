@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_enum_with_statements() {
+    fn test_format_enum_with_expressions() {
         assert_format!(
             r"enum { 
 				let X = 1

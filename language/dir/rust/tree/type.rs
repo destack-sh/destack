@@ -187,6 +187,8 @@ pub enum Type {
     /// Self type (only inside associated scopes for types).
     Self_,
     /// Definition type.
+    /// nocheckin #Incomplete: shouldn't the Definition type be an instance (statically parameterized)?
+    ///  (same with all statically parameterized instantiations like Functions etc.?)
     Definition(NodeId<Definition>),
     /// An expression yet to be evaluated into a Type (like a Path).
     Expression(NodeId<Expression>),

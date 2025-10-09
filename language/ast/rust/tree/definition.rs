@@ -240,7 +240,7 @@ pub enum Definition {
     Implement {
         static_arguments: Option<Vec<NodeId<Argument>>>,
         receiver: NodeId<Expression>,
-        for_trait: Option<NodeId<Expression>>,
+        for_type: Option<NodeId<Expression>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
@@ -257,7 +257,7 @@ pub enum Definition {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     ///
-    /// function foo<T, U>(x: T) => (int32, boolean) with (
+    /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
     ///    U: Numeric
     /// ) {

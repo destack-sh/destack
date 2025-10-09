@@ -36,12 +36,12 @@ impl<'a> Parser<'a> {
         })?;
 
         // for
-        let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
+        let for_type = if self.peek_keyword(Keyword::For).is_ok() {
             self.bump(); // eat for
-            let for_trait = self.with_options(self.options.in_before_block(), |parser| {
+            let for_type = self.with_options(self.options.in_before_block(), |parser| {
                 parser.eat_expression()
             })?;
-            Some(for_trait)
+            Some(for_type)
         } else {
             None
         };
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
             Definition::Implement {
                 static_arguments,
                 receiver,
-                for_trait,
+                for_type,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -94,9 +94,9 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
             assert!(static_arguments.is_none());
-            assert!(for_trait.is_none());
+            assert!(for_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -119,9 +119,9 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
             assert!(static_arguments.is_none());
-            assert!(for_trait.is_none());
+            assert!(for_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -143,7 +143,7 @@ implement Foo<int32> {
     }
 
     #[test]
-    fn test_parse_implement_for_trait() {
+    fn test_parse_implement_for_type() {
         let mut test = TestParser::new(
             r###"
 implement Bar<int32> for Baz {
@@ -154,7 +154,7 @@ implement Bar<int32> for Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
             assert!(static_arguments.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -175,7 +175,7 @@ implement Bar<int32> for Baz {
             });
 
             // for Baz
-            assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
+            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
         });
@@ -193,7 +193,7 @@ implement<T> Bar<T> for Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_trait, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_arguments, receiver, for_type, where_clauses, expressions, .. } => {
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -221,7 +221,7 @@ implement<T> Bar<T> for Baz<T> {
             });
 
             // for Baz<T>
-            assert_node!(parser.tree, for_trait.unwrap(), Expression::Path { path, .. } => {
+            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, .. } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>

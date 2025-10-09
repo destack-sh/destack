@@ -544,7 +544,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Implement {
                 static_arguments,
                 receiver,
-                for_trait,
+                for_type,
                 with_clauses: with,
                 where_clauses,
                 expressions,
@@ -577,8 +577,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space(), receiver])?;
 
                 // for clause
-                if let Some(for_trait) = for_trait {
-                    write!(f, [space(), Keyword::For, space(), for_trait])?;
+                if let Some(for_type) = for_type {
+                    write!(f, [space(), Keyword::For, space(), for_type])?;
                 }
 
                 // with

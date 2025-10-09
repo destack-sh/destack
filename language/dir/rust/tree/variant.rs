@@ -5,21 +5,31 @@ use crate::{Node, NodeId, NodeType, StringId, Type, Expression};
 pub enum Variant {
     /// Struct type.
     Struct {
+        /// Name of the variant.
         name: Option<StringId>,
+        /// Representation type of the variant.
         representation_type: Option<NodeId<Type>>,
+        /// Fields of the variant.
         fields: Vec<NodeId<VariantField>>,
+        /// Discriminator value.
         value: Option<NodeId<Expression>>,
     },
     /// Tuple type.
     Tuple {
+        /// Name of the variant.
         name: Option<StringId>,
+        /// Representation type of the variant.
         representation_type: Option<NodeId<Type>>,
+        /// Fields of the variant.
         fields: Vec<NodeId<VariantField>>,
+        /// Discriminator value.
         value: Option<NodeId<Expression>>,
     },
     /// Unit / "void" type.
     Unit {
+        /// Name of the variant.
         name: Option<StringId>,
+        /// Discriminator value.
         value: Option<NodeId<Expression>>,
     },
 }
