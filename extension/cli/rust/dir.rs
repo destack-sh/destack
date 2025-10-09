@@ -1,15 +1,12 @@
 //! AST parsing subcommand.
 
 use destack_terminal::{CommandArguments, console};
-use dyst_ast as ast;
-use dyst_ast::{ModuleFormat, TokenType};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
 use dyst_package::{DocumentBody, Workspace};
-use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{AnnotateOptions, Color, Uri, annotate_source};
+use dyst_source::{AnnotateOptions, Color, SourceFormat, Uri, annotate_source};
 
 use crate::source::read_source;
 
@@ -23,14 +20,14 @@ pub const HELP: &str = r"Parse and compile source into DIR (implicit module).
 
 /// Parse source into an DIR and dump the module.
 pub fn run(ctx: CommandArguments) -> i32 {
-    let mut session = Session::new();
+    let session = Session::new();
     let file = ctx.option("file");
     let package = ctx.option("package");
     let standalone = ctx.flag("standalone");
     let verbose = ctx.flag("verbose");
 
     // load workspace
-    let workspace: Workspace = {
+    let mut workspace: Workspace = {
         // package workspace
         if let Some(package) = package {
             let package_uri = Uri::from_string(package);
@@ -71,8 +68,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // get the definition
-    let definition: Option<(ast::NodeTree, ast::NodeId<ast::Definition>)> = {
+    // get the document & definition
+    let (source_id, definition_id) = {
         // get the definition from the workspace
         if let Some(file) = file
             && workspace.has_document(&Uri::from_string(file))
@@ -80,56 +77,44 @@ pub fn run(ctx: CommandArguments) -> i32 {
             let document = workspace.get_document(&Uri::from_string(file)).unwrap();
             match &document.body {
                 DocumentBody::Text {
-                    root_definition_id,
-                    ast,
-                    ..
-                } => root_definition_id
-                    .as_ref()
-                    .map(|root_definition_id| (ast.clone(), *root_definition_id)),
-                DocumentBody::Binary { .. } => None,
+                    root_definition_id, ..
+                } => (document.id, *root_definition_id),
+                DocumentBody::Binary { .. } => panic!("binary document not supported"),
             }
         }
-        // parse as implicit module if file is not in workspace
+        // add source to workspace if file is not in workspace
         else {
-            let mut parser = Parser::prepare(&source, &mut session);
-            let module_name = source.uri.last_segment().unwrap_or("<string>");
-            let module_name_id = parser.intern_string(module_name);
-            let definition_id = parser.with_recovery(
-                parser.mark(),
-                |parser| {
-                    parser
-                        .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
-                        .map(Some)
-                },
-                None,
-                TokenType::End,
+            let uri = Uri::from_string(source.name.clone());
+            let source_id = workspace.upsert_text_document(
+                &uri,
+                SourceFormat::DystText,
+                true,
+                source.content.clone(),
             );
-            parser.finalize();
-            if let Some(definition_id) = definition_id {
-                Some((parser.tree, definition_id))
-            } else {
-                None
+            let document = workspace.get_document_by_id(source_id).unwrap();
+            match &document.body {
+                DocumentBody::Text {
+                    root_definition_id, ..
+                } => (source_id, *root_definition_id),
+                DocumentBody::Binary { .. } => panic!("binary document not supported"),
             }
         }
     };
 
-    // compile the AST to DIR
-    let mut compiler = Compiler::new(&workspace, CompilerOptions::default());
-
-    // dump DIR module to output
+    // compile the AST to DIR & dump it
     let dump_options = DumperOptions::default();
-    if let Some((ast, definition_id)) = definition {
-        let definition_id = compiler.lower_definition(source.id, &ast, definition_id);
-        if let Some(definition_id) = definition_id {
-            let mut dumper = compiler.dumper(dump_options);
-            dumper.visit_definition(
-                &compiler.tree,
-                definition_id,
-                compiler.tree.get(definition_id),
-            );
-            console::info(&dumper.finish());
-        }
-    }
+    let mut compiler = Compiler::new(&workspace, CompilerOptions::default());
+    let ast = workspace
+        .get_document_ast_by_id(source_id)
+        .unwrap_or_else(|| panic!("document ast not found: {source_id:?}"));
+    let definition_id = compiler.lower_definition(source_id, ast, definition_id);
+    let mut dumper = compiler.dumper(dump_options);
+    dumper.visit_definition(
+        &compiler.tree,
+        definition_id,
+        compiler.tree.get(definition_id),
+    );
+    console::info(&dumper.finish());
 
     // print diagnostics
     for diagnostic in &session.diagnostics {

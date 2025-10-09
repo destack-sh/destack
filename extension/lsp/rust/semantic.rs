@@ -52,7 +52,7 @@ pub fn collect_semantic_tokens(
     source: &Source,
     tokens: &Vec<TokenSpan>,
     tree: &NodeTree,
-    root_definition_id: Option<NodeId<Definition>>,
+    root_definition_id: NodeId<Definition>,
     range: Option<&lsp::Range>,
 ) -> Option<Vec<lsp::SemanticToken>> {
     if tokens.is_empty() {
@@ -61,10 +61,8 @@ pub fn collect_semantic_tokens(
 
     // build semantic type mapping from AST if available
     let mut semantic_index = SemanticTokenIndex::from_tokens(source, tokens);
-    if let Some(definition_id) = root_definition_id {
-        let definition = tree.get(definition_id);
-        semantic_index.visit_definition(tree, definition_id, definition);
-    }
+    let definition = tree.get(root_definition_id);
+    semantic_index.visit_definition(tree, root_definition_id, definition);
 
     // convert range to byte span for filtering
     let byte_span = if let Some(range) = range {

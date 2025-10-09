@@ -498,7 +498,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            name: _,
             visibility: _,
             for_type,
             with_clauses,
@@ -559,10 +558,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let target_type = tree.get(*target);
             walk_type(visitor, tree, *target, target_type);
         }
-        Type::Expression(expression_id) => {
-            let expression = tree.get(*expression_id);
-            walk_expression(visitor, tree, *expression_id, expression);
-        }
         Type::Definition(definition_id) => {
             let definition = tree.get(*definition_id);
             walk_definition(visitor, tree, *definition_id, definition);
@@ -582,6 +577,10 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 let element_type = tree.get(*element_id);
                 walk_type(visitor, tree, *element_id, element_type);
             }
+        }
+        Type::Expression(expression_id) => {
+            let expression = tree.get(*expression_id);
+            walk_expression(visitor, tree, *expression_id, expression);
         }
         Type::Error => {}
     }

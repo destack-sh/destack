@@ -1,10 +1,11 @@
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 use dyst_ast as ast;
 use dyst_source::SourceId;
 
 /// A unique identifier for an AST node from some Source.
-#[derive(Clone, PartialEq, Debug, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct AstNodeId<T: ast::Node> {
     /// The underlying AST node id.
     pub id: ast::NodeId<T>,
@@ -12,6 +13,15 @@ pub struct AstNodeId<T: ast::Node> {
     pub source_id: SourceId,
     /// The type of the underlying AST node.
     _ty: PhantomData<fn() -> T>,
+}
+
+impl<T: ast::Node> Debug for AstNodeId<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AstNodeId")
+            .field("id", &self.id)
+            .field("source_id", &self.source_id)
+            .finish()
+    }
 }
 
 impl<T: ast::Node> AstNodeId<T> {
@@ -26,12 +36,21 @@ impl<T: ast::Node> AstNodeId<T> {
 }
 
 /// A unique identifier for an AST node from some Source.
-#[derive(Clone, PartialEq, Debug, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct AstNodeIdAny {
     /// The underlying AST node id.
     pub id: ast::NodeIdAny,
     /// The source id of the underlying AST node.
     pub source_id: SourceId,
+}
+
+impl Debug for AstNodeIdAny {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AstNodeIdAny")
+            .field("id", &self.id)
+            .field("source_id", &self.source_id)
+            .finish()
+    }
 }
 
 impl AstNodeIdAny {

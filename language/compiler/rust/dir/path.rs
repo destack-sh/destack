@@ -8,10 +8,15 @@ impl<'a> Compiler<'a> {
     pub fn lower_path(
         &mut self,
         source_id: SourceId,
-        ast: &ast::NodeTree,
+        _ast: &ast::NodeTree,
         path: &ast::Path,
     ) -> Path {
-        // let path = document = ...
-        todo!("Compiler::lower_path")
+        Path::String {
+            segments: path
+                .segments
+                .iter()
+                .map(|segment| self.intern_string(source_id, *segment))
+                .collect(),
+        }
     }
 }

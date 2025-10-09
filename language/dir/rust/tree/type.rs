@@ -180,8 +180,6 @@ pub enum Type {
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
 
-    /// An expression yet to be evaluated into a Type (like a Path).
-    Expression(NodeId<Expression>),
     /// Scalar primitive type.
     TypeLiteral(TypeLiteral),
     /// Literal value type.
@@ -190,7 +188,9 @@ pub enum Type {
     Self_,
     /// Definition type.
     Definition(NodeId<Definition>),
-
+    /// An expression yet to be evaluated into a Type (like a Path).
+    Expression(NodeId<Expression>),
+    
     /// Error type that could not be evaluated.
     Error,
 }
