@@ -32,20 +32,77 @@ impl<'a> Compiler<'a> {
         annotation_id: ast::NodeId<ast::Annotation>,
     ) -> NodeId<Annotation> {
         let annotation = ast.get(annotation_id);
-        let position = self.lower_annotation_position(annotation.position());
         match annotation {
             ast::Annotation::Blank { node, position } => {
                 let blank = ast.get(*node);
+                let position = self.lower_annotation_position(*position);
+                let lines = blank.lines;
                 self.tree.allocate(
-                    Annotation::Blank {
+                    Annotation::Blank { position, lines },
+                    source_id,
+                    annotation_id,
+                )
+            }
+            ast::Annotation::Doc { node, position } => {
+                let doc = ast.get(*node);
+                let position = self.lower_annotation_position(*position);
+                let string = self.intern_string(source_id, doc.string);
+                self.tree.allocate(
+                    Annotation::Doc { position, string },
+                    source_id,
+                    annotation_id,
+                )
+            }
+            ast::Annotation::Comment { node, position } => {
+                let comment = ast.get(*node);
+                let position = self.lower_annotation_position(*position);
+                let string = self.intern_string(source_id, comment.string);
+                self.tree.allocate(
+                    Annotation::Comment { position, string },
+                    source_id,
+                    annotation_id,
+                )
+            }
+            ast::Annotation::Tag { node, position } => {
+                let tag = ast.get(*node);
+                let position = self.lower_annotation_position(*position);
+                let receiver = self.lower_path(source_id, ast, tag.receiver);
+                let arguments = tag.arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .collect()
+                });
+                self.tree.allocate(
+                    Annotation::Tag {
                         position,
-                        lines: blank.lines,
+                        receiver,
+                        arguments,
                     },
                     source_id,
                     annotation_id,
                 )
             }
-            _ => todo!(),
+            ast::Annotation::Decorator { node, position } => {
+                let decorator = ast.get(*node);
+                let position = self.lower_annotation_position(*position);
+                let receiver = self.lower_path(source_id, ast, decorator.receiver);
+                let arguments = decorator.arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .collect()
+                });
+                self.tree.allocate(
+                    Annotation::Decorator {
+                        position,
+                        receiver,
+                        arguments,
+                    },
+                    source_id,
+                    annotation_id,
+                )
+            }
         }
     }
 }

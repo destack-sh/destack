@@ -4,6 +4,7 @@ mod definition;
 mod expression;
 mod r#loop;
 mod r#match;
+mod path;
 mod r#type;
 mod r#where;
 mod with;
