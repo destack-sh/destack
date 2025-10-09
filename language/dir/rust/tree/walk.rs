@@ -189,6 +189,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let ty_node = tree.get(*ty);
             walk_type(visitor, tree, *ty, ty_node);
         }
+        Expression::Path { path: _ } => {
+            // nothing to do
+        }
         Expression::ScalarLiteral { value: _ } => {
             // nothing to do
         }
@@ -714,7 +717,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::Named { name: _, value } | Argument::Positional(value) => {
+        Argument::Named { name: _, value } | Argument::Positional { value } => {
             let value_expression = tree.get(*value);
             walk_expression(visitor, tree, *value, value_expression);
         }

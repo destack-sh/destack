@@ -531,15 +531,15 @@ impl Dump for Path {
                     .field("intrinsic", intrinsic)
                     .end();
             }
-            Path::AbsoluteString { segments } => {
+            Path::String { segments } => {
                 dumper
-                    .object("Path::AbsoluteString")
+                    .object("Path::String")
                     .field("segments", segments)
                     .end();
             }
-            Path::RelativeString { segments, .. } => {
+            Path::Relative { segments, .. } => {
                 dumper
-                    .object("Path::RelativeString")
+                    .object("Path::Relative")
                     .field("segments", segments)
                     .end();
             }
@@ -795,6 +795,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Cast { value: _, ty: _ } => {
                 self.node("Expression::Cast", id.id).end();
+            }
+            Expression::Path { path } => {
+                self.node("Expression::Path", id.id)
+                    .field("path", path)
+                    .end();
             }
             Expression::InlineDefinition { definition: _ } => {
                 self.node("Expression::InlineDefinition", id.id).end();
@@ -1208,7 +1213,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Argument::Positional(_) => {
+            Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", id.id).end();
             }
         }

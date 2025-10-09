@@ -73,10 +73,15 @@ pub enum Expression {
         value: NodeId<Expression>,
         ty: NodeId<Type>,
     },
-    // nocheckin: Expression.Let?
+    // nocheckin TODO #Incomplete: Expression.Let?
     /// --------------------------------
     /// Literals.
     /// --------------------------------
+    /// Path.
+    /// --------------------------------
+    Path {
+        path: Path,
+    },
     // Inline definition as a value (with a name or anonymous)
     InlineDefinition {
         definition: NodeId<Definition>,
