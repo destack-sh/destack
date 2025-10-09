@@ -924,6 +924,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Struct {
                 name,
                 visibility,
+                static_parameters: _,
                 super_types: _,
                 variant: _,
                 with_clauses: _,
@@ -939,6 +940,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 super_types: _,
+                static_parameters: _,
                 variant: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -953,6 +955,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 super_types: _,
+                static_parameters: _,
                 variants: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -967,6 +970,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 super_types: _,
+                static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
@@ -979,6 +983,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 name,
                 visibility,
+                static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
@@ -989,15 +994,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Implement {
-                visibility,
                 for_type: _,
+                static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
             } => {
-                self.node("Definition::Implement", id.id)
-                    .field_optional("visibility", visibility)
-                    .end();
+                self.node("Definition::Implement", id.id).end();
             }
             Definition::Let { name, visibility } => {
                 self.node("Definition::Let", id.id)
@@ -1095,6 +1098,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 representation_type: _,
                 fields: _,
+                value: _,
             } => {
                 self.node("Variant::Struct", id.id)
                     .field_optional("name", name)
@@ -1104,12 +1108,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 representation_type: _,
                 fields: _,
+                value: _,
             } => {
                 self.node("Variant::Tuple", id.id)
                     .field_optional("name", name)
                     .end();
             }
-            Variant::Unit { name } => {
+            Variant::Unit { name, value: _ } => {
                 self.node("Variant::Unit", id.id)
                     .field_optional("name", name)
                     .end();

@@ -107,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_struct_with_statements() {
+    fn test_format_struct_with_expressions() {
         assert_format!(
             r"struct { let X = 1 }",
             r"struct {

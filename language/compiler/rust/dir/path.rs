@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{NodeId, Path};
+use dyst_dir::Path;
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {

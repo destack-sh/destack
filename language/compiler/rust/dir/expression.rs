@@ -35,10 +35,23 @@ impl<'a> Compiler<'a> {
     /// Lower scoped mutability into a DIR scoped mutability.
     #[inline]
     pub fn lower_scoped_mutability(
-        &self,
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
         scoped_mutability: ast::ScopedMutability,
     ) -> ScopedMutability {
-        todo!("Compiler::lower_scoped_mutability")
+        match scoped_mutability {
+            ast::ScopedMutability::Unscoped { mutability } => ScopedMutability::Unscoped {
+                mutability: self.lower_mutability(mutability),
+            },
+            ast::ScopedMutability::Scoped { mutability, scopes } => ScopedMutability::Scoped {
+                mutability: self.lower_mutability(mutability),
+                scopes: scopes
+                    .iter()
+                    .map(|scope| self.lower_path(source_id, ast, scope))
+                    .collect(),
+            },
+        }
     }
 
     /// Lower an expression to a DIR expression.
