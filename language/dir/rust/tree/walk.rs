@@ -140,9 +140,29 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 walk_block(visitor, tree, *body_id, block);
             }
         }
+        Expression::Let {
+            mutability: _,
+            visibility: _,
+            pattern: pattern_id,
+            ty: ty_id,
+            value: value_id,
+        } => {
+            let pattern = tree.get(*pattern_id);
+            walk_pattern(visitor, tree, *pattern_id, pattern);
+            if let Some(ty_id) = ty_id {
+                let ty = tree.get(*ty_id);
+                walk_type(visitor, tree, *ty_id, ty);
+            }
+            if let Some(value_id) = value_id {
+                let value = tree.get(*value_id);
+                walk_expression(visitor, tree, *value_id, value);
+            }
+        }
         Expression::Unary { operator: _, right }
-        | Expression::Reference { right }
-        | Expression::Dereference { right } => {
+        | Expression::Reference {
+            mutability: _,
+            right,
+        } => {
             let right_expression = tree.get(*right);
             walk_expression(visitor, tree, *right, right_expression);
         }

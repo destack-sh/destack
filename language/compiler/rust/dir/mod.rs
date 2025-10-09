@@ -6,6 +6,7 @@ mod expression;
 mod function;
 mod r#loop;
 mod r#match;
+mod operator;
 mod path;
 mod r#type;
 mod variant;

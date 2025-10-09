@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Block, Expression, Mutability, NodeId, Runtime, ScopedMutability, Visibility};
+use dyst_dir::{Block, NodeId};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -12,8 +12,16 @@ impl<'a> Compiler<'a> {
         ast: &ast::NodeTree,
         block_id: ast::NodeId<ast::Block>,
     ) -> NodeId<Block> {
-        // let block = ast.get(block_id);
-        // self.tree.allocate(block, source_id, block_id)
-        todo!("Compiler::lower_block")
+        let block = ast.get(block_id);
+        let label = block
+            .label
+            .map(|label| self.intern_string(source_id, label));
+        let expressions = block
+            .expressions
+            .iter()
+            .map(|expression| self.lower_expression(source_id, ast, *expression))
+            .collect();
+        self.tree
+            .allocate(Block { label, expressions }, source_id, block_id)
     }
 }

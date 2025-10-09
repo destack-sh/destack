@@ -61,6 +61,12 @@ impl Debug for NodeTree {
     }
 }
 
+impl Default for NodeTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeTree {
     /// Create a new NodeTree.
     pub fn new() -> Self {
@@ -165,35 +171,6 @@ impl NodeTree {
             }
         }
         nodes
-    }
-
-    /// Remove a given local node.
-    #[inline]
-    fn deallocate(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
-        match node_type {
-            // groupings
-            NodeType::Expression => self.expressions.deallocate(local_ids),
-            NodeType::Block => self.blocks.deallocate(local_ids),
-            // definitions
-            NodeType::Definition => self.definitions.deallocate(local_ids),
-            // types
-            NodeType::Type => self.types.deallocate(local_ids),
-            NodeType::Variant => self.variants.deallocate(local_ids),
-            NodeType::VariantField => self.variant_fields.deallocate(local_ids),
-            NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            // context
-            NodeType::WithClause => self.with_clauses.deallocate(local_ids),
-            NodeType::UseItem => self.use_items.deallocate(local_ids),
-            // bindings
-            NodeType::Parameter => self.parameters.deallocate(local_ids),
-            NodeType::Argument => self.arguments.deallocate(local_ids),
-            // matching
-            NodeType::MatchCase => self.match_cases.deallocate(local_ids),
-            NodeType::Pattern => self.patterns.deallocate(local_ids),
-            NodeType::PatternField => self.pattern_fields.deallocate(local_ids),
-            // annotations
-            NodeType::Annotation => self.annotations.deallocate(local_ids),
-        }
     }
 
     /// Append a doc to a node by its global id.
