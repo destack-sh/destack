@@ -14,6 +14,7 @@ pub struct CompilerOptions {}
 /// A compiler for a related set of Dyst sources on Dyst DIR.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
+    // nocheckin TODO: restrict Compiler to just one package (and track deps)?
     /// The node tree of the compiled DIR.
     pub tree: NodeTree,
     /// The string pool.
@@ -74,7 +75,8 @@ impl<'s> Compiler<'s> {
         let DocumentBody::Text { strings, .. } = body else {
             panic!("document {source_id:?} is not a text document");
         };
-        let string = strings.get(string_id).to_string(); // nocheckin
+        // nocheckin TODO #Performance: Compiler.intern_string clone?
+        let string = strings.get(string_id).to_string();
         self.strings.intern(string)
     }
 }

@@ -10,15 +10,14 @@ impl<'a> Compiler<'a> {
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        with_clause: ast::NodeId<ast::WithClause>,
+        with_clause_id: ast::NodeId<ast::WithClause>,
     ) -> NodeId<WithClause> {
-        let with_clause = ast.get(with_clause);
-        // self.tree.allocate(WithClause {
-        //     alias: with_clause
-        //         .alias
-        //         .map(|alias| self.intern_string(source_id, alias)),
-        //     right: self.lower_expression(source_id, ast, with_clause.right),
-        // })
-        todo!("Compiler::lower_with_clause")
+        let with_clause = ast.get(with_clause_id);
+        let alias = with_clause
+            .alias
+            .map(|alias| self.intern_string(source_id, alias));
+        let right = self.lower_expression(source_id, ast, with_clause.right);
+        self.tree
+            .allocate(WithClause { alias, right }, source_id, with_clause_id)
     }
 }

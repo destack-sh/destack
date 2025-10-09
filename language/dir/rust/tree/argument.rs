@@ -21,7 +21,7 @@ pub enum Argument {
         value: NodeId<Expression>,
     },
     /// A positional argument.
-    Positional(NodeId<Expression>),
+    Positional { value: NodeId<Expression> },
 }
 
 impl Node for Argument {

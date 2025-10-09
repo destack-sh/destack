@@ -279,7 +279,7 @@ impl DestackLanguageServer {
         workspace_handle: Arc<RwLock<Workspace>>,
         uris: Option<Vec<dyst_source::Uri>>,
     ) {
-        // NOTE #Incomplete: re-analyze in background (we just have the new AST-level diagnostics here)
+        // TODO #Incomplete: re-analyze in background (for DIR-level stuff)
 
         // read the workspace once
         let workspace = workspace_handle.read().await;

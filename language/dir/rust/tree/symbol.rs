@@ -2,7 +2,7 @@ use crate::{Definition, Intrinsic, NodeId, StringId, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
-    // nocheckin
+    // nocheckin TODO #Incomplete: Symbol?
 }
 
 /// The id of a symbol.
@@ -16,9 +16,9 @@ pub enum Path {
     /// Resolved Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
     /// Unresolved absolute string path.
-    AbsoluteString { segments: Vec<StringId> },
+    String { segments: Vec<StringId> },
     /// Unresolved relative string path.
-    RelativeString {
+    Relative {
         root: NodeId<Type>,
         segments: Vec<StringId>,
     },
