@@ -939,7 +939,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Binding { name: _ } => {
             // no child nodes to visit
         }
-        Pattern::Path(_) => {
+        Pattern::Path { path: _ } => {
             // no child nodes to visit
         }
         Pattern::Range {

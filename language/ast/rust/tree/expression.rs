@@ -1,7 +1,7 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, PathId,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, Path,
     Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
 };
 
@@ -291,7 +291,7 @@ pub enum Expression {
     //  (like `Foo<int32, boolean>.Bar<Yes: true>`)
     /// Alias reference to some path, statically parameterized.
     Path {
-        path: PathId,
+        path: Path,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
 
@@ -405,7 +405,7 @@ pub enum Expression {
     /// ```
     Member {
         receiver: NodeId<Expression>,
-        path: PathId,
+        path: Path,
     },
 
     /// Index into a receiver expression.

@@ -31,7 +31,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_scalar_literal(literal, f.context().tree.get_span(node_id), f)?;
             }
             Pattern::Binding { name } => write!(f, [name])?,
-            Pattern::Path(path) => write!(f, [path])?,
+            Pattern::Path { path } => write!(f, [path])?,
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,
             Pattern::Tuple { path, fields } => {
                 if let Some(path) = path {

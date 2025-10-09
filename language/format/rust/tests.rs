@@ -5,7 +5,7 @@ use dyst_parser::{AstResult, Parser};
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
-use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, PathPool};
+use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -17,7 +17,6 @@ pub(crate) struct TestFormatter {
     pub side_span: MultiSpan,
     pub tree: NodeTree,
     pub strings: StringPool,
-    pub paths: PathPool,
 }
 
 impl TestFormatter {
@@ -48,7 +47,6 @@ impl TestFormatter {
         let tokens = parser.tokens;
         let side_tokens = parser.side_tokens;
         let strings = parser.strings;
-        let paths = parser.paths;
 
         let formatter = Self {
             session,
@@ -58,7 +56,6 @@ impl TestFormatter {
             side_span,
             tree,
             strings,
-            paths,
         };
 
         Ok((formatter, n))
@@ -80,7 +77,6 @@ impl TestFormatter {
             side_tokens: &self.side_tokens,
             side_span: &self.side_span,
             strings: &self.strings,
-            paths: &self.paths,
         };
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();

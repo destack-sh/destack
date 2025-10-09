@@ -210,15 +210,14 @@ macro_rules! assert_lit_int {
 /// Assert a `Path` directly against an expected string.
 #[macro_export]
 macro_rules! assert_path {
-    ($parser:expr, $id:expr, $expected:expr) => {{
-        let got = $parser.get_path($id);
-        let got_str = got
+    ($parser:expr, $path:expr, $expected:expr) => {{
+        let path_str = $path
             .segments
             .iter()
             .map(|s| $parser.get_string(*s))
             .collect::<Vec<_>>()
             .join(".");
-        assert_eq!(got_str, $expected, "expected path");
+        assert_eq!(path_str, $expected, "expected path");
     }};
 }
 

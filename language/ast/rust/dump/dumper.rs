@@ -84,8 +84,6 @@ impl Default for DumperOptions {
 pub struct Dumper<'a> {
     /// The string pool.
     pub strings: &'a StringPool,
-    /// The path pool.
-    pub paths: &'a PathPool,
     /// The node tree.
     pub tree: &'a NodeTree,
     /// The dump options.
@@ -104,15 +102,9 @@ pub struct Dumper<'a> {
 
 impl<'a> Dumper<'a> {
     /// Create a new Dumper.
-    pub fn new(
-        strings: &'a StringPool,
-        paths: &'a PathPool,
-        tree: &'a NodeTree,
-        options: DumperOptions,
-    ) -> Self {
+    pub fn new(strings: &'a StringPool, tree: &'a NodeTree, options: DumperOptions) -> Self {
         Self {
             strings,
-            paths,
             tree,
             options,
             buffer: String::new(),
@@ -205,8 +197,7 @@ impl<'a> Dumper<'a> {
 
     /// Write the path behind a PathId.
     #[inline]
-    pub fn write_path_id(&mut self, id: PathId) {
-        let path = self.paths.get(id);
+    pub fn write_path(&mut self, path: &Path) {
         for (i, string_id) in path.segments.iter().enumerate() {
             let string = self.strings.get(*string_id);
             self.write_str(string, Some(Color::Green));
@@ -446,10 +437,10 @@ impl Dump for StringId {
     }
 }
 
-/// Dump a PathId as a string.
-impl Dump for PathId {
+/// Dump a Path as a string.
+impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_path_id(*self);
+        dumper.write_path(self);
     }
 }
 
@@ -1255,7 +1246,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Pattern::Path(path) => {
+            Pattern::Path { path } => {
                 self.node("Pattern::Path", _id.id).field("path", path).end();
             }
             Pattern::Range {

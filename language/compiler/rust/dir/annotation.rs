@@ -66,7 +66,7 @@ impl<'a> Compiler<'a> {
             ast::Annotation::Tag { node, position } => {
                 let tag = ast.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(source_id, ast, tag.receiver);
+                let receiver = self.lower_path(source_id, ast, &tag.receiver);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -86,7 +86,7 @@ impl<'a> Compiler<'a> {
             ast::Annotation::Decorator { node, position } => {
                 let decorator = ast.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(source_id, ast, decorator.receiver);
+                let receiver = self.lower_path(source_id, ast, &decorator.receiver);
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()

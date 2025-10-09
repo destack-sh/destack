@@ -12,8 +12,7 @@ impl<'a> Compiler<'a> {
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
         let expression = self.lower_expression(source_id, ast, expression_id);
-        self
-            .tree
+        self.tree
             .allocate(Type::Expression(expression), source_id, expression_id)
     }
 }

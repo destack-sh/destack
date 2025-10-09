@@ -6,7 +6,7 @@
 
 use std::fmt::Debug;
 
-use crate::{Argument, Node, NodeId, NodeType, PathId, StringId};
+use crate::{Argument, Node, NodeId, NodeType, Path, StringId};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {
@@ -152,7 +152,7 @@ impl Node for Comment {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tag {
     /// The tag name / path.
-    pub receiver: PathId,
+    pub receiver: Path,
     /// The arguments (if any).
     pub arguments: Option<Vec<NodeId<Argument>>>,
 }
@@ -172,7 +172,7 @@ impl Node for Tag {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Decorator {
     /// The decorator name / path.
-    pub receiver: PathId,
+    pub receiver: Path,
     /// The arguments (if any).
     pub arguments: Option<Vec<NodeId<Argument>>>,
 }
