@@ -101,13 +101,16 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // compile the AST to DIR & dump it
-    let dump_options = DumperOptions::default();
+    // compile the AST to DIR
     let mut compiler = Compiler::new(&workspace, CompilerOptions::default());
-    let ast = workspace
+    let dir_tree = workspace
         .get_document_ast_by_id(source_id)
         .unwrap_or_else(|| panic!("document ast not found: {source_id:?}"));
-    let definition_id = compiler.lower_definition(source_id, ast, definition_id);
+    let definition_id = compiler.lower_definition(source_id, dir_tree, definition_id);
+    compiler.finalize();
+
+    // dump the DIR
+    let dump_options = DumperOptions::default();
     let mut dumper = compiler.dumper(dump_options);
     dumper.visit_definition(
         &compiler.tree,

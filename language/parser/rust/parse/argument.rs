@@ -48,7 +48,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let parameter_id = self.tree.allocate(parameter, self.get_span_from(start));
+        let parameter_id = self.tree.insert(parameter, self.get_span_from(start));
         Ok(parameter_id)
     }
 
@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
-                .allocate(Argument::Named { name, value }, self.get_span_from(start));
+                .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // positional argument
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression()?;
             let argument_id = self
                 .tree
-                .allocate(Argument::Positional { value }, self.get_span_from(start));
+                .insert(Argument::Positional { value }, self.get_span_from(start));
             Ok(argument_id)
         }
     }

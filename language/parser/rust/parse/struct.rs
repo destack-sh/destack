@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
-        let struct_id = self.tree.allocate(
+        let struct_id = self.tree.insert(
             Definition::Struct {
                 name,
                 visibility,
@@ -241,7 +241,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let field_id = self.tree.allocate(
+        let field_id = self.tree.insert(
             VariantField { name, ty, default },
             self.get_span_from(start),
         );

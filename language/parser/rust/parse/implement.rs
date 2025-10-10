@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // implement
-        let implement_id = self.tree.allocate(
+        let implement_id = self.tree.insert(
             Definition::Implement {
                 static_parameters,
                 receiver,

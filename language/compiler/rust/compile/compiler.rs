@@ -31,6 +31,9 @@ pub struct Compiler<'s> {
     pub workspace: &'s Workspace,
     /// The session to compile with.
     pub session: &'s Session,
+
+    /// Whether the compiler has been finalized.
+    pub is_finalized: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -43,6 +46,7 @@ impl<'s> Compiler<'s> {
             options,
             workspace,
             session: &workspace.session,
+            is_finalized: false,
         }
     }
 
@@ -82,5 +86,12 @@ impl<'s> Compiler<'s> {
             }
             DocumentBody::Binary { .. } => panic!("binary document not supported"),
         }
+    }
+
+    /// Finalize the compiler.
+    pub fn finalize(&mut self) {
+        assert!(!self.is_finalized, "already finalized");
+        self.attach_all_annotations();
+        self.is_finalized = true;
     }
 }

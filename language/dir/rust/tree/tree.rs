@@ -24,6 +24,8 @@ pub struct NodeTree {
     pub(crate) source_by_node_id: Vec<SourceId>,
     /// The source AST ids of all nodes. Index is the global node id.
     pub(crate) ast_id_by_node_id: Vec<u32>,
+    /// The node id by AST source / node id.
+    pub(crate) node_id_by_ast_id: HashMap<(SourceId, u32), u32>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
@@ -81,6 +83,7 @@ impl NodeTree {
             type_by_node_id: Vec::with_capacity(capacity),
             source_by_node_id: Vec::with_capacity(capacity),
             ast_id_by_node_id: Vec::with_capacity(capacity),
+            node_id_by_ast_id: HashMap::new(),
             annotations_per_node_id: HashMap::new(),
             // groupings
             expressions: NodeArena::new(),
@@ -108,7 +111,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    pub fn allocate<T, U>(
+    pub fn insert<T, U>(
         &mut self,
         node: T,
         source_id: SourceId,
@@ -125,8 +128,12 @@ impl NodeTree {
         self.type_by_node_id.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
+
         self.source_by_node_id.push(source_id);
         self.ast_id_by_node_id.push(source_ast_id.id);
+        self.node_id_by_ast_id
+            .insert((source_id, source_ast_id.id), global_id);
+
         NodeId::new(global_id)
     }
 
@@ -171,6 +178,21 @@ impl NodeTree {
             }
         }
         nodes
+    }
+
+    // Get the source of a node by its global id.
+    #[inline]
+    pub fn get_source(&self, node_id: u32) -> (SourceId, u32) {
+        (
+            self.source_by_node_id[node_id as usize],
+            self.ast_id_by_node_id[node_id as usize],
+        )
+    }
+
+    // Get the node id by its source / AST id.
+    #[inline]
+    pub fn get_node_id_by_ast_id(&self, source_id: SourceId, ast_id: u32) -> Option<u32> {
+        self.node_id_by_ast_id.get(&(source_id, ast_id)).copied()
     }
 
     /// Append a doc to a node by its global id.

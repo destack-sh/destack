@@ -13,6 +13,6 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Type> {
         let expression = self.lower_expression(source_id, ast, expression_id);
         self.tree
-            .allocate(Type::Expression(expression), source_id, expression_id)
+            .insert(Type::Expression(expression), source_id, expression_id)
     }
 }

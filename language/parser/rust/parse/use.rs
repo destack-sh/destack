@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         };
 
         // use
-        let use_id = self.tree.allocate(
+        let use_id = self.tree.insert(
             Expression::Use {
                 clauses,
                 body,
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
 
         // clause
         let span = self.get_span_from(start);
-        let clause = self.tree.allocate(
+        let clause = self.tree.insert(
             UseClause {
                 target: path,
                 alias,
@@ -176,7 +176,7 @@ impl<'a> Parser<'a> {
 
         let item = self
             .tree
-            .allocate(UseItem { name, alias }, self.get_span_from(start));
+            .insert(UseItem { name, alias }, self.get_span_from(start));
         Ok(item)
     }
 }

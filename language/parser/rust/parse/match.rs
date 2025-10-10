@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
-        let match_id = self.tree.allocate(
+        let match_id = self.tree.insert(
             Expression::Match {
                 runtime,
                 value: value_id,
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
         // body
         if self.peek_block().is_ok() {
             let block_id = self.eat_block()?;
-            let match_case_id = self.tree.allocate(
+            let match_case_id = self.tree.insert(
                 MatchCase::Block {
                     pattern: pattern_id,
                     body: block_id,
@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
         // expression
         else {
             let expression_id = self.try_eat_expression(TokenType::Newline)?;
-            let match_case_id = self.tree.allocate(
+            let match_case_id = self.tree.insert(
                 MatchCase::Expression {
                     pattern: pattern_id,
                     body: expression_id,

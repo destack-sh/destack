@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree
-                    .allocate(Argument::Named { name, value }, source_id, argument_id)
+                    .insert(Argument::Named { name, value }, source_id, argument_id)
             }
             ast::Argument::NamedShorthand { name } => {
                 let name = self.intern_string(source_id, *name);
@@ -26,14 +26,14 @@ impl<'a> Compiler<'a> {
                 };
                 let value = self
                     .tree
-                    .allocate(Expression::Path { path }, source_id, argument_id);
+                    .insert(Expression::Path { path }, source_id, argument_id);
                 self.tree
-                    .allocate(Argument::Named { name, value }, source_id, argument_id)
+                    .insert(Argument::Named { name, value }, source_id, argument_id)
             }
             ast::Argument::Positional { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree
-                    .allocate(Argument::Positional { value }, source_id, argument_id)
+                    .insert(Argument::Positional { value }, source_id, argument_id)
             }
         }
     }
@@ -54,6 +54,6 @@ impl<'a> Compiler<'a> {
             .default
             .map(|default| self.lower_expression(source_id, ast, default));
         self.tree
-            .allocate(Parameter { name, ty, default }, source_id, parameter_id)
+            .insert(Parameter { name, ty, default }, source_id, parameter_id)
     }
 }

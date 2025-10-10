@@ -31,14 +31,14 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::Wildcard).is_ok() {
                 self.bump(); // eat wildcard
                 self.tree
-                    .allocate(Pattern::Wildcard, self.get_span_from(start))
+                    .insert(Pattern::Wildcard, self.get_span_from(start))
             }
             // rest
             else if self.peek_token(TokenType::Range).is_ok()
                 || self.peek_token(TokenType::RangeWide).is_ok()
             {
                 self.bump(); // eat range
-                self.tree.allocate(Pattern::Rest, self.get_span_from(start))
+                self.tree.insert(Pattern::Rest, self.get_span_from(start))
             }
             // pointer
             else if self.peek_token(TokenType::Multiply).is_ok()
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
                     Mutability::Immutable
                 };
                 let target_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                self.tree.allocate(
+                self.tree.insert(
                     Pattern::Reference {
                         mutability,
                         right: target_id,
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal_id =
                     self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
-                self.tree.allocate(
+                self.tree.insert(
                     Pattern::ScalarLiteral(scalar_literal_id),
                     self.get_span_from(start),
                 )
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
                     .for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Tuple { path: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
-                self.tree.allocate(pattern, self.get_span_from(start))
+                self.tree.insert(pattern, self.get_span_from(start))
             }
             // array or slice
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
-                    .allocate(Pattern::Slice { fields }, self.get_span_from(start))
+                    .insert(Pattern::Slice { fields }, self.get_span_from(start))
             }
             // path or identifier
             else {
@@ -107,16 +107,16 @@ impl<'a> Parser<'a> {
                         fields,
                     };
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    self.tree.allocate(pattern, self.get_span_from(start))
+                    self.tree.insert(pattern, self.get_span_from(start))
                 }
                 // path
                 else if path.segments.len() > 1 {
                     self.tree
-                        .allocate(Pattern::Path { path }, self.get_span_from(start))
+                        .insert(Pattern::Path { path }, self.get_span_from(start))
                 }
                 // identifier (without mutability)
                 else {
-                    self.tree.allocate(
+                    self.tree.insert(
                         Pattern::Binding {
                             name: path.segments[0],
                         },
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat ?
             let pattern = Pattern::Maybe(pattern_id);
-            let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
+            let pattern_id = self.tree.insert(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
         // range
@@ -148,7 +148,7 @@ impl<'a> Parser<'a> {
                 end: Some(end_id),
                 is_inclusive: false,
             };
-            let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
+            let pattern_id = self.tree.insert(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
         // union
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
                 patterns.push(field_pattern_id);
             }
             let pattern = Pattern::Union { patterns };
-            let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
+            let pattern_id = self.tree.insert(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
         // no infix
@@ -249,7 +249,7 @@ impl<'a> Parser<'a> {
             };
             let pattern_field_id = self
                 .tree
-                .allocate(pattern_field, self.get_span_from(field_start));
+                .insert(pattern_field, self.get_span_from(field_start));
             fields.push(pattern_field_id);
 
             // separator or newline

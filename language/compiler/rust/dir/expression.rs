@@ -242,6 +242,6 @@ impl<'a> Compiler<'a> {
 
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
-        self.tree.allocate(expression, source_id, expression_id)
+        self.tree.insert(expression, source_id, expression_id)
     }
 }

@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
         let block_id = self.eat_block()?;
 
         // loop
-        let loop_id = self.tree.allocate(
+        let loop_id = self.tree.insert(
             Expression::Loop {
                 runtime,
                 body: block_id,
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
         let block_id = self.eat_block()?;
 
         // for
-        let for_id = self.tree.allocate(
+        let for_id = self.tree.insert(
             Expression::For {
                 runtime,
                 pattern: pattern_id,
@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         let block_id = self.eat_block()?;
 
         // while
-        let while_id = self.tree.allocate(
+        let while_id = self.tree.insert(
             Expression::While {
                 runtime,
                 condition: condition_id,

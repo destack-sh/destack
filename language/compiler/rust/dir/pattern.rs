@@ -84,7 +84,7 @@ impl<'a> Compiler<'a> {
                 Pattern::Union { patterns }
             }
         };
-        self.tree.allocate(pattern, source_id, pattern_id)
+        self.tree.insert(pattern, source_id, pattern_id)
     }
 
     /// Lower a pattern field to a DIR pattern field.
@@ -132,6 +132,6 @@ impl<'a> Compiler<'a> {
             }
         };
         self.tree
-            .allocate(pattern_field, source_id, pattern_field_id)
+            .insert(pattern_field, source_id, pattern_field_id)
     }
 }

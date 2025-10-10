@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
                 VariantField::Positional { ty, default }
             }
         };
-        self.tree.allocate(variant_field, source_id, field_id)
+        self.tree.insert(variant_field, source_id, field_id)
     }
 
     /// Lower an AST struct to a DIR variant.
@@ -58,7 +58,7 @@ impl<'a> Compiler<'a> {
                 value: None,
             },
         };
-        self.tree.allocate(variant, source_id, definition_id)
+        self.tree.insert(variant, source_id, definition_id)
     }
 
     /// Lower an AST enum to a DIR variant.
@@ -90,7 +90,7 @@ impl<'a> Compiler<'a> {
         let value = field
             .value
             .map(|value| self.lower_expression(source_id, ast, value));
-        self.tree.allocate(
+        self.tree.insert(
             Variant::Unit {
                 name: Some(name),
                 ty: representation_type,
@@ -184,6 +184,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.tree.allocate(variant, source_id, field_id)
+        self.tree.insert(variant, source_id, field_id)
     }
 }

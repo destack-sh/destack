@@ -278,8 +278,12 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" { .. }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            self.dumper
-                .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
+            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+            let source_id = source_id.0;
+            self.dumper.write_str(
+                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
+                Some(Color::White),
+            );
             self.dumper.write_char('\n', None);
         }
         self
@@ -291,8 +295,12 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            self.dumper
-                .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
+            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+            let source_id = source_id.0;
+            self.dumper.write_str(
+                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
+                Some(Color::White),
+            );
             self.dumper.write_char('\n', None);
         }
         self

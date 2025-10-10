@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression()?;
             let argument_id = self
                 .tree
-                .allocate(Argument::Named { name, value }, self.get_span_from(start));
+                .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // positional field
@@ -394,7 +394,7 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression()?;
             let argument_id = self
                 .tree
-                .allocate(Argument::Positional { value }, self.get_span_from(start));
+                .insert(Argument::Positional { value }, self.get_span_from(start));
             Ok(argument_id)
         }
     }
@@ -453,12 +453,12 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Colon)?;
                 let value = self.eat_expression()?;
                 self.tree
-                    .allocate(Argument::Named { name, value }, self.get_span_from(start))
+                    .insert(Argument::Named { name, value }, self.get_span_from(start))
             }
             // shorthand field
             else {
                 self.tree
-                    .allocate(Argument::NamedShorthand { name }, self.get_span_from(start))
+                    .insert(Argument::NamedShorthand { name }, self.get_span_from(start))
             };
             fields.push(field_id);
 

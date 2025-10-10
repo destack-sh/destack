@@ -29,7 +29,7 @@ impl<'a> Compiler<'a> {
                         source: path.clone(),
                         alias,
                     };
-                    self.tree.allocate(use_item, source_id, use_clause_id)
+                    self.tree.insert(use_item, source_id, use_clause_id)
                 })
                 .collect()
         }
@@ -42,7 +42,7 @@ impl<'a> Compiler<'a> {
                 source: path,
                 alias,
             };
-            vec![self.tree.allocate(use_item, source_id, use_clause_id)]
+            vec![self.tree.insert(use_item, source_id, use_clause_id)]
         }
     }
 }

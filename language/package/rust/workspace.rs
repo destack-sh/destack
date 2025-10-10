@@ -151,6 +151,11 @@ impl Workspace {
         self.documents.get(uri)
     }
 
+    /// Get all documents from the workspace.
+    pub fn documents(&self) -> impl Iterator<Item = &Document> {
+        self.documents.values()
+    }
+
     /// Collect URIs for all tracked documents.
     pub fn document_uris(&self) -> Vec<Uri> {
         self.documents.keys().cloned().collect()
