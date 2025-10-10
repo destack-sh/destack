@@ -1142,6 +1142,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_use_clause(&mut self, _tree: &NodeTree, _id: NodeId<UseClause>, clause: &UseClause) {
         self.node("UseClause", _id.id)
+            .field("target", &clause.target)
             .field_optional("alias", &clause.alias)
             .end();
         self.with_depth(|dumper| {

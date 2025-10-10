@@ -509,7 +509,7 @@ impl Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseClause {
     /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux}`)
-    pub target: NodeId<Expression>,
+    pub target: Path,
     /// The alias to use for the definition (like `bar` in `use foo as bar`)
     pub alias: Option<StringId>,
     /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux}`)

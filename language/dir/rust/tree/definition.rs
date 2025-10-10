@@ -1,6 +1,6 @@
 use crate::{
     Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
-    Variant, Visibility, WhereClause, WithClause,
+    UseItem, Variant, Visibility, WhereClause, WithClause,
 };
 
 /// Definition introduces a type or function into its scope.
@@ -8,6 +8,11 @@ use crate::{
 pub enum Definition {
     /// Intrinsic definition.
     Intrinsic { intrinsic: Intrinsic },
+    /// Use definition.
+    Use {
+        visibility: Option<Visibility>,
+        items: Vec<NodeId<UseItem>>,
+    },
     /// Module definition.
     Module {
         name: Option<StringId>,
@@ -33,7 +38,7 @@ pub enum Definition {
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Type>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        variant: NodeId<Variant>,
+        variants: Vec<NodeId<Variant>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
@@ -94,6 +99,7 @@ impl Definition {
     pub fn name(&self) -> Option<StringId> {
         match self {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
+            Definition::Use { .. } => None,
             Definition::Module { name, .. } => *name,
             Definition::Struct { name, .. } => *name,
             Definition::Enum { name, .. } => *name,
@@ -110,6 +116,7 @@ impl Definition {
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
             Definition::Intrinsic { .. } => None,
+            Definition::Use { visibility, .. } => *visibility,
             Definition::Module { visibility, .. } => *visibility,
             Definition::Struct { visibility, .. } => *visibility,
             Definition::Enum { visibility, .. } => *visibility,
@@ -121,27 +128,12 @@ impl Definition {
         }
     }
 
-    /// Get the variant of the definition.
-    #[inline]
-    pub fn variant(&self) -> Option<NodeId<Variant>> {
-        match self {
-            Definition::Intrinsic { .. } => None,
-            Definition::Module { .. } => None,
-            Definition::Struct { variant, .. } => Some(*variant),
-            Definition::Enum { variant, .. } => Some(*variant),
-            Definition::Union { .. } => None,
-            Definition::Trait { .. } => None,
-            Definition::Function { .. } => None,
-            Definition::Implement { .. } => None,
-            Definition::Let { .. } => None,
-        }
-    }
-
     /// Get the definitions inside the definition.
     #[inline]
     pub fn definitions(&self) -> Option<&Vec<NodeId<Definition>>> {
         match self {
             Definition::Intrinsic { .. } => None,
+            Definition::Use { .. } => None,
             Definition::Module { definitions, .. } => Some(definitions),
             Definition::Struct { definitions, .. } => Some(definitions),
             Definition::Enum { definitions, .. } => Some(definitions),

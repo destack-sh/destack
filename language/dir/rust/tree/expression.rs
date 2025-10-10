@@ -75,16 +75,17 @@ pub enum Expression {
     /// Index into an array or slice.
     Index {
         left: NodeId<Expression>,
-        right: NodeId<Expression>,
+        right: Option<NodeId<Expression>>,
     },
-    /// Cast to a type.
-    Cast {
-        value: NodeId<Expression>,
-        ty: NodeId<Type>,
-    },
+    /// Maybe unwrap an expression with `?` and propagate.
+    Maybe { left: NodeId<Expression> },
+    /// Force unwrap an expression with `!` and propagate.
+    Must { left: NodeId<Expression> },
+
     /// --------------------------------
     /// Literals.
     /// --------------------------------
+
     /// Path.
     Path { path: Path },
     /// Scalar literal value.
@@ -165,9 +166,7 @@ pub enum LoopSource {
 pub struct UseItem {
     /// The source of the item.
     pub source: Path,
-    /// The source name of the item (like `foo` in `foo as bar`)
-    pub name: StringId,
-    /// The alias to use for the item (like `bar` in `foo as bar`)
+    /// The alias to use for the item.
     pub alias: Option<StringId>,
 }
 

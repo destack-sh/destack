@@ -185,6 +185,22 @@ impl<'a> Compiler<'a> {
                     dynamic_arguments,
                 }
             }
+            ast::Expression::Index { receiver, index } => {
+                let receiver = self.lower_expression(source_id, ast, *receiver);
+                let index = index.map(|index| self.lower_expression(source_id, ast, index));
+                Expression::Index {
+                    left: receiver,
+                    right: index,
+                }
+            }
+            ast::Expression::Maybe(expr) => {
+                let expr = self.lower_expression(source_id, ast, *expr);
+                Expression::Maybe { left: expr }
+            }
+            ast::Expression::Must(expr) => {
+                let expr = self.lower_expression(source_id, ast, *expr);
+                Expression::Must { left: expr }
+            }
 
             ast::Expression::Path {
                 path,

@@ -839,9 +839,6 @@ pub fn walk_use_clause<V: NodeVisitor + ?Sized>(
     use_clause: &UseClause,
 ) {
     visitor.visit_any(tree, NodeType::UseClause, id.id);
-    let target = tree.get(use_clause.target);
-    visitor.visit_expression(tree, use_clause.target, target);
-
     if let Some(items) = &use_clause.items {
         for item_id in items {
             let item = tree.get(*item_id);

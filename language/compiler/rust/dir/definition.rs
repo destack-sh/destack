@@ -18,7 +18,21 @@ impl<'a> Compiler<'a> {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
-            // NOTE #Incomplete: lower more Expressions to Definitions
+            ast::Expression::Use {
+                visibility,
+                clauses,
+                body,
+            } if body.is_none() => {
+                let visibility = visibility.map(|v| self.lower_visibility(v));
+                let items = clauses
+                    .iter()
+                    .flat_map(|clause| self.lower_use_clause(source_id, ast, *clause))
+                    .collect();
+                let definition = Definition::Use { visibility, items };
+                Some(self.tree.allocate(definition, source_id, expression_id))
+            }
+
+            // nocheckin #Incomplete: lower more Expressions to Definitions
             _ => None,
         }
     }
@@ -124,6 +138,8 @@ impl<'a> Compiler<'a> {
                 let variant = self.lower_struct_to_variant(
                     source_id,
                     ast,
+                    definition_id,
+                    name,
                     *style,
                     representation_type,
                     fields,
@@ -189,14 +205,15 @@ impl<'a> Compiler<'a> {
                 let tag_type = tag_type
                     .as_ref()
                     .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
-                let variant = self.lower_enum_to_variant(source_id, ast, tag_type, fields);
+                let variants =
+                    self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
                 self.tree.allocate(
                     Definition::Enum {
                         name,
                         visibility,
                         super_types,
                         static_parameters,
-                        variant,
+                        variants,
                         with_clauses,
                         where_clauses,
                         definitions,
@@ -255,11 +272,12 @@ impl<'a> Compiler<'a> {
                 let representation_type = representation_type
                     .as_ref()
                     .map(|repr| self.lower_expression_to_type(source_id, ast, *repr));
-                let variants = self.lower_union_to_variants(
+                let variants = self.lower_union_to_variant(
                     source_id,
                     ast,
-                    tag_type,
+                    definition_id,
                     representation_type,
+                    tag_type,
                     fields,
                 );
                 self.tree.allocate(

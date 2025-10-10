@@ -831,9 +831,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Index { left: _, right: _ } => {
                 self.node("Expression::Index", id.id).end();
             }
-            Expression::Cast { value: _, ty: _ } => {
-                self.node("Expression::Cast", id.id).end();
+            Expression::Maybe { left: _ } => {
+                self.node("Expression::Maybe", id.id).end();
             }
+            Expression::Must { left: _ } => {
+                self.node("Expression::Must", id.id).end();
+            }
+
             Expression::Path { path } => {
                 self.node("Expression::Path", id.id)
                     .field("path", path)
@@ -944,6 +948,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("intrinsic", intrinsic)
                     .end();
             }
+            Definition::Use {
+                visibility,
+                items: _,
+            } => {
+                self.node("Definition::Use", id.id)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
             Definition::Module {
                 name,
                 visibility,
@@ -976,7 +988,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 visibility,
                 super_types: _,
                 static_parameters: _,
-                variant: _,
+                variants: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
@@ -1138,7 +1150,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match variant {
             Variant::Struct {
                 name,
-                representation_type: _,
+                ty: _,
                 fields: _,
                 value: _,
             } => {
@@ -1148,7 +1160,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Variant::Tuple {
                 name,
-                representation_type: _,
+                ty: _,
                 fields: _,
                 value: _,
             } => {
@@ -1156,7 +1168,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("name", name)
                     .end();
             }
-            Variant::Unit { name, value: _ } => {
+            Variant::Unit {
+                name,
+                ty: _,
+                value: _,
+            } => {
                 self.node("Variant::Unit", id.id)
                     .field_optional("name", name)
                     .end();
@@ -1174,12 +1190,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
         variant_field: &VariantField,
     ) {
         match variant_field {
-            VariantField::Named { name, ty: _ } => {
+            VariantField::Named {
+                name,
+                ty: _,
+                default: _,
+            } => {
                 self.node("VariantField::Named", id.id)
                     .field("name", name)
                     .end();
             }
-            VariantField::Positional { ty: _ } => {
+            VariantField::Positional { ty: _, default: _ } => {
                 self.node("VariantField::Positional", id.id).end();
             }
         }
@@ -1230,7 +1250,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
         self.node("UseItem", id.id)
             .field("source", &use_item.source)
-            .field("name", &use_item.name)
             .field_optional("alias", &use_item.alias)
             .end();
         self.with_depth(|dumper| {

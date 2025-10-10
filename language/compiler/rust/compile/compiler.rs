@@ -33,6 +33,7 @@ pub struct Compiler<'s> {
     pub session: &'s Session,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new compiler.
     pub fn new(workspace: &'s Workspace, options: CompilerOptions) -> Self {
