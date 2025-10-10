@@ -2,26 +2,6 @@ use crate::{
     Definition, Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId,
 };
 
-impl IntType {
-    #[inline]
-    pub fn as_str(self) -> String {
-        let mut as_str = if self.is_signed {
-            "int".to_string()
-        } else {
-            "uint".to_string()
-        };
-        as_str.push_str(&self.width.to_string());
-        as_str
-    }
-}
-
-impl FloatType {
-    #[inline]
-    pub fn as_str(self) -> String {
-        format!("float{}", self.width)
-    }
-}
-
 /// A TypeLiteral is literal type node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeLiteral {
@@ -132,18 +112,146 @@ impl Node for Type {
 
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct IntType {
-    /// Bit width.
-    pub width: u16,
-    /// Whether the integer is signed (`int*` or `uint*`).
-    pub is_signed: bool,
+pub enum IntType {
+    /// 8-bit signed integer (range: -2^7 to 2^7-1)
+    Int8,
+    /// 16-bit signed integer (range: -2^15 to 2^15-1)
+    Int16,
+    /// 32-bit signed integer (range: -2^31 to 2^31-1)
+    Int32,
+    /// 64-bit signed integer (range: -2^63 to 2^63-1)
+    Int64,
+    /// 128-bit signed integer (range: -2^127 to 2^127-1)
+    Int128,
+    /// 256-bit signed integer (range: -2^255 to 2^255-1)
+    Int256,
+    /// 8-bit unsigned integer (range: 0 to 2^8-1)
+    Uint8,
+    /// 16-bit unsigned integer (range: 0 to 2^16-1)
+    Uint16,
+    /// 32-bit unsigned integer (range: 0 to 2^32-1)
+    Uint32,
+    /// 64-bit unsigned integer (range: 0 to 2^64-1)
+    Uint64,
+    /// 128-bit unsigned integer (range: 0 to 2^128-1)
+    Uint128,
+    /// 256-bit unsigned integer (range: 0 to 2^256-1)
+    Uint256,
+    /// Arbitrary width integer with signedness.
+    Variable { width: u16, is_signed: bool },
+}
+
+impl IntType {
+    pub fn width(&self) -> u16 {
+        match self {
+            IntType::Int8 => 8,
+            IntType::Int16 => 16,
+            IntType::Int32 => 32,
+            IntType::Int64 => 64,
+            IntType::Int128 => 128,
+            IntType::Int256 => 256,
+            IntType::Uint8 => 8,
+            IntType::Uint16 => 16,
+            IntType::Uint32 => 32,
+            IntType::Uint64 => 64,
+            IntType::Uint128 => 128,
+            IntType::Uint256 => 256,
+            IntType::Variable {
+                width,
+                is_signed: _,
+            } => *width,
+        }
+    }
+
+    pub fn is_signed(&self) -> bool {
+        match self {
+            IntType::Int8 => true,
+            IntType::Int16 => true,
+            IntType::Int32 => true,
+            IntType::Int64 => true,
+            IntType::Int128 => true,
+            IntType::Int256 => true,
+            IntType::Uint8 => false,
+            IntType::Uint16 => false,
+            IntType::Uint32 => false,
+            IntType::Uint64 => false,
+            IntType::Uint128 => false,
+            IntType::Uint256 => false,
+            IntType::Variable {
+                width: _,
+                is_signed,
+            } => *is_signed,
+        }
+    }
+
+    #[inline]
+    pub fn as_str(self) -> String {
+        match self {
+            IntType::Int8 => "int8".to_string(),
+            IntType::Int16 => "int16".to_string(),
+            IntType::Int32 => "int32".to_string(),
+            IntType::Int64 => "int64".to_string(),
+            IntType::Int128 => "int128".to_string(),
+            IntType::Int256 => "int256".to_string(),
+            IntType::Uint8 => "uint8".to_string(),
+            IntType::Uint16 => "uint16".to_string(),
+            IntType::Uint32 => "uint32".to_string(),
+            IntType::Uint64 => "uint64".to_string(),
+            IntType::Uint128 => "uint128".to_string(),
+            IntType::Uint256 => "uint256".to_string(),
+            IntType::Variable { width, is_signed } => {
+                let mut as_str = if is_signed {
+                    "int".to_string()
+                } else {
+                    "uint".to_string()
+                };
+                as_str.push_str(&width.to_string());
+                as_str
+            }
+        }
+    }
 }
 
 /// A FloatType represents IEEE-754 float.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct FloatType {
-    /// Bit width.
-    pub width: u16,
+pub enum FloatType {
+    /// 16-bit IEEE-754 float.
+    Float16,
+    /// 32-bit IEEE-754 float.
+    Float32,
+    /// 64-bit IEEE-754 float.
+    Float64,
+    /// 80-bit IEEE-754 float.
+    Float80,
+    /// 128-bit IEEE-754 float.
+    Float128,
+    /// Arbitrary width IEEE-754 float.
+    Variable { width: u16 },
+}
+
+impl FloatType {
+    pub fn width(&self) -> u16 {
+        match self {
+            FloatType::Float16 => 16,
+            FloatType::Float32 => 32,
+            FloatType::Float64 => 64,
+            FloatType::Float80 => 80,
+            FloatType::Float128 => 128,
+            FloatType::Variable { width } => *width,
+        }
+    }
+
+    #[inline]
+    pub fn as_str(self) -> String {
+        match self {
+            FloatType::Float16 => "float16".to_string(),
+            FloatType::Float32 => "float32".to_string(),
+            FloatType::Float64 => "float64".to_string(),
+            FloatType::Float80 => "float80".to_string(),
+            FloatType::Float128 => "float128".to_string(),
+            FloatType::Variable { width } => format!("float{width}"),
+        }
+    }
 }
 
 /// A WhereClause is a single clause in a where type declaration.

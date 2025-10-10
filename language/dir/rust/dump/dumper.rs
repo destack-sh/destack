@@ -574,18 +574,42 @@ impl Dump for Intrinsic {
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("IntType")
-            .field("width", &self.width)
-            .field("is_signed", &self.is_signed)
-            .end();
+        match self {
+            IntType::Int8 => dumper.object("IntType::Int8").end(),
+            IntType::Int16 => dumper.object("IntType::Int16").end(),
+            IntType::Int32 => dumper.object("IntType::Int32").end(),
+            IntType::Int64 => dumper.object("IntType::Int64").end(),
+            IntType::Int128 => dumper.object("IntType::Int128").end(),
+            IntType::Int256 => dumper.object("IntType::Int256").end(),
+            IntType::Uint8 => dumper.object("IntType::Uint8").end(),
+            IntType::Uint16 => dumper.object("IntType::Uint16").end(),
+            IntType::Uint32 => dumper.object("IntType::Uint32").end(),
+            IntType::Uint64 => dumper.object("IntType::Uint64").end(),
+            IntType::Uint128 => dumper.object("IntType::Uint128").end(),
+            IntType::Uint256 => dumper.object("IntType::Uint256").end(),
+            IntType::Variable { width, is_signed } => dumper
+                .object("IntType::Variable")
+                .field("width", width)
+                .field("is_signed", is_signed)
+                .end(),
+        };
     }
 }
 
 /// Dump a FloatType as a structured representation.
 impl Dump for FloatType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.object("FloatType").field("width", &self.width).end();
+        match self {
+            FloatType::Float16 => dumper.object("FloatType::Float16").end(),
+            FloatType::Float32 => dumper.object("FloatType::Float32").end(),
+            FloatType::Float64 => dumper.object("FloatType::Float64").end(),
+            FloatType::Float80 => dumper.object("FloatType::Float80").end(),
+            FloatType::Float128 => dumper.object("FloatType::Float128").end(),
+            FloatType::Variable { width } => dumper
+                .object("FloatType::Variable")
+                .field("width", width)
+                .end(),
+        };
     }
 }
 
