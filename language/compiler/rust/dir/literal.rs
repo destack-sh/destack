@@ -29,16 +29,83 @@ impl<'a> Compiler<'a> {
 
     /// Lower an int type to a DIR int type.
     pub fn lower_int_type(&mut self, int_type: &ast::IntType) -> IntType {
-        IntType {
-            width: int_type.width.unwrap_or(self.options.default_int_width),
-            is_signed: int_type.is_signed,
+        match int_type {
+            ast::IntType {
+                width: Some(8),
+                is_signed: true,
+            } => IntType::Int8,
+            ast::IntType {
+                width: Some(16),
+                is_signed: true,
+            } => IntType::Int16,
+            ast::IntType {
+                width: Some(32),
+                is_signed: true,
+            } => IntType::Int32,
+            ast::IntType {
+                width: Some(64),
+                is_signed: true,
+            } => IntType::Int64,
+            ast::IntType {
+                width: Some(128),
+                is_signed: true,
+            } => IntType::Int128,
+            ast::IntType {
+                width: Some(256),
+                is_signed: true,
+            } => IntType::Int256,
+            ast::IntType {
+                width: Some(8),
+                is_signed: false,
+            } => IntType::Uint8,
+            ast::IntType {
+                width: Some(16),
+                is_signed: false,
+            } => IntType::Uint16,
+            ast::IntType {
+                width: Some(32),
+                is_signed: false,
+            } => IntType::Uint32,
+            ast::IntType {
+                width: Some(64),
+                is_signed: false,
+            } => IntType::Uint64,
+            ast::IntType {
+                width: Some(128),
+                is_signed: false,
+            } => IntType::Uint128,
+            ast::IntType {
+                width: Some(256),
+                is_signed: false,
+            } => IntType::Uint256,
+            ast::IntType {
+                width: None,
+                is_signed,
+            } => IntType::Variable {
+                width: self.options.default_int_width,
+                is_signed: *is_signed,
+            },
+            ast::IntType { width: Some(width), is_signed } => IntType::Variable {
+                width: *width,
+                is_signed: *is_signed,
+            },
         }
     }
 
     /// Lower a float type to a DIR float type.
     pub fn lower_float_type(&mut self, float_type: &ast::FloatType) -> FloatType {
-        FloatType {
-            width: float_type.width.unwrap_or(self.options.default_float_width),
+        match float_type {
+            ast::FloatType { width: Some(16) } => FloatType::Float16,
+            ast::FloatType { width: Some(32) } => FloatType::Float32,
+            ast::FloatType { width: Some(64) } => FloatType::Float64,
+            ast::FloatType { width: Some(80) } => FloatType::Float80,
+            ast::FloatType { width: Some(128) } => FloatType::Float128,
+            ast::FloatType { width: None } => FloatType::Variable {
+                width: self.options.default_float_width,
+            },
+            ast::FloatType { width: Some(width) } => FloatType::Variable {
+                width: *width,
+            },
         }
     }
 
