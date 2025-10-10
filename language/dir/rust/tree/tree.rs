@@ -22,12 +22,13 @@ pub struct NodeTree {
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
     pub(crate) source_by_node_id: Vec<SourceId>,
+    /// The annotations attached to nodes.
+    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+
     /// The source AST ids of all nodes. Index is the global node id.
     pub(crate) ast_id_by_node_id: Vec<u32>,
     /// The node id by AST source / node id.
     pub(crate) node_id_by_ast_id: HashMap<(SourceId, u32), u32>,
-    /// The annotations attached to nodes.
-    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     // per-node arenas
     // groupings
@@ -115,7 +116,7 @@ impl NodeTree {
         &mut self,
         node: T,
         source_id: SourceId,
-        source_ast_id: ast::NodeId<U>,
+        ast_node_id: ast::NodeId<U>,
     ) -> NodeId<T>
     where
         T: Node,
@@ -130,11 +131,20 @@ impl NodeTree {
         self.local_id_by_node_id.push(local_id);
 
         self.source_by_node_id.push(source_id);
-        self.ast_id_by_node_id.push(source_ast_id.id);
+        self.ast_id_by_node_id.push(ast_node_id.id);
         self.node_id_by_ast_id
-            .insert((source_id, source_ast_id.id), global_id);
+            .insert((source_id, ast_node_id.id), global_id);
 
         NodeId::new(global_id)
+    }
+
+    /// Add an alias for an AST id.
+    pub fn alias<T>(&mut self, source_id: SourceId, ast_id: u32, alias: NodeId<T>)
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        self.node_id_by_ast_id.insert((source_id, ast_id), alias.id);
     }
 
     /// Get the type of an untyped node id.
