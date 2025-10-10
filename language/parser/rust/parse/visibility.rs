@@ -1,4 +1,4 @@
-use crate::{ParserResult, Keyword, Parser, Visibility};
+use crate::{Keyword, Parser, ParserResult, Visibility};
 
 impl<'a> Parser<'a> {
     /// Peek a visibility.

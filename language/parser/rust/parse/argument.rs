@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Argument, ParserResult, NodeId, NodeType, Parameter, Parser, TokenType};
+use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a parameter

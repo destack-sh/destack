@@ -4,8 +4,8 @@ use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    ParserResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
-    Visibility,
+    Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    ParserResult, Visibility,
 };
 
 impl<'a> Parser<'a> {

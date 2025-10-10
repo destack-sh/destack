@@ -1,6 +1,6 @@
 use crate::TokenType;
 
-use crate::{ParserResult, Expression, Keyword, NodeId, Parser, Runtime};
+use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.

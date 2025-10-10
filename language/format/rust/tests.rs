@@ -1,7 +1,7 @@
 use crate::TokenSpan;
 use dyst_fir::format;
 use dyst_fir::format::Format;
-use dyst_parser::{ParserResult, Parser};
+use dyst_parser::{Parser, ParserResult};
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 

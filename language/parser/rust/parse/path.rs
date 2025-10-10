@@ -1,4 +1,4 @@
-use crate::{ParserResult, Parser, Path, TokenType};
+use crate::{Parser, ParserResult, Path, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {

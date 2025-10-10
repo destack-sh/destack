@@ -1,7 +1,7 @@
 //! Parse use and with declarations.
 use crate::TokenType;
 
-use crate::{ParserResult, Expression, Keyword, NodeId, Parser, WithClause};
+use crate::{Expression, Keyword, NodeId, Parser, ParserResult, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).

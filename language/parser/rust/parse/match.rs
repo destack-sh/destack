@@ -1,7 +1,7 @@
 use crate::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{ParserResult, Expression, Keyword, MatchCase, NodeId, NodeType, Parser, Runtime};
+use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement.

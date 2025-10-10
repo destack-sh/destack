@@ -1,4 +1,4 @@
-use crate::{ParserResult, Expression, Keyword, NodeId, Parser, ParserError, Runtime};
+use crate::{Expression, Keyword, NodeId, Parser, ParserError, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else expression.

@@ -2,8 +2,8 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    ParserResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, TokenType,
-    UnionField, Visibility,
+    Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
+    TokenType, UnionField, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -38,7 +38,10 @@ impl<'a> Parser<'a> {
     /// // desugars to
     /// union { boolean(boolean) = boolean, int32(&int32) = &int32 }
     /// ```
-    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_union(
+        &mut self,
+        visibility: Option<Visibility>,
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -111,7 +114,9 @@ impl<'a> Parser<'a> {
 
     /// Eat a union body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_union_body(&mut self) -> ParserResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
+    fn eat_union_body(
+        &mut self,
+    ) -> ParserResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();

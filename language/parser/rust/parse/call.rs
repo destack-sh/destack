@@ -2,7 +2,7 @@
 
 use crate::TokenType;
 
-use crate::{ParserResult, Expression, NodeId, Parser, Runtime};
+use crate::{Expression, NodeId, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).

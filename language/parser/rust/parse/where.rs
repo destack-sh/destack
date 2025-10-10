@@ -1,7 +1,7 @@
 //! Parse use and where declarations.
 use crate::TokenType;
 
-use crate::{ParserResult, Keyword, NodeId, Parser, WhereClause};
+use crate::{Keyword, NodeId, Parser, ParserResult, WhereClause};
 
 impl<'a> Parser<'a> {
     /// Eat a where context declaration or assignment maybe.
