@@ -205,14 +205,18 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Index { left, right } => {
             let left_expression = tree.get(*left);
             walk_expression(visitor, tree, *left, left_expression);
-            let right_expression = tree.get(*right);
-            walk_expression(visitor, tree, *right, right_expression);
+            if let Some(right_id) = right {
+                let right_expression = tree.get(*right_id);
+                walk_expression(visitor, tree, *right_id, right_expression);
+            }
         }
-        Expression::Cast { value, ty } => {
-            let value_expression = tree.get(*value);
-            walk_expression(visitor, tree, *value, value_expression);
-            let ty_node = tree.get(*ty);
-            walk_type(visitor, tree, *ty, ty_node);
+        Expression::Maybe { left } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
+        }
+        Expression::Must { left } => {
+            let left_expression = tree.get(*left);
+            walk_expression(visitor, tree, *left, left_expression);
         }
         Expression::Path { path: _ } => {
             // nothing to do
@@ -339,6 +343,15 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Intrinsic { intrinsic: _ } => {
             // nothing to do
         }
+        Definition::Use {
+            visibility: _,
+            items,
+        } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                walk_use_item(visitor, tree, *item_id, item);
+            }
+        }
         Definition::Module {
             name: _,
             visibility: _,
@@ -409,7 +422,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visibility: _,
             super_types,
             static_parameters,
-            variant,
+            variants,
             with_clauses,
             where_clauses,
             definitions,
@@ -426,8 +439,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     walk_parameter(visitor, tree, *parameter_id, parameter);
                 }
             }
-            let variant_node = tree.get(*variant);
-            walk_variant(visitor, tree, *variant, variant_node);
+            for variant_id in variants.iter() {
+                let variant_node = tree.get(*variant_id);
+                walk_variant(visitor, tree, *variant_id, variant_node);
+            }
             if let Some(with_clauses) = with_clauses {
                 for clause_id in with_clauses.iter() {
                     let clause = tree.get(*clause_id);
@@ -678,13 +693,13 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
     match variant {
         Variant::Struct {
             name: _,
-            representation_type,
+            ty: representation_type,
             fields,
             value,
         }
         | Variant::Tuple {
             name: _,
-            representation_type,
+            ty: representation_type,
             fields,
             value,
         } => {
@@ -706,7 +721,15 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
                 walk_expression(visitor, tree, *value, value_expression);
             }
         }
-        Variant::Unit { name: _, value } => {
+        Variant::Unit {
+            name: _,
+            ty: representation_type,
+            value,
+        } => {
+            if let Some(representation_type_id) = representation_type {
+                let representation_type = tree.get(*representation_type_id);
+                walk_type(visitor, tree, *representation_type_id, representation_type);
+            }
             if let Some(value) = value {
                 let value_expression = tree.get(*value);
                 walk_expression(visitor, tree, *value, value_expression);
@@ -724,9 +747,18 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::VariantField, id.id);
     match variant_field {
-        VariantField::Named { name: _, ty } | VariantField::Positional { ty } => {
+        VariantField::Named {
+            name: _,
+            ty,
+            default,
+        }
+        | VariantField::Positional { ty, default } => {
             let ty_node = tree.get(*ty);
             walk_type(visitor, tree, *ty, ty_node);
+            if let Some(default) = default {
+                let default_expression = tree.get(*default);
+                walk_expression(visitor, tree, *default, default_expression);
+            }
         }
     }
 }

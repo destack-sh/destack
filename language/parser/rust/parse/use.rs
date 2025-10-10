@@ -140,19 +140,11 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // allocate the path expression for the target
+        // clause
         let span = self.get_span_from(start);
-        let target = self.tree.allocate(
-            Expression::Path {
-                path,
-                static_arguments: None,
-            },
-            span,
-        );
-
         let clause = self.tree.allocate(
             UseClause {
-                target,
+                target: path,
                 alias,
                 items,
             },
@@ -210,9 +202,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "dyst");
-                });
+                assert_path!(parser, *target, "dyst");
             });
         });
     }
@@ -232,10 +222,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "core.memory");
-                    assert!(static_arguments.is_none());
-                });
+                assert_path!(parser, *target, "core.memory");
             });
         });
     }
@@ -253,9 +240,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "dyst.geometry");
-                });
+                assert_path!(parser, *target, "dyst.geometry");
             });
         });
     }
@@ -273,9 +258,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert_string!(parser, alias.unwrap(), "ds");
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "dyst");
-                });
+                assert_path!(parser, *target, "dyst");
             });
         });
     }
@@ -305,9 +288,7 @@ mod tests {
                     assert_string!(parser, alias.unwrap(), "V3");
                 });
                 // ds.geometry
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "ds.geometry");
-                });
+                assert_path!(parser, *target, "ds.geometry");
             });
         });
     }
@@ -323,15 +304,11 @@ mod tests {
             assert_eq!(clauses.len(), 2);
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "dyst");
-                });
+                assert_path!(parser, *target, "dyst");
             });
             // use dyst
             assert_node!(parser.tree, clauses[1], UseClause { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "dyst");
-                });
+                assert_path!(parser, *target, "dyst");
             });
         });
     }
