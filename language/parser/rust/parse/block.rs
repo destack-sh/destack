@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{
-    AstError, AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser,
+    ParserError, AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser,
     TokenType,
 };
 
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(AstError::expected(
+            Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::OpenBrace,
             ))

@@ -1,4 +1,4 @@
-use crate::{AstError, AstResult, Parser, TokenSpan, TokenType};
+use crate::{ParserError, AstResult, Parser, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek an item stop (comma or newline).
@@ -9,7 +9,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(AstError::expected(
+            Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ))
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(AstError::expected(
+            return Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ));
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(AstError::expected(
+            Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(AstError::expected(
+            return Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(AstError::expected(
+            return Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(AstError::expected(
+            Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(AstError::expected(
+            return Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));

@@ -1,6 +1,6 @@
 //! Parse identifiers.
 
-use crate::{AstError, AstResult, Parser, TokenSpan, TokenType};
+use crate::{ParserError, AstResult, Parser, TokenSpan, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
         if self.get_token_str(*span) == string {
             Ok(span)
         } else {
-            Err(AstError::expected(span.span, TokenType::Identifier))
+            Err(ParserError::expected(span.span, TokenType::Identifier))
         }
     }
 

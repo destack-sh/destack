@@ -3,9 +3,13 @@ use std::str::FromStr;
 /// A contextual keyword.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
-    /// Mark the following item as public (with optional qualifier)
+    /// Visibility modifier
     Public,
-    /// Mark the following item as private (with optional qualifier)
+    /// Visibility modifier (reserved)
+    Protected,
+    /// Visibility modifier (reserved)
+    Internal,
+    /// Visibility modifier (reserved)
     Private,
     /// Import (reserved).
     Import,
@@ -41,12 +45,16 @@ pub enum Keyword {
     Where,
     /// Alias or cast an item.
     As,
-    /// Constant modifier.
-    Const,
     /// Let expression.
     Let,
     /// Var expression.
     Var,
+    /// Constant modifier (alias).
+    Const,
+    /// Mutability modifier (alias).
+    Mut,
+    /// Static modifier (reserved).
+    Static,
     /// Conditional expression.
     If,
     /// Conditional expression.
@@ -73,8 +81,14 @@ pub enum Keyword {
     Try,
     /// Catch expression.
     Catch,
-    /// Finally expression.
+    /// Finally expression (reserved).
     Finally,
+    /// Async expression (reserved).
+    Async,
+    /// Await expression (reserved).
+    Await,
+    /// New expression (reserved).
+    New,
 }
 
 impl Keyword {
@@ -83,6 +97,8 @@ impl Keyword {
         match self {
             Keyword::Public => "public",
             Keyword::Private => "private",
+            Keyword::Protected => "protected",
+            Keyword::Internal => "internal",
             Keyword::Import => "import",
             Keyword::Export => "export",
             Keyword::Self_ => "self",
@@ -100,9 +116,11 @@ impl Keyword {
             Keyword::With => "with",
             Keyword::Where => "where",
             Keyword::As => "as",
-            Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
+            Keyword::Const => "const",
+            Keyword::Mut => "mut",
+            Keyword::Static => "static",
             Keyword::If => "if",
             Keyword::Else => "else",
             Keyword::While => "while",
@@ -117,6 +135,9 @@ impl Keyword {
             Keyword::Try => "try",
             Keyword::Catch => "catch",
             Keyword::Finally => "finally",
+            Keyword::Async => "async",
+            Keyword::Await => "await",
+            Keyword::New => "new",
         }
     }
 }
@@ -128,6 +149,8 @@ impl FromStr for Keyword {
         match s {
             "public" => Ok(Keyword::Public),
             "private" => Ok(Keyword::Private),
+            "protected" => Ok(Keyword::Protected),
+            "internal" => Ok(Keyword::Internal),
             "import" => Ok(Keyword::Import),
             "export" => Ok(Keyword::Export),
             "self" => Ok(Keyword::Self_),
@@ -145,9 +168,11 @@ impl FromStr for Keyword {
             "with" => Ok(Keyword::With),
             "where" => Ok(Keyword::Where),
             "as" => Ok(Keyword::As),
-            "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
+            "const" => Ok(Keyword::Const),
+            "mut" => Ok(Keyword::Mut),
+            "static" => Ok(Keyword::Static),
             "if" => Ok(Keyword::If),
             "else" => Ok(Keyword::Else),
             "while" => Ok(Keyword::While),
@@ -162,6 +187,9 @@ impl FromStr for Keyword {
             "try" => Ok(Keyword::Try),
             "catch" => Ok(Keyword::Catch),
             "finally" => Ok(Keyword::Finally),
+            "async" => Ok(Keyword::Async),
+            "await" => Ok(Keyword::Await),
+            "new" => Ok(Keyword::New),
             _ => Err(()),
         }
     }

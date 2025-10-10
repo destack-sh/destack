@@ -69,18 +69,17 @@ pub enum Expression {
     /// let x = 1
     /// let x: int32 = 1
     /// let (x, y) = foo()
-    /// if let Some(x) = someFunction() {
-    ///     ...
-    /// }
     /// var x = 1
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
+    /// let t = foo() ?? return;
+    /// 
+    /// if let Some(x) = someFunction() {
+    ///     ...
+    /// }
     /// if var Some(x) = someFunction() {
     ///     ...
     /// }
-    ///
-    /// let t? = foo() else { return }
-    /// let t = foo() ?? return;
     Let {
         mutability: ScopedMutability,
         visibility: Option<Visibility>,
