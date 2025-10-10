@@ -1,4 +1,4 @@
-use crate::{Expression, Path, TokenType};
+use crate::{Expression, ParserError, Path, TokenType};
 
 use crate::{AstResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
 
@@ -16,11 +16,13 @@ impl<'a> Parser<'a> {
     pub fn eat_scoped_mutability(&mut self) -> AstResult<ScopedMutability> {
         // mutability
         let mutability = {
-            if self.peek_keyword(Keyword::Var).is_ok() {
-                self.bump();
+            if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
+                self.bump(); // eat var or mut
                 Mutability::Mutable
-            } else if self.peek_keyword(Keyword::Const).is_ok() {
-                self.bump();
+            } else if self.peek_keyword(Keyword::Const).is_ok()
+                || self.peek_keyword(Keyword::Let).is_ok()
+            {
+                self.bump(); // eat const or let
                 Mutability::Immutable
             } else {
                 // nothing means unscoped const
@@ -68,26 +70,46 @@ impl<'a> Parser<'a> {
     /// var x = 1
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
-    /// var x: [3]float64 = -- // explicitly uninitialized, can do whatever
     ///
     /// let Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
-    ///
-    /// let t? = foo() else { return }
     /// let t = foo() ?? return;
+    /// 
+    /// if let Some(x) = someFunction() {
+    ///     ...
+    /// }
+    /// if var Some(x) = someFunction() {
+    ///     ...
+    /// }
     /// ```
     pub fn eat_let(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability
-        let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
-            self.eat_scoped_mutability()?
-        } else {
-            self.bump();
-            ScopedMutability::Unscoped {
-                mutability: Mutability::Immutable,
-            }
-        };
+        let mutability =
+            // var or mut
+            if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
+                self.eat_scoped_mutability()?
+            } 
+            // let or const 
+            else if self.peek_keyword(Keyword::Let).is_ok()
+                || self.peek_keyword(Keyword::Const).is_ok()
+            {
+                self.bump(); // eat let or const
+                // also support `let mut` or `let var` as an alias
+                if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
+                    self.eat_scoped_mutability()?
+                } else {
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    }
+                }
+            } else {
+                return Err(ParserError::expected(
+                    self.peek_token(TokenType::Identifier)?.span,
+                    TokenType::Identifier,
+                ));
+            };
 
         // pattern
         let pattern = self.eat_pattern()?;

@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
         if keyword == Keyword::Self_ || keyword == Keyword::This {
             Ok(keyword)
         } else {
-            Err(AstError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             self.bump(); // eat self
             Ok(keyword)
         } else {
-            Err(AstError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 

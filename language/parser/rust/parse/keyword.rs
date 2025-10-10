@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{AstError, AstResult, Keyword, Parser, TokenSpan, TokenType};
+use crate::{ParserError, AstResult, Keyword, Parser, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a keyword.
@@ -8,7 +8,7 @@ impl<'a> Parser<'a> {
     pub fn peek_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(AstError::expected(current.span, TokenType::Identifier))
+            Err(ParserError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
         if let Ok(keyword) = Keyword::from_str(self.get_span_str(current.span)) {
             Ok(keyword)
         } else {
-            Err(AstError::expected(current.span, TokenType::Identifier))
+            Err(ParserError::expected(current.span, TokenType::Identifier))
         }
     }
 
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(AstError::expected(current.span, TokenType::Identifier))
+            Err(ParserError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next_next_keyword(&self, keyword: Keyword) -> AstResult<&TokenSpan> {
         let current = self.peek_next_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(AstError::expected(current.span, TokenType::Identifier))
+            Err(ParserError::expected(current.span, TokenType::Identifier))
         } else {
             Ok(current)
         }

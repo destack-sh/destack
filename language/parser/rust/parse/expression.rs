@@ -2,7 +2,7 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, AssignOperator, AstError, AstResult, BinaryOperator, Expression, InfixOperator,
+    Argument, AssignOperator, ParserError, AstResult, BinaryOperator, Expression, InfixOperator,
     Keyword, Mutability, NodeId, NodeType, Parser, ParserMark, Runtime, ScopedMutability,
     TokenSpan, TokenType, UnaryOperator, Visibility,
 };
@@ -53,7 +53,7 @@ fn to_infix_operator(
     }
     // unexpected
     else {
-        Err(AstError::unexpected(token.span))
+        Err(ParserError::unexpected(token.span))
     }
 }
 
@@ -62,14 +62,14 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> AstResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.ty).ok_or(AstError::unexpected(token.span))
+        UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a next unary operator.
     #[inline]
     pub fn peek_next_unary_operator(&self) -> AstResult<UnaryOperator> {
         let token = self.peek_next()?;
-        UnaryOperator::from_token_type(token.token.ty).ok_or(AstError::unexpected(token.span))
+        UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
         }
         // nothing
         else {
-            Err(AstError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
@@ -273,6 +273,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat &
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok()
                     || self.peek_keyword(Keyword::Const).is_ok()
+                    || self.peek_keyword(Keyword::Mut).is_ok()
                 {
                     self.eat_scoped_mutability()
                         .for_node_type(NodeType::Expression)?
@@ -405,16 +406,9 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Bindings / Literals / Aliases
+            // Literals / Aliases
             // ------------------------------------------------------------
             //
-            // let
-            else if keyword == Some(Keyword::Let)
-                || keyword == Some(Keyword::Var)
-                || keyword == Some(Keyword::Const)
-            {
-                self.eat_let(visibility)?
-            }
             // array
             else if token.token.ty == TokenType::OpenBracket {
                 let array_literal = self.eat_array_literal()?;
@@ -472,7 +466,7 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             else {
-                return Err(AstError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
         };
 

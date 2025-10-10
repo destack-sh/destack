@@ -265,7 +265,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_position(tokens, ignore_span, false, span)
             else {
                 // error if no position found
-                let error = AstError::unexpected_for(span, NodeType::Tag);
+                let error = ParserError::unexpected_for(span, NodeType::Tag);
                 self.handle_error(&error);
                 continue;
             };
@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_position(tokens, ignore_span, true, span)
             else {
                 // error if no position found
-                let error = AstError::unexpected_for(span, NodeType::Decorator);
+                let error = ParserError::unexpected_for(span, NodeType::Decorator);
                 self.handle_error(&error);
                 continue;
             };
@@ -532,7 +532,7 @@ impl<'a> Parser<'a> {
                 TokenType::DocBlockComment => NodeType::Doc,
                 _ => panic!("unexpected token type: {token_type:?}"),
             };
-            let error = AstError::unexpected_for(span, node_type);
+            let error = ParserError::unexpected_for(span, node_type);
             self.handle_error(&error);
             return; // could not find a position
         };

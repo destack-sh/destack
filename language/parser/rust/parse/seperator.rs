@@ -1,4 +1,4 @@
-use crate::{AstError, AstResult, Parser, TokenSpan, TokenType};
+use crate::{ParserError, AstResult, Parser, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a colon.
@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
         if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
             Ok(token)
         } else {
-            Err(AstError::expected(token.span, TokenType::FatArrow))
+            Err(ParserError::expected(token.span, TokenType::FatArrow))
         }
     }
 
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
         if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
             Ok(token)
         } else {
-            Err(AstError::expected(token.span, TokenType::FatArrow))
+            Err(ParserError::expected(token.span, TokenType::FatArrow))
         }
     }
 }

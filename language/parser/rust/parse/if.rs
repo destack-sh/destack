@@ -1,4 +1,4 @@
-use crate::{AstError, AstResult, Expression, Keyword, NodeId, Parser, Runtime};
+use crate::{ParserError, AstResult, Expression, Keyword, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else expression.
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
                 Expression::If { .. } | Expression::Block(_) => {}
                 _ => {
                     let else_span = self.tree.get_span_by_id(else_expr_id.id);
-                    return Err(AstError::unexpected(else_span));
+                    return Err(ParserError::unexpected(else_span));
                 }
             }
 
