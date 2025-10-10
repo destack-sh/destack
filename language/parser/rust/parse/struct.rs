@@ -5,8 +5,8 @@ use crate::TokenType;
 use crate::parse::prelude::*;
 
 use crate::{
-    AstResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, StructField,
-    StructStyle, Visibility,
+    Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
+    VariantField, VariantStyle, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -50,7 +50,10 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
+    pub fn eat_struct(
+        &mut self,
+        visibility: Option<Visibility>,
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -73,13 +76,13 @@ impl<'a> Parser<'a> {
         let (style, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
             let tuple_fields = self
-                .eat_struct_tuple_body()
+                .eat_variant_body()
                 .for_node_type(NodeType::Definition)?;
             self.eat_token(TokenType::CloseParenthesis)
                 .for_node_type(NodeType::Definition)?;
-            (StructStyle::Tuple, Some(tuple_fields))
+            (VariantStyle::Tuple, Some(tuple_fields))
         } else {
-            (StructStyle::Struct, None)
+            (VariantStyle::Struct, None)
         };
 
         // optional static parameters: < ... >
@@ -132,13 +135,14 @@ impl<'a> Parser<'a> {
         Ok(struct_id)
     }
 
-    /// Eat a struct tuple body (without the parenthesis).
-    /// Because it's just a tuple body, it doesn't have any expressions.
-    pub fn eat_struct_tuple_body(&mut self) -> AstResult<Vec<NodeId<StructField>>> {
-        let mut tuple_fields: Vec<NodeId<StructField>> = Vec::new();
+    /// Eat a variant body (without the parenthesis, without any expressions).
+    pub fn eat_variant_body(&mut self) -> ParserResult<Vec<NodeId<VariantField>>> {
+        let mut tuple_fields: Vec<NodeId<VariantField>> = Vec::new();
         loop {
             // stop at closing parenthesis
-            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            if self.peek_token(TokenType::CloseParenthesis).is_ok()
+                || self.peek_token(TokenType::CloseBrace).is_ok()
+            {
                 break;
             }
             // consume any stop
@@ -147,7 +151,7 @@ impl<'a> Parser<'a> {
             }
             // keep eating tuple fields
             else {
-                let field = self.eat_struct_field()?;
+                let field = self.eat_variant_field()?;
                 tuple_fields.push(field);
             }
         }
@@ -158,10 +162,10 @@ impl<'a> Parser<'a> {
     /// Struct fields are only parsed if it's a struct-style struct.
     pub fn eat_struct_body(
         &mut self,
-        style: StructStyle,
-    ) -> AstResult<(Vec<NodeId<StructField>>, Vec<NodeId<Expression>>)> {
+        style: VariantStyle,
+    ) -> ParserResult<(Vec<NodeId<VariantField>>, Vec<NodeId<Expression>>)> {
         // eat everything
-        let mut fields: Vec<NodeId<StructField>> = Vec::new();
+        let mut fields: Vec<NodeId<VariantField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // stop on closing brace
@@ -173,10 +177,10 @@ impl<'a> Parser<'a> {
                 self.eat_any_stop_with_newlines()?;
             }
             // struct field
-            else if style == StructStyle::Struct && self.peek_struct_field().is_ok() {
+            else if style == VariantStyle::Struct && self.peek_variant_field().is_ok() {
                 let field = self
-                    .eat_struct_field()
-                    .for_node_type(NodeType::StructField)?;
+                    .eat_variant_field()
+                    .for_node_type(NodeType::VariantField)?;
                 fields.push(field);
             }
             // eat expressions
@@ -192,7 +196,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a struct field: `name: Type` with optional default `= <expr>`.
-    fn peek_struct_field(&self) -> AstResult<()> {
+    fn peek_variant_field(&self) -> ParserResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Colon).is_ok()
                 || self.peek_next_token(TokenType::Assign).is_ok()
@@ -211,7 +215,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single struct field: `T`,`name: T`, or `name: T = <expr>`.
-    fn eat_struct_field(&mut self) -> AstResult<NodeId<StructField>> {
+    fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
 
         // name:
@@ -237,9 +241,10 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let field_id = self
-            .tree
-            .allocate(StructField { name, ty, default }, self.get_span_from(start));
+        let field_id = self.tree.allocate(
+            VariantField { name, ty, default },
+            self.get_span_from(start),
+        );
         Ok(field_id)
     }
 }
@@ -248,8 +253,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Definition, Expression, IntType, Parameter, StructField, StructStyle,
-        TypeLiteral, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
+        BinaryOperator, Definition, Expression, IntType, Parameter, TypeLiteral, VariantField,
+        VariantStyle, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
         assert_string,
     };
 
@@ -274,14 +279,14 @@ struct { x: int32, y: boolean
             assert!(where_clauses.is_none());
 
             // x: int32
-            assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[0], VariantField { name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "x");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // y: boolean
-            assert_node!(parser.tree, fields[1], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[1], VariantField { name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "y");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
@@ -327,20 +332,20 @@ struct Foo(int32, boolean) {}
         let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Definition::Struct { name, style, fields, expressions, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
-            assert_eq!(*style, StructStyle::Tuple);
+            assert_eq!(*style, VariantStyle::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // int32
-            assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[0], VariantField { name, ty, default } => {
                 assert!(name.is_none());
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // boolean
-            assert_node!(parser.tree, fields[1], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[1], VariantField { name, ty, default } => {
                 assert!(name.is_none());
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
@@ -397,7 +402,7 @@ struct Foo<T: Numeric>: Boz {
 
             assert_eq!(fields.len(), 2);
             // a: T
-            assert_node!(parser.tree, fields[0], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[0], VariantField { name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "a");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
@@ -405,7 +410,7 @@ struct Foo<T: Numeric>: Boz {
                 });
             });
             // b: int32 = 4
-            assert_node!(parser.tree, fields[1], StructField { name, ty, default } => {
+            assert_node!(parser.tree, fields[1], VariantField { name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "b");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 assert!(default.is_some());

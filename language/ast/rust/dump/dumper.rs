@@ -528,8 +528,8 @@ impl Dump for ModuleFormat {
     }
 }
 
-/// Dump a StructStyle as a string.
-impl Dump for StructStyle {
+/// Dump a VariantStyle as a string.
+impl Dump for VariantStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1069,17 +1069,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_struct_field(
+    fn visit_variant_field(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<StructField>,
-        field: &StructField,
+        _id: NodeId<VariantField>,
+        field: &VariantField,
     ) {
-        self.node("StructField", _id.id)
+        self.node("VariantField", _id.id)
             .field("name", &field.name)
             .end();
         self.with_depth(|dumper| {
-            walk_struct_field(dumper, _tree, _id, field);
+            walk_variant_field(dumper, _tree, _id, field);
         });
     }
 
@@ -1093,9 +1093,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_union_field(&mut self, _tree: &NodeTree, _id: NodeId<UnionField>, field: &UnionField) {
-        self.node("UnionField", _id.id)
-            .field("name", &field.name)
-            .end();
+        match field {
+            UnionField::Unit { name, value: _ } => {
+                self.node("UnionField::Unit", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+            UnionField::Tuple {
+                name,
+                fields: _,
+                value: _,
+            } => {
+                self.node("UnionField::Tuple", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+            UnionField::Struct {
+                name,
+                fields: _,
+                value: _,
+            } => {
+                self.node("UnionField::Struct", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+        };
         self.with_depth(|dumper| {
             walk_union_field(dumper, _tree, _id, field);
         });

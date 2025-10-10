@@ -1,4 +1,4 @@
-use crate::{AstResult, BlockFormat, Definition, Keyword, NodeId, Parser, TokenType};
+use crate::{ParserResult, BlockFormat, Definition, Keyword, NodeId, Parser, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self) -> AstResult<NodeId<Definition>> {
+    pub fn eat_implement(&mut self) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

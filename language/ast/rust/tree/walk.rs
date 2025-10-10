@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
+    MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag,
+    UnionField, UseClause, UseItem, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -31,9 +31,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let definition = tree.definitions.get(local_idx);
             walk_definition(visitor, tree, NodeId::new(node_id), definition);
         }
-        NodeType::StructField => {
-            let struct_field = tree.struct_fields.get(local_idx);
-            walk_struct_field(visitor, tree, NodeId::new(node_id), struct_field);
+        NodeType::VariantField => {
+            let variant_field = tree.variant_fields.get(local_idx);
+            walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
         }
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
@@ -516,7 +516,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             for field_id in fields {
                 let field = tree.get(*field_id);
-                visitor.visit_struct_field(tree, *field_id, field);
+                visitor.visit_variant_field(tree, *field_id, field);
             }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
@@ -746,14 +746,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the StructField.
-pub fn walk_struct_field<V: NodeVisitor + ?Sized>(
+/// Walk the VariantField.
+pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<StructField>,
-    field: &StructField,
+    id: NodeId<VariantField>,
+    field: &VariantField,
 ) {
-    visitor.visit_any(tree, NodeType::StructField, id.id);
+    visitor.visit_any(tree, NodeType::VariantField, id.id);
     let type_node = tree.get(field.ty);
     visitor.visit_expression(tree, field.ty, type_node);
 
@@ -785,14 +785,42 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
     field: &UnionField,
 ) {
     visitor.visit_any(tree, NodeType::UnionField, id.id);
-    if let Some(type_node) = &field.ty {
-        let type_ref = tree.get(*type_node);
-        visitor.visit_expression(tree, *type_node, type_ref);
-    }
-    if let Some(value) = &field.value {
-        let expression = tree.get(*value);
-        visitor.visit_expression(tree, *value, expression);
-    }
+    match field {
+        UnionField::Unit { name: _, value } => {
+            if let Some(value) = value {
+                let expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, expression);
+            }
+        }
+        UnionField::Tuple {
+            name: _,
+            fields,
+            value,
+        } => {
+            for field in fields {
+                let field_node = tree.get(*field);
+                visitor.visit_variant_field(tree, *field, field_node);
+            }
+            if let Some(value) = value {
+                let expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, expression);
+            }
+        }
+        UnionField::Struct {
+            name: _,
+            fields,
+            value,
+        } => {
+            for field in fields {
+                let field_node = tree.get(*field);
+                visitor.visit_variant_field(tree, *field, field_node);
+            }
+            if let Some(value) = value {
+                let expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, expression);
+            }
+        }
+    };
 }
 
 // ----------------------------------------------------------------------------

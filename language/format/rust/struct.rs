@@ -1,13 +1,13 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, StructField};
+use crate::{DystFormatter, FormatNode, NodeId, VariantField};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-impl<'ast> FormatNode<'ast, StructField> for StructField {
+impl<'ast> FormatNode<'ast, VariantField> for VariantField {
     fn format_node(
         &self,
-        node_id: NodeId<StructField>,
+        node_id: NodeId<VariantField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

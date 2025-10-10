@@ -1,6 +1,6 @@
 //! Parse loops, for, while, etc.
 
-use crate::{AstResult, Expression, Keyword, NodeId, Parser, Runtime};
+use crate::{ParserResult, Expression, Keyword, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_loop(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_loop(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// }
     /// ```
-    pub fn eat_for(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_for(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
     ///     break :l
     /// }
     /// ```
-    pub fn eat_while(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_while(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // header

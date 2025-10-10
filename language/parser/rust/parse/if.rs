@@ -1,4 +1,4 @@
-use crate::{AstResult, Expression, Keyword, NodeId, Parser, ParserError, Runtime};
+use crate::{ParserResult, Expression, Keyword, NodeId, Parser, ParserError, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else expression.
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
     ///     print("negative")
     /// }
     /// ```
-    pub fn eat_if(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_if(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword

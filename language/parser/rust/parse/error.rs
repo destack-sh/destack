@@ -18,14 +18,14 @@ pub struct ParserError {
 }
 
 /// The result of an AST parse.
-pub type AstResult<T> = Result<T, ParserError>;
+pub type ParserResult<T> = Result<T, ParserError>;
 
-pub trait AstResultExt<T> {
+pub trait ParserResultExt<T> {
     /// Set the node type of the error.
     fn for_node_type(self, node_type: NodeType) -> Result<T, ParserError>;
 }
 
-impl<T> AstResultExt<T> for Result<T, ParserError> {
+impl<T> ParserResultExt<T> for Result<T, ParserError> {
     /// Set the node type of the error (if not already set)
     #[inline]
     fn for_node_type(self, node_type: NodeType) -> Self {

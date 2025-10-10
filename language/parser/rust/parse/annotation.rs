@@ -2,7 +2,7 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, AstResult, Blank, Comment, CommentStyle,
+    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, ParserResult, Blank, Comment, CommentStyle,
     Decorator, Doc, DocStyle, NodeId, NodeSearch, NodeType, Parser, Tag, TokenSpan, TokenType,
 };
 use dyst_source::{MultiSpan, Span};
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     /// #Foo
     /// #Foo(x: 1)
     /// ```
-    pub(crate) fn eat_tag(&mut self) -> AstResult<NodeId<Tag>> {
+    pub(crate) fn eat_tag(&mut self) -> ParserResult<NodeId<Tag>> {
         let start = self.mark();
 
         // #
@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
-    pub(crate) fn eat_decorator(&mut self) -> AstResult<NodeId<Decorator>> {
+    pub(crate) fn eat_decorator(&mut self) -> ParserResult<NodeId<Decorator>> {
         let start = self.mark();
 
         // @
@@ -710,7 +710,7 @@ mod tests {
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Runtime,
-        ScalarLiteral, StructField, Tag, assert_node, assert_path, assert_string,
+        ScalarLiteral, VariantField, Tag, assert_node, assert_path, assert_string,
     };
 
     /// Tag annotations should be parsed around a struct.
@@ -1205,7 +1205,7 @@ struct Floof {
             assert_node!(parser.tree, *node, Definition::Struct { fields, .. } => {
                 // a: int32
                 assert_eq!(fields.len(), 1);
-                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
+                assert_node!(parser.tree, fields[0], VariantField { name, .. } => {
                     assert_string!(parser, name.unwrap(), "a");
                     let annotations = parser.tree.get_annotations_for(fields[0].id);
                     assert_eq!(annotations.len(), 4);

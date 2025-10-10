@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{Definition, DystFormatter, Expression, FormatNode, NodeId, StructStyle, UnionField};
+use crate::{DystFormatter, FormatNode, NodeId, UnionField};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -12,66 +12,74 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
-        // name
-        write!(f, [self.name])?;
-
-        // payload type
-        if let Some(ty) = self.ty {
-            let payload = f.context().get_node(ty).clone();
-            match payload {
-                Expression::Definition(definition_id) => {
-                    let definition = f.context().get_node(definition_id).clone();
-                    match definition {
-                        Definition::Struct { style, fields, .. } => match style {
-                            StructStyle::Tuple => {
-                                write!(
-                                    f,
-                                    [group(&format_args![
-                                        token("("),
-                                        soft_block_indent(&format_with(|f| {
-                                            f.join_with(&format_with(|f| {
-                                                if_group_fits_on_line(&token(",")).format(f)?;
-                                                soft_line_break_or_space().format(f)
-                                            }))
-                                            .entries(&fields)
-                                            .finish()
-                                        })),
-                                        token(")")
-                                    ])]
-                                )?;
-                            }
-                            StructStyle::Struct => {
-                                write!(
-                                    f,
-                                    [group(&format_args![
-                                        token(" {"),
-                                        hard_line_break(),
-                                        block_indent(&format_with(|f| f
-                                            .join_with(hard_line_break())
-                                            .entries(&fields)
-                                            .finish())),
-                                        hard_line_break(),
-                                        token("}")
-                                    ])]
-                                )?;
-                            }
-                        },
-                        _ => {
-                            // space separated type? (error?)
-                            write!(f, [space(), ty])?;
-                        }
-                    }
-                }
-                _ => {
-                    // space separated type? (error?)
-                    write!(f, [space(), ty])?;
+        match self {
+            UnionField::Unit { name, value } => {
+                write!(f, [name])?;
+                // discriminator value
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
                 }
             }
-        }
-
-        // default value
-        if let Some(value) = self.value {
-            write!(f, [space(), token("="), space(), value])?;
+            UnionField::Tuple {
+                name,
+                fields,
+                value,
+            } => {
+                write!(f, [name])?;
+                // fields
+                if fields.is_empty() {
+                    write!(f, [token("("), token(")")])?;
+                } else {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("("),
+                            soft_block_indent(&format_with(|f| f
+                                .join_with(&format_args![
+                                    if_group_fits_on_line(&token(",")),
+                                    soft_line_break_or_space()
+                                ])
+                                .entries(fields)
+                                .finish())),
+                            token(")")
+                        ])]
+                    )?;
+                }
+                // discriminator value
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
+                }
+            }
+            UnionField::Struct {
+                name,
+                fields,
+                value,
+            } => {
+                write!(f, [name])?;
+                // fields
+                if fields.is_empty() {
+                    write!(f, [token("{"), token("}")])?;
+                } else {
+                    write!(
+                        f,
+                        [
+                            token("{"),
+                            soft_block_indent(&format_with(|f| f
+                                .join_with(&format_args![
+                                    if_group_fits_on_line(&token(",")),
+                                    soft_line_break_or_space()
+                                ])
+                                .entries(fields)
+                                .finish())),
+                            token("}")
+                        ]
+                    )?;
+                }
+                // discriminator value
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
+                }
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

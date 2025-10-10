@@ -77,13 +77,13 @@ pub enum Definition {
     Struct {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        style: StructStyle,
+        style: VariantStyle,
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        fields: Vec<NodeId<StructField>>,
+        fields: Vec<NodeId<VariantField>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -347,32 +347,43 @@ impl Node for EnumField {
 /// ```
 /// A
 /// A(int32)
-/// B { x: int32, y: int32 } = 4
+/// A { x: int32, y: int32 } = 4
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UnionField {
-    /// The name of the union field.
-    pub name: StringId,
-    /// The type of the union field.
-    pub ty: Option<NodeId<Expression>>,
-    /// The default value of the union field.
-    pub value: Option<NodeId<Expression>>,
+pub enum UnionField {
+    /// Unit union field (like `A` or `A = 2`).
+    Unit {
+        name: StringId,
+        value: Option<NodeId<Expression>>,
+    },
+    /// Tuple union field (like `A(int32)`).
+    Tuple {
+        name: StringId,
+        fields: Vec<NodeId<VariantField>>,
+        value: Option<NodeId<Expression>>,
+    },
+    /// Struct union field (like `A { x: int32, y: int32 }`).
+    Struct {
+        name: StringId,
+        fields: Vec<NodeId<VariantField>>,
+        value: Option<NodeId<Expression>>,
+    },
 }
 
 impl Node for UnionField {
     const KIND: NodeType = NodeType::UnionField;
 }
 
-/// The style of a struct.
+/// The style of a variant (tuple or struct).
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructStyle {
+pub enum VariantStyle {
     /// A tuple struct with explicit representation.
     Tuple,
     /// A struct with explicit representation.
     Struct,
 }
 
-/// A StructField is a (struct) field declaration.
+/// A VariantField is a field declaration.
 ///
 /// Examples:
 /// ```
@@ -380,7 +391,7 @@ pub enum StructStyle {
 /// baz: T
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct StructField {
+pub struct VariantField {
     /// The name of the field (may be unset for tuple fields).
     pub name: Option<StringId>,
     /// The type of the field.
@@ -395,8 +406,8 @@ pub struct StructField {
 //  (how does this relate with Entities?)
 //  (how does this relate to $ virtualness/dynamicness?)
 
-impl Node for StructField {
-    const KIND: NodeType = NodeType::StructField;
+impl Node for VariantField {
+    const KIND: NodeType = NodeType::VariantField;
 }
 
 /// A FunctionStyle is the style of a function.

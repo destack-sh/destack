@@ -2,14 +2,14 @@ use std::borrow::Cow;
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, AstResult, Expression, FloatType, IntType, NodeId, NodeType, NumberBase, Parser,
+    Argument, ParserResult, Expression, FloatType, IntType, NodeId, NodeType, NumberBase, Parser,
     ParserError, RawLiteralType, ScalarLiteral, TokenSpan, TokenType, TypeLiteral, UnaryOperator,
 };
 
 impl<'a> Parser<'a> {
     /// Peek a scalar literal token.
     #[inline]
-    pub fn peek_scalar_literal(&self) -> AstResult<&TokenSpan> {
+    pub fn peek_scalar_literal(&self) -> ParserResult<&TokenSpan> {
         if self.peek_token(TokenType::Literal).is_ok() {
             Ok(self.peek()?)
         } else {
@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
     /// 0x1234
     /// "hello"
     /// ```
-    pub fn eat_scalar_literal(&mut self) -> AstResult<ScalarLiteral> {
+    pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
         let Some(body) = literal_span.token.body else {
             return Err(ParserError::unexpected(literal_span.span));
@@ -244,7 +244,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a type literal.
-    pub fn peek_type_literal(&self) -> AstResult<TypeLiteral> {
+    pub fn peek_type_literal(&self) -> ParserResult<TypeLiteral> {
         let next = self.peek()?;
         let next_type = next.token.ty;
         let next_next = self.peek_next();
@@ -339,7 +339,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a type literal and return its value.
-    pub fn eat_type_literal(&mut self) -> AstResult<TypeLiteral> {
+    pub fn eat_type_literal(&mut self) -> ParserResult<TypeLiteral> {
         let literal = self.peek_type_literal()?;
         self.bump();
         Ok(literal)
@@ -349,7 +349,7 @@ impl<'a> Parser<'a> {
     pub fn eat_tuple_literal_body(
         &mut self,
         first_element: Option<NodeId<Argument>>,
-    ) -> AstResult<Vec<NodeId<Argument>>> {
+    ) -> ParserResult<Vec<NodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
             elements.push(first);
@@ -375,7 +375,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single tuple literal element.
-    pub fn eat_tuple_literal_element(&mut self) -> AstResult<NodeId<Argument>> {
+    pub fn eat_tuple_literal_element(&mut self) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
         // named field
         if self.peek_token(TokenType::Identifier).is_ok()
@@ -400,7 +400,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an array literal body and return its element expressions.
-    pub fn eat_array_literal(&mut self) -> AstResult<Vec<NodeId<Expression>>> {
+    pub fn eat_array_literal(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
         self.eat_token(TokenType::OpenBracket)
             .for_node_type(NodeType::Expression)?;
         self.eat_newlines_maybe()?;
@@ -427,7 +427,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat the body of a struct literal (excluding the receiver expression).
-    pub(crate) fn eat_struct_literal_body(&mut self) -> AstResult<Vec<NodeId<Argument>>> {
+    pub(crate) fn eat_struct_literal_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenBrace)
             .for_node_type(NodeType::Expression)?;
         self.eat_newlines_maybe()?;

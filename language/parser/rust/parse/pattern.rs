@@ -3,7 +3,7 @@
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{AstResult, Keyword, Mutability, NodeId, NodeType, Parser, Pattern, PatternField};
+use crate::{ParserResult, Keyword, Mutability, NodeId, NodeType, Parser, Pattern, PatternField};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ..] }
     /// ```
-    pub fn eat_pattern(&mut self) -> AstResult<NodeId<Pattern>> {
+    pub fn eat_pattern(&mut self) -> ParserResult<NodeId<Pattern>> {
         let start = self.mark();
 
         // ------------------------------------------------------------
@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
         &mut self,
         seperator: TokenType,
         terminator: TokenType,
-    ) -> AstResult<Vec<NodeId<PatternField>>> {
+    ) -> ParserResult<Vec<NodeId<PatternField>>> {
         let mut fields: Vec<NodeId<PatternField>> = Vec::new();
         loop {
             if self.peek_token(terminator).is_ok() {

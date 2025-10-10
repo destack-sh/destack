@@ -2,7 +2,7 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, AssignOperator, AstResult, BinaryOperator, Expression, InfixOperator, Keyword,
+    Argument, AssignOperator, ParserResult, BinaryOperator, Expression, InfixOperator, Keyword,
     Mutability, NodeId, NodeType, Parser, ParserError, ParserMark, Runtime, ScopedMutability,
     TokenSpan, TokenType, UnaryOperator, Visibility,
 };
@@ -28,7 +28,7 @@ fn to_infix_operator(
     token: &TokenSpan,
     next_token: &TokenSpan,
     options: ParserOptions,
-) -> AstResult<(InfixOperator, u8)> {
+) -> ParserResult<(InfixOperator, u8)> {
     // special case for shift right to avoid ungluing ambiguity
     if !options.in_static
         && token.token.ty == TokenType::GreaterThan
@@ -60,21 +60,21 @@ fn to_infix_operator(
 impl<'a> Parser<'a> {
     /// Peek a unary operator.
     #[inline]
-    pub fn peek_unary_operator(&self) -> AstResult<UnaryOperator> {
+    pub fn peek_unary_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
         UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a next unary operator.
     #[inline]
-    pub fn peek_next_unary_operator(&self) -> AstResult<UnaryOperator> {
+    pub fn peek_next_unary_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek_next()?;
         UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
     #[inline]
-    pub fn peek_infix_operator(&self) -> AstResult<(InfixOperator, u8)> {
+    pub fn peek_infix_operator(&self) -> ParserResult<(InfixOperator, u8)> {
         let token = self.peek()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next()?;
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a next infix operator.
     #[inline]
-    pub fn peek_next_infix_operator(&self) -> AstResult<(InfixOperator, u8)> {
+    pub fn peek_next_infix_operator(&self) -> ParserResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next_next()?;
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
 
     /// Try to eat an expression as a statement (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression_as_statement(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn try_eat_expression_as_statement(&mut self) -> ParserResult<NodeId<Expression>> {
         self.with_options(self.options.in_statement(), |parser| {
             parser.try_eat_expression(TokenType::Newline)
         })
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression(&mut self, recover: TokenType) -> AstResult<NodeId<Expression>> {
+    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParserResult<NodeId<Expression>> {
         match self.eat_expression() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
     /// Peek a member access of the given token type.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]
-    fn peek_member(&self, token_type: TokenType) -> AstResult<u8> {
+    fn peek_member(&self, token_type: TokenType) -> ParserResult<u8> {
         // immediate member access
         if self.peek_token(TokenType::Dot).is_ok() && self.peek_next_token(token_type).is_ok() {
             Ok(2)
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an expression.
-    pub fn eat_expression(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // visibility

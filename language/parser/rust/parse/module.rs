@@ -3,12 +3,12 @@ use crate::parse::prelude::*;
 use dyst_source::StringId;
 
 use crate::{
-    AstResult, BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, Parser, Visibility,
+    ParserResult, BlockFormat, Definition, Keyword, ModuleFormat, NodeId, NodeType, Parser, Visibility,
 };
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
+    pub fn eat_module(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
         visibility: Option<Visibility>,
         name: Option<StringId>,
         format: ModuleFormat,
-    ) -> AstResult<NodeId<Definition>> {
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // with
