@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Annotation, AnnotationPosition, NodeId, SelfParameter};
+use dyst_dir::SelfParameter;
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
@@ -11,6 +11,10 @@ impl<'a> Compiler<'a> {
         ast: &ast::NodeTree,
         self_parameter: &ast::SelfParameter,
     ) -> SelfParameter {
-        todo!("Compiler::lower_self_parameter")
+        let mutability = self.lower_scoped_mutability(source_id, ast, &self_parameter.mutability);
+        SelfParameter {
+            mutability,
+            is_reference: self_parameter.is_reference,
+        }
     }
 }

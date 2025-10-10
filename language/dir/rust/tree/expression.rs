@@ -1,13 +1,17 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId, NodeType, Path, Pattern, ScalarLiteral, ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId,
+    NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, Type, TypeLiteral,
+    UnaryOperator, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Block of "statements" (inside `{}` usually)
-    Block(NodeId<Block>),
+    Block { block: NodeId<Block> },
+    /// Definition as a value (with a name or anonymous)
+    Definition { definition: NodeId<Definition> },
 
     /// With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
     With {
@@ -16,6 +20,7 @@ pub enum Expression {
     },
     /// Use dependency declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
     Use {
+        visibility: Option<Visibility>,
         items: Vec<NodeId<UseItem>>,
         body: Option<NodeId<Block>>,
     },
@@ -63,6 +68,7 @@ pub enum Expression {
     },
     /// Call to a function.
     Call {
+        runtime: Option<Runtime>,
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -80,35 +86,20 @@ pub enum Expression {
     /// Literals.
     /// --------------------------------
     /// Path.
-    /// --------------------------------
-    Path {
-        path: Path,
-    },
-    // Inline definition as a value (with a name or anonymous)
-    InlineDefinition {
-        definition: NodeId<Definition>,
-    },
+    Path { path: Path },
     /// Scalar literal value.
-    ScalarLiteral {
-        value: ScalarLiteral,
-    },
+    ScalarLiteral { value: ScalarLiteral },
     /// Type literal value.
-    TypeLiteral {
-        value: TypeLiteral,
-    },
+    TypeLiteral { value: TypeLiteral },
     /// Struct creation.
     StructLiteral {
         ty: NodeId<Type>,
         fields: Vec<NodeId<Argument>>,
     },
     /// Tuple creation.
-    TupleLiteral {
-        elements: Vec<NodeId<Argument>>,
-    },
+    TupleLiteral { elements: Vec<NodeId<Argument>> },
     /// Array creation.
-    ArrayLiteral {
-        elements: Vec<NodeId<Expression>>,
-    },
+    ArrayLiteral { elements: Vec<NodeId<Expression>> },
 
     /// --------------------------------
     /// Control flow.
@@ -138,9 +129,7 @@ pub enum Expression {
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
-    Continue {
-        destination: Destination,
-    },
+    Continue { destination: Destination },
     /// Defer expression.
     Defer {
         destination: Destination,

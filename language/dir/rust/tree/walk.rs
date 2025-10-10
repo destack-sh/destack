@@ -11,7 +11,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node[node_id as usize];
+    let local_idx = tree.local_id_by_node_id[node_id as usize];
     match node_type {
         // --------------------------------------------------------------------
         // Groupings
@@ -110,15 +110,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        Expression::InlineDefinition {
+        Expression::Block { block: block_id } => {
+            let block = tree.get(*block_id);
+            walk_block(visitor, tree, *block_id, block);
+        }
+        Expression::Definition {
             definition: definition_id,
         } => {
             let definition = tree.get(*definition_id);
             walk_definition(visitor, tree, *definition_id, definition);
-        }
-        Expression::Block(block_id) => {
-            let block = tree.get(*block_id);
-            walk_block(visitor, tree, *block_id, block);
         }
         Expression::With { clauses, body } => {
             for clause_id in clauses {
@@ -130,7 +130,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 walk_block(visitor, tree, *body_id, block);
             }
         }
-        Expression::Use { items, body } => {
+        Expression::Use {
+            visibility: _,
+            items,
+            body,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 walk_use_item(visitor, tree, *item_id, item);
@@ -187,6 +191,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             walk_expression(visitor, tree, *left, left_expression);
         }
         Expression::Call {
+            runtime: _,
             left,
             dynamic_arguments,
         } => {
@@ -833,7 +838,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             walk_pattern(visitor, tree, *inner, inner_pattern);
         }
         Pattern::Reference {
-            target,
+            right: target,
             mutability: _,
         } => {
             let target_pattern = tree.get(*target);
@@ -867,8 +872,8 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 walk_pattern_field(visitor, tree, *field_id, field);
             }
         }
-        Pattern::Union { fields } => {
-            for pattern_id in fields {
+        Pattern::Union { patterns } => {
+            for pattern_id in patterns {
                 let union_pattern = tree.get(*pattern_id);
                 walk_pattern(visitor, tree, *pattern_id, union_pattern);
             }

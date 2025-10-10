@@ -6,7 +6,7 @@ use dyst_source::SourceId;
 impl<'a> Compiler<'a> {
     /// Lower and attach all annotations for a source.
     pub fn attach_annotations(&mut self, source_id: SourceId, ast: &ast::NodeTree) {
-        todo!("Compiler::attach_annotations")
+        todo!("Compiler::attach_annotations");
     }
 
     /// Lower an annotation position into a DIR annotation position.

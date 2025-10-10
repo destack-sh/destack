@@ -15,7 +15,7 @@ impl NodeParentIndex {
         let mut parent_by_node: HashMap<u32, u32> = HashMap::new();
 
         // capture the parents of each node
-        for (parent_id, node_type) in tree.type_by_node.iter().enumerate() {
+        for (parent_id, node_type) in tree.type_by_node_id.iter().enumerate() {
             capturing_visitor.reset();
             walk_any(&mut capturing_visitor, tree, *node_type, parent_id as u32);
             for node_id in capturing_visitor.visited() {
@@ -28,7 +28,7 @@ impl NodeParentIndex {
 
         // put into linear map
         let mut parents_per_node: Vec<Option<u32>> = Vec::new();
-        for i in 0..tree.type_by_node.len() {
+        for i in 0..tree.type_by_node_id.len() {
             parents_per_node.push(parent_by_node.get(&(i as u32)).cloned());
         }
 

@@ -81,11 +81,11 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     token("}"),
                 ])]
             )?,
-            Pattern::Union { fields } => write!(
+            Pattern::Union { patterns } => write!(
                 f,
                 [format_with(|f| f
                     .join_with(token(" | "))
-                    .entries(fields)
+                    .entries(patterns)
                     .finish())]
             )?,
         }

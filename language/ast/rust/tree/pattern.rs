@@ -58,7 +58,7 @@ pub enum Pattern {
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).
-    Union { fields: Vec<NodeId<Pattern>> },
+    Union { patterns: Vec<NodeId<Pattern>> },
 }
 
 impl Node for Pattern {
@@ -81,15 +81,15 @@ impl Node for Pattern {
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4`).
     Named {
+        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
-        mutability: Option<Mutability>,
     },
     /// Named field with an alias (like `x: y`).
     NamedAlias {
+        mutability: Option<Mutability>,
         name: StringId,
         alias: StringId,
-        mutability: Option<Mutability>,
     },
     /// Positional field with just a pattern (like `4`).
     Positional { pattern: NodeId<Pattern> },

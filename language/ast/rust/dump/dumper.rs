@@ -836,14 +836,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Path", _id.id).value(path).end();
             }
-            Expression::ScalarLiteral(lit) => {
+            Expression::ScalarLiteral(value) => {
                 self.node("Expression::ScalarLiteral", _id.id)
-                    .value(lit)
+                    .value(value)
                     .end();
             }
-            Expression::TypeLiteral(lit) => {
+            Expression::TypeLiteral(value) => {
                 self.node("Expression::TypeLiteral", _id.id)
-                    .value(lit)
+                    .value(value)
                     .end();
             }
             Expression::RangeLiteral {
@@ -1269,7 +1269,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Struct { ty: _, fields: _ } => {
                 self.node("Pattern::Struct", _id.id).end();
             }
-            Pattern::Union { fields: _ } => {
+            Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", _id.id).end();
             }
         }

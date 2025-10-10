@@ -18,11 +18,11 @@ pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
-    pub(crate) local_id_by_node: Vec<u32>,
+    pub(crate) local_id_by_node_id: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
-    pub(crate) type_by_node: Vec<NodeType>,
+    pub(crate) type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
     /// The spans of the NodeTree.
     pub spans: NodeSpanIndex,
 
@@ -61,7 +61,7 @@ impl Debug for NodeTree {
         f.debug_struct("NodeTree")
             .field("source_id", &self.source_id)
             .field("next_global_id", &self.next_global_id)
-            .field("node_count", &self.local_id_by_node.len())
+            .field("node_count", &self.local_id_by_node_id.len())
             .finish()
     }
 }
@@ -77,9 +77,9 @@ impl NodeTree {
         Self {
             source_id,
             next_global_id: 0,
-            local_id_by_node: Vec::with_capacity(capacity),
-            type_by_node: Vec::with_capacity(capacity),
-            annotations_per_node: HashMap::new(),
+            local_id_by_node_id: Vec::with_capacity(capacity),
+            type_by_node_id: Vec::with_capacity(capacity),
+            annotations_per_node_id: HashMap::new(),
             spans: NodeSpanIndex::new(),
             // groupings
             expressions: NodeArena::new(),
@@ -127,9 +127,9 @@ impl NodeTree {
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.type_by_node.push(T::KIND);
+        self.type_by_node_id.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
-        self.local_id_by_node.push(local_id);
+        self.local_id_by_node_id.push(local_id);
         self.spans.append(span);
         NodeId::new(global_id)
     }
@@ -140,8 +140,8 @@ impl NodeTree {
         // collect local ids by node type
         let mut local_ids_by_node: HashMap<NodeType, Vec<u32>> = HashMap::new();
         for idx in from_idx..self.next_global_id {
-            let node_type = self.type_by_node[idx as usize];
-            let local_id = self.local_id_by_node[idx as usize];
+            let node_type = self.type_by_node_id[idx as usize];
+            let local_id = self.local_id_by_node_id[idx as usize];
             local_ids_by_node
                 .entry(node_type)
                 .or_default()
@@ -151,8 +151,8 @@ impl NodeTree {
         for (node_type, local_ids) in local_ids_by_node {
             self.deallocate(node_type, local_ids);
         }
-        self.type_by_node.truncate(from_idx as usize);
-        self.local_id_by_node.truncate(from_idx as usize);
+        self.type_by_node_id.truncate(from_idx as usize);
+        self.local_id_by_node_id.truncate(from_idx as usize);
         // reset spans & next_id
         self.spans.prune_from(from_idx);
         self.next_global_id = from_idx;
@@ -161,7 +161,7 @@ impl NodeTree {
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_type(&self, id: u32) -> NodeType {
-        self.type_by_node[id as usize]
+        self.type_by_node_id[id as usize]
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -171,7 +171,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let local_id = self.local_id_by_node[id.id as usize];
+        let local_id = self.local_id_by_node_id[id.id as usize];
         <Self as NodeTreeStore<T>>::get(self, local_id)
     }
 
@@ -182,7 +182,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let local_id = self.local_id_by_node[id.id as usize];
+        let local_id = self.local_id_by_node_id[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
     }
 
@@ -214,7 +214,7 @@ impl NodeTree {
     #[inline]
     pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
         let mut spans = Vec::new();
-        for (idx, ty) in self.type_by_node.iter().enumerate() {
+        for (idx, ty) in self.type_by_node_id.iter().enumerate() {
             if *ty == node_type {
                 spans.push(self.spans.get_by_id(idx as u32));
             }
@@ -229,7 +229,7 @@ impl NodeTree {
         T: Node,
     {
         let mut nodes = Vec::new();
-        for (idx, ty) in self.type_by_node.iter().enumerate() {
+        for (idx, ty) in self.type_by_node_id.iter().enumerate() {
             if *ty == T::KIND {
                 nodes.push(NodeId::new(idx as u32));
             }
@@ -273,10 +273,10 @@ impl NodeTree {
 
     /// Append a doc to a node by its global id.
     #[inline]
-    pub fn append_annotation(&mut self, global_id: u32, annotation: NodeId<Annotation>) {
-        debug_assert!(global_id < self.next_global_id);
-        self.annotations_per_node
-            .entry(global_id)
+    pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
+        debug_assert!(target_id < self.next_global_id);
+        self.annotations_per_node_id
+            .entry(target_id)
             .or_default()
             .push(annotation);
     }
@@ -284,22 +284,28 @@ impl NodeTree {
     /// Whether there are any annotations attached to a node.
     #[inline]
     pub fn has_annotations_for(&self, node_id: u32) -> bool {
-        self.annotations_per_node.contains_key(&node_id)
+        self.annotations_per_node_id.contains_key(&node_id)
     }
 
     /// Get annotations attached to a node.
     #[inline]
     pub fn get_annotations_for(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
-        self.annotations_per_node
+        self.annotations_per_node_id
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
     }
 
+    /// Get all annotations.
+    #[inline]
+    pub fn get_all_annotations(&self) -> &HashMap<u32, Vec<NodeId<Annotation>>> {
+        &self.annotations_per_node_id
+    }
+
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
-        self.annotations_per_node
+        self.annotations_per_node_id
             .values_mut()
             .for_each(|annotations| {
                 annotations.sort_by_key(|annotation| self.spans.get(*annotation).start)
