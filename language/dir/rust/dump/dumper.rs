@@ -585,8 +585,7 @@ impl Dump for IntType {
 /// Dump a FloatType as a structured representation.
 impl Dump for FloatType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let repr = self.as_str();
-        dumper.object("FloatType").field("repr", &repr).end();
+        dumper.object("FloatType").field("width", &self.width).end();
     }
 }
 
@@ -746,17 +745,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Block(_) => {
+            Expression::Block { block: _ } => {
                 self.node("Expression::Block", id.id).end();
             }
+            Expression::Definition { definition: _ } => {
+                self.node("Expression::Definition", id.id).end();
+            }
+
             Expression::With {
                 clauses: _,
                 body: _,
             } => {
                 self.node("Expression::With", id.id).end();
             }
-            Expression::Use { items: _, body: _ } => {
-                self.node("Expression::Use", id.id).end();
+            Expression::Use {
+                visibility,
+                items: _,
+                body: _,
+            } => {
+                self.node("Expression::Use", id.id)
+                    .field_optional("visibility", visibility)
+                    .end();
             }
             Expression::Let {
                 mutability,
@@ -811,10 +820,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Call {
+                runtime,
                 left: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::Call", id.id).end();
+                self.node("Expression::Call", id.id)
+                    .field_optional("runtime", runtime)
+                    .end();
             }
             Expression::Index { left: _, right: _ } => {
                 self.node("Expression::Index", id.id).end();
@@ -826,9 +838,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Path", id.id)
                     .field("path", path)
                     .end();
-            }
-            Expression::InlineDefinition { definition: _ } => {
-                self.node("Expression::InlineDefinition", id.id).end();
             }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
@@ -1274,7 +1283,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Pattern::Maybe", id.id).end();
             }
             Pattern::Reference {
-                target: _,
+                right: _,
                 mutability,
             } => {
                 self.node("Pattern::Reference", id.id)
@@ -1314,7 +1323,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Struct { ty: _, fields: _ } => {
                 self.node("Pattern::Struct", id.id).end();
             }
-            Pattern::Union { fields: _ } => {
+            Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", id.id).end();
             }
         }

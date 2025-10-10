@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
             && !self.options.in_union_pattern
         {
             // eat all union "fields" (just unnamed patterns)
-            let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
+            let mut patterns: Vec<NodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::ElementwiseOr).is_ok() {
                 self.bump(); // eat '|'
                 let field_pattern_id = self
@@ -164,9 +164,9 @@ impl<'a> Parser<'a> {
                         parser.eat_pattern()
                     })
                     .for_node_type(NodeType::Pattern)?;
-                fields.push(field_pattern_id);
+                patterns.push(field_pattern_id);
             }
-            let pattern = Pattern::Union { fields };
+            let pattern = Pattern::Union { patterns };
             let pattern_id = self.tree.allocate(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
@@ -444,17 +444,17 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Union { fields } => {
-            assert_eq!(fields.len(), 3);
+        assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+            assert_eq!(patterns.len(), 3);
 
             // 1
-            assert_node!(parser.tree, fields[0], Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, patterns[0], Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
 
             // 2
-            assert_node!(parser.tree, fields[1], Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, patterns[1], Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
 
             // 3
-            assert_node!(parser.tree, fields[2], Pattern::ScalarLiteral(ScalarLiteral::Integer(3)));
+            assert_node!(parser.tree, patterns[2], Pattern::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
     }
 }

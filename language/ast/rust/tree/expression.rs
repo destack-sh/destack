@@ -481,7 +481,7 @@ impl Expression {
     pub fn is_wide(&self) -> bool {
         matches!(
             self,
-            Expression::Definition(_)
+            Expression::Definition { .. }
                 | Expression::With { .. }
                 | Expression::Use { .. }
                 | Expression::Let { .. }

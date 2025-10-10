@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a primitive type literal.
+    /// Peek a type literal.
     pub fn peek_type_literal(&self) -> AstResult<TypeLiteral> {
         let next = self.peek()?;
         let next_type = next.token.ty;

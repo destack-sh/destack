@@ -9,7 +9,12 @@ use crate::AstNodeId;
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
-pub struct CompilerOptions {}
+pub struct CompilerOptions {
+    /// Default integer width.
+    pub default_int_width: u16 = 32,
+    /// Default float width.
+    pub default_float_width: u16 = 32,
+}
 
 /// A compiler for a related set of Dyst sources on Dyst DIR.
 #[derive(Debug, Clone)]

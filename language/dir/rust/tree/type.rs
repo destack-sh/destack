@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{
     Definition, Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId,
 };
@@ -73,23 +71,8 @@ impl IntType {
 
 impl FloatType {
     #[inline]
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            FloatType::Float32 => "float32",
-            FloatType::Float64 => "float64",
-        }
-    }
-}
-
-impl FromStr for FloatType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "float32" => Ok(FloatType::Float32),
-            "float64" => Ok(FloatType::Float64),
-            _ => Err(()),
-        }
+    pub fn as_str(self) -> String {
+        format!("float{}", self.width)
     }
 }
 
@@ -164,7 +147,7 @@ pub enum Type {
     /// Virtual type `$T`.
     Virtual(NodeId<Type>),
 
-    /// Variadic type `..T`. Behaves like a slice.
+    /// Variadic type `..T`. Behaves like a slice/array.
     Variadic(NodeId<Type>),
     /// Array type `T[N]`. Must have static length.
     Array {
@@ -192,7 +175,7 @@ pub enum Type {
     Definition(NodeId<Definition>),
     /// An expression yet to be evaluated into a Type (like a Path).
     Expression(NodeId<Expression>),
-    
+
     /// Error type that could not be evaluated.
     Error,
 }
@@ -212,11 +195,9 @@ pub struct IntType {
 
 /// A FloatType represents IEEE-754 float.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FloatType {
-    /// 32-bit IEEE-754 float.
-    Float32,
-    /// 64-bit IEEE-754 float.
-    Float64,
+pub struct FloatType {
+    /// Bit width.
+    pub width: u16,
 }
 
 /// A WhereClause is a single clause in a where type declaration.

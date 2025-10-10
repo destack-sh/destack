@@ -11,7 +11,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     node_type: NodeType,
     node_id: u32,
 ) {
-    let local_idx = tree.local_id_by_node[node_id as usize];
+    let local_idx = tree.local_id_by_node_id[node_id as usize];
     match node_type {
         // --------------------------------------------------------------------
         // Groupings
@@ -976,10 +976,10 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Union { fields } => {
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern(tree, *field_id, field);
+        Pattern::Union { patterns } => {
+            for pattern_id in patterns {
+                let pattern = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern);
             }
         }
     }
