@@ -2,8 +2,8 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, AssignOperator, ParserError, AstResult, BinaryOperator, Expression, InfixOperator,
-    Keyword, Mutability, NodeId, NodeType, Parser, ParserMark, Runtime, ScopedMutability,
+    Argument, AssignOperator, AstResult, BinaryOperator, Expression, InfixOperator, Keyword,
+    Mutability, NodeId, NodeType, Parser, ParserError, ParserMark, Runtime, ScopedMutability,
     TokenSpan, TokenType, UnaryOperator, Visibility,
 };
 

@@ -73,7 +73,7 @@ pub enum Expression {
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
     /// let t = foo() ?? return;
-    /// 
+    ///
     /// if let Some(x) = someFunction() {
     ///     ...
     /// }

@@ -5,7 +5,7 @@ use crate::TokenType;
 use crate::parse::prelude::*;
 
 use crate::{
-    ParserError, AstResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, StructField,
+    AstResult, Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, StructField,
     StructStyle, Visibility,
 };
 
@@ -203,7 +203,10 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParserError::expected(self.peek()?.span, TokenType::Identifier))
+            Err(ParserError::expected(
+                self.peek()?.span,
+                TokenType::Identifier,
+            ))
         }
     }
 

@@ -4,7 +4,7 @@ use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    ParserError, AstResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser,
+    AstResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     Visibility,
 };
 
