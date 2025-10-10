@@ -31,8 +31,6 @@ impl<'a> Compiler<'a> {
                 let definition = Definition::Use { visibility, items };
                 Some(self.tree.allocate(definition, source_id, expression_id))
             }
-
-            // nocheckin #Incomplete: lower more Expressions to Definitions
             _ => None,
         }
     }

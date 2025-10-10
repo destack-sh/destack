@@ -1,4 +1,4 @@
-use crate::{ParserResult, Expression, NodeId, Parser, TokenType};
+use crate::{Expression, NodeId, Parser, ParserResult, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat super types maybe. May be parenthesized.

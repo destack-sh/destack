@@ -2,8 +2,8 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, ParserResult, Blank, Comment, CommentStyle,
-    Decorator, Doc, DocStyle, NodeId, NodeSearch, NodeType, Parser, Tag, TokenSpan, TokenType,
+    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
+    Doc, DocStyle, NodeId, NodeSearch, NodeType, Parser, ParserResult, Tag, TokenSpan, TokenType,
 };
 use dyst_source::{MultiSpan, Span};
 
@@ -710,7 +710,7 @@ mod tests {
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Runtime,
-        ScalarLiteral, VariantField, Tag, assert_node, assert_path, assert_string,
+        ScalarLiteral, Tag, VariantField, assert_node, assert_path, assert_string,
     };
 
     /// Tag annotations should be parsed around a struct.

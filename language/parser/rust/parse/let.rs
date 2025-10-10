@@ -1,6 +1,6 @@
 use crate::{Expression, ParserError, Path, TokenType};
 
-use crate::{ParserResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
+use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a scoped mutability modifier. Allows nothing.

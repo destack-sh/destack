@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use crate::{
     Argument, Definition, EnumField, Keyword, Node, NodeId, NodeTree, NodeVisitor, Parameter,
-    PatternField, RawLiteralType, VariantField, TokenSpan, TokenType, UnionField, walk_argument,
-    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_variant_field,
-    walk_union_field,
+    PatternField, RawLiteralType, TokenSpan, TokenType, UnionField, VariantField, walk_argument,
+    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_union_field,
+    walk_variant_field,
 };
 use dyst_source::Source;
 

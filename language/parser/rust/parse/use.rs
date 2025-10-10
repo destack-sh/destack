@@ -3,7 +3,7 @@ use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    ParserResult, Expression, Keyword, NodeId, NodeType, Parser, UseClause, UseItem, Visibility,
+    Expression, Keyword, NodeId, NodeType, Parser, ParserResult, UseClause, UseItem, Visibility,
 };
 
 impl<'a> Parser<'a> {

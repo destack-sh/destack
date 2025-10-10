@@ -7,7 +7,7 @@ use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
     EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern,
-    PatternField, VariantField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
+    PatternField, Tag, UnionField, UseClause, UseItem, VariantField, WhereClause, WithClause,
 };
 
 /// The AST Node tree for a single source unit.

@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
 
 use crate::{
-    ParserResult, Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, Runtime,
+    Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
     SelfParameter, Visibility,
 };
 

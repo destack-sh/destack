@@ -3,7 +3,7 @@
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{ParserResult, Keyword, Mutability, NodeId, NodeType, Parser, Pattern, PatternField};
+use crate::{Keyword, Mutability, NodeId, NodeType, Parser, ParserResult, Pattern, PatternField};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.

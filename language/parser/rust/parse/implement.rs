@@ -1,4 +1,4 @@
-use crate::{ParserResult, BlockFormat, Definition, Keyword, NodeId, Parser, TokenType};
+use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).

@@ -1,6 +1,6 @@
 //! Parse identifiers.
 
-use crate::{ParserResult, Parser, ParserError, TokenSpan, TokenType};
+use crate::{Parser, ParserError, ParserResult, TokenSpan, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {

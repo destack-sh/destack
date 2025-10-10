@@ -5,7 +5,7 @@ use crate::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
 
 use crate::{
-    ParserResult, Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError,
+    Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult,
 };
 use dyst_session::Session;
 

@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, ParserResult, Expression, FloatType, IntType, NodeId, NodeType, NumberBase, Parser,
-    ParserError, RawLiteralType, ScalarLiteral, TokenSpan, TokenType, TypeLiteral, UnaryOperator,
+    Argument, Expression, FloatType, IntType, NodeId, NodeType, NumberBase, Parser, ParserError,
+    ParserResult, RawLiteralType, ScalarLiteral, TokenSpan, TokenType, TypeLiteral, UnaryOperator,
 };
 
 impl<'a> Parser<'a> {

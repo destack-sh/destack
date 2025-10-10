@@ -710,8 +710,9 @@ impl Dump for TypeLiteral {
 impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations_for(id);
-        for annotation in annotations {
-            self.visit_annotation(tree, annotation, tree.get(annotation));
+        for annotation_id in annotations {
+            let annotation = tree.get(annotation_id);
+            self.visit_annotation(tree, annotation_id, annotation);
         }
     }
 
