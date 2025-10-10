@@ -1,5 +1,6 @@
 use crate::{
-    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause
+    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
+    Variant, Visibility, WhereClause, WithClause,
 };
 
 /// Definition introduces a type or function into its scope.

@@ -1,4 +1,4 @@
-use crate::{Node, NodeId, NodeType, StringId, Type, Expression};
+use crate::{Expression, Node, NodeId, NodeType, StringId, Type};
 
 /// A Variant is structured data type.
 #[derive(Debug, Clone, PartialEq)]

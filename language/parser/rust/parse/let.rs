@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     /// let Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
     /// let t = foo() ?? return;
-    /// 
+    ///
     /// if let Some(x) = someFunction() {
     ///     ...
     /// }
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
             // var or mut
             if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
                 self.eat_scoped_mutability()?
-            } 
+            }
             // let or const 
             else if self.peek_keyword(Keyword::Let).is_ok()
                 || self.peek_keyword(Keyword::Const).is_ok()

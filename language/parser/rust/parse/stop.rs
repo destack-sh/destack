@@ -1,4 +1,4 @@
-use crate::{ParserError, AstResult, Parser, TokenSpan, TokenType};
+use crate::{AstResult, Parser, ParserError, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek an item stop (comma or newline).

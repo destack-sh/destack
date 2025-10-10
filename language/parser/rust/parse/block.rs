@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{
-    ParserError, AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser,
+    AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     TokenType,
 };
 
