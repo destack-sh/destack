@@ -4,7 +4,7 @@ use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    AstResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    ParserResult, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     Visibility,
 };
 
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Definition>> {
+    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
 
     /// Eat an enum body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_enum_body(&mut self) -> AstResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Expression>>)> {
+    fn eat_enum_body(&mut self) -> ParserResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Expression>>)> {
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an enum field.
-    fn peek_enum_field(&self) -> AstResult<()> {
+    fn peek_enum_field(&self) -> ParserResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
-    fn eat_enum_field(&mut self) -> AstResult<NodeId<EnumField>> {
+    fn eat_enum_field(&mut self) -> ParserResult<NodeId<EnumField>> {
         let start = self.mark();
         let name = self.eat_identifier().for_node_type(NodeType::EnumField)?;
 

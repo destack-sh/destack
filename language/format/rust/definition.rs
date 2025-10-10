@@ -3,8 +3,8 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, StructField,
-    StructStyle, empty_block_with_infix_annotations,
+    Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, VariantField,
+    VariantStyle, empty_block_with_infix_annotations,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -139,12 +139,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // split tuple / struct fields
-                let tuple_fields: &[NodeId<StructField>] = if *style == StructStyle::Tuple {
+                let tuple_fields: &[NodeId<VariantField>] = if *style == VariantStyle::Tuple {
                     fields
                 } else {
                     &[]
                 };
-                let struct_fields: &[NodeId<StructField>] = if *style == StructStyle::Struct {
+                let variant_fields: &[NodeId<VariantField>] = if *style == VariantStyle::Struct {
                     fields
                 } else {
                     &[]
@@ -170,7 +170,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // tuple
-                if *style == StructStyle::Tuple {
+                if *style == VariantStyle::Tuple {
                     if tuple_fields.is_empty() {
                         write!(f, [token("("), token(")")])?;
                     } else {
@@ -216,7 +216,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty body
-                if struct_fields.is_empty() && expressions.is_empty() {
+                if variant_fields.is_empty() && expressions.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -226,18 +226,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [token("{"), hard_line_break()])?;
 
                 // fields
-                if !struct_fields.is_empty() {
+                if !variant_fields.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| f
                             .join_with(hard_line_break())
-                            .entries(struct_fields)
+                            .entries(variant_fields)
                             .finish())),])]
                     )?;
                 }
 
                 // blank line between fields and statements
-                if !struct_fields.is_empty() && !expressions.is_empty() {
+                if !variant_fields.is_empty() && !expressions.is_empty() {
                     write!(f, [hard_line_break()])?;
                     if !f.context().has_blank_prefix_annotation(expressions[0]) {
                         write!(f, [empty_line()])?;

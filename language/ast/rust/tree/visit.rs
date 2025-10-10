@@ -2,11 +2,11 @@
 
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, StructField, Tag,
+    MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, VariantField, Tag,
     UnionField, UseClause, UseItem, WhereClause, WithClause, walk_annotation, walk_argument,
     walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
     walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_struct_field, walk_tag, walk_union_field, walk_use_clause,
+    walk_pattern_field, walk_variant_field, walk_tag, walk_union_field, walk_use_clause,
     walk_use_item, walk_where_clause, walk_with_clause,
 };
 
@@ -50,14 +50,14 @@ pub trait NodeVisitor {
         walk_definition(self, tree, id, definition);
     }
 
-    /// Visit a StructField.
-    fn visit_struct_field(
+    /// Visit a VariantField.
+    fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<StructField>,
-        struct_field: &StructField,
+        id: NodeId<VariantField>,
+        variant_field: &VariantField,
     ) {
-        walk_struct_field(self, tree, id, struct_field);
+        walk_variant_field(self, tree, id, variant_field);
     }
 
     /// Visit an EnumField.
@@ -244,13 +244,13 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Definition, id.id);
     }
 
-    fn visit_struct_field(
+    fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<StructField>,
-        struct_field: &StructField,
+        id: NodeId<VariantField>,
+        variant_field: &VariantField,
     ) {
-        self.visit_any(tree, NodeType::StructField, id.id);
+        self.visit_any(tree, NodeType::VariantField, id.id);
     }
 
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {

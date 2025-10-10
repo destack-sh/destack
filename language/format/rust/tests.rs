@@ -1,7 +1,7 @@
 use crate::TokenSpan;
 use dyst_fir::format;
 use dyst_fir::format::Format;
-use dyst_parser::{AstResult, Parser};
+use dyst_parser::{ParserResult, Parser};
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
@@ -21,9 +21,9 @@ pub(crate) struct TestFormatter {
 
 impl TestFormatter {
     /// Make a TestFormatter over a parse function on an input.
-    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> AstResult<(Self, N)>
+    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParserResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser<'_>) -> AstResult<N>,
+        F: FnOnce(&mut Parser<'_>) -> ParserResult<N>,
     {
         // tokenize source
         let source_id = SourceId::new(0);

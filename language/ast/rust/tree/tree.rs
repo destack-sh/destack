@@ -7,7 +7,7 @@ use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
     EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern,
-    PatternField, StructField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
+    PatternField, VariantField, Tag, UnionField, UseClause, UseItem, WhereClause, WithClause,
 };
 
 /// The AST Node tree for a single source unit.
@@ -32,7 +32,7 @@ pub struct NodeTree {
     pub(crate) blocks: NodeArena<Block>,
     // definitions
     pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) struct_fields: NodeArena<StructField>,
+    pub(crate) variant_fields: NodeArena<VariantField>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) union_fields: NodeArena<UnionField>,
     // context
@@ -86,7 +86,7 @@ impl NodeTree {
             blocks: NodeArena::new(),
             // definitions
             definitions: NodeArena::new(),
-            struct_fields: NodeArena::new(),
+            variant_fields: NodeArena::new(),
             enum_fields: NodeArena::new(),
             union_fields: NodeArena::new(),
             // context
@@ -246,7 +246,7 @@ impl NodeTree {
             NodeType::Block => self.blocks.deallocate(local_ids),
             // definitions
             NodeType::Definition => self.definitions.deallocate(local_ids),
-            NodeType::StructField => self.struct_fields.deallocate(local_ids),
+            NodeType::VariantField => self.variant_fields.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
             // context
@@ -393,7 +393,7 @@ impl_node_tree_stores! {
     Block => blocks,
     // definitions
     Definition => definitions,
-    StructField => struct_fields,
+    VariantField => variant_fields,
     EnumField => enum_fields,
     UnionField => union_fields,
     // context

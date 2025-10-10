@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{
-    AstResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    ParserResult, Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     TokenType,
 };
 
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     /// label: { ... }
     /// ```
     #[inline]
-    pub fn peek_block(&self) -> AstResult<()> {
+    pub fn peek_block(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Identifier).is_ok()
                 && self.peek_next_token(TokenType::Colon).is_ok()
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// { ... }
     /// block: { ... }
-    pub fn eat_block(&mut self) -> AstResult<NodeId<Block>> {
+    pub fn eat_block(&mut self) -> ParserResult<NodeId<Block>> {
         let start = self.mark();
 
         // label
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of expressions (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> AstResult<Vec<NodeId<Expression>>> {
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParserResult<Vec<NodeId<Expression>>> {
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
 
         loop {
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
     /// break :label 17
     /// break 15
     /// ```
-    pub fn eat_break(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_break(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Break)?;
         // label
@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
     /// continue
     /// continue :label
     /// ```
-    pub fn eat_continue(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_continue(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Continue)?;
         // label
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
     /// return
     /// return 17
     /// ```
-    pub fn eat_return(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
         // value
@@ -205,7 +205,7 @@ impl<'a> Parser<'a> {
     ///     _ => someErrorHandler(e)
     /// }
     /// ```
-    pub fn eat_defer(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_defer(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword

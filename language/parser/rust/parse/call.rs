@@ -2,7 +2,7 @@
 
 use crate::TokenType;
 
-use crate::{AstResult, Expression, NodeId, Parser, Runtime};
+use crate::{ParserResult, Expression, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_explicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> AstResult<NodeId<Expression>> {
+    ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // open bracket
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
     pub fn eat_index_postfix_implicit(
         &mut self,
         receiver_id: NodeId<Expression>,
-    ) -> AstResult<NodeId<Expression>> {
+    ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dot
@@ -102,7 +102,7 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         runtime: Option<Runtime>,
-    ) -> AstResult<NodeId<Expression>> {
+    ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dynamic arguments (may be empty)

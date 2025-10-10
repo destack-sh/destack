@@ -5,7 +5,7 @@ use crate::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
 
 use crate::{
-    AstResult, Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError,
+    ParserResult, Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError,
 };
 use dyst_session::Session;
 
@@ -238,8 +238,8 @@ impl<'a> Parser<'a> {
     pub(crate) fn with_options<T>(
         &mut self,
         options: ParserOptions,
-        func: impl FnOnce(&mut Self) -> AstResult<T>,
-    ) -> AstResult<T> {
+        func: impl FnOnce(&mut Self) -> ParserResult<T>,
+    ) -> ParserResult<T> {
         let old_options = self.options;
         self.options = options;
         let result = func(self);
@@ -326,7 +326,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next Token or error.
     #[inline]
-    pub fn peek(&self) -> AstResult<&TokenSpan> {
+    pub fn peek(&self) -> ParserResult<&TokenSpan> {
         self.tokens
             .get(self.pos)
             .ok_or(ParserError::unexpected(self.eof_token.span))
@@ -334,7 +334,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next(&self) -> AstResult<&TokenSpan> {
+    pub fn peek_next(&self) -> ParserResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 1)
             .ok_or(ParserError::unexpected(self.eof_token.span))
@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next_next(&self) -> AstResult<&TokenSpan> {
+    pub fn peek_next_next(&self) -> ParserResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 2)
             .ok_or(ParserError::unexpected(self.eof_token.span))
@@ -350,7 +350,7 @@ impl<'a> Parser<'a> {
 
     /// Eat the next Token or error.
     #[inline]
-    pub fn eat(&mut self) -> AstResult<&TokenSpan> {
+    pub fn eat(&mut self) -> ParserResult<&TokenSpan> {
         if self.pos < self.tokens.len() {
             self.bump();
             let next = &self.tokens[self.pos - 1];
@@ -381,7 +381,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
+    pub fn peek_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_token requires semantic token type"
@@ -396,7 +396,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next token.
     #[inline]
-    pub fn peek_next_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
+    pub fn peek_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_next_token requires semantic token type"
@@ -411,7 +411,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next next token.
     #[inline]
-    pub fn peek_next_next_token(&self, token_type: TokenType) -> AstResult<&TokenSpan> {
+    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_next_next_token requires semantic token type"
@@ -426,7 +426,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a token.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> AstResult<&TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "eat_token requires semantic token type"
@@ -443,7 +443,7 @@ impl<'a> Parser<'a> {
     pub fn with_recovery<T>(
         &mut self,
         start: ParserMark,
-        func: impl FnOnce(&mut Self) -> AstResult<T>,
+        func: impl FnOnce(&mut Self) -> ParserResult<T>,
         default: T,
         bail: TokenType,
     ) -> T {
@@ -463,7 +463,7 @@ impl<'a> Parser<'a> {
         start: ParserMark,
         recover: TokenType,
         error: Option<ParserError>,
-    ) -> AstResult<()> {
+    ) -> ParserResult<()> {
         // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
             // recover from here (but report error)
@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
     /// If we don't get the token, it's an error, but:
     ///  1) If we do hit the expected token later, we recover from there.
     ///  2) Otherwise, we try to recover forward until the bail token.
-    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> AstResult<()> {
+    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParserResult<()> {
         // we're good if it's the expected token
         if self.peek_token(expected).is_ok() {
             self.bump();

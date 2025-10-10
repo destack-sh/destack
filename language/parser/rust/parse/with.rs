@@ -1,12 +1,12 @@
 //! Parse use and with declarations.
 use crate::TokenType;
 
-use crate::{AstResult, Expression, Keyword, NodeId, Parser, WithClause};
+use crate::{ParserResult, Expression, Keyword, NodeId, Parser, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).
     #[inline]
-    pub fn eat_with_maybe(&mut self) -> AstResult<Option<NodeId<Expression>>> {
+    pub fn eat_with_maybe(&mut self) -> ParserResult<Option<NodeId<Expression>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with()?))
         } else {
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
     ///   ...
     /// }
     /// ```
-    pub fn eat_with(&mut self) -> AstResult<NodeId<Expression>> {
+    pub fn eat_with(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a with context declaration or assignment maybe.
     #[inline]
-    pub fn eat_with_header_maybe(&mut self) -> AstResult<Option<Vec<NodeId<WithClause>>>> {
+    pub fn eat_with_header_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<WithClause>>>> {
         if self.peek_keyword(Keyword::With).is_ok() {
             Ok(Some(self.eat_with_header()?))
         } else {
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
     ///    F: Numeric
     /// )
     /// ```
-    pub fn eat_with_header(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
+    pub fn eat_with_header(&mut self) -> ParserResult<Vec<NodeId<WithClause>>> {
         self.eat_keyword(Keyword::With)?;
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_with_clauses()
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
     /// Separated by commas.
-    fn eat_with_clauses(&mut self) -> AstResult<Vec<NodeId<WithClause>>> {
+    fn eat_with_clauses(&mut self) -> ParserResult<Vec<NodeId<WithClause>>> {
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single with clause. May be a declaration or a assignment.
-    fn eat_with_clause(&mut self) -> AstResult<NodeId<WithClause>> {
+    fn eat_with_clause(&mut self) -> ParserResult<NodeId<WithClause>> {
         let start = self.mark();
 
         // alias

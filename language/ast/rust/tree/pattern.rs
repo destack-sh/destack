@@ -65,7 +65,7 @@ impl Node for Pattern {
     const KIND: NodeType = NodeType::Pattern;
 }
 
-/// A PatternStructField is a field of a struct pattern.
+/// A PatternVariantField is a field of a struct pattern.
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
 ///
 /// Examples:

@@ -1,6 +1,6 @@
 use crate::{Expression, ParserError, Path, TokenType};
 
-use crate::{AstResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
+use crate::{ParserResult, Keyword, Mutability, NodeId, Parser, ScopedMutability, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a scoped mutability modifier. Allows nothing.
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     /// var(x, y)
     /// const(session.source)
     /// ```
-    pub fn eat_scoped_mutability(&mut self) -> AstResult<ScopedMutability> {
+    pub fn eat_scoped_mutability(&mut self) -> ParserResult<ScopedMutability> {
         // mutability
         let mutability = {
             if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability

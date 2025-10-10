@@ -1,6 +1,6 @@
 use crate::TokenType;
 
-use crate::{AstResult, Expression, Keyword, NodeId, Parser, Runtime};
+use crate::{ParserResult, Expression, Keyword, NodeId, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
     ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
     /// }
     /// ```
-    pub fn eat_try(&mut self, runtime: Option<Runtime>) -> AstResult<NodeId<Expression>> {
+    pub fn eat_try(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
 

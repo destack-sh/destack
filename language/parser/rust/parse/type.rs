@@ -1,4 +1,4 @@
-use crate::{AstResult, Expression, NodeId, Parser, TokenType};
+use crate::{ParserResult, Expression, NodeId, Parser, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat super types maybe. May be parenthesized.
@@ -9,7 +9,7 @@ impl<'a> Parser<'a> {
     /// : Foo, Bar
     /// : (Foo, Bar)
     /// ```
-    pub fn eat_super_types_maybe(&mut self) -> AstResult<Option<Vec<NodeId<Expression>>>> {
+    pub fn eat_super_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
         if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
             let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
     /// Foo
     /// Foo, Bar<X>
     /// ```
-    pub fn eat_super_types(&mut self) -> AstResult<Vec<NodeId<Expression>>> {
+    pub fn eat_super_types(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
         let mut super_types: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // eat until open brace or close parenthesis

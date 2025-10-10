@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use crate::{
     Argument, Definition, EnumField, Keyword, Node, NodeId, NodeTree, NodeVisitor, Parameter,
-    PatternField, RawLiteralType, StructField, TokenSpan, TokenType, UnionField, walk_argument,
-    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_struct_field,
+    PatternField, RawLiteralType, VariantField, TokenSpan, TokenType, UnionField, walk_argument,
+    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_variant_field,
     walk_union_field,
 };
 use dyst_source::Source;
@@ -222,15 +222,15 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
         walk_definition(self, tree, id, definition);
     }
 
-    fn visit_struct_field(
+    fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<StructField>,
-        struct_field: &StructField,
+        id: NodeId<VariantField>,
+        variant_field: &VariantField,
     ) {
-        walk_struct_field(self, tree, id, struct_field);
+        walk_variant_field(self, tree, id, variant_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
-        self.set_semantic_span(tree, struct_field.ty, SemanticType::Type);
+        self.set_semantic_span(tree, variant_field.ty, SemanticType::Type);
     }
 
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
@@ -246,9 +246,6 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_union_field(self, tree, id, union_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
-        if let Some(type_id) = union_field.ty {
-            self.set_semantic_span(tree, type_id, SemanticType::Type);
-        }
     }
 
     // ------------------------------------------------------------

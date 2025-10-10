@@ -4,13 +4,13 @@ use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
 
 use crate::{
-    AstResult, Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, Runtime,
+    ParserResult, Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, Runtime,
     SelfParameter, Visibility,
 };
 
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
-    fn peek_self_keyword(&mut self) -> AstResult<Keyword> {
+    fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {
         let keyword = self.peek_any_keyword()?;
         if keyword == Keyword::Self_ || keyword == Keyword::This {
             Ok(keyword)
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a self keyword (also accepts `this`).
-    fn eat_self_keyword(&mut self) -> AstResult<Keyword> {
+    fn eat_self_keyword(&mut self) -> ParserResult<Keyword> {
         let keyword = self.peek_any_keyword()?;
         if keyword == Keyword::Self_ || keyword == Keyword::This {
             self.bump(); // eat self
@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
     pub fn eat_function(
         &mut self,
         visibility: Option<Visibility>,
-    ) -> AstResult<NodeId<Definition>> {
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // function
