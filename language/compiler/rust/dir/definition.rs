@@ -29,7 +29,7 @@ impl<'a> Compiler<'a> {
                     .flat_map(|clause| self.lower_use_clause(source_id, ast, *clause))
                     .collect();
                 let definition = Definition::Use { visibility, items };
-                Some(self.tree.allocate(definition, source_id, expression_id))
+                Some(self.tree.insert(definition, source_id, expression_id))
             }
             _ => None,
         }
@@ -74,7 +74,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Module {
                         name,
                         visibility,
@@ -142,7 +142,7 @@ impl<'a> Compiler<'a> {
                     representation_type,
                     fields,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Struct {
                         name,
                         visibility,
@@ -205,7 +205,7 @@ impl<'a> Compiler<'a> {
                     .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
                 let variants =
                     self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Enum {
                         name,
                         visibility,
@@ -278,7 +278,7 @@ impl<'a> Compiler<'a> {
                     tag_type,
                     fields,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Union {
                         name,
                         visibility,
@@ -334,7 +334,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Trait {
                         name,
                         visibility,
@@ -407,7 +407,7 @@ impl<'a> Compiler<'a> {
                         vec![]
                     }
                 };
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Function {
                         name,
                         visibility,
@@ -460,7 +460,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.allocate(
+                self.tree.insert(
                     Definition::Implement {
                         static_parameters,
                         receiver,

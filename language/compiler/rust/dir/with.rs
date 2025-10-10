@@ -18,6 +18,6 @@ impl<'a> Compiler<'a> {
             .map(|alias| self.intern_string(source_id, alias));
         let right = self.lower_expression(source_id, ast, with_clause.right);
         self.tree
-            .allocate(WithClause { alias, right }, source_id, with_clause_id)
+            .insert(WithClause { alias, right }, source_id, with_clause_id)
     }
 }

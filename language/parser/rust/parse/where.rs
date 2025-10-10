@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
                 let left = self.eat_identifier()?;
                 self.eat_token(TokenType::Colon)?;
                 let right = self.eat_expression()?;
-                self.tree.allocate(
+                self.tree.insert(
                     WhereClause::Assertion { left, right },
                     self.get_span_from(start),
                 )
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
             else {
                 let guard = self.eat_expression()?;
                 self.tree
-                    .allocate(WhereClause::Guard { guard }, self.get_span_from(start))
+                    .insert(WhereClause::Guard { guard }, self.get_span_from(start))
             }
         };
 

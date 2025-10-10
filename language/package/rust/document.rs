@@ -61,6 +61,8 @@ pub enum DocumentBody {
         all_tokens: Vec<TokenSpan>,
         /// The AST of the document.
         ast: NodeTree,
+        /// The parent index of the AST.
+        parents: NodeParentIndex,
         /// The root definition ID of the document.
         /// (In case of irrecoverable errors, this is an empty module.)
         root_definition_id: NodeId<Definition>,
@@ -94,7 +96,7 @@ impl DocumentBody {
         );
         // default to empty module if no root definition is found
         let root_definition_id = root_definition_id.unwrap_or_else(|| {
-            parser.tree.allocate(
+            parser.tree.insert(
                 Definition::Module {
                     name: Some(module_name_id),
                     format: ModuleFormat::Source,
@@ -117,6 +119,7 @@ impl DocumentBody {
         all_tokens.extend(side_tokens.iter());
         all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
+        let parents = NodeParentIndex::from_tree(&ast);
         let strings = parser.strings;
 
         DocumentBody::Text {
@@ -126,6 +129,7 @@ impl DocumentBody {
             side_span,
             all_tokens,
             ast,
+            parents,
             root_definition_id,
             strings,
         }

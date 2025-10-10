@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
-        let trait_id = self.tree.allocate(
+        let trait_id = self.tree.insert(
             Definition::Trait {
                 name,
                 visibility,

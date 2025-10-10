@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
             let block_id = self.eat_block()?;
             let block_id = self
                 .tree
-                .allocate(Expression::Block(block_id), self.get_span_from(start));
+                .insert(Expression::Block(block_id), self.get_span_from(start));
 
             // try block with catch
             if self.peek_keyword(Keyword::Catch).is_ok() {
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::CloseBrace)?;
 
                 // catch match
-                let catch_match_id = self.tree.allocate(
+                let catch_match_id = self.tree.insert(
                     Expression::Match {
                         runtime,
                         value: catch_scrutinee_id,
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
                     },
                     self.get_span_from(start),
                 );
-                let try_id = self.tree.allocate(
+                let try_id = self.tree.insert(
                     Expression::Try {
                         runtime,
                         try_block: block_id,
@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
             }
             // try block without catch
             else {
-                let try_id = self.tree.allocate(
+                let try_id = self.tree.insert(
                     Expression::Try {
                         runtime,
                         try_block: block_id,
@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
         // try expression
         else {
             let expression_id = self.eat_expression()?;
-            let try_id = self.tree.allocate(
+            let try_id = self.tree.insert(
                 Expression::Try {
                     runtime,
                     try_block: expression_id,

@@ -22,6 +22,6 @@ impl<'a> Compiler<'a> {
             .map(|expression| self.lower_expression(source_id, ast, *expression))
             .collect();
         self.tree
-            .allocate(Block { label, expressions }, source_id, block_id)
+            .insert(Block { label, expressions }, source_id, block_id)
     }
 }

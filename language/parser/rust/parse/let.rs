@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
         };
 
         // let
-        let let_id = self.tree.allocate(
+        let let_id = self.tree.insert(
             Expression::Let {
                 pattern,
                 mutability,

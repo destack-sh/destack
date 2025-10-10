@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
                 self.try_recover(start, recover, Some(err))?;
                 let error_id = self
                     .tree
-                    .allocate(Expression::Error, self.get_span_from(start));
+                    .insert(Expression::Error, self.get_span_from(start));
                 Ok(error_id)
             }
         }
@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
                 // if we immediately see a closing parenthesis, it's an empty tuple
                 if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     self.bump(); // eat closing parenthesis
-                    self.tree.allocate(
+                    self.tree.insert(
                         Expression::TupleLiteral { elements: vec![] },
                         self.get_span_from(start),
                     )
@@ -213,7 +213,7 @@ impl<'a> Parser<'a> {
                         .eat_tuple_literal_body(None)
                         .for_node_type(NodeType::Expression)?;
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    self.tree.allocate(
+                    self.tree.insert(
                         Expression::TupleLiteral {
                             elements: tuple_elements,
                         },
@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
                             expression_id
                         }
                         // otherwise it was a manually parenthesized expression, wrap it
-                        _ => self.tree.allocate(
+                        _ => self.tree.insert(
                             Expression::Parenthesized {
                                 expression: expression_id,
                             },
@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
                     operator: unary_operator,
                     right,
                 };
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.tree.insert(expression, self.get_span_from(start))
             }
             // reference (`&` or `&var` or `&const`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
                 };
                 let right = self.eat_expression()?;
                 let expression = Expression::Reference { mutability, right };
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.tree.insert(expression, self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
@@ -296,36 +296,36 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Module) {
                 let module_id = self.eat_module(visibility)?;
                 self.tree
-                    .allocate(Expression::Definition(module_id), self.get_span_from(start))
+                    .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
             // struct
             else if keyword == Some(Keyword::Struct) {
                 let struct_id = self.eat_struct(visibility)?;
                 self.tree
-                    .allocate(Expression::Definition(struct_id), self.get_span_from(start))
+                    .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
                 let enum_id = self.eat_enum(visibility)?;
                 self.tree
-                    .allocate(Expression::Definition(enum_id), self.get_span_from(start))
+                    .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
                 let union_id = self.eat_union(visibility)?;
                 self.tree
-                    .allocate(Expression::Definition(union_id), self.get_span_from(start))
+                    .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // trait
             else if keyword == Some(Keyword::Trait) {
                 let trait_id = self.eat_trait(visibility)?;
                 self.tree
-                    .allocate(Expression::Definition(trait_id), self.get_span_from(start))
+                    .insert(Expression::Definition(trait_id), self.get_span_from(start))
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
                 let implement_id = self.eat_implement()?;
-                self.tree.allocate(
+                self.tree.insert(
                     Expression::Definition(implement_id),
                     self.get_span_from(start),
                 )
@@ -333,7 +333,7 @@ impl<'a> Parser<'a> {
             // function
             else if keyword == Some(Keyword::Function) {
                 let function_id = self.eat_function(visibility)?;
-                self.tree.allocate(
+                self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),
                 )
@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
             else if self.peek_block().is_ok() {
                 let block_id = self.eat_block()?;
                 self.tree
-                    .allocate(Expression::Block(block_id), self.get_span_from(start))
+                    .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
@@ -412,7 +412,7 @@ impl<'a> Parser<'a> {
             // array
             else if token.token.ty == TokenType::OpenBracket {
                 let array_literal = self.eat_array_literal()?;
-                self.tree.allocate(
+                self.tree.insert(
                     Expression::ArrayLiteral {
                         elements: array_literal,
                     },
@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
             // scalar
             else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
-                self.tree.allocate(
+                self.tree.insert(
                     Expression::ScalarLiteral(scalar_literal),
                     self.get_span_from(start),
                 )
@@ -432,7 +432,7 @@ impl<'a> Parser<'a> {
             //  (they might be shadowed, so need to resolve the others at DIR-level?)
             else if self.peek_type_literal().is_ok() {
                 let type_literal = self.eat_type_literal()?;
-                self.tree.allocate(
+                self.tree.insert(
                     Expression::TypeLiteral(type_literal),
                     self.get_span_from(start),
                 )
@@ -460,7 +460,7 @@ impl<'a> Parser<'a> {
                     path: path_id,
                     static_arguments,
                 };
-                self.tree.allocate(expression, self.get_span_from(start))
+                self.tree.insert(expression, self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
@@ -483,7 +483,7 @@ impl<'a> Parser<'a> {
             && let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenParenthesis).is_err()
         {
-            left_expression_id = self.tree.allocate(
+            left_expression_id = self.tree.insert(
                 Expression::Call {
                     runtime,
                     receiver: left_expression_id,
@@ -499,7 +499,7 @@ impl<'a> Parser<'a> {
             && !self.options.in_before_block
         {
             let fields = self.eat_struct_literal_body()?;
-            left_expression_id = self.tree.allocate(
+            left_expression_id = self.tree.insert(
                 Expression::StructLiteral {
                     ty: left_expression_id,
                     fields,
@@ -522,7 +522,7 @@ impl<'a> Parser<'a> {
                     false
                 };
                 let right_expression_id = self.eat_expression()?;
-                left_expression_id = self.tree.allocate(
+                left_expression_id = self.tree.insert(
                     Expression::RangeLiteral {
                         start: left_expression_id,
                         end: right_expression_id,
@@ -535,7 +535,7 @@ impl<'a> Parser<'a> {
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
                 let path_id = self.eat_path()?;
-                left_expression_id = self.tree.allocate(
+                left_expression_id = self.tree.insert(
                     Expression::Member {
                         receiver: left_expression_id,
                         path: path_id,
@@ -559,7 +559,7 @@ impl<'a> Parser<'a> {
             // unwrap
             else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
-                left_expression_id = self.tree.allocate(
+                left_expression_id = self.tree.insert(
                     Expression::Maybe(left_expression_id),
                     self.get_span_from(start),
                 );
@@ -567,7 +567,7 @@ impl<'a> Parser<'a> {
             // force unwrap
             else if self.peek_token(TokenType::Not).is_ok() {
                 self.bump(); // eat !
-                left_expression_id = self.tree.allocate(
+                left_expression_id = self.tree.insert(
                     Expression::Must(left_expression_id),
                     self.get_span_from(start),
                 );
@@ -580,7 +580,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
                 // we already have the first element (the expression itself)
-                let first_element_id = self.tree.allocate(
+                let first_element_id = self.tree.insert(
                     Argument::Positional {
                         value: left_expression_id,
                     },
@@ -589,7 +589,7 @@ impl<'a> Parser<'a> {
                 // parse remaining elements
                 let tuple_elements = self.eat_tuple_literal_body(Some(first_element_id))?;
                 // build tuple literal
-                left_expression_id = self.tree.allocate(
+                left_expression_id = self.tree.insert(
                     Expression::TupleLiteral {
                         elements: tuple_elements,
                     },
@@ -648,7 +648,7 @@ impl<'a> Parser<'a> {
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
             left_expression_id = self
                 .tree
-                .allocate(left_expression, self.get_span_from(start))
+                .insert(left_expression, self.get_span_from(start))
         }
 
         Ok(left_expression_id)

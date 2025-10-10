@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // union
-        let union_id = self.tree.allocate(
+        let union_id = self.tree.insert(
             Definition::Union {
                 name,
                 visibility,
@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let field_id = self.tree.allocate(union_field, self.get_span_from(start));
+        let field_id = self.tree.insert(union_field, self.get_span_from(start));
         Ok(field_id)
     }
 }

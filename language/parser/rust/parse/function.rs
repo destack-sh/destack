@@ -207,7 +207,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let function_id = self.tree.allocate(
+        let function_id = self.tree.insert(
             Definition::Function {
                 name,
                 visibility,

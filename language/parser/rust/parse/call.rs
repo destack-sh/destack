@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
         // bare index
         if self.peek_token(TokenType::CloseBracket).is_ok() {
             self.bump(); // eat close bracket
-            let index_id = self.tree.allocate(
+            let index_id = self.tree.insert(
                 Expression::Index {
                     receiver: receiver_id,
                     index: None,
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBracket)?;
 
         // index
-        let index_id = self.tree.allocate(
+        let index_id = self.tree.insert(
             Expression::Index {
                 receiver: receiver_id,
                 index: Some(index),
@@ -72,13 +72,13 @@ impl<'a> Parser<'a> {
 
         // literal
         let literal_id = self.eat_scalar_literal()?;
-        let literal_id = self.tree.allocate(
+        let literal_id = self.tree.insert(
             Expression::ScalarLiteral(literal_id),
             self.get_span_from(start),
         );
 
         // index
-        let index_id = self.tree.allocate(
+        let index_id = self.tree.insert(
             Expression::Index {
                 receiver: receiver_id,
                 index: Some(literal_id),
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
         let dynamic_arguments = self.eat_dynamic_arguments()?;
 
         // call
-        let call_id = self.tree.allocate(
+        let call_id = self.tree.insert(
             Expression::Call {
                 runtime,
                 receiver: receiver_id,
@@ -135,7 +135,7 @@ mod tests {
         let self_path = Path {
             segments: vec![self_str],
         };
-        parser.tree.allocate(
+        parser.tree.insert(
             Expression::Path {
                 path: self_path,
                 static_arguments: None,

@@ -85,7 +85,7 @@ impl<'a> Parser<'a> {
         let (fields, expressions) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        let enum_id = self.tree.allocate(
+        let enum_id = self.tree.insert(
             Definition::Enum {
                 name,
                 visibility,
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
 
         let field_id = self
             .tree
-            .allocate(EnumField { name, value }, self.get_span_from(start));
+            .insert(EnumField { name, value }, self.get_span_from(start));
         Ok(field_id)
     }
 }

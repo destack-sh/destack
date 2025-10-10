@@ -120,7 +120,7 @@ impl NodeTree {
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub fn insert<T>(&mut self, node: T, span: Span) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -149,7 +149,7 @@ impl NodeTree {
         }
         // deallocate nodes
         for (node_type, local_ids) in local_ids_by_node {
-            self.deallocate(node_type, local_ids);
+            self.delete(node_type, local_ids);
         }
         self.type_by_node_id.truncate(from_idx as usize);
         self.local_id_by_node_id.truncate(from_idx as usize);
@@ -239,7 +239,7 @@ impl NodeTree {
 
     /// Remove a given local node.
     #[inline]
-    fn deallocate(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
+    fn delete(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
         match node_type {
             // groupings
             NodeType::Expression => self.expressions.deallocate(local_ids),

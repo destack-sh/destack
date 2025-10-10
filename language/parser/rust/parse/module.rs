@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let module_id = self.tree.allocate(module, self.get_span_from(start));
+        let module_id = self.tree.insert(module, self.get_span_from(start));
         Ok(module_id)
     }
 
@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
             where_clauses,
             expressions,
         };
-        let module_id = self.tree.allocate(module, self.get_span_from(start));
+        let module_id = self.tree.insert(module, self.get_span_from(start));
         Ok(module_id)
     }
 }

@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let if_id = self.tree.allocate(if_node, self.get_span_from(start));
+        let if_id = self.tree.insert(if_node, self.get_span_from(start));
         Ok(if_id)
     }
 }

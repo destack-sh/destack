@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
             ast::WhereClause::Assertion { left, right } => {
                 let left = self.intern_string(source_id, *left);
                 let right = self.lower_expression(source_id, ast, *right);
-                self.tree.allocate(
+                self.tree.insert(
                     WhereClause::Assertion { left, right },
                     source_id,
                     where_clause_id,
@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
             ast::WhereClause::Guard { guard } => {
                 let guard = self.lower_expression(source_id, ast, *guard);
                 self.tree
-                    .allocate(WhereClause::Guard { guard }, source_id, where_clause_id)
+                    .insert(WhereClause::Guard { guard }, source_id, where_clause_id)
             }
         }
     }

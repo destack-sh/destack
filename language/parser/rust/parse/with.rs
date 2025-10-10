@@ -46,7 +46,7 @@ impl<'a> Parser<'a> {
         };
 
         // with
-        let with_id = self.tree.allocate(
+        let with_id = self.tree.insert(
             Expression::With { clauses, body },
             self.get_span_from(start),
         );
@@ -148,7 +148,7 @@ impl<'a> Parser<'a> {
         // clause
         let clause = self
             .tree
-            .allocate(WithClause { alias, right }, self.get_span_from(start));
+            .insert(WithClause { alias, right }, self.get_span_from(start));
 
         Ok(clause)
     }

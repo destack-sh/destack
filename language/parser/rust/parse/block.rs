@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
-        let block_id = self.tree.allocate(
+        let block_id = self.tree.insert(
             Block {
                 format: BlockFormat::Explicit,
                 label: None,
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
             None
         };
         // break
-        let break_id = self.tree.allocate(
+        let break_id = self.tree.insert(
             Expression::Break {
                 label,
                 value: value_id,
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
         // continue
         let continue_id = self
             .tree
-            .allocate(Expression::Continue { label }, self.get_span_from(start));
+            .insert(Expression::Continue { label }, self.get_span_from(start));
         Ok(continue_id)
     }
 
@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
             None
         };
         // return
-        let return_id = self.tree.allocate(
+        let return_id = self.tree.insert(
             Expression::Return { value: value_id },
             self.get_span_from(start),
         );
@@ -215,7 +215,7 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::Catch).is_ok() {
             self.bump(); // eat keyword
             let match_id = self.eat_match_body(None)?;
-            let defer_id = self.tree.allocate(
+            let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: None,
                     catch: Some(match_id),
@@ -229,8 +229,8 @@ impl<'a> Parser<'a> {
             let block_id = self.eat_block()?;
             let block_id = self
                 .tree
-                .allocate(Expression::Block(block_id), self.get_span_from(start));
-            let defer_id = self.tree.allocate(
+                .insert(Expression::Block(block_id), self.get_span_from(start));
+            let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: Some(block_id),
                     catch: None,
@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
         // expression
         else {
             let expression_id = self.eat_expression()?;
-            let defer_id = self.tree.allocate(
+            let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: Some(expression_id),
                     catch: None,

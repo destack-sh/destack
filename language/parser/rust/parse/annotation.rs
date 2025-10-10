@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         };
 
         // tag
-        let tag = self.tree.allocate(
+        let tag = self.tree.insert(
             Tag {
                 receiver,
                 arguments,
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
         };
 
         // decorator
-        let decorator = self.tree.allocate(
+        let decorator = self.tree.insert(
             Decorator {
                 receiver,
                 arguments,
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
             };
 
             // attach the annotation
-            let annotation_id = self.tree.allocate(
+            let annotation_id = self.tree.insert(
                 Annotation::Tag {
                     node: tag_id,
                     position,
@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
             };
 
             // attach the annotation
-            let annotation_id = self.tree.allocate(
+            let annotation_id = self.tree.insert(
                 Annotation::Decorator {
                     node: decorator_id,
                     position,
@@ -541,8 +541,8 @@ impl<'a> Parser<'a> {
         let annotation_id = match token_type {
             TokenType::Newline => {
                 let lines = group.len() as u32 - 1;
-                let blank = self.tree.allocate(Blank { lines }, span);
-                self.tree.allocate(
+                let blank = self.tree.insert(Blank { lines }, span);
+                self.tree.insert(
                     Annotation::Blank {
                         node: blank,
                         position,
@@ -552,14 +552,14 @@ impl<'a> Parser<'a> {
             }
             TokenType::LineComment => {
                 let string = self.intern_string(self.clean_annotation_string(token_type, group));
-                let comment = self.tree.allocate(
+                let comment = self.tree.insert(
                     Comment {
                         string,
                         style: CommentStyle::Slash,
                     },
                     span,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Annotation::Comment {
                         node: comment,
                         position,
@@ -569,14 +569,14 @@ impl<'a> Parser<'a> {
             }
             TokenType::BlockComment => {
                 let string = self.intern_string(self.clean_annotation_string(token_type, group));
-                let comment = self.tree.allocate(
+                let comment = self.tree.insert(
                     Comment {
                         string,
                         style: CommentStyle::Star,
                     },
                     span,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Annotation::Comment {
                         node: comment,
                         position,
@@ -586,14 +586,14 @@ impl<'a> Parser<'a> {
             }
             TokenType::DocLineComment => {
                 let string = self.intern_string(self.clean_annotation_string(token_type, group));
-                let doc = self.tree.allocate(
+                let doc = self.tree.insert(
                     Doc {
                         string,
                         style: DocStyle::Slash,
                     },
                     span,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Annotation::Doc {
                         node: doc,
                         position,
@@ -603,14 +603,14 @@ impl<'a> Parser<'a> {
             }
             TokenType::DocBlockComment => {
                 let string = self.intern_string(self.clean_annotation_string(token_type, group));
-                let doc = self.tree.allocate(
+                let doc = self.tree.insert(
                     Doc {
                         string,
                         style: DocStyle::Star,
                     },
                     span,
                 );
-                self.tree.allocate(
+                self.tree.insert(
                     Annotation::Doc {
                         node: doc,
                         position,
