@@ -14,7 +14,7 @@ impl<'a> Compiler<'a> {
         expression_id: ast::NodeId<ast::Expression>,
     ) -> Option<NodeId<Definition>> {
         let expression = ast.get(expression_id);
-        match expression {
+        let definition = match expression {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
@@ -32,7 +32,14 @@ impl<'a> Compiler<'a> {
                 Some(self.tree.insert(definition, source_id, expression_id))
             }
             _ => None,
+        };
+
+        // register alias since we're skipping the expression node 
+        if let Some(definition) = definition {
+            self.tree.alias(source_id, expression_id.id, definition);
         }
+
+        definition
     }
 
     /// Lower a definition to a DIR definition.

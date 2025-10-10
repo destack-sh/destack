@@ -1,5 +1,5 @@
 use crate::Compiler;
-use dyst_ast::{self as ast, NodeParentIndex};
+use dyst_ast::{self as ast};
 use dyst_dir::{Annotation, AnnotationPosition, NodeId};
 use dyst_package::DocumentBody;
 use dyst_source::SourceId;
@@ -8,33 +8,26 @@ impl<'a> Compiler<'a> {
     /// Attach all annotations..
     pub fn attach_all_annotations(&mut self) {
         for document in self.workspace.documents() {
-            let DocumentBody::Text { ast, parents, .. } = &document.body else {
+            let DocumentBody::Text { ast, .. } = &document.body else {
                 continue;
             };
-            self.attach_annotations(document.id, ast, parents);
+            self.attach_annotations(document.id, ast);
         }
     }
 
     /// Lower and attach all annotations for a source.
-    pub fn attach_annotations(
-        &mut self,
-        source_id: SourceId,
-        ast: &ast::NodeTree,
-        ast_parents: &ast::NodeParentIndex,
-    ) {
+    pub fn attach_annotations(&mut self, source_id: SourceId, ast: &ast::NodeTree) {
         // lower them
         for ast_annotation_id in ast.get_nodes::<ast::Annotation>() {
             self.lower_annotation(source_id, ast, ast_annotation_id);
         }
 
-        // // attach them
+        // attach them
         for (ast_node_id, ast_annotations) in ast.get_all_annotations() {
-            let dir_node_id = self.tree.get_node_id_by_ast_id(source_id, *ast_node_id);
-            let Some(dir_node_id) = dir_node_id else {
-                // nocheckin
-                println!("annotation node not found: {source_id:?}/{ast_node_id}");
-                continue;
-            };
+            let dir_node_id = self
+                .tree
+                .get_node_id_by_ast_id(source_id, *ast_node_id)
+                .unwrap_or_else(|| panic!("target node not found: {source_id:?}/{ast_node_id:?}"));
             for ast_annotation_id in ast_annotations {
                 let dir_annotation_id = self
                     .tree
