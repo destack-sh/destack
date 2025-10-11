@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_package::{DocumentBody, Workspace};
+use dyst_package::{DocumentBody, Package, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
@@ -16,22 +16,22 @@ pub struct CompilerOptions {
     pub default_float_width: u16 = 32,
 }
 
-/// A compiler for a related set of Dyst sources on Dyst DIR.
+/// A compiler for a Dyst package containing related Dyst sources.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
-    // nocheckin TODO: restrict Compiler to just one package (and track deps)?
+    /// The workspace we're in.
+    pub workspace: &'s Workspace,
+    /// The session we're in.
+    pub session: &'s Session,
+    /// The package we're compiling.
+    pub package: &'s Package,
+
     /// The node tree of the compiled DIR.
     pub tree: NodeTree,
     /// The string pool.
     pub strings: StringPool,
-    /// The options for compiling the Workspace.
+    /// The options for compiling the Package.
     pub options: CompilerOptions,
-
-    /// The workspace to compile.
-    pub workspace: &'s Workspace,
-    /// The session to compile with.
-    pub session: &'s Session,
-
     /// Whether the compiler has been finalized.
     pub is_finalized: bool,
 }
@@ -39,13 +39,15 @@ pub struct Compiler<'s> {
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new compiler.
-    pub fn new(workspace: &'s Workspace, options: CompilerOptions) -> Self {
+    pub fn new(workspace: &'s Workspace, package: &'s Package, options: CompilerOptions) -> Self {
         Self {
+            workspace,
+            session: &workspace.session,
+            package,
+
             tree: NodeTree::new(),
             strings: StringPool::new(),
             options,
-            workspace,
-            session: &workspace.session,
             is_finalized: false,
         }
     }

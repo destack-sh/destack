@@ -1,5 +1,7 @@
 use dyst_source::{SourceId, Uri};
 
+use crate::Dependency;
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PackageId(pub u32);
@@ -22,7 +24,9 @@ pub struct Package {
     /// The manifest of the package.
     pub manifest: SourceId,
     /// The dependencies of the package.
-    pub dependencies: Vec<PackageId>,
+    pub dependencies: Vec<Dependency>,
+    /// The sources in the package.
+    pub sources: Vec<SourceId>,
 }
 
 impl Package {
@@ -34,6 +38,7 @@ impl Package {
             root_uri: root,
             manifest,
             dependencies: Vec::new(),
+            sources: Vec::new(),
         }
     }
 

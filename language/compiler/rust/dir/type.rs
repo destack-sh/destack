@@ -12,7 +12,10 @@ impl<'a> Compiler<'a> {
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
         let expression = self.lower_expression(source_id, ast, expression_id);
-        self.tree
-            .insert(Type::Expression(expression), source_id, expression_id)
+        let type_id = self
+            .tree
+            .insert(Type::Expression(expression), source_id, expression_id);
+        self.tree.alias(source_id, expression_id.id, type_id);
+        type_id
     }
 }

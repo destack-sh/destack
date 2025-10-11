@@ -4,6 +4,7 @@ use crate::{
 };
 
 /// Definition introduces a type or function into its scope.
+/// TODO #Incomplete: handle `..T` include types (in addition to super types?)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// Intrinsic definition.

@@ -248,6 +248,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::If {
+            runtime: _,
             condition,
             then_block,
             else_block,
@@ -262,6 +263,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Loop {
+            runtime: _,
             condition,
             body,
             source: _,
@@ -272,6 +274,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Expression::Match {
+            runtime: _,
             value,
             cases,
             source: _,
@@ -293,17 +296,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Continue { destination: _ } => {}
-        Expression::Defer {
-            destination: _,
-            body,
-        } => {
-            let body_expression = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expression);
+        Expression::Defer { expression } => {
+            let body_expression = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, body_expression);
         }
-        Expression::Return {
-            destination: _,
-            value,
-        } => {
+        Expression::Return { value } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 visitor.visit_expression(tree, *value_id, value_expression);

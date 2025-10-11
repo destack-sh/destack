@@ -108,39 +108,36 @@ pub enum Expression {
 
     /// If expression.
     If {
+        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
         else_block: Option<NodeId<Expression>>,
     },
     /// Loop expression.
     Loop {
+        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         body: NodeId<Block>,
         source: LoopSource,
     },
     /// Match expression.
     Match {
+        runtime: Option<Runtime>,
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
         source: MatchSource,
     },
     /// Break expression.
     Break {
-        destination: Destination,
+        destination: Option<Destination>,
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
-    Continue { destination: Destination },
+    Continue { destination: Option<Destination> },
     /// Defer expression.
-    Defer {
-        destination: Destination,
-        body: NodeId<Expression>,
-    },
+    Defer { expression: NodeId<Expression> },
     /// Return expression.
-    Return {
-        destination: Destination,
-        value: Option<NodeId<Expression>>,
-    },
+    Return { value: Option<NodeId<Expression>> },
 
     /// Error expression.
     Error,

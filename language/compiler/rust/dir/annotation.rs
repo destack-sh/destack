@@ -24,10 +24,9 @@ impl<'a> Compiler<'a> {
 
         // attach them
         for (ast_node_id, ast_annotations) in ast.get_all_annotations() {
-            let dir_node_id = self
-                .tree
-                .get_node_id_by_ast_id(source_id, *ast_node_id)
-                .unwrap_or_else(|| panic!("target node not found: {source_id:?}/{ast_node_id:?}"));
+            let Some(dir_node_id) = self.tree.get_node_id_by_ast_id(source_id, *ast_node_id) else {
+                continue;
+            };
             for ast_annotation_id in ast_annotations {
                 let dir_annotation_id = self
                     .tree
