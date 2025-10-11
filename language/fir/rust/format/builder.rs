@@ -917,7 +917,7 @@ where
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        let formatter = self.formatter.take().unwrap_or_else(|| panic!("tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead."));
+        let formatter = self.formatter.take().expect(&format!("tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead."));
 
         (formatter)(f)
     }

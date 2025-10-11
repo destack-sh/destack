@@ -66,7 +66,7 @@ impl<'s> Compiler<'s> {
         let document = self
             .workspace
             .get_file_by_source_id(node.source_id)
-            .unwrap_or_else(|| panic!("document not found: {node:?}"));
+            .expect(&format!("document not found: {node:?}"));
         if let FileContent::Source(SourceFile { ast, .. }) = &document.content {
             let node = ast.get(node.id);
             (ast, node)
@@ -80,7 +80,7 @@ impl<'s> Compiler<'s> {
         let document = self
             .workspace
             .get_file_by_source_id(source_id)
-            .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
+            .expect(&format!("document not found: {source_id:?}"));
         match &document.content {
             FileContent::Source(SourceFile { strings, .. }) => {
                 let string = strings.get(string_id);

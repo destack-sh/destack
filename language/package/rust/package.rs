@@ -42,6 +42,16 @@ impl Package {
         }
     }
 
+    /// Add a source to the package.
+    pub fn add_source(&mut self, source: SourceId) {
+        self.sources.push(source);
+    }
+
+    /// Remove a source from the package.
+    pub fn remove_source(&mut self, source: SourceId) {
+        self.sources.retain(|s| *s != source);
+    }
+
     /// Check if a URI is contained in the package.
     pub fn is_parent_of(&self, uri: &Uri) -> bool {
         uri.starts_with(&self.root_uri) // is that it? 

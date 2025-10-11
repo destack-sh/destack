@@ -46,7 +46,7 @@ impl<Context> FormatState<Context> {
     /// The name is unused for production builds and has no meaning on the equality of two group ids.
     pub fn group_id(&self, debug_name: &'static str) -> GroupId {
         let id = self.next_group_id.fetch_add(1, Ordering::Relaxed);
-        let id = NonZeroU32::new(id).unwrap_or_else(|| panic!("ID overflowed"));
+        let id = NonZeroU32::new(id).expect(&format!("ID overflowed"));
         GroupId::new(id, debug_name)
     }
 }

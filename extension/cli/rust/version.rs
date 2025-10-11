@@ -36,7 +36,7 @@ fn bump(ctx: CommandArguments) -> i32 {
     let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
 
     let current_version =
-        read_current_version().unwrap_or_else(|| panic!("version file not found"));
+        read_current_version().expect(&format!("version file not found"));
 
     // extract date and revision from current version
     let current_date = current_version
