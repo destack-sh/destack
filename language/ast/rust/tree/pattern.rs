@@ -19,6 +19,7 @@ use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, ScalarLiteral}
 /// Vector2 { x: 0, y, z: zed }
 /// geom.Mesh<2, float32> { vertices: [2, ..] }
 /// (var x, ..)
+/// { a: 2 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
@@ -52,9 +53,9 @@ pub enum Pattern {
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice { fields: Vec<NodeId<PatternField>> },
-    /// Struct pattern (like `Vector2 { x: 0, y, z: zed  }`).
+    /// Struct pattern (like `Vector2 { x: 0, y, z: zed  }` or `{ a: 2 }`).
     Struct {
-        ty: NodeId<Expression>,
+        ty: Option<NodeId<Expression>>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

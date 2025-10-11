@@ -250,7 +250,7 @@ impl File {
         };
 
         // format with default options
-        // NOTE #Incomplete: configure LSP formatting options from Workspace
+        // NOTE #Incomplete: configure LSP formatting options from Workspace/Package
         let options = DystFormatOptions::default();
         let context = DystFormatContext {
             options,

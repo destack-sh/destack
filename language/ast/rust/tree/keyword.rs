@@ -3,7 +3,7 @@ use std::str::FromStr;
 /// A contextual keyword.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
-    /// Visibility modifier
+    /// Visibility modifier (reserved)
     Public,
     /// Visibility modifier (reserved)
     Protected,
@@ -27,12 +27,16 @@ pub enum Keyword {
     Type,
     /// Declare a Struct.
     Struct,
+    /// Declare a Class (reserved).
+    Class,
     /// Declare an Enum.
     Enum,
     /// Declare a Union.
     Union,
     /// Declare a Trait.
     Trait,
+    /// Declare an Interface (reserved).
+    Interface,
     /// Declare a Function.
     Function,
     /// Implement a type.
@@ -49,7 +53,7 @@ pub enum Keyword {
     Let,
     /// Var expression.
     Var,
-    /// Constant modifier (alias).
+    /// Constant modifier.
     Const,
     /// Mutability modifier (alias).
     Mut,
@@ -109,6 +113,8 @@ impl Keyword {
             Keyword::Tuple => "tuple",
             Keyword::Type => "type",
             Keyword::Struct => "struct",
+            Keyword::Class => "class",
+            Keyword::Interface => "interface",
             Keyword::Enum => "enum",
             Keyword::Union => "union",
             Keyword::Trait => "trait",
@@ -162,6 +168,8 @@ impl FromStr for Keyword {
             "module" => Ok(Keyword::Module),
             "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),
+            "class" => Ok(Keyword::Class),
+            "interface" => Ok(Keyword::Interface),
             "enum" => Ok(Keyword::Enum),
             "union" => Ok(Keyword::Union),
             "trait" => Ok(Keyword::Trait),

@@ -35,7 +35,7 @@ pub enum Pattern {
     Slice { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
-        ty: NodeId<Expression>,
+        ty: Option<NodeId<Expression>>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

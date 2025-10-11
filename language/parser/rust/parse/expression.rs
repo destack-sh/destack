@@ -338,12 +338,6 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // block
-            else if self.peek_block().is_ok() {
-                let block_id = self.eat_block()?;
-                self.tree
-                    .insert(Expression::Block(block_id), self.get_span_from(start))
-            }
             //
             // ------------------------------------------------------------
             // Control flow
@@ -406,7 +400,7 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Literals / Aliases
+            // Literals / Aliases / Values
             // ------------------------------------------------------------
             //
             // array
@@ -418,6 +412,22 @@ impl<'a> Parser<'a> {
                     },
                     self.get_span_from(start),
                 )
+            }
+            // anonymous struct literal
+            else if !self.options.in_before_block
+                && self.peek_anonymous_struct_literal_body().is_ok()
+            {
+                let fields = self.eat_struct_literal_body()?;
+                self.tree.insert(
+                    Expression::StructLiteral { ty: None, fields },
+                    self.get_span_from(start),
+                )
+            }
+            // block
+            else if self.peek_block().is_ok() {
+                let block_id = self.eat_block()?;
+                self.tree
+                    .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // scalar
             else if self.peek_scalar_literal().is_ok() {
@@ -492,7 +502,7 @@ impl<'a> Parser<'a> {
             );
             runtime = None;
         }
-        // struct literal postfix with `{`
+        // struct literal postfix with `{` (like `Vector2 { x: 0, y }`)
         else if let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
@@ -500,7 +510,7 @@ impl<'a> Parser<'a> {
             let fields = self.eat_struct_literal_body()?;
             left_expression_id = self.tree.insert(
                 Expression::StructLiteral {
-                    ty: left_expression_id,
+                    ty: Some(left_expression_id),
                     fields,
                 },
                 self.get_span_from(start),
@@ -726,6 +736,24 @@ mod tests {
         });
     }
 
+    /// Parse an anonymous struct literal.
+    #[test]
+    fn test_parse_anonymous_struct_literal() {
+        let mut test = TestParser::new("{ x: 1, y }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
+            assert_eq!(fields.len(), 2);
+            assert_node!(parser.tree, fields[0], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+            assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
+                assert_string!(parser, *name, "y");
+            });
+        });
+    }
+
     /// Parse a struct literal with a path type and two fields.
     #[test]
     fn test_parse_struct_literal_path() {
@@ -735,7 +763,7 @@ mod tests {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty, fields, .. } => {
+            Expression::StructLiteral { ty: Some(ty), fields, .. } => {
                 // geom.Vector2
                 assert_node!(
                     parser.tree,
@@ -788,7 +816,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty, fields, .. } => {
+            Expression::StructLiteral { ty: Some(ty), fields, .. } => {
                 assert_node!(
                     parser.tree,
                     *ty,

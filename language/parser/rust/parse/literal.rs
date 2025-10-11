@@ -442,6 +442,18 @@ impl<'a> Parser<'a> {
         Ok(elements)
     }
 
+    /// Peek an anomymous non-empty struct literal (without a name/type, like `{ x: 0, y }`).
+    pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
+        if self.peek_token(TokenType::OpenBrace).is_ok()
+            && self.peek_next_token(TokenType::Identifier).is_ok()
+            && self.peek_next_next_token(TokenType::Colon).is_ok()
+        {
+            Ok(())
+        } else {
+            Err(ParserError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat the body of a struct literal (excluding the receiver expression).
     pub(crate) fn eat_struct_literal_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenBrace)

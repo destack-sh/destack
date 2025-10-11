@@ -16,6 +16,7 @@ impl<'a> Parser<'a> {
     /// 2 | 3
     /// 4..6
     /// (x, 0, ..)
+    /// { a: 2 }
     /// Success(_)
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ..] }
@@ -78,6 +79,17 @@ impl<'a> Parser<'a> {
                     .for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Tuple { path: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
+                self.tree.insert(pattern, self.get_span_from(start))
+            }
+            // struct (without path prefix)
+            else if self.peek_token(TokenType::OpenBrace).is_ok() {
+                self.bump(); // eat open brace
+                self.eat_newlines_maybe()?;
+                let fields = self
+                    .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
+                    .for_node_type(NodeType::Pattern)?;
+                let pattern = Pattern::Struct { ty: None, fields };
+                self.eat_token(TokenType::CloseBrace)?;
                 self.tree.insert(pattern, self.get_span_from(start))
             }
             // array or slice

@@ -5,9 +5,10 @@ use crate::{
     WhereClause, WithClause,
 };
 
-// NOTE #Incomplete?: type alias (type x = y)
-// (or is that redundant with `let x = y`? need to disambiguate e.g. | and & though..)
+// NOTE #Incomplete: maybe add a nominal vs structural type/definition flag?
+//  (or is it just implicit in whether it has a name or not?)
 
+/// Definition introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// A Module is a module declaration.
@@ -39,6 +40,8 @@ pub enum Definition {
     ///
     /// Examples:
     /// ```
+    /// { a: 2 } // anonymous struct
+    /// 
     /// struct {} // empty anonymous struct
     ///
     /// struct _ {} // explicit anonymous struct (for disambiguation)
@@ -400,7 +403,7 @@ pub struct VariantField {
     pub default: Option<NodeId<Expression>>,
 }
 
-// TODO #Incomplete: getter/setter functions for Struct/Union/...Fields?
+// NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (useful for SOA-style struct views?)
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)
