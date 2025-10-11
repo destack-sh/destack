@@ -69,7 +69,7 @@ impl<'a> Compiler<'a> {
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty = self.lower_expression(source_id, ast, *ty);
+                let ty = ty.map(|ty| self.lower_expression(source_id, ast, ty));
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_pattern_field(source_id, ast, *field))

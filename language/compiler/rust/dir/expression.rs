@@ -218,7 +218,7 @@ impl<'a> Compiler<'a> {
                 Expression::TypeLiteral { value }
             }
             ast::Expression::StructLiteral { ty, fields } => {
-                let ty = self.lower_expression_to_type(source_id, ast, *ty);
+                let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_argument(source_id, ast, *field))

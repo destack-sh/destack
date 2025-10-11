@@ -94,7 +94,7 @@ pub enum Expression {
     TypeLiteral { value: TypeLiteral },
     /// Struct creation.
     StructLiteral {
-        ty: NodeId<Type>,
+        ty: Option<NodeId<Type>>,
         fields: Vec<NodeId<Argument>>,
     },
     /// Tuple creation.

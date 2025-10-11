@@ -7,9 +7,9 @@ use crate::{
 /// It is used to represent super types and include types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum EmbeddedDefinition {
-    /// Super type (like `B` in `struct A: B`).
+    /// Super type ("is a" relationship like `B` in `struct A: B`).
     Super { ty: NodeId<Type> },
-    /// Include type (like `..B` in `struct A { ..B }`).
+    /// Include type ("has a" relationship like `..B` in `struct A { ..B }`).
     Include { ty: NodeId<Type> },
 }
 

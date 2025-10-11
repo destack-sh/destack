@@ -125,17 +125,6 @@ impl Workspace {
         }
     }
 
-    /// Clear the workspace.
-    fn clear(&mut self) {
-        self.session.reset_diagnostics();
-        self.files_by_uri.clear();
-        self.files_by_id.clear();
-        self.packages_by_id.clear();
-        self.next_source_id = 1;
-        self.next_package_id = 1;
-        self.main_package_id = None;
-    }
-
     /// Get or create a source ID for a URI.
     fn get_or_create_source_id(&mut self, uri: &Uri) -> SourceId {
         self.files_by_uri

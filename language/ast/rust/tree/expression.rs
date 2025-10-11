@@ -341,7 +341,7 @@ pub enum Expression {
         is_inclusive: bool,
     },
 
-    /// An ArrayLiteral is literal array of homogeneous elements node.
+    /// An ArrayLiteral is literal array of homogeneous elements.
     ///
     /// Examples:
     /// ```
@@ -357,7 +357,7 @@ pub enum Expression {
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
 
     /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
-    /// For named tuple "literals", see the Call node.
+    /// For named tuple "literals", see Call.
     ///
     /// Examples:
     /// ```
@@ -367,17 +367,17 @@ pub enum Expression {
     /// ```
     TupleLiteral { elements: Vec<NodeId<Argument>> },
 
-    /// A StructLiteral is literal struct of heterogeneous fields node.
+    /// A StructLiteral is literal struct of heterogeneous fields.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).
-    /// TODO #Incomplete: anonymous struct literals?
     ///
     /// Examples:
     /// ```
+    /// { a: 2 }
     /// Vector2 { x: 1, y: 2 }
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
     StructLiteral {
-        ty: NodeId<Expression>,
+        ty: Option<NodeId<Expression>>,
         fields: Vec<NodeId<Argument>>,
     },
 

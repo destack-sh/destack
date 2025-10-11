@@ -228,8 +228,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // nothing to do
         }
         Expression::StructLiteral { ty, fields } => {
-            let ty_node = tree.get(*ty);
-            visitor.visit_type(tree, *ty, ty_node);
+            if let Some(ty_id) = ty {   
+                let ty_node = tree.get(*ty_id);
+                visitor.visit_type(tree, *ty_id, ty_node);
+            }
             for field_id in fields {
                 let argument = tree.get(*field_id);
                 visitor.visit_argument(tree, *field_id, argument);
@@ -885,8 +887,10 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             }
         }
         Pattern::Struct { ty, fields } => {
-            let ty_expression = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_expression);
+            if let Some(ty_id) = ty {
+                let ty_expression = tree.get(*ty_id);
+                visitor.visit_expression(tree, *ty_id, ty_expression);
+            }
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
