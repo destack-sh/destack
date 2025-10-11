@@ -214,7 +214,7 @@ impl<'a> Compiler<'a> {
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TypeLiteral(value) => {
-                let value = self.lower_type_literal(source_id, ast, value);
+                let value = self.lower_type_literal(value);
                 Expression::TypeLiteral { value }
             }
             ast::Expression::StructLiteral { ty, fields } => {

@@ -69,10 +69,31 @@ impl ParserOptions {
         }
     }
 
+    /// Adapt and reset options for a static before a block.
+    pub(crate) fn static_in_before_block(self) -> Self {
+        Self {
+            in_static: true,
+            in_before_block: true,
+            ..self
+        }
+    }
+
     /// Adapt and reset options for a nested expression before a block.
     pub(crate) fn nested_in_before_block(self) -> Self {
         Self {
             in_type: false,
+            in_static: false,
+            in_union_pattern: false,
+            in_parenthesis: false,
+            in_before_block: true,
+            left_precedence: None,
+        }
+    }
+
+    /// Adapt and reset options for a nested type before a block.
+    pub(crate) fn nested_type_in_before_block(self) -> Self {
+        Self {
+            in_type: true,
             in_static: false,
             in_union_pattern: false,
             in_parenthesis: false,

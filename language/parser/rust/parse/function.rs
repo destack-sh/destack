@@ -186,7 +186,7 @@ impl<'a> Parser<'a> {
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
             let return_type = self
-                .with_options(self.options.nested_in_before_block(), |parser| {
+                .with_options(self.options.nested_type_in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
             Some(return_type)

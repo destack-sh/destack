@@ -95,7 +95,8 @@ impl<'a> Parser<'a> {
             if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
                 let left = self.eat_identifier()?;
                 self.eat_token(TokenType::Colon)?;
-                let right = self.eat_expression()?;
+                let right =
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 self.tree.insert(
                     WhereClause::Assertion { left, right },
                     self.get_span_from(start),

@@ -369,7 +369,7 @@ pub enum Expression {
 
     /// A StructLiteral is literal struct of heterogeneous fields node.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).
-    /// NOTE #Incomplete: anonymous struct literals?
+    /// TODO #Incomplete: anonymous struct literals?
     ///
     /// Examples:
     /// ```

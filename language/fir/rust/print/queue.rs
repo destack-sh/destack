@@ -219,7 +219,7 @@ where
                 top = self.queue.pop();
             }
 
-            match top.expect(&format!("missing end signal")) {
+            match top.expect("missing end signal") {
                 node @ FormatNode::Tag(tag) if tag.kind() == self.kind => {
                     if tag.is_start() {
                         self.depth += 1;

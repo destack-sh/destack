@@ -188,7 +188,7 @@ impl Workspace {
     pub fn get_package_by_id(&self, id: PackageId) -> &'_ Package {
         self.packages_by_id
             .get(&id)
-            .expect(&format!("package not found: {id:?} in {self:?}"))
+            .unwrap_or_else(|| panic!("package not found: {id:?} in {self:?}"))
     }
 
     /// Insert a package into the workspace.
@@ -304,7 +304,7 @@ impl Workspace {
         let package = self
             .packages_by_id
             .get_mut(&package_id)
-            .expect(&format!("package not found: {package_id:?}"));
+            .unwrap_or_else(|| panic!("package not found: {package_id:?}"));
         package.add_source(source_id);
 
         // reset diagnostics
@@ -345,7 +345,7 @@ impl Workspace {
         let package = self
             .packages_by_id
             .get_mut(&package_id)
-            .expect(&format!("package not found: {package_id:?}"));
+            .unwrap_or_else(|| panic!("package not found: {package_id:?}"));
         package.add_source(source_id);
 
         // create file
@@ -457,7 +457,7 @@ impl Workspace {
         let orphan_package = self
             .packages_by_id
             .remove(&self.orphan_package_id)
-            .expect(&format!("orphan package not found:"));
+            .expect("orphan package not found");
         self.packages_by_id.clear();
         self.packages_by_id
             .insert(self.orphan_package_id, orphan_package);

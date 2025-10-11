@@ -244,8 +244,31 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a type literal.
+    /// Certain type literals are only parsed at the AST-level in static or type contexts.
+    /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
     pub fn peek_type_literal(&self) -> ParserResult<TypeLiteral> {
         let next = self.peek()?;
+        let next_str = self.get_span_str(next.span);
+
+        // always available type literals
+        let literal = match next_str {
+            // undefined
+            "undefined" => Some(TypeLiteral::Undefined),
+            // void
+            "void" => Some(TypeLiteral::Void),
+            // null
+            "null" => Some(TypeLiteral::Null),
+            _ => None,
+        };
+        if let Some(literal) = literal {
+            return Ok(literal);
+        }
+
+        // bail if not inside static or type context
+        if !self.options.in_type && !self.options.in_static {
+            return Err(ParserError::unexpected(next.span));
+        }
+
         let next_type = next.token.ty;
         let next_next = self.peek_next();
         let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
@@ -265,15 +288,8 @@ impl<'a> Parser<'a> {
             };
         }
 
-        // regular single-token type literals
-        let next_str = self.get_span_str(next.span);
+        // regular single-token type literals (also only inside static/type context)
         match next_str {
-            // undefined
-            "undefined" => Ok(TypeLiteral::Undefined),
-            // void
-            "void" => Ok(TypeLiteral::Void),
-            // null
-            "null" => Ok(TypeLiteral::Null),
             // boolean
             "boolean" | "bool" => Ok(TypeLiteral::Boolean),
             // character
@@ -557,6 +573,7 @@ mod tests {
     fn test_parse_type_literal() {
         let mut test = TestParser::new("int32 uint8 float bool");
         let mut parser = test.prepare();
+        parser.options.in_type = true;
 
         assert!(
             matches!(parser.eat_type_literal().unwrap(), TypeLiteral::Int(int_ty) if int_ty.width == Some(32))
