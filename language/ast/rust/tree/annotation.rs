@@ -26,7 +26,6 @@ pub enum AnnotationPosition {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Annotation {
-    /// A blank annotation (just newlines).
     Blank {
         node: NodeId<Blank>,
         position: AnnotationPosition,

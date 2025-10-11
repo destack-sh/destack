@@ -262,7 +262,7 @@ impl DestackLanguageServer {
         drop(workspace);
 
         // re-analyze the workspace
-        self.analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
+        self.trigger_analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
             .await;
 
         self.client
@@ -273,15 +273,14 @@ impl DestackLanguageServer {
             .await;
     }
 
-    /// Re-analyze (part of) a workspace.
-    pub(crate) async fn analyze_workspace(
+    /// Trigger re-analyze (part of) a workspace.
+    /// All relevant packages will be re-analyzed.
+    pub(crate) async fn trigger_analyze_workspace(
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
         uris: Option<Vec<dyst_source::Uri>>,
     ) {
-        // TODO #Incomplete: re-analyze in background (for DIR-level stuff)
-
-        // read the workspace once
+        // publish new AST diagnostics immediately
         let workspace = workspace_handle.read().await;
         let uris = uris.unwrap_or_else(|| workspace.files_uris());
         for uri in &uris {
@@ -302,6 +301,14 @@ impl DestackLanguageServer {
                 ),
             )
             .await;
+
+        // re-analyze in background (for DIR-level stuff)
+        // TODO #Incomplete: re-analyze/compile in background
+    }
+
+    /// Analyze a workspace.
+    async fn analyze_workspace(workspace_handle: Arc<RwLock<Workspace>>) {
+        let workspace = workspace_handle.read().await;
     }
 
     /// Refresh a workspace from disk and publish updated diagnostics.
@@ -341,7 +348,7 @@ impl DestackLanguageServer {
         drop(workspace);
 
         let num_uris = uris.len();
-        self.analyze_workspace(workspace_handle.clone(), Some(uris))
+        self.trigger_analyze_workspace(workspace_handle.clone(), Some(uris))
             .await;
 
         self.client

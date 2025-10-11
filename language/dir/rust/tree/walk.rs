@@ -989,11 +989,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Annotation, id.id);
     match annotation {
-        Annotation::Blank {
-            position: _,
-            lines: _,
-        }
-        | Annotation::Doc {
+        Annotation::Doc {
             position: _,
             string: _,
         }

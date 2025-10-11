@@ -12,11 +12,6 @@ pub enum AnnotationPosition {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// A blank annotation (just newlines).
-    Blank {
-        position: AnnotationPosition,
-        lines: u32,
-    },
     /// A doc annotation (like `///` or `/**`).
     Doc {
         position: AnnotationPosition,
@@ -49,7 +44,6 @@ impl Annotation {
     /// Get the position of the annotation.
     pub fn position(&self) -> AnnotationPosition {
         match self {
-            Annotation::Blank { position, .. } => *position,
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
             Annotation::Tag { position, .. } => *position,
