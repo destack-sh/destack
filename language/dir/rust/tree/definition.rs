@@ -3,8 +3,28 @@ use crate::{
     UseItem, Variant, Visibility, WhereClause, WithClause,
 };
 
+/// An embedded definition is a definition that is embedded in another definition.
+/// It is used to represent super types and include types.
+#[derive(Debug, Clone, PartialEq)]
+pub enum EmbeddedDefinition {
+    /// Super type (like `B` in `struct A: B`).
+    Super { ty: NodeId<Type> },
+    /// Include type (like `..B` in `struct A { ..B }`).
+    Include { ty: NodeId<Type> },
+}
+
+impl EmbeddedDefinition {
+    /// Get the type of the embedded definition.
+    #[inline]
+    pub fn ty(&self) -> NodeId<Type> {
+        match self {
+            EmbeddedDefinition::Super { ty } => *ty,
+            EmbeddedDefinition::Include { ty } => *ty,
+        }
+    }
+}
+
 /// Definition introduces a type or function into its scope.
-/// TODO #Incomplete: handle `..T` include types (in addition to super types?)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// Intrinsic definition.
@@ -26,8 +46,8 @@ pub enum Definition {
     Struct {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        super_types: Option<Vec<NodeId<Type>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        embedded_definitions: Vec<EmbeddedDefinition>,
         variant: NodeId<Variant>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -37,8 +57,8 @@ pub enum Definition {
     Enum {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        super_types: Option<Vec<NodeId<Type>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        embedded_definitions: Vec<EmbeddedDefinition>,
         variants: Vec<NodeId<Variant>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -48,8 +68,8 @@ pub enum Definition {
     Union {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        super_types: Option<Vec<NodeId<Type>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        embedded_definitions: Vec<EmbeddedDefinition>,
         variants: Vec<NodeId<Variant>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -59,8 +79,8 @@ pub enum Definition {
     Trait {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        super_types: Option<Vec<NodeId<Type>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
+        embedded_definitions: Vec<EmbeddedDefinition>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
@@ -126,6 +146,35 @@ impl Definition {
             Definition::Function { visibility, .. } => *visibility,
             Definition::Implement { .. } => None,
             Definition::Let { visibility, .. } => *visibility,
+        }
+    }
+
+    /// Get the embedded definitions of the definition.
+    #[inline]
+    pub fn embedded_definitions(&self) -> Option<&Vec<EmbeddedDefinition>> {
+        match self {
+            Definition::Intrinsic { .. } => None,
+            Definition::Use { .. } => None,
+            Definition::Module { .. } => None,
+            Definition::Struct {
+                embedded_definitions,
+                ..
+            } => Some(embedded_definitions),
+            Definition::Enum {
+                embedded_definitions,
+                ..
+            } => Some(embedded_definitions),
+            Definition::Union {
+                embedded_definitions,
+                ..
+            } => Some(embedded_definitions),
+            Definition::Trait {
+                embedded_definitions,
+                ..
+            } => Some(embedded_definitions),
+            Definition::Function { .. } => None,
+            Definition::Implement { .. } => None,
+            Definition::Let { .. } => None,
         }
     }
 

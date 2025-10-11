@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Definition, NodeId};
+use dyst_dir::{Definition, EmbeddedDefinition, NodeId};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
@@ -37,6 +37,44 @@ impl<'a> Compiler<'a> {
             self.tree.alias(source_id, expression_id.id, definition);
         }
         definition
+    }
+
+    /// Lower embedded definitions of a definition.
+    /// Includes both super types and include types (with spread syntax).
+    pub fn lower_embedded_definitions(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        _definition_id: ast::NodeId<ast::Definition>,
+        super_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
+        expressions: &[ast::NodeId<ast::Expression>],
+    ) -> Vec<EmbeddedDefinition> {
+        let mut embedded_definitions: Vec<EmbeddedDefinition> = vec![];
+        // super types
+        if let Some(super_types) = super_types.as_ref() {
+            embedded_definitions.extend(
+                super_types
+                    .iter()
+                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
+                    .map(|ty| EmbeddedDefinition::Super { ty }),
+            );
+        }
+        // include types (from expressions)
+        embedded_definitions.extend(expressions.iter().filter_map(|expression_id| {
+            let expression = ast.get(*expression_id);
+            match expression {
+                ast::Expression::Unary {
+                    operator: ast::UnaryOperator::Spread,
+                    right,
+                } => {
+                    let right = self.lower_expression_to_type(source_id, ast, *right);
+                    self.tree.alias(source_id, expression_id.id, right);
+                    Some(EmbeddedDefinition::Include { ty: right })
+                }
+                _ => None,
+            }
+        }));
+        embedded_definitions
     }
 
     /// Lower a definition to a DIR definition.
@@ -106,18 +144,19 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
-                let super_types = super_types.as_ref().map(|supers| {
-                    supers
-                        .iter()
-                        .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
-                        .collect()
-                });
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
+                let embedded_definitions = self.lower_embedded_definitions(
+                    source_id,
+                    ast,
+                    definition_id,
+                    super_types,
+                    expressions,
+                );
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -150,8 +189,8 @@ impl<'a> Compiler<'a> {
                     Definition::Struct {
                         name,
                         visibility,
-                        super_types,
                         static_parameters,
+                        embedded_definitions,
                         variant,
                         with_clauses,
                         where_clauses,
@@ -176,18 +215,19 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
-                let super_types = super_types.as_ref().map(|supers| {
-                    supers
-                        .iter()
-                        .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
-                        .collect()
-                });
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
+                let embedded_definitions = self.lower_embedded_definitions(
+                    source_id,
+                    ast,
+                    definition_id,
+                    super_types,
+                    expressions,
+                );
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -213,8 +253,8 @@ impl<'a> Compiler<'a> {
                     Definition::Enum {
                         name,
                         visibility,
-                        super_types,
                         static_parameters,
+                        embedded_definitions,
                         variants,
                         with_clauses,
                         where_clauses,
@@ -240,18 +280,19 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
-                let super_types = super_types.as_ref().map(|supers| {
-                    supers
-                        .iter()
-                        .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
-                        .collect()
-                });
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
+                let embedded_definitions = self.lower_embedded_definitions(
+                    source_id,
+                    ast,
+                    definition_id,
+                    super_types,
+                    expressions,
+                );
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -286,8 +327,8 @@ impl<'a> Compiler<'a> {
                     Definition::Union {
                         name,
                         visibility,
-                        super_types,
                         static_parameters,
+                        embedded_definitions,
                         variants,
                         with_clauses,
                         where_clauses,
@@ -310,18 +351,19 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
-                let super_types = super_types.as_ref().map(|supers| {
-                    supers
-                        .iter()
-                        .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
-                        .collect()
-                });
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
+                let embedded_definitions = self.lower_embedded_definitions(
+                    source_id,
+                    ast,
+                    definition_id,
+                    super_types,
+                    expressions,
+                );
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -342,8 +384,8 @@ impl<'a> Compiler<'a> {
                     Definition::Trait {
                         name,
                         visibility,
-                        super_types,
                         static_parameters,
+                        embedded_definitions,
                         with_clauses,
                         where_clauses,
                         definitions,
