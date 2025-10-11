@@ -172,14 +172,18 @@ match x {
             // case 0: 1 => 10
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
             });
 
             // case 1: 2 => 20
             assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
             });
 
@@ -215,7 +219,9 @@ match x {
                 assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
 
                 // pattern: 2
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
 
                 // body: 20
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
@@ -250,8 +256,8 @@ match self {
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
-                assert_node!(parser.tree, *pattern, Pattern::Path { path } => {
-                    assert_path!(parser, *path, "TetrisPieceShape.I");
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
                 });
                 // Color.Blue
                 assert_expr_path!(parser, parser.tree.get(*body), "Color.Blue");
@@ -261,8 +267,8 @@ match self {
             assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
-                assert_node!(parser.tree, *pattern, Pattern::Path { path } => {
-                    assert_path!(parser, *path, "TetrisPieceShape.J");
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.J");
                 });
                 // Color.Red
                 assert_expr_path!(parser, parser.tree.get(*body), "Color.Red");

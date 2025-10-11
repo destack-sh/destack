@@ -169,7 +169,7 @@ for item in items {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
             // in items
@@ -192,7 +192,7 @@ for item in items outer: {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
             // in items

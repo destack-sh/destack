@@ -30,13 +30,14 @@ impl<'a> Compiler<'a> {
                 let scalar_literal = self.lower_scalar_literal(source_id, ast, scalar_literal_id);
                 Pattern::ScalarLiteral(scalar_literal)
             }
-            ast::Pattern::Binding { name } => {
+            ast::Pattern::Binding { name, pattern } => {
                 let name = self.intern_string(source_id, *name);
-                Pattern::Binding { name }
+                let pattern = pattern.map(|pattern| self.lower_pattern(source_id, ast, pattern));
+                Pattern::Binding { name, pattern }
             }
-            ast::Pattern::Path { path } => {
-                let path = self.lower_path(source_id, ast, path);
-                Pattern::Path(path)
+            ast::Pattern::Expression { value } => {
+                let value = self.lower_expression(source_id, ast, value);
+                Pattern::Expression { value }
             }
             ast::Pattern::Range {
                 start,

@@ -1,5 +1,7 @@
 //! Parse patterns.
 
+use dyst_ast::Expression;
+
 use crate::TokenType;
 use crate::parse::prelude::*;
 
@@ -61,15 +63,6 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // literal
-            else if self.peek_scalar_literal().is_ok() {
-                let scalar_literal_id =
-                    self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
-                self.tree.insert(
-                    Pattern::ScalarLiteral(scalar_literal_id),
-                    self.get_span_from(start),
-                )
-            }
             // tuple (without path prefix, no struct tuples)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
@@ -104,6 +97,44 @@ impl<'a> Parser<'a> {
                 self.tree
                     .insert(Pattern::Slice { fields }, self.get_span_from(start))
             }
+            // literal expression
+            else if self.peek_scalar_literal().is_ok() {
+                let scalar_literal_id =
+                    self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
+                let expression_id = self.tree.insert(
+                    Expression::ScalarLiteral(scalar_literal_id),
+                    self.get_span_from(start),
+                );
+                self.tree.insert(
+                    Pattern::Expression {
+                        value: expression_id,
+                    },
+                    self.get_span_from(start),
+                )
+            }
+            // binding with expression
+            else if self.peek_identifier().is_ok()
+                && self.peek_next_token(TokenType::Colon).is_ok()
+            {
+                let name = self.eat_identifier()?;
+                self.bump(); // eat colon
+                let expression = self
+                    .with_options(self.options.static_in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })
+                    .for_node_type(NodeType::Pattern)?;
+                let pattern_id = self.tree.insert(
+                    Pattern::Expression { value: expression },
+                    self.get_span_from(start),
+                );
+                self.tree.insert(
+                    Pattern::Binding {
+                        name,
+                        pattern: Some(pattern_id),
+                    },
+                    self.get_span_from(start),
+                )
+            }
             // path or identifier
             else {
                 let path = self.eat_path().for_node_type(NodeType::Pattern)?;
@@ -126,11 +157,12 @@ impl<'a> Parser<'a> {
                     self.tree
                         .insert(Pattern::Path { path }, self.get_span_from(start))
                 }
-                // identifier (without mutability)
+                // identifier
                 else {
                     self.tree.insert(
                         Pattern::Binding {
                             name: path.segments[0],
+                            pattern: None,
                         },
                         self.get_span_from(start),
                     )
@@ -278,9 +310,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Expression;
+
     use crate::parse::tests::TestParser;
     use crate::{
-        Mutability, Pattern, PatternField, ScalarLiteral, assert_node, assert_path, assert_string,
+        Mutability, Pattern, PatternField, ScalarLiteral, assert_expr_path, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -325,7 +360,9 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, right } => {
             assert_eq!(*mutability, Mutability::Immutable);
             // 1
-            assert_node!(parser.tree, *right, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, *right, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
         })
     }
 
@@ -334,7 +371,7 @@ mod tests {
         let mut test = TestParser::new("x");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Binding { name } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Binding { name, pattern: None } => {
             assert_string!(parser, *name, "x");
         });
     }
@@ -344,8 +381,8 @@ mod tests {
         let mut test = TestParser::new("MyEnum.A");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Path { path } => {
-            assert_path!(parser, *path, "MyEnum.A");
+        assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
+            assert_expr_path!(parser, *, "MyEnum.A");
         });
     }
 
@@ -362,12 +399,16 @@ mod tests {
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
             });
 
             // var y
@@ -434,12 +475,16 @@ mod tests {
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
             });
 
             // 2
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
             });
 
             // ..
@@ -460,13 +505,19 @@ mod tests {
             assert_eq!(patterns.len(), 3);
 
             // 1
-            assert_node!(parser.tree, patterns[0], Pattern::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, patterns[0], Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
 
             // 2
-            assert_node!(parser.tree, patterns[1], Pattern::ScalarLiteral(ScalarLiteral::Integer(2)));
+            assert_node!(parser.tree, patterns[1], Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
 
             // 3
-            assert_node!(parser.tree, patterns[2], Pattern::ScalarLiteral(ScalarLiteral::Integer(3)));
+            assert_node!(parser.tree, patterns[2], Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+            });
         });
     }
 }
