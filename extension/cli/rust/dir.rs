@@ -4,7 +4,7 @@ use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
-use dyst_package::{DocumentBody, Workspace};
+use dyst_package::{FileContent, SourceFile, Workspace};
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, SourceFormat, Uri, annotate_source};
 
@@ -72,39 +72,42 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let (source_id, definition_id) = {
         // get the definition from the workspace
         if let Some(file) = file
-            && workspace.has_document(&Uri::from_string(file))
+            && workspace.has_file(&Uri::from_string(file))
         {
-            let document = workspace.get_document(&Uri::from_string(file)).unwrap();
-            match &document.body {
-                DocumentBody::Text {
+            let document = workspace.get_file(&Uri::from_string(file)).unwrap();
+            match &document.content {
+                FileContent::Source(SourceFile {
                     root_definition_id, ..
-                } => (document.id, *root_definition_id),
-                DocumentBody::Binary { .. } => panic!("binary document not supported"),
+                }) => (document.id, *root_definition_id),
+                FileContent::Binary { .. } => panic!("binary document not supported"),
             }
         }
         // add source to workspace if file is not in workspace
         else {
             let uri = Uri::from_string(source.name.clone());
-            let source_id = workspace.upsert_text_document(
+            let source_id = workspace.upsert_text_file(
                 &uri,
                 SourceFormat::DystText,
                 true,
                 source.content.clone(),
             );
-            let document = workspace.get_document_by_id(source_id).unwrap();
-            match &document.body {
-                DocumentBody::Text {
+            let document = workspace.get_file_by_source_id(source_id).unwrap();
+            match &document.content {
+                FileContent::Source(SourceFile {
                     root_definition_id, ..
-                } => (source_id, *root_definition_id),
-                DocumentBody::Binary { .. } => panic!("binary document not supported"),
+                }) => (source_id, *root_definition_id),
+                FileContent::Binary { .. } => panic!("binary document not supported"),
             }
         }
     };
 
     // compile the AST to DIR
-    let mut compiler = Compiler::new(&workspace, CompilerOptions::default());
+    let package = workspace
+        .get_package_containing_source_id(source_id)
+        .unwrap_or_else(|| panic!("package not found: {source_id:?}"));
+    let mut compiler = Compiler::new(&workspace, package, CompilerOptions::default());
     let dir_tree = workspace
-        .get_document_ast_by_id(source_id)
+        .get_ast_by_source_id(source_id)
         .unwrap_or_else(|| panic!("document ast not found: {source_id:?}"));
     let definition_id = compiler.lower_definition(source_id, dir_tree, definition_id);
     compiler.finalize();

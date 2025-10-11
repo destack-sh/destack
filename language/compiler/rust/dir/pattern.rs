@@ -131,7 +131,6 @@ impl<'a> Compiler<'a> {
                 PatternField::Positional { pattern }
             }
         };
-        self.tree
-            .insert(pattern_field, source_id, pattern_field_id)
+        self.tree.insert(pattern_field, source_id, pattern_field_id)
     }
 }

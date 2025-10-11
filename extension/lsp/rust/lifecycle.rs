@@ -4,7 +4,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_package::{DocumentBody, Workspace};
+use dyst_package::{FileContent, SourceFile, Workspace};
 use dyst_source::SourceFormat;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
@@ -234,10 +234,10 @@ impl DestackLanguageServer {
         workspace: &Workspace,
         uri: &dyst_source::Uri,
     ) -> Vec<lsp::Diagnostic> {
-        let Some(document) = workspace.get_document(uri) else {
+        let Some(document) = workspace.get_file(uri) else {
             return Vec::new();
         };
-        let DocumentBody::Text { source, .. } = &document.body else {
+        let FileContent::Source(SourceFile { source, .. }) = &document.content else {
             return Vec::new();
         };
         workspace
@@ -258,7 +258,7 @@ impl DestackLanguageServer {
         let workspace_handle = self.get_or_create_workspace_for_document(lsp_uri).await;
         let mut workspace = workspace_handle.write().await;
         let uri = lsp_uri_to_uri(lsp_uri);
-        workspace.upsert_text_document(&uri, format, true, content);
+        workspace.upsert_text_file(&uri, format, true, content);
         drop(workspace);
 
         // re-analyze the workspace
@@ -283,7 +283,7 @@ impl DestackLanguageServer {
 
         // read the workspace once
         let workspace = workspace_handle.read().await;
-        let uris = uris.unwrap_or_else(|| workspace.document_uris());
+        let uris = uris.unwrap_or_else(|| workspace.files_uris());
         for uri in &uris {
             let lsp_uri = uri_to_lsp_uri(uri);
             let diagnostics = Self::get_diagnostics_for_uri(&workspace, uri);
@@ -386,7 +386,7 @@ impl DestackLanguageServer {
         let uri = lsp_uri_to_uri(lsp_uri);
 
         // resync the document
-        match workspace.reload_document_from_disk(&uri) {
+        match workspace.reload_file_from_disk(&uri) {
             Ok(_) => {
                 let diagnostics = Self::get_diagnostics_for_uri(&workspace, &uri);
                 self.client

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// An unresolved dependency to a package with a "virtual" name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Dependency {
@@ -9,10 +11,13 @@ pub struct Dependency {
 
 /// The version of a dependency.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum DependencyVersion {}
+pub enum DependencyVersion {
+    Exact(String),
+}
 
 /// An index of dependencies.
+#[derive(Debug, Clone)]
 pub struct DependencyIndex {
-    /// The dependencies.
-    pub dependencies: HashMap<String, DependencyVersion>,
+    /// The dependencies by name.
+    pub dependencies_by_name: HashMap<&'static str, DependencyVersion>,
 }

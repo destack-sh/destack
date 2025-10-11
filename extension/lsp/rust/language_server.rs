@@ -9,7 +9,7 @@ use dyst_source::SourceFormat;
 
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
-use dyst_package::DocumentBody;
+use dyst_package::{FileContent, SourceFile};
 use tower_lsp_server::lsp_types as lsp;
 
 impl LanguageServer for DestackLanguageServer {
@@ -195,9 +195,9 @@ impl LanguageServer for DestackLanguageServer {
                 // update files in the workspace
                 let new_uris = {
                     let mut workspace = workspace_handle.write().await;
-                    let uris = workspace.document_uris();
+                    let uris = workspace.files_uris();
                     for uri in &uris {
-                        workspace.remove_document(uri);
+                        workspace.remove_file(uri);
                     }
                     uris
                 };
@@ -228,13 +228,13 @@ impl LanguageServer for DestackLanguageServer {
 
             let source_uri = lsp_uri_to_uri(&change.uri);
             let mut workspace = handle.write().await;
-            if workspace.has_open_document(&source_uri) {
+            if workspace.has_open_file(&source_uri) {
                 continue; // do not override open documents
             }
             match change.typ {
                 // sync the document if created/changed
                 lsp::FileChangeType::CREATED | lsp::FileChangeType::CHANGED => {
-                    match workspace.reload_document_from_disk(&source_uri) {
+                    match workspace.reload_file_from_disk(&source_uri) {
                         Ok(_) => {}
                         Err(error) => {
                             self.client
@@ -252,7 +252,7 @@ impl LanguageServer for DestackLanguageServer {
                 }
                 // remove the document if deleted
                 lsp::FileChangeType::DELETED => {
-                    workspace.remove_document(&source_uri);
+                    workspace.remove_file(&source_uri);
                 }
                 _ => {}
             }
@@ -291,10 +291,10 @@ impl LanguageServer for DestackLanguageServer {
             let workspace_handle = self.get_or_create_workspace_for_document(&lsp_uri).await;
             let mut workspace = workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&lsp_uri);
-            if workspace.has_open_document(&uri) {
+            if workspace.has_open_file(&uri) {
                 continue; // do not override open documents
             }
-            match workspace.reload_document_from_disk(&uri) {
+            match workspace.reload_file_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
                     self.client
@@ -358,7 +358,7 @@ impl LanguageServer for DestackLanguageServer {
                 let old_uris = {
                     let mut workspace = old_workspace_handle.write().await;
                     let uri = lsp_uri_to_uri(&old_uri);
-                    workspace.remove_document(&uri);
+                    workspace.remove_file(&uri);
                     vec![uri]
                 };
                 self.analyze_workspace(old_workspace_handle.clone(), Some(old_uris))
@@ -369,10 +369,10 @@ impl LanguageServer for DestackLanguageServer {
             let new_workspace_handle = self.get_or_create_workspace_for_document(&new_uri).await;
             let mut workspace = new_workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&new_uri);
-            if workspace.has_open_document(&uri) {
+            if workspace.has_open_file(&uri) {
                 continue; // do not override open documents
             }
-            match workspace.reload_document_from_disk(&uri) {
+            match workspace.reload_file_from_disk(&uri) {
                 Ok(_) => {}
                 Err(error) => {
                     self.client
@@ -421,7 +421,7 @@ impl LanguageServer for DestackLanguageServer {
                 let uris = {
                     let mut workspace = handle.write().await;
                     let uri = lsp_uri_to_uri(&lsp_uri);
-                    workspace.remove_document(&uri);
+                    workspace.remove_file(&uri);
                     vec![uri]
                 };
 
@@ -518,10 +518,10 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let workspace = workspace_handle.read().await;
-        let Some(document) = workspace.get_document(&lsp_uri_to_uri(&uri)) else {
+        let Some(document) = workspace.get_file(&lsp_uri_to_uri(&uri)) else {
             return Ok(None);
         };
-        let DocumentBody::Text { source, .. } = &document.body else {
+        let FileContent::Source(SourceFile { source, .. }) = &document.content else {
             return Ok(None);
         };
 

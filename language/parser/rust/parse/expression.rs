@@ -646,9 +646,7 @@ impl<'a> Parser<'a> {
             // combine into new left expression
             let left_expression =
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
-            left_expression_id = self
-                .tree
-                .insert(left_expression, self.get_span_from(start))
+            left_expression_id = self.tree.insert(left_expression, self.get_span_from(start))
         }
 
         Ok(left_expression_id)

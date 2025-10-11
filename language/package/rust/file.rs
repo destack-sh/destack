@@ -10,9 +10,9 @@ use crate::PackageId;
 pub const PACKAGE_FILE_NAME: &str = "package.dst";
 pub const MODULE_FILE_NAME: &str = "module.ds";
 
-/// The special intent of a document.
+/// The special intent of a file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DocumentIntent {
+pub enum FileIntent {
     /// Generic source file (`.ds`)
     Source,
     /// Generic data file (`.dst`, `.dsb`, `.dsx`)
@@ -23,65 +23,67 @@ pub enum DocumentIntent {
     Module,
 }
 
-/// A source Document (pre-parsed).
+/// A source File (might be on disk, might also be virtual or in-memory).
 #[derive(Debug, Clone)]
-pub struct Document {
-    /// The ID of the source.
+pub struct File {
+    /// The ID of this source.
     pub id: SourceId,
     /// The ID of the containing package.
     pub package_id: PackageId,
-    /// The name of the document.
+    /// The name of the file.
     pub name: String,
     /// The URI of the SourceFile.
     pub uri: Uri,
-    /// The format of the document.
+    /// The format of the file.
     pub format: SourceFormat,
-    /// The special intent of the document.
-    pub intent: DocumentIntent,
-    /// Whether the document is currently open.
+    /// The special intent of the file.
+    pub intent: FileIntent,
+    /// Whether the file is currently open (in editor context).
     pub is_open: bool,
-    /// The content of the document.
-    pub body: DocumentBody,
+    /// The content of the file.
+    pub content: FileContent,
 }
 
-/// The content of a Document.
+/// The content of a File.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
-pub enum DocumentBody {
-    Text {
-        /// The text source of the document.
-        source: Source,
-        /// The main tokens of the document.
-        tokens: Vec<TokenSpan>,
-        /// The side tokens of the document.
-        side_tokens: Vec<TokenSpan>,
-        /// The side span of the document.
-        side_span: MultiSpan,
-        /// All tokens of the document (including side tokens).
-        all_tokens: Vec<TokenSpan>,
-        /// The AST of the document.
-        ast: NodeTree,
-        /// The parent index of the AST.
-        parents: NodeParentIndex,
-        /// The root definition ID of the document.
-        /// (In case of irrecoverable errors, this is an empty module.)
-        root_definition_id: NodeId<Definition>,
-        /// The string pool.
-        strings: StringPool,
-    },
-    Binary {
-        /// The binary content of the document.
-        content: Vec<u8>,
-    },
+pub enum FileContent {
+    /// The content of a (text) SourceFile (e.g., `.ds` or `.dst`)
+    Source(SourceFile),
+    /// The content of a BinaryFile (e.g., `.dsb` or `.dsx`)
+    Binary(BinaryFile),
 }
 
-impl DocumentBody {
-    /// Build a document for the provided text source.
-    pub(crate) fn parse_text(source: Source, session: &mut Session) -> Self {
+/// The content of a (text) SourceFile.
+#[derive(Debug, Clone)]
+pub struct SourceFile {
+    /// The text source of the file.
+    pub source: Source,
+    /// The main tokens of the file.
+    pub tokens: Vec<TokenSpan>,
+    /// The side tokens of the file.
+    pub side_tokens: Vec<TokenSpan>,
+    /// The side span of the file.
+    pub side_span: MultiSpan,
+    /// All tokens of the file (including side tokens).
+    pub all_tokens: Vec<TokenSpan>,
+    /// The AST of the file.
+    pub ast: NodeTree,
+    /// The parent index of the AST.
+    pub parents: NodeParentIndex,
+    /// The root definition ID of the file.
+    /// (In case of irrecoverable errors, this is an empty module.)
+    pub root_definition_id: NodeId<Definition>,
+    /// The string pool.
+    pub strings: StringPool,
+}
+
+impl SourceFile {
+    pub(crate) fn parse(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
 
-        // parse the document AST
+        // parse the file AST
         let mut parser = Parser::prepare(&source, session);
         let module_name_id = parser.intern_string(module_name);
         let root_definition_id = parser.with_recovery(
@@ -110,7 +112,7 @@ impl DocumentBody {
         });
         parser.finalize();
 
-        // combine tokens and AST into document body
+        // combine tokens and AST into file body
         let side_span = parser.get_side_span();
         let side_tokens = parser.side_tokens;
         let tokens = parser.tokens;
@@ -122,7 +124,7 @@ impl DocumentBody {
         let parents = NodeParentIndex::from_tree(&ast);
         let strings = parser.strings;
 
-        DocumentBody::Text {
+        SourceFile {
             source,
             tokens,
             side_tokens,
@@ -134,15 +136,35 @@ impl DocumentBody {
             strings,
         }
     }
+}
 
-    /// Build a document for the provided binary source.
-    pub(crate) fn wrap_binary(content: Vec<u8>) -> Self {
-        DocumentBody::Binary { content }
+/// The content of a BinaryFile.
+#[derive(Debug, Clone)]
+pub struct BinaryFile {
+    /// The binary content of the file.
+    pub content: Vec<u8>,
+}
+
+impl BinaryFile {
+    pub(crate) fn from(content: Vec<u8>) -> Self {
+        BinaryFile { content }
     }
 }
 
-impl Document {
-    /// Build a parsed Document for the provided text source.
+impl FileContent {
+    /// Build a file for the provided text source.
+    pub(crate) fn parse_text(source: Source, session: &mut Session) -> Self {
+        FileContent::Source(SourceFile::parse(source, session))
+    }
+
+    /// Build a file for the provided binary source.
+    pub(crate) fn wrap_binary(content: Vec<u8>) -> Self {
+        FileContent::Binary(BinaryFile::from(content))
+    }
+}
+
+impl File {
+    /// Build a parsed File for the provided text source.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn parse_text(
         id: SourceId,
@@ -155,27 +177,27 @@ impl Document {
         session: &mut Session,
     ) -> Self {
         let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
-        let content = DocumentBody::parse_text(source, session);
+        let content = FileContent::parse_text(source, session);
         let intent = match format {
             SourceFormat::Dyst => {
                 if name.eq(MODULE_FILE_NAME) {
-                    DocumentIntent::Module
+                    FileIntent::Module
                 } else {
-                    DocumentIntent::Source
+                    FileIntent::Source
                 }
             }
             SourceFormat::DystText => {
                 if name.eq(PACKAGE_FILE_NAME) {
-                    DocumentIntent::Package
+                    FileIntent::Package
                 } else {
-                    DocumentIntent::Data
+                    FileIntent::Data
                 }
             }
-            SourceFormat::DystBinary => DocumentIntent::Data,
-            SourceFormat::DystExecutable => DocumentIntent::Data,
+            SourceFormat::DystBinary => FileIntent::Data,
+            SourceFormat::DystExecutable => FileIntent::Data,
         };
 
-        Document {
+        File {
             id,
             package_id,
             name,
@@ -183,11 +205,11 @@ impl Document {
             format,
             intent,
             is_open,
-            body: content,
+            content,
         }
     }
 
-    /// Build a parsed Document for the provided binary content.
+    /// Build a parsed File for the provided binary content.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn wrap_binary(
         id: SourceId,
@@ -198,22 +220,22 @@ impl Document {
         is_open: bool,
         content: Vec<u8>,
     ) -> Self {
-        Document {
+        File {
             id,
             package_id,
             name,
             uri,
             format,
-            intent: DocumentIntent::Data,
+            intent: FileIntent::Data,
             is_open,
-            body: DocumentBody::wrap_binary(content),
+            content: FileContent::wrap_binary(content),
         }
     }
 
-    /// Format a (text) Document.
-    /// If the document couldn't be formatted, returns `None`.
+    /// Format a (text) File.
+    /// If the file couldn't be formatted, returns `None`.
     pub fn format(&self, session: &Session) -> Option<String> {
-        let DocumentBody::Text {
+        let FileContent::Source(SourceFile {
             source,
             tokens,
             side_tokens,
@@ -222,7 +244,7 @@ impl Document {
             root_definition_id: module_id,
             strings,
             ..
-        } = &self.body
+        }) = &self.content
         else {
             return None;
         };
