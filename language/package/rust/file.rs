@@ -1,6 +1,6 @@
 use dyst_ast::{Definition, ModuleFormat, NodeId, NodeParentIndex, NodeTree, TokenSpan, TokenType};
 use dyst_fir::format;
-use dyst_format::{DystFormatContext, DystFormatOptions};
+use dyst_formatter::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};

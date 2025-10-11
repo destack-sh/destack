@@ -1,6 +1,6 @@
 [package]
-name = "dyst_format"
-description = "Dyst Format"
+name = "dyst_formatter"
+description = "Dyst Formatter"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

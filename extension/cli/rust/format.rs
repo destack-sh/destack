@@ -9,7 +9,7 @@ use dyst_ast::{ModuleFormat, NodeParentIndex, TokenType};
 use dyst_diagnostic::Severity;
 use dyst_fir::format::{IndentStyle, LineEnding, format as format_fir};
 use dyst_fir::format_args;
-use dyst_format::{DystFormatContext, DystFormatOptions};
+use dyst_formatter::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, Source, SourceFormat, SourceId, Uri, annotate_source};

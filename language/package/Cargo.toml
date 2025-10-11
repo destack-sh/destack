@@ -14,7 +14,7 @@ doctest = false
 [dependencies]
 dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
-dyst_format = { workspace = true }
+dyst_formatter = { workspace = true }
 dyst_diagnostic = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
