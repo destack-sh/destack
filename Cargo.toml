@@ -60,7 +60,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.10.10-0"
+version = "2025.10.11-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -150,7 +150,7 @@ ambiguous_glob_reexports = { level = "forbid", priority = 1 }
 [workspace.lints.clippy]
 perf = "warn"
 uninlined_format_args = "warn"
-expect_used = "warn"
+expect_used = "allow"
 manual_range_contains = { level = "allow", priority = 1 }
 module_inception = { level = "allow", priority = 1 }
 

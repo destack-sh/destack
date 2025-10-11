@@ -105,7 +105,7 @@ impl StringId {
         let value = u32::try_from(index.saturating_add(1))
             .unwrap_or_else(|_| panic!("StringPool exhausted u32 address space for identifiers"));
         let nonzero = NonZeroU32::new(value)
-            .unwrap_or_else(|| panic!("internal error: NonZeroU32 received zero value"));
+            .expect(&format!("internal error: NonZeroU32 received zero value"));
         Self(nonzero)
     }
 }

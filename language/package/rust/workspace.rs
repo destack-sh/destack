@@ -36,12 +36,10 @@ pub struct Workspace {
 
     /// The package ID of the "orphan" package.
     orphan_package_id: PackageId,
-    /// The URI of the "orphan" package.
-    orphan_package_uri: Uri,
     /// The ID of the main package.
     main_package_id: Option<PackageId>,
     /// All the packages.
-    packages_by_uri: HashMap<Uri, Package>,
+    packages_by_id: HashMap<PackageId, Package>,
     /// All the files.
     files_by_uri: HashMap<Uri, File>,
     /// Index files by their ID.
@@ -77,9 +75,8 @@ impl Workspace {
             next_package_id: 1,
 
             orphan_package_id,
-            orphan_package_uri,
             main_package_id: None,
-            packages_by_uri: HashMap::new(),
+            packages_by_id: HashMap::new(),
             files_by_uri: HashMap::new(),
             files_by_id: HashMap::new(),
         };
@@ -128,6 +125,17 @@ impl Workspace {
         }
     }
 
+    /// Clear the workspace.
+    fn clear(&mut self) {
+        self.session.reset_diagnostics();
+        self.files_by_uri.clear();
+        self.files_by_id.clear();
+        self.packages_by_id.clear();
+        self.next_source_id = 1;
+        self.next_package_id = 1;
+        self.main_package_id = None;
+    }
+
     /// Get or create a source ID for a URI.
     fn get_or_create_source_id(&mut self, uri: &Uri) -> SourceId {
         self.files_by_uri
@@ -142,15 +150,32 @@ impl Workspace {
 
     /// Get the package containing a source URI (default to orphan package).
     pub fn get_package_containing_uri(&self, uri: &Uri) -> Option<&'_ Package> {
-        self.packages_by_uri
+        self.packages_by_id
             .values()
+            .find(|pkg| pkg.is_parent_of(uri))
+    }
+
+    /// Get the package containing a source URI mut (default to orphan package).
+    pub fn get_package_containing_uri_mut(&mut self, uri: &Uri) -> Option<&mut Package> {
+        self.packages_by_id
+            .values_mut()
             .find(|pkg| pkg.is_parent_of(uri))
     }
 
     /// Get the package containing a source ID.
     pub fn get_package_containing_source_id(&self, source_id: SourceId) -> Option<&'_ Package> {
-        self.packages_by_uri
+        self.packages_by_id
             .values()
+            .find(|pkg| pkg.sources.contains(&source_id))
+    }
+
+    /// Get the package containing a source ID mut (default to orphan package).
+    pub fn get_package_containing_source_id_mut(
+        &mut self,
+        source_id: SourceId,
+    ) -> Option<&mut Package> {
+        self.packages_by_id
+            .values_mut()
             .find(|pkg| pkg.sources.contains(&source_id))
     }
 
@@ -160,14 +185,15 @@ impl Workspace {
     }
 
     /// Get a package by its ID.
-    pub fn get_package_by_id(&self, id: PackageId) -> Option<&'_ Package> {
-        self.packages_by_uri.values().find(|pkg| pkg.id == id)
+    pub fn get_package_by_id(&self, id: PackageId) -> &'_ Package {
+        self.packages_by_id
+            .get(&id)
+            .expect(&format!("package not found: {id:?} in {self:?}"))
     }
 
     /// Insert a package into the workspace.
     pub fn insert_package(&mut self, package: Package) {
-        self.packages_by_uri
-            .insert(package.root_uri.clone(), package);
+        self.packages_by_id.insert(package.id, package);
     }
 
     /// Check if a file exists in the workspace.
@@ -275,6 +301,11 @@ impl Workspace {
             .get_package_containing_uri(uri)
             .map(|pkg| pkg.id)
             .unwrap_or(self.orphan_package_id);
+        let package = self
+            .packages_by_id
+            .get_mut(&package_id)
+            .expect(&format!("package not found: {package_id:?}"));
+        package.add_source(source_id);
 
         // reset diagnostics
         self.reset_diagnostics_for_source(source_id);
@@ -311,6 +342,11 @@ impl Workspace {
             .get_package_containing_uri(uri)
             .map(|pkg| pkg.id)
             .unwrap_or(self.orphan_package_id);
+        let package = self
+            .packages_by_id
+            .get_mut(&package_id)
+            .expect(&format!("package not found: {package_id:?}"));
+        package.add_source(source_id);
 
         // create file
         let name = uri.last_segment().unwrap_or("<file>").to_string();
@@ -334,6 +370,10 @@ impl Workspace {
         if let Some(file) = self.files_by_uri.remove(uri) {
             self.reset_diagnostics_for_source(file.id);
             self.files_by_id.remove(&file.id);
+            let package = self.packages_by_id.get_mut(&file.package_id);
+            if let Some(package) = package {
+                package.remove_source(file.id);
+            }
         }
     }
 
@@ -392,7 +432,7 @@ impl Workspace {
             }
         }
 
-        // drop files & packages that disappeared from disk
+        // drop files that disappeared from disk
         let stale_uris: Vec<Uri> = self
             .files_by_uri
             .iter()
@@ -401,7 +441,6 @@ impl Workspace {
             .collect();
         for uri in stale_uris {
             self.remove_file(&uri);
-            self.packages_by_uri.remove(&uri);
             index.removed.push(uri);
         }
 
@@ -415,9 +454,19 @@ impl Workspace {
     /// Does not reload from disk, just checks and assigns files to packages.
     pub fn reindex_packages(&mut self) {
         // re-index packages
+        let orphan_package = self
+            .packages_by_id
+            .remove(&self.orphan_package_id)
+            .expect(&format!("orphan package not found:"));
+        self.packages_by_id.clear();
+        self.packages_by_id
+            .insert(self.orphan_package_id, orphan_package);
+
         // create packages for missing manifests
         for file in self.files_by_uri.values_mut() {
-            if file.intent == FileIntent::Package && !self.packages_by_uri.contains_key(&file.uri) {
+            if file.intent == FileIntent::Package
+                && !self.packages_by_id.contains_key(&file.package_id)
+            {
                 let uri = file.uri.clone();
                 let package_id = PackageId::new(self.next_package_id);
                 file.package_id = package_id;
@@ -429,29 +478,25 @@ impl Workspace {
                     uri,
                     file.id,
                 );
-                self.packages_by_uri.insert(file.uri.clone(), package);
+                self.packages_by_id.insert(package.id, package);
             }
         }
 
         // assign files to packages
         let mut package_id_by_url = HashMap::new();
-        for package in self.packages_by_uri.values() {
+        for package in self.packages_by_id.values() {
             package_id_by_url.insert(package.root_uri.clone(), package.id);
         }
         for file in self.files_by_uri.values_mut() {
-            if file.intent != FileIntent::Package {
-                let package_id = package_id_by_url.iter().find_map(|(package_uri, id)| {
-                    if &file.uri == package_uri {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                });
-                if let Some(package_id) = package_id {
-                    file.package_id = *package_id;
-                } else {
-                    file.package_id = self.orphan_package_id;
-                }
+            let package = self
+                .packages_by_id
+                .values_mut()
+                .find(|pkg| pkg.is_parent_of(&file.uri));
+            if let Some(package) = package {
+                file.package_id = package.id;
+                package.add_source(file.id);
+            } else {
+                file.package_id = self.orphan_package_id;
             }
         }
     }
