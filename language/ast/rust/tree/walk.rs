@@ -960,14 +960,15 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let target_pattern = tree.get(*target);
             visitor.visit_pattern(tree, *target, target_pattern);
         }
-        Pattern::ScalarLiteral(_) => {
-            // no child nodes to visit
+        Pattern::Binding { name: _, pattern } => {
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+            }
         }
-        Pattern::Binding { name: _ } => {
-            // no child nodes to visit
-        }
-        Pattern::Path { path: _ } => {
-            // no child nodes to visit
+        Pattern::Expression { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
         Pattern::Range {
             start,

@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, ScalarLiteral};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, Path};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -34,12 +34,13 @@ pub enum Pattern {
         right: NodeId<Pattern>,
         mutability: Mutability,
     },
-    /// Literal value pattern (like `1`).
-    ScalarLiteral(ScalarLiteral),
-    /// Binding pattern (like `x`).
-    Binding { name: StringId },
-    /// Path pattern (like `MyEnum.A`).
-    Path { path: Path },
+    /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
+    Binding {
+        name: StringId,
+        pattern: Option<NodeId<Pattern>>,
+    },
+    /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
+    Expression { value: NodeId<Expression> },
     /// Range pattern (like `1..3`).
     Range {
         start: Option<NodeId<Pattern>>,
@@ -66,13 +67,13 @@ impl Node for Pattern {
     const KIND: NodeType = NodeType::Pattern;
 }
 
-/// A PatternVariantField is a field of a struct pattern.
-/// A PatternField is a field in a pattern (tuple, struct, union, etc.).
+/// A PatternField is a field of a variant pattern.
 ///
 /// Examples:
 /// ```
 /// x // named
 /// x: 4  // named
+/// x: int32 // named
 /// x: y  // named alias  
 /// 4     // positional
 /// var y // named explicit mutable

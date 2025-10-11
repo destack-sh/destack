@@ -1262,16 +1262,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Pattern::ScalarLiteral(_node) => {
-                self.node("Pattern::Literal", _id.id).end();
-            }
-            Pattern::Binding { name } => {
+            Pattern::Binding { name, pattern: _ } => {
                 self.node("Pattern::Binding", _id.id)
                     .field("name", name)
                     .end();
             }
-            Pattern::Path { path } => {
-                self.node("Pattern::Path", _id.id).field("path", path).end();
+            Pattern::Expression { value: _ } => {
+                self.node("Pattern::Expression", _id.id).end();
             }
             Pattern::Range {
                 start: _,
