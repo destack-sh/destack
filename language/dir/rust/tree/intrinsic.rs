@@ -5,6 +5,6 @@ pub enum Intrinsic {}
 
 impl Intrinsic {
     pub fn name(&self) -> StringId {
-        todo!("intrinsics")
+        panic!("NOTE #Incomplete: intrinsics")
     }
 }

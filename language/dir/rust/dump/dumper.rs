@@ -895,27 +895,34 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::ArrayLiteral", id.id).end();
             }
             Expression::If {
+                runtime,
                 condition: _,
                 then_block: _,
                 else_block: _,
             } => {
-                self.node("Expression::If", id.id).end();
+                self.node("Expression::If", id.id)
+                    .field_optional("runtime", runtime)
+                    .end();
             }
             Expression::Loop {
+                runtime,
                 condition: _,
                 body: _,
                 source,
             } => {
                 self.node("Expression::Loop", id.id)
+                    .field_optional("runtime", runtime)
                     .field("source", source)
                     .end();
             }
             Expression::Match {
+                runtime,
                 value: _,
                 cases: _,
                 source,
             } => {
                 self.node("Expression::Match", id.id)
+                    .field_optional("runtime", runtime)
                     .field("source", source)
                     .end();
             }
@@ -932,21 +939,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("destination", destination)
                     .end();
             }
-            Expression::Defer {
-                destination,
-                body: _,
-            } => {
-                self.node("Expression::Defer", id.id)
-                    .field("destination", destination)
-                    .end();
+            Expression::Defer { expression: _ } => {
+                self.node("Expression::Defer", id.id).end();
             }
-            Expression::Return {
-                destination,
-                value: _,
-            } => {
-                self.node("Expression::Return", id.id)
-                    .field("destination", destination)
-                    .end();
+            Expression::Return { value: _ } => {
+                self.node("Expression::Return", id.id).end();
             }
             Expression::Error => {
                 self.node("Expression::Error", id.id).end();

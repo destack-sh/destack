@@ -33,12 +33,9 @@ impl<'a> Compiler<'a> {
             }
             _ => None,
         };
-
-        // register alias since we're skipping the expression node 
         if let Some(definition) = definition {
             self.tree.alias(source_id, expression_id.id, definition);
         }
-
         definition
     }
 

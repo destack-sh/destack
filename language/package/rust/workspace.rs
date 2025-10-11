@@ -26,21 +26,26 @@ pub const TRACKED_FORMATS: [SourceFormat; 4] = [
 pub struct Workspace {
     /// The root URI of the workspace.
     pub root_uri: Uri,
+    /// The shared session for the workspace.
+    pub session: Session,
 
     /// The next package ID to use for a new package.
     next_package_id: u32,
     /// The next source ID to use for a new document.
     next_source_id: u32,
+
     /// The package ID of the "orphan" package.
     orphan_package_id: PackageId,
+    /// The URI of the "orphan" package.
+    orphan_package_uri: Uri,
+    /// The ID of the main package.
+    main_package_id: Option<PackageId>,
     /// All the packages.
-    packages: HashMap<Uri, Package>,
+    packages_by_uri: HashMap<Uri, Package>,
     /// All the documents.
-    documents: HashMap<Uri, Document>,
+    documents_by_uri: HashMap<Uri, Document>,
     /// Index documents by their ID.
     documents_by_id: HashMap<SourceId, Uri>,
-    /// The shared session for the workspace.
-    pub session: Session,
 }
 
 #[cfg(test)]
@@ -53,16 +58,35 @@ impl Default for Workspace {
 impl Workspace {
     /// Create a new empty workspace.
     pub fn empty(root_uri: Uri) -> Self {
-        Self {
+        // orphan package (for working with out-of-package sources)
+        let orphan_package_id = PackageId::new(0);
+        let orphan_package_uri = Uri::from_string("<orphan>");
+        let orphan_package = Package::new(
+            orphan_package_id,
+            "<orphan>".to_string(),
+            orphan_package_uri.clone(),
+            SourceId::new(0),
+        );
+
+        // create workspace
+        let mut workspace = Self {
             root_uri,
+            session: Session::new(),
+
             next_source_id: 1,
             next_package_id: 1,
-            orphan_package_id: PackageId::new(0),
-            packages: HashMap::new(),
-            session: Session::new(),
-            documents: HashMap::new(),
+
+            orphan_package_id,
+            orphan_package_uri,
+            main_package_id: None,
+            packages_by_uri: HashMap::new(),
+            documents_by_uri: HashMap::new(),
             documents_by_id: HashMap::new(),
-        }
+        };
+
+        // insert orphan package
+        workspace.insert_package(orphan_package);
+        workspace
     }
 
     /// Load workspace from disk.
@@ -74,7 +98,7 @@ impl Workspace {
 
     /// Find the containing workspace package for a source URI (if any).
     /// Scans the file system upwards looking for a containing package root.
-    pub fn load_containing_maybe(uri: &Uri) -> io::Result<Option<Self>> {
+    pub fn load_containing(uri: &Uri) -> io::Result<Option<Self>> {
         // find containing root
         let root_uri = {
             // loop until we find the `package.dst` file in the directory
@@ -106,7 +130,7 @@ impl Workspace {
 
     /// Get or create a source ID for a URI.
     fn get_or_create_source_id(&mut self, uri: &Uri) -> SourceId {
-        self.documents
+        self.documents_by_uri
             .get(uri)
             .map(|doc| doc.id)
             .unwrap_or_else(|| {
@@ -116,31 +140,44 @@ impl Workspace {
             })
     }
 
-    /// Get the containing package ID for a URI.
-    fn get_containing_package_id(&self, uri: &Uri) -> Option<PackageId> {
-        self.packages.values().find_map(|pkg| {
-            if pkg.is_parent_of(uri) {
-                Some(pkg.id)
-            } else {
-                None
-            }
-        })
+    /// Get the package containing a source URI (default to orphan package).
+    pub fn get_package_containing_uri(&self, uri: &Uri) -> Option<&'_ Package> {
+        self.packages_by_uri
+            .values()
+            .find(|pkg| pkg.is_parent_of(uri))
     }
 
-    /// Get the containing package for a URI (default to orphan package).
-    fn get_containing_package_id_or_orphan(&self, uri: &Uri) -> PackageId {
-        self.get_containing_package_id(uri)
-            .unwrap_or(self.orphan_package_id)
+    /// Get the package containing a source ID.
+    pub fn get_package_containing_source_id(&self, source_id: SourceId) -> Option<&'_ Package> {
+        self.packages_by_uri
+            .values()
+            .find(|pkg| pkg.sources.contains(&source_id))
+    }
+
+    /// Get the package ID for the main package.
+    pub fn get_main_package_id(&self) -> PackageId {
+        self.main_package_id.unwrap_or(self.orphan_package_id)
+    }
+
+    /// Get a package by its ID.
+    pub fn get_package_by_id(&self, id: PackageId) -> Option<&'_ Package> {
+        self.packages_by_uri.values().find(|pkg| pkg.id == id)
+    }
+
+    /// Insert a package into the workspace.
+    pub fn insert_package(&mut self, package: Package) {
+        self.packages_by_uri
+            .insert(package.root_uri.clone(), package);
     }
 
     /// Check if a document exists in the workspace.
     pub fn has_document(&self, uri: &Uri) -> bool {
-        self.documents.contains_key(uri)
+        self.documents_by_uri.contains_key(uri)
     }
 
     /// Check if the workspace has a document and it is open.
     pub fn has_open_document(&self, uri: &Uri) -> bool {
-        self.documents
+        self.documents_by_uri
             .get(uri)
             .map(|doc| doc.is_open)
             .unwrap_or(false)
@@ -148,17 +185,17 @@ impl Workspace {
 
     /// Get a document from the workspace.
     pub fn get_document(&self, uri: &Uri) -> Option<&Document> {
-        self.documents.get(uri)
+        self.documents_by_uri.get(uri)
     }
 
     /// Get all documents from the workspace.
     pub fn documents(&self) -> impl Iterator<Item = &Document> {
-        self.documents.values()
+        self.documents_by_uri.values()
     }
 
     /// Collect URIs for all tracked documents.
     pub fn document_uris(&self) -> Vec<Uri> {
-        self.documents.keys().cloned().collect()
+        self.documents_by_uri.keys().cloned().collect()
     }
 
     /// Get all diagnostics.
@@ -193,7 +230,7 @@ impl Workspace {
     pub fn get_document_by_id(&self, id: SourceId) -> Option<&Document> {
         self.documents_by_id
             .get(&id)
-            .and_then(|uri| self.documents.get(uri))
+            .and_then(|uri| self.documents_by_uri.get(uri))
     }
 
     /// Get a document's AST by its ID.
@@ -233,7 +270,10 @@ impl Workspace {
     ) -> SourceId {
         // get id
         let source_id = self.get_or_create_source_id(uri);
-        let package_id = self.get_containing_package_id_or_orphan(uri);
+        let package_id = self
+            .get_package_containing_uri(uri)
+            .map(|pkg| pkg.id)
+            .unwrap_or(self.orphan_package_id);
 
         // reset diagnostics
         self.reset_diagnostics_for_source(source_id);
@@ -250,7 +290,7 @@ impl Workspace {
             content,
             &mut self.session,
         );
-        self.documents.insert(uri.clone(), document);
+        self.documents_by_uri.insert(uri.clone(), document);
         self.documents_by_id.insert(source_id, uri.clone());
 
         source_id
@@ -266,7 +306,10 @@ impl Workspace {
     ) -> SourceId {
         // get id
         let source_id = self.get_or_create_source_id(uri);
-        let package_id = self.get_containing_package_id_or_orphan(uri);
+        let package_id = self
+            .get_package_containing_uri(uri)
+            .map(|pkg| pkg.id)
+            .unwrap_or(self.orphan_package_id);
 
         // create document
         let name = uri.last_segment().unwrap_or("<file>").to_string();
@@ -279,7 +322,7 @@ impl Workspace {
             is_open,
             content,
         );
-        self.documents.insert(uri.clone(), document);
+        self.documents_by_uri.insert(uri.clone(), document);
         self.documents_by_id.insert(source_id, uri.clone());
 
         source_id
@@ -287,7 +330,7 @@ impl Workspace {
 
     /// Remove a document from the workspace.
     pub fn remove_document(&mut self, uri: &Uri) {
-        if let Some(document) = self.documents.remove(uri) {
+        if let Some(document) = self.documents_by_uri.remove(uri) {
             self.reset_diagnostics_for_source(document.id);
             self.documents_by_id.remove(&document.id);
         }
@@ -350,14 +393,14 @@ impl Workspace {
 
         // drop documents & packages that disappeared from disk
         let stale_uris: Vec<Uri> = self
-            .documents
+            .documents_by_uri
             .iter()
             .filter(|(uri, document)| !document.is_open && !seen_uris.contains(uri.as_ref()))
             .map(|(uri, _)| uri.clone())
             .collect();
         for uri in stale_uris {
             self.remove_document(&uri);
-            self.packages.remove(&uri);
+            self.packages_by_uri.remove(&uri);
             index.removed.push(uri);
         }
 
@@ -372,9 +415,9 @@ impl Workspace {
     pub fn reindex_packages(&mut self) {
         // re-index packages
         // create packages for missing manifests
-        for document in self.documents.values_mut() {
+        for document in self.documents_by_uri.values_mut() {
             if document.intent == DocumentIntent::Package
-                && !self.packages.contains_key(&document.uri)
+                && !self.packages_by_uri.contains_key(&document.uri)
             {
                 let uri = document.uri.clone();
                 let package_id = PackageId::new(self.next_package_id);
@@ -382,20 +425,21 @@ impl Workspace {
                 self.next_package_id += 1;
                 let package = Package::new(
                     package_id,
-                    document.name.clone(), // NOTE @Broken: read package name from document?
+                    // NOTE @Broken: read package name from package manifest document?
+                    document.name.clone(),
                     uri,
                     document.id,
                 );
-                self.packages.insert(document.uri.clone(), package);
+                self.packages_by_uri.insert(document.uri.clone(), package);
             }
         }
 
         // assign documents to packages
         let mut package_id_by_url = HashMap::new();
-        for package in self.packages.values() {
+        for package in self.packages_by_uri.values() {
             package_id_by_url.insert(package.root_uri.clone(), package.id);
         }
-        for document in self.documents.values_mut() {
+        for document in self.documents_by_uri.values_mut() {
             if document.intent != DocumentIntent::Package {
                 let package_id = package_id_by_url.iter().find_map(|(package_uri, id)| {
                     if &document.uri == package_uri {

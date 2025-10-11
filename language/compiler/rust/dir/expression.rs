@@ -240,6 +240,40 @@ impl<'a> Compiler<'a> {
                 Expression::ArrayLiteral { elements }
             }
 
+            ast::Expression::If {
+                runtime,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
+                let condition = self.lower_expression(source_id, ast, *condition);
+                let then_block = self.lower_block(source_id, ast, *then_block);
+                let else_block =
+                    else_block.map(|else_block| self.lower_expression(source_id, ast, else_block));
+                Expression::If {
+                    runtime,
+                    condition,
+                    then_block,
+                    else_block,
+                }
+            }
+            ast::Expression::Break { label, value } => {
+                let destination = label.map(|label| self.lower_label(source_id, ast, label));
+                let value = value.map(|value| self.lower_expression(source_id, ast, value));
+                Expression::Break { destination, value }
+            }
+            ast::Expression::Continue { label } => {
+                let destination = label.map(|label| self.lower_label(source_id, ast, label));
+                Expression::Continue { destination }
+            }
+            ast::Expression::Return { value } => {
+                let value = value.map(|value| self.lower_expression(source_id, ast, value));
+                Expression::Return { value }
+            }
+
+            ast::Expression::Error => Expression::Error,
+
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
         self.tree.insert(expression, source_id, expression_id)
