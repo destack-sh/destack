@@ -376,24 +376,23 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Struct {
             name: _,
             visibility: _,
-            super_types,
             static_parameters,
+            embedded_definitions,
             variant,
             with_clauses,
             where_clauses,
             definitions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types.iter() {
-                    let super_type = tree.get(*super_type_id);
-                    visitor.visit_type(tree, *super_type_id, super_type);
-                }
-            }
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
                     let parameter = tree.get(*parameter_id);
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
+            }
+            for embedded_definition in embedded_definitions.iter() {
+                let ty_id = embedded_definition.ty();
+                let ty = tree.get(ty_id);
+                visitor.visit_type(tree, ty_id, ty);
             }
             let variant_node = tree.get(*variant);
             visitor.visit_variant(tree, *variant, variant_node);
@@ -417,24 +416,23 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Enum {
             name: _,
             visibility: _,
-            super_types,
             static_parameters,
+            embedded_definitions,
             variants,
             with_clauses,
             where_clauses,
             definitions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types.iter() {
-                    let super_type = tree.get(*super_type_id);
-                    visitor.visit_type(tree, *super_type_id, super_type);
-                }
-            }
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
                     let parameter = tree.get(*parameter_id);
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
+            }
+            for embedded_definition in embedded_definitions.iter() {
+                let ty_id = embedded_definition.ty();
+                let ty = tree.get(ty_id);
+                visitor.visit_type(tree, ty_id, ty);
             }
             for variant_id in variants.iter() {
                 let variant_node = tree.get(*variant_id);
@@ -460,24 +458,23 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Union {
             name: _,
             visibility: _,
-            super_types,
             static_parameters,
+            embedded_definitions,
             variants,
             with_clauses,
             where_clauses,
             definitions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types.iter() {
-                    let super_type = tree.get(*super_type_id);
-                    visitor.visit_type(tree, *super_type_id, super_type);
-                }
-            }
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
                     let parameter = tree.get(*parameter_id);
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
+            }
+            for embedded_definition in embedded_definitions.iter() {
+                let ty_id = embedded_definition.ty();
+                let ty = tree.get(ty_id);
+                visitor.visit_type(tree, ty_id, ty);
             }
             for variant_id in variants.iter() {
                 let variant_node = tree.get(*variant_id);
@@ -503,23 +500,22 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Trait {
             name: _,
             visibility: _,
-            super_types,
             static_parameters,
+            embedded_definitions,
             with_clauses,
             where_clauses,
             definitions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types.iter() {
-                    let super_type = tree.get(*super_type_id);
-                    visitor.visit_type(tree, *super_type_id, super_type);
-                }
-            }
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
                     let parameter = tree.get(*parameter_id);
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
+            }
+            for embedded_definition in embedded_definitions.iter() {
+                let ty_id = embedded_definition.ty();
+                let ty = tree.get(ty_id);
+                visitor.visit_type(tree, ty_id, ty);
             }
             if let Some(with_clauses) = with_clauses {
                 for clause_id in with_clauses.iter() {

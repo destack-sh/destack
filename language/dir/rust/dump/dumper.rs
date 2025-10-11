@@ -488,6 +488,20 @@ impl Dump for ScopedMutability {
     }
 }
 
+/// Dump an EmbeddedDefinition as a string.
+impl Dump for EmbeddedDefinition {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            EmbeddedDefinition::Super { ty: _ } => {
+                dumper.object("EmbeddedDefinition::Super").end();
+            }
+            EmbeddedDefinition::Include { ty: _ } => {
+                dumper.object("EmbeddedDefinition::Include").end();
+            }
+        }
+    }
+}
+
 /// Dump a SelfParameter as a string.
 impl Dump for SelfParameter {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1001,7 +1015,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 static_parameters: _,
-                super_types: _,
+                embedded_definitions: _,
                 variant: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -1015,8 +1029,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Enum {
                 name,
                 visibility,
-                super_types: _,
                 static_parameters: _,
+                embedded_definitions: _,
                 variants: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -1030,8 +1044,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Union {
                 name,
                 visibility,
-                super_types: _,
                 static_parameters: _,
+                embedded_definitions: _,
                 variants: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -1045,8 +1059,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Trait {
                 name,
                 visibility,
-                super_types: _,
                 static_parameters: _,
+                embedded_definitions: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
