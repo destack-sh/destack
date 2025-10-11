@@ -203,7 +203,7 @@ impl LanguageServer for DestackLanguageServer {
                 };
 
                 // reanalyze the workspace
-                self.analyze_workspace(workspace_handle.clone(), Some(new_uris))
+                self.trigger_analyze_workspace(workspace_handle.clone(), Some(new_uris))
                     .await;
 
                 self.client
@@ -258,7 +258,7 @@ impl LanguageServer for DestackLanguageServer {
             }
             drop(workspace);
 
-            self.analyze_workspace(handle.clone(), Some(vec![source_uri]))
+            self.trigger_analyze_workspace(handle.clone(), Some(vec![source_uri]))
                 .await;
 
             self.client
@@ -312,7 +312,7 @@ impl LanguageServer for DestackLanguageServer {
             drop(workspace);
 
             // reanalyze the workspace (partial)
-            self.analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
+            self.trigger_analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
                 .await;
 
             self.client
@@ -361,7 +361,7 @@ impl LanguageServer for DestackLanguageServer {
                     workspace.remove_file(&uri);
                     vec![uri]
                 };
-                self.analyze_workspace(old_workspace_handle.clone(), Some(old_uris))
+                self.trigger_analyze_workspace(old_workspace_handle.clone(), Some(old_uris))
                     .await;
             }
 
@@ -387,7 +387,7 @@ impl LanguageServer for DestackLanguageServer {
                     return;
                 }
             }
-            self.analyze_workspace(new_workspace_handle.clone(), Some(vec![uri]))
+            self.trigger_analyze_workspace(new_workspace_handle.clone(), Some(vec![uri]))
                 .await;
 
             self.client
@@ -425,7 +425,7 @@ impl LanguageServer for DestackLanguageServer {
                     vec![uri]
                 };
 
-                self.analyze_workspace(handle.clone(), Some(uris)).await;
+                self.trigger_analyze_workspace(handle.clone(), Some(uris)).await;
 
                 self.client
                     .log_message(

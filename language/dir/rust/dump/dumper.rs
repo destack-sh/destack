@@ -1450,12 +1450,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Blank { position, lines } => {
-                self.node("Annotation::Blank", id.id)
-                    .field("position", position)
-                    .field("lines", lines)
-                    .end();
-            }
             Annotation::Doc { position, string } => {
                 self.node("Annotation::Doc", id.id)
                     .field("position", position)

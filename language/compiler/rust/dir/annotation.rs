@@ -28,12 +28,12 @@ impl<'a> Compiler<'a> {
                 continue;
             };
             for ast_annotation_id in ast_annotations {
-                let dir_annotation_id = self
+                let Some(dir_annotation_id) = self
                     .tree
                     .get_node_id_by_ast_id(source_id, ast_annotation_id.id)
-                    .unwrap_or_else(|| {
-                        panic!("annotation node not found: {source_id:?}/{ast_annotation_id:?}")
-                    });
+                else {
+                    continue; // skipped by lower_annotation
+                };
                 self.tree
                     .append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
             }
@@ -56,19 +56,16 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an annotation to a DIR annotation.
-    pub fn lower_annotation(
+    fn lower_annotation(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
         annotation_id: ast::NodeId<ast::Annotation>,
-    ) -> NodeId<Annotation> {
+    ) -> Option<NodeId<Annotation>> {
         let annotation = ast.get(annotation_id);
         let annotation = match annotation {
-            ast::Annotation::Blank { node, position } => {
-                let blank = ast.get(*node);
-                let position = self.lower_annotation_position(*position);
-                let lines = blank.lines;
-                Annotation::Blank { position, lines }
+            ast::Annotation::Blank { .. } => {
+                return None;
             }
             ast::Annotation::Doc { node, position } => {
                 let doc = ast.get(*node);
@@ -115,6 +112,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.tree.insert(annotation, source_id, annotation_id)
+        Some(self.tree.insert(annotation, source_id, annotation_id))
     }
 }
