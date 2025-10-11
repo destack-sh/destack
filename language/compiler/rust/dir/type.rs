@@ -101,10 +101,7 @@ impl<'a> Compiler<'a> {
             _ => None,
         };
 
-        if let Some(ast_literal) = ast_literal {
-            Some(self.lower_type_literal(&ast_literal))
-        } else {
-            None
-        }
+        // map to DIR literal
+        ast_literal.map(|ast_literal| self.lower_type_literal(&ast_literal))
     }
 }
