@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_package::{DocumentBody, Package, Workspace};
+use dyst_package::{FileContent, Package, SourceFile, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
@@ -65,9 +65,9 @@ impl<'s> Compiler<'s> {
     {
         let document = self
             .workspace
-            .get_document_by_id(node.source_id)
+            .get_file_by_source_id(node.source_id)
             .unwrap_or_else(|| panic!("document not found: {node:?}"));
-        if let DocumentBody::Text { ast, .. } = &document.body {
+        if let FileContent::Source(SourceFile { ast, .. }) = &document.content {
             let node = ast.get(node.id);
             (ast, node)
         } else {
@@ -79,14 +79,14 @@ impl<'s> Compiler<'s> {
     pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
         let document = self
             .workspace
-            .get_document_by_id(source_id)
+            .get_file_by_source_id(source_id)
             .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
-        match &document.body {
-            DocumentBody::Text { strings, .. } => {
+        match &document.content {
+            FileContent::Source(SourceFile { strings, .. }) => {
                 let string = strings.get(string_id);
                 self.strings.intern(string)
             }
-            DocumentBody::Binary { .. } => panic!("binary document not supported"),
+            FileContent::Binary { .. } => panic!("binary document not supported"),
         }
     }
 

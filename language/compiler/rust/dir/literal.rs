@@ -85,7 +85,10 @@ impl<'a> Compiler<'a> {
                 width: self.options.default_int_width,
                 is_signed: *is_signed,
             },
-            ast::IntType { width: Some(width), is_signed } => IntType::Variable {
+            ast::IntType {
+                width: Some(width),
+                is_signed,
+            } => IntType::Variable {
                 width: *width,
                 is_signed: *is_signed,
             },
@@ -103,9 +106,7 @@ impl<'a> Compiler<'a> {
             ast::FloatType { width: None } => FloatType::Variable {
                 width: self.options.default_float_width,
             },
-            ast::FloatType { width: Some(width) } => FloatType::Variable {
-                width: *width,
-            },
+            ast::FloatType { width: Some(width) } => FloatType::Variable { width: *width },
         }
     }
 

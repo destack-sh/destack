@@ -1,14 +1,14 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{Annotation, AnnotationPosition, NodeId};
-use dyst_package::DocumentBody;
+use dyst_package::{FileContent, SourceFile};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
     /// Attach all annotations..
     pub fn attach_all_annotations(&mut self) {
-        for document in self.workspace.documents() {
-            let DocumentBody::Text { ast, .. } = &document.body else {
+        for document in self.workspace.files() {
+            let FileContent::Source(SourceFile { ast, .. }) = &document.content else {
                 continue;
             };
             self.attach_annotations(document.id, ast);

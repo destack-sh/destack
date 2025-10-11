@@ -3,7 +3,7 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_package::DocumentBody;
+use dyst_package::{FileContent, SourceFile};
 use dyst_source::{Source, Uri};
 use tower_lsp_server::lsp_types as lsp;
 
@@ -170,15 +170,15 @@ impl DestackLanguageServer {
         workspace: &Workspace,
         uri: &Uri,
     ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = workspace.get_document(uri)?;
-        match &doc.body {
-            DocumentBody::Text {
+        let doc = workspace.get_file(uri)?;
+        match &doc.content {
+            FileContent::Source(SourceFile {
                 source,
                 all_tokens,
                 ast,
                 root_definition_id: module_id,
                 ..
-            } => collect_semantic_tokens(source, all_tokens, ast, *module_id, None),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None),
             _ => None,
         }
     }
@@ -190,15 +190,15 @@ impl DestackLanguageServer {
         uri: &Uri,
         range: &lsp::Range,
     ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = workspace.get_document(uri)?;
-        match &doc.body {
-            DocumentBody::Text {
+        let doc = workspace.get_file(uri)?;
+        match &doc.content {
+            FileContent::Source(SourceFile {
                 source,
                 all_tokens,
                 ast,
                 root_definition_id: module_id,
                 ..
-            } => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range)),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range)),
             _ => None,
         }
     }
