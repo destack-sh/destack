@@ -5,6 +5,7 @@ use crate::{Expression, Node, NodeId, NodeType, StringId};
 ///
 /// Examples:
 /// ```
+/// x
 /// T
 /// x: int32
 /// y: (int32, boolean, Vector2)

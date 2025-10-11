@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
             };
 
         // right
-        let right = self.with_options(self.options.in_before_block(), |parser| {
+        let right = self.with_options(self.options.static_in_before_block(), |parser| {
             parser.eat_expression()
         })?;
 
@@ -158,22 +158,21 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, TypeLiteral, UnaryOperator, WithClause, assert_expr_path, assert_node,
-        assert_path, assert_string,
+        Expression, UnaryOperator, WithClause, assert_expr_path, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
     fn test_parse_with_type_assertion() {
-        let mut test = TestParser::new("with T: int32");
+        let mut test = TestParser::new("with T: Something");
         let mut parser = test.prepare();
         let clauses = parser.eat_with_header().unwrap();
-        // with T: int32
+        // with T: Something
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias, right } => {
             assert_string!(parser, alias.unwrap(), "T");
-            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Something");
             });
         });
     }
@@ -204,7 +203,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_multiple_clauses() {
-        let input = "with Time, F: Numeric";
+        let input = "with Time, F: Force";
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
         let clauses = parser.eat_with_header().unwrap();
@@ -219,11 +218,11 @@ mod tests {
             });
         });
 
-        // F: Numeric
+        // F: Force
         assert_node!(parser.tree, clauses[1], WithClause { alias, right } => {
             assert_string!(parser, alias.unwrap(), "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "Numeric");
+                assert_path!(parser, *path, "Force");
             });
         });
     }
@@ -233,7 +232,7 @@ mod tests {
         let input = r##"with (
   !Bar
   Time,
-  F: Numeric
+  F: Force
 )"##;
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
@@ -259,11 +258,11 @@ mod tests {
             });
         });
 
-        // F: Numeric
+        // F: Force
         assert_node!(parser.tree, clauses[2], WithClause { alias, right } => {
             assert_string!(parser, alias.unwrap(), "F");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "Numeric");
+                assert_path!(parser, *path, "Force");
             });
         });
     }

@@ -6,6 +6,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// x
     /// T
     /// x: int32
     /// Validate: bool = false

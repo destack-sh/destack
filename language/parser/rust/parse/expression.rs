@@ -428,8 +428,7 @@ impl<'a> Parser<'a> {
                 )
             }
             // type
-            // nocheckin TODO #Broken: only consider type literals in type context? or move to DIR entirely?
-            //  (they might be shadowed, so need to resolve the others at DIR-level?)
+            // (type literals are contextual, most are only parsed inside type context to avoid shadowing)
             else if self.peek_type_literal().is_ok() {
                 let type_literal = self.eat_type_literal()?;
                 self.tree.insert(

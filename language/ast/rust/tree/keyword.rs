@@ -89,6 +89,8 @@ pub enum Keyword {
     Await,
     /// New expression (reserved).
     New,
+    /// Dynamic expression (reserved).
+    Dynamic,
 }
 
 impl Keyword {
@@ -138,6 +140,7 @@ impl Keyword {
             Keyword::Async => "async",
             Keyword::Await => "await",
             Keyword::New => "new",
+            Keyword::Dynamic => "dynamic",
         }
     }
 }
@@ -190,6 +193,7 @@ impl FromStr for Keyword {
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),
             "new" => Ok(Keyword::New),
+            "dynamic" => Ok(Keyword::Dynamic),
             _ => Err(()),
         }
     }

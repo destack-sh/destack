@@ -28,7 +28,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an int type to a DIR int type.
-    pub fn lower_int_type(&mut self, int_type: &ast::IntType) -> IntType {
+    pub fn lower_int_type(&self, int_type: &ast::IntType) -> IntType {
         match int_type {
             ast::IntType {
                 width: Some(8),
@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a float type to a DIR float type.
-    pub fn lower_float_type(&mut self, float_type: &ast::FloatType) -> FloatType {
+    pub fn lower_float_type(&self, float_type: &ast::FloatType) -> FloatType {
         match float_type {
             ast::FloatType { width: Some(16) } => FloatType::Float16,
             ast::FloatType { width: Some(32) } => FloatType::Float32,
@@ -111,7 +111,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a composite type to a DIR composite type.
-    pub fn lower_composite_type(&mut self, composite_type: &ast::CompositeType) -> CompositeType {
+    pub fn lower_composite_type(&self, composite_type: &ast::CompositeType) -> CompositeType {
         match composite_type {
             ast::CompositeType::Type => CompositeType::Type,
             ast::CompositeType::Struct => CompositeType::Struct,
@@ -124,12 +124,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a type literal to a DIR type literal.
-    pub fn lower_type_literal(
-        &mut self,
-        _source_id: SourceId,
-        _ast: &ast::NodeTree,
-        type_literal: &ast::TypeLiteral,
-    ) -> TypeLiteral {
+    pub fn lower_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
         match type_literal {
             ast::TypeLiteral::Never => TypeLiteral::Never,
             ast::TypeLiteral::Any => TypeLiteral::Any,

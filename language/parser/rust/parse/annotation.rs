@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
         let token_idx = tokens
             .iter()
             .position(|token| token.span.start == span.start)
-            .expect(&format!("tag span not found in tokens: {span:?}"));
+            .unwrap_or_else(|| panic!("tag span not found in tokens: {span:?}"));
         let token_group = tokens
             .iter()
             .skip(token_idx)

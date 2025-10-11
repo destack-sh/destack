@@ -164,7 +164,7 @@ pub(crate) trait CallStack {
     fn top(&self) -> PrintNodeArgs {
         self.stack()
             .top()
-            .expect(&format!("expected `stack` to never be empty"))
+            .expect("expected `stack` to never be empty")
             .args
     }
 
@@ -173,7 +173,7 @@ pub(crate) trait CallStack {
         match self
             .stack()
             .top()
-            .expect(&format!("expected `stack` to never be empty"))
+            .expect("expected `stack` to never be empty")
             .kind
         {
             StackFrameKind::Root => None,
