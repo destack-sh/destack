@@ -116,8 +116,8 @@ pub enum Expression {
     If {
         runtime: Option<Runtime>,
         condition: NodeId<Expression>,
-        then_block: NodeId<Block>,
-        else_block: Option<NodeId<Expression>>,
+        then_expression: NodeId<Expression>,
+        else_expression: Option<NodeId<Expression>>,
     },
     /// Loop expression.
     Loop {

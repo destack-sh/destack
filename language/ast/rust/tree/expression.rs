@@ -106,6 +106,7 @@ pub enum Expression {
 
     /// If/then/else expression.
     /// Then and else must be blocks.
+    /// nocheckin TODO #Incomplete: ternary operator?
     ///
     /// Examples:
     /// ```
@@ -133,8 +134,8 @@ pub enum Expression {
     If {
         runtime: Option<Runtime>,
         condition: NodeId<Expression>,
-        then_block: NodeId<Block>,
-        else_block: Option<NodeId<Expression>>,
+        then_expression: NodeId<Expression>,
+        else_expression: Option<NodeId<Expression>>,
     },
 
     /// A While is while loop.

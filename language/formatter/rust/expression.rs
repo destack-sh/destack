@@ -25,8 +25,8 @@ pub(crate) fn format_if_chain<'ast>(
             Expression::If {
                 runtime,
                 condition,
-                then_block,
-                else_block,
+                then_expression: then_expression_id,
+                else_expression: else_expression_id,
             } => {
                 // runtime
                 if let Some(runtime) = runtime
@@ -39,27 +39,41 @@ pub(crate) fn format_if_chain<'ast>(
                 write!(f, [Keyword::If, space(), condition, space()])?;
 
                 // then block
-                format_block(f, *then_block)?;
+                let then_expression = f.context().tree.get(*then_expression_id);
+                match then_expression {
+                    Expression::Block(block_id) => {
+                        write!(f, [f.context().any_prefix_annotations(*then_expression_id)])?;
+                        format_block(f, *block_id)?;
+                        write!(
+                            f,
+                            [f.context()
+                                .any_infix_or_postfix_annotations(*then_expression_id)]
+                        )?;
+                    }
+                    // something else
+                    _ => write!(f, [*then_expression_id])?,
+                }
 
                 // next node
-                if let Some(else_block) = else_block {
-                    if !f.context().has_prefix_annotation(*else_block)
-                        && !f.context().has_postfix_annotation(*then_block)
+                if let Some(else_expression) = else_expression_id {
+                    if !f.context().has_prefix_annotation(*else_expression)
+                        && !f.context().has_postfix_annotation(*then_expression_id)
                     {
                         write!(f, [space()])?;
                     }
                     write!(f, [Keyword::Else, space()])?;
-                    match f.context().tree.get(*else_block) {
+                    match f.context().tree.get(*else_expression) {
                         // else if
                         Expression::If { .. } => {
-                            next_if_id = *else_block;
+                            next_if_id = *else_expression;
                         }
                         // else
-                        Expression::Block(else_block_id) => {
-                            format_block(f, *else_block_id)?;
+                        Expression::Block(else_expression_id) => {
+                            format_block(f, *else_expression_id)?;
                             break;
                         }
-                        _ => panic!("invalid if chain: {else_block:?}"),
+                        // something else
+                        _ => write!(f, [*else_expression])?,
                     }
                 } else {
                     // bare if

@@ -260,16 +260,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::If {
             runtime: _,
             condition,
-            then_block,
-            else_block,
+            then_expression,
+            else_expression,
         } => {
             let condition_expression = tree.get(*condition);
             visitor.visit_expression(tree, *condition, condition_expression);
-            let then_block_node = tree.get(*then_block);
-            visitor.visit_block(tree, *then_block, then_block_node);
-            if let Some(else_block_id) = else_block {
-                let else_expression = tree.get(*else_block_id);
-                visitor.visit_expression(tree, *else_block_id, else_expression);
+            let then_expression_node = tree.get(*then_expression);
+            visitor.visit_expression(tree, *then_expression, then_expression_node);
+            if let Some(else_expression_id) = else_expression {
+                let else_expression = tree.get(*else_expression_id);
+                visitor.visit_expression(tree, *else_expression_id, else_expression);
             }
         }
         Expression::Loop {

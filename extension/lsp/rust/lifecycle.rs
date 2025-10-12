@@ -306,11 +306,6 @@ impl DestackLanguageServer {
         // TODO #Incomplete: re-analyze/compile in background
     }
 
-    /// Analyze a workspace.
-    async fn analyze_workspace(workspace_handle: Arc<RwLock<Workspace>>) {
-        let _workspace = workspace_handle.read().await;
-    }
-
     /// Refresh a workspace from disk and publish updated diagnostics.
     pub(crate) async fn reindex_workspace(&self, workspace_handle: Arc<RwLock<Workspace>>) {
         let mut workspace = workspace_handle.write().await;

@@ -773,8 +773,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::If {
                 runtime,
                 condition: _,
-                then_block: _,
-                else_block: _,
+                then_expression: _,
+                else_expression: _,
             } => {
                 self.node("Expression::If", _id.id)
                     .field_optional("runtime", runtime)

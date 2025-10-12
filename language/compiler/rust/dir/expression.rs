@@ -257,19 +257,19 @@ impl<'a> Compiler<'a> {
             ast::Expression::If {
                 runtime,
                 condition,
-                then_block,
-                else_block,
+                then_expression,
+                else_expression,
             } => {
                 let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
                 let condition = self.lower_expression(source_id, ast, *condition);
-                let then_block = self.lower_block(source_id, ast, *then_block);
-                let else_block =
-                    else_block.map(|else_block| self.lower_expression(source_id, ast, else_block));
+                let then_expression = self.lower_expression(source_id, ast, *then_expression);
+                let else_expression = else_expression
+                    .map(|else_expression| self.lower_expression(source_id, ast, else_expression));
                 Expression::If {
                     runtime,
                     condition,
-                    then_block,
-                    else_block,
+                    then_expression,
+                    else_expression,
                 }
             }
             ast::Expression::Break { label, value } => {

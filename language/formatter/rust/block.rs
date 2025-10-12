@@ -138,10 +138,16 @@ pub(crate) fn should_inline_block<'ast>(
             .all(|expr_id| f.context().get_node(*expr_id).is_narrow());
 
     // container (default to self, mostly for testing)
-    let (container_node_id, container_node_type) = f
+    let (mut container_node_id, mut container_node_type) = f
         .context()
         .get_parent_by_id(block_id.id)
         .unwrap_or((block_id.id, NodeType::Block));
+    if container_node_type == NodeType::Expression {
+        (container_node_id, container_node_type) = f
+            .context()
+            .get_parent_by_id(container_node_id)
+            .unwrap_or((container_node_id, NodeType::Block));
+    }
 
     is_body_inlinable
         && !f.context().is_at_line_start(block_id.id)
