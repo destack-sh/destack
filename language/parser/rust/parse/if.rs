@@ -1,10 +1,15 @@
-use crate::{Expression, Keyword, NodeId, Parser, ParserError, ParserResult, Runtime};
+use dyst_ast::IfStyle;
+
+use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else expression.
     ///
     /// Examples:
     /// ```
+    /// // ternary
+    /// cond ? a : b
+    ///
     /// // if
     /// @if x > 0 {
     ///     print("positive")
@@ -29,6 +34,8 @@ impl<'a> Parser<'a> {
     pub fn eat_if(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
+        // NOTE: ternary is parsed in expression, not in eat_if
+
         // keyword
         self.eat_keyword(Keyword::If)?;
 
@@ -47,18 +54,9 @@ impl<'a> Parser<'a> {
             self.eat_newlines_maybe()?;
             let else_expr_id = self.eat_expression()?;
 
-            // else expression must be an if or block expression
-            let else_expr_node = self.tree.get(else_expr_id);
-            match else_expr_node {
-                Expression::If { .. } | Expression::Block(_) => {}
-                _ => {
-                    let else_span = self.tree.get_span_by_id(else_expr_id.id);
-                    return Err(ParserError::unexpected(else_span));
-                }
-            }
-
             Expression::If {
                 runtime,
+                style: IfStyle::Regular,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: Some(else_expr_id),
@@ -67,6 +65,7 @@ impl<'a> Parser<'a> {
             // if ...
             Expression::If {
                 runtime,
+                style: IfStyle::Regular,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: None,

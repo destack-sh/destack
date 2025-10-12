@@ -256,6 +256,7 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::If {
                 runtime,
+                style: _,
                 condition,
                 then_expression,
                 else_expression,

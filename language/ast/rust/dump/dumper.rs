@@ -472,6 +472,13 @@ impl Dump for Runtime {
     }
 }
 
+/// Dump a IfStyle as a string.
+impl Dump for IfStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a FunctionStyle as a string.
 impl Dump for FunctionStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -772,12 +779,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::If {
                 runtime,
+                style,
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
                 self.node("Expression::If", _id.id)
                     .field_optional("runtime", runtime)
+                    .field("style", style)
                     .end();
             }
             Expression::While {

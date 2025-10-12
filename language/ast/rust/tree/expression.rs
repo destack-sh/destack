@@ -106,10 +106,12 @@ pub enum Expression {
 
     /// If/then/else expression.
     /// Then and else must be blocks.
-    /// nocheckin TODO #Incomplete: ternary operator?
     ///
     /// Examples:
     /// ```
+    /// // ternary
+    /// cond ? a : b 
+    ///
     /// // if
     /// @if x > 0 {
     ///     print("positive")
@@ -133,6 +135,7 @@ pub enum Expression {
     /// ```
     If {
         runtime: Option<Runtime>,
+        style: IfStyle,
         condition: NodeId<Expression>,
         then_expression: NodeId<Expression>,
         else_expression: Option<NodeId<Expression>>,
@@ -513,6 +516,15 @@ impl Expression {
                 | Expression::Assign { .. }
         )
     }
+}
+
+/// The style of if expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IfStyle {
+    /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
+    Regular,
+    /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
+    Ternary,
 }
 
 /// A UseClause is a single clause in a use dependency declaration.

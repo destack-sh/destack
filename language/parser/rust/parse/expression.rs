@@ -1,5 +1,7 @@
 //! Parse expressions. Mostly defers to other parsers.
 
+use dyst_ast::IfStyle;
+
 use crate::parse::prelude::*;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability,
@@ -569,13 +571,41 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 left_expression_id = self.eat_call_postfix(left_expression_id, runtime)?;
             }
-            // unwrap
+            // unwrap or ternary if
             else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
-                left_expression_id = self.tree.insert(
-                    Expression::Maybe(left_expression_id),
-                    self.get_span_from(start),
-                );
+                // maybe
+                if self.peek_any_stop().is_ok()
+                    || self.peek_any_close_parenthesis().is_ok()
+                    || self.peek_token(TokenType::Dot).is_ok()
+                {
+                    left_expression_id = self.tree.insert(
+                        Expression::Maybe(left_expression_id),
+                        self.get_span_from(start),
+                    );
+                }
+                // ternary if (we already have the condition)
+                else {
+                    // then expression
+                    self.eat_newlines_maybe()?;
+                    let then_expression_id = self.eat_expression()?;
+                    self.eat_newlines_maybe()?;
+                    // :
+                    self.eat_colon()?;
+                    // else expression
+                    self.eat_newlines_maybe()?;
+                    let else_expression_id = self.eat_expression()?;
+                    self.eat_newlines_maybe()?;
+                    // ternary if
+                    let expression = Expression::If {
+                        runtime,
+                        style: IfStyle::Ternary,
+                        condition: left_expression_id,
+                        then_expression: then_expression_id,
+                        else_expression: Some(else_expression_id),
+                    };
+                    left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+                }
             }
             // force unwrap
             else if self.peek_token(TokenType::Not).is_ok() {
@@ -755,6 +785,18 @@ mod tests {
             assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
                 assert_string!(parser, *name, "y");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_ternary() {
+        let mut test = TestParser::new("true ? 1 : 2");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     }
 
