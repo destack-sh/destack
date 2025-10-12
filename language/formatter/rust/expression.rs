@@ -460,7 +460,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // struct literal
             Expression::StructLiteral { ty, fields } => {
-                write!(f, [ty, space(), list_like("{", "}", ",", true, fields)])?;
+                if let Some(ty) = ty {
+                    write!(f, [ty, space()])?;
+                }
+                write!(f, [list_like("{", "}", ",", true, fields)])?;
             }
 
             // parenthesized
@@ -704,6 +707,26 @@ mod tests {
         assert_format!(
             "foo<()>(((())))",
             "foo<()>(((())))",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_struct_literal() {
+        assert_format!(
+            "{ a: 1, ..B }",
+            "{ a: 1, ..B }",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_struct_literal_spread() {
+        assert_format!(
+            "Foo { ..B }",
+            "Foo { ..B }",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

@@ -132,6 +132,9 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             Argument::Positional { value } => {
                 write!(f, [value])?;
             }
+            Argument::Spread { value } => {
+                write!(f, [token(".."), value])?;
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;

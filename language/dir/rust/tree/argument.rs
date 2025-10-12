@@ -22,6 +22,8 @@ pub enum Argument {
     },
     /// A positional argument.
     Positional { value: NodeId<Expression> },
+    /// A spread argument.
+    Spread { value: NodeId<Expression> },
 }
 
 impl Node for Argument {

@@ -37,6 +37,7 @@ impl Node for Parameter {
 /// y: foo()
 /// y
 /// false
+/// ...args
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
@@ -49,6 +50,8 @@ pub enum Argument {
     NamedShorthand { name: StringId },
     /// A positional argument.
     Positional { value: NodeId<Expression> },
+    /// A spread argument.
+    Spread { value: NodeId<Expression> },
 }
 
 impl Node for Argument {

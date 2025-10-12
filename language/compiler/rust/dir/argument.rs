@@ -4,6 +4,25 @@ use dyst_dir::{Argument, Expression, NodeId, Parameter, Path};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
+    /// Lower a parameter into a DIR parameter.
+    pub fn lower_parameter(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        parameter_id: ast::NodeId<ast::Parameter>,
+    ) -> NodeId<Parameter> {
+        let parameter = ast.get(parameter_id);
+        let name = self.intern_string(source_id, parameter.name);
+        let ty = parameter
+            .ty
+            .map(|ty| self.lower_expression_to_type(source_id, ast, ty));
+        let default = parameter
+            .default
+            .map(|default| self.lower_expression(source_id, ast, default));
+        self.tree
+            .insert(Parameter { name, ty, default }, source_id, parameter_id)
+    }
+
     /// Lower an argument into a DIR argument.
     pub fn lower_argument(
         &mut self,
@@ -35,25 +54,11 @@ impl<'a> Compiler<'a> {
                 self.tree
                     .insert(Argument::Positional { value }, source_id, argument_id)
             }
+            ast::Argument::Spread { value } => {
+                let value = self.lower_expression(source_id, ast, *value);
+                self.tree
+                    .insert(Argument::Spread { value }, source_id, argument_id)
+            }
         }
-    }
-
-    /// Lower a parameter into a DIR parameter.
-    pub fn lower_parameter(
-        &mut self,
-        source_id: SourceId,
-        ast: &ast::NodeTree,
-        parameter_id: ast::NodeId<ast::Parameter>,
-    ) -> NodeId<Parameter> {
-        let parameter = ast.get(parameter_id);
-        let name = self.intern_string(source_id, parameter.name);
-        let ty = parameter
-            .ty
-            .map(|ty| self.lower_expression_to_type(source_id, ast, ty));
-        let default = parameter
-            .default
-            .map(|default| self.lower_expression(source_id, ast, default));
-        self.tree
-            .insert(Parameter { name, ty, default }, source_id, parameter_id)
     }
 }

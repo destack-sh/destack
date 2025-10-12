@@ -1343,6 +1343,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", id.id).end();
             }
+            Argument::Spread { value: _ } => {
+                self.node("Argument::Spread", id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_argument(dumper, tree, id, argument);
