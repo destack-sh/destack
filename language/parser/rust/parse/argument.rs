@@ -133,6 +133,7 @@ impl<'a> Parser<'a> {
     /// x: 1
     /// y
     /// 2
+    /// ...args
     /// ```
     #[inline]
     pub fn eat_argument(&mut self) -> ParserResult<NodeId<Argument>> {
@@ -147,6 +148,17 @@ impl<'a> Parser<'a> {
             let argument_id = self
                 .tree
                 .insert(Argument::Named { name, value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // spread argument
+        else if self.peek_token(TokenType::Range).is_ok()
+            || self.peek_token(TokenType::RangeWide).is_ok()
+        {
+            self.bump(); // eat range
+            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // positional argument
@@ -246,7 +258,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_string,
+        Argument, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
@@ -336,6 +349,20 @@ mod tests {
         assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
             // 3
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_spread() {
+        // ...args
+        let mut test = TestParser::new("...args");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
+            // ...args
+            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "args");
+            });
         });
     }
 }

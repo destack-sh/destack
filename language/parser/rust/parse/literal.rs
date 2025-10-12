@@ -256,7 +256,7 @@ impl<'a> Parser<'a> {
     /// Eat a single tuple literal element.
     pub fn eat_tuple_literal_element(&mut self) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
-        // named field
+        // named argument
         if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
@@ -268,7 +268,7 @@ impl<'a> Parser<'a> {
                 .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
-        // positional field
+        // positional argument
         else {
             let value = self.eat_expression()?;
             let argument_id = self
@@ -315,14 +315,13 @@ impl<'a> Parser<'a> {
                 || (self.peek_next_token(TokenType::RangeWide).is_ok()
                     && self.peek_next_next_token(TokenType::Identifier).is_ok()))
         {
-            // nocheckin TODO #Incomplete: support spread inside StructLiterals (as Argument::Spread?)
             Ok(())
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
-    /// Eat the body of a struct literal (excluding the receiver expression).
+    /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
     pub(crate) fn eat_struct_literal_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenBrace)
             .for_node_type(NodeType::Expression)?;
@@ -335,7 +334,7 @@ impl<'a> Parser<'a> {
             return Ok(vec![]);
         }
 
-        let mut fields = Vec::new();
+        let mut arguments = Vec::new();
         loop {
             // stop at closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -343,20 +342,34 @@ impl<'a> Parser<'a> {
             }
 
             let start = self.mark();
-            let name = self.eat_identifier()?;
-            // named field
-            let field_id = if self.peek_token(TokenType::Colon).is_ok() {
-                self.eat_token(TokenType::Colon)?;
-                let value = self.eat_expression()?;
-                self.tree
-                    .insert(Argument::Named { name, value }, self.get_span_from(start))
-            }
-            // shorthand field
-            else {
-                self.tree
-                    .insert(Argument::NamedShorthand { name }, self.get_span_from(start))
+            // named argument
+            let argument_id = {
+                if self.peek_token(TokenType::Identifier).is_ok()
+                    && self.peek_next_token(TokenType::Colon).is_ok()
+                {
+                    let name = self.eat_identifier()?;
+                    self.bump(); // eat colon
+                    let value = self.eat_expression()?;
+                    self.tree
+                        .insert(Argument::Named { name, value }, self.get_span_from(start))
+                }
+                // spread argument
+                else if self.peek_token(TokenType::Range).is_ok()
+                    || self.peek_token(TokenType::RangeWide).is_ok()
+                {
+                    self.bump(); // eat range
+                    let value = self.eat_expression()?;
+                    self.tree
+                        .insert(Argument::Spread { value }, self.get_span_from(start))
+                }
+                // shorthand argument
+                else {
+                    let name = self.eat_identifier()?;
+                    self.tree
+                        .insert(Argument::NamedShorthand { name }, self.get_span_from(start))
+                }
             };
-            fields.push(field_id);
+            arguments.push(argument_id);
 
             // item stop
             if self.peek_item_stop().is_ok() {
@@ -366,7 +379,7 @@ impl<'a> Parser<'a> {
 
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Expression)?;
-        Ok(fields)
+        Ok(arguments)
     }
 }
 
@@ -475,11 +488,14 @@ mod tests {
         let mut test = TestParser::new("{ x: 1, y } ");
         let mut parser = test.prepare();
 
-        let fields = parser.eat_struct_literal_body().unwrap();
-        assert_eq!(fields.len(), 2);
-        assert!(matches!(parser.tree.get(fields[0]), Argument::Named { .. }));
+        let arguments = parser.eat_struct_literal_body().unwrap();
+        assert_eq!(arguments.len(), 2);
         assert!(matches!(
-            parser.tree.get(fields[1]),
+            parser.tree.get(arguments[0]),
+            Argument::Named { .. }
+        ));
+        assert!(matches!(
+            parser.tree.get(arguments[1]),
             Argument::NamedShorthand { .. }
         ));
     }
