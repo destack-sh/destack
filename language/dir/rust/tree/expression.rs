@@ -107,6 +107,7 @@ pub enum Expression {
     TupleLiteral { elements: Vec<NodeId<Argument>> },
     /// Array creation.
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    // nocheckin TODO #Incomplete: TreeLiteral? (Tree)Argument? (for TSX-like <x>1</x>)
 
     /// --------------------------------
     /// Control flow.

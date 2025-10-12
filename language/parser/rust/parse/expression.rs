@@ -578,6 +578,7 @@ impl<'a> Parser<'a> {
                 if self.peek_any_stop().is_ok()
                     || self.peek_any_close_parenthesis().is_ok()
                     || self.peek_token(TokenType::Dot).is_ok()
+                    || self.peek_token(TokenType::Assign).is_ok()
                 {
                     left_expression_id = self.tree.insert(
                         Expression::Maybe(left_expression_id),
@@ -587,15 +588,11 @@ impl<'a> Parser<'a> {
                 // ternary if (we already have the condition)
                 else {
                     // then expression
-                    self.eat_newlines_maybe()?;
                     let then_expression_id = self.eat_expression()?;
-                    self.eat_newlines_maybe()?;
                     // :
                     self.eat_colon()?;
                     // else expression
-                    self.eat_newlines_maybe()?;
                     let else_expression_id = self.eat_expression()?;
-                    self.eat_newlines_maybe()?;
                     // ternary if
                     let expression = Expression::If {
                         runtime,
