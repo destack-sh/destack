@@ -112,7 +112,8 @@ impl<'a> Parser<'a> {
             };
 
         // pattern
-        let pattern = self.eat_pattern()?;
+        let pattern =
+            self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
 
         // type
         let ty = if self.peek_colon().is_ok() {
@@ -129,7 +130,6 @@ impl<'a> Parser<'a> {
             self.eat_newlines_maybe()?;
             Some(self.eat_expression()?)
         } else {
-            // implicitly uninitialized
             None
         };
 

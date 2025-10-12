@@ -442,12 +442,17 @@ impl<'a> Parser<'a> {
         Ok(elements)
     }
 
-    /// Peek an anomymous non-empty struct literal (without a name/type, like `{ x: 0, y }`).
+    /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`).
     pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
-            && self.peek_next_token(TokenType::Identifier).is_ok()
-            && self.peek_next_next_token(TokenType::Colon).is_ok()
+            && ((self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_next_token(TokenType::Colon).is_ok())
+                || (self.peek_next_token(TokenType::Range).is_ok()
+                    && self.peek_next_next_token(TokenType::Identifier).is_ok())
+                || (self.peek_next_token(TokenType::RangeWide).is_ok()
+                    && self.peek_next_next_token(TokenType::Identifier).is_ok()))
         {
+            // nocheckin TODO #Incomplete: support spread inside StructLiterals (as Argument::Spread?)
             Ok(())
         } else {
             Err(ParserError::unexpected(self.peek()?.span))

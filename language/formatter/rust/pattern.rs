@@ -1,6 +1,5 @@
 use dyst_fir::format::FormatResult;
 
-use crate::literal::format_scalar_literal;
 use crate::{DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -27,11 +26,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     write!(f, [token("&"), target])?
                 }
             }
-            Pattern::ScalarLiteral(literal) => {
-                format_scalar_literal(literal, f.context().tree.get_span(node_id), f)?;
+            Pattern::Binding { name, pattern } => {
+                write!(f, [name])?;
+                if let Some(pattern) = pattern {
+                    write!(f, [token(": "), pattern])?;
+                }
             }
-            Pattern::Binding { name } => write!(f, [name])?,
-            Pattern::Path { path } => write!(f, [path])?,
+            Pattern::Expression { value } => write!(f, [value])?,
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,
             Pattern::Tuple { path, fields } => {
                 if let Some(path) = path {
