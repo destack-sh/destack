@@ -212,6 +212,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::If {
             runtime: _,
+            style: _,
             condition,
             then_expression,
             else_expression,

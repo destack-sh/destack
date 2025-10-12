@@ -24,6 +24,7 @@ pub(crate) fn format_if_chain<'ast>(
             // if or else if
             Expression::If {
                 runtime,
+                style: _, // we turn everything into regular ifs
                 condition,
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,

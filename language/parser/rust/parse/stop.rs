@@ -127,4 +127,38 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
         Ok(())
     }
+
+    /// Peek any open parenthesis (`(`, `[`, `{`)
+    #[inline]
+    pub fn peek_any_open_parenthesis(&self) -> ParserResult<&TokenSpan> {
+        if let Ok(token) = self.peek()
+            && (token.token.ty == TokenType::OpenParenthesis
+                || token.token.ty == TokenType::OpenBracket
+                || token.token.ty == TokenType::OpenBrace)
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(
+                self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::OpenParenthesis,
+            ))
+        }
+    }
+
+    /// Peek any close parenthesis (`)`, `]`, `}`)
+    #[inline]
+    pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+        if let Ok(token) = self.peek()
+            && (token.token.ty == TokenType::CloseParenthesis
+                || token.token.ty == TokenType::CloseBracket
+                || token.token.ty == TokenType::CloseBrace)
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(
+                self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::CloseParenthesis,
+            ))
+        }
+    }
 }
