@@ -119,6 +119,20 @@ impl<'a> Compiler<'a> {
                     value,
                 }
             }
+            ast::Expression::Type {
+                name,
+                visibility,
+                value,
+            } => {
+                let name = name.map(|name| self.intern_string(source_id, name));
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let value = self.lower_expression(source_id, ast, *value);
+                Expression::Type {
+                    name,
+                    visibility,
+                    value,
+                }
+            }
 
             ast::Expression::Unary { operator, right } => {
                 let right = self.lower_expression(source_id, ast, *right);

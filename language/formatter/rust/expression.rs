@@ -247,6 +247,20 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 )?;
             }
 
+            // type
+            Expression::Type {
+                name,
+                visibility: _,
+                value,
+            } => {
+                write!(f, [Keyword::Type])?;
+                if let Some(name) = name {
+                    write!(f, [space(), name, space(), token("="), space(), value])?;
+                } else {
+                    write!(f, [space(), value])?;
+                }
+            }
+
             // if
             Expression::If { .. } => {
                 write!(f, [group(&format_with(|f| format_if_chain(f, node_id)))])?;

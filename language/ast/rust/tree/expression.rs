@@ -88,9 +88,21 @@ pub enum Expression {
         value: Option<NodeId<Expression>>,
     },
 
-    // nocheckin TODO #Incomplete: Expression::Type
-    //  (for anonymous/structural types)
-    //  (both as type x = y and as type <expr>)
+    /// Type alias or expression to declare some value as a type.
+    /// In type contexts this is implict, but it can be useful to declare them elsewhere or explicitly.
+    ///
+    /// Examples:
+    /// ```
+    /// type T = int32
+    /// type T = foo()
+    /// type T = { a: int32, b: boolean } | true
+    /// type 1 | 2 |3
+    /// ```
+    Type {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        value: NodeId<Expression>,
+    },
 
     /// If/then/else expression.
     /// Then and else must be blocks.

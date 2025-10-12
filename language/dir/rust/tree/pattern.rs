@@ -15,7 +15,10 @@ pub enum Pattern {
         mutability: Mutability,
     },
     /// Binding pattern (like `x`).
-    Binding { name: StringId, pattern: Option<NodeId<Pattern>> },
+    Binding {
+        name: StringId,
+        pattern: Option<NodeId<Pattern>>,
+    },
     /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
     Expression { value: NodeId<Expression> },
     /// Range pattern (like `1..3`).

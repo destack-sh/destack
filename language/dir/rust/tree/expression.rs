@@ -32,6 +32,12 @@ pub enum Expression {
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
     },
+    /// Type alias or expression to declare some value as a type.
+    Type {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        value: NodeId<Expression>,
+    },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
