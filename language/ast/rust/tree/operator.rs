@@ -344,7 +344,7 @@ impl UnaryOperator {
 
     /// Covnert a TokenType to a UnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
+    pub fn from_token(token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
             TokenType::Not => Some(UnaryOperator::Not),
             TokenType::Subtract => Some(UnaryOperator::Negate),
@@ -360,7 +360,7 @@ impl UnaryOperator {
 
     /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
     #[inline]
-    pub fn as_token_type(&self) -> TokenType {
+    pub fn as_token(&self) -> TokenType {
         match self {
             UnaryOperator::Not => TokenType::Not,
             UnaryOperator::Negate => TokenType::Subtract,
