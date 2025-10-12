@@ -228,7 +228,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // nothing to do
         }
         Expression::StructLiteral { ty, fields } => {
-            if let Some(ty_id) = ty {   
+            if let Some(ty_id) = ty {
                 let ty_node = tree.get(*ty_id);
                 visitor.visit_type(tree, *ty_id, ty_node);
             }
@@ -850,11 +850,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Pattern, id.id);
     match pattern {
-        Pattern::Wildcard
-        | Pattern::Rest
-        | Pattern::ScalarLiteral(_)
-        | Pattern::Binding { name: _ }
-        | Pattern::Path(_) => {}
+        Pattern::Wildcard | Pattern::Rest => {}
         Pattern::Maybe(inner) => {
             let inner_pattern = tree.get(*inner);
             visitor.visit_pattern(tree, *inner, inner_pattern);
@@ -865,6 +861,16 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         } => {
             let target_pattern = tree.get(*target);
             visitor.visit_pattern(tree, *target, target_pattern);
+        }
+        Pattern::Binding { name: _, pattern } => {
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+            }
+        }
+        Pattern::Expression { value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
         }
         Pattern::Range {
             start,

@@ -26,17 +26,13 @@ impl<'a> Compiler<'a> {
                 let mutability = self.lower_mutability(*mutability);
                 Pattern::Reference { right, mutability }
             }
-            ast::Pattern::ScalarLiteral(scalar_literal_id) => {
-                let scalar_literal = self.lower_scalar_literal(source_id, ast, scalar_literal_id);
-                Pattern::ScalarLiteral(scalar_literal)
-            }
             ast::Pattern::Binding { name, pattern } => {
                 let name = self.intern_string(source_id, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(source_id, ast, pattern));
                 Pattern::Binding { name, pattern }
             }
             ast::Pattern::Expression { value } => {
-                let value = self.lower_expression(source_id, ast, value);
+                let value = self.lower_expression(source_id, ast, *value);
                 Pattern::Expression { value }
             }
             ast::Pattern::Range {

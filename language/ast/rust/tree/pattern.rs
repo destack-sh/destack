@@ -11,7 +11,7 @@ use crate::{Expression, Mutability, Node, NodeId, NodeType, Path};
 /// ..
 /// x
 /// 1
-/// *MyEnum.A
+/// &MyEnum.A
 /// 2 | 3
 /// 4..6
 /// (x, 0, ..)

@@ -88,6 +88,10 @@ pub enum Expression {
         value: Option<NodeId<Expression>>,
     },
 
+    // nocheckin TODO #Incomplete: Expression::Type
+    //  (for anonymous/structural types)
+    //  (both as type x = y and as type <expr>)
+
     /// If/then/else expression.
     /// Then and else must be blocks.
     ///

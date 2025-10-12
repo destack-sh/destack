@@ -26,6 +26,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
     /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub in_before_block: bool = false,
+    /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
+    /// We disallow certain patterns in these cases to avoid ambiguity with type annotations.
+    pub in_before_type: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines operator lifting / grouping.
     pub left_precedence: Option<u8> = None,
@@ -61,6 +64,14 @@ impl ParserOptions {
         }
     }
 
+    /// Adapt and reset options for before a type annotation.
+    pub(crate) fn in_before_type(self) -> Self {
+        Self {
+            in_before_type: true,
+            ..self
+        }
+    }
+
     /// Adapt and reset options for before a block.
     pub(crate) fn in_before_block(self) -> Self {
         Self {
@@ -86,6 +97,7 @@ impl ParserOptions {
             in_union_pattern: false,
             in_parenthesis: false,
             in_before_block: true,
+            in_before_type: false,
             left_precedence: None,
         }
     }
@@ -98,6 +110,7 @@ impl ParserOptions {
             in_union_pattern: false,
             in_parenthesis: false,
             in_before_block: true,
+            in_before_type: false,
             left_precedence: None,
         }
     }
@@ -109,6 +122,7 @@ impl ParserOptions {
             in_static: false,
             in_parenthesis: true,
             in_union_pattern: false,
+            in_before_type: false,
             left_precedence: None,
             ..self
         }
