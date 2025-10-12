@@ -64,14 +64,21 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a next unary operator.
     #[inline]
     pub fn peek_next_unary_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek_next()?;
-        UnaryOperator::from_token_type(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+    }
+
+    /// Peek an assign operator.
+    #[inline]
+    pub fn peek_assign_operator(&self) -> ParserResult<AssignOperator> {
+        let token = self.peek()?;
+        AssignOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
@@ -578,7 +585,7 @@ impl<'a> Parser<'a> {
                 if self.peek_any_stop().is_ok()
                     || self.peek_any_close_parenthesis().is_ok()
                     || self.peek_token(TokenType::Dot).is_ok()
-                    || self.peek_token(TokenType::Assign).is_ok()
+                    || self.peek_assign_operator().is_ok()
                 {
                     left_expression_id = self.tree.insert(
                         Expression::Maybe(left_expression_id),
