@@ -41,7 +41,7 @@ pub enum Definition {
     /// Examples:
     /// ```
     /// { a: 2 } // anonymous struct
-    /// 
+    ///
     /// struct {} // empty anonymous struct
     ///
     /// struct _ {} // explicit anonymous struct (for disambiguation)

@@ -425,7 +425,8 @@ impl LanguageServer for DestackLanguageServer {
                     vec![uri]
                 };
 
-                self.trigger_analyze_workspace(handle.clone(), Some(uris)).await;
+                self.trigger_analyze_workspace(handle.clone(), Some(uris))
+                    .await;
 
                 self.client
                     .log_message(

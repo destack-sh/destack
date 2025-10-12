@@ -358,6 +358,10 @@ impl<'a> Parser<'a> {
             {
                 self.eat_let(visibility)?
             }
+            // type
+            else if keyword == Some(Keyword::Type) {
+                self.eat_type_alias_or_expression(visibility)?
+            }
             // if
             else if keyword == Some(Keyword::If) {
                 self.eat_if(runtime)?

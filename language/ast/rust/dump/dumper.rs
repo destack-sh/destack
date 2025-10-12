@@ -760,6 +760,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("visibility", visibility)
                     .end();
             }
+            Expression::Type {
+                name,
+                visibility,
+                value: _,
+            } => {
+                self.node("Expression::Type", _id.id)
+                    .field_optional("name", name)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
             Expression::If {
                 runtime,
                 condition: _,

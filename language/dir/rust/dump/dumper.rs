@@ -825,6 +825,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("visibility", visibility)
                     .end();
             }
+            Expression::Type {
+                name,
+                visibility,
+                value: _,
+            } => {
+                self.node("Expression::Type", id.id)
+                    .field_optional("name", name)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
 
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
@@ -999,6 +1009,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("visibility", visibility)
                     .end();
             }
+            Definition::Let { name, visibility } => {
+                self.node("Definition::Let", id.id)
+                    .field("name", name)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
+            Definition::Type {
+                name,
+                visibility,
+                value: _,
+            } => {
+                self.node("Definition::Type", id.id)
+                    .field_optional("name", name)
+                    .field_optional("visibility", visibility)
+                    .end();
+            }
             Definition::Module {
                 name,
                 visibility,
@@ -1098,12 +1124,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Implement", id.id).end();
-            }
-            Definition::Let { name, visibility } => {
-                self.node("Definition::Let", id.id)
-                    .field("name", name)
-                    .field_optional("visibility", visibility)
-                    .end();
             }
         }
         self.with_depth(|dumper| {

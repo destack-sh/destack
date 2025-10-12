@@ -34,6 +34,17 @@ pub enum Definition {
         visibility: Option<Visibility>,
         items: Vec<NodeId<UseItem>>,
     },
+    /// Let definition.
+    Let {
+        name: StringId,
+        visibility: Option<Visibility>,
+    },
+    /// Type definition.
+    Type {
+        name: Option<StringId>,
+        visibility: Option<Visibility>,
+        value: NodeId<Type>,
+    },
     /// Module definition.
     Module {
         name: Option<StringId>,
@@ -107,11 +118,6 @@ pub enum Definition {
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
-    /// Let definition.
-    Let {
-        name: StringId,
-        visibility: Option<Visibility>,
-    },
 }
 
 impl Definition {
@@ -121,6 +127,8 @@ impl Definition {
         match self {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
             Definition::Use { .. } => None,
+            Definition::Let { name, .. } => Some(*name),
+            Definition::Type { name, .. } => *name,
             Definition::Module { name, .. } => *name,
             Definition::Struct { name, .. } => *name,
             Definition::Enum { name, .. } => *name,
@@ -128,7 +136,6 @@ impl Definition {
             Definition::Trait { name, .. } => *name,
             Definition::Function { name, .. } => *name,
             Definition::Implement { .. } => None,
-            Definition::Let { name, .. } => Some(*name),
         }
     }
 
@@ -138,6 +145,8 @@ impl Definition {
         match self {
             Definition::Intrinsic { .. } => None,
             Definition::Use { visibility, .. } => *visibility,
+            Definition::Let { visibility, .. } => *visibility,
+            Definition::Type { visibility, .. } => *visibility,
             Definition::Module { visibility, .. } => *visibility,
             Definition::Struct { visibility, .. } => *visibility,
             Definition::Enum { visibility, .. } => *visibility,
@@ -145,7 +154,6 @@ impl Definition {
             Definition::Trait { visibility, .. } => *visibility,
             Definition::Function { visibility, .. } => *visibility,
             Definition::Implement { .. } => None,
-            Definition::Let { visibility, .. } => *visibility,
         }
     }
 
@@ -155,6 +163,8 @@ impl Definition {
         match self {
             Definition::Intrinsic { .. } => None,
             Definition::Use { .. } => None,
+            Definition::Let { .. } => None,
+            Definition::Type { .. } => None,
             Definition::Module { .. } => None,
             Definition::Struct {
                 embedded_definitions,
@@ -174,7 +184,6 @@ impl Definition {
             } => Some(embedded_definitions),
             Definition::Function { .. } => None,
             Definition::Implement { .. } => None,
-            Definition::Let { .. } => None,
         }
     }
 
@@ -184,6 +193,8 @@ impl Definition {
         match self {
             Definition::Intrinsic { .. } => None,
             Definition::Use { .. } => None,
+            Definition::Let { .. } => None,
+            Definition::Type { .. } => None,
             Definition::Module { definitions, .. } => Some(definitions),
             Definition::Struct { definitions, .. } => Some(definitions),
             Definition::Enum { definitions, .. } => Some(definitions),
@@ -191,7 +202,6 @@ impl Definition {
             Definition::Trait { definitions, .. } => Some(definitions),
             Definition::Function { definitions, .. } => Some(definitions),
             Definition::Implement { definitions, .. } => Some(definitions),
-            Definition::Let { .. } => None,
         }
     }
 }

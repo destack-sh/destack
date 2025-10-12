@@ -201,6 +201,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::Type {
+            name: _,
+            visibility: _,
+            value,
+        } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+
         Expression::If {
             runtime: _,
             condition,

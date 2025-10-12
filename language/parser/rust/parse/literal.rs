@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, Expression, FloatType, IntType, NodeId, NodeType, NumberBase, Parser, ParserError,
-    ParserResult, RawLiteralType, ScalarLiteral, TokenSpan, TokenType, TypeLiteral, UnaryOperator,
+    Argument, Expression, NodeId, NodeType, NumberBase, Parser, ParserError, ParserResult,
+    RawLiteralType, ScalarLiteral, TokenSpan, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -222,143 +222,6 @@ impl<'a> Parser<'a> {
                 Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
             }
         }
-    }
-
-    /// Whether the token type can start an expression.
-    fn is_start_of_expression(&self, token_type: TokenType) -> bool {
-        token_type == TokenType::OpenParenthesis
-            || token_type == TokenType::Identifier
-            || token_type == TokenType::Literal
-            // (if we're before a block then { is a terminator, not the start of a block)
-            || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
-            || UnaryOperator::from_token_type(token_type).is_some()
-    }
-
-    /// Whether the token string encodes a type literal with an explicit width.
-    fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
-        if let Some(target) = target.strip_prefix(prefix) {
-            target.parse::<u16>().ok()
-        } else {
-            None
-        }
-    }
-
-    /// Peek a type literal.
-    /// Certain type literals are only parsed at the AST-level in static or type contexts.
-    /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
-    pub fn peek_type_literal(&self) -> ParserResult<TypeLiteral> {
-        let next = self.peek()?;
-        let next_str = self.get_span_str(next.span);
-
-        // always available type literals
-        let literal = match next_str {
-            // undefined
-            "undefined" => Some(TypeLiteral::Undefined),
-            // void
-            "void" => Some(TypeLiteral::Void),
-            // null
-            "null" => Some(TypeLiteral::Null),
-            _ => None,
-        };
-        if let Some(literal) = literal {
-            return Ok(literal);
-        }
-
-        // bail if not inside static or type context
-        if !self.options.in_type && !self.options.in_static {
-            return Err(ParserError::unexpected(next.span));
-        }
-
-        let next_type = next.token.ty;
-        let next_next = self.peek_next();
-        let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
-
-        // !, $, _
-        if (next_type == TokenType::Not
-            || next_type == TokenType::Virtual
-            || next_type == TokenType::Wildcard)
-            // if next token doesn't start a related expression
-            && (next_next_type.is_none() || !self.is_start_of_expression(next_next_type.unwrap()))
-        {
-            return match next_type {
-                TokenType::Not => Ok(TypeLiteral::Never),
-                TokenType::Virtual => Ok(TypeLiteral::Any),
-                TokenType::Wildcard => Ok(TypeLiteral::Infer),
-                _ => unreachable!(),
-            };
-        }
-
-        // regular single-token type literals (also only inside static/type context)
-        match next_str {
-            // boolean
-            "boolean" | "bool" => Ok(TypeLiteral::Boolean),
-            // character
-            "character" | "char" => Ok(TypeLiteral::Character),
-            // string
-            "string" | "str" => Ok(TypeLiteral::String),
-            // number
-            "number" => Ok(TypeLiteral::Number),
-            // Self
-            "Self"
-                // if next token doesn't start a related expression
-                if next_next_type.is_none()
-                    || next_next_type.unwrap() != TokenType::OpenBrace
-                    || self.options.in_before_block =>
-            {
-                Ok(TypeLiteral::Self_)
-            }
-            // int (followed by number or nothing)
-            "int" => Ok(TypeLiteral::Int(IntType {
-                width: None,
-                is_signed: true,
-            })),
-            int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
-                Ok(TypeLiteral::Int(IntType {
-                    width: Some(width),
-                    is_signed: true,
-                }))
-            }
-            int_str if let Some(width) = self.is_type_with_width("i", int_str) => {
-                Ok(TypeLiteral::Int(IntType {
-                    width: Some(width),
-                    is_signed: true,
-                }))
-            }
-            // uint (followed by number or nothing)
-            "uint" => Ok(TypeLiteral::Int(IntType {
-                width: None,
-                is_signed: false,
-            })),
-            uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
-                Ok(TypeLiteral::Int(IntType {
-                    width: Some(width),
-                    is_signed: false,
-                }))
-            }
-            uint_str if let Some(width) = self.is_type_with_width("u", uint_str) => {
-                Ok(TypeLiteral::Int(IntType {
-                    width: Some(width),
-                    is_signed: false,
-                }))
-            }
-            // float (followed by number or nothing)
-            "float" => Ok(TypeLiteral::Float(FloatType { width: None })),
-            float_str if let Some(width) = self.is_type_with_width("float", float_str) => {
-                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
-            }
-            float_str if let Some(width) = self.is_type_with_width("f", float_str) => {
-                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
-            }
-            // composite type
-            _ => Err(ParserError::unexpected(next.span)),
-        }
-    }
-
-    /// Eat a type literal and return its value.
-    pub fn eat_type_literal(&mut self) -> ParserResult<TypeLiteral> {
-        let literal = self.peek_type_literal()?;
-        self.bump();
-        Ok(literal)
     }
 
     /// Eat the body of a tuple literal (excluding the surrounding parenthesis).

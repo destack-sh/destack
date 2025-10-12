@@ -162,6 +162,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value_id, value);
             }
         }
+        Expression::Type {
+            name: _,
+            visibility: _,
+            value,
+        } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
         Expression::Unary { operator: _, right }
         | Expression::Reference {
             mutability: _,
@@ -350,6 +358,18 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let item = tree.get(*item_id);
                 visitor.visit_use_item(tree, *item_id, item);
             }
+        }
+        Definition::Let {
+            name: _,
+            visibility: _,
+        } => {}
+        Definition::Type {
+            name: _,
+            visibility: _,
+            value,
+        } => {
+            let value_type = tree.get(*value);
+            visitor.visit_type(tree, *value, value_type);
         }
         Definition::Module {
             name: _,
@@ -616,10 +636,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_definition(tree, *definition_id, child_definition);
             }
         }
-        Definition::Let {
-            name: _,
-            visibility: _,
-        } => {}
     }
 }
 
