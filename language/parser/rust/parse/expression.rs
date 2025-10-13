@@ -344,7 +344,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
             // struct
-            else if keyword == Some(Keyword::Struct) {
+            else if keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class) {
                 let struct_id = self.eat_struct(visibility)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // trait
-            else if keyword == Some(Keyword::Trait) {
+            else if keyword == Some(Keyword::Trait) || keyword == Some(Keyword::Interface) {
                 let trait_id = self.eat_trait(visibility)?;
                 self.tree
                     .insert(Expression::Definition(trait_id), self.get_span_from(start))

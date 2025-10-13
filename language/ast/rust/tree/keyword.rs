@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 /// A contextual keyword.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
     /// Visibility modifier (reserved)
     Public,
@@ -29,7 +29,7 @@ pub enum Keyword {
     Type,
     /// Declare a Struct.
     Struct,
-    /// Declare a Class (reserved).
+    /// Declare a Class (alias to struct).
     Class,
     /// Declare an Enum.
     Enum,
@@ -37,7 +37,7 @@ pub enum Keyword {
     Union,
     /// Declare a Trait.
     Trait,
-    /// Declare an Interface (reserved).
+    /// Declare an Interface (alias to trait).
     Interface,
     /// Declare a Function.
     Function,
