@@ -570,7 +570,7 @@ impl Dump for Path {
                     .field("segments", segments)
                     .end();
             }
-            Path::Relative { segments, .. } => {
+            Path::RelativeString { segments, .. } => {
                 dumper
                     .object("Path::Relative")
                     .field("segments", segments)

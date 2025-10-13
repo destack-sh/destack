@@ -18,7 +18,7 @@ pub enum Path {
     /// Unresolved absolute string path.
     String { segments: Vec<StringId> },
     /// Unresolved relative string path.
-    Relative {
+    RelativeString {
         root: NodeId<Type>,
         segments: Vec<StringId>,
     },
