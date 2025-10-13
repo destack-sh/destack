@@ -5,18 +5,11 @@ use crate::{
     WhereClause, WithClause,
 };
 
-// NOTE #Incomplete: maybe add a nominal vs structural type/definition flag?
-//  (or is it just implicit in whether it has a name or not?)
-
 /// Definition introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// A Module is a module declaration.
     /// Modules may be whole directories, single files, or nested within a file.
-    ///
-    /// NOTE #Incomplete: Module-level static parameterisation?
-    ///  (just use `let` somehow?)
-    ///  (or maybe something like `module self { ... }`?)
     ///
     /// Examples:
     /// ```
@@ -413,7 +406,7 @@ pub struct VariantField {
     pub default: Option<NodeId<Expression>>,
 }
 
-// TODO #Incomplete: getter/setter functions for Struct/Union/...Fields?
+// NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (useful for SOA-style struct views?)
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)

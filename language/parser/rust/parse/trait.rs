@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Trait)
+        self.eat_keyword_in(&[Keyword::Trait, Keyword::Interface])
             .for_node_type(NodeType::Definition)?;
 
         // optional name

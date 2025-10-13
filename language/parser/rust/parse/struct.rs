@@ -57,7 +57,8 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Struct)?;
+        self.eat_keyword_in(&[Keyword::Struct, Keyword::Class])
+            .for_node_type(NodeType::Definition)?;
 
         // optional representation type: ( ... )
         let representation_type = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
