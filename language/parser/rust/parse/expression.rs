@@ -218,60 +218,76 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
-            // parenthesis (may be tuple or just a parenthesized expression)
+            // parenthesis
+            // (may be tuple, lambda or just a parenthesized expression)
             if token.token.ty == TokenType::OpenParenthesis {
+                // speculative start (need to backtrack for lambda)
+                let speculative_start = (self.mark(), self.tree.next_id());
+
                 self.bump(); // eat open paranthesis
                 self.eat_newlines_maybe()?;
 
-                // if we immediately see a closing parenthesis, it's an empty tuple
-                if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-                    self.bump(); // eat closing parenthesis
-                    self.tree.insert(
-                        Expression::TupleLiteral { elements: vec![] },
-                        self.get_span_from(start),
-                    )
-                }
-                // named tuple element, must be some tuple
-                else if self.peek_token(TokenType::Identifier).is_ok()
-                    && self.peek_next_token(TokenType::Colon).is_ok()
-                {
-                    let tuple_elements = self
-                        .eat_tuple_literal_body(None)
-                        .for_node_type(NodeType::Expression)?;
-                    self.eat_token(TokenType::CloseParenthesis)?;
-                    self.tree.insert(
-                        Expression::TupleLiteral {
-                            elements: tuple_elements,
-                        },
-                        self.get_span_from(start),
-                    )
-                }
-                // may be a tuple with anonymous elements or just a parenthesized expression (see below)
-                else {
-                    let inner_start = self.pos();
-                    let expression_id = self
-                        .with_options(self.options.in_parenthesis(), |parser| {
-                            parser.eat_expression()
-                        })?;
-                    self.eat_token(TokenType::CloseParenthesis)?;
-                    match self.tree.get(expression_id) {
-                        // if it was a tuple starting here, expand it to cover the entire span
-                        //  (except if that tuple has its own parenthesis already when nesting)
-                        Expression::TupleLiteral { .. }
-                            if self.tokens[inner_start as usize].token.ty
-                                != TokenType::OpenParenthesis =>
-                        {
-                            self.tree.set_span(expression_id, self.get_span_from(start));
-                            expression_id
-                        }
-                        // otherwise it was a manually parenthesized expression, wrap it
-                        _ => self.tree.insert(
-                            Expression::Parenthesized {
-                                expression: expression_id,
+                let expression_id: NodeId<Expression> = {
+                    // if we immediately see a closing parenthesis, it's an empty tuple
+                    if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                        self.bump(); // eat closing parenthesis
+                        self.tree.insert(
+                            Expression::TupleLiteral { elements: vec![] },
+                            self.get_span_from(start),
+                        )
+                    }
+                    // named tuple element, must be some tuple
+                    else if self.peek_token(TokenType::Identifier).is_ok()
+                        && self.peek_next_token(TokenType::Colon).is_ok()
+                    {
+                        let tuple_elements = self
+                            .eat_tuple_literal_body(None)
+                            .for_node_type(NodeType::Expression)?;
+                        self.eat_token(TokenType::CloseParenthesis)?;
+                        self.tree.insert(
+                            Expression::TupleLiteral {
+                                elements: tuple_elements,
                             },
                             self.get_span_from(start),
-                        ),
+                        )
                     }
+                    // may be a tuple with anonymous elements or just a parenthesized expression (see below)
+                    else {
+                        let inner_start = self.pos();
+                        let expression_id = self
+                            .with_options(self.options.in_parenthesis(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        self.eat_token(TokenType::CloseParenthesis)?;
+                        match self.tree.get(expression_id) {
+                            // if it was a tuple starting here, expand it to cover the entire span
+                            //  (except if that tuple has its own parenthesis already when nesting)
+                            Expression::TupleLiteral { .. }
+                                if self.tokens[inner_start as usize].token.ty
+                                    != TokenType::OpenParenthesis =>
+                            {
+                                self.tree.set_span(expression_id, self.get_span_from(start));
+                                expression_id
+                            }
+                            // otherwise it was a manually parenthesized expression, wrap it
+                            _ => self.tree.insert(
+                                Expression::Parenthesized {
+                                    expression: expression_id,
+                                },
+                                self.get_span_from(start),
+                            ),
+                        }
+                    }
+                };
+
+                // if followed by an arrow, backtrack and parse as a lambda
+                if self.peek_arrow().is_ok() {
+                    self.restore(speculative_start.0, speculative_start.1);
+                    let lambda_id = self.eat_function(visibility)?;
+                    self.tree
+                        .insert(Expression::Definition(lambda_id), self.get_span_from(start))
+                } else {
+                    expression_id
                 }
             }
             //
@@ -723,6 +739,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::{Definition, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause};
+
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, BinaryOperator, Expression, Mutability, Pattern, Runtime, ScalarLiteral,
@@ -831,6 +849,7 @@ mod tests {
         });
     }
 
+    /// Parse a ternary if expression.
     #[test]
     fn test_parse_if_ternary() {
         let mut test = TestParser::new("true ? 1 : 2");
@@ -840,6 +859,87 @@ mod tests {
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+
+    /// Parse a lambda function type with empty parameters.
+    #[test]
+    fn test_parse_lambda_function_empty_type() {
+        let mut test = TestParser::new("() => void");
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .with_options(parser.options.in_type(), |parser| parser.eat_expression())
+            .unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function {
+                style: FunctionStyle::Lambda,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                assert_eq!(dynamic_parameters.len(), 0);
+                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+            });
+        });
+    }
+
+    /// Parse a lambda function type with parameters and return type.
+    #[test]
+    fn test_parse_lambda_function_type() {
+        let mut test = TestParser::new("(a: int32) => int32 with Time");
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .with_options(parser.options.in_type(), |parser| parser.eat_expression())
+            .unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function {
+                style: FunctionStyle::Lambda,
+                dynamic_parameters,
+                return_type,
+                with_clauses,
+                ..
+            } => {
+                // (a: int32)
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter { name, ty, .. } => {
+                    assert_string!(parser, *name, "a");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                });
+                // int32
+                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                // with Time
+                assert_node!(parser.tree, with_clauses.as_ref().unwrap()[0], WithClause { right, .. } => {
+                    assert_expr_path!(parser, parser.tree.get(*right), "Time");
+                });
+            });
+        });
+    }
+
+    /// Parse a lambda function value with a body.
+    #[test]
+    fn test_parse_lambda_function_value() {
+        let mut test = TestParser::new("(a) => a > 2");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function {
+                style: FunctionStyle::Lambda,
+                dynamic_parameters,
+                return_type: None,
+                body,
+                ..
+            } => {
+                assert!(body.is_some());
+                // (a)
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter { name, ty: None, .. } => {
+                    assert_string!(parser, *name, "a");
+                });
+                // a > 2
+                assert_node!(parser.tree, body.unwrap(), Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                    assert_expr_path!(parser, parser.tree.get(*left), "a");
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+            });
         });
     }
 

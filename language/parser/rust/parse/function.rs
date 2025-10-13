@@ -30,13 +30,77 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a Function or "lambda" definition or declaration.
+    /// Eat the self parameter maybe.
+    fn eat_self_parameter_maybe(&mut self) -> ParserResult<Option<SelfParameter>> {
+        // var_ self
+        if self.peek_keyword(Keyword::Var).is_ok() {
+            let mutability = self.eat_scoped_mutability()?;
+            self.eat_self_keyword()?; // eat self
+            Ok(Some(SelfParameter {
+                mutability,
+                is_reference: false,
+            }))
+        }
+        // self
+        else if self.peek_self_keyword().is_ok() {
+            self.bump(); // eat self
+            Ok(Some(SelfParameter {
+                mutability: ScopedMutability::Unscoped {
+                    mutability: Mutability::Immutable,
+                },
+                is_reference: false,
+            }))
+        }
+        // &var_ self
+        else if (self.peek_token(TokenType::Multiply).is_ok()
+            || self.peek_token(TokenType::ElementwiseAnd).is_ok())
+            && self.peek_next_keyword(Keyword::Var).is_ok()
+        {
+            self.bump(); // eat &
+            let mutability = self.eat_scoped_mutability()?;
+            self.eat_self_keyword()?; // eat self
+            Ok(Some(SelfParameter {
+                mutability,
+                is_reference: true,
+            }))
+        }
+        // &self
+        else if self.peek_token(TokenType::Multiply).is_ok()
+            || self.peek_token(TokenType::ElementwiseAnd).is_ok()
+        {
+            self.bump(); // eat &
+            self.eat_self_keyword()?; // eat self
+            Ok(Some(SelfParameter {
+                mutability: ScopedMutability::Unscoped {
+                    mutability: Mutability::Immutable,
+                },
+                is_reference: true,
+            }))
+        }
+        // other
+        else {
+            Ok(None)
+        }
+    }
+
+    /// Eat a function or "lambda" definition or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
+    /// If no function keyword is provided, it is a lambda function.
+    /// (Lambda functions cannot have a name, runtime, or static parameters.)
     ///
     /// Examples:
     /// ```
-    /// // function style
+    /// // lambda style (type context)
+    /// (a: int32) => int32
+    /// (int32) => (boolean, int32)
     ///
+    /// // lambda style (value context)
+    /// (a) => a > 2
+    /// (a: int32) => {
+    ///    print("Hello, world!")
+    /// }
+    ///
+    /// // function style
     /// function () // anonymous function with empty signature
     ///
     /// function foo() // just declaration, no body, no opening `{`
@@ -82,98 +146,58 @@ impl<'a> Parser<'a> {
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
-        // function
-        self.eat_keyword(Keyword::Function)?;
-
-        // runtime
-        let runtime = if self.peek_token(TokenType::At).is_ok() {
-            self.eat_token(TokenType::At)?;
-            Runtime::Static
+        // function / style
+        let style = if self.peek_keyword(Keyword::Function).is_ok() {
+            self.bump(); // eat function
+            FunctionStyle::Function
         } else {
-            Runtime::Dynamic
+            FunctionStyle::Lambda
         };
 
-        // name
-        let name = if self.peek_identifier().is_ok() {
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
+        // function style: runtime, name, static parameters
+        let (runtime, name, static_parameters) = if style == FunctionStyle::Function {
+            // runtime
+            let runtime = if self.peek_token(TokenType::At).is_ok() {
+                self.eat_token(TokenType::At)?;
+                Runtime::Static
+            } else {
+                Runtime::Dynamic
+            };
 
-        // static parameters
-        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.bump(); // eat less than
-            let static_parameters = self.eat_parameters_body()?;
-            self.eat_token(TokenType::GreaterThan)?;
-            Some(static_parameters)
+            // name
+            let name = if self.peek_identifier().is_ok() {
+                Some(self.eat_identifier()?)
+            } else {
+                None
+            };
+
+            // static parameters
+            let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
+                self.bump(); // eat less than
+                let static_parameters = self.eat_parameters_body()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Some(static_parameters)
+            } else {
+                None
+            };
+
+            (runtime, name, static_parameters)
         } else {
-            None
+            (Runtime::Dynamic, None, None)
         };
 
         // dynamic parameters
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
-        // self parameter as first parameter
-        // self, *self, *var self parameter
-        // (also accept `this` and `&`)
-        let self_parameter: Option<SelfParameter> = {
-            // var_ self
-            if self.peek_keyword(Keyword::Var).is_ok() {
-                let mutability = self.eat_scoped_mutability()?;
-                self.eat_self_keyword()?; // eat self
-                Some(SelfParameter {
-                    mutability,
-                    is_reference: false,
-                })
-            }
-            // self
-            else if self.peek_self_keyword().is_ok() {
-                self.bump(); // eat self
-                Some(SelfParameter {
-                    mutability: ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    },
-                    is_reference: false,
-                })
-            }
-            // &var_ self
-            else if (self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::ElementwiseAnd).is_ok())
-                && self.peek_next_keyword(Keyword::Var).is_ok()
-            {
-                self.bump(); // eat &
-                let mutability = self.eat_scoped_mutability()?;
-                self.eat_self_keyword()?; // eat self
-                Some(SelfParameter {
-                    mutability,
-                    is_reference: true,
-                })
-            }
-            // &self
-            else if self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::ElementwiseAnd).is_ok()
-            {
-                self.bump(); // eat &
-                self.eat_self_keyword()?; // eat self
-                Some(SelfParameter {
-                    mutability: ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    },
-                    is_reference: true,
-                })
-            }
-            // other
-            else {
-                None
-            }
-        };
 
+        // self parameter maybe
+        let self_parameter = self.eat_self_parameter_maybe()?;
         // optional separator after self (comma or newline) before other parameters
         if self_parameter.is_some() && self.peek_item_stop().is_ok() {
             self.eat_item_stop_with_newlines()?;
         }
 
-        // other parameters
+        // other dynamic parameters
         let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             vec![]
         } else {
@@ -182,29 +206,50 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        // return type
-        let return_type = if self.peek_arrow().is_ok() {
-            self.bump(); // eat arrow
-            let return_type = self
-                .with_options(self.options.nested_type_in_before_block(), |parser| {
-                    parser.eat_expression()
-                })?;
-            Some(return_type)
-        } else {
-            None
+        // return type info (including with/where)
+        // only for functions or lambda types
+        let (return_type, with_clauses, where_clauses) = {
+            if style == FunctionStyle::Function || self.options.in_type {
+                // return type
+                let return_type = if self.peek_arrow().is_ok() {
+                    self.bump(); // eat arrow
+                    let return_type = self
+                        .with_options(self.options.nested_type_in_before_block(), |parser| {
+                            parser.eat_expression()
+                        })?;
+                    Some(return_type)
+                } else {
+                    None
+                };
+
+                // with
+                let with_clauses = self.eat_with_header_maybe()?;
+
+                // where
+                let where_clauses = self.eat_where_maybe()?;
+
+                (return_type, with_clauses, where_clauses)
+            } else {
+                (None, None, None)
+            }
         };
 
-        // with
-        let with_clauses = self.eat_with_header_maybe()?;
-
-        // where
-        let where_clauses = self.eat_where_maybe()?;
-
         // body
-        let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-            Some(self.eat_block()?)
-        } else {
-            None
+        // only for functions or lambda values
+        let body = {
+            // function with block body
+            if style == FunctionStyle::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
+                Some(self.eat_expression()?)
+            }
+            // lambda with expression body
+            else if style == FunctionStyle::Lambda && !self.options.in_type {
+                self.eat_arrow()?;
+                Some(self.eat_expression()?)
+            }
+            // no body
+            else {
+                None
+            }
         };
 
         let function_id = self.tree.insert(
@@ -212,9 +257,7 @@ impl<'a> Parser<'a> {
                 name,
                 visibility,
                 runtime,
-                // nocheckin TODO #Incomplete: support lambda function style
-                //  (same postfix problem as with struct literals?)
-                style: FunctionStyle::Function,
+                style,
                 static_parameters,
                 self_parameter,
                 dynamic_parameters,

@@ -440,19 +440,7 @@ impl<'a> Compiler<'a> {
                         .map(|clause| self.lower_where_clause(source_id, ast, *clause))
                         .collect()
                 });
-                let definitions = {
-                    if let Some(body) = body {
-                        let body = ast.get(*body);
-                        body.expressions
-                            .iter()
-                            .filter_map(|expr| {
-                                self.lower_expression_to_definition(source_id, ast, *expr)
-                            })
-                            .collect()
-                    } else {
-                        vec![]
-                    }
-                };
+                let definitions = vec![]; // not sure?
                 self.tree.insert(
                     Definition::Function {
                         name,

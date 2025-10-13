@@ -1,7 +1,7 @@
 use dyst_source::StringId;
 
 use crate::{
-    Block, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility,
+    Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility,
     WhereClause, WithClause,
 };
 
@@ -33,7 +33,7 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// A Struct is struct definition node.
+    /// A Struct is struct definition.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like traits).
     /// Structs may also have super structs as semantic sugar for `use`-ing other structs.
@@ -90,7 +90,7 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// An Enum is an enumeration definition node.
+    /// An Enum is an enumeration definition.
     /// Like with structs, the ',' separator is optional if newline-delimited.
     /// Like other types, enums can have super types - since "super" types are just
     ///  sugar for `use`-ing other types and not implicit subtypes, this is fine and useful.
@@ -218,7 +218,7 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// An Implement defines the implementation of a concrete type node.
+    /// An Implement defines the implementation of a concrete type.
     /// There may be multiple Impls for the same type, and even impls for different modules.
     /// (To add a module's implementation to your own just use the corresponding module.)
     ///
@@ -249,13 +249,23 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// A Function is function or "lambda" definition or declaration node.
+    /// A Function is function or "lambda" declaration or definition.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
+    /// In type contexts, lambda return evaluates to a type, otherwise it's a function definition.
     ///
     /// Examples:
     /// ```
-    /// // function style
+    /// // lambda style (type context)
+    /// (a: int32) => int32
+    /// (int32) => (boolean, int32)
     ///
+    /// // lambda style (value context)
+    /// (a) => a > 2
+    /// (a: int32) => {
+    ///    print("Hello, world!")
+    /// }
+    ///
+    /// // function style
     /// function () // anonymous function with empty signature
     ///
     /// function foo() // just declaration, no body, no opening `{`
@@ -306,7 +316,7 @@ pub enum Definition {
         return_type: Option<NodeId<Expression>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        body: Option<NodeId<Block>>,
+        body: Option<NodeId<Expression>>,
     },
 }
 

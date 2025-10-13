@@ -6,6 +6,7 @@ use crate::{
     Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, VariantField,
     VariantStyle, empty_block_with_infix_annotations,
 };
+use dyst_ast::FunctionStyle;
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -620,7 +621,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 name,
                 visibility: _,
                 runtime,
-                style: _,
+                style,
                 static_parameters,
                 self_parameter,
                 dynamic_parameters,
@@ -629,22 +630,24 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 where_clauses,
                 body,
             } => {
-                // keyword
-                write!(f, [Keyword::Function, space()])?;
+                if *style == FunctionStyle::Function {
+                    // keyword
+                    write!(f, [Keyword::Function, space()])?;
 
-                // name (with @)
-                if *runtime == Runtime::Static {
-                    write!(f, [token("@")])?;
-                }
-                if let Some(name) = name {
-                    write!(f, [name])?;
-                }
+                    // name (with @)
+                    if *runtime == Runtime::Static {
+                        write!(f, [token("@")])?;
+                    }
+                    if let Some(name) = name {
+                        write!(f, [name])?;
+                    }
 
-                // static parameters
-                if let Some(static_parameters) = &static_parameters
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    // static parameters
+                    if let Some(static_parameters) = &static_parameters
+                        && !static_parameters.is_empty()
+                    {
+                        write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    }
                 }
 
                 // self parameter and dynamic parameters
@@ -702,6 +705,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_with_clause(f, with)?;
                 }
 
+                // where clause
                 if let Some(where_clauses) = &where_clauses
                     && !where_clauses.is_empty()
                 {
@@ -711,7 +715,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // body
                 if let Some(body) = body {
-                    write!(f, [space(), body])?;
+                    if *style == FunctionStyle::Lambda {
+                        // arrow is fine since lambdas can only have return type or body
+                        write!(f, [space(), token("=>"), space(), body])?;
+                    } else {
+                        write!(f, [space(), body])?;
+                    }
                 }
             }
         }
