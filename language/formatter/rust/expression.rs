@@ -1,3 +1,4 @@
+use dyst_ast::{Argument, Path};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -10,6 +11,42 @@ use crate::{
     Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator, Visibility,
     empty_block_with_infix_annotations,
 };
+
+/// Tree fragment argument (with `=` instead of `: `)
+#[derive(Debug, Clone, PartialEq)]
+struct TreeFragmentArgument {
+    argument_id: NodeId<Argument>,
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+
+        let argument = f.context().tree.get(self.argument_id);
+        match argument {
+            Argument::Named { name, value } => {
+                write!(f, [name, token("="), value])?;
+            }
+            Argument::NamedShorthand { name } => {
+                write!(f, [name])?;
+            }
+            Argument::Positional { value } => {
+                write!(f, [value])?;
+            }
+            Argument::Spread { value } => {
+                write!(f, [token(".."), value])?;
+            }
+        }
+
+        write!(
+            f,
+            [f.context()
+                .any_infix_or_postfix_annotations(self.argument_id)]
+        )?;
+
+        Ok(())
+    }
+}
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_chain<'ast>(
@@ -139,6 +176,95 @@ pub(crate) fn format_match<'ast>(
     write!(f, [hard_line_break(), token("}")])?;
 
     Ok(())
+}
+
+/// Format a tree literal.
+#[inline]
+pub(crate) fn format_tree_literal<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    expression_id: NodeId<Expression>,
+    path: &Option<Path>,
+    arguments: &Option<Vec<NodeId<Argument>>>,
+    elements: &Option<Vec<NodeId<Argument>>>,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&format_with(|f| {
+            // header
+            write!(
+                f,
+                [group(&format_with(|f| {
+                    // <
+                    write!(f, [token("<")])?;
+                    // path
+                    if let Some(path) = path {
+                        write!(f, [path])?;
+                    }
+                    // arguments
+                    if let Some(arguments) = arguments {
+                        write!(
+                            f,
+                            [
+                                space(),
+                                soft_block_indent(&format_with(|f| {
+                                    f.join_with(&format_args![soft_line_break_or_space()])
+                                        .entries(arguments.iter().map(|argument| {
+                                            TreeFragmentArgument {
+                                                argument_id: *argument,
+                                            }
+                                        }))
+                                        .finish()
+                                }))
+                            ]
+                        )?;
+                    }
+                    // /
+                    if elements.is_none() {
+                        if path.is_some() {
+                            write!(f, [if_group_fits_on_line(&space())])?;
+                        }
+                        write!(f, [token("/")])?;
+                    }
+                    // >
+                    write!(f, [token(">")])?;
+                    Ok(())
+                }))]
+            )?;
+
+            // body
+            if let Some(elements) = elements {
+                let span = f.context().get_span(expression_id);
+                let force_newline =
+                    f.context().has_newline(span) || f.context().is_at_line_start(expression_id.id);
+
+                // elements
+                if !force_newline {
+                    write!(
+                        f,
+                        [group(&format_args![soft_block_indent(&format_with(|f| {
+                            f.join_with(soft_line_break()).entries(elements).finish()
+                        }))])]
+                    )?;
+                } else {
+                    write!(
+                        f,
+                        [group(&format_args![block_indent(&format_with(|f| {
+                            f.join_with(hard_line_break()).entries(elements).finish()
+                        }))])]
+                    )?;
+                }
+
+                // closing tag
+                write!(f, [token("</")])?;
+                if let Some(path) = path {
+                    write!(f, [path])?;
+                }
+                write!(f, [token(">")])?;
+            }
+
+            Ok(())
+        }))]
+    )
 }
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
@@ -487,7 +613,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 arguments,
                 elements,
             } => {
-                todo!("nocheckin: format tree literal")
+                format_tree_literal(f, node_id, path, arguments, elements)?;
             }
 
             // parenthesized
@@ -751,6 +877,44 @@ mod tests {
         assert_format!(
             "Foo { ..B }",
             "Foo { ..B }",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_tree_literal_without_arguments() {
+        assert_format!(
+            "<Entity/>",
+            "<Entity />",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_tree_literal_with_arguments() {
+        assert_format!(
+            "<Entity a=1, b = 2 />",
+            "<Entity a=1 b=2 />",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_tree_literal_nested() {
+        let tree_literal = r#"<A x=4 y=4>
+    <B x="hey">
+        <C>
+            <D />
+            2
+        </C>
+    </B>
+</A>"#;
+        assert_format!(
+            tree_literal,
+            tree_literal,
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
