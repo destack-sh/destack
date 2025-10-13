@@ -862,7 +862,7 @@ struct Test {}
             });
         });
         // F: line postfix boundary
-        assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
+        assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
                 assert_path!(parser, *receiver, "F");
@@ -870,7 +870,7 @@ struct Test {}
             });
         });
         // G: block postfix
-        assert_node!(parser.tree, annotations[4], Annotation::Tag { node, position } => {
+        assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
                 assert_path!(parser, *receiver, "G");

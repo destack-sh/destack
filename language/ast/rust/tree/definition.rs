@@ -413,7 +413,7 @@ pub struct VariantField {
     pub default: Option<NodeId<Expression>>,
 }
 
-// NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
+// TODO #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (useful for SOA-style struct views?)
 //  (how does this interact with traits and unions?)
 //  (how does this relate with Entities?)
