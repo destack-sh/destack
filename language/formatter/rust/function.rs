@@ -4,6 +4,17 @@ mod tests {
     use crate::{DystFormatOptions, assert_format};
 
     #[test]
+    fn test_format_function_lambda_empty() {
+        assert_format!("() => void", "() => void", |p| p.eat_function(None));
+    }
+
+    #[test]
+    fn test_format_function_lambda_with_parameters() {
+        assert_format!("(a: int32) => a > 2", "(a: int32) => a > 2", |p| p
+            .eat_function(None));
+    }
+
+    #[test]
     fn test_format_function_simple() {
         assert_format!("function foo() {}", "function foo() { }", |p| p
             .eat_function(None));

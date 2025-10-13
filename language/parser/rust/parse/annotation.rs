@@ -819,11 +819,13 @@ struct Test {}
                 // foo
                 assert_string!(parser, name.unwrap(), "foo");
                 assert!(body.is_some());
-                assert_node!(parser.tree, body.unwrap(), Block { expressions, .. } => {
-                    assert_eq!(expressions.len(), 1);
-                    // @if
-                    assert_node!(parser.tree, expressions[0], Expression::If { runtime, ..} => {
-                        assert_eq!(*runtime, Some(Runtime::Static));
+                assert_node!(parser.tree, body.unwrap(), Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        // @if
+                        assert_node!(parser.tree, expressions[0], Expression::If { runtime, ..} => {
+                            assert_eq!(*runtime, Some(Runtime::Static));
+                        });
                     });
                 });
             });

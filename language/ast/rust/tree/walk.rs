@@ -770,8 +770,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 }
             }
             if let Some(body_id) = body {
-                let block = tree.get(*body_id);
-                visitor.visit_block(tree, *body_id, block);
+                let expression = tree.get(*body_id);
+                visitor.visit_expression(tree, *body_id, expression);
             }
         }
     }
