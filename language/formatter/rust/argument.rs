@@ -90,10 +90,10 @@ where
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
-        _node_id: NodeId<Parameter>,
+        node_id: NodeId<Parameter>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         // name
         write!(f, [self.name])?;
@@ -108,7 +108,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
             write!(f, [token(" = "), default])?;
         }
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -117,10 +117,10 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
-        _node_id: NodeId<Argument>,
+        node_id: NodeId<Argument>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
             Argument::Named { name, value } => {
@@ -137,7 +137,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             }
         }
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
