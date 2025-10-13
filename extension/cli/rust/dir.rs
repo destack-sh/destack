@@ -104,13 +104,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // compile the AST to DIR
     let package = workspace
         .get_package_containing_source_id(source_id)
-        .expect(&format!(
-            "package not found: {source_id:?} in {workspace:?}"
-        ));
+        .unwrap_or_else(|| panic!("package not found: {source_id:?} in {workspace:?}"));
     let mut compiler = Compiler::new(&workspace, package, CompilerOptions::default());
-    let dir_tree = workspace.get_ast_by_source_id(source_id).expect(&format!(
-        "document ast not found: {source_id:?} in {workspace:?}"
-    ));
+    let dir_tree = workspace
+        .get_ast_by_source_id(source_id)
+        .unwrap_or_else(|| panic!("document ast not found: {source_id:?} in {workspace:?}"));
     let definition_id = compiler.lower_definition(source_id, dir_tree, definition_id);
     compiler.finalize();
 

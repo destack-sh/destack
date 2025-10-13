@@ -594,11 +594,14 @@ impl<'a> Parser<'a> {
             .filter(|s| s.span.start == span.start)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::Outer => {
+            NodeSearch::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::Inner => {
+            NodeSearch::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInnermost => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()
@@ -614,11 +617,14 @@ impl<'a> Parser<'a> {
             .filter(|s| s.span.end == span.end)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::Outer => {
+            NodeSearch::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::Inner => {
+            NodeSearch::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInnermost => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()
@@ -642,11 +648,14 @@ impl<'a> Parser<'a> {
             return None;
         }
         match search {
-            NodeSearch::Outer => {
+            NodeSearch::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::Inner => {
+            NodeSearch::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInnermost => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()
