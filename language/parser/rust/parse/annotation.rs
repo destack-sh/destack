@@ -398,9 +398,9 @@ impl<'a> Parser<'a> {
                     .find_node_ending_at(
                         &prev_token.span,
                         if is_full_line {
-                            NodeSearch::Outer
+                            NodeSearch::BiggestOutermost
                         } else {
-                            NodeSearch::Inner
+                            NodeSearch::SmallestOutermost
                         },
                     )
                     .map(|span| span.idx)
@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
                 && next_token.token.ty != TokenType::Newline
                 && self.is_same_line(end_token.span, next_token.span)
                 && let Some(target_node_id) = self
-                    .find_node_starting_at(&next_token.span, NodeSearch::Inner)
+                    .find_node_starting_at(&next_token.span, NodeSearch::SmallestOutermost)
                     .map(|span| span.idx)
             {
                 return Some((AnnotationPosition::LinePrefix, target_node_id));
@@ -446,8 +446,8 @@ impl<'a> Parser<'a> {
             }
         };
         if let Some(next_targetable_token) = next_targetable_token
-            && let Some(next_node) =
-                self.find_node_starting_at(&next_targetable_token.span, NodeSearch::Outer)
+            && let Some(next_node) = self
+                .find_node_starting_at(&next_targetable_token.span, NodeSearch::BiggestOutermost)
         {
             return Some((AnnotationPosition::BlockPrefix, next_node.idx));
         }
@@ -472,17 +472,18 @@ impl<'a> Parser<'a> {
         };
         if let Some(prev_targetable_token) = prev_targetable_token
             && let Some(prev_node) =
-                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::Outer)
+                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::BiggestOutermost)
         {
             return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
         }
 
         // find inner enclosing node (block infix)
         if !is_block_prefix_only
-            && let Some(enclosing_node) =
-                self.find_node_enclosing_at(&start_token.span, NodeSearch::Inner, |span| {
-                    !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
-                })
+            && let Some(enclosing_node) = self.find_node_enclosing_at(
+                &start_token.span,
+                NodeSearch::SmallestInnermost,
+                |span| !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx)),
+            )
         {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }
@@ -843,7 +844,7 @@ struct Test {}
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations_for(expressions[0].id);
-        assert_eq!(annotations.len(), 7);
+        assert_eq!(annotations.len(), 4);
         // A: block prefix
         assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -860,32 +861,8 @@ struct Test {}
                 assert!(arguments.is_none());
             });
         });
-        // C: block infix
-        assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser, *receiver, "C");
-                assert!(arguments.is_none());
-            });
-        });
-        // D: block infix
-        assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser, *receiver, "D");
-                assert!(arguments.is_none());
-            });
-        });
-        // E: block infix
-        assert_node!(parser.tree, annotations[4], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
-                assert_path!(parser, *receiver, "E");
-                assert!(arguments.is_none());
-            });
-        });
         // F: line postfix boundary
-        assert_node!(parser.tree, annotations[5], Annotation::Tag { node, position } => {
+        assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
                 assert_path!(parser, *receiver, "F");
@@ -893,11 +870,41 @@ struct Test {}
             });
         });
         // G: block postfix
-        assert_node!(parser.tree, annotations[6], Annotation::Tag { node, position } => {
+        assert_node!(parser.tree, annotations[4], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
                 assert_path!(parser, *receiver, "G");
                 assert!(arguments.is_none());
+            });
+        });
+
+        // block infix to innermost node (Definition::Struct)
+        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+            let annotations = parser.tree.get_annotations_for(node.id);
+            assert_eq!(annotations.len(), 3);
+            // C: block infix
+            assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                    assert_path!(parser, *receiver, "C");
+                    assert!(arguments.is_none());
+                });
+            });
+            // D: block infix
+            assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                    assert_path!(parser, *receiver, "D");
+                    assert!(arguments.is_none());
+                });
+            });
+            // E: block infix
+            assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                    assert_path!(parser, *receiver, "E");
+                    assert!(arguments.is_none());
+                });
             });
         });
     }
@@ -1118,7 +1125,7 @@ let A = 1 // line suffix comment
         });
     }
 
-    /// Annotations inside an empty node should be treated as infix within the containing node.
+    /// Annotations inside an empty node should be treated as infix within the innermost containing node.
     #[test]
     fn test_attach_comments_infix_in_block() {
         let mut test = TestParser::new(
@@ -1133,16 +1140,18 @@ function main() {
         let function = parser.eat_function(None).unwrap();
         parser.finalize();
 
-        assert_node!(parser.tree, function, Definition::Function { body, .. } => {
-            // doc block infix
-            // comment, infix
-            let annotations = parser.tree.get_annotations_for(body.unwrap().id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(parser.get_string(*string), "block comment, infix");
-                    assert_eq!(*style, CommentStyle::Slash);
+        // (annotation should be infix to innermost node, i.e. the block)
+        assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
+            assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
+                // block comment, infix
+                let annotations = parser.tree.get_annotations_for(block_id.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockInfix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(parser.get_string(*string), "block comment, infix");
+                        assert_eq!(*style, CommentStyle::Slash);
+                    });
                 });
             });
         });
