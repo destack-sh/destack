@@ -40,7 +40,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Argument::NamedShorthand { name } => {
                 let name = self.intern_string(source_id, *name);
-                let path = Path::String {
+                let path = Path::Unevaluated {
                     segments: vec![name],
                 };
                 let value = self

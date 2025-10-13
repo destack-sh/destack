@@ -11,7 +11,7 @@ impl<'a> Compiler<'a> {
         _ast: &ast::NodeTree,
         path: &ast::Path,
     ) -> Path {
-        Path::String {
+        Path::Unevaluated {
             segments: path
                 .segments
                 .iter()

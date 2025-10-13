@@ -558,22 +558,16 @@ impl Dump for AnnotationPosition {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            Path::Unevaluated { segments } => {
+                dumper
+                    .object("Path::Unevaluated")
+                    .field("segments", segments)
+                    .end();
+            }
             Path::Intrinsic { intrinsic } => {
                 dumper
                     .object("Path::Intrinsic")
                     .field("intrinsic", intrinsic)
-                    .end();
-            }
-            Path::String { segments } => {
-                dumper
-                    .object("Path::String")
-                    .field("segments", segments)
-                    .end();
-            }
-            Path::RelativeString { segments, .. } => {
-                dumper
-                    .object("Path::Relative")
-                    .field("segments", segments)
                     .end();
             }
             Path::Definition { .. } => {
@@ -1215,8 +1209,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Definition(_) => {
                 self.node("Type::Definition", id.id).end();
             }
-            Type::Expression(_) => {
-                self.node("Type::Expression", id.id).end();
+            Type::Unevaluated(_) => {
+                self.node("Type::Unevaluated", id.id).end();
             }
             Type::Error => {
                 self.node("Type::Error", id.id).end();

@@ -14,7 +14,7 @@ impl<'a> Compiler<'a> {
         let expression = self.lower_expression(source_id, ast, expression_id);
         let type_id = self
             .tree
-            .insert(Type::Expression(expression), source_id, expression_id);
+            .insert(Type::Unevaluated(expression), source_id, expression_id);
         self.tree.alias(source_id, expression_id.id, type_id);
         type_id
     }

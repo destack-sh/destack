@@ -89,7 +89,7 @@ pub enum Expression {
     Must { left: NodeId<Expression> },
 
     /// --------------------------------
-    /// Literals.
+    /// Values.
     /// --------------------------------
 
     /// Path.
