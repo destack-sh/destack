@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 
+use std::ops::Range;
+
 use crate::*;
 
 /// The console colors.
@@ -116,7 +118,7 @@ impl<'a> Dumper<'a> {
 
     /// Finish dumping and return the result.
     pub fn finish(self) -> String {
-        self.buffer
+        rebuild_tree_output(self.buffer, self.options.use_colors)
     }
 
     /// Write a string to the buffer with a new depth context.
@@ -234,6 +236,224 @@ impl<'a> Dumper<'a> {
     #[inline]
     pub fn object<'d>(&'d mut self, name: &str) -> StructDumper<'d, 'a> {
         StructDumper::new(self, name, None)
+    }
+}
+
+/// Track metadata for a dumped line.
+#[derive(Debug)]
+struct LineMeta {
+    depth: usize,
+    text_range: Range<usize>,
+    has_connector: bool,
+}
+
+/// Describe structural information extracted from a raw line.
+#[derive(Debug)]
+struct LineAnalysis {
+    depth: usize,
+    text_start: usize,
+    has_connector: bool,
+}
+
+/// Rebuild the tree drawing based on recorded lines.
+fn rebuild_tree_output(buffer: String, use_colors: bool) -> String {
+    if buffer.is_empty() {
+        return buffer;
+    }
+
+    // collect line metadata before rewriting prefixes
+    let mut metas: Vec<LineMeta> = Vec::new();
+    let mut line_start: usize = 0;
+    let mut lines_iter = buffer.split('\n');
+
+    while let Some(line) = lines_iter.next() {
+        let current_start = line_start;
+        let analysis = analyze_line(line);
+        let text_start = current_start + analysis.text_start;
+        let text_end = current_start + line.len();
+        metas.push(LineMeta {
+            depth: analysis.depth,
+            text_range: text_start..text_end,
+            has_connector: analysis.has_connector,
+        });
+        line_start = current_start + line.len() + 1;
+    }
+
+    let line_count = metas.len();
+    if line_count == 0 {
+        return buffer;
+    }
+
+    // build parent/child relationships from depth information
+    let mut parents: Vec<Option<usize>> = vec![None; line_count];
+    let mut is_last: Vec<bool> = vec![true; line_count];
+    let mut children: Vec<Vec<usize>> = vec![Vec::new(); line_count];
+    let mut stack: Vec<usize> = Vec::new();
+
+    for (idx, meta) in metas.iter().enumerate() {
+        while stack.len() > meta.depth {
+            stack.pop();
+        }
+        if meta.depth > 0 {
+            if let Some(&parent_idx) = stack.last() {
+                parents[idx] = Some(parent_idx);
+                children[parent_idx].push(idx);
+            }
+        }
+        stack.push(idx);
+    }
+
+    for siblings in &children {
+        if siblings.len() <= 1 {
+            continue;
+        }
+        for child in siblings.iter().take(siblings.len() - 1) {
+            is_last[*child] = false;
+        }
+    }
+
+    // stitch final output with reconstructed prefixes
+    let mut result = String::with_capacity(buffer.len());
+    for (idx, meta) in metas.iter().enumerate() {
+        if meta.depth > 0 || meta.has_connector {
+            let prefix = build_prefix(idx, &parents, &is_last, use_colors);
+            result.push_str(&prefix);
+        }
+        let line_segment = &buffer[meta.text_range.clone()];
+        result.push_str(line_segment);
+        if idx + 1 < line_count {
+            result.push('\n');
+        }
+    }
+
+    result
+}
+
+/// Analyze a line to locate prefixes and structural depth.
+fn analyze_line(line: &str) -> LineAnalysis {
+    if line.is_empty() {
+        return LineAnalysis {
+            depth: 0,
+            text_start: 0,
+            has_connector: false,
+        };
+    }
+
+    let mut display_chars: Vec<char> = Vec::new();
+    let mut byte_indices: Vec<usize> = Vec::new();
+    let mut idx = 0;
+    let bytes = line.as_bytes();
+    while idx < bytes.len() {
+        if bytes[idx] == b'\x1b' {
+            idx += 1;
+            if idx < bytes.len() && bytes[idx] == b'[' {
+                idx += 1;
+                while idx < bytes.len() && bytes[idx] != b'm' {
+                    idx += 1;
+                }
+                if idx < bytes.len() {
+                    idx += 1;
+                }
+            }
+            continue;
+        }
+        let ch = line[idx..].chars().next().unwrap();
+        display_chars.push(ch);
+        byte_indices.push(idx);
+        idx += ch.len_utf8();
+    }
+
+    let mut depth = 0;
+    let mut pos = 0;
+    let mut has_connector = false;
+    let mut text_display_idx = 0;
+
+    while pos + 2 < display_chars.len() {
+        let triple = (
+            display_chars[pos],
+            display_chars[pos + 1],
+            display_chars[pos + 2],
+        );
+        if triple == ('│', ' ', ' ') || triple == (' ', ' ', ' ') {
+            depth += 1;
+            pos += 3;
+            continue;
+        }
+        if (display_chars[pos] == '└' || display_chars[pos] == '├')
+            && display_chars.get(pos + 1) == Some(&'─')
+            && display_chars.get(pos + 2) == Some(&' ')
+        {
+            has_connector = true;
+            text_display_idx = pos + 3;
+        }
+        break;
+    }
+
+    if !has_connector {
+        return LineAnalysis {
+            depth: 0,
+            text_start: 0,
+            has_connector,
+        };
+    }
+
+    let text_start = if text_display_idx < byte_indices.len() {
+        byte_indices[text_display_idx]
+    } else {
+        line.len()
+    };
+
+    LineAnalysis {
+        depth,
+        text_start,
+        has_connector,
+    }
+}
+
+/// Build the prefix for a line using ancestor metadata.
+fn build_prefix(
+    index: usize,
+    parents: &[Option<usize>],
+    is_last: &[bool],
+    use_colors: bool,
+) -> String {
+    let mut path: Vec<usize> = Vec::new();
+    let mut current = Some(index);
+    while let Some(idx) = current {
+        path.push(idx);
+        current = parents[idx];
+    }
+    path.reverse();
+
+    if path.len() <= 1 {
+        return String::new();
+    }
+
+    let mut prefix = String::new();
+    for level in 0..(path.len() - 1) {
+        let segment = if level == path.len() - 2 {
+            if is_last[path[level + 1]] {
+                "└─ "
+            } else {
+                "├─ "
+            }
+        } else if is_last[path[level + 1]] {
+            "   "
+        } else {
+            "│  "
+        };
+        append_segment(&mut prefix, segment, use_colors);
+    }
+
+    prefix
+}
+
+/// Append a segment to the output with optional coloring.
+fn append_segment(buffer: &mut String, segment: &str, use_colors: bool) {
+    if use_colors {
+        buffer.push_str(Color::Cyan.apply(segment).as_str());
+    } else {
+        buffer.push_str(segment);
     }
 }
 
