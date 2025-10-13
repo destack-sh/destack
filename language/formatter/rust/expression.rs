@@ -481,6 +481,15 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [list_like("{", "}", ",", true, fields)])?;
             }
 
+            // tree literal
+            Expression::TreeLiteral {
+                path,
+                arguments,
+                elements,
+            } => {
+                todo!("nocheckin: format tree literal")
+            }
+
             // parenthesized
             Expression::Parenthesized { expression } => {
                 write!(f, [token("("), expression, token(")")])?

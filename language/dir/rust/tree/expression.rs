@@ -98,16 +98,27 @@ pub enum Expression {
     ScalarLiteral { value: ScalarLiteral },
     /// Type literal value.
     TypeLiteral { value: TypeLiteral },
+    /// Range literal value.
+    RangeLiteral {
+        start: NodeId<Expression>,
+        end: NodeId<Expression>,
+        is_inclusive: bool,
+    },
+    /// Array creation.
+    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    /// Tuple creation.
+    TupleLiteral { elements: Vec<NodeId<Argument>> },
     /// Struct creation.
     StructLiteral {
         ty: Option<NodeId<Type>>,
         fields: Vec<NodeId<Argument>>,
     },
-    /// Tuple creation.
-    TupleLiteral { elements: Vec<NodeId<Argument>> },
-    /// Array creation.
-    ArrayLiteral { elements: Vec<NodeId<Expression>> },
-    // nocheckin TODO #Incomplete: TreeLiteral? (Tree)Argument? (for TSX-like <x>1</x>)
+    /// Tree creation.
+    TreeLiteral {
+        path: Option<Path>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+        elements: Option<Vec<NodeId<Argument>>>,
+    },
 
     /// --------------------------------
     /// Control flow.

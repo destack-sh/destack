@@ -366,6 +366,25 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::TreeLiteral {
+            path: _,
+            arguments,
+            elements,
+        } => {
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+            if let Some(elements) = elements {
+                for element_id in elements {
+                    let element = tree.get(*element_id);
+                    visitor.visit_argument(tree, *element_id, element);
+                }
+            }
+        }
+
         Expression::Parenthesized { expression } => {
             let expr = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expr);

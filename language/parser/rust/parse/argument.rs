@@ -127,6 +127,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an argument (e.g., `x: 1` or `y`).
+    /// For use in tree fragments (and general leniency) also accept `=` as well.
+    /// Does not support named shorthand arguments.
     ///
     /// Examples:
     /// ```
@@ -140,10 +142,11 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // named argument
         if self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_ok()
+            && (self.peek_next_token(TokenType::Colon).is_ok()
+                || self.peek_next_token(TokenType::Assign).is_ok())
         {
             let name = self.eat_identifier().for_node_type(NodeType::Argument)?;
-            self.eat_colon()?;
+            self.bump(); // eat colon or assign
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
