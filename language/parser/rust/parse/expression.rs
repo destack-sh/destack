@@ -23,6 +23,21 @@ static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
     BinaryOperator::GreaterThanOrEqual,
 ];
 
+// can't use anything with `<` or `>` in tree fragments
+static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 8] = [
+    // shift
+    BinaryOperator::ShiftLeft,
+    BinaryOperator::SaturatingShiftLeft,
+    BinaryOperator::ShiftRight,
+    // comparison
+    BinaryOperator::LessThan,
+    BinaryOperator::LessThanOrEqual,
+    BinaryOperator::GreaterThan,
+    BinaryOperator::GreaterThanOrEqual,
+    // multiply
+    BinaryOperator::Divide,
+];
+
 /// Make an infix operator.
 #[inline]
 fn to_infix_operator(
@@ -39,16 +54,18 @@ fn to_infix_operator(
         Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
     }
     // regular binary operator
-    // (only a subset of binary operators are allowed in static types)
+    // (only a subset of binary operators are allowed in static and tree contexts)
     else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
+        && (!options.in_tree || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular assign operator
-    // (not allowed in static arguments)
+    // (not allowed in static, type, and tree contexts)
     else if !options.in_static
         && !options.in_type
+        && !options.in_tree
         && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
     {
         Ok((InfixOperator::Assign(assign_operator), 1))
@@ -441,6 +458,10 @@ impl<'a> Parser<'a> {
                 let block_id = self.eat_block()?;
                 self.tree
                     .insert(Expression::Block(block_id), self.get_span_from(start))
+            }
+            // tree
+            else if self.peek_tree_literal().is_ok() {
+                self.eat_tree_literal()?
             }
             // scalar
             else if self.peek_scalar_literal().is_ok() {

@@ -19,6 +19,8 @@ pub enum Keyword {
     Self_,
     /// Refer to the containing instance type (alias to `self`).
     This,
+    /// Super expression (reserved).
+    Super,
     /// Declare a Module.
     Module,
     /// Declare a tuple (reserved).
@@ -59,6 +61,10 @@ pub enum Keyword {
     Mut,
     /// Static modifier (reserved).
     Static,
+    /// Final modifier (reserved).  
+    Final,
+    /// Do expression (reserved).
+    Do,
     /// Conditional expression.
     If,
     /// Conditional expression.
@@ -97,10 +103,18 @@ pub enum Keyword {
     Async,
     /// Await expression (reserved).
     Await,
+    /// Unsafe expression (reserved).
+    Unsafe,
+    /// Move expression (reserved).
+    Move,
     /// New expression (reserved).
     New,
+    /// Constructor (reserved).
+    Constructor,
     /// Dynamic expression (reserved).
     Dynamic,
+    /// Virtual expression (reserved).
+    Virtual,
 }
 
 impl Keyword {
@@ -115,6 +129,7 @@ impl Keyword {
             Keyword::Export => "export",
             Keyword::Self_ => "self",
             Keyword::This => "this",
+            Keyword::Super => "super",
             Keyword::Module => "module",
             Keyword::Tuple => "tuple",
             Keyword::Type => "type",
@@ -135,6 +150,8 @@ impl Keyword {
             Keyword::Const => "const",
             Keyword::Mut => "mut",
             Keyword::Static => "static",
+            Keyword::Final => "final",
+            Keyword::Do => "do",
             Keyword::If => "if",
             Keyword::Else => "else",
             Keyword::While => "while",
@@ -154,8 +171,12 @@ impl Keyword {
             Keyword::Finally => "finally",
             Keyword::Async => "async",
             Keyword::Await => "await",
+            Keyword::Unsafe => "unsafe",
+            Keyword::Move => "move",
             Keyword::New => "new",
+            Keyword::Constructor => "constructor",
             Keyword::Dynamic => "dynamic",
+            Keyword::Virtual => "virtual",
         }
     }
 }
@@ -174,6 +195,7 @@ impl FromStr for Keyword {
             "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
             "tuple" => Ok(Keyword::Tuple),
+            "super" => Ok(Keyword::Super),
             "module" => Ok(Keyword::Module),
             "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),
@@ -193,6 +215,8 @@ impl FromStr for Keyword {
             "const" => Ok(Keyword::Const),
             "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
+            "final" => Ok(Keyword::Final),
+            "do" => Ok(Keyword::Do),
             "if" => Ok(Keyword::If),
             "else" => Ok(Keyword::Else),
             "while" => Ok(Keyword::While),
@@ -212,8 +236,12 @@ impl FromStr for Keyword {
             "finally" => Ok(Keyword::Finally),
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),
+            "unsafe" => Ok(Keyword::Unsafe),
+            "move" => Ok(Keyword::Move),
             "new" => Ok(Keyword::New),
+            "constructor" => Ok(Keyword::Constructor),
             "dynamic" => Ok(Keyword::Dynamic),
+            "virtual" => Ok(Keyword::Virtual),
             _ => Err(()),
         }
     }

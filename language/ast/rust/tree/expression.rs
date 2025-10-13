@@ -110,7 +110,7 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// // ternary
-    /// cond ? a : b 
+    /// cond ? a : b
     ///
     /// // if
     /// @if x > 0 {
@@ -401,6 +401,26 @@ pub enum Expression {
         fields: Vec<NodeId<Argument>>,
     },
 
+    /// A TreeLiteral is literal tree fragment with arguments (similar to JSX).
+    /// The contents of the tree are normal expressions (no implicit text, but full language features).
+    /// Like other language constructs, trees are customizable via traits and context.
+    ///
+    /// Examples:
+    /// ```
+    /// <Entity>1</Entity>
+    /// <Level level=1>
+    ///     player: <Entity name="Alfred" />
+    ///     <Entity>2</Entity>
+    ///     "some text"
+    ///     ..someChildren.map(child => <Entity name={child.name} />)
+    /// </Level>
+    /// ```
+    TreeLiteral {
+        path: Option<Path>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+        elements: Option<Vec<NodeId<Argument>>>,
+    },
+
     /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
 
@@ -431,7 +451,7 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// T[] // special declarative
+    /// T[] // declarative form
     /// foo[1]
     /// foo[1..3]
     /// foo["bar"]

@@ -235,6 +235,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::TypeLiteral { value: _ } => {
             // nothing to do
         }
+        Expression::RangeLiteral {
+            start,
+            end,
+            is_inclusive: _,
+        } => {
+            let start_expression = tree.get(*start);
+            visitor.visit_expression(tree, *start, start_expression);
+            let end_expression = tree.get(*end);
+            visitor.visit_expression(tree, *end, end_expression);
+        }
+        Expression::ArrayLiteral { elements } => {
+            for element_id in elements {
+                let element = tree.get(*element_id);
+                visitor.visit_expression(tree, *element_id, element);
+            }
+        }
+        Expression::TupleLiteral { elements } => {
+            for argument_id in elements {
+                let argument = tree.get(*argument_id);
+                visitor.visit_argument(tree, *argument_id, argument);
+            }
+        }
         Expression::StructLiteral { ty, fields } => {
             if let Some(ty_id) = ty {
                 let ty_node = tree.get(*ty_id);
@@ -245,16 +267,22 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_argument(tree, *field_id, argument);
             }
         }
-        Expression::TupleLiteral { elements } => {
-            for argument_id in elements {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
+        Expression::TreeLiteral {
+            path: _,
+            arguments,
+            elements,
+        } => {
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
             }
-        }
-        Expression::ArrayLiteral { elements } => {
-            for element_id in elements {
-                let element = tree.get(*element_id);
-                visitor.visit_expression(tree, *element_id, element);
+            if let Some(elements) = elements {
+                for element_id in elements {
+                    let element = tree.get(*element_id);
+                    visitor.visit_argument(tree, *element_id, element);
+                }
             }
         }
         Expression::If {

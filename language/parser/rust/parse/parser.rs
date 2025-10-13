@@ -16,7 +16,7 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a type.
     pub in_type: bool = false,
     /// Whether we're parsing inside a static argument (`<...>`).
-    /// We disallow certain infix operations in static arguments to avoid ambiguity with <>.
+    /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
     /// Whether we're parsing a union pattern.
     pub in_union_pattern: bool = false,
@@ -24,11 +24,14 @@ pub(crate) struct ParserOptions {
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
+    /// Disallows struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub in_before_block: bool = false,
     /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
-    /// We disallow certain patterns in these cases to avoid ambiguity with type annotations.
+    /// Disallows certain patterns in these cases to avoid ambiguity with type annotations.
     pub in_before_type: bool = false,
+    /// Whether we're in a tree fragment.
+    /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
+    pub in_tree: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines operator lifting / grouping.
     pub left_precedence: Option<u8> = None,
@@ -89,6 +92,14 @@ impl ParserOptions {
         }
     }
 
+    /// Adapt and reset options for a tree fragment.
+    pub(crate) fn in_tree_fragment(self) -> Self {
+        Self {
+            in_tree: true,
+            ..self
+        }
+    }
+
     /// Adapt and reset options for a nested expression before a block.
     pub(crate) fn nested_in_before_block(self) -> Self {
         Self {
@@ -98,6 +109,7 @@ impl ParserOptions {
             in_parenthesis: false,
             in_before_block: true,
             in_before_type: false,
+            in_tree: false,
             left_precedence: None,
         }
     }
@@ -111,6 +123,7 @@ impl ParserOptions {
             in_parenthesis: false,
             in_before_block: true,
             in_before_type: false,
+            in_tree: false,
             left_precedence: None,
         }
     }
@@ -123,6 +136,7 @@ impl ParserOptions {
             in_parenthesis: true,
             in_union_pattern: false,
             in_before_type: false,
+            in_tree: false,
             left_precedence: None,
             ..self
         }
@@ -135,6 +149,7 @@ impl ParserOptions {
             in_static: false,
             in_parenthesis: false,
             in_union_pattern: false,
+            in_tree: false,
             left_precedence: None,
             ..self
         }

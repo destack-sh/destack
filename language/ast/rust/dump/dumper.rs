@@ -884,6 +884,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::StructLiteral { ty: _, fields: _ } => {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
+            Expression::TreeLiteral {
+                path,
+                arguments: _,
+                elements: _,
+            } => {
+                self.node("Expression::TreeLiteral", _id.id)
+                    .field_optional("path", path)
+                    .end();
+            }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }

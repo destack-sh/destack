@@ -909,14 +909,32 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            Expression::StructLiteral { ty: _, fields: _ } => {
-                self.node("Expression::StructLiteral", id.id).end();
+            Expression::RangeLiteral {
+                start: _,
+                end: _,
+                is_inclusive,
+            } => {
+                self.node("Expression::RangeLiteral", id.id)
+                    .field("is_inclusive", is_inclusive)
+                    .end();
+            }
+            Expression::ArrayLiteral { elements: _ } => {
+                self.node("Expression::ArrayLiteral", id.id).end();
             }
             Expression::TupleLiteral { elements: _ } => {
                 self.node("Expression::TupleLiteral", id.id).end();
             }
-            Expression::ArrayLiteral { elements: _ } => {
-                self.node("Expression::ArrayLiteral", id.id).end();
+            Expression::StructLiteral { ty: _, fields: _ } => {
+                self.node("Expression::StructLiteral", id.id).end();
+            }
+            Expression::TreeLiteral {
+                path,
+                arguments: _,
+                elements: _,
+            } => {
+                self.node("Expression::TreeLiteral", id.id)
+                    .field_optional("path", path)
+                    .end();
             }
             Expression::If {
                 runtime,

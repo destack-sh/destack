@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use dyst_ast::Path;
+
 use crate::parse::prelude::*;
 use crate::{
     Argument, Expression, NodeId, NodeType, NumberBase, Parser, ParserError, ParserResult,
@@ -354,10 +356,11 @@ impl<'a> Parser<'a> {
             // named argument
             let argument_id = {
                 if self.peek_token(TokenType::Identifier).is_ok()
-                    && self.peek_next_token(TokenType::Colon).is_ok()
+                    && (self.peek_next_token(TokenType::Colon).is_ok()
+                        || self.peek_next_token(TokenType::Assign).is_ok())
                 {
                     let name = self.eat_identifier()?;
-                    self.bump(); // eat colon
+                    self.bump(); // eat colon or assign
                     let value = self.eat_expression()?;
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
@@ -390,12 +393,162 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Expression)?;
         Ok(arguments)
     }
+
+    /// Peek a tree literal (including the `<` and `>` tokens).
+    #[inline]
+    pub fn peek_tree_literal(&self) -> ParserResult<()> {
+        if self.peek_token(TokenType::LessThan).is_ok()
+            && (self.peek_next_token(TokenType::GreaterThan).is_ok()
+                || self.peek_next_token(TokenType::Divide).is_ok()
+                || self.peek_next_token(TokenType::Identifier).is_ok())
+        {
+            return Ok(());
+        }
+        Err(ParserError::unexpected(self.peek()?.span))
+    }
+
+    /// Eat a tree literal (including the `<` and `>` tokens).
+    ///
+    /// Examples:
+    /// ```
+    /// <Entity />
+    /// <Entity a=1 test />
+    /// <Level level=1>
+    ///     player: <Entity name="Alfred" />
+    ///     <Entity>2</Entity>
+    ///     "some text"
+    ///     ..someChildren.map(child => <Entity name={child.name} />)
+    /// </Level>
+    /// ```
+    pub fn eat_tree_literal(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+        self.eat_token(TokenType::LessThan)?;
+        self.eat_newlines_maybe()?;
+
+        // path
+        let path: Option<Path> = {
+            if self.peek_token(TokenType::Identifier).is_ok() {
+                Some(self.eat_path()?)
+            } else {
+                None
+            }
+        };
+        self.eat_newlines_maybe()?;
+
+        // header (arguments separated by `=`)
+        let arguments: Option<Vec<NodeId<Argument>>> = {
+            // fragment without arguments
+            if self.peek_token(TokenType::Divide).is_ok()
+                || self.peek_token(TokenType::GreaterThan).is_ok()
+            {
+                None
+            }
+            // fragment with arguments
+            else {
+                let mut arguments: Vec<NodeId<Argument>> = vec![];
+                while self.peek_token(TokenType::Divide).is_err()
+                    && self.peek_token(TokenType::GreaterThan).is_err()
+                {
+                    let argument = self
+                        .with_options(self.options.in_tree_fragment(), |parser| {
+                            parser.eat_argument()
+                        })?;
+                    arguments.push(argument);
+                    if self.peek_any_stop().is_ok() {
+                        self.eat_any_stop_with_newlines()?;
+                    }
+                }
+                Some(arguments)
+            }
+        };
+        self.eat_newlines_maybe()?;
+
+        // body (either />, or > with child elements)
+        let elements: Option<Vec<NodeId<Argument>>> = {
+            // fragment without children (/>)
+            if self.peek_token(TokenType::Divide).is_ok() {
+                self.bump(); // eat /
+                self.eat_token(TokenType::GreaterThan)?; // eat >
+                None
+            }
+            // fragment with children (>)
+            else {
+                self.eat_token(TokenType::GreaterThan)?; // eat >
+                self.eat_newlines_maybe()?;
+
+                // eat children until closing fragment
+                let mut elements: Vec<NodeId<Argument>> = vec![];
+                loop {
+                    // stop at closing fragment (</)
+                    if self.peek_token(TokenType::LessThan).is_ok()
+                        && self.peek_next_token(TokenType::Divide).is_ok()
+                    {
+                        // special case for empty fragment (/>)
+                        if path.is_none()
+                            && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
+                        {
+                            self.bump(); // eat <
+                            self.bump(); // eat /
+                            self.bump(); // eat >
+                            break;
+                        }
+                        // check if closing fragment has same path
+                        else if let Some(path) = &path {
+                            let speculative_start = (self.mark(), self.tree.next_id());
+                            // speculatively eat </path
+                            self.bump(); // eat <
+                            self.bump(); // eat /
+                            match self.eat_path() {
+                                Ok(closing_path) => {
+                                    // found our closing tag
+                                    if closing_path == *path {
+                                        self.eat_token(TokenType::GreaterThan)?;
+                                        break;
+                                    }
+                                    // not our closing tag
+                                    else {
+                                        self.restore(speculative_start.0, speculative_start.1);
+                                    }
+                                }
+                                Err(_) => {
+                                    // something else
+                                    self.restore(speculative_start.0, speculative_start.1);
+                                }
+                            };
+                        }
+                    }
+
+                    // keep eating child elements
+                    let element = self.with_options(self.options.in_tree_fragment(), |parser| {
+                        parser.eat_argument()
+                    })?;
+                    elements.push(element);
+                    if self.peek_any_stop().is_ok() {
+                        self.eat_any_stop_with_newlines()?;
+                    }
+                }
+
+                Some(elements)
+            }
+        };
+
+        // tree literal
+        let expression = Expression::TreeLiteral {
+            path,
+            arguments,
+            elements,
+        };
+        Ok(self.tree.insert(expression, self.get_span_from(start)))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Argument, Expression, ScalarLiteral, TokenType, TypeLiteral};
+    use crate::{
+        Argument, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_node, assert_path,
+        assert_string,
+    };
 
     /// Parse integer literals in various formats.
     #[test]
@@ -493,7 +646,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_literal_body() {
+    fn test_parse_struct_literal_body() {
         let mut test = TestParser::new("{ x: 1, y } ");
         let mut parser = test.prepare();
 
@@ -510,7 +663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tuple_literal_body() {
+    fn test_parse_tuple_literal_body() {
         let mut test = TestParser::new("(a: 1, 2)");
         let mut parser = test.prepare();
 
@@ -529,7 +682,7 @@ mod tests {
     }
 
     #[test]
-    fn test_array_literal() {
+    fn test_parse_array_literal() {
         let mut test = TestParser::new("[1, 2]");
         let mut parser = test.prepare();
 
@@ -543,5 +696,97 @@ mod tests {
             parser.tree.get(elements[1]),
             Expression::ScalarLiteral(ScalarLiteral::Integer(2))
         ));
+    }
+
+    #[test]
+    fn test_parse_tree_fragment() {
+        let mut test = TestParser::new("<A/>");
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        // <A/>
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+            // A
+            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert!(arguments.is_none());
+            assert!(elements.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_fragment_with_arguments() {
+        let mut test = TestParser::new("<A a=1 b=2 />");
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        // <A a=1 b=2 />
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+            // A
+            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert_eq!(arguments.as_ref().unwrap().len(), 2);
+            // a=1
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "a");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+            // b=2
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "b");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+
+            assert!(elements.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_nested() {
+        let mut test = TestParser::new(
+            r"
+<A>
+    <B>
+        <C>
+            <D/>
+            2
+        </C>
+    </B>
+</A>
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expression = parser.eat_tree_literal().unwrap();
+        // <A>
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            // <B>
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
+                    assert_path!(parser, path.as_ref().unwrap(), "B");
+                    assert!(arguments.is_none());
+                    assert!(elements.is_some());
+                    // <C>
+                    assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
+                            assert_path!(parser, path.as_ref().unwrap(), "C");
+                            assert!(arguments.is_none());
+                            assert!(elements.is_some());
+                            // <D/>
+                            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                                assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
+                                    assert_path!(parser, path.as_ref().unwrap(), "D");
+                                    assert!(arguments.is_none());
+                                    assert!(elements.is_none());
+                                });
+                            });
+                            // 2
+                            assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Positional { value } => {
+                                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                            });
+                        });
+                    });
+                });
+            });
+        });
     }
 }
