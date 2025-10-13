@@ -792,6 +792,24 @@ mod tests {
         });
     }
 
+    /// Parse an anonymous struct literal with newlines.
+    #[test]
+    fn test_parse_anonymous_struct_literal_with_newlines() {
+        let mut test = TestParser::new("{\n\n x: 1,\n\n y\n}");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
+            assert_eq!(fields.len(), 2);
+            assert_node!(parser.tree, fields[0], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+            assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
+                assert_string!(parser, *name, "y");
+            });
+        });
+    }
+
     #[test]
     fn test_parse_if_ternary() {
         let mut test = TestParser::new("true ? 1 : 2");

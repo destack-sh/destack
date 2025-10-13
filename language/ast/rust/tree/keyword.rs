@@ -15,11 +15,11 @@ pub enum Keyword {
     Import,
     /// Export (reserved).
     Export,
-    /// Refer to the containing instance type / value.
+    /// Refer to the containing instance type.
     Self_,
-    /// Refer to the containing instance type / value.
+    /// Refer to the containing instance type (alias to `self`).
     This,
-    /// Declare a Module (inline).
+    /// Declare a Module.
     Module,
     /// Declare a tuple (reserved).
     Tuple,
@@ -81,10 +81,16 @@ pub enum Keyword {
     Return,
     /// Match expression.
     Match,
+    /// Switch expression (reserved).
+    Switch,
+    /// Case expression (reserved).
+    Case,
     /// Try expression.
     Try,
     /// Catch expression.
     Catch,
+    /// Throw expression (reserved).
+    Throw,
     /// Finally expression (reserved).
     Finally,
     /// Async expression (reserved).
@@ -140,8 +146,11 @@ impl Keyword {
             Keyword::Defer => "defer",
             Keyword::Return => "return",
             Keyword::Match => "match",
+            Keyword::Switch => "switch",
+            Keyword::Case => "case",
             Keyword::Try => "try",
             Keyword::Catch => "catch",
+            Keyword::Throw => "throw",
             Keyword::Finally => "finally",
             Keyword::Async => "async",
             Keyword::Await => "await",
@@ -195,8 +204,11 @@ impl FromStr for Keyword {
             "defer" => Ok(Keyword::Defer),
             "return" => Ok(Keyword::Return),
             "match" => Ok(Keyword::Match),
+            "switch" => Ok(Keyword::Switch),
+            "case" => Ok(Keyword::Case),
             "try" => Ok(Keyword::Try),
             "catch" => Ok(Keyword::Catch),
+            "throw" => Ok(Keyword::Throw),
             "finally" => Ok(Keyword::Finally),
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),

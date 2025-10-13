@@ -306,19 +306,28 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`).
+    /// The first element may also be after some newlines.
     pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
-        if self.peek_token(TokenType::OpenBrace).is_ok()
-            && ((self.peek_next_token(TokenType::Identifier).is_ok()
-                && self.peek_next_next_token(TokenType::Colon).is_ok())
-                || (self.peek_next_token(TokenType::Range).is_ok()
-                    && self.peek_next_next_token(TokenType::Identifier).is_ok())
-                || (self.peek_next_token(TokenType::RangeWide).is_ok()
-                    && self.peek_next_next_token(TokenType::Identifier).is_ok()))
-        {
-            Ok(())
-        } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+        if self.peek_token(TokenType::OpenBrace).is_ok() {
+            let mut current_pos = self.pos() + 1;
+            // skip any newlines
+            while let Some(token) = self.tokens.get(current_pos as usize)
+                && token.token.ty == TokenType::Newline
+            {
+                current_pos += 1;
+            }
+            // we're looking for (identifier, colon) | (range, identifier) | (range wide, identifier)
+            let token_ty = self.tokens[current_pos as usize].token.ty;
+            let next_token_ty = self.tokens[current_pos as usize + 1].token.ty;
+            if (token_ty == TokenType::Identifier && next_token_ty == TokenType::Colon)
+                || (token_ty == TokenType::Range && next_token_ty == TokenType::Identifier)
+                || (token_ty == TokenType::RangeWide && next_token_ty == TokenType::Identifier)
+            {
+                return Ok(());
+            }
         }
+
+        Err(ParserError::unexpected(self.peek()?.span))
     }
 
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).

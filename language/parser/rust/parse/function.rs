@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
                 name,
                 visibility,
                 runtime,
-                // NOTE #Incomplete: support lambda function style
+                // nocheckin TODO #Incomplete: support lambda function style
                 //  (same postfix problem as with struct literals?)
                 style: FunctionStyle::Function,
                 static_parameters,
