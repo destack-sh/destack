@@ -713,7 +713,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        Type::Expression(expression_id) => {
+        Type::Unevaluated(expression_id) => {
             let expression = tree.get(*expression_id);
             visitor.visit_expression(tree, *expression_id, expression);
         }
