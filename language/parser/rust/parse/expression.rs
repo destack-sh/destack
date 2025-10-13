@@ -57,7 +57,7 @@ fn to_infix_operator(
     // (only a subset of binary operators are allowed in static and tree contexts)
     else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
-        && (!options.in_tree || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
+        && (!options.in_tree_literal || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
@@ -65,7 +65,7 @@ fn to_infix_operator(
     // (not allowed in static, type, and tree contexts)
     else if !options.in_static
         && !options.in_type
-        && !options.in_tree
+        && !options.in_tree_literal
         && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
     {
         Ok((InfixOperator::Assign(assign_operator), 1))
@@ -281,7 +281,10 @@ impl<'a> Parser<'a> {
                 };
 
                 // if followed by an arrow, backtrack and parse as a lambda
-                if self.peek_arrow().is_ok() {
+                if !self.options.in_match_case
+                    && !self.options.in_before_block
+                    && self.peek_arrow().is_ok()
+                {
                     self.restore(speculative_start.0, speculative_start.1);
                     let lambda_id = self.eat_function(visibility)?;
                     self.tree

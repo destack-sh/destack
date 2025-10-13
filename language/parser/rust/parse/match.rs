@@ -95,7 +95,8 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // pattern
-        let pattern_id = self.eat_pattern()?;
+        let pattern_id =
+            self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
 
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
@@ -145,15 +146,17 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
-    fn test_match_simple_literal_arms() {
+    fn test_match_simple_arms() {
         let mut test = TestParser::new(
             r###"
 match x {
     1 => 10
     2 => 20
+    x => x
     _ => 0
 }
 "###,
@@ -167,7 +170,7 @@ match x {
             // value: path x
             assert_expr_path!(parser, parser.tree.get(*value), "x");
 
-            assert_eq!(cases.len(), 3);
+            assert_eq!(cases.len(), 4);
 
             // case 0: 1 => 10
             assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
@@ -187,8 +190,16 @@ match x {
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
             });
 
-            // case 2: _ => 0
-            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
+            // case 2: x => x
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body: _, guard } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: _ } => {
+                    assert_string!(parser, *name, "x");
+                });
+            });
+
+            // case 3: _ => 0
+            assert_node!(parser.tree, cases[3], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));

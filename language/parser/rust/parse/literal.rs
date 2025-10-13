@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
                     && self.peek_token(TokenType::GreaterThan).is_err()
                 {
                     let argument = self
-                        .with_options(self.options.in_tree_fragment(), |parser| {
+                        .with_options(self.options.in_tree_literal(), |parser| {
                             parser.eat_argument()
                         })?;
                     arguments.push(argument);
@@ -519,7 +519,7 @@ impl<'a> Parser<'a> {
                     }
 
                     // keep eating child elements
-                    let element = self.with_options(self.options.in_tree_fragment(), |parser| {
+                    let element = self.with_options(self.options.in_tree_literal(), |parser| {
                         parser.eat_argument()
                     })?;
                     elements.push(element);

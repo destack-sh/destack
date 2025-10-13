@@ -834,6 +834,13 @@ impl Dump for MatchSource {
     }
 }
 
+/// Dump a FunctionStyle as a string.
+impl Dump for FunctionStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Destination as a structured representation.
 impl Dump for Destination {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1419,6 +1426,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 runtime,
+                style,
                 static_parameters: _,
                 self_parameter,
                 dynamic_parameters: _,
@@ -1426,9 +1434,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
+                body: _,
             } => {
                 self.node("Definition::Function", id.id)
                     .field("runtime", runtime)
+                    .field("style", style)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .field_optional("self_parameter", self_parameter)
