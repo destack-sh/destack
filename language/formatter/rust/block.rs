@@ -1,3 +1,4 @@
+use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
@@ -126,6 +127,13 @@ pub(crate) fn should_inline_block<'ast>(
     if block.expressions.len() > 1 || f.context().has_infix_annotation(block_id) {
         return false;
     } else if block.expressions.is_empty() {
+        // if this is wrapped by an expression, that also can't have any infix annotations
+        let parent_id = f.context().get_parent_by_id(block_id.id).unwrap().0;
+        if f.context()
+            .has_infix_annotation(NodeId::<Expression>::new(parent_id))
+        {
+            return false;
+        }
         return true;
     }
 
@@ -143,6 +151,12 @@ pub(crate) fn should_inline_block<'ast>(
         .get_parent_by_id(block_id.id)
         .unwrap_or((block_id.id, NodeType::Block));
     if container_node_type == NodeType::Expression {
+        // if this is wrapped by an expression, that also can't have any infix annotations
+        if f.context()
+            .has_infix_annotation(NodeId::<Expression>::new(container_node_id))
+        {
+            return false;
+        }
         (container_node_id, container_node_type) = f
             .context()
             .get_parent_by_id(container_node_id)

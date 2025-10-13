@@ -1,5 +1,7 @@
 use dyst_ast as ast;
-use dyst_dir::{Expression, Mutability, NodeId, Runtime, ScopedMutability, Visibility};
+use dyst_dir::{
+    Expression, FunctionStyle, Mutability, NodeId, Runtime, ScopedMutability, Visibility,
+};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -29,6 +31,15 @@ impl<'a> Compiler<'a> {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
+        }
+    }
+
+    /// Lower function style into a DIR function style.
+    #[inline]
+    pub fn lower_function_style(&self, style: ast::FunctionStyle) -> FunctionStyle {
+        match style {
+            ast::FunctionStyle::Function => FunctionStyle::Function,
+            ast::FunctionStyle::Lambda => FunctionStyle::Lambda,
         }
     }
 

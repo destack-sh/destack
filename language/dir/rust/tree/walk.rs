@@ -588,6 +588,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             name: _,
             visibility: _,
             runtime: _,
+            style: _,
             static_parameters,
             self_parameter: _,
             dynamic_parameters,
@@ -595,6 +596,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             with_clauses,
             where_clauses,
             definitions,
+            body,
         } => {
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters.iter() {
@@ -625,6 +627,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, child_definition);
+            }
+            if let Some(body) = body {
+                let body_expression = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_expression);
             }
         }
         Definition::Implement {

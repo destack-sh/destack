@@ -1,6 +1,5 @@
 use crate::{
-    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
-    UseItem, Variant, Visibility, WhereClause, WithClause,
+    Expression, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, UseItem, Variant, Visibility, WhereClause, WithClause
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -101,6 +100,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         runtime: Runtime,
+        style: FunctionStyle,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         self_parameter: Option<SelfParameter>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
@@ -108,6 +108,7 @@ pub enum Definition {
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
+        body: Option<NodeId<Expression>>,
     },
     /// Implement definition.
     Implement {
@@ -215,4 +216,13 @@ impl Node for Definition {
 pub struct SelfParameter {
     pub mutability: ScopedMutability,
     pub is_reference: bool,
+}
+
+/// The style of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionStyle {
+    /// Function with a body.
+    Function,
+    /// Lambda function with a return type.
+    Lambda,
 }

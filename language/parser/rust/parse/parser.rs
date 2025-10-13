@@ -13,12 +13,20 @@ use dyst_session::Session;
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
-    /// Whether we're parsing inside a type.
-    pub in_type: bool = false,
     /// Whether we're parsing inside a static argument (`<...>`).
     /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
+    /// Whether we're parsing inside a type.
+    /// Type context eagerly evaluates some constructs to their type-ish variants.
+    pub in_type: bool = false,
+    /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
+    /// Disallows binding patterns in these cases to avoid ambiguity with type annotations.
+    pub in_before_type: bool = false,
+    /// Whether we're parsing inside a match case.
+    /// Disallows lambda functions to avoid ambiguity with match cases (`=>`).
+    pub in_match_case: bool = false,
     /// Whether we're parsing a union pattern.
+    /// Ignore elementwise infix operations in union patterns to avoid ambiguity with `|`
     pub in_union_pattern: bool = false,
     /// Whether we're in parenthesized expression (`(..)`, directly).
     /// These expressions might be tuple literals if followed by a comma.
@@ -26,14 +34,11 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
     /// Disallows struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub in_before_block: bool = false,
-    /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
-    /// Disallows certain patterns in these cases to avoid ambiguity with type annotations.
-    pub in_before_type: bool = false,
-    /// Whether we're in a tree fragment.
+    /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
-    pub in_tree: bool = false,
+    pub in_tree_literal: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
-    /// Determines operator lifting / grouping.
+    /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u8> = None,
 }
 
@@ -93,9 +98,17 @@ impl ParserOptions {
     }
 
     /// Adapt and reset options for a tree fragment.
-    pub(crate) fn in_tree_fragment(self) -> Self {
+    pub(crate) fn in_tree_literal(self) -> Self {
         Self {
-            in_tree: true,
+            in_tree_literal: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for a match case.
+    pub(crate) fn in_match_case(self) -> Self {
+        Self {
+            in_match_case: true,
             ..self
         }
     }
@@ -109,7 +122,8 @@ impl ParserOptions {
             in_parenthesis: false,
             in_before_block: true,
             in_before_type: false,
-            in_tree: false,
+            in_match_case: false,
+            in_tree_literal: false,
             left_precedence: None,
         }
     }
@@ -123,7 +137,8 @@ impl ParserOptions {
             in_parenthesis: false,
             in_before_block: true,
             in_before_type: false,
-            in_tree: false,
+            in_match_case: false,
+            in_tree_literal: false,
             left_precedence: None,
         }
     }
@@ -136,7 +151,8 @@ impl ParserOptions {
             in_parenthesis: true,
             in_union_pattern: false,
             in_before_type: false,
-            in_tree: false,
+            in_match_case: false,
+            in_tree_literal: false,
             left_precedence: None,
             ..self
         }
@@ -149,7 +165,8 @@ impl ParserOptions {
             in_static: false,
             in_parenthesis: false,
             in_union_pattern: false,
-            in_tree: false,
+            in_match_case: false,
+            in_tree_literal: false,
             left_precedence: None,
             ..self
         }

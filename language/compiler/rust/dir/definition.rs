@@ -400,7 +400,7 @@ impl<'a> Compiler<'a> {
                 name,
                 visibility,
                 runtime,
-                style: _,
+                style,
                 self_parameter,
                 dynamic_parameters,
                 return_type,
@@ -412,6 +412,7 @@ impl<'a> Compiler<'a> {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let runtime = self.lower_runtime(*runtime);
+                let style = self.lower_function_style(*style);
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -441,11 +442,15 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let definitions = vec![]; // not sure?
+                let body = body
+                    .as_ref()
+                    .map(|body| self.lower_expression(source_id, ast, *body));
                 self.tree.insert(
                     Definition::Function {
                         name,
                         visibility,
                         runtime,
+                        style,
                         static_parameters,
                         self_parameter,
                         dynamic_parameters,
@@ -453,6 +458,7 @@ impl<'a> Compiler<'a> {
                         with_clauses,
                         where_clauses,
                         definitions,
+                        body,
                     },
                     source_id,
                     definition_id,
