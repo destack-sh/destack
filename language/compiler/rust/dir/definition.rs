@@ -21,8 +21,7 @@ impl<'a> Compiler<'a> {
             ast::Expression::Use {
                 visibility,
                 clauses,
-                body,
-            } if body.is_none() => {
+            } => {
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let items = clauses
                     .iter()

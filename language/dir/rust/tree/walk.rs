@@ -131,15 +131,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Use {
             visibility: _,
             items,
-            body,
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_use_item(tree, *item_id, item);
-            }
-            if let Some(body_id) = body {
-                let block = tree.get(*body_id);
-                visitor.visit_block(tree, *body_id, block);
             }
         }
         Expression::Let {

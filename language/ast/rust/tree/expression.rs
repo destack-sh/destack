@@ -50,15 +50,10 @@ pub enum Expression {
     /// use foo.{bar, baz}
     /// use foo.{} // valid but linted
     /// use foo as baz
-    ///
-    /// use destack as ds {
-    ///   ...
-    /// }
     /// ```
     Use {
         visibility: Option<Visibility>,
         clauses: Vec<NodeId<UseClause>>,
-        body: Option<NodeId<Block>>,
     },
 
     /// Let or var binding for constant or mutable variables.

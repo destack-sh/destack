@@ -1065,7 +1065,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Use {
                 visibility,
                 clauses: _,
-                body: _,
             } => {
                 self.node("Expression::Use", _id.id)
                     .field_optional("visibility", visibility)
