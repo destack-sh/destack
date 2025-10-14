@@ -579,7 +579,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // for clause
                 if let Some(for_type) = for_type {
-                    write!(f, [space(), Keyword::For, space(), for_type])?;
+                    write!(f, [token(":"), space(), for_type])?;
                 }
 
                 // with

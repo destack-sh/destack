@@ -13,11 +13,11 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> for Baz {
+    /// implement Bar<int32>: Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T> for Baz {
+    /// implement<T> Bar<T>: Baz {
     ///     ...
     /// }
     /// ```
@@ -36,8 +36,8 @@ impl<'a> Parser<'a> {
         })?;
 
         // for
-        let for_type = if self.peek_keyword(Keyword::For).is_ok() {
-            self.bump(); // eat for
+        let for_type = if self.peek_keyword(Keyword::For).is_ok() || self.peek_colon().is_ok() {
+            self.bump(); // eat for or colon
             let for_type = self.with_options(self.options.in_before_block(), |parser| {
                 parser.eat_expression()
             })?;
@@ -148,7 +148,7 @@ implement Foo<int32> {
     fn test_parse_implement_for_type() {
         let mut test = TestParser::new(
             r###"
-implement Bar<int32> for Baz {
+implement Bar<int32>: Baz {
 }
 "###,
         );
@@ -187,7 +187,7 @@ implement Bar<int32> for Baz {
     fn test_parse_implement_with_static_parameters() {
         let mut test = TestParser::new(
             r###"
-implement<U> Bar<T> for Baz<T> {
+implement<U> Bar<T>: Baz<T> {
 }
 "###,
         );
@@ -222,7 +222,7 @@ implement<U> Bar<T> for Baz<T> {
                 });
             });
 
-            // for Baz<T>
+            // : Baz<T>
             assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");

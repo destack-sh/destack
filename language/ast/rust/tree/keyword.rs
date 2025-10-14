@@ -115,6 +115,10 @@ pub enum Keyword {
     Dynamic,
     /// Virtual expression (reserved).
     Virtual,
+    /// Typeof expression (reserved).
+    Typeof,
+    /// Any expression (reserved).
+    Any,
 }
 
 impl Keyword {
@@ -177,6 +181,8 @@ impl Keyword {
             Keyword::Constructor => "constructor",
             Keyword::Dynamic => "dynamic",
             Keyword::Virtual => "virtual",
+            Keyword::Typeof => "typeof",
+            Keyword::Any => "any",
         }
     }
 }
@@ -242,6 +248,8 @@ impl FromStr for Keyword {
             "constructor" => Ok(Keyword::Constructor),
             "dynamic" => Ok(Keyword::Dynamic),
             "virtual" => Ok(Keyword::Virtual),
+            "typeof" => Ok(Keyword::Typeof),
+            "any" => Ok(Keyword::Any),
             _ => Err(()),
         }
     }

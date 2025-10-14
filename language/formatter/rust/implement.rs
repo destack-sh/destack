@@ -16,8 +16,8 @@ mod tests {
     #[test]
     fn test_format_implement_with_for() {
         assert_format!(
-            "implement Foo for Bar { let X = 1 }",
-            "implement Foo for Bar {\n\tlet X = 1\n}",
+            "implement Foo: Bar { let X = 1 }",
+            "implement Foo: Bar {\n\tlet X = 1\n}",
             |p| p.eat_implement(),
             DystFormatOptions::default_tab()
         );

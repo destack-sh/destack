@@ -70,7 +70,7 @@ pub enum Type {
         mutability: ScopedMutability,
         target: NodeId<Type>,
     },
-    /// Virtual type `$T`.
+    /// Virtual type `$T` (any subtype or Into<T>).
     Virtual(NodeId<Type>),
 
     /// Variadic type `..T`. Behaves like a slice/array.

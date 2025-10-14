@@ -225,11 +225,11 @@ pub enum Definition {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> for Baz {
+    /// implement Bar<int32>: Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T> for Baz {
+    /// implement<T> Bar<T>: Baz {
     ///     ...
     /// }
     /// ```
