@@ -81,11 +81,11 @@ implement Board {
                 // remove this line
                 self.cells.remove(y)
                 // add new empty line at top
-                let newRow: Cell[] = Cell[self.width]
+                let newRow: List<Cell> = Cell[self.width]
                 for x in 0..self.width {
                     newRow.push(Cell { isFilled: false, color: null })
                 }
-                self.cells.insert(0, newRow)
+                self.cells.append(0, newRow)
                 linesCleared += 1
             } else {
                 y -= 1
@@ -109,7 +109,7 @@ struct TetrisGame {
     dropInterval: float32 = 1.0
 }
 
-implement Context for TetrisGame { }
+implement Context: TetrisGame { }
 
 /// The shape of a Tetris piece.
 enum TetrisPieceShape {
@@ -475,7 +475,7 @@ implement TetrisGame {
     }
 }
 
-implement Tick for TetrisGame {
+implement Tick: TetrisGame {
     function tick(&var self) with Time, &Random {
         // spawn initial piece if needed
         if self.currentPiece == null {
@@ -502,6 +502,6 @@ implement Tick for TetrisGame {
     }
 }
 
-implement Draw for TetrisGame {
+implement Draw: TetrisGame {
     function draw(self) { }
 }
