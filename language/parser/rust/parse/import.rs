@@ -127,12 +127,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an import clause.
-    pub(crate) fn peek_import_clause(&mut self) -> ParserResult<NodeId<ImportClause>> {
+    pub(crate) fn peek_import_clause(&mut self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Multiply).is_ok()
             || self.peek_token(TokenType::Identifier).is_ok()
         {
-            Ok(self.eat_import_clause()?)
+            Ok(())
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
         }
