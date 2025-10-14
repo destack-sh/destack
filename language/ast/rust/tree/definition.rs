@@ -215,7 +215,7 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// An Implement defines the implementation of a concrete type.
+    /// An Implement defines the implementation of a concrete type, optionally for some interface.
     /// There may be multiple Impls for the same type, and even impls for different modules.
     /// (To add a module's implementation to your own just use the corresponding module.)
     ///

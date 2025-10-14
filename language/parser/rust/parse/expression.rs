@@ -209,12 +209,19 @@ impl<'a> Parser<'a> {
         // export
         let export = if self.peek_keyword(Keyword::Export).is_ok() {
             self.bump(); // eat export
-            if self.peek_keyword(Keyword::Default).is_ok() {
+            let mode = if self.peek_keyword(Keyword::Default).is_ok() {
                 self.bump(); // eat default
                 Some(ExportMode::Default)
             } else {
                 Some(ExportMode::Item)
+            };
+
+            // bail if immediately followed by import items
+            if self.peek_import_clause().is_ok() {
+                return self.eat_export(mode);
             }
+
+            mode
         } else {
             None
         };

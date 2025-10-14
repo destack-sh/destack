@@ -336,7 +336,6 @@ impl<'a> Parser<'a> {
             let next_token_ty = self.tokens[current_pos as usize + 1].token.ty;
             match (token_ty, next_token_ty) {
                 (TokenType::Identifier, TokenType::Colon)
-                | (TokenType::Identifier, TokenType::Assign)
                 | (TokenType::Range, TokenType::Identifier)
                 | (TokenType::RangeWide, TokenType::Identifier) => {
                     return Ok(());

@@ -126,6 +126,18 @@ impl<'a> Parser<'a> {
         Ok(clauses)
     }
 
+    /// Peek an import clause.
+    pub(crate) fn peek_import_clause(&mut self) -> ParserResult<NodeId<ImportClause>> {
+        if self.peek_token(TokenType::OpenBrace).is_ok()
+            || self.peek_token(TokenType::Multiply).is_ok()
+            || self.peek_token(TokenType::Identifier).is_ok()
+        {
+            Ok(self.eat_import_clause()?)
+        } else {
+            Err(ParserError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat a single import clause (like `foo`, `foo as bar`, `foo.{a, b}`).
     ///
     /// Examples:
@@ -137,7 +149,7 @@ impl<'a> Parser<'a> {
     /// * from foo
     /// * as foo from foo
     /// ```
-    fn eat_import_clause(&mut self) -> ParserResult<NodeId<ImportClause>> {
+    pub(crate) fn eat_import_clause(&mut self) -> ParserResult<NodeId<ImportClause>> {
         let start = self.mark();
 
         let (target, alias, items) = {
@@ -246,7 +258,7 @@ impl<'a> Parser<'a> {
     /// geometry
     /// geometry as geom
     /// ```
-    pub fn eat_import_item(&mut self) -> ParserResult<NodeId<ImportItem>> {
+    pub(crate) fn eat_import_item(&mut self) -> ParserResult<NodeId<ImportItem>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
         let alias = if self.peek_identifier().is_ok() || self.peek_token(TokenType::Colon).is_ok() {
