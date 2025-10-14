@@ -764,13 +764,161 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause};
+    use dyst_ast::{Definition, ExportMode, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause};
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, BinaryOperator, Expression, Mutability, Pattern, Runtime, ScalarLiteral,
-        ScopedMutability, UnaryOperator, assert_expr_path, assert_node, assert_path, assert_string,
+        Argument, BinaryOperator, Expression, ImportClause, ImportItem, Mutability, Pattern,
+        Runtime, ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_node,
+        assert_path, assert_string,
     };
+
+    /// Parse `export foo, bar` through the expression parser.
+    #[test]
+    fn test_parse_export_expression_multiple_clauses() {
+        let mut test = TestParser::new("export foo, bar");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // export foo, bar
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
+            assert_eq!(*mode, ExportMode::Item);
+            assert_eq!(clauses.len(), 2);
+            // export foo
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                assert!(items.is_none());
+                assert_path!(parser, *target, "foo");
+            });
+            // export bar
+            assert_node!(parser.tree, clauses[1], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                assert!(items.is_none());
+                assert_path!(parser, *target, "bar");
+            });
+        });
+    }
+
+    /// Parse `export { bar, baz } from foo` through the expression parser.
+    #[test]
+    fn test_parse_export_expression_with_items_block() {
+        let mut test = TestParser::new("export { bar, baz } from foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // export { bar, baz } from foo
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
+            assert_eq!(*mode, ExportMode::Item);
+            assert_eq!(clauses.len(), 1);
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                let items = items.as_ref().expect("expected items");
+                assert_eq!(items.len(), 2);
+                // export bar
+                assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
+                    assert_string!(parser, *name, "bar");
+                    assert!(alias.is_none());
+                });
+                // export baz
+                assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
+                    assert_string!(parser, *name, "baz");
+                    assert!(alias.is_none());
+                });
+                assert_path!(parser, *target, "foo");
+            });
+        });
+    }
+
+    /// Parse `export * as baz from foo` through the expression parser.
+    #[test]
+    fn test_parse_export_expression_star_alias() {
+        let mut test = TestParser::new("export * as baz from foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // export * as baz from foo
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
+            assert_eq!(*mode, ExportMode::Item);
+            assert_eq!(clauses.len(), 1);
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert_string!(parser, alias.unwrap(), "baz");
+                assert!(items.is_none());
+                assert_path!(parser, *target, "foo");
+            });
+        });
+    }
+
+    /// Parse `import foo, bar` through the expression parser.
+    #[test]
+    fn test_parse_import_expression_multiple_clauses() {
+        let mut test = TestParser::new("import foo, bar");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // import foo, bar
+        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
+            assert_eq!(clauses.len(), 2);
+            // import foo
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                assert!(items.is_none());
+                assert_path!(parser, *target, "foo");
+            });
+            // import bar
+            assert_node!(parser.tree, clauses[1], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                assert!(items.is_none());
+                assert_path!(parser, *target, "bar");
+            });
+        });
+    }
+
+    /// Parse `import { bar, baz } from foo` through the expression parser.
+    #[test]
+    fn test_parse_import_expression_with_items_block() {
+        let mut test = TestParser::new("import { bar, baz } from foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // import { bar, baz } from foo
+        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
+            assert_eq!(clauses.len(), 1);
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert!(alias.is_none());
+                let items = items.as_ref().expect("expected items");
+                assert_eq!(items.len(), 2);
+                // import bar
+                assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
+                    assert_string!(parser, *name, "bar");
+                    assert!(alias.is_none());
+                });
+                // import baz
+                assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
+                    assert_string!(parser, *name, "baz");
+                    assert!(alias.is_none());
+                });
+                assert_path!(parser, *target, "foo");
+            });
+        });
+    }
+
+    /// Parse `import * as baz from foo` through the expression parser.
+    #[test]
+    fn test_parse_import_expression_star_alias() {
+        let mut test = TestParser::new("import * as baz from foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // import * as baz from foo
+        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
+            assert_eq!(clauses.len(), 1);
+            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+                assert_string!(parser, alias.unwrap(), "baz");
+                assert!(items.is_none());
+                assert_path!(parser, *target, "foo");
+            });
+        });
+    }
 
     /// Parse an empty parenthesis as a tuple literal.
     #[test]
