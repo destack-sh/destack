@@ -12,7 +12,7 @@ pub struct Token {
     /// The length of the token in bytes.
     pub len: u32,
     /// The literal body of the token.
-    pub body: Option<RawLiteralType> = None,
+    pub literal: Option<LiteralType> = None,
 }
 
 impl Display for Token {
@@ -22,15 +22,15 @@ impl Display for Token {
 }
 
 impl Token {
-    pub const fn new(ty: TokenType, len: u32, body: Option<RawLiteralType>) -> Token {
-        Token { ty, len, body }
+    pub const fn new(ty: TokenType, len: u32, literal: Option<LiteralType>) -> Token {
+        Token { ty, len, literal }
     }
 
     pub const fn eof() -> Token {
         Token {
             ty: TokenType::End,
             len: 0,
-            body: None,
+            literal: None,
         }
     }
 }
@@ -83,10 +83,10 @@ pub enum TokenType {
     Range,
     /// `...`
     RangeWide,
-    /// `=>`
-    FatArrow,
     /// `->`
-    ThinArrow,
+    Arrow,
+    /// `=>`
+    ArrowWide,
     /// `@`
     At,
     /// `#`
@@ -161,8 +161,12 @@ pub enum TokenType {
     // comparison
     /// `==`
     Equal,
+    /// `===`
+    EqualWide,
     /// `!=`
     NotEqual,
+    /// `!==`
+    NotEqualWide,
     /// `<`
     LessThan,
     /// `<=`
@@ -260,8 +264,8 @@ impl Display for TokenType {
             TokenType::Dot => write!(f, "."),
             TokenType::Range => write!(f, ".."),
             TokenType::RangeWide => write!(f, "..."),
-            TokenType::FatArrow => write!(f, "=>"),
-            TokenType::ThinArrow => write!(f, "->"),
+            TokenType::Arrow => write!(f, "->"),
+            TokenType::ArrowWide => write!(f, "=>"),
             TokenType::At => write!(f, "@"),
             TokenType::Tag => write!(f, "#"),
             TokenType::ElementwiseNot => write!(f, "~"),
@@ -304,7 +308,9 @@ impl Display for TokenType {
 
             // comparison
             TokenType::Equal => write!(f, "=="),
+            TokenType::EqualWide => write!(f, "==="),
             TokenType::NotEqual => write!(f, "!="),
+            TokenType::NotEqualWide => write!(f, "!=="),
             TokenType::LessThan => write!(f, "<"),
             TokenType::LessThanOrEqual => write!(f, "<="),
             TokenType::GreaterThan => write!(f, ">"),
@@ -349,9 +355,9 @@ impl Display for TokenType {
     }
 }
 
-/// "Raw" Literal Token for literal, scalar values.
+/// Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum RawLiteralType {
+pub enum LiteralType {
     /// Boolean
     Boolean { value: bool },
     /// 12, 0o100, 0x (is_empty), 0b120, 1.0

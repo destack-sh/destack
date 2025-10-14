@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use crate::{
-    Argument, Definition, EnumField, Keyword, Node, NodeId, NodeTree, NodeVisitor, Parameter,
-    PatternField, RawLiteralType, TokenSpan, TokenType, UnionField, VariantField, walk_argument,
+    Argument, Definition, EnumField, Keyword, LiteralType, Node, NodeId, NodeTree, NodeVisitor,
+    Parameter, PatternField, TokenSpan, TokenType, UnionField, VariantField, walk_argument,
     walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_union_field,
     walk_variant_field,
 };
@@ -58,27 +58,25 @@ impl SemanticType {
 
             // literals
             TokenType::Literal => {
-                if let Some(literal) = token.token.body {
+                if let Some(literal) = token.token.literal {
                     match literal {
-                        RawLiteralType::Boolean { value: _ } => SemanticType::LiteralNumbery,
-                        RawLiteralType::Int {
+                        LiteralType::Boolean { value: _ } => SemanticType::LiteralNumbery,
+                        LiteralType::Int {
                             base: _,
                             is_empty: _,
                         } => SemanticType::LiteralNumbery,
-                        RawLiteralType::Float {
+                        LiteralType::Float {
                             base: _,
                             is_empty_exponent: _,
                         } => SemanticType::LiteralNumbery,
-                        RawLiteralType::Character { is_terminated: _ } => {
+                        LiteralType::Character { is_terminated: _ } => SemanticType::LiteralStringy,
+                        LiteralType::Byte { is_terminated: _ } => SemanticType::LiteralStringy,
+                        LiteralType::String { is_terminated: _ } => SemanticType::LiteralStringy,
+                        LiteralType::ByteString { is_terminated: _ } => {
                             SemanticType::LiteralStringy
                         }
-                        RawLiteralType::Byte { is_terminated: _ } => SemanticType::LiteralStringy,
-                        RawLiteralType::String { is_terminated: _ } => SemanticType::LiteralStringy,
-                        RawLiteralType::ByteString { is_terminated: _ } => {
-                            SemanticType::LiteralStringy
-                        }
-                        RawLiteralType::RawString { hashes: _ } => SemanticType::LiteralStringy,
-                        RawLiteralType::RawByteString { hashes: _ } => SemanticType::LiteralStringy,
+                        LiteralType::RawString { hashes: _ } => SemanticType::LiteralStringy,
+                        LiteralType::RawByteString { hashes: _ } => SemanticType::LiteralStringy,
                     }
                 } else {
                     SemanticType::LiteralStringy
@@ -93,8 +91,8 @@ impl SemanticType {
             | TokenType::Dot
             | TokenType::Range
             | TokenType::RangeWide
-            | TokenType::FatArrow
-            | TokenType::ThinArrow
+            | TokenType::Arrow
+            | TokenType::ArrowWide
             | TokenType::At
             | TokenType::Tag
             | TokenType::ElementwiseNot
@@ -133,7 +131,9 @@ impl SemanticType {
 
             // comparison operators
             TokenType::Equal
+            | TokenType::EqualWide
             | TokenType::NotEqual
+            | TokenType::NotEqualWide
             | TokenType::LessThan
             | TokenType::LessThanOrEqual
             | TokenType::GreaterThan

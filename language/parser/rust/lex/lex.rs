@@ -3,7 +3,7 @@
 use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 
 use super::tokenizer::{EOF_CHAR, Tokenizer};
-use dyst_ast::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
+use dyst_ast::{LiteralType, NumberBase, RawStringError, Token, TokenType};
 
 use destack_unicode::UnicodeEmoji;
 use dyst_source::{SourceId, Span};
@@ -149,7 +149,7 @@ impl Tokenizer<'_> {
                 // raw string literal
                 ('#', _) | ('"', _) => {
                     let raw_dq_string = self.eat_raw_double_quoted_string(1);
-                    let literal = RawLiteralType::RawString {
+                    let literal = LiteralType::RawString {
                         hashes: raw_dq_string.ok(),
                     };
                     (TokenType::Literal, Some(literal))
@@ -169,7 +169,7 @@ impl Tokenizer<'_> {
                         let is_terminated = this.eat_single_quoted_string();
                         (
                             TokenType::Literal,
-                            Some(RawLiteralType::Byte { is_terminated }),
+                            Some(LiteralType::Byte { is_terminated }),
                         )
                     }
                     // b"
@@ -179,7 +179,7 @@ impl Tokenizer<'_> {
                         let is_terminated = this.eat_double_quoted_string();
                         (
                             TokenType::Literal,
-                            Some(RawLiteralType::ByteString { is_terminated }),
+                            Some(LiteralType::ByteString { is_terminated }),
                         )
                     }
                     // br" or br#
@@ -189,7 +189,7 @@ impl Tokenizer<'_> {
                         let raw_dq_string = this.eat_raw_double_quoted_string(2);
                         (
                             TokenType::Literal,
-                            Some(RawLiteralType::RawByteString {
+                            Some(LiteralType::RawByteString {
                                 hashes: raw_dq_string.ok(),
                             }),
                         )
@@ -265,7 +265,15 @@ impl Tokenizer<'_> {
                 // !=
                 if self.peek() == '=' {
                     self.bump();
-                    (TokenType::NotEqual, None)
+                    // !==
+                    if self.peek() == '=' {
+                        self.bump();
+                        (TokenType::NotEqualWide, None)
+                    }
+                    // !=
+                    else {
+                        (TokenType::NotEqual, None)
+                    }
                 }
                 // !
                 else {
@@ -278,7 +286,7 @@ impl Tokenizer<'_> {
                 // ->
                 if self.peek() == '>' {
                     self.bump();
-                    (TokenType::ThinArrow, None)
+                    (TokenType::Arrow, None)
                 }
                 // -%
                 else if self.peek() == '%' {
@@ -374,12 +382,20 @@ impl Tokenizer<'_> {
                 // =>
                 if self.peek() == '>' {
                     self.bump();
-                    (TokenType::FatArrow, None)
+                    (TokenType::ArrowWide, None)
                 }
                 // ==
                 else if self.peek() == '=' {
                     self.bump();
-                    (TokenType::Equal, None)
+                    // ===
+                    if self.peek() == '=' {
+                        self.bump();
+                        (TokenType::EqualWide, None)
+                    }
+                    // ==
+                    else {
+                        (TokenType::Equal, None)
+                    }
                 }
                 // =
                 else {
@@ -552,7 +568,7 @@ impl Tokenizer<'_> {
             // character literal
             '\'' => {
                 let terminated = self.eat_single_quoted_string();
-                let kind = RawLiteralType::Character {
+                let kind = LiteralType::Character {
                     is_terminated: terminated,
                 };
                 (TokenType::Literal, Some(kind))
@@ -561,7 +577,7 @@ impl Tokenizer<'_> {
             // string literal
             '"' => {
                 let terminated = self.eat_double_quoted_string();
-                let kind = RawLiteralType::String {
+                let kind = LiteralType::String {
                     is_terminated: terminated,
                 };
                 (TokenType::Literal, Some(kind))
@@ -586,7 +602,7 @@ impl Tokenizer<'_> {
 
     /// Parses an identifier, unknown prefix or some literal string (excluding first character).
     /// Returns the token type and the literal type if it's a hardcoded literal.
-    fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<RawLiteralType>) {
+    fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<LiteralType>) {
         debug_assert!(is_identifier_start(first_char));
         let start_pos = self.pos;
         // consume continuation characters until an unknown character is met
@@ -603,14 +619,14 @@ impl Tokenizer<'_> {
         if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
             (
                 TokenType::Literal,
-                Some(RawLiteralType::Boolean { value: true }),
+                Some(LiteralType::Boolean { value: true }),
             )
         }
         // false
         else if first_char == 'f' && self.str[start_pos - 1..self.pos].eq("false") {
             (
                 TokenType::Literal,
-                Some(RawLiteralType::Boolean { value: false }),
+                Some(LiteralType::Boolean { value: false }),
             )
         }
         // just an identifier
@@ -633,7 +649,7 @@ impl Tokenizer<'_> {
 
     /// Parses a number literal (excluding first digit).
     /// Returns the number literal.
-    fn eat_number_literal(&mut self, first_digit: char) -> RawLiteralType {
+    fn eat_number_literal(&mut self, first_digit: char) -> LiteralType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
@@ -644,7 +660,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Binary;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return RawLiteralType::Int {
+                        return LiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -656,7 +672,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Octal;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return RawLiteralType::Int {
+                        return LiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -668,7 +684,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Hexadecimal;
                     self.bump();
                     if !self.eat_hexadecimal_digits() {
-                        return RawLiteralType::Int {
+                        return LiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -685,7 +701,7 @@ impl Tokenizer<'_> {
 
                 // just a 0
                 _ => {
-                    return RawLiteralType::Int {
+                    return LiteralType::Int {
                         base,
                         is_empty: false,
                     };
@@ -714,7 +730,7 @@ impl Tokenizer<'_> {
                         _ => (),
                     }
                 }
-                RawLiteralType::Float {
+                LiteralType::Float {
                     base,
                     is_empty_exponent,
                 }
@@ -722,12 +738,12 @@ impl Tokenizer<'_> {
             'e' | 'E' => {
                 self.bump();
                 let is_empty_exponent = !self.eat_float_exponent();
-                RawLiteralType::Float {
+                LiteralType::Float {
                     base,
                     is_empty_exponent,
                 }
             }
-            _ => RawLiteralType::Int {
+            _ => LiteralType::Int {
                 base,
                 is_empty: false,
             },
