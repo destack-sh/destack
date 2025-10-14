@@ -16,6 +16,15 @@ pub struct CompilerOptions {
     pub default_float_width: u16 = 32,
 }
 
+/// The mode the compiler is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CompilerMode {
+    Parsed,
+    Compiling,
+    Compiled,
+    Finalized,
+}
+
 /// A compiler for a Dyst package containing related Dyst sources.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
@@ -32,8 +41,8 @@ pub struct Compiler<'s> {
     pub strings: StringPool,
     /// The options for compiling the Package.
     pub options: CompilerOptions,
-    /// Whether the compiler has been finalized.
-    pub is_finalized: bool,
+    /// The mode the compiler is in.
+    pub mode: CompilerMode,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -48,7 +57,7 @@ impl<'s> Compiler<'s> {
             tree: NodeTree::new(),
             strings: StringPool::new(),
             options,
-            is_finalized: false,
+            mode: CompilerMode::Parsed,
         }
     }
 
@@ -97,8 +106,8 @@ impl<'s> Compiler<'s> {
 
     /// Finalize the compiler.
     pub fn finalize(&mut self) {
-        assert!(!self.is_finalized, "already finalized");
+        assert!(self.mode == CompilerMode::Compiled);
         self.attach_all_annotations();
-        self.is_finalized = true;
+        self.mode = CompilerMode::Finalized;
     }
 }

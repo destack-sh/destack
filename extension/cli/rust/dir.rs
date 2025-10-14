@@ -110,6 +110,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         .get_ast_by_source_id(source_id)
         .unwrap_or_else(|| panic!("document ast not found: {source_id:?} in {workspace:?}"));
     let definition_id = compiler.lower_definition(source_id, dir_tree, definition_id);
+    compiler.compile();
     compiler.finalize();
 
     // dump the DIR
