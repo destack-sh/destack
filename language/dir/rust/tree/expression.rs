@@ -23,7 +23,7 @@ pub enum Expression {
         visibility: Option<Visibility>,
         items: Vec<NodeId<ImportItem>>,
     },
-    // NOTE #Incomplete: `export` modifier (and export expression?)
+    // nocheckin: export expression & modifier
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: ScopedMutability,

@@ -63,6 +63,8 @@ pub enum Expression {
         clauses: Vec<NodeId<ImportClause>>,
     },
 
+    // nocheckin: export statement & modifier
+
     /// Let or var binding for constant or mutable variables.
     /// Both let and var may destructure and pattern match.
     ///

@@ -85,8 +85,8 @@ impl<'a> Parser<'a> {
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
-            if self.peek_item_stop().is_ok() {
-                self.eat_item_stop_with_newlines()?;
+            if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
             } else {
                 break;
             }
@@ -105,6 +105,7 @@ impl<'a> Parser<'a> {
     /// Eat static parameters (including the `<` and `>` tokens).
     pub fn eat_static_parameters(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
         self.eat_token(TokenType::LessThan)?;
+        self.eat_newlines_maybe()?;
 
         // empty static parameters
         if self.peek_token(TokenType::GreaterThan).is_ok() {
@@ -131,6 +132,8 @@ impl<'a> Parser<'a> {
     /// Eat dynamic parameters (including the `(` and `)` tokens).
     pub fn eat_dynamic_parameters(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
+
         // empty dynamic parameters
         if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             self.bump(); // eat close parenthesis
@@ -266,8 +269,8 @@ impl<'a> Parser<'a> {
         loop {
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
-            if self.peek_item_stop().is_ok() {
-                self.eat_item_stop_with_newlines()?;
+            if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
             } else {
                 break;
             }
