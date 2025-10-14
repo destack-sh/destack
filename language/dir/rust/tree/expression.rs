@@ -107,7 +107,10 @@ pub enum Expression {
     /// Array creation.
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
     /// Tuple creation.
-    TupleLiteral { elements: Vec<NodeId<Argument>> },
+    TupleLiteral {
+        ty: Option<NodeId<Type>>,
+        elements: Vec<NodeId<Argument>>,
+    },
     /// Struct creation.
     StructLiteral {
         ty: Option<NodeId<Type>>,

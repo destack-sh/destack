@@ -40,7 +40,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["dir", "--file", "library/entity/entity.ds"],
+            "args": ["dir", "--file", "library/view/view.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         }
