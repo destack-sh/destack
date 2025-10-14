@@ -314,7 +314,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Use {
                 visibility,
                 clauses,
-                body,
             } => {
                 // visibility
                 if let Some(visibility) = visibility {
@@ -336,11 +335,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         first = false;
                         write!(f, [*clause])?;
                     }
-                }
-
-                // scoped body
-                if let Some(body) = body {
-                    write!(f, [space(), body])?;
                 }
             }
 

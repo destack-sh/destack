@@ -22,7 +22,6 @@ pub enum Expression {
     Use {
         visibility: Option<Visibility>,
         items: Vec<NodeId<UseItem>>,
-        body: Option<NodeId<Block>>,
     },
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {

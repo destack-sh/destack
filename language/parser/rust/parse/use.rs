@@ -31,18 +31,10 @@ impl<'a> Parser<'a> {
             parser.eat_use_clauses()
         })?;
 
-        // body
-        let body = if self.peek_block().is_ok() {
-            Some(self.eat_block()?)
-        } else {
-            None
-        };
-
         // use
         let use_id = self.tree.insert(
             Expression::Use {
                 clauses,
-                body,
                 visibility,
             },
             self.get_span_from(start),
@@ -196,8 +188,7 @@ mod tests {
         let use_id = parser.eat_use(None).unwrap();
 
         // use
-        assert_node!(parser.tree, use_id, Expression::Use { body, visibility, clauses } => {
-            assert_eq!(*body, None);
+        assert_node!(parser.tree, use_id, Expression::Use { visibility, clauses } => {
             assert_eq!(*visibility, None);
             assert_eq!(clauses.len(), 1);
             // use dyst
@@ -216,9 +207,8 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // use core.memory
-        assert_node!(parser.tree, expression_id, Expression::Use { visibility, body, clauses } => {
+        assert_node!(parser.tree, expression_id, Expression::Use { visibility, clauses } => {
             assert!(visibility.is_none());
-            assert!(body.is_none());
             assert_eq!(clauses.len(), 1);
 
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
@@ -301,8 +291,7 @@ mod tests {
         let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
         // use dyst, dyst
-        assert_node!(parser.tree, use_id, Expression::Use { body, clauses, .. } => {
-            assert_eq!(*body, None);
+        assert_node!(parser.tree, use_id, Expression::Use { clauses, .. } => {
             assert_eq!(clauses.len(), 2);
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, .. } => {
