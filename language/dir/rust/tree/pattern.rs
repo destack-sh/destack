@@ -51,7 +51,6 @@ impl Node for Pattern {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
-    // nocheckin: replace name StringIds with something resolvable
     Named {
         mutability: Option<Mutability>,
         name: StringId,

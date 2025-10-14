@@ -255,7 +255,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .map(|element| self.lower_argument(source_id, ast, *element))
                     .collect();
-                Expression::TupleLiteral { elements }
+                Expression::TupleLiteral { ty: None, elements }
             }
             ast::Expression::ArrayLiteral { elements } => {
                 let elements = elements

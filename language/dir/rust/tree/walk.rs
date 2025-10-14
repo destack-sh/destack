@@ -251,7 +251,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *element_id, element);
             }
         }
-        Expression::TupleLiteral { elements } => {
+        Expression::TupleLiteral { ty, elements } => {
+            if let Some(ty_id) = ty {
+                let ty_node = tree.get(*ty_id);
+                visitor.visit_type(tree, *ty_id, ty_node);
+            }
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);

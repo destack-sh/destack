@@ -1238,7 +1238,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ArrayLiteral { elements: _ } => {
                 self.node("Expression::ArrayLiteral", id.id).end();
             }
-            Expression::TupleLiteral { elements: _ } => {
+            Expression::TupleLiteral { ty: _, elements: _ } => {
                 self.node("Expression::TupleLiteral", id.id).end();
             }
             Expression::StructLiteral { ty: _, fields: _ } => {

@@ -99,19 +99,18 @@ impl Workspace {
         // find containing root
         let root_uri = {
             // loop until we find the `package.dst` file in the directory
-            let mut current = uri.to_file_path();
+            let mut current_path = uri.to_file_path();
             let mut root_uri = None;
-            while let Some(current_path) = current {
-                if current_path.is_dir() {
-                    let package_file = current_path.join(PACKAGE_FILE_NAME);
+            while let Some(current_dir) = current_path {
+                if current_dir.is_dir() {
+                    let package_file = current_dir.join(PACKAGE_FILE_NAME);
                     if package_file.exists() {
-                        let root_dir = current_path.canonicalize()?;
+                        let root_dir = current_dir.canonicalize()?;
                         root_uri = Some(Uri::from_file_path(root_dir));
                         break;
                     }
-                } else {
-                    current = current_path.parent();
                 }
+                current_path = current_dir.parent();
             }
             root_uri
         };
