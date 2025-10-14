@@ -115,8 +115,8 @@ pub enum Definition {
     /// Implement definition.
     Implement {
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        receiver: NodeId<Type>,
-        for_type: Option<NodeId<Type>>,
+        target_type: NodeId<Type>,
+        super_type: Option<NodeId<Type>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,

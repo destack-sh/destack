@@ -116,7 +116,7 @@ implement Vector2 {
     }
 }
 
-implement Numeric<float32> for Vector2 {
+implement Vector2: Numeric<float32> {
     function add(self, other: float32) => Vector2 {
         Vector2 { x: self.x + other, y: self.y + other }
     }
@@ -134,7 +134,7 @@ implement Numeric<float32> for Vector2 {
     }
 }
 
-implement Numeric<Vector2> for Vector2 {
+implement Vector2: Numeric<Vector2> {
     function add(self, other: Vector2) => Vector2 {
         Vector2 { x: self.x + other.x, y: self.y + other.y }
     }
@@ -280,43 +280,43 @@ implement Vector3 {
     }
 }
 
-implement Add<float32> for Vector3 {
+implement Vector3: Add<float32> {
     function add(self, other: float32) => Vector3 {
         Vector3 { x: self.x + other, y: self.y + other, z: self.z + other }
     }
 }
 
-implement Add<Vector3> for Vector3 {
+implement Vector3: Add<Vector3> {
     function add(self, other: Vector3) => Vector3 {
         Vector3 { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
     }
 }
 
-implement Subtract<float32> for Vector3 {
+implement Vector3: Subtract<float32> {
     function subtract(self, other: float32) => Vector3 {
         Vector3 { x: self.x - other, y: self.y - other, z: self.z - other }
     }
 }
 
-implement Subtract<Vector3> for Vector3 {
+implement Vector3: Subtract<Vector3> {
     function subtract(self, other: Vector3) => Vector3 {
         Vector3 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
     }
 }
 
-implement Multiply<float32> for Vector3 {
+implement Vector3: Multiply<float32> {
     function multiply(self, other: float32) => Vector3 {
         Vector3 { x: self.x * other, y: self.y * other, z: self.z * other }
     }
 }
 
-implement Multiply<Vector3> for Vector3 {
+implement Vector3: Multiply<Vector3> {
     function multiply(self, other: Vector3) => Vector3 {
         Vector3 { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z }
     }
 }
 
-implement Divide<float32> for Vector3 {
+implement Vector3: Divide<float32> {
     function divide(self, other: float32) => Vector3 {
         Vector3 { x: self.x / other, y: self.y / other, z: self.z / other }
     }
@@ -454,13 +454,13 @@ implement Vector4 {
     }
 }
 
-implement Add<float32> for Vector4 {
+implement Vector4: Add<float32> {
     function add(self, other: float32) => Vector4 {
         Vector4 { x: self.x + other, y: self.y + other, z: self.z + other, w: self.w + other }
     }
 }
 
-implement Add<Vector4> for Vector4 {
+implement Vector4: Add<Vector4> {
     function add(self, other: Vector4) => Vector4 {
         Vector4 {
             x: self.x + other.x
@@ -471,13 +471,13 @@ implement Add<Vector4> for Vector4 {
     }
 }
 
-implement Subtract<float32> for Vector4 {
+implement Vector4: Subtract<float32> {
     function subtract(self, other: float32) => Vector4 {
         Vector4 { x: self.x - other, y: self.y - other, z: self.z - other, w: self.w - other }
     }
 }
 
-implement Subtract<Vector4> for Vector4 {
+implement Vector4: Subtract<Vector4> {
     function subtract(self, other: Vector4) => Vector4 {
         Vector4 {
             x: self.x - other.x
@@ -488,13 +488,13 @@ implement Subtract<Vector4> for Vector4 {
     }
 }
 
-implement Multiply<float32> for Vector4 {
+implement Vector4: Multiply<float32> {
     function multiply(self, other: float32) => Vector4 {
         Vector4 { x: self.x * other, y: self.y * other, z: self.z * other, w: self.w * other }
     }
 }
 
-implement Multiply<Vector4> for Vector4 {
+implement Vector4: Multiply<Vector4> {
     function multiply(self, other: Vector4) => Vector4 {
         Vector4 {
             x: self.x * other.x
@@ -505,7 +505,7 @@ implement Multiply<Vector4> for Vector4 {
     }
 }
 
-implement Divide<float32> for Vector4 {
+implement Vector4: Divide<float32> {
     function divide(self, other: float32) => Vector4 {
         Vector4 { x: self.x / other, y: self.y / other, z: self.z / other, w: self.w / other }
     }
@@ -605,43 +605,43 @@ implement Vector2i {
     }
 }
 
-implement Add<int32> for Vector2i {
+implement Vector2i: Add<int32> {
     function add(self, other: int32) => Vector2i {
         Vector2i { x: self.x + other, y: self.y + other }
     }
 }
 
-implement Add<Vector2i> for Vector2i {
+implement Vector2i: Add<Vector2i> {
     function add(self, other: Vector2i) => Vector2i {
         Vector2i { x: self.x + other.x, y: self.y + other.y }
     }
 }
 
-implement Subtract<int32> for Vector2i {
+implement Vector2i: Subtract<int32> {
     function subtract(self, other: int32) => Vector2i {
         Vector2i { x: self.x - other, y: self.y - other }
     }
 }
 
-implement Subtract<Vector2i> for Vector2i {
+implement Vector2i: Subtract<Vector2i> {
     function subtract(self, other: Vector2i) => Vector2i {
         Vector2i { x: self.x - other.x, y: self.y - other.y }
     }
 }
 
-implement Multiply<int32> for Vector2i {
+implement Vector2i: Multiply<int32> {
     function multiply(self, other: int32) => Vector2i {
         Vector2i { x: self.x * other, y: self.y * other }
     }
 }
 
-implement Multiply<Vector2i> for Vector2i {
+implement Vector2i: Multiply<Vector2i> {
     function multiply(self, other: Vector2i) => Vector2i {
         Vector2i { x: self.x * other.x, y: self.y * other.y }
     }
 }
 
-implement Divide<int32> for Vector2i {
+implement Vector2i: Divide<int32> {
     function divide(self, other: int32) => Vector2i {
         Vector2i { x: self.x / other, y: self.y / other }
     }
@@ -758,43 +758,43 @@ implement Vector3i {
     }
 }
 
-implement Add<int32> for Vector3i {
+implement Vector3i: Add<int32> {
     function add(self, other: int32) => Vector3i {
         Vector3i { x: self.x + other, y: self.y + other, z: self.z + other }
     }
 }
 
-implement Add<Vector3i> for Vector3i {
+implement Vector3i: Add<Vector3i> {
     function add(self, other: Vector3i) => Vector3i {
         Vector3i { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
     }
 }
 
-implement Subtract<int32> for Vector3i {
+implement Vector3i: Subtract<int32> {
     function subtract(self, other: int32) => Vector3i {
         Vector3i { x: self.x - other, y: self.y - other, z: self.z - other }
     }
 }
 
-implement Subtract<Vector3i> for Vector3i {
+implement Vector3i: Subtract<Vector3i> {
     function subtract(self, other: Vector3i) => Vector3i {
         Vector3i { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
     }
 }
 
-implement Multiply<int32> for Vector3i {
+implement Vector3i: Multiply<int32> {
     function multiply(self, other: int32) => Vector3i {
         Vector3i { x: self.x * other, y: self.y * other, z: self.z * other }
     }
 }
 
-implement Multiply<Vector3i> for Vector3i {
+implement Vector3i: Multiply<Vector3i> {
     function multiply(self, other: Vector3i) => Vector3i {
         Vector3i { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z }
     }
 }
 
-implement Divide<int32> for Vector3i {
+implement Vector3i: Divide<int32> {
     function divide(self, other: int32) => Vector3i {
         Vector3i { x: self.x / other, y: self.y / other, z: self.z / other }
     }
@@ -929,13 +929,13 @@ implement Vector4i {
     }
 }
 
-implement Add<int32> for Vector4i {
+implement Vector4i: Add<int32> {
     function add(self, other: int32) => Vector4i {
         Vector4i { x: self.x + other, y: self.y + other, z: self.z + other, w: self.w + other }
     }
 }
 
-implement Add<Vector4i> for Vector4i {
+implement Vector4i: Add<Vector4i> {
     function add(self, other: Vector4i) => Vector4i {
         Vector4i {
             x: self.x + other.x
@@ -946,13 +946,13 @@ implement Add<Vector4i> for Vector4i {
     }
 }
 
-implement Subtract<int32> for Vector4i {
+implement Vector4i: Subtract<int32> {
     function subtract(self, other: int32) => Vector4i {
         Vector4i { x: self.x - other, y: self.y - other, z: self.z - other, w: self.w - other }
     }
 }
 
-implement Subtract<Vector4i> for Vector4i {
+implement Vector4i: Subtract<Vector4i> {
     function subtract(self, other: Vector4i) => Vector4i {
         Vector4i {
             x: self.x - other.x
@@ -963,13 +963,13 @@ implement Subtract<Vector4i> for Vector4i {
     }
 }
 
-implement Multiply<int32> for Vector4i {
+implement Vector4i: Multiply<int32> {
     function multiply(self, other: int32) => Vector4i {
         Vector4i { x: self.x * other, y: self.y * other, z: self.z * other, w: self.w * other }
     }
 }
 
-implement Multiply<Vector4i> for Vector4i {
+implement Vector4i: Multiply<Vector4i> {
     function multiply(self, other: Vector4i) => Vector4i {
         Vector4i {
             x: self.x * other.x
@@ -980,7 +980,7 @@ implement Multiply<Vector4i> for Vector4i {
     }
 }
 
-implement Divide<int32> for Vector4i {
+implement Vector4i: Divide<int32> {
     function divide(self, other: int32) => Vector4i {
         Vector4i { x: self.x / other, y: self.y / other, z: self.z / other, w: self.w / other }
     }

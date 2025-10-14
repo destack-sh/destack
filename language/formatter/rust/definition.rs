@@ -549,8 +549,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // implement
             Definition::Implement {
                 static_parameters: static_arguments,
-                receiver,
-                for_type,
+                target_type,
+                super_type,
                 with_clauses: with,
                 where_clauses,
                 expressions,
@@ -579,12 +579,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     )?;
                 }
 
-                // receiver
-                write!(f, [space(), receiver])?;
+                // target type
+                write!(f, [space(), target_type])?;
 
-                // for clause
-                if let Some(for_type) = for_type {
-                    write!(f, [token(":"), space(), for_type])?;
+                // super type
+                if let Some(super_type) = super_type {
+                    write!(f, [token(":"), space(), super_type])?;
                 }
 
                 // with

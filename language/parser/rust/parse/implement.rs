@@ -30,20 +30,35 @@ impl<'a> Parser<'a> {
         // static parameters
         let static_parameters = self.eat_static_parameters_maybe()?;
 
-        // receiver
-        let receiver = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
-
-        // for
-        let for_type = if self.peek_keyword(Keyword::For).is_ok() || self.peek_colon().is_ok() {
-            self.bump(); // eat for or colon
-            let for_type = self.with_options(self.options.in_before_block(), |parser| {
+        // target type
+        let mut target_type = self
+            .with_options(self.options.nested_type_in_before_block(), |parser| {
                 parser.eat_expression()
             })?;
-            Some(for_type)
-        } else {
-            None
+
+        // super type
+        let super_type = {
+            // if followed by a for, then invert (for leniency)
+            if self.peek_keyword(Keyword::For).is_ok() {
+                self.bump();
+                let super_type = target_type;
+                target_type = self
+                    .with_options(self.options.nested_type_in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                Some(super_type)
+            }
+            // : <super_type>
+            else if self.peek_colon().is_ok() {
+                self.bump();
+                Some(
+                    self.with_options(self.options.nested_type_in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })?,
+                )
+            } else {
+                None
+            }
         };
 
         // with
@@ -62,8 +77,8 @@ impl<'a> Parser<'a> {
         let implement_id = self.tree.insert(
             Definition::Implement {
                 static_parameters,
-                receiver,
-                for_type,
+                target_type,
+                super_type,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -96,14 +111,14 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
-            assert!(for_type.is_none());
+            assert!(super_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Foo
-            assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });
@@ -121,14 +136,14 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
-            assert!(for_type.is_none());
+            assert!(super_type.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Foo<int32>
-            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "Foo");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -145,7 +160,7 @@ implement Foo<int32> {
     }
 
     #[test]
-    fn test_parse_implement_for_type() {
+    fn test_parse_implement_with_super_type() {
         let mut test = TestParser::new(
             r###"
 implement Bar<int32>: Baz {
@@ -156,13 +171,13 @@ implement Bar<int32>: Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Bar<int32>
-            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "Bar");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -176,8 +191,8 @@ implement Bar<int32>: Baz {
                 });
             });
 
-            // for Baz
-            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, .. } => {
+            // : Baz
+            assert_node!(parser.tree, super_type.unwrap(), Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
         });
@@ -195,7 +210,7 @@ implement<U> Bar<T>: Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, receiver, for_type, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -209,7 +224,7 @@ implement<U> Bar<T>: Baz<T> {
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
@@ -223,7 +238,7 @@ implement<U> Bar<T>: Baz<T> {
             });
 
             // : Baz<T>
-            assert_node!(parser.tree, for_type.unwrap(), Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, super_type.unwrap(), Expression::Path { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
@@ -250,7 +265,7 @@ implement Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { with_clauses, where_clauses, expressions, receiver, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { with_clauses, where_clauses, expressions, target_type, .. } => {
             assert!(expressions.is_empty());
 
             // with Context
@@ -274,8 +289,8 @@ implement Foo with Context where Guard > Limit {
                 });
             });
 
-            // Foo receiver
-            assert_node!(parser.tree, *receiver, Expression::Path { path, .. } => {
+            // Foo target_type
+            assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });

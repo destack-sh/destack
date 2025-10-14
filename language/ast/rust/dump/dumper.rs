@@ -1400,8 +1400,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Implement {
                 static_parameters: _,
-                receiver: _,
-                for_type: _,
+                target_type: _,
+                super_type: _,
                 with_clauses: _,
                 where_clauses: _,
                 expressions: _,

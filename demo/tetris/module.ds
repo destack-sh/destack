@@ -109,7 +109,7 @@ struct TetrisGame {
     dropInterval: float32 = 1.0
 }
 
-implement Context: TetrisGame { }
+implement TetrisGame: Context { }
 
 /// The shape of a Tetris piece.
 enum TetrisPieceShape {
@@ -475,7 +475,7 @@ implement TetrisGame {
     }
 }
 
-implement Tick: TetrisGame {
+implement TetrisGame: Tick {
     function tick(&var self) with Time, &Random {
         // spawn initial piece if needed
         if self.currentPiece == null {
@@ -502,6 +502,6 @@ implement Tick: TetrisGame {
     }
 }
 
-implement Draw: TetrisGame {
+implement TetrisGame: Draw {
     function draw(self) { }
 }
