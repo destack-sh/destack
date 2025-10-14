@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Mutability, Node, NodeId, NodeType, Path};
+use crate::{Expression, Mutability, Node, NodeId, NodeType};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -49,7 +49,7 @@ pub enum Pattern {
     },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
     Tuple {
-        path: Option<Path>,
+        ty: Option<NodeId<Expression>>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
