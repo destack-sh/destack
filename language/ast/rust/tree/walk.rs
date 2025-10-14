@@ -920,14 +920,27 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     parameter: &Parameter,
 ) {
     visitor.visit_any(tree, NodeType::Parameter, id.id);
-    if let Some(type_node) = &parameter.ty {
-        let type_ref = tree.get(*type_node);
-        visitor.visit_expression(tree, *type_node, type_ref);
-    }
-
-    if let Some(default) = &parameter.default {
-        let default_expr = tree.get(*default);
-        visitor.visit_expression(tree, *default, default_expr);
+    match parameter {
+        Parameter::Scalar {
+            name: _,
+            ty,
+            default,
+        } => {
+            if let Some(ty) = ty {
+                let type_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, type_node);
+            }
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
+        }
+        Parameter::Variadic { name: _, ty } => {
+            if let Some(ty) = ty {
+                let type_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, type_node);
+            }
+        }
     }
 }
 

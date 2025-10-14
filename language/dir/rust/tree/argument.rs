@@ -1,14 +1,19 @@
 use crate::{Expression, Node, NodeId, NodeType, StringId, Type, VariantField};
 
-/// A Parameter is a parameter to some expression.
+/// A Parameter is a parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Parameter {
-    /// The name of the parameter.
-    pub name: StringId,
-    /// The type of the parameter.
-    pub ty: Option<NodeId<Type>>,
-    /// The default value of the parameter.
-    pub default: Option<NodeId<Expression>>,
+pub enum Parameter {
+    /// Named parameter (like `T`, `x: int32` or `Validate: boolean = true`).
+    Scalar {
+        name: StringId,
+        ty: Option<NodeId<Type>>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Variadic parameter (like `..T` or `...x: int32[]`).
+    Variadic {
+        name: StringId,
+        ty: Option<NodeId<Type>>,
+    },
 }
 
 impl Node for Parameter {

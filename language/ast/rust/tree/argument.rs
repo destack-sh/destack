@@ -1,7 +1,6 @@
 use crate::{Expression, Node, NodeId, NodeType, StringId};
 
-/// A Parameter is a parameter to some expression.
-/// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
+/// A Parameter is a parameter to some construct.
 ///
 /// Examples:
 /// ```
@@ -11,15 +10,22 @@ use crate::{Expression, Node, NodeId, NodeType, StringId};
 /// y: (int32, boolean, Vector2)
 /// Validate: boolean = true
 /// z: int32 = 4
+/// ..T
+/// ...x: int32[]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Parameter {
-    /// The name of the parameter.
-    pub name: StringId,
-    /// The type of the parameter.
-    pub ty: Option<NodeId<Expression>>,
-    /// The default value of the parameter.
-    pub default: Option<NodeId<Expression>>,
+pub enum Parameter {
+    /// Named parameter (like `T`, `x: int32` or `Validate: boolean = true`).
+    Scalar {
+        name: StringId,
+        ty: Option<NodeId<Expression>>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Variadic parameter (like `..T` or `...x: int32[]`).
+    Variadic {
+        name: StringId,
+        ty: Option<NodeId<Expression>>,
+    },
 }
 
 impl Node for Parameter {
@@ -40,16 +46,16 @@ impl Node for Parameter {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// A named argument.
+    /// Named argument.
     Named {
         name: StringId,
         value: NodeId<Expression>,
     },
-    /// A named shorthand argument.
+    /// Named shorthand argument (only in certain contexts like struct literals).
     NamedShorthand { name: StringId },
-    /// A positional argument.
+    /// Positional argument.
     Positional { value: NodeId<Expression> },
-    /// A positional spread argument.
+    /// Positional spread argument.
     Spread { value: NodeId<Expression> },
 }
 

@@ -7,8 +7,6 @@ use crate::{
     Visibility,
 };
 
-// nocheckin: turn import into import/export (?)
-
 impl<'a> Parser<'a> {
     /// Eat a import declaration (including the `import` keyword and an optional body).
     ///

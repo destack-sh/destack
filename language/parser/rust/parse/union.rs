@@ -332,7 +332,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert!(static_parameters.is_some());
             let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 1);
-            assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, .. } => {
+            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, ty, .. } => {
                 assert_string!(parser, *name, "T");
                 assert!(ty.is_none());
             });

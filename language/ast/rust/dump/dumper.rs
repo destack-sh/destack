@@ -1536,9 +1536,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
-        self.node("Parameter", _id.id)
-            .field("name", &param.name)
-            .end();
+        match param {
+            Parameter::Scalar {
+                name,
+                ty: _,
+                default: _,
+            } => {
+                self.node("Parameter::Scalar", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Parameter::Variadic { name, ty: _ } => {
+                self.node("Parameter::Variadic", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_parameter(dumper, _tree, _id, param);
         });

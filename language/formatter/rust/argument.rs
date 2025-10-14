@@ -95,17 +95,28 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        // name
-        write!(f, [self.name])?;
-
-        // type
-        if let Some(ty) = self.ty {
-            write!(f, [token(": "), ty])?;
-        }
-
-        // default
-        if let Some(default) = self.default {
-            write!(f, [token(" = "), default])?;
+        match self {
+            Parameter::Scalar { name, ty, default } => {
+                // name
+                write!(f, [name])?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(": "), ty])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [token(" = "), default])?;
+                }
+            }
+            Parameter::Variadic { name, ty } => {
+                write!(f, [token("..")])?;
+                // name
+                write!(f, [name])?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(": "), ty])?;
+                }
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

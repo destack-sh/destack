@@ -384,7 +384,7 @@ struct Foo<T: Numeric>: Boz {
             assert!(static_parameters.is_some());
             let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 1);
-            assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, .. } => {
+            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, ty, .. } => {
                 // T
                 assert_string!(parser, *name, "T");
                 // Numeric
