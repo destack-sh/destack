@@ -1,4 +1,4 @@
-use crate::{Expression, Mutability, Node, NodeId, NodeType, Path, StringId};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,14 +29,14 @@ pub enum Pattern {
     },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
     Tuple {
-        path: Option<Path>,
+        ty: Option<NodeId<Type>>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
-        ty: Option<NodeId<Expression>>,
+        ty: Option<NodeId<Type>>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).
@@ -51,6 +51,7 @@ impl Node for Pattern {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
+    // nocheckin: replace name StringIds with something resolvable
     Named {
         mutability: Option<Mutability>,
         name: StringId,

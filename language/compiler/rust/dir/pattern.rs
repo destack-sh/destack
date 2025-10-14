@@ -48,15 +48,15 @@ impl<'a> Compiler<'a> {
                     is_inclusive: *is_inclusive,
                 }
             }
-            ast::Pattern::Tuple { path, fields } => {
-                let path = path
+            ast::Pattern::Tuple { ty, fields } => {
+                let ty = ty
                     .as_ref()
-                    .map(|path| self.lower_path(source_id, ast, path));
+                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_pattern_field(source_id, ast, *field))
                     .collect();
-                Pattern::Tuple { path, fields }
+                Pattern::Tuple { ty, fields }
             }
             ast::Pattern::Slice { fields } => {
                 let fields = fields
@@ -66,7 +66,7 @@ impl<'a> Compiler<'a> {
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty = ty.map(|ty| self.lower_expression(source_id, ast, ty));
+                let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_pattern_field(source_id, ast, *field))

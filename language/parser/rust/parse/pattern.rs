@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
                 let fields = self
                     .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                     .for_node_type(NodeType::Pattern)?;
-                let pattern = Pattern::Tuple { path: None, fields };
+                let pattern = Pattern::Tuple { ty: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.insert(pattern, self.get_span_from(start))
             }
@@ -142,8 +142,15 @@ impl<'a> Parser<'a> {
                     let fields = self
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Pattern)?;
+                    let expression_id = self.tree.insert(
+                        Expression::Path {
+                            path,
+                            static_arguments: None,
+                        },
+                        self.get_span_from(start),
+                    );
                     let pattern = Pattern::Tuple {
-                        path: Some(path),
+                        ty: Some(expression_id),
                         fields,
                     };
                     self.eat_token(TokenType::CloseParenthesis)?;
@@ -466,9 +473,9 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         // Result.Success(_, ..)
-        assert_node!(parser.tree, pattern_id, Pattern::Tuple { path, fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { ty, fields } => {
             // Result.Success
-            assert!(path.is_some());
+            assert!(ty.is_some());
             assert_eq!(fields.len(), 2);
 
             // _

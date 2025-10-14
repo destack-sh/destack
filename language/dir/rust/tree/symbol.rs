@@ -10,6 +10,8 @@ pub enum Symbol {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SymbolId(pub u32);
 
+// nocheckin: use SmallVec-ish for all ast/dir Paths
+
 /// A resolved path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {

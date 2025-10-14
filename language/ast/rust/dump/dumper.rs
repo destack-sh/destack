@@ -1617,10 +1617,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Pattern::Tuple { path, fields: _ } => {
-                self.node("Pattern::Tuple", _id.id)
-                    .field_optional("path", path)
-                    .end();
+            Pattern::Tuple { ty: _, fields: _ } => {
+                self.node("Pattern::Tuple", _id.id).end();
             }
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", _id.id).end();

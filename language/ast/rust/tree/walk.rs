@@ -1017,7 +1017,11 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *end_pattern, end_node);
             }
         }
-        Pattern::Tuple { path: _, fields } => {
+        Pattern::Tuple { ty, fields } => {
+            if let Some(ty_id) = ty {
+                let ty_expression = tree.get(*ty_id);
+                visitor.visit_expression(tree, *ty_id, ty_expression);
+            }
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
