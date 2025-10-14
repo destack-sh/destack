@@ -1,9 +1,9 @@
 /// Basics Access Module.
 
-use entitlement
-use invite
-use membership
-use permission
-use role
-use sanction
+import entitlement
+import invite
+import membership
+import permission
+import role
+import sanction
 

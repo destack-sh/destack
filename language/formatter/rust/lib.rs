@@ -12,16 +12,16 @@ pub mod function;
 pub mod identifier;
 pub mod r#if;
 pub mod implement;
+pub mod import;
+pub mod interface;
 pub mod r#let;
 pub mod literal;
 pub mod r#match;
 pub mod path;
 pub mod pattern;
 pub mod r#struct;
-pub mod interface;
 pub mod r#try;
 pub mod union;
-pub mod r#use;
 pub mod r#where;
 pub mod with;
 

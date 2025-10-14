@@ -310,8 +310,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             }
 
-            // use
-            Expression::Use {
+            // import
+            Expression::Import {
                 visibility,
                 clauses,
             } => {
@@ -325,7 +325,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
 
                 // keyword
-                write!(f, [Keyword::Use, space()])?;
+                write!(f, [Keyword::Import, space()])?;
                 {
                     let mut first = true;
                     for clause in clauses {

@@ -1,18 +1,18 @@
 use dyst_ast as ast;
-use dyst_dir::{NodeId, UseItem};
+use dyst_dir::{ImportItem, NodeId};
 use dyst_source::SourceId;
 
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a use clause to a DIR use items.
-    /// Use clauses with multiple items are flattened into multiple use items.
-    pub fn lower_use_clause(
+    /// Lower a import clause to a DIR import items.
+    /// Import clauses with multiple items are flattened into multiple import items.
+    pub fn lower_import_clause(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        use_clause_id: ast::NodeId<ast::UseClause>,
-    ) -> Vec<NodeId<UseItem>> {
+        use_clause_id: ast::NodeId<ast::ImportClause>,
+    ) -> Vec<NodeId<ImportItem>> {
         let use_clause = ast.get(use_clause_id);
         let path = self.lower_path(source_id, ast, &use_clause.target);
 
@@ -25,7 +25,7 @@ impl<'a> Compiler<'a> {
                     let alias = use_item
                         .alias
                         .map(|alias| self.intern_string(source_id, alias));
-                    let use_item = UseItem {
+                    let use_item = ImportItem {
                         source: path.clone(),
                         alias,
                     };
@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
             let alias = use_clause
                 .alias
                 .map(|alias| self.intern_string(source_id, alias));
-            let use_item = UseItem {
+            let use_item = ImportItem {
                 source: path,
                 alias,
             };

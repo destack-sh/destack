@@ -2,9 +2,9 @@
 
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Tag, UnionField,
-    UseClause, UseItem, VariantField, WhereClause, WithClause, walk_annotation, walk_argument,
-    walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
+    ImportClause, ImportItem, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, Tag, UnionField, VariantField, WhereClause, WithClause, walk_annotation,
+    walk_argument, walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
     walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
     walk_pattern_field, walk_tag, walk_union_field, walk_use_clause, walk_use_item,
     walk_variant_field, walk_where_clause, walk_with_clause,
@@ -100,12 +100,17 @@ pub trait NodeVisitor {
     }
 
     /// Visit a UseClause.
-    fn visit_use_clause(&mut self, tree: &NodeTree, id: NodeId<UseClause>, use_clause: &UseClause) {
+    fn visit_use_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<ImportClause>,
+        use_clause: &ImportClause,
+    ) {
         walk_use_clause(self, tree, id, use_clause);
     }
 
     /// Visit a UseItem.
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
+    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, use_item: &ImportItem) {
         walk_use_item(self, tree, id, use_item);
     }
 
@@ -279,12 +284,17 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::WithClause, id.id);
     }
 
-    fn visit_use_clause(&mut self, tree: &NodeTree, id: NodeId<UseClause>, use_clause: &UseClause) {
-        self.visit_any(tree, NodeType::UseClause, id.id);
+    fn visit_use_clause(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<ImportClause>,
+        use_clause: &ImportClause,
+    ) {
+        self.visit_any(tree, NodeType::ImportClause, id.id);
     }
 
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
-        self.visit_any(tree, NodeType::UseItem, id.id);
+    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, use_item: &ImportItem) {
+        self.visit_any(tree, NodeType::ImportItem, id.id);
     }
 
     // ------------------------------------------------------------

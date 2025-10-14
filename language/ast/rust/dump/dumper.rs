@@ -1062,7 +1062,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", _id.id).end();
             }
-            Expression::Use {
+            Expression::Import {
                 visibility,
                 clauses: _,
             } => {
@@ -1506,7 +1506,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_use_clause(&mut self, _tree: &NodeTree, _id: NodeId<UseClause>, clause: &UseClause) {
+    fn visit_use_clause(
+        &mut self,
+        _tree: &NodeTree,
+        _id: NodeId<ImportClause>,
+        clause: &ImportClause,
+    ) {
         self.node("UseClause", _id.id)
             .field("target", &clause.target)
             .field_optional("alias", &clause.alias)
@@ -1516,7 +1521,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_use_item(&mut self, _tree: &NodeTree, _id: NodeId<UseItem>, item: &UseItem) {
+    fn visit_use_item(&mut self, _tree: &NodeTree, _id: NodeId<ImportItem>, item: &ImportItem) {
         self.node("UseItem", _id.id)
             .field("name", &item.name)
             .field_optional("alias", &item.alias)

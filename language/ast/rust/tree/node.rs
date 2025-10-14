@@ -23,8 +23,8 @@ pub enum NodeType {
     // context
     WithClause,
     WhereClause,
-    UseClause,
-    UseItem,
+    ImportClause,
+    ImportItem,
     // bindings
     Parameter,
     Argument,

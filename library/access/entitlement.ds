@@ -1,4 +1,4 @@
-use destack
+import destack
 
 /// A type of Entitlement.
 enum EntitlementType {

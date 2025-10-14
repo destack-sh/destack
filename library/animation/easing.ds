@@ -1,4 +1,4 @@
-use destack
+import destack
 
 /// Built-in easing types
 enum Easing {

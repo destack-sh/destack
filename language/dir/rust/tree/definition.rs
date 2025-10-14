@@ -1,6 +1,6 @@
 use crate::{
-    Expression, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId,
-    Type, UseItem, Variant, Visibility, WhereClause, WithClause,
+    Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime,
+    ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -29,10 +29,10 @@ impl EmbeddedDefinition {
 pub enum Definition {
     /// Intrinsic definition.
     Intrinsic { intrinsic: Intrinsic },
-    /// Use definition.
-    Use {
+    /// Import definition.
+    Import {
         visibility: Option<Visibility>,
-        items: Vec<NodeId<UseItem>>,
+        items: Vec<NodeId<ImportItem>>,
     },
     /// Let definition.
     Let {
@@ -128,7 +128,7 @@ impl Definition {
     pub fn name(&self) -> Option<StringId> {
         match self {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
-            Definition::Use { .. } => None,
+            Definition::Import { .. } => None,
             Definition::Let { name, .. } => Some(*name),
             Definition::Type { name, .. } => *name,
             Definition::Module { name, .. } => *name,
@@ -146,7 +146,7 @@ impl Definition {
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
             Definition::Intrinsic { .. } => None,
-            Definition::Use { visibility, .. } => *visibility,
+            Definition::Import { visibility, .. } => *visibility,
             Definition::Let { visibility, .. } => *visibility,
             Definition::Type { visibility, .. } => *visibility,
             Definition::Module { visibility, .. } => *visibility,
@@ -164,7 +164,7 @@ impl Definition {
     pub fn embedded_definitions(&self) -> Option<&Vec<EmbeddedDefinition>> {
         match self {
             Definition::Intrinsic { .. } => None,
-            Definition::Use { .. } => None,
+            Definition::Import { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Module { .. } => None,
@@ -194,7 +194,7 @@ impl Definition {
     pub fn definitions(&self) -> Option<&Vec<NodeId<Definition>>> {
         match self {
             Definition::Intrinsic { .. } => None,
-            Definition::Use { .. } => None,
+            Definition::Import { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Module { definitions, .. } => Some(definitions),

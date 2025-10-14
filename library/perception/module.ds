@@ -1,10 +1,10 @@
 /// The Destack Simulation Perception Module.
 
-use input
-use pointer
-use mouse
-use key
-use focus
-use drag
-use clipboard
+import input
+import pointer
+import mouse
+import key
+import focus
+import drag
+import clipboard
 

@@ -5,6 +5,8 @@ use crate::{
     Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
 };
 
+// NOTE #Incomplete: support arbitrary string literals as variant fields/imports?
+
 /// An Expression is a generic container for value-producing forms.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,
@@ -38,22 +40,25 @@ pub enum Expression {
         body: Option<NodeId<Block>>,
     },
 
-    /// A Use is a use declaration for dependency management.
-    /// Use can be used as statement for the containing scope or in block form.
-    /// `use` includes all or some items from a definition in the relevant scope.
+    /// An Import is an import declaration for dependency management.
+    /// Import can be used as statement for the containing scope or in block form.
+    /// `import` includes all or some items from a definition in the relevant scope.
     ///
     /// Examples:
     /// ```
-    /// use foo
-    /// use foo, bar
-    /// use foo.bar
-    /// use foo.{bar, baz}
-    /// use foo.{} // valid but linted
-    /// use foo as baz
+    /// import foo
+    /// import foo, bar
+    /// import foo.bar
+    /// import foo.{bar, baz}
+    /// import * from foo // same as `import foo`
+    /// import * as foo from foo // same as `import foo as foo`
+    /// import { bar, baz } from foo
+    /// import foo.{} // valid but linted
+    /// import foo as baz
     /// ```
-    Use {
+    Import {
         visibility: Option<Visibility>,
-        clauses: Vec<NodeId<UseClause>>,
+        clauses: Vec<NodeId<ImportClause>>,
     },
 
     /// Let or var binding for constant or mutable variables.
@@ -384,7 +389,6 @@ pub enum Expression {
 
     /// A StructLiteral is literal struct of heterogeneous fields.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).
-    /// NOTE #Incomplete: support arbitrary string literals as variant field names?
     ///
     /// Examples:
     /// ```
@@ -520,7 +524,7 @@ impl Expression {
             self,
             Expression::Definition { .. }
                 | Expression::With { .. }
-                | Expression::Use { .. }
+                | Expression::Import { .. }
                 | Expression::Let { .. }
                 | Expression::While { .. }
                 | Expression::Loop { .. }
@@ -543,7 +547,7 @@ pub enum IfStyle {
     Ternary,
 }
 
-/// A UseClause is a single clause in a use dependency declaration.
+/// A ImportClause is a single clause in a import dependency declaration.
 ///
 /// Examples:
 /// ```
@@ -551,22 +555,25 @@ pub enum IfStyle {
 /// foo as bar
 /// foo.bar as baz
 /// foo.{baz, qux}
+/// { baz, qux } from foo // equivalent
+/// * from foo // equivalent
+/// * as foo from foo // equivalent
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UseClause {
-    /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux}`)
+pub struct ImportClause {
+    /// The target to import from (like `foo.bar` in `import foo.bar.{baz, qux}`)
     pub target: Path,
-    /// The alias to use for the definition (like `bar` in `use foo as bar`)
+    /// The alias to use for the definition (like `bar` in `import foo as bar`)
     pub alias: Option<StringId>,
-    /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux}`)
-    pub items: Option<Vec<NodeId<UseItem>>>,
+    /// The items to import from the target (like `{baz, qux}` in `import foo.bar.{baz, qux}`)
+    pub items: Option<Vec<NodeId<ImportItem>>>,
 }
 
-impl Node for UseClause {
-    const KIND: NodeType = NodeType::UseClause;
+impl Node for ImportClause {
+    const KIND: NodeType = NodeType::ImportClause;
 }
 
-/// A UseItem is an item to use in a use clause.
+/// A ImportItem is an item to import from a target in a import clause.
 ///
 /// Examples:
 /// ```
@@ -574,15 +581,15 @@ impl Node for UseClause {
 /// qux as quux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UseItem {
-    /// The source name of the item (like `foo` in `foo as bar`)
+pub struct ImportItem {
+    /// The source of the item (like `foo` in `foo as bar`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar`)
     pub alias: Option<StringId>,
 }
 
-impl Node for UseItem {
-    const KIND: NodeType = NodeType::UseItem;
+impl Node for ImportItem {
+    const KIND: NodeType = NodeType::ImportItem;
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

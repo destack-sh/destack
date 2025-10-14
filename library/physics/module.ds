@@ -1,7 +1,7 @@
 /// The Destack Simulation Physics Module.
 
-use body
-use collider
-use joint
-use soft
-use rigid
+import body
+import collider
+import joint
+import soft
+import rigid

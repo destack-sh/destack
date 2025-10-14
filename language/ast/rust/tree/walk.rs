@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag,
-    UnionField, UseClause, UseItem, VariantField, WhereClause, WithClause,
+    ImportClause, ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -54,11 +54,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let where_clause = tree.where_clauses.get(local_idx);
             walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
         }
-        NodeType::UseClause => {
+        NodeType::ImportClause => {
             let use_clause = tree.use_clauses.get(local_idx);
             walk_use_clause(visitor, tree, NodeId::new(node_id), use_clause);
         }
-        NodeType::UseItem => {
+        NodeType::ImportItem => {
             let use_item = tree.use_items.get(local_idx);
             walk_use_item(visitor, tree, NodeId::new(node_id), use_item);
         }
@@ -167,7 +167,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Use {
+        Expression::Import {
             visibility: _,
             clauses,
         } => {
@@ -889,10 +889,10 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 pub fn walk_use_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<UseClause>,
-    use_clause: &UseClause,
+    id: NodeId<ImportClause>,
+    use_clause: &ImportClause,
 ) {
-    visitor.visit_any(tree, NodeType::UseClause, id.id);
+    visitor.visit_any(tree, NodeType::ImportClause, id.id);
     if let Some(items) = &use_clause.items {
         for item_id in items {
             let item = tree.get(*item_id);
@@ -905,10 +905,10 @@ pub fn walk_use_clause<V: NodeVisitor + ?Sized>(
 pub fn walk_use_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     _tree: &NodeTree,
-    id: NodeId<UseItem>,
-    _use_item: &UseItem,
+    id: NodeId<ImportItem>,
+    _use_item: &ImportItem,
 ) {
-    visitor.visit_any(_tree, NodeType::UseItem, id.id);
+    visitor.visit_any(_tree, NodeType::ImportItem, id.id);
     // UseItem has no child nodes to visit (only StringId fields)
 }
 

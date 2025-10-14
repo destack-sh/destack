@@ -57,7 +57,7 @@ pub enum ScalarLiteral {
 pub enum TypeLiteral {
     /// Never type `!`.
     Never,
-    /// Any type `$`.
+    /// Any type `$` or `any`.
     Any,
     /// Infer type `_`.
     Infer,

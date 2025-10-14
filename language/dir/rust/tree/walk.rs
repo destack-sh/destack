@@ -1,5 +1,7 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause, WithClause
+    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, ImportItem, MatchCase,
+    NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Type, Variant,
+    VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -55,7 +57,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let with_clause = tree.with_clauses.get(local_idx);
             walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
         }
-        NodeType::UseItem => {
+        NodeType::ImportItem => {
             let use_item = tree.use_items.get(local_idx);
             walk_use_item(visitor, tree, NodeId::new(node_id), use_item);
         }
@@ -128,7 +130,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_block(tree, *body_id, block);
             }
         }
-        Expression::Use {
+        Expression::Import {
             visibility: _,
             items,
         } => {
@@ -375,7 +377,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Intrinsic { intrinsic: _ } => {
             // nothing to do
         }
-        Definition::Use {
+        Definition::Import {
             visibility: _,
             items,
         } => {
@@ -840,10 +842,10 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
 pub fn walk_use_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<UseItem>,
-    _use_item: &UseItem,
+    id: NodeId<ImportItem>,
+    _use_item: &ImportItem,
 ) {
-    visitor.visit_any(tree, NodeType::UseItem, id.id);
+    visitor.visit_any(tree, NodeType::ImportItem, id.id);
 }
 
 // ----------------------------------------------------------------------------
