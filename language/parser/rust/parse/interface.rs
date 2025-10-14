@@ -4,18 +4,19 @@ use crate::parse::prelude::*;
 use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, Parser, ParserResult, Visibility};
 
 impl<'a> Parser<'a> {
-    /// Eat a Trait.
+    /// Eat a Interface.
     ///
     /// Examples:
     /// ```
-    /// trait { // anonymous trait
+    /// interface { // anonymous interface
     ///     ...
     /// }
     ///
-    /// trait _ {} // explicit anonymous trait (for disambiguation)
+    /// interface _ {} // explicit anonymous interface (for disambiguation)
     ///
-    /// trait Foo {
-    ///     use Bar, Boz // Foo *uses* Bar and Boz
+    /// interface Foo: Baz { // Foo extends Baz
+    ///     ..Bar
+    ///     ..Boz
     ///     
     ///     let x: int32 // constant
     ///     function foo() => int32
@@ -24,20 +25,20 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     ///
-    /// trait Baz<T> {
-    ///     use Bar
+    /// interface Baz<T> {
+    ///     ..Bar
     ///
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_trait(
+    pub fn eat_interface(
         &mut self,
         visibility: Option<Visibility>,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword_in(&[Keyword::Trait, Keyword::Interface])
+        self.eat_keyword_in(&[Keyword::Interface, Keyword::Trait])
             .for_node_type(NodeType::Definition)?;
 
         // optional name
@@ -65,8 +66,8 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
-        let trait_id = self.tree.insert(
-            Definition::Trait {
+        let interface_id = self.tree.insert(
+            Definition::Interface {
                 name,
                 visibility,
                 static_parameters,
@@ -77,7 +78,7 @@ impl<'a> Parser<'a> {
             },
             self.get_span_from(start),
         );
-        Ok(trait_id)
+        Ok(interface_id)
     }
 }
 
@@ -89,12 +90,12 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_trait_anonymous_empty() {
-        let mut test = TestParser::new("trait {}");
+    fn test_parse_interface_anonymous_empty() {
+        let mut test = TestParser::new("interface {}");
         let mut parser = test.prepare();
 
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
+        let interface_id = parser.eat_interface(None).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
             assert!(with_clauses.is_none());
@@ -104,12 +105,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_trait_with_super_types() {
-        let mut test = TestParser::new("trait Foo: Bar {}");
+    fn test_parse_interface_with_super_types() {
+        let mut test = TestParser::new("interface Foo: Bar {}");
         let mut parser = test.prepare();
 
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, super_types, where_clauses, expressions, .. } => {
+        let interface_id = parser.eat_interface(None).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, super_types, where_clauses, expressions, .. } => {
             assert_eq!(expressions.len(), 0);
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
@@ -124,10 +125,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_trait_with_members() {
+    fn test_parse_interface_with_members() {
         let mut test = TestParser::new(
             r###"
-trait Foo: Baz {
+interface Foo: Baz {
     let x: int32 = 4
 
     use Baz
@@ -139,8 +140,8 @@ trait Foo: Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, expressions, super_types, where_clauses, .. } => {
+        let interface_id = parser.eat_interface(None).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(expressions.len(), 3);
             assert!(where_clauses.is_none());
@@ -155,12 +156,12 @@ trait Foo: Baz {
     }
 
     #[test]
-    fn test_parse_trait_with_static_parameters() {
-        let mut test = TestParser::new("trait Baz<T> {}");
+    fn test_parse_interface_with_static_parameters() {
+        let mut test = TestParser::new("interface Baz<T> {}");
         let mut parser = test.prepare();
 
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, .. } => {
+        let interface_id = parser.eat_interface(None).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, .. } => {
             assert_string!(parser, name.unwrap(), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -168,10 +169,10 @@ trait Foo: Baz {
     }
 
     #[test]
-    fn test_parse_trait_with_clause() {
+    fn test_parse_interface_with_clause() {
         let mut test = TestParser::new(
             r###"
-trait Baz<T> with T: Copy where Requirement: Trait {
+interface Baz<T> with T: Copy where Requirement: Interface {
     function baz() => T
 }
 "###,
@@ -179,8 +180,8 @@ trait Baz<T> with T: Copy where Requirement: Trait {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Definition::Trait { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
+        let interface_id = parser.eat_interface(None).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
             assert_string!(parser, name.unwrap(), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
@@ -196,13 +197,13 @@ trait Baz<T> with T: Copy where Requirement: Trait {
                 });
             });
 
-            // where Requirement: Trait
+            // where Requirement: Interface
             let where_items = where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
             assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Trait");
+                    assert_path!(parser, *path, "Interface");
                 });
             });
 

@@ -18,7 +18,7 @@ pub mod r#match;
 pub mod path;
 pub mod pattern;
 pub mod r#struct;
-pub mod r#trait;
+pub mod interface;
 pub mod r#try;
 pub mod union;
 pub mod r#use;

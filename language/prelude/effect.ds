@@ -1,2 +1,2 @@
-/// Marker trait for external side Effects.
-trait Effect { }
+/// Marker interface for external side Effects.
+interface Effect { }

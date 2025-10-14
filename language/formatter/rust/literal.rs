@@ -109,7 +109,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
             CompositeType::Enum => write!(f, [Keyword::Enum]),
             CompositeType::Union => write!(f, [Keyword::Union]),
             CompositeType::Tuple => write!(f, [Keyword::Tuple]),
-            CompositeType::Trait => write!(f, [Keyword::Trait]),
+            CompositeType::Interface => write!(f, [Keyword::Interface]),
             CompositeType::Function => write!(f, [Keyword::Function]),
         }
     }

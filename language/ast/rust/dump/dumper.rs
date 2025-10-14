@@ -916,7 +916,7 @@ impl Dump for CompositeType {
             CompositeType::Tuple => {
                 dumper.object("CompositeType::Tuple").end();
             }
-            CompositeType::Trait => {
+            CompositeType::Interface => {
                 dumper.object("CompositeType::Trait").end();
             }
             CompositeType::Function => {
@@ -1364,7 +1364,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("visibility", visibility)
                     .end();
             }
-            Definition::Trait {
+            Definition::Interface {
                 name,
                 visibility,
                 super_types: _,
@@ -1373,7 +1373,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 where_clauses: _,
                 expressions: _,
             } => {
-                self.node("Definition::Trait", id.id)
+                self.node("Definition::Interface", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();

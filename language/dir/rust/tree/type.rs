@@ -48,8 +48,8 @@ pub enum CompositeType {
     Union,
     /// Tuple type `(T1, T2, ...)`.
     Tuple,
-    /// Trait type `trait MyTrait { ... }`.
-    Trait,
+    /// Interface type `interface MyInterface { ... }`.
+    Interface,
     /// Function type `function (T1, T2, ...) => T`.
     Function,
 }

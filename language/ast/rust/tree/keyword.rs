@@ -21,6 +21,12 @@ pub enum Keyword {
     This,
     /// Super expression (reserved).
     Super,
+    /// Extends (alias).
+    Extends,
+    /// Implements (alias).
+    Implements,
+    /// Override (reserved).
+    Override,
     /// Declare a Module.
     Module,
     /// Declare a tuple (reserved).
@@ -35,9 +41,9 @@ pub enum Keyword {
     Enum,
     /// Declare a Union.
     Union,
-    /// Declare a Trait.
+    /// Declare a Trait (alias to interface).
     Trait,
-    /// Declare an Interface (alias to trait).
+    /// Declare an Interface.
     Interface,
     /// Declare a Function.
     Function,
@@ -134,6 +140,7 @@ impl Keyword {
             Keyword::Self_ => "self",
             Keyword::This => "this",
             Keyword::Super => "super",
+            Keyword::Override => "override",
             Keyword::Module => "module",
             Keyword::Tuple => "tuple",
             Keyword::Type => "type",
@@ -148,6 +155,8 @@ impl Keyword {
             Keyword::Use => "use",
             Keyword::With => "with",
             Keyword::Where => "where",
+            Keyword::Extends => "extends",
+            Keyword::Implements => "implements",
             Keyword::As => "as",
             Keyword::Let => "let",
             Keyword::Var => "var",
@@ -200,6 +209,9 @@ impl FromStr for Keyword {
             "export" => Ok(Keyword::Export),
             "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
+            "override" => Ok(Keyword::Override),
+            "extends" => Ok(Keyword::Extends),
+            "implements" => Ok(Keyword::Implements),
             "tuple" => Ok(Keyword::Tuple),
             "super" => Ok(Keyword::Super),
             "module" => Ok(Keyword::Module),

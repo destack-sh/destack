@@ -183,7 +183,7 @@ module Foo with Context where Guard > Limit {
 
     #[test]
     fn test_parse_forward_module_with_with_and_where() {
-        let mut test = TestParser::new("module Foo with Context where Requirement: Trait;");
+        let mut test = TestParser::new("module Foo with Context where Requirement: Interface;");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
 
@@ -206,11 +206,11 @@ module Foo with Context where Guard > Limit {
             let where_items = where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 
-            // where Requirement: Trait
+            // where Requirement: Interface
             assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Trait");
+                    assert_path!(parser, *path, "Interface");
                 });
             });
         });

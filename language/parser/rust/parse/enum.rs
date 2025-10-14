@@ -333,7 +333,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
     fn test_parse_enum_with_with_and_where() {
         let mut test = TestParser::new(
             r###"
-enum Foo with Context where Requirement: Trait {
+enum Foo with Context where Requirement: Interface {
     Value
 }
 "###,
@@ -353,13 +353,13 @@ enum Foo with Context where Requirement: Trait {
                 });
             });
 
-            // where Requirement: Trait
+            // where Requirement: Interface
             let where_clauses = where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
             assert_node!(parser.tree, where_clauses[0], WhereClause::Assertion { left, right } => {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Trait");
+                    assert_path!(parser, *path, "Interface");
                 });
             });
 

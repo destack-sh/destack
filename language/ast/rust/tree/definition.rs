@@ -28,7 +28,7 @@ pub enum Definition {
 
     /// A Struct is struct definition.
     /// The ',' separator is optional if newline-delimited.
-    /// Structs may `use` other structs to include them (just like traits).
+    /// Structs may `use` other structs to include them (just like interfaces).
     /// Structs may also have super structs as semantic sugar for `use`-ing other structs.
     ///
     /// Examples:
@@ -172,36 +172,36 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// A Trait is trait definition node defining behavior and constants.
-    /// Traits can `use` other traits to include them (just like structs / unions).
-    /// Traits can also have super traits as semantic sugar for `use`-ing other traits.
+    /// A Interface is interface definition node defining behavior and constants.
+    /// Interfaces can `use` other interfaces to include them (just like structs / unions).
+    /// Interfaces can also have super interfaces as semantic sugar for `use`-ing other interfaces.
     ///
     /// Examples:
     /// ```
-    /// trait { // anonymous trait
+    /// interface { // anonymous interface
     ///     ...
     /// }
     ///
-    /// trait _ {} // explicit anonymous trait (for disambiguation)
+    /// interface _ {} // explicit anonymous interface (for disambiguation)
     ///
-    /// trait Foo: Baz { // Foo is a super
+    /// interface Foo: Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
     ///     
-    ///     let x: int32 // constant
+    ///     let x: int32 // associated constant/type
     ///     function foo() => int32
     ///
     ///     function myFunc() { // nested declaration, default implementation
     ///     }
     /// }
     ///
-    /// trait Baz<T> {
-    ///     use Bar
+    /// interface Baz<T> {
+    ///     ..Bar
     ///
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    Trait {
+    Interface {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         super_types: Option<Vec<NodeId<Expression>>>,
@@ -408,7 +408,7 @@ pub struct VariantField {
 
 // NOTE #Incomplete: getter/setter functions for Struct/Union/...Fields?
 //  (useful for SOA-style struct views?)
-//  (how does this interact with traits and unions?)
+//  (how does this interact with interfaces and unions?)
 //  (how does this relate with Entities?)
 //  (how does this relate to $ virtualness/dynamicness?)
 
