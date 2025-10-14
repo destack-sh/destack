@@ -549,7 +549,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_definition(tree, *definition_id, child_definition);
             }
         }
-        Definition::Trait {
+        Definition::Interface {
             name: _,
             visibility: _,
             static_parameters,

@@ -7,7 +7,7 @@ use crate::format::{
 use crate::prelude::*;
 use crate::print::{Printed, Printer};
 
-/// Formatting trait for types that can create a formatted representation. The `dyst_fir` equivalent
+/// Formatting interface for types that can create a formatted representation. The `dyst_fir` equivalent
 /// to [`std::fmt::Display`].
 pub trait Format<Context> {
     /// Formats the object using the given formatter.
@@ -418,9 +418,9 @@ mod tests {
         );
     }
 
-    /// Format trait creates formatted representation
+    /// Format interface creates formatted representation
     #[test]
-    fn test_format_trait_creates_formatted_representation() {
+    fn test_format_interface_creates_formatted_representation() {
         struct Paragraph(String);
 
         impl Format<SimpleFormatContext> for Paragraph {

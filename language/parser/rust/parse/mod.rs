@@ -22,7 +22,7 @@ mod prelude;
 mod seperator;
 mod stop;
 mod r#struct;
-mod r#trait;
+mod interface;
 mod r#try;
 mod r#type;
 mod union;

@@ -339,8 +339,8 @@ impl<'a> Compiler<'a> {
                 )
             }
 
-            // Trait definition
-            ast::Definition::Trait {
+            // Interface definition
+            ast::Definition::Interface {
                 name,
                 visibility,
                 super_types,
@@ -381,7 +381,7 @@ impl<'a> Compiler<'a> {
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
                 self.tree.insert(
-                    Definition::Trait {
+                    Definition::Interface {
                         name,
                         visibility,
                         static_parameters,

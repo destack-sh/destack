@@ -361,11 +361,11 @@ impl<'a> Parser<'a> {
                 self.tree
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
-            // trait
-            else if keyword == Some(Keyword::Trait) || keyword == Some(Keyword::Interface) {
-                let trait_id = self.eat_trait(visibility)?;
+            // interface
+            else if keyword == Some(Keyword::Interface) || keyword == Some(Keyword::Interface) {
+                let interface_id = self.eat_interface(visibility)?;
                 self.tree
-                    .insert(Expression::Definition(trait_id), self.get_span_from(start))
+                    .insert(Expression::Definition(interface_id), self.get_span_from(start))
             }
             // implement
             else if keyword == Some(Keyword::Implement) {

@@ -186,6 +186,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat super types maybe. May be parenthesized.
+    /// Accepts both `:` and `extends` keywords.
     ///
     /// Examples:
     /// ```
@@ -194,8 +195,9 @@ impl<'a> Parser<'a> {
     /// : (Foo, Bar)
     /// ```
     pub fn eat_super_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
-        if self.peek_token(TokenType::Colon).is_ok() {
-            self.bump(); // eat colon
+        if self.peek_token(TokenType::Colon).is_ok() || self.peek_keyword(Keyword::Extends).is_ok()
+        {
+            self.bump(); // eat colon or keyword
             let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
@@ -220,7 +222,7 @@ impl<'a> Parser<'a> {
     /// Foo
     /// Foo, Bar<X>
     /// ```
-    pub fn eat_super_types(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
+    fn eat_super_types(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
         let mut super_types: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // eat until open brace or close parenthesis

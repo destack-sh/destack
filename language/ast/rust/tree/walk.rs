@@ -655,7 +655,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *expr_id, expr);
             }
         }
-        Definition::Trait {
+        Definition::Interface {
             name: _,
             visibility: _,
             super_types,
@@ -710,8 +710,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
             if let Some(for_type) = for_type {
-                let trait_expr = tree.get(*for_type);
-                visitor.visit_expression(tree, *for_type, trait_expr);
+                let interface_expr = tree.get(*for_type);
+                visitor.visit_expression(tree, *for_type, interface_expr);
             }
             if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {

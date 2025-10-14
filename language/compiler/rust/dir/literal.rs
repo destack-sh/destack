@@ -118,7 +118,7 @@ impl<'a> Compiler<'a> {
             ast::CompositeType::Enum => CompositeType::Enum,
             ast::CompositeType::Union => CompositeType::Union,
             ast::CompositeType::Tuple => CompositeType::Tuple,
-            ast::CompositeType::Trait => CompositeType::Trait,
+            ast::CompositeType::Interface => CompositeType::Interface,
             ast::CompositeType::Function => CompositeType::Function,
         }
     }

@@ -357,8 +357,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [hard_line_break(), token("}")])?;
             }
 
-            // trait
-            Definition::Trait {
+            // interface
+            Definition::Interface {
                 name,
                 visibility: _,
                 static_parameters,
@@ -368,7 +368,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // keyword
-                write!(f, [Keyword::Trait])?;
+                write!(f, [Keyword::Interface])?;
 
                 // name
                 if let Some(name) = name {
@@ -405,7 +405,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_where_clause(f, where_clauses)?;
                 }
 
-                // space before trait body
+                // space before body
                 write!(f, [space()])?;
 
                 // empty body

@@ -1,5 +1,5 @@
-/// Marker trait for contexts.
-trait Context { }
+/// Marker interface for contexts.
+interface Context { }
 
 /// Default context.
 struct DefaultContext {

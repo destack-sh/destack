@@ -86,8 +86,8 @@ pub enum Definition {
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
-    /// Trait definition.
-    Trait {
+    /// Interface definition.
+    Interface {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -135,7 +135,7 @@ impl Definition {
             Definition::Struct { name, .. } => *name,
             Definition::Enum { name, .. } => *name,
             Definition::Union { name, .. } => *name,
-            Definition::Trait { name, .. } => *name,
+            Definition::Interface { name, .. } => *name,
             Definition::Function { name, .. } => *name,
             Definition::Implement { .. } => None,
         }
@@ -153,7 +153,7 @@ impl Definition {
             Definition::Struct { visibility, .. } => *visibility,
             Definition::Enum { visibility, .. } => *visibility,
             Definition::Union { visibility, .. } => *visibility,
-            Definition::Trait { visibility, .. } => *visibility,
+            Definition::Interface { visibility, .. } => *visibility,
             Definition::Function { visibility, .. } => *visibility,
             Definition::Implement { .. } => None,
         }
@@ -180,7 +180,7 @@ impl Definition {
                 embedded_definitions,
                 ..
             } => Some(embedded_definitions),
-            Definition::Trait {
+            Definition::Interface {
                 embedded_definitions,
                 ..
             } => Some(embedded_definitions),
@@ -201,7 +201,7 @@ impl Definition {
             Definition::Struct { definitions, .. } => Some(definitions),
             Definition::Enum { definitions, .. } => Some(definitions),
             Definition::Union { definitions, .. } => Some(definitions),
-            Definition::Trait { definitions, .. } => Some(definitions),
+            Definition::Interface { definitions, .. } => Some(definitions),
             Definition::Function { definitions, .. } => Some(definitions),
             Definition::Implement { definitions, .. } => Some(definitions),
         }

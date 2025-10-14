@@ -1,1 +1,1 @@
-trait DebugDrawable { }
+interface DebugDrawable { }
