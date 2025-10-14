@@ -469,8 +469,8 @@ impl<'a> Compiler<'a> {
             // Implement definition
             ast::Definition::Implement {
                 static_parameters,
-                receiver,
-                for_type,
+                target_type,
+                super_type,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -481,8 +481,8 @@ impl<'a> Compiler<'a> {
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
-                let receiver = self.lower_expression_to_type(source_id, ast, *receiver);
-                let for_type = for_type
+                let target_type = self.lower_expression_to_type(source_id, ast, *target_type);
+                let super_type = super_type
                     .as_ref()
                     .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
@@ -504,8 +504,8 @@ impl<'a> Compiler<'a> {
                 self.tree.insert(
                     Definition::Implement {
                         static_parameters,
-                        receiver,
-                        for_type,
+                        target_type,
+                        super_type,
                         with_clauses,
                         where_clauses,
                         definitions,

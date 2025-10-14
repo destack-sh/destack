@@ -701,8 +701,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Implement {
             static_parameters,
-            receiver,
-            for_type,
+            target_type,
+            super_type,
             with_clauses,
             where_clauses,
             expressions,
@@ -713,11 +713,11 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *argument_id, argument);
                 }
             }
-            let receiver_expr = tree.get(*receiver);
-            visitor.visit_expression(tree, *receiver, receiver_expr);
-            if let Some(for_type) = for_type {
-                let interface_expr = tree.get(*for_type);
-                visitor.visit_expression(tree, *for_type, interface_expr);
+            let target_type_expr = tree.get(*target_type);
+            visitor.visit_expression(tree, *target_type, target_type_expr);
+            if let Some(super_type) = super_type {
+                let super_type_expr = tree.get(*super_type);
+                visitor.visit_expression(tree, *super_type, super_type_expr);
             }
             if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {

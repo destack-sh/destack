@@ -11,4 +11,4 @@ struct DefaultContext {
     allocator: Allocator
 }
 
-implement Context for DefaultContext { }
+implement Context { }
