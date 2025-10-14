@@ -62,8 +62,8 @@ impl Token {
             TokenType::Dot => ".".to_string(),
             TokenType::Range => "..".to_string(),
             TokenType::RangeWide => "...".to_string(),
-            TokenType::FatArrow => "=>".to_string(),
-            TokenType::ThinArrow => "->".to_string(),
+            TokenType::Arrow => "->".to_string(),
+            TokenType::ArrowWide => "=>".to_string(),
 
             // parentheses
             TokenType::OpenParenthesis => "(".to_string(),
@@ -107,7 +107,9 @@ impl Token {
 
             // comparison
             TokenType::Equal => "==".to_string(),
+            TokenType::EqualWide => "===".to_string(),
             TokenType::NotEqual => "!=".to_string(),
+            TokenType::NotEqualWide => "!==".to_string(),
             TokenType::LessThan => "<".to_string(),
             TokenType::LessThanOrEqual => "<=".to_string(),
             TokenType::GreaterThan => ">".to_string(),

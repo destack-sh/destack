@@ -1,7 +1,7 @@
 mod ast;
-mod compiler;
 mod compile;
+mod compiler;
 
 pub use ast::*;
-pub use compiler::*;
 pub use compile::*;
+pub use compiler::*;

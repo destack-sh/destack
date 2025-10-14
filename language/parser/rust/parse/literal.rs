@@ -4,8 +4,8 @@ use dyst_ast::Path;
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, Expression, NodeId, NodeType, NumberBase, Parser, ParserError, ParserResult,
-    RawLiteralType, ScalarLiteral, TokenSpan, TokenType,
+    Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Parser, ParserError,
+    ParserResult, ScalarLiteral, TokenSpan, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -32,17 +32,17 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
-        let Some(body) = literal_span.token.body else {
+        let Some(body) = literal_span.token.literal else {
             return Err(ParserError::unexpected(literal_span.span));
         };
         let literal_str = self.get_span_str(literal_span.span);
 
         match body {
             // boolean literal
-            RawLiteralType::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
+            LiteralType::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
 
             // int literal
-            RawLiteralType::Int { base, is_empty } => {
+            LiteralType::Int { base, is_empty } => {
                 if is_empty {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
             }
 
             // float literal
-            RawLiteralType::Float {
+            LiteralType::Float {
                 base: _,
                 is_empty_exponent,
             } => {
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
             }
 
             // character literal (ignore quotes)
-            RawLiteralType::Character { is_terminated } => {
+            LiteralType::Character { is_terminated } => {
                 if !is_terminated {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
             }
 
             // byte character literal (ignore quotes)
-            RawLiteralType::Byte { is_terminated } => {
+            LiteralType::Byte { is_terminated } => {
                 if !is_terminated {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
             }
 
             // string literal (ignore quotes)
-            RawLiteralType::String { is_terminated } => {
+            LiteralType::String { is_terminated } => {
                 if !is_terminated {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
             }
 
             // byte string literal (ignore quotes)
-            RawLiteralType::ByteString { is_terminated } => {
+            LiteralType::ByteString { is_terminated } => {
                 if !is_terminated {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
             }
 
             // raw string literal (ignore quotes and hashes)
-            RawLiteralType::RawString { hashes } => {
+            LiteralType::RawString { hashes } => {
                 let Some(hashes) = hashes else {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -202,7 +202,7 @@ impl<'a> Parser<'a> {
             }
 
             // raw byte string literal (ignore quotes and hashes)
-            RawLiteralType::RawByteString { hashes } => {
+            LiteralType::RawByteString { hashes } => {
                 let Some(hashes) = hashes else {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -321,12 +321,14 @@ impl<'a> Parser<'a> {
             // we're looking for (identifier, colon) | (range, identifier) | (range wide, identifier)
             let token_ty = self.tokens[current_pos as usize].token.ty;
             let next_token_ty = self.tokens[current_pos as usize + 1].token.ty;
-            if (token_ty == TokenType::Identifier && next_token_ty == TokenType::Colon)
-                || (token_ty == TokenType::Identifier && next_token_ty == TokenType::Assign)
-                || (token_ty == TokenType::Range && next_token_ty == TokenType::Identifier)
-                || (token_ty == TokenType::RangeWide && next_token_ty == TokenType::Identifier)
-            {
-                return Ok(());
+            match (token_ty, next_token_ty) {
+                (TokenType::Identifier, TokenType::Colon)
+                | (TokenType::Identifier, TokenType::Assign)
+                | (TokenType::Range, TokenType::Identifier)
+                | (TokenType::RangeWide, TokenType::Identifier) => {
+                    return Ok(());
+                }
+                _ => {}
             }
         }
 

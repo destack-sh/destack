@@ -72,10 +72,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_arrow(&self) -> ParserResult<&TokenSpan> {
         let token = self.peek()?;
-        if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
+        if token.token.ty == TokenType::ArrowWide || token.token.ty == TokenType::Arrow {
             Ok(token)
         } else {
-            Err(ParserError::expected(token.span, TokenType::FatArrow))
+            Err(ParserError::expected(token.span, TokenType::ArrowWide))
         }
     }
 
@@ -83,10 +83,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_arrow(&mut self) -> ParserResult<&TokenSpan> {
         let token = self.eat()?;
-        if token.token.ty == TokenType::FatArrow || token.token.ty == TokenType::ThinArrow {
+        if token.token.ty == TokenType::ArrowWide || token.token.ty == TokenType::Arrow {
             Ok(token)
         } else {
-            Err(ParserError::expected(token.span, TokenType::FatArrow))
+            Err(ParserError::expected(token.span, TokenType::ArrowWide))
         }
     }
 }

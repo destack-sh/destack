@@ -85,6 +85,51 @@ pub enum UnaryOperator {
     Spread = 231,
 }
 
+impl UnaryOperator {
+    /// Get the precedence of the unary operator.
+    #[inline]
+    pub fn precedence_group(&self) -> OperatorPrecedence {
+        OperatorPrecedence::Prefix
+    }
+
+    /// Get the precedence of the unary operator.
+    #[inline]
+    pub fn precedence(self) -> u8 {
+        // just transmute the enum value to an u8
+        self as u8
+    }
+
+    /// Covnert a TokenType to a UnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token(token_type: TokenType) -> Option<UnaryOperator> {
+        match token_type {
+            TokenType::Not => Some(UnaryOperator::Not),
+            TokenType::Subtract => Some(UnaryOperator::Negate),
+            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
+            TokenType::Multiply => Some(UnaryOperator::Dereference),
+            TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
+            TokenType::Virtual => Some(UnaryOperator::Virtual),
+            TokenType::Range => Some(UnaryOperator::Spread),
+            TokenType::RangeWide => Some(UnaryOperator::Spread),
+            _ => None,
+        }
+    }
+
+    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
+    #[inline]
+    pub fn as_token(&self) -> TokenType {
+        match self {
+            UnaryOperator::Not => TokenType::Not,
+            UnaryOperator::Negate => TokenType::Subtract,
+            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
+            UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
+            UnaryOperator::Dereference => TokenType::Multiply,
+            UnaryOperator::Virtual => TokenType::Virtual,
+            UnaryOperator::Spread => TokenType::Range,
+        }
+    }
+}
+
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -154,80 +199,6 @@ pub enum BinaryOperator {
     Coalesce = 171,
     /// `as`
     Cast = 170,
-}
-
-/// An AssignOperator is assignment type.
-/// Relative order matches precedence. Also see OperatorPrecedence.
-///
-/// Examples:
-/// ```
-/// x = 1
-/// x += 1
-/// x >>= 1
-/// x &= 1
-/// x |= 1
-/// ```
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AssignOperator {
-    /// `=`
-    Assign = 160,
-
-    // assignment multiplication
-    /// `*=`
-    MultiplyAssign = 154,
-    /// `*%=`
-    WrappingMultiplyAssign = 153,
-    /// `*|=`
-    SaturatingMultiplyAssign = 152,
-    /// `/=`
-    DivideAssign = 151,
-    /// `%=`
-    RemainderAssign = 150,
-
-    // assignment addition
-    /// `+=`
-    AddAssign = 145,
-    /// `+%=`
-    WrappingAddAssign = 144,
-    /// `+|=`
-    SaturatingAddAssign = 143,
-    /// `-=`
-    SubtractAssign = 142,
-    /// `-%=`
-    WrappingSubtractAssign = 141,
-    /// `-|=`
-    SaturatingSubtractAssign = 140,
-
-    // assignment shift
-    /// `<<=`
-    ShiftLeftAssign = 132,
-    /// `<<|=`
-    SaturatingShiftLeftAssign = 131,
-    /// `>>=`
-    ShiftRightAssign = 130,
-
-    // assignment elementwise
-    /// `&=`
-    ElementwiseAndAssign = 122,
-    /// `^=`
-    ElementwiseXorAssign = 121,
-    /// `|=`
-    ElementwiseOrAssign = 120,
-
-    // assignment logical
-    /// `&&=`
-    AndAssign = 111,
-    /// `||=`
-    OrAssign = 110,
-}
-
-/// An InfixOperator is an umbrella for either a binary or assignment operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum InfixOperator {
-    /// A binary operator.
-    Binary(BinaryOperator),
-    /// An assignment operator.
-    Assign(AssignOperator),
 }
 
 impl BinaryOperator {
@@ -312,7 +283,9 @@ impl BinaryOperator {
 
             // comparison
             TokenType::Equal => Some(BinaryOperator::Equal),
+            TokenType::EqualWide => Some(BinaryOperator::Equal),
             TokenType::NotEqual => Some(BinaryOperator::NotEqual),
+            TokenType::NotEqualWide => Some(BinaryOperator::NotEqual),
             TokenType::LessThan => Some(BinaryOperator::LessThan),
             TokenType::LessThanOrEqual => Some(BinaryOperator::LessThanOrEqual),
             TokenType::GreaterThan => Some(BinaryOperator::GreaterThan),
@@ -328,49 +301,69 @@ impl BinaryOperator {
     }
 }
 
-impl UnaryOperator {
-    /// Get the precedence of the unary operator.
-    #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
-        OperatorPrecedence::Prefix
-    }
+/// An AssignOperator is assignment type.
+/// Relative order matches precedence. Also see OperatorPrecedence.
+///
+/// Examples:
+/// ```
+/// x = 1
+/// x += 1
+/// x >>= 1
+/// x &= 1
+/// x |= 1
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AssignOperator {
+    /// `=`
+    Assign = 160,
 
-    /// Get the precedence of the unary operator.
-    #[inline]
-    pub fn precedence(self) -> u8 {
-        // just transmute the enum value to an u8
-        self as u8
-    }
+    // assignment multiplication
+    /// `*=`
+    MultiplyAssign = 154,
+    /// `*%=`
+    WrappingMultiplyAssign = 153,
+    /// `*|=`
+    SaturatingMultiplyAssign = 152,
+    /// `/=`
+    DivideAssign = 151,
+    /// `%=`
+    RemainderAssign = 150,
 
-    /// Covnert a TokenType to a UnaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_token(token_type: TokenType) -> Option<UnaryOperator> {
-        match token_type {
-            TokenType::Not => Some(UnaryOperator::Not),
-            TokenType::Subtract => Some(UnaryOperator::Negate),
-            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
-            TokenType::Multiply => Some(UnaryOperator::Dereference),
-            TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
-            TokenType::Virtual => Some(UnaryOperator::Virtual),
-            TokenType::Range => Some(UnaryOperator::Spread),
-            TokenType::RangeWide => Some(UnaryOperator::Spread),
-            _ => None,
-        }
-    }
+    // assignment addition
+    /// `+=`
+    AddAssign = 145,
+    /// `+%=`
+    WrappingAddAssign = 144,
+    /// `+|=`
+    SaturatingAddAssign = 143,
+    /// `-=`
+    SubtractAssign = 142,
+    /// `-%=`
+    WrappingSubtractAssign = 141,
+    /// `-|=`
+    SaturatingSubtractAssign = 140,
 
-    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
-    #[inline]
-    pub fn as_token(&self) -> TokenType {
-        match self {
-            UnaryOperator::Not => TokenType::Not,
-            UnaryOperator::Negate => TokenType::Subtract,
-            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
-            UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
-            UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::Virtual => TokenType::Virtual,
-            UnaryOperator::Spread => TokenType::Range,
-        }
-    }
+    // assignment shift
+    /// `<<=`
+    ShiftLeftAssign = 132,
+    /// `<<|=`
+    SaturatingShiftLeftAssign = 131,
+    /// `>>=`
+    ShiftRightAssign = 130,
+
+    // assignment elementwise
+    /// `&=`
+    ElementwiseAndAssign = 122,
+    /// `^=`
+    ElementwiseXorAssign = 121,
+    /// `|=`
+    ElementwiseOrAssign = 120,
+
+    // assignment logical
+    /// `&&=`
+    AndAssign = 111,
+    /// `||=`
+    OrAssign = 110,
 }
 
 impl AssignOperator {
@@ -495,6 +488,15 @@ impl AssignOperator {
             AssignOperator::OrAssign => TokenType::LogicalOrAssign,
         }
     }
+}
+
+/// An InfixOperator is an umbrella for either a binary or assignment operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum InfixOperator {
+    /// A binary operator.
+    Binary(BinaryOperator),
+    /// An assignment operator.
+    Assign(AssignOperator),
 }
 
 impl InfixOperator {
