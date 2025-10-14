@@ -18,16 +18,16 @@ impl<'a> Compiler<'a> {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
-            ast::Expression::Use {
+            ast::Expression::Import {
                 visibility,
                 clauses,
             } => {
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let items = clauses
                     .iter()
-                    .flat_map(|clause| self.lower_use_clause(source_id, ast, *clause))
+                    .flat_map(|clause| self.lower_import_clause(source_id, ast, *clause))
                     .collect();
-                let definition = Definition::Use { visibility, items };
+                let definition = Definition::Import { visibility, items };
                 Some(self.tree.insert(definition, source_id, expression_id))
             }
             _ => None,

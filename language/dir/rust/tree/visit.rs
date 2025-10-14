@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause,
+    Annotation, Argument, Block, Definition, Expression, ImportItem, MatchCase, NodeId, NodeTree,
+    NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
     WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_expression,
     walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type, walk_use_item,
     walk_variant, walk_variant_field, walk_where_clause, walk_with_clause,
@@ -97,7 +97,7 @@ pub trait NodeVisitor {
     }
 
     /// Visit a UseItem.
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
+    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, use_item: &ImportItem) {
         walk_use_item(self, tree, id, use_item);
     }
 
@@ -254,8 +254,8 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::WithClause, id.id);
     }
 
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, _use_item: &UseItem) {
-        self.visit_any(tree, NodeType::UseItem, id.id);
+    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, _use_item: &ImportItem) {
+        self.visit_any(tree, NodeType::ImportItem, id.id);
     }
 
     // ------------------------------------------------------------

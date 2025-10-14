@@ -578,16 +578,14 @@ impl Tokenizer<'_> {
             // character literal (with fallback to string literal for leniency)
             '\'' => match self.eat_single_quoted_string() {
                 SingleQuotedLiteral::Character { is_terminated } => {
-                    let kind = LiteralType::Character {
-                        is_terminated,
-                    };
+                    let kind = LiteralType::Character { is_terminated };
                     (TokenType::Literal, Some(kind))
                 }
                 SingleQuotedLiteral::String { is_terminated } => {
                     let kind = LiteralType::String { is_terminated };
                     (TokenType::Literal, Some(kind))
                 }
-            }
+            },
 
             // string literal
             '"' => {
@@ -812,10 +810,7 @@ impl Tokenizer<'_> {
     }
 
     #[inline]
-    fn finish_single_quoted_literal(
-        logical_len: u32,
-        is_terminated: bool,
-    ) -> SingleQuotedLiteral {
+    fn finish_single_quoted_literal(logical_len: u32, is_terminated: bool) -> SingleQuotedLiteral {
         if logical_len <= 1 {
             SingleQuotedLiteral::Character { is_terminated }
         } else {

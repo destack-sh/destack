@@ -1,8 +1,8 @@
 /// Core Universe Module.
 
-use client
-use organization
-use team
-use universe
-use user
+import client
+import organization
+import team
+import universe
+import user
 

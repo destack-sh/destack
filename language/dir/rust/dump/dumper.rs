@@ -1146,7 +1146,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", id.id).end();
             }
-            Expression::Use {
+            Expression::Import {
                 visibility,
                 items: _,
             } => {
@@ -1360,7 +1360,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("intrinsic", intrinsic)
                     .end();
             }
-            Definition::Use {
+            Definition::Import {
                 visibility,
                 items: _,
             } => {
@@ -1672,7 +1672,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
+    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, use_item: &ImportItem) {
         self.node("UseItem", id.id)
             .field("source", &use_item.source)
             .field_optional("alias", &use_item.alias)

@@ -1,5 +1,5 @@
-use destack
-use destack.entity
+import destack
+import destack.entity
 
 /// A color in the Tetris game.
 enum Color {

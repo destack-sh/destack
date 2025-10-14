@@ -1,4 +1,4 @@
-use destack
+import destack
 
 /// An Entity Epoch.
 struct Epoch: uint64 {

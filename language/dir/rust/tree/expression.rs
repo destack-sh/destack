@@ -18,11 +18,12 @@ pub enum Expression {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-    /// Use dependency declaration (flattened, like `use foo.bar` for `use foo.bar, baz.quz`)
-    Use {
+    /// Import dependency declaration (flattened, like `import foo.bar` for `import foo.bar, baz.quz`)
+    Import {
         visibility: Option<Visibility>,
-        items: Vec<NodeId<UseItem>>,
+        items: Vec<NodeId<ImportItem>>,
     },
+    // NOTE #Incomplete: `export` modifier (and export expression?)
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: ScopedMutability,
@@ -178,17 +179,17 @@ pub enum LoopSource {
     Loop,
 }
 
-/// A UseItem is an item to use in a use clause.
+/// A ImportItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UseItem {
+pub struct ImportItem {
     /// The source of the item.
     pub source: Path,
     /// The alias to use for the item.
     pub alias: Option<StringId>,
 }
 
-impl Node for UseItem {
-    const KIND: NodeType = NodeType::UseItem;
+impl Node for ImportItem {
+    const KIND: NodeType = NodeType::ImportItem;
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

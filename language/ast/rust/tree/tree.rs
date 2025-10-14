@@ -6,8 +6,9 @@ use dyst_source::{SourceId, Span};
 use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
-    EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter, Pattern,
-    PatternField, Tag, UnionField, UseClause, UseItem, VariantField, WhereClause, WithClause,
+    EnumField, Expression, ImportClause, ImportItem, MatchCase, Node, NodeId, NodeSpanIndex,
+    NodeType, Parameter, Pattern, PatternField, Tag, UnionField, VariantField, WhereClause,
+    WithClause,
 };
 
 /// The AST Node tree for a single source unit.
@@ -38,8 +39,8 @@ pub struct NodeTree {
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) use_clauses: NodeArena<UseClause>,
-    pub(crate) use_items: NodeArena<UseItem>,
+    pub(crate) use_clauses: NodeArena<ImportClause>,
+    pub(crate) use_items: NodeArena<ImportItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
@@ -252,8 +253,8 @@ impl NodeTree {
             // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            NodeType::UseClause => self.use_clauses.deallocate(local_ids),
-            NodeType::UseItem => self.use_items.deallocate(local_ids),
+            NodeType::ImportClause => self.use_clauses.deallocate(local_ids),
+            NodeType::ImportItem => self.use_items.deallocate(local_ids),
             // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
             NodeType::Argument => self.arguments.deallocate(local_ids),
@@ -399,8 +400,8 @@ impl_node_tree_stores! {
     // context
     WithClause => with_clauses,
     WhereClause => where_clauses,
-    UseClause => use_clauses,
-    UseItem => use_items,
+    ImportClause => use_clauses,
+    ImportItem => use_items,
     // bindings
     Parameter => parameters,
     Argument => arguments,

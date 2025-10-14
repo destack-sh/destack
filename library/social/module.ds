@@ -1,7 +1,7 @@
 /// Basics Social Module.
 
-use follow
-use notification
-use reaction
-use star
+import follow
+import notification
+import reaction
+import star
 

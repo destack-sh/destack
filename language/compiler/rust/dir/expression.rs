@@ -93,22 +93,16 @@ impl<'a> Compiler<'a> {
                 let body = body.map(|body| self.lower_block(source_id, ast, body));
                 Expression::With { clauses, body }
             }
-            ast::Expression::Use {
+            ast::Expression::Import {
                 visibility,
                 clauses,
-                body,
             } => {
                 let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
-                let body = body.map(|body| self.lower_block(source_id, ast, body));
                 let items = clauses
                     .iter()
-                    .flat_map(|clause| self.lower_use_clause(source_id, ast, *clause))
+                    .flat_map(|clause| self.lower_import_clause(source_id, ast, *clause))
                     .collect();
-                Expression::Use {
-                    visibility,
-                    items,
-                    body,
-                }
+                Expression::Import { visibility, items }
             }
             ast::Expression::Let {
                 mutability,

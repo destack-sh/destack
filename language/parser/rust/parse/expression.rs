@@ -364,8 +364,10 @@ impl<'a> Parser<'a> {
             // interface
             else if keyword == Some(Keyword::Interface) || keyword == Some(Keyword::Interface) {
                 let interface_id = self.eat_interface(visibility)?;
-                self.tree
-                    .insert(Expression::Definition(interface_id), self.get_span_from(start))
+                self.tree.insert(
+                    Expression::Definition(interface_id),
+                    self.get_span_from(start),
+                )
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
@@ -392,9 +394,9 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::With) {
                 self.eat_with()?
             }
-            // use
-            else if keyword == Some(Keyword::Use) {
-                self.eat_use(visibility)?
+            // import
+            else if keyword == Some(Keyword::Import) || keyword == Some(Keyword::Use) {
+                self.eat_import(visibility)?
             }
             // let
             else if keyword == Some(Keyword::Let)

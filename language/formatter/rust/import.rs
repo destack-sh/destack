@@ -1,13 +1,13 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, UseClause, UseItem};
+use crate::{DystFormatter, FormatNode, ImportClause, ImportItem, NodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-impl<'ast> FormatNode<'ast, UseClause> for UseClause {
+impl<'ast> FormatNode<'ast, ImportClause> for ImportClause {
     fn format_node(
         &self,
-        node_id: NodeId<UseClause>,
+        node_id: NodeId<ImportClause>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -43,10 +43,10 @@ impl<'ast> FormatNode<'ast, UseClause> for UseClause {
     }
 }
 
-impl<'ast> FormatNode<'ast, UseItem> for UseItem {
+impl<'ast> FormatNode<'ast, ImportItem> for ImportItem {
     fn format_node(
         &self,
-        node_id: NodeId<UseItem>,
+        node_id: NodeId<ImportItem>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -69,50 +69,59 @@ mod tests {
     use crate::{DystFormatOptions, assert_format};
 
     #[test]
-    fn test_format_use_simple() {
+    fn test_format_import_simple() {
         assert_format!(
-            "use foo",
-            "use foo",
+            "import foo",
+            "import foo",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
 
     #[test]
-    fn test_format_use_multiple_clauses() {
+    fn test_format_import_multiple_clauses() {
         assert_format!(
-            "use foo, bar, baz",
-            "use foo, bar, baz",
+            "import foo, bar, baz",
+            "import foo, bar, baz",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
 
     #[test]
-    fn test_format_use_with_alias() {
+    fn test_format_import_with_alias() {
         assert_format!(
-            "use foo as bar",
-            "use foo as bar",
+            "import foo as bar",
+            "import foo as bar",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
 
     #[test]
-    fn test_format_use_with_items() {
+    fn test_format_import_with_items() {
         assert_format!(
-            "use foo.{bar, baz}",
-            "use foo.{bar, baz}",
+            "import foo.{bar, baz}",
+            "import foo.{bar, baz}",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_with_line_width(60)
+        );
+    }
+    #[test]
+    fn test_format_import_with_items_from() {
+        assert_format!(
+            "import {bar, baz} from foo",
+            "import foo.{bar, baz}",
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(60)
         );
     }
 
     #[test]
-    fn test_format_use_with_annotations() {
+    fn test_format_import_with_annotations() {
         assert_format!(
-            "use #foo foo",
-            "use #foo foo",
+            "import #foo foo",
+            "import #foo foo",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

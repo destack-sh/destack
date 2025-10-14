@@ -11,10 +11,12 @@ pub enum Keyword {
     Internal,
     /// Visibility modifier (reserved)
     Private,
-    /// Import (reserved).
+    /// Import an item.
     Import,
-    /// Export (reserved).
+    /// Export an item.
     Export,
+    /// From expression.
+    From,
     /// Refer to the containing instance type.
     Self_,
     /// Refer to the containing instance type (alias to `self`).
@@ -49,7 +51,7 @@ pub enum Keyword {
     Function,
     /// Implement a type.
     Implement,
-    /// Use an item in this scope.
+    /// Import an item (alias).
     Use,
     /// With expression to declare use of items for a scope.
     With,
@@ -125,7 +127,7 @@ pub enum Keyword {
     Virtual,
     /// Typeof expression (reserved).
     Typeof,
-    /// Any expression (reserved).
+    /// Any expression (alias).
     Any,
 }
 
@@ -139,6 +141,7 @@ impl Keyword {
             Keyword::Internal => "internal",
             Keyword::Import => "import",
             Keyword::Export => "export",
+            Keyword::From => "from",
             Keyword::Self_ => "self",
             Keyword::This => "this",
             Keyword::Super => "super",
@@ -210,6 +213,7 @@ impl FromStr for Keyword {
             "internal" => Ok(Keyword::Internal),
             "import" => Ok(Keyword::Import),
             "export" => Ok(Keyword::Export),
+            "from" => Ok(Keyword::From),
             "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
             "override" => Ok(Keyword::Override),
