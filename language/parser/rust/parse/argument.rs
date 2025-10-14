@@ -11,10 +11,21 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// Validate: bool = false
     /// baz: @someMacro(T)
+    /// ...T
+    /// ...args: int32[]
     /// ```
     #[inline]
     pub fn eat_parameter(&mut self) -> ParserResult<NodeId<Parameter>> {
         let start = self.mark();
+
+        let is_variadic = if self.peek_token(TokenType::Range).is_ok()
+            || self.peek_token(TokenType::RangeWide).is_ok()
+        {
+            self.bump(); // eat range or range wide
+            true
+        } else {
+            false
+        };
 
         // name
         let name = self.eat_identifier()?;
@@ -31,18 +42,23 @@ impl<'a> Parser<'a> {
         };
 
         // = value
-        let parameter = if self.peek_token(TokenType::Assign).is_ok() {
+        let parameter = if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.bump(); // eat assign
             let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
-            Parameter {
+            Parameter::Scalar {
                 name,
                 ty,
                 default: Some(value),
             }
-        } else {
-            // no default value
-            Parameter {
+        }
+        // variadic parameter (cannot have a default value)
+        else if is_variadic {
+            Parameter::Variadic { name, ty }
+        }
+        // named parameter (without a default value)
+        else {
+            Parameter::Scalar {
                 name,
                 ty,
                 default: None,
@@ -63,7 +79,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_parameters_body(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
-        while self.peek_identifier().is_ok() {
+        while self.peek_identifier().is_ok()
+            || self.peek_token(TokenType::Range).is_ok()
+            || self.peek_token(TokenType::RangeWide).is_ok()
+        {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
             if self.peek_item_stop().is_ok() {
@@ -261,8 +280,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_path,
-        assert_string,
+        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -271,10 +290,11 @@ mod tests {
         let mut test = TestParser::new("T");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        let parameter = parser.tree.get(parameter_id);
-        assert_string!(parser, parameter.name, "T");
-        assert!(parameter.ty.is_none());
-        assert!(parameter.default.is_none());
+        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+            assert_string!(parser, *name, "T");
+            assert!(ty.is_none());
+            assert!(default.is_none());
+        });
     }
 
     #[test]
@@ -283,21 +303,14 @@ mod tests {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        let parameter = parser.tree.get(parameter_id);
-
-        // x
-        assert_string!(parser, parameter.name, "x");
-
-        // int32
-        assert_node!(
-            parser.tree,
-            parameter.ty.unwrap(),
-            Expression::TypeLiteral(TypeLiteral::Int(IntType {
+        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType {
                 width: Some(32),
                 is_signed: true
-            }))
-        );
-        assert!(parameter.default.is_none());
+            })));
+            assert!(default.is_none());
+        });
     }
 
     #[test]
@@ -306,25 +319,35 @@ mod tests {
         let mut test = TestParser::new("validate: boolean = false");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        let parameter = parser.tree.get(parameter_id);
+        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+            assert_string!(parser, *name, "validate");
+            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+            assert!(default.is_some());
+        });
+    }
 
-        // validate
-        assert_string!(parser, parameter.name, "validate");
+    #[test]
+    fn test_parse_parameter_variadic() {
+        // ...args
+        let mut test = TestParser::new("...args");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Variadic { name, ty } => {
+            assert_string!(parser, *name, "args");
+            assert!(ty.is_none());
+        });
+    }
 
-        // boolean
-        assert_node!(
-            parser.tree,
-            parameter.ty.unwrap(),
-            Expression::TypeLiteral(TypeLiteral::Boolean)
-        );
-
-        // false
-        assert!(parameter.default.is_some());
-        assert_node!(
-            parser.tree,
-            parameter.default.unwrap(),
-            Expression::ScalarLiteral(ScalarLiteral::Boolean(false))
-        );
+    #[test]
+    fn test_parse_parameter_variadic_with_type() {
+        // ...args: int32[]
+        let mut test = TestParser::new("...args: int32[]");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Variadic { name, ty } => {
+            assert_string!(parser, *name, "args");
+            assert!(ty.is_some());
+        });
     }
 
     #[test]

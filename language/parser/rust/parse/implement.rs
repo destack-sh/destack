@@ -202,7 +202,7 @@ implement<U> Bar<T>: Baz<T> {
             // implement<U>
             let static_parameters = static_parameters.as_ref().expect("expected static parameters");
             assert_eq!(static_parameters.len(), 1);
-            assert_node!(parser.tree, static_parameters[0], Parameter { name, ty, default } => {
+            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, ty, default } => {
                 assert_string!(parser, *name, "U");
                 assert!(ty.is_none());
                 assert!(default.is_none());

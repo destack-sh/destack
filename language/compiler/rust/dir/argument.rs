@@ -13,15 +13,24 @@ impl<'a> Compiler<'a> {
         parameter_id: ast::NodeId<ast::Parameter>,
     ) -> NodeId<Parameter> {
         let parameter = ast.get(parameter_id);
-        let name = self.intern_string(source_id, parameter.name);
-        let ty = parameter
-            .ty
-            .map(|ty| self.lower_expression_to_type(source_id, ast, ty));
-        let default = parameter
-            .default
-            .map(|default| self.lower_expression(source_id, ast, default));
-        self.tree
-            .insert(Parameter { name, ty, default }, source_id, parameter_id)
+        match parameter {
+            ast::Parameter::Scalar { name, ty, default } => {
+                let name = self.intern_string(source_id, *name);
+                let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
+                self.tree.insert(
+                    Parameter::Scalar { name, ty, default },
+                    source_id,
+                    parameter_id,
+                )
+            }
+            ast::Parameter::Variadic { name, ty } => {
+                let name = self.intern_string(source_id, *name);
+                let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
+                self.tree
+                    .insert(Parameter::Variadic { name, ty }, source_id, parameter_id)
+            }
+        }
     }
 
     /// Lower an argument into a DIR argument.

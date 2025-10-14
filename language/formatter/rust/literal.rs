@@ -52,7 +52,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("!")]),
-            TypeLiteral::Any => write!(f, [token("$")]),
+            TypeLiteral::Any => write!(f, [token("any")]),
             TypeLiteral::Infer => write!(f, [token("_")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
             TypeLiteral::Void => write!(f, [token("void")]),

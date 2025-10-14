@@ -255,8 +255,21 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
-        if let Some(type_id) = parameter.ty {
-            self.set_semantic_span(tree, type_id, SemanticType::Type);
+        match parameter {
+            Parameter::Scalar {
+                name: _,
+                ty,
+                default: _,
+            } => {
+                if let Some(ty) = ty {
+                    self.set_semantic_span(tree, *ty, SemanticType::Type);
+                }
+            }
+            Parameter::Variadic { name: _, ty } => {
+                if let Some(ty) = ty {
+                    self.set_semantic_span(tree, *ty, SemanticType::Type);
+                }
+            }
         }
     }
 

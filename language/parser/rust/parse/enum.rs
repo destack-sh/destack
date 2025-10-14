@@ -317,11 +317,11 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
             let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 2);
             // T: int32 = 3
-            assert_node!(parser.tree, static_parameters[0], Parameter { name, .. } => {
+            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, .. } => {
                 assert_string!(parser, *name, "T");
             });
             // IsSomething: boolean = true
-            assert_node!(parser.tree, static_parameters[1], Parameter { name, .. } => {
+            assert_node!(parser.tree, static_parameters[1], Parameter::Scalar { name, .. } => {
                 assert_string!(parser, *name, "IsSomething");
             });
 

@@ -6,6 +6,8 @@ use crate::{
 };
 
 // NOTE #Incomplete: support arbitrary string literals as variant fields/imports?
+//  like for imports: `import "./foo.bar"` or `import { x } from "z"`
+//  or for fields/arguments: `{ "Content-Type": "application/json" }`
 
 /// An Expression is a generic container for value-producing forms.
 ///

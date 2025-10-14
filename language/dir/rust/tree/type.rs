@@ -73,8 +73,6 @@ pub enum Type {
     /// Virtual type `$T` (any subtype or Into<T>).
     Virtual(NodeId<Type>),
 
-    /// Variadic type `..T`. Behaves like a slice/array.
-    Variadic(NodeId<Type>),
     /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,

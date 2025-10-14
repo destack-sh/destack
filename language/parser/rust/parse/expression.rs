@@ -905,7 +905,7 @@ mod tests {
                 ..
             } => {
                 // (a: int32)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter { name, ty, .. } => {
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
                     assert_string!(parser, *name, "a");
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 });
@@ -935,7 +935,7 @@ mod tests {
             } => {
                 assert!(body.is_some());
                 // (a)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter { name, ty: None, .. } => {
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty: None, .. } => {
                     assert_string!(parser, *name, "a");
                 });
                 // a > 2

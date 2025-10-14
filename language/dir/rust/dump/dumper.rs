@@ -1522,9 +1522,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Virtual(_) => {
                 self.node("Type::Virtual", id.id).end();
             }
-            Type::Variadic(_) => {
-                self.node("Type::Variadic", id.id).end();
-            }
             Type::Array {
                 element: _,
                 count: _,
@@ -1687,9 +1684,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
-        self.node("Parameter", id.id)
-            .field("name", &parameter.name)
-            .end();
+        match parameter {
+            Parameter::Scalar {
+                name,
+                ty: _,
+                default: _,
+            } => {
+                self.node("Parameter::Scalar", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Parameter::Variadic { name, ty: _ } => {
+                self.node("Parameter::Variadic", id.id)
+                    .field("name", name)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_parameter(dumper, tree, id, parameter);
         });

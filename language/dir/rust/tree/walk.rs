@@ -687,7 +687,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     match ty {
         Type::Infer | Type::Never | Type::TypeLiteral(_) | Type::ScalarLiteral(_) | Type::Self_ => {
         }
-        Type::Maybe(inner) | Type::Not(inner) | Type::Virtual(inner) | Type::Variadic(inner) => {
+        Type::Maybe(inner) | Type::Not(inner) | Type::Virtual(inner) => {
             let inner_type = tree.get(*inner);
             visitor.visit_type(tree, *inner, inner_type);
         }
@@ -860,13 +860,27 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     parameter: &Parameter,
 ) {
     visitor.visit_any(tree, NodeType::Parameter, id.id);
-    if let Some(ty_id) = parameter.ty {
-        let ty_node = tree.get(ty_id);
-        visitor.visit_type(tree, ty_id, ty_node);
-    }
-    if let Some(default_id) = parameter.default {
-        let default_expression = tree.get(default_id);
-        visitor.visit_expression(tree, default_id, default_expression);
+    match parameter {
+        Parameter::Scalar {
+            name: _,
+            ty,
+            default,
+        } => {
+            if let Some(ty) = ty {
+                let type_node = tree.get(*ty);
+                visitor.visit_type(tree, *ty, type_node);
+            }
+            if let Some(default) = default {
+                let default_expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expression);
+            }
+        }
+        Parameter::Variadic { name: _, ty } => {
+            if let Some(ty) = ty {
+                let type_node = tree.get(*ty);
+                visitor.visit_type(tree, *ty, type_node);
+            }
+        }
     }
 }
 

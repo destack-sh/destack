@@ -274,6 +274,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Parameter;
+
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Definition, Expression, Mutability, ScopedMutability, TypeLiteral,
@@ -378,13 +380,13 @@ function b(
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert_eq!(dynamic_parameters.len(), 1);
-            let param = parser.tree.get(dynamic_parameters[0]);
-            assert_string!(parser, param.name, "x");
-
-            let param_type = param.ty.expect("expected type for parameter x");
-            assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
+                assert_string!(parser, *name, "x");
+                let param_type = ty.expect("expected type for parameter x");
+                assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                    assert_eq!(int_ty.width, Some(32));
+                    assert!(int_ty.is_signed);
+                });
             });
             assert!(where_clauses.is_none());
         });
