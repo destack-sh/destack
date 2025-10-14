@@ -771,6 +771,13 @@ impl Dump for Mutability {
     }
 }
 
+/// Dump an ExportMode as a string.
+impl Dump for ExportMode {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a UnaryOperator as a string.
 impl Dump for UnaryOperator {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1146,12 +1153,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", id.id).end();
             }
-            Expression::Import {
-                visibility,
-                items: _,
-            } => {
-                self.node("Expression::Use", id.id)
-                    .field_optional("visibility", visibility)
+            Expression::Import { items: _ } => {
+                self.node("Expression::Use", id.id).end();
+            }
+            Expression::Export { mode, items: _ } => {
+                self.node("Expression::Export", id.id)
+                    .field("mode", mode)
                     .end();
             }
             Expression::Let {
@@ -1360,12 +1367,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("intrinsic", intrinsic)
                     .end();
             }
-            Definition::Import {
-                visibility,
-                items: _,
-            } => {
-                self.node("Definition::Use", id.id)
-                    .field_optional("visibility", visibility)
+            Definition::Import { items: _ } => {
+                self.node("Definition::Import", id.id).end();
+            }
+            Definition::Export { mode, items: _ } => {
+                self.node("Definition::Export", id.id)
+                    .field("mode", mode)
                     .end();
             }
             Definition::Let { name, visibility } => {
@@ -1669,13 +1676,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<ImportItem>, use_item: &ImportItem) {
+    fn visit_import_item(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<ImportItem>,
+        import_item: &ImportItem,
+    ) {
         self.node("UseItem", id.id)
-            .field("source", &use_item.source)
-            .field_optional("alias", &use_item.alias)
+            .field("source", &import_item.source)
+            .field_optional("alias", &import_item.alias)
             .end();
         self.with_depth(|dumper| {
-            walk_use_item(dumper, tree, id, use_item);
+            walk_import_item(dumper, tree, id, import_item);
         });
     }
 

@@ -1,6 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_ast::IfStyle;
+use dyst_ast::{ExportMode, IfStyle};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -206,6 +206,19 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // export
+        let export = if self.peek_keyword(Keyword::Export).is_ok() {
+            self.bump(); // eat export
+            if self.peek_keyword(Keyword::Default).is_ok() {
+                self.bump(); // eat default
+                Some(ExportMode::Default)
+            } else {
+                Some(ExportMode::Item)
+            }
+        } else {
+            None
+        };
+
         let mut left_expression_id: NodeId<Expression> = {
             let token = self.peek()?;
             let keyword = self.peek_any_keyword().ok();
@@ -286,7 +299,7 @@ impl<'a> Parser<'a> {
                     && self.peek_arrow().is_ok()
                 {
                     self.restore(speculative_start.0, speculative_start.1);
-                    let lambda_id = self.eat_function(visibility)?;
+                    let lambda_id = self.eat_function(visibility, export)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 } else {
@@ -339,31 +352,31 @@ impl<'a> Parser<'a> {
 
             // module
             else if keyword == Some(Keyword::Module) {
-                let module_id = self.eat_module(visibility)?;
+                let module_id = self.eat_module(visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
             // struct
             else if keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class) {
-                let struct_id = self.eat_struct(visibility)?;
+                let struct_id = self.eat_struct(visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(visibility)?;
+                let enum_id = self.eat_enum(visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(visibility)?;
+                let union_id = self.eat_union(visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // interface
             else if keyword == Some(Keyword::Interface) || keyword == Some(Keyword::Interface) {
-                let interface_id = self.eat_interface(visibility)?;
+                let interface_id = self.eat_interface(visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
                     self.get_span_from(start),
@@ -379,7 +392,7 @@ impl<'a> Parser<'a> {
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self.eat_function(visibility)?;
+                let function_id = self.eat_function(visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),
@@ -396,18 +409,18 @@ impl<'a> Parser<'a> {
             }
             // import
             else if keyword == Some(Keyword::Import) || keyword == Some(Keyword::Use) {
-                self.eat_import(visibility)?
+                self.eat_import()?
             }
             // let
             else if keyword == Some(Keyword::Let)
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                self.eat_let(visibility)?
+                self.eat_let(visibility, export)?
             }
             // type
             else if keyword == Some(Keyword::Type) {
-                self.eat_type_alias_or_expression(visibility)?
+                self.eat_type_alias_or_expression(visibility, export)?
             }
             // if
             else if keyword == Some(Keyword::If) {

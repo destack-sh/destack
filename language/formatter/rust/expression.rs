@@ -8,7 +8,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::literal::format_scalar_literal;
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
-    Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator, Visibility,
+    Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator,
     empty_block_with_infix_annotations,
 };
 
@@ -311,30 +311,34 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // import
-            Expression::Import {
-                visibility,
-                clauses,
-            } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
-
+            Expression::Import { clauses } => {
                 // keyword
                 write!(f, [Keyword::Import, space()])?;
-                {
-                    let mut first = true;
-                    for clause in clauses {
-                        if !first {
-                            write!(f, [token(", ")])?;
-                        }
-                        first = false;
-                        write!(f, [*clause])?;
+
+                // clauses
+                let mut first = true;
+                for clause in clauses {
+                    if !first {
+                        write!(f, [token(", ")])?;
                     }
+                    first = false;
+                    write!(f, [*clause])?;
+                }
+            }
+
+            // export
+            Expression::Export { mode: _, clauses } => {
+                // keyword
+                write!(f, [Keyword::Export, space()])?;
+
+                // clauses
+                let mut first = true;
+                for clause in clauses {
+                    if !first {
+                        write!(f, [token(", ")])?;
+                    }
+                    first = false;
+                    write!(f, [*clause])?;
                 }
             }
 
@@ -342,6 +346,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Let {
                 mutability,
                 visibility: _,
+                export: _,
                 pattern,
                 ty,
                 value,
@@ -358,11 +363,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                             f,
                             [FormatScopedMutability::implicit_const(mutability.clone())]
                         )?;
-                        // emit pattern with optional type and value
+                        // pattern
                         write!(f, [space(), pattern])?;
+                        // type
                         if let Some(ty) = ty {
                             write!(f, [token(": "), ty])?;
                         }
+                        // value
                         if let Some(value) = value {
                             write!(
                                 f,
@@ -386,6 +393,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Type {
                 name,
                 visibility: _,
+                export: _,
                 value,
             } => {
                 write!(f, [Keyword::Type])?;

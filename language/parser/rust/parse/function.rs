@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
 
 use crate::{
-    Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
+    Definition, ExportMode, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
     SelfParameter, Visibility,
 };
 
@@ -143,6 +143,7 @@ impl<'a> Parser<'a> {
     pub fn eat_function(
         &mut self,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
@@ -256,6 +257,7 @@ impl<'a> Parser<'a> {
             Definition::Function {
                 name,
                 visibility,
+                export,
                 runtime,
                 style,
                 static_parameters,
@@ -296,7 +298,7 @@ function foo() => int32 with (
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function(None).unwrap();
+        let function_id = parser.eat_function(None, None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, with_clauses, where_clauses, return_type, .. } => {
             // function name
             assert_string!(parser, name.unwrap(), "foo");
@@ -345,7 +347,7 @@ function foo() => int32 with (
         let mut test = TestParser::new("function a(self) {}");
         let mut parser = test.prepare();
 
-        let function_id = parser.eat_function(None).unwrap();
+        let function_id = parser.eat_function(None, None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "a");
 
@@ -371,7 +373,7 @@ function b(
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function(None).unwrap();
+        let function_id = parser.eat_function(None, None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "b");
 
@@ -397,7 +399,7 @@ function b(
         let mut test = TestParser::new("function c(&var self) {}");
         let mut parser = test.prepare();
 
-        let function_id = parser.eat_function(None).unwrap();
+        let function_id = parser.eat_function(None, None).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "c");
 

@@ -110,13 +110,13 @@ mod tests {
         assert_format!(
             "var(x, y) pos: Vector4 = undefined",
             "var(x, y) pos: Vector4 = undefined",
-            |p| p.eat_let(None)
+            |p| p.eat_let(None, None)
         );
     }
 
     #[test]
     fn test_format_let_with_value() {
-        assert_format!("let x = 1", "let x = 1", |p| p.eat_let(None));
+        assert_format!("let x = 1", "let x = 1", |p| p.eat_let(None, None));
     }
 
     #[test]
@@ -124,7 +124,7 @@ mod tests {
         assert_format!(
             "let veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
             "let veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
-            |p| p.eat_let(None),
+            |p| p.eat_let(None, None),
             DystFormatOptions::default_tab().with_line_width(40)
         );
     }

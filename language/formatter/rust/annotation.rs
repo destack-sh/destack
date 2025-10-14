@@ -390,7 +390,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default()
         );
     }
@@ -439,7 +439,7 @@ mod tests {
         assert_format!(
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }

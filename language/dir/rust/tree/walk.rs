@@ -58,8 +58,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
         }
         NodeType::ImportItem => {
-            let use_item = tree.use_items.get(local_idx);
-            walk_use_item(visitor, tree, NodeId::new(node_id), use_item);
+            let import_item = tree.import_items.get(local_idx);
+            walk_import_item(visitor, tree, NodeId::new(node_id), import_item);
         }
         // --------------------------------------------------------------------
         // Bindings
@@ -130,13 +130,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_block(tree, *body_id, block);
             }
         }
-        Expression::Import {
-            visibility: _,
-            items,
-        } => {
+        Expression::Import { items } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_use_item(tree, *item_id, item);
+                visitor.visit_import_item(tree, *item_id, item);
+            }
+        }
+        Expression::Export { mode: _, items } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_import_item(tree, *item_id, item);
             }
         }
         Expression::Let {
@@ -377,13 +380,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Intrinsic { intrinsic: _ } => {
             // nothing to do
         }
-        Definition::Import {
-            visibility: _,
-            items,
-        } => {
+        Definition::Import { items } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_use_item(tree, *item_id, item);
+                visitor.visit_import_item(tree, *item_id, item);
+            }
+        }
+        Definition::Export { mode: _, items } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_import_item(tree, *item_id, item);
             }
         }
         Definition::Let {
@@ -839,11 +845,11 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the UseItem.
-pub fn walk_use_item<V: NodeVisitor + ?Sized>(
+pub fn walk_import_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<ImportItem>,
-    _use_item: &ImportItem,
+    _import_item: &ImportItem,
 ) {
     visitor.visit_any(tree, NodeType::ImportItem, id.id);
 }

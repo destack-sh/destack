@@ -1,9 +1,9 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, Node, NodeId,
-    NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, Type, TypeLiteral,
-    UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
+    ImportItem, Node, NodeId, NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
+    Type, TypeLiteral, UnaryOperator, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,11 +19,12 @@ pub enum Expression {
         body: Option<NodeId<Block>>,
     },
     /// Import dependency declaration (flattened, like `import foo.bar` for `import foo.bar, baz.quz`)
-    Import {
-        visibility: Option<Visibility>,
+    Import { items: Vec<NodeId<ImportItem>> },
+    /// Export dependency declaration (flattened, like `export foo.bar` for `export foo.bar, baz.quz`)
+    Export {
+        mode: ExportMode,
         items: Vec<NodeId<ImportItem>>,
     },
-    // nocheckin: export expression & modifier
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: ScopedMutability,
@@ -177,19 +178,6 @@ pub enum LoopSource {
     While,
     /// Loop loop.
     Loop,
-}
-
-/// A ImportItem is an item to use in a import clause.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImportItem {
-    /// The source of the item.
-    pub source: Path,
-    /// The alias to use for the item.
-    pub alias: Option<StringId>,
-}
-
-impl Node for ImportItem {
-    const KIND: NodeType = NodeType::ImportItem;
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

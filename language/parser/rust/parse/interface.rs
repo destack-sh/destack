@@ -1,7 +1,10 @@
 use crate::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{BlockFormat, Definition, Keyword, NodeId, NodeType, Parser, ParserResult, Visibility};
+use crate::{
+    BlockFormat, Definition, ExportMode, Keyword, NodeId, NodeType, Parser, ParserResult,
+    Visibility,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a Interface.
@@ -34,6 +37,7 @@ impl<'a> Parser<'a> {
     pub fn eat_interface(
         &mut self,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
@@ -70,6 +74,7 @@ impl<'a> Parser<'a> {
             Definition::Interface {
                 name,
                 visibility,
+                export,
                 static_parameters,
                 super_types,
                 with_clauses,
@@ -94,7 +99,7 @@ mod tests {
         let mut test = TestParser::new("interface {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(None).unwrap();
+        let interface_id = parser.eat_interface(None, None).unwrap();
         assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
@@ -109,7 +114,7 @@ mod tests {
         let mut test = TestParser::new("interface Foo: Bar {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(None).unwrap();
+        let interface_id = parser.eat_interface(None, None).unwrap();
         assert_node!(parser.tree, interface_id, Definition::Interface { name, super_types, where_clauses, expressions, .. } => {
             assert_eq!(expressions.len(), 0);
             assert_string!(parser, name.unwrap(), "Foo");
@@ -140,7 +145,7 @@ interface Foo: Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let interface_id = parser.eat_interface(None).unwrap();
+        let interface_id = parser.eat_interface(None, None).unwrap();
         assert_node!(parser.tree, interface_id, Definition::Interface { name, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(expressions.len(), 3);
@@ -160,7 +165,7 @@ interface Foo: Baz {
         let mut test = TestParser::new("interface Baz<T> {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(None).unwrap();
+        let interface_id = parser.eat_interface(None, None).unwrap();
         assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, .. } => {
             assert_string!(parser, name.unwrap(), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
@@ -180,7 +185,7 @@ interface Baz<T> with T: Copy where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let interface_id = parser.eat_interface(None).unwrap();
+        let interface_id = parser.eat_interface(None, None).unwrap();
         assert_node!(parser.tree, interface_id, Definition::Interface { name, static_parameters, with_clauses, where_clauses, expressions, .. } => {
             assert_string!(parser, name.unwrap(), "Baz");
 

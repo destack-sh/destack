@@ -1,8 +1,9 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Node, NodeId, NodeType, Path,
-    Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportClause, Node,
+    NodeId, NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral,
+    UnaryOperator, Visibility,
 };
 
 // NOTE #Incomplete: support arbitrary string literals as variant fields/imports?
@@ -43,8 +44,6 @@ pub enum Expression {
     },
 
     /// An Import is an import declaration for dependency management.
-    /// Import can be used as statement for the containing scope or in block form.
-    /// `import` includes all or some items from a definition in the relevant scope.
     ///
     /// Examples:
     /// ```
@@ -58,12 +57,27 @@ pub enum Expression {
     /// import foo.{} // valid but linted
     /// import foo as baz
     /// ```
-    Import {
-        visibility: Option<Visibility>,
+    Import { clauses: Vec<NodeId<ImportClause>> },
+
+    /// An Export is an explicit export declaration for dependency management.
+    /// Implicit exports may also be specified on lets and any definitions.
+    ///
+    /// Examples:
+    /// ```
+    /// export foo
+    /// export foo, bar
+    /// export foo.bar
+    /// export foo.{bar, baz}
+    /// export * from foo // same as `export foo`
+    /// export * as foo from foo // same as `export foo as foo`
+    /// export { bar, baz } from foo
+    /// export foo.{} // valid but linted
+    /// export foo as baz
+    /// ```
+    Export {
+        mode: ExportMode,
         clauses: Vec<NodeId<ImportClause>>,
     },
-
-    // nocheckin: export statement & modifier
 
     /// Let or var binding for constant or mutable variables.
     /// Both let and var may destructure and pattern match.
@@ -86,6 +100,7 @@ pub enum Expression {
     /// }
     Let {
         mutability: ScopedMutability,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
@@ -105,6 +120,7 @@ pub enum Expression {
     Type {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         value: NodeId<Expression>,
     },
 
@@ -549,51 +565,6 @@ pub enum IfStyle {
     Regular,
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
     Ternary,
-}
-
-/// A ImportClause is a single clause in a import dependency declaration.
-///
-/// Examples:
-/// ```
-/// foo
-/// foo as bar
-/// foo.bar as baz
-/// foo.{baz, qux}
-/// { baz, qux } from foo // equivalent
-/// * from foo // equivalent
-/// * as foo from foo // equivalent
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImportClause {
-    /// The target to import from (like `foo.bar` in `import foo.bar.{baz, qux}`)
-    pub target: Path,
-    /// The alias to use for the definition (like `bar` in `import foo as bar`)
-    pub alias: Option<StringId>,
-    /// The items to import from the target (like `{baz, qux}` in `import foo.bar.{baz, qux}`)
-    pub items: Option<Vec<NodeId<ImportItem>>>,
-}
-
-impl Node for ImportClause {
-    const KIND: NodeType = NodeType::ImportClause;
-}
-
-/// A ImportItem is an item to import from a target in a import clause.
-///
-/// Examples:
-/// ```
-/// baz
-/// qux as quux
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImportItem {
-    /// The source of the item (like `foo` in `foo as bar`)
-    pub name: StringId,
-    /// The alias to use for the item (like `bar` in `foo as bar`)
-    pub alias: Option<StringId>,
-}
-
-impl Node for ImportItem {
-    const KIND: NodeType = NodeType::ImportItem;
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

@@ -90,7 +90,7 @@ impl SourceFile {
             parser.mark(),
             |parser| {
                 parser
-                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Source)
+                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
                     .map(Some)
             },
             None,
@@ -103,6 +103,7 @@ impl SourceFile {
                     name: Some(module_name_id),
                     format: ModuleFormat::Source,
                     visibility: None,
+                    export: None,
                     with_clauses: None,
                     where_clauses: None,
                     expressions: vec![],

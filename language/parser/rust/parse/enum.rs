@@ -1,5 +1,7 @@
 //! Parse enums.
 
+use dyst_ast::ExportMode;
+
 use crate::TokenType;
 
 use crate::parse::prelude::*;
@@ -39,14 +41,18 @@ impl<'a> Parser<'a> {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_enum(
+        &mut self,
+        visibility: Option<Visibility>,
+        export: Option<ExportMode>,
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
         self.eat_keyword(Keyword::Enum)?;
 
         // optional explicit tag type in `(Type)`
-        let explicit_type: Option<NodeId<Expression>> =
+        let tag_type: Option<NodeId<Expression>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 let ty = self
@@ -89,7 +95,8 @@ impl<'a> Parser<'a> {
             Definition::Enum {
                 name,
                 visibility,
-                tag_type: explicit_type,
+                export,
+                tag_type,
                 static_parameters,
                 super_types,
                 with_clauses,
@@ -191,7 +198,7 @@ enum Foo: Day {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None).unwrap();
+        let enum_id = parser.eat_enum(None, None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
@@ -219,7 +226,7 @@ enum {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None).unwrap();
+        let enum_id = parser.eat_enum(None, None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, expressions, where_clauses, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
@@ -259,7 +266,7 @@ enum(uint8) Foo: Day {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None).unwrap();
+        let enum_id = parser.eat_enum(None, None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, where_clauses, .. } => {
             // enum name
             assert_string!(parser, name.unwrap(), "Foo");
@@ -306,7 +313,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None).unwrap();
+        let enum_id = parser.eat_enum(None, None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, where_clauses, .. } => {
             // Machine
             assert_string!(parser, name.unwrap(), "Machine");
@@ -341,7 +348,7 @@ enum Foo with Context where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None).unwrap();
+        let enum_id = parser.eat_enum(None, None).unwrap();
         assert_node!(parser.tree, enum_id, Definition::Enum { with_clauses, where_clauses, fields, .. } => {
             // with Context
             let with_clauses = with_clauses.as_ref().expect("expected with clauses");

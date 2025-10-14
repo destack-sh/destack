@@ -830,6 +830,13 @@ impl Dump for ScopedMutability {
     }
 }
 
+/// Dump an ExportMode as a string.
+impl Dump for ExportMode {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Visibility as a string.
 impl Dump for Visibility {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1062,17 +1069,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", _id.id).end();
             }
-            Expression::Import {
-                visibility,
-                clauses: _,
-            } => {
-                self.node("Expression::Use", _id.id)
-                    .field_optional("visibility", visibility)
+            Expression::Import { clauses: _ } => {
+                self.node("Expression::Use", _id.id).end();
+            }
+            Expression::Export { mode, clauses: _ } => {
+                self.node("Expression::Export", _id.id)
+                    .field("mode", mode)
                     .end();
             }
             Expression::Let {
                 mutability,
                 visibility,
+                export,
                 pattern: _,
                 ty: _,
                 value: _,
@@ -1080,16 +1088,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Let", _id.id)
                     .field("mutability", mutability)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Expression::Type {
                 name,
                 visibility,
+                export,
                 value: _,
             } => {
                 self.node("Expression::Type", _id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Expression::If {
@@ -1300,6 +1311,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match definition {
             Definition::Module {
                 name,
+                export,
                 visibility,
                 format,
                 expressions: _,
@@ -1309,6 +1321,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Module", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .field("format", format)
                     .end();
             }
@@ -1316,6 +1329,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 visibility,
                 style,
+                export,
                 super_types: _,
                 representation_type: _,
                 static_parameters: _,
@@ -1327,12 +1341,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Struct", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .field("style", style)
                     .end();
             }
             Definition::Enum {
                 name,
                 visibility,
+                export,
                 tag_type: _,
                 static_parameters: _,
                 super_types: _,
@@ -1344,11 +1360,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Enum", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Definition::Union {
                 name,
                 visibility,
+                export,
                 tag_type: _,
                 representation_type: _,
                 static_parameters: _,
@@ -1361,11 +1379,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Union", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Definition::Interface {
                 name,
                 visibility,
+                export,
                 super_types: _,
                 static_parameters: _,
                 with_clauses: _,
@@ -1375,6 +1395,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Interface", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Definition::Implement {
@@ -1390,6 +1411,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 name,
                 visibility,
+                export,
                 runtime,
                 style,
                 static_parameters: _,
@@ -1403,6 +1425,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Function", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .field("runtime", runtime)
                     .field("style", style)
                     .end();
@@ -1506,7 +1529,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_use_clause(
+    fn visit_import_clause(
         &mut self,
         _tree: &NodeTree,
         _id: NodeId<ImportClause>,
@@ -1517,17 +1540,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .field_optional("alias", &clause.alias)
             .end();
         self.with_depth(|dumper| {
-            walk_use_clause(dumper, _tree, _id, clause);
+            walk_import_clause(dumper, _tree, _id, clause);
         });
     }
 
-    fn visit_use_item(&mut self, _tree: &NodeTree, _id: NodeId<ImportItem>, item: &ImportItem) {
+    fn visit_import_item(&mut self, _tree: &NodeTree, _id: NodeId<ImportItem>, item: &ImportItem) {
         self.node("UseItem", _id.id)
             .field("name", &item.name)
             .field_optional("alias", &item.alias)
             .end();
         self.with_depth(|dumper| {
-            walk_use_item(dumper, _tree, _id, item);
+            walk_import_item(dumper, _tree, _id, item);
         });
     }
 
