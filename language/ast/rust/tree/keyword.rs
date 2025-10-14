@@ -3,13 +3,13 @@ use std::str::FromStr;
 /// A contextual keyword.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
-    /// Visibility modifier (reserved)
+    /// Visibility modifier
     Public,
     /// Visibility modifier (reserved)
     Protected,
     /// Visibility modifier (reserved)
     Internal,
-    /// Visibility modifier (reserved)
+    /// Visibility modifier
     Private,
     /// Import an item.
     Import,
@@ -118,6 +118,7 @@ pub enum Keyword {
     /// Move expression (reserved).
     Move,
     /// New expression (reserved).
+    /// nocheckin: new as alias (for ..?)
     New,
     /// Constructor (reserved).
     Constructor,

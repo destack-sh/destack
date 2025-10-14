@@ -1,6 +1,6 @@
 use dyst_dir::{Expression, NodeId, NodeIdAny, Type};
 
-use crate::{Compiler, CompilerMode};
+use crate::{AstNodeIdAny, Compiler, CompilerMode};
 
 /// Request to statically evaluate something to a value.
 #[derive(Debug, Clone)]
@@ -18,9 +18,14 @@ pub enum CheckRequest {
     CheckType { node: NodeIdAny },
 }
 
-/// Request to lower something to MIR.
+/// Request to lower something.
 #[derive(Debug, Clone)]
-pub enum LowerRequest {}
+pub enum LowerRequest {
+    /// Lower a node to DIR.
+    LowerToDir { node: AstNodeIdAny },
+    /// Lower a node to MIR.
+    LowerToMir { node: AstNodeIdAny },
+}
 
 /// Message from the compiler during compilation.
 #[derive(Debug, Clone)]
@@ -29,7 +34,7 @@ pub enum CompilerMessage {
     EvaluateRequest(EvaluateRequest),
     /// Request to check something statically.
     CheckRequest(CheckRequest),
-    /// Request to lower something to MIR.
+    /// Request to lower something.
     LowerRequest(LowerRequest),
 }
 
