@@ -155,6 +155,7 @@ impl<'a> Parser<'a> {
             }
 
             // string literal (ignore quotes)
+            // supports both '...' and "..." delimited string literals
             LiteralType::String { is_terminated } => {
                 if !is_terminated {
                     return Err(ParserError::expected_for(
@@ -163,7 +164,19 @@ impl<'a> Parser<'a> {
                         NodeType::Expression,
                     ));
                 }
-                let content = literal_str.trim_start_matches('"').trim_end_matches('"');
+                let content = {
+                    // "..." or '...'
+                    if literal_str.len() >= 2
+                        && ((literal_str.starts_with('"') && literal_str.ends_with('"'))
+                            || (literal_str.starts_with('\'') && literal_str.ends_with('\'')))
+                    {
+                        &literal_str[1..literal_str.len() - 1]
+                    }
+                    // unexpected (error elsewhere)
+                    else {
+                        literal_str
+                    }
+                };
                 let string_id = self.intern_string(content);
                 Ok(ScalarLiteral::String(string_id))
             }
@@ -607,7 +620,7 @@ mod tests {
     /// Parse string literal.
     #[test]
     fn test_parse_string_literal() {
-        let mut test = TestParser::new(r#""hello" b"abc""#);
+        let mut test = TestParser::new(r#""hello" 'hi there' b"abc""#);
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
@@ -617,6 +630,15 @@ mod tests {
                 other => panic!("expected string literal, got {other:?}"),
             }),
             "hello"
+        );
+
+        let literal = parser.eat_scalar_literal().unwrap();
+        assert_eq!(
+            parser.strings.get(match literal {
+                ScalarLiteral::String(id) => id,
+                other => panic!("expected string literal, got {other:?}"),
+            }),
+            "hi there"
         );
 
         let literal = parser.eat_scalar_literal().unwrap();

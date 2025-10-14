@@ -6,6 +6,8 @@ use crate::{
     Expression, Keyword, NodeId, NodeType, Parser, ParserResult, UseClause, UseItem, Visibility,
 };
 
+// nocheckin: turn use into import/export (?)
+
 impl<'a> Parser<'a> {
     /// Eat a use declaration (including the `use` keyword and an optional body).
     ///
