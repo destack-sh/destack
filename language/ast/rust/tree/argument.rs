@@ -49,7 +49,7 @@ pub enum Argument {
     NamedShorthand { name: StringId },
     /// A positional argument.
     Positional { value: NodeId<Expression> },
-    /// A spread argument.
+    /// A positional spread argument.
     Spread { value: NodeId<Expression> },
 }
 

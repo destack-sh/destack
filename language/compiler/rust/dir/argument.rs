@@ -36,8 +36,11 @@ impl<'a> Compiler<'a> {
             ast::Argument::Named { name, value } => {
                 let name = self.intern_string(source_id, *name);
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree
-                    .insert(Argument::Named { name, value }, source_id, argument_id)
+                self.tree.insert(
+                    Argument::UnevaluatedNamed { name, value },
+                    source_id,
+                    argument_id,
+                )
             }
             ast::Argument::NamedShorthand { name } => {
                 let name = self.intern_string(source_id, *name);
@@ -47,18 +50,27 @@ impl<'a> Compiler<'a> {
                 let value = self
                     .tree
                     .insert(Expression::Path { path }, source_id, argument_id);
-                self.tree
-                    .insert(Argument::Named { name, value }, source_id, argument_id)
+                self.tree.insert(
+                    Argument::UnevaluatedNamed { name, value },
+                    source_id,
+                    argument_id,
+                )
             }
             ast::Argument::Positional { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree
-                    .insert(Argument::Positional { value }, source_id, argument_id)
+                self.tree.insert(
+                    Argument::UnevaluatedPositional { value },
+                    source_id,
+                    argument_id,
+                )
             }
             ast::Argument::Spread { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree
-                    .insert(Argument::Spread { value }, source_id, argument_id)
+                self.tree.insert(
+                    Argument::UnevaluatedSpread { value },
+                    source_id,
+                    argument_id,
+                )
             }
         }
     }

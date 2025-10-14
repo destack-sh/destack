@@ -1,7 +1,5 @@
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField,
-    WhereClause, WithClause,
+    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Type, UseItem, Variant, VariantField, WhereClause, WithClause
 };
 
 /// Walk any node.
@@ -884,11 +882,28 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::Named { name: _, value } | Argument::Positional { value } => {
+        Argument::UnevaluatedNamed { name: _, value }
+        | Argument::UnevaluatedPositional { value }
+        | Argument::UnevaluatedSpread { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Argument::Spread { value } => {
+        Argument::Direct {
+            name: _,
+            slot,
+            value,
+        }
+        | Argument::Spread { slot, value } => {
+            match slot {
+                ArgumentSlot::Parameter { parameter } => {
+                    let parameter_node = tree.get(*parameter);
+                    visitor.visit_parameter(tree, *parameter, parameter_node);
+                }
+                ArgumentSlot::Field { field } => {
+                    let field_node = tree.get(*field);
+                    visitor.visit_variant_field(tree, *field, field_node);
+                }
+            }
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

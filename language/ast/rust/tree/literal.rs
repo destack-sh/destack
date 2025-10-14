@@ -1,7 +1,7 @@
 use crate::StringId;
 
 /// A ScalarLiteral is literal scalar value node.
-/// TODO #Incomplete: format string literals?
+/// NOTE #Incomplete: format string literals?
 ///
 /// Examples:
 /// ```

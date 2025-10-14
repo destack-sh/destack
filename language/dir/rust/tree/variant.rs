@@ -5,13 +5,18 @@ use crate::{Expression, Node, NodeId, NodeType, StringId, Type};
 pub enum VariantField {
     /// Named field.
     Named {
+        /// The name of the field.
         name: StringId,
+        /// The type of the field.
         ty: NodeId<Type>,
+        /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
     /// Positional field.
     Positional {
+        /// The type of the field.
         ty: NodeId<Type>,
+        /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
 }
