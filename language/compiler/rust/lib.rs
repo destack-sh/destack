@@ -4,7 +4,6 @@
 mod compile;
 mod cranelift;
 mod dir;
-mod llvm;
 mod mir;
 mod r#type;
 
