@@ -661,10 +661,12 @@ dependencies = [
  "criterion",
  "destack_file",
  "destack_unicode",
+ "dyst_container",
  "dyst_diagnostic",
  "dyst_fir",
  "dyst_session",
  "dyst_source",
+ "dyst_string",
  "pprof",
 ]
 
@@ -673,6 +675,7 @@ name = "dyst_compiler"
 version = "2025.10.13-2"
 dependencies = [
  "dyst_ast",
+ "dyst_container",
  "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
@@ -715,11 +718,13 @@ dependencies = [
  "destack_file",
  "destack_unicode",
  "dyst_ast",
+ "dyst_container",
  "dyst_diagnostic",
  "dyst_fir",
  "dyst_package",
  "dyst_session",
  "dyst_source",
+ "dyst_string",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -814,6 +819,7 @@ dependencies = [
  "destack_file",
  "destack_unicode",
  "dyst_ast",
+ "dyst_container",
  "dyst_diagnostic",
  "dyst_session",
  "dyst_source",

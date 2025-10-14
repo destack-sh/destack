@@ -1,5 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
+use dyst_container::smallvec;
 use dyst_dir::{Argument, Expression, NodeId, Parameter, Path};
 use dyst_source::SourceId;
 
@@ -41,7 +42,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::NamedShorthand { name } => {
                 let name = self.intern_string(source_id, *name);
                 let path = Path::Unevaluated {
-                    segments: vec![name],
+                    segments: smallvec![name],
                 };
                 let value = self
                     .tree

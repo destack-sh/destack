@@ -1,5 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
+use dyst_container::SmallVec;
+
 use crate::*;
 
 use std::ops::Range;
@@ -714,6 +716,13 @@ impl<T: Dump> Dump for &[T] {
     }
 }
 
+/// Dump a SmallVec<T, N> as a slice.
+impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        self.as_slice().dump(dumper)
+    }
+}
+
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for NodeId<T>
 where
@@ -845,7 +854,7 @@ impl Dump for FunctionStyle {
 impl Dump for Destination {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Destination::LabelString(label) => {
+            Destination::Unevaluated(label) => {
                 dumper
                     .object("Destination::LabelString")
                     .field("label", label)

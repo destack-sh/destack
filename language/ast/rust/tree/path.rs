@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use dyst_container::SmallVec;
+
 use crate::StringId;
 
 /// A Path is static path to a named definition in a namespace.
@@ -13,5 +15,5 @@ use crate::StringId;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
-    pub segments: Vec<StringId>,
+    pub segments: SmallVec<StringId, 3>,
 }

@@ -449,10 +449,9 @@ impl<'a> Parser<'a> {
                 while self.peek_token(TokenType::Divide).is_err()
                     && self.peek_token(TokenType::GreaterThan).is_err()
                 {
-                    let argument = self
-                        .with_options(self.options.in_tree_literal(), |parser| {
-                            parser.eat_argument()
-                        })?;
+                    let argument = self.with_options(self.options.in_tree_literal(), |parser| {
+                        parser.eat_argument()
+                    })?;
                     arguments.push(argument);
                     if self.peek_any_stop().is_ok() {
                         self.eat_any_stop_with_newlines()?;

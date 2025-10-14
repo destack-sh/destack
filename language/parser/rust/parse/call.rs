@@ -124,6 +124,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::Path;
+    use dyst_container::smallvec;
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -133,7 +134,7 @@ mod tests {
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let self_str = parser.intern_string("self");
         let self_path = Path {
-            segments: vec![self_str],
+            segments: smallvec![self_str],
         };
         parser.tree.insert(
             Expression::Path {
