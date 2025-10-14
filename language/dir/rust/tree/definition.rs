@@ -1,6 +1,5 @@
 use crate::{
-    Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime,
-    ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause,
+    ExportMode, Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -30,8 +29,10 @@ pub enum Definition {
     /// Intrinsic definition.
     Intrinsic { intrinsic: Intrinsic },
     /// Import definition.
-    Import {
-        visibility: Option<Visibility>,
+    Import { items: Vec<NodeId<ImportItem>> },
+    /// Export definition.
+    Export {
+        mode: ExportMode,
         items: Vec<NodeId<ImportItem>>,
     },
     /// Let definition.
@@ -129,6 +130,7 @@ impl Definition {
         match self {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
             Definition::Import { .. } => None,
+            Definition::Export { .. } => None,
             Definition::Let { name, .. } => Some(*name),
             Definition::Type { name, .. } => *name,
             Definition::Module { name, .. } => *name,
@@ -146,7 +148,8 @@ impl Definition {
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
             Definition::Intrinsic { .. } => None,
-            Definition::Import { visibility, .. } => *visibility,
+            Definition::Import { .. } => None,
+            Definition::Export { .. } => None,
             Definition::Let { visibility, .. } => *visibility,
             Definition::Type { visibility, .. } => *visibility,
             Definition::Module { visibility, .. } => *visibility,
@@ -165,6 +168,7 @@ impl Definition {
         match self {
             Definition::Intrinsic { .. } => None,
             Definition::Import { .. } => None,
+            Definition::Export { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Module { .. } => None,
@@ -195,6 +199,7 @@ impl Definition {
         match self {
             Definition::Intrinsic { .. } => None,
             Definition::Import { .. } => None,
+            Definition::Export { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Module { definitions, .. } => Some(definitions),

@@ -8,7 +8,7 @@ mod tests {
         assert_format!(
             "interface {}",
             "interface { }",
-            |p| p.eat_interface(None),
+            |p| p.eat_interface(None, None),
             DystFormatOptions::default()
         );
     }
@@ -18,7 +18,7 @@ mod tests {
         assert_format!(
             "interface Foo: Bar, Baz {}",
             "interface Foo: Bar, Baz { }",
-            |p| p.eat_interface(None),
+            |p| p.eat_interface(None, None),
             DystFormatOptions::default()
         );
     }
@@ -28,7 +28,7 @@ mod tests {
         assert_format!(
             "interface Foo with Bar { }",
             "interface Foo with Bar { }",
-            |p| p.eat_interface(None),
+            |p| p.eat_interface(None, None),
             DystFormatOptions::default()
         );
     }
@@ -38,7 +38,7 @@ mod tests {
         assert_format!(
             "interface Foo { let X = 1 }",
             "interface Foo {\n\tlet X = 1\n}",
-            |p| p.eat_interface(None),
+            |p| p.eat_interface(None, None),
             DystFormatOptions::default_tab()
         );
     }

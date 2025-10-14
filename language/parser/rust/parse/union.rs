@@ -2,8 +2,8 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
-    TokenType, UnionField, Visibility,
+    Definition, ExportMode, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    ParserResult, TokenType, UnionField, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -41,6 +41,7 @@ impl<'a> Parser<'a> {
     pub fn eat_union(
         &mut self,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
@@ -96,6 +97,7 @@ impl<'a> Parser<'a> {
             Definition::Union {
                 name,
                 visibility,
+                export,
                 static_parameters,
                 super_types,
                 tag_type: explicit_type,
@@ -247,7 +249,7 @@ union { A, B }
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None).unwrap();
+        let union_id = parser.eat_union(None, None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, fields, expressions, where_clauses, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
@@ -279,7 +281,7 @@ union Foo: Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None).unwrap();
+        let union_id = parser.eat_union(None, None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
@@ -313,7 +315,7 @@ union(uint4, uint60) Foo<T>: Boz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None).unwrap();
+        let union_id = parser.eat_union(None, None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
@@ -435,7 +437,7 @@ union Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None).unwrap();
+        let union_id = parser.eat_union(None, None).unwrap();
         assert_node!(parser.tree, union_id, Definition::Union { with_clauses, where_clauses, fields: _, expressions, .. } => {
             assert!(expressions.is_empty());
 

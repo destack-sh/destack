@@ -1,4 +1,4 @@
-use dyst_ast::{FloatType, Keyword, Visibility};
+use dyst_ast::{ExportMode, FloatType, Keyword, Visibility};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -157,6 +157,7 @@ impl<'a> Parser<'a> {
     pub fn eat_type_alias_or_expression(
         &mut self,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Type)?;
@@ -171,6 +172,7 @@ impl<'a> Parser<'a> {
                 name: Some(alias),
                 value,
                 visibility,
+                export,
             };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
@@ -182,6 +184,7 @@ impl<'a> Parser<'a> {
                 name: None,
                 value,
                 visibility,
+                export,
             };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
@@ -262,7 +265,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility } => {
+        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility, .. } => {
             assert_string!(parser, name.unwrap(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
@@ -275,7 +278,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility: None } => {
+        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility: None, .. } => {
             assert_eq!(*name, None);
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);

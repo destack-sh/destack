@@ -15,6 +15,8 @@ pub enum Keyword {
     Import,
     /// Export an item.
     Export,
+    /// Default export mode.
+    Default,
     /// From expression.
     From,
     /// Refer to the containing instance type.
@@ -142,6 +144,7 @@ impl Keyword {
             Keyword::Internal => "internal",
             Keyword::Import => "import",
             Keyword::Export => "export",
+            Keyword::Default => "default",
             Keyword::From => "from",
             Keyword::Self_ => "self",
             Keyword::This => "this",

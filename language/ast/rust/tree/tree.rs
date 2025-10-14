@@ -39,8 +39,8 @@ pub struct NodeTree {
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) use_clauses: NodeArena<ImportClause>,
-    pub(crate) use_items: NodeArena<ImportItem>,
+    pub(crate) import_clauses: NodeArena<ImportClause>,
+    pub(crate) import_items: NodeArena<ImportItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
@@ -93,8 +93,8 @@ impl NodeTree {
             // context
             with_clauses: NodeArena::new(),
             where_clauses: NodeArena::new(),
-            use_clauses: NodeArena::new(),
-            use_items: NodeArena::new(),
+            import_clauses: NodeArena::new(),
+            import_items: NodeArena::new(),
             // bindings
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
@@ -253,8 +253,8 @@ impl NodeTree {
             // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            NodeType::ImportClause => self.use_clauses.deallocate(local_ids),
-            NodeType::ImportItem => self.use_items.deallocate(local_ids),
+            NodeType::ImportClause => self.import_clauses.deallocate(local_ids),
+            NodeType::ImportItem => self.import_items.deallocate(local_ids),
             // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
             NodeType::Argument => self.arguments.deallocate(local_ids),
@@ -400,8 +400,8 @@ impl_node_tree_stores! {
     // context
     WithClause => with_clauses,
     WhereClause => where_clauses,
-    ImportClause => use_clauses,
-    ImportItem => use_items,
+    ImportClause => import_clauses,
+    ImportItem => import_items,
     // bindings
     Parameter => parameters,
     Argument => arguments,

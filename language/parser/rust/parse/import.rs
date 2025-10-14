@@ -1,10 +1,11 @@
 //! Parse import and with declarations.
+use dyst_ast::ExportMode;
+
 use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
     Expression, ImportClause, ImportItem, Keyword, NodeId, NodeType, Parser, ParserResult,
-    Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -20,14 +21,15 @@ impl<'a> Parser<'a> {
     /// import foo.{} // valid but linted
     /// import foo as baz
     /// ```
-    pub fn eat_import(
-        &mut self,
-        visibility: Option<Visibility>,
-    ) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_import(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
         self.eat_keyword_in(&[Keyword::Import, Keyword::Use])?;
+        // eat type (doesn't do anything, but is allowed for leniency)
+        if self.peek_keyword(Keyword::Type).is_ok() {
+            self.bump(); // eat type
+        }
 
         // clauses
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
@@ -35,14 +37,55 @@ impl<'a> Parser<'a> {
         })?;
 
         // import
-        let import_id = self.tree.insert(
-            Expression::Import {
-                clauses,
-                visibility,
-            },
+        let import_id = self
+            .tree
+            .insert(Expression::Import { clauses }, self.get_span_from(start));
+        Ok(import_id)
+    }
+
+    /// Eat an export declaration (including the `export` keyword and an optional body).
+    ///
+    /// Examples:
+    /// ```
+    /// export foo
+    /// export foo, bar
+    /// export foo.bar
+    /// export foo.{bar, baz}
+    /// export * from foo // same as `export foo`
+    /// export * as foo from foo // same as `export foo as foo`
+    /// export { bar, baz } from foo
+    /// export foo.{} // valid but linted
+    /// export foo as baz
+    /// ```
+    pub fn eat_export(&mut self, mode: Option<ExportMode>) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // mode
+        let mode: ExportMode = {
+            if let Some(mode) = mode {
+                mode
+            } else {
+                self.eat_keyword(Keyword::Export)?;
+                if self.peek_keyword(Keyword::Default).is_ok() {
+                    self.bump(); // eat default
+                    ExportMode::Default
+                } else {
+                    ExportMode::Item
+                }
+            }
+        };
+
+        // clauses
+        let clauses = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_import_clauses()
+        })?;
+
+        // export
+        let export_id = self.tree.insert(
+            Expression::Export { mode, clauses },
             self.get_span_from(start),
         );
-        Ok(import_id)
+        Ok(export_id)
     }
 
     /// Eat the header of a import declaration (without the `import` keyword).
@@ -234,11 +277,10 @@ mod tests {
         // import dyst
         let mut test = TestParser::new("import dyst");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import
-        assert_node!(parser.tree, import_id, Expression::Import { visibility, clauses } => {
-            assert_eq!(*visibility, None);
+        assert_node!(parser.tree, import_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 1);
             // import dyst
             assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
@@ -256,8 +298,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import core.memory
-        assert_node!(parser.tree, expression_id, Expression::Import { visibility, clauses } => {
-            assert!(visibility.is_none());
+        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 1);
 
             assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
@@ -272,7 +313,7 @@ mod tests {
     fn test_parse_import_path() {
         let mut test = TestParser::new("import dyst.geometry");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import dyst.geometry
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
@@ -290,7 +331,7 @@ mod tests {
     fn test_parse_import_with_alias() {
         let mut test = TestParser::new("import dyst as ds");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import dyst as ds
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
@@ -308,7 +349,7 @@ mod tests {
     fn test_parse_import_with_items() {
         let mut test = TestParser::new("import ds.geometry.{Vector2, Vector3 as V3}");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import ds.geometry.{Vector2, Vector3 as V3}
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
@@ -338,7 +379,7 @@ mod tests {
     fn test_parse_import_with_javascript_style_items() {
         let mut test = TestParser::new("import { Vector2, Vector3 as V3 } from ds.geometry");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
@@ -363,7 +404,7 @@ mod tests {
     fn test_parse_import_supports_star_clause() {
         let mut test = TestParser::new("import * from ds.geometry");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import * from ds.geometry
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
@@ -380,7 +421,7 @@ mod tests {
     fn test_parse_import_supports_star_clause_alias() {
         let mut test = TestParser::new("import * as geom from ds.geometry");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
 
         // import * as geom from ds.geometry
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
@@ -397,7 +438,7 @@ mod tests {
     fn test_parse_import_multiple_clauses() {
         let mut test = TestParser::new("import dyst, dyst");
         let mut parser = test.prepare();
-        let import_id = parser.eat_import(None).unwrap();
+        let import_id = parser.eat_import().unwrap();
         // import dyst, dyst
         assert_node!(parser.tree, import_id, Expression::Import { clauses, .. } => {
             assert_eq!(clauses.len(), 2);

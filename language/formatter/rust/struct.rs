@@ -41,7 +41,7 @@ mod tests {
         assert_format!(
             "struct { }",
             "struct { }",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default()
         );
     }
@@ -51,7 +51,7 @@ mod tests {
         assert_format!(
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32\n\tb: boolean\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -61,7 +61,7 @@ mod tests {
         assert_format!(
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -71,7 +71,7 @@ mod tests {
         assert_format!(
             "struct(uint64) Foo { a: int32 }",
             "struct(uint64) Foo {\n\ta: int32\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -81,7 +81,7 @@ mod tests {
         assert_format!(
             "struct Foo(int32, boolean) { }",
             "struct Foo(int32, boolean) { }",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default()
         );
     }
@@ -91,7 +91,7 @@ mod tests {
         assert_format!(
             "struct Foo(int32) { let X = 2 }",
             "struct Foo(int32) {\n\tlet X = 2\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -101,7 +101,7 @@ mod tests {
         assert_format!(
             "struct { a: int32 = 42, b: boolean }",
             "struct {\n\ta: int32 = 42\n\tb: boolean\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -113,7 +113,7 @@ mod tests {
             r"struct {
 	let X = 1
 }",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -123,7 +123,7 @@ mod tests {
         assert_format!(
             "struct { a: int32, let X = 1 }",
             "struct {\n\ta: int32\n\n\tlet X = 1\n}",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -133,7 +133,7 @@ mod tests {
         assert_format!(
             "struct Foo<T: Numeric>: Bar, Baz { }",
             "struct Foo<T: Numeric>: Bar, Baz { }",
-            |p| p.eat_struct(None),
+            |p| p.eat_struct(None, None),
             DystFormatOptions::default()
         );
     }

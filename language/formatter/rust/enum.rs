@@ -34,7 +34,7 @@ mod tests {
         assert_format!(
             "enum { }",
             "enum { }",
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default()
         );
     }
@@ -44,7 +44,7 @@ mod tests {
         assert_format!(
             "enum { A, B }",
             "enum {\n\tA\n\tB\n}",
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -54,7 +54,7 @@ mod tests {
         assert_format!(
             "enum(int4) { A = 1, B = 2, C, D = 4 }",
             "enum(int4) {\n\tA = 1\n\tB = 2\n\tC\n\tD = 4\n}",
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -64,7 +64,7 @@ mod tests {
         assert_format!(
             "enum { A }",
             "enum {\n\tA\n}",
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -76,7 +76,7 @@ mod tests {
 				let X = 1
 			}",
             "enum {\n\tlet X = 1\n}",
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -92,7 +92,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_enum(None),
+            |p| p.eat_enum(None, None),
             DystFormatOptions::default()
         );
     }

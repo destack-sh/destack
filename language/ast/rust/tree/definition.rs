@@ -1,8 +1,7 @@
 use dyst_source::StringId;
 
 use crate::{
-    Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility,
-    WhereClause, WithClause,
+    ExportMode, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
 };
 
 /// Definition introduces a type or such into a scope.
@@ -20,6 +19,7 @@ pub enum Definition {
     Module {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         format: ModuleFormat,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -74,6 +74,7 @@ pub enum Definition {
         name: Option<StringId>,
         visibility: Option<Visibility>,
         style: VariantStyle,
+        export: Option<ExportMode>,
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -123,6 +124,7 @@ pub enum Definition {
     Enum {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         tag_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         super_types: Option<Vec<NodeId<Expression>>>,
@@ -162,6 +164,7 @@ pub enum Definition {
     Union {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         tag_type: Option<NodeId<Expression>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -204,6 +207,7 @@ pub enum Definition {
     Interface {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         super_types: Option<Vec<NodeId<Expression>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -301,6 +305,7 @@ pub enum Definition {
     Function {
         name: Option<StringId>,
         visibility: Option<Visibility>,
+        export: Option<ExportMode>,
         runtime: Runtime,
         style: FunctionStyle,
         static_parameters: Option<Vec<NodeId<Parameter>>>,

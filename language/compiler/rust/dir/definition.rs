@@ -18,16 +18,12 @@ impl<'a> Compiler<'a> {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
-            ast::Expression::Import {
-                visibility,
-                clauses,
-            } => {
-                let visibility = visibility.map(|v| self.lower_visibility(v));
+            ast::Expression::Import { clauses } => {
                 let items = clauses
                     .iter()
                     .flat_map(|clause| self.lower_import_clause(source_id, ast, *clause))
                     .collect();
-                let definition = Definition::Import { visibility, items };
+                let definition = Definition::Import { items };
                 Some(self.tree.insert(definition, source_id, expression_id))
             }
             _ => None,
@@ -91,6 +87,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Module {
                 name,
                 visibility,
+                export: _,
                 format: _,
                 with_clauses,
                 where_clauses,
@@ -132,6 +129,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Struct {
                 name,
                 visibility,
+                export: _,
                 style,
                 super_types,
                 representation_type,
@@ -204,6 +202,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Enum {
                 name,
                 visibility,
+                export: _,
                 super_types,
                 static_parameters,
                 tag_type,
@@ -268,6 +267,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Union {
                 name,
                 visibility,
+                export: _,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -342,6 +342,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Interface {
                 name,
                 visibility,
+                export: _,
                 super_types,
                 static_parameters,
                 with_clauses,
@@ -398,6 +399,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Function {
                 name,
                 visibility,
+                export: _,
                 runtime,
                 style,
                 self_parameter,

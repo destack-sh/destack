@@ -1,3 +1,5 @@
+use dyst_ast::ExportMode;
+
 use crate::{Expression, ParserError, Path, TokenType};
 
 use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability, Visibility};
@@ -82,7 +84,11 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_let(
+        &mut self,
+        visibility: Option<Visibility>,
+        export: Option<ExportMode>,
+    ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability
@@ -139,6 +145,7 @@ impl<'a> Parser<'a> {
                 pattern,
                 mutability,
                 visibility,
+                export,
                 ty,
                 value,
             },
@@ -165,7 +172,7 @@ var(x, y) pos: Vector4
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
 
         // var(x, y) pos: Vector2 = --
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value: _, .. } => {
@@ -200,7 +207,7 @@ let x: int32 = 1
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
@@ -232,7 +239,7 @@ var x: float64[3] = undefined
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
         let x = parser.intern_string("x");
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty,  .. } => {
@@ -265,7 +272,7 @@ let (x, y) = foo()
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
         let x = parser.intern_string("x");
         let y = parser.intern_string("y");
 
@@ -297,7 +304,7 @@ let (x, y) = foo()
         let mut test = TestParser::new("let x: int32");
         let mut parser = test.prepare();
 
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
         let x = parser.intern_string("x");
 
         // let x: int32
@@ -324,7 +331,7 @@ let x =
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None).unwrap();
+        let let_id = parser.eat_let(None, None).unwrap();
         let x = parser.intern_string("x");
 
         // let x = foo.parse()

@@ -52,6 +52,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 name,
                 format,
                 visibility: _,
+                export: _,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -130,6 +131,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Struct {
                 name,
                 visibility: _,
+                export: _,
                 style,
                 super_types,
                 representation_type,
@@ -265,6 +267,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Enum {
                 name,
                 visibility: _,
+                export: _,
                 tag_type,
                 static_parameters,
                 super_types,
@@ -361,6 +364,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Interface {
                 name,
                 visibility: _,
+                export: _,
                 static_parameters,
                 super_types,
                 with_clauses: with,
@@ -432,6 +436,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Union {
                 name,
                 visibility: _,
+                export: _,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -620,6 +625,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Function {
                 name,
                 visibility: _,
+                export: _,
                 runtime,
                 style,
                 static_parameters,
