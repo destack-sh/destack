@@ -827,6 +827,20 @@ impl Dump for EmbeddedDefinition {
     }
 }
 
+/// Dump an ArgumentSlot as a string.
+impl Dump for ArgumentSlot {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ArgumentSlot::Parameter { parameter: _ } => {
+                dumper.object("ArgumentSlot::Parameter").end();
+            }
+            ArgumentSlot::Field { field: _ } => {
+                dumper.object("ArgumentSlot::Field").end();
+            }
+        }
+    }
+}
+
 /// Dump a SelfParameter as a string.
 impl Dump for SelfParameter {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1684,16 +1698,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::Named { name, value: _ } => {
-                self.node("Argument::Named", id.id)
+            Argument::UnevaluatedNamed { name, value: _ } => {
+                self.node("Argument::UnevaluatedNamed", id.id)
                     .field("name", name)
                     .end();
             }
-            Argument::Positional { value: _ } => {
-                self.node("Argument::Positional", id.id).end();
+            Argument::UnevaluatedPositional { value: _ } => {
+                self.node("Argument::UnevaluatedPositional", id.id).end();
             }
-            Argument::Spread { value: _ } => {
-                self.node("Argument::Spread", id.id).end();
+            Argument::UnevaluatedSpread { value: _ } => {
+                self.node("Argument::UnevaluatedSpread", id.id).end();
+            }
+            Argument::Direct {
+                name,
+                slot,
+                value: _,
+            } => {
+                self.node("Argument::Direct", id.id)
+                    .field("name", name)
+                    .field("slot", slot)
+                    .end();
+            }
+            Argument::Spread { slot, value: _ } => {
+                self.node("Argument::Spread", id.id)
+                    .field("slot", slot)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
