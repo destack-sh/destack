@@ -322,6 +322,7 @@ impl<'a> Parser<'a> {
             let token_ty = self.tokens[current_pos as usize].token.ty;
             let next_token_ty = self.tokens[current_pos as usize + 1].token.ty;
             if (token_ty == TokenType::Identifier && next_token_ty == TokenType::Colon)
+                || (token_ty == TokenType::Identifier && next_token_ty == TokenType::Assign)
                 || (token_ty == TokenType::Range && next_token_ty == TokenType::Identifier)
                 || (token_ty == TokenType::RangeWide && next_token_ty == TokenType::Identifier)
             {

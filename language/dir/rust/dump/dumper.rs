@@ -634,6 +634,15 @@ impl Dump for &str {
     }
 }
 
+/// Dump a String as a string.
+impl Dump for String {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_char('"', Some(Color::White));
+        dumper.write_str(self.as_str(), Some(Color::BrightYellow));
+        dumper.write_char('"', Some(Color::White));
+    }
+}
+
 /// Dump an Option<T> as a string.
 impl<T: Dump> Dump for Option<T> {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -882,10 +891,12 @@ impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             Path::Unevaluated { segments } => {
-                dumper
-                    .object("Path::Unevaluated")
-                    .field("segments", segments)
-                    .end();
+                let path = segments
+                    .iter()
+                    .map(|s| dumper.strings.get(*s))
+                    .collect::<Vec<_>>()
+                    .join(".");
+                dumper.object("Path::Unevaluated").value(&path).end();
             }
             Path::Intrinsic { intrinsic } => {
                 dumper

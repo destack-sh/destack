@@ -644,6 +644,15 @@ impl Dump for &str {
     }
 }
 
+/// Dump a String as a string.
+impl Dump for String {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_char('"', Some(Color::White));
+        dumper.write_str(self.as_str(), Some(Color::BrightYellow));
+        dumper.write_char('"', Some(Color::White));
+    }
+}
+
 /// Dump an Option<T> as a string.
 impl<T: Dump> Dump for Option<T> {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
