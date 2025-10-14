@@ -8,6 +8,12 @@ use dyst_ast::{LiteralType, NumberBase, RawStringError, Token, TokenType};
 use destack_unicode::UnicodeEmoji;
 use dyst_source::{SourceId, Span};
 
+/// Classification of a parsed single-quoted literal.
+enum SingleQuotedLiteral {
+    Character { is_terminated: bool },
+    String { is_terminated: bool },
+}
+
 pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Whitespace,
     TokenType::LineComment,
@@ -166,7 +172,11 @@ impl Tokenizer<'_> {
                     // single-quoted byte literal
                     ('\'', _) => {
                         this.bump();
-                        let is_terminated = this.eat_single_quoted_string();
+                        let parsed = this.eat_single_quoted_string();
+                        let is_terminated = match parsed {
+                            SingleQuotedLiteral::Character { is_terminated }
+                            | SingleQuotedLiteral::String { is_terminated } => is_terminated,
+                        };
                         (
                             TokenType::Literal,
                             Some(LiteralType::Byte { is_terminated }),
@@ -565,13 +575,18 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // character literal
-            '\'' => {
-                let terminated = self.eat_single_quoted_string();
-                let kind = LiteralType::Character {
-                    is_terminated: terminated,
-                };
-                (TokenType::Literal, Some(kind))
+            // character literal (with fallback to string literal for leniency)
+            '\'' => match self.eat_single_quoted_string() {
+                SingleQuotedLiteral::Character { is_terminated } => {
+                    let kind = LiteralType::Character {
+                        is_terminated,
+                    };
+                    (TokenType::Literal, Some(kind))
+                }
+                SingleQuotedLiteral::String { is_terminated } => {
+                    let kind = LiteralType::String { is_terminated };
+                    (TokenType::Literal, Some(kind))
+                }
             }
 
             // string literal
@@ -750,45 +765,62 @@ impl Tokenizer<'_> {
         }
     }
 
-    /// Parses a single-quoted string (excluding first `'`).
-    /// Returns whether the string is terminated.
-    fn eat_single_quoted_string(&mut self) -> bool {
+    /// Parse a single-quoted literal (excluding the initial `'`).
+    /// Classify the literal as either a character or a string.
+    fn eat_single_quoted_string(&mut self) -> SingleQuotedLiteral {
         debug_assert!(self.prev() == '\'');
-        // check if it's a one-symbol literal
-        if self.peek_next() == '\'' && self.peek() != '\\' {
-            self.bump();
-            self.bump();
-            return true;
-        }
-        // literal has more than one symbol
+
+        let mut logical_len = 0_u32;
+
         // parse until either quotes are terminated or error is detected
         loop {
             match self.peek() {
                 // quotes are terminated, finish parsing
                 '\'' => {
                     self.bump();
-                    return true;
+                    return Self::finish_single_quoted_literal(logical_len, true);
                 }
                 // probably beginning of the comment, which we don't want to include
                 // to the error report
-                '/' => break,
+                '/' => {
+                    return Self::finish_single_quoted_literal(logical_len, false);
+                }
                 // newline without following '\'' means unclosed quote, stop parsing
-                '\n' if self.peek_next() != '\'' => break,
+                '\n' if self.peek_next() != '\'' => {
+                    return Self::finish_single_quoted_literal(logical_len, false);
+                }
                 // end of file, stop parsing
-                EOF_CHAR if self.is_end() => break,
+                EOF_CHAR if self.is_end() => {
+                    return Self::finish_single_quoted_literal(logical_len, false);
+                }
                 // escaped slash is considered one character, so bump twice
                 '\\' => {
                     self.bump();
+                    if self.is_end() {
+                        return Self::finish_single_quoted_literal(logical_len, false);
+                    }
                     self.bump();
+                    logical_len = logical_len.saturating_add(1);
                 }
                 // skip the character
                 _ => {
                     self.bump();
+                    logical_len = logical_len.saturating_add(1);
                 }
             }
         }
-        // string was not terminated
-        false
+    }
+
+    #[inline]
+    fn finish_single_quoted_literal(
+        logical_len: u32,
+        is_terminated: bool,
+    ) -> SingleQuotedLiteral {
+        if logical_len <= 1 {
+            SingleQuotedLiteral::Character { is_terminated }
+        } else {
+            SingleQuotedLiteral::String { is_terminated }
+        }
     }
 
     /// Parses a double-quoted string (excluding first `"`).

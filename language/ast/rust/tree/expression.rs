@@ -389,6 +389,7 @@ pub enum Expression {
 
     /// A StructLiteral is literal struct of heterogeneous fields.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).
+    /// NOTE #Incomplete: support arbitrary string literals as variant field names?
     ///
     /// Examples:
     /// ```

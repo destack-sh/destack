@@ -91,6 +91,8 @@ pub enum Keyword {
     Defer,
     /// Return expression.
     Return,
+    /// Yield expression (reserved).
+    Yield,
     /// Match expression.
     Match,
     /// Switch expression (reserved).
@@ -175,6 +177,7 @@ impl Keyword {
             Keyword::Continue => "continue",
             Keyword::Defer => "defer",
             Keyword::Return => "return",
+            Keyword::Yield => "yield",
             Keyword::Match => "match",
             Keyword::Switch => "switch",
             Keyword::Case => "case",
@@ -245,6 +248,7 @@ impl FromStr for Keyword {
             "continue" => Ok(Keyword::Continue),
             "defer" => Ok(Keyword::Defer),
             "return" => Ok(Keyword::Return),
+            "yield" => Ok(Keyword::Yield),
             "match" => Ok(Keyword::Match),
             "switch" => Ok(Keyword::Switch),
             "case" => Ok(Keyword::Case),

@@ -287,6 +287,28 @@ fn test_characters() {
 }
 
 #[test]
+fn test_single_quoted_strings() {
+    assert_tokenize_eq_roundtrip!(
+        "'ab' 'multi word'",
+        Token::new(
+            TokenType::Literal,
+            4,
+            Some(LiteralType::String {
+                is_terminated: true
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            12,
+            Some(LiteralType::String {
+                is_terminated: true
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
