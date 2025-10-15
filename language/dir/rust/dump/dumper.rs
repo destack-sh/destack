@@ -1697,10 +1697,21 @@ impl<'a> NodeVisitor for Dumper<'a> {
         id: NodeId<ImportItem>,
         import_item: &ImportItem,
     ) {
-        self.node("UseItem", id.id)
-            .field("source", &import_item.target)
-            .field_optional("alias", &import_item.alias)
-            .end();
+        match import_item {
+            ImportItem::Glob { target, alias } => {
+                self.node("ImportItem::Glob", id.id)
+                    .field("target", target)
+                    .field_optional("alias", alias)
+                    .end();
+            }
+            ImportItem::Scalar { target, name, alias } => {
+                self.node("ImportItem::Scalar", id.id)
+                    .field("target", target)
+                    .field("name", name)
+                    .field_optional("alias", alias)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_import_item(dumper, tree, id, import_item);
         });

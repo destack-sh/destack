@@ -22,13 +22,18 @@ pub enum ImportTarget {
 
 /// A ImportItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImportItem {
-    /// The target of the item.
-    pub target: ImportTarget,
-    /// The name to import.
-    pub name: StringId,
-    /// The alias to use for the item.
-    pub alias: Option<StringId>,
+pub enum ImportItem {
+    // Import all items from a target.
+    Glob {
+        target: ImportTarget,
+        alias: Option<StringId>,
+    },
+    // Import a single item from a target.
+    Scalar {
+        target: ImportTarget,
+        name: StringId,
+        alias: Option<StringId>,
+    },
 }
 
 impl Node for ImportItem {
