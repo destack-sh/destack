@@ -1684,7 +1684,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         import_item: &ImportItem,
     ) {
         self.node("UseItem", id.id)
-            .field("source", &import_item.source)
+            .field("source", &import_item.target)
             .field_optional("alias", &import_item.alias)
             .end();
         self.with_depth(|dumper| {
