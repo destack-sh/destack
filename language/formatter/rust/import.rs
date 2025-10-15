@@ -1,8 +1,21 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, ImportClause, ImportItem, NodeId};
+use crate::{
+    DystFormatContext, DystFormatter, FormatNode, ImportClause, ImportItem, ImportTarget, NodeId,
+};
+use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
+
+impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
+    #[inline]
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            ImportTarget::Virtual(path) => write!(f, [path]),
+            ImportTarget::Physical(string) => write!(f, [string]),
+        }
+    }
+}
 
 impl<'ast> FormatNode<'ast, ImportClause> for ImportClause {
     fn format_node(

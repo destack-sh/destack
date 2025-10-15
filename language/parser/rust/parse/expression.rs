@@ -792,7 +792,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, ExportMode, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause,
+        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Parameter, TypeLiteral,
+        WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -814,13 +815,13 @@ mod tests {
             assert_eq!(*mode, ExportMode::Item);
             assert_eq!(clauses.len(), 2);
             // export foo
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
             });
             // export bar
-            assert_node!(parser.tree, clauses[1], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[1], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_path!(parser, *target, "bar");
@@ -839,7 +840,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
             assert_eq!(*mode, ExportMode::Item);
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 let items = items.as_ref().expect("expected items");
                 assert_eq!(items.len(), 2);
@@ -869,7 +870,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
             assert_eq!(*mode, ExportMode::Item);
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert_string!(parser, alias.unwrap(), "baz");
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
@@ -901,13 +902,13 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 2);
             // import foo
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
             });
             // import bar
-            assert_node!(parser.tree, clauses[1], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[1], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_path!(parser, *target, "bar");
@@ -925,7 +926,7 @@ mod tests {
         // import { bar, baz } from foo
         assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 let items = items.as_ref().expect("expected items");
                 assert_eq!(items.len(), 2);
@@ -954,7 +955,7 @@ mod tests {
         // import * as baz from foo
         assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target, alias, items } => {
+            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert_string!(parser, alias.unwrap(), "baz");
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
