@@ -143,9 +143,8 @@ impl<'a> Parser<'a> {
         }
 
         // regular dynamic parameters
-        let parameters = self.with_options(self.options.nested(), |parser| {
-            parser.eat_parameters_body()
-        })?;
+        let parameters =
+            self.with_options(self.options.nested(), |parser| parser.eat_parameters_body())?;
         self.eat_token(TokenType::CloseParenthesis)?;
         Ok(parameters)
     }
@@ -257,6 +256,7 @@ impl<'a> Parser<'a> {
     /// Eat static arguments (including the `<` and `>` tokens).
     pub fn eat_static_arguments(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::LessThan)?;
+        self.eat_newlines_maybe()?;
 
         // empty static arguments
         if self.peek_token(TokenType::GreaterThan).is_ok() {
@@ -269,6 +269,7 @@ impl<'a> Parser<'a> {
             parser.eat_arguments_body()
         })?;
 
+        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::GreaterThan)?;
         Ok(static_arguments)
     }
@@ -284,6 +285,7 @@ impl<'a> Parser<'a> {
     /// Eat dynamic arguments (including the `(` and `)` tokens).
     pub fn eat_dynamic_arguments(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
 
         // empty dynamic arguments
         if self.peek_token(TokenType::CloseParenthesis).is_ok() {
@@ -292,10 +294,10 @@ impl<'a> Parser<'a> {
         }
 
         // regular dynamic arguments
-        let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
-            parser.eat_arguments_body()
-        })?;
+        let dynamic_arguments =
+            self.with_options(self.options.nested(), |parser| parser.eat_arguments_body())?;
 
+        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(dynamic_arguments)
@@ -317,6 +319,9 @@ impl<'a> Parser<'a> {
     pub fn eat_arguments_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
         loop {
+            if self.peek_any_close_parenthesis().is_ok() {
+                break;
+            }
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
             if self.peek_any_stop().is_ok() {

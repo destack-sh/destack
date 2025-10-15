@@ -1,5 +1,5 @@
-import {Catch} from '../ivm/catch.ts';
-import {Other} from "../ivm/catch.ts";
+import { Catch } from '../ivm/catch.ts';
+import { Other } from "../ivm/catch.ts";
 
 {
     title: 'Annotation',
@@ -68,6 +68,19 @@ function valuePosName(left: ValuePosition) {
   }
 }
 
+const users = createSource(
+    lc,
+    testLogConfig,
+    'table',
+    {
+        id: {type: 'number'},
+        name: {type: 'string'},
+        recruiterID: {type: 'number'},
+    },
+    ['id'],
+);
+
+users.push({type: 'add', row: {id: 1, name: 'aaron', recruiterID: null}})
 
 <LemonDivider className="my-0" />
 
@@ -86,7 +99,7 @@ function valuePosName(left: ValuePosition) {
         isDraftExperiment={isDraftExperiment}
         onVariantChange={(index, field, value) => {
             const currentVariants = [...variants]
-            currentVariants[index] = { ...currentVariants[index], [field]: value }
+            // currentVariants[index] = { ...currentVariants[index], [field]: value }
             setFeatureFlag({
                 ...featureFlag,
                 filters: {
