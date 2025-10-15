@@ -778,19 +778,6 @@ impl Tokenizer<'_> {
                     self.bump();
                     return Self::finish_single_quoted_literal(logical_len, true);
                 }
-                // probably beginning of the comment, which we don't want to include
-                // to the error report
-                '/' => {
-                    return Self::finish_single_quoted_literal(logical_len, false);
-                }
-                // newline without following '\'' means unclosed quote, stop parsing
-                '\n' if self.peek_next() != '\'' => {
-                    return Self::finish_single_quoted_literal(logical_len, false);
-                }
-                // end of file, stop parsing
-                EOF_CHAR if self.is_end() => {
-                    return Self::finish_single_quoted_literal(logical_len, false);
-                }
                 // escaped slash is considered one character, so bump twice
                 '\\' => {
                     self.bump();
