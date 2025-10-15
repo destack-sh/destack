@@ -13,7 +13,7 @@ impl<'a> Compiler<'a> {
         label: ast::StringId,
     ) -> Destination {
         let label = self.intern_string(source_id, label);
-        Destination::Unevaluated(label)
+        Destination::UnevaluatedString { label }
     }
 
     /// Lower a block to a DIR block.
