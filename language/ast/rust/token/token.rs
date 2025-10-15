@@ -141,6 +141,10 @@ pub enum TokenType {
     WrappingSubtract,
     /// `-|`
     SaturatingSubtract,
+    /// `++`
+    Increment,
+    /// `--`
+    Decrement,
 
     // shift
     /// `<<`
@@ -296,6 +300,8 @@ impl Display for TokenType {
             TokenType::Subtract => write!(f, "-"),
             TokenType::WrappingSubtract => write!(f, "-%"),
             TokenType::SaturatingSubtract => write!(f, "-|"),
+            TokenType::Increment => write!(f, "++"),
+            TokenType::Decrement => write!(f, "--"),
 
             // shift
             TokenType::ShiftLeft => write!(f, "<<"),

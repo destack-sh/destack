@@ -1,140 +1,155 @@
-/// A UnaryOperator is unary operator.
+/// A UnaryOperator is a unary operator.
+/// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
+    /// `++`
+    PostIncrement,
+    /// `--`
+    PostDecrement,
+    /// `++`
+    PreIncrement,
+    /// `--`
+    PreDecrement,
     /// `!`
-    Not = 237,
+    Not,
     /// `-`
-    Negate = 236,
+    Negate,
     /// `-%`
-    WrappingNegate = 235,
+    WrappingNegate,
     /// `~`
-    ElementwiseNot = 234,
+    ElementwiseNot,
     /// `*`
-    Dereference = 233,
+    Dereference,
     /// `$`
-    Virtual = 232,
+    Virtual,
     /// `..`
-    Spread = 231,
+    Spread,
 }
 
 /// A BinaryOperator is an infix binary operator.
+/// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
-    Multiply = 224,
+    Multiply,
     /// `*%`
-    WrappingMultiply = 223,
+    WrappingMultiply,
     /// `*|`
-    SaturatingMultiply = 222,
+    SaturatingMultiply,
     /// `/`
-    Divide = 221,
+    Divide,
     /// `%`
-    Remainder = 220,
+    Remainder,
 
     // addition
     /// `+`
-    Add = 215,
+    Add,
     /// `+%`
-    WrappingAdd = 214,
+    WrappingAdd,
     /// `+|`
-    SaturatingAdd = 213,
+    SaturatingAdd,
     /// `-`
-    Subtract = 212,
+    Subtract,
     /// `-%`
-    WrappingSubtract = 211,
+    WrappingSubtract,
     /// `-|`
-    SaturatingSubtract = 210,
+    SaturatingSubtract,
 
     // shift
     /// `<<`
-    ShiftLeft = 202,
+    ShiftLeft,
     /// `<<|`
-    SaturatingShiftLeft = 201,
+    SaturatingShiftLeft,
     /// `>>`
-    ShiftRight = 200,
+    ShiftRight,
 
     // elementwise
     /// `&`
-    ElementwiseAnd = 192,
+    ElementwiseAnd,
     /// `^`
-    ElementwiseXor = 191,
+    ElementwiseXor,
     /// `|`
-    ElementwiseOr = 190,
+    ElementwiseOr,
 
     // comparison
     /// `==`
-    Equal = 185,
+    Equal,
     /// `!=`
-    NotEqual = 184,
+    NotEqual,
     /// `<`
-    LessThan = 183,
+    LessThan,
     /// `<=`
-    LessThanOrEqual = 182,
+    LessThanOrEqual,
     /// `>`
-    GreaterThan = 181,
+    GreaterThan,
     /// `>=`
-    GreaterThanOrEqual = 180,
+    GreaterThanOrEqual,
 
     // logical
     /// `&&`
-    And = 173,
+    And,
     /// `||`
-    Or = 172,
+    Or,
     /// `??`
-    Coalesce = 171,
+    Coalesce,
     /// `as`
-    Cast = 170,
+    Cast,
 }
 
 /// An AssignOperator is an assignment type.
+/// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
+    // assignment
+    /// `=`
+    Assign,
+
     // assignment multiplication
     /// `*=`
-    MultiplyAssign = 154,
+    MultiplyAssign,
     /// `*%=`
-    WrappingMultiplyAssign = 153,
+    WrappingMultiplyAssign,
     /// `*|=`
-    SaturatingMultiplyAssign = 152,
+    SaturatingMultiplyAssign,
     /// `/=`
-    DivideAssign = 151,
+    DivideAssign,
     /// `%=`
-    RemainderAssign = 150,
+    RemainderAssign,
 
     // assignment addition
     /// `+=`
-    AddAssign = 145,
+    AddAssign,
     /// `+%=`
-    WrappingAddAssign = 144,
+    WrappingAddAssign,
     /// `+|=`
-    SaturatingAddAssign = 143,
+    SaturatingAddAssign,
     /// `-=`
-    SubtractAssign = 142,
+    SubtractAssign,
     /// `-%=`
-    WrappingSubtractAssign = 141,
+    WrappingSubtractAssign,
     /// `-|=`
-    SaturatingSubtractAssign = 140,
+    SaturatingSubtractAssign,
 
     // assignment shift
     /// `<<=`
-    ShiftLeftAssign = 132,
+    ShiftLeftAssign,
     /// `<<|=`
-    SaturatingShiftLeftAssign = 131,
+    SaturatingShiftLeftAssign,
     /// `>>=`
-    ShiftRightAssign = 130,
+    ShiftRightAssign,
 
     // assignment elementwise
     /// `&=`
-    ElementwiseAndAssign = 122,
+    ElementwiseAndAssign,
     /// `^=`
-    ElementwiseXorAssign = 121,
+    ElementwiseXorAssign,
     /// `|=`
-    ElementwiseOrAssign = 120,
+    ElementwiseOrAssign,
 
     // assignment logical
     /// `&&=`
-    AndAssign = 111,
+    AndAssign,
     /// `||=`
-    OrAssign = 110,
+    OrAssign,
 }

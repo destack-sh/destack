@@ -146,10 +146,10 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            ast::Expression::Unary { operator, right } => {
+            ast::Expression::Unary { operator, expression: right } => {
                 let right = self.lower_expression(source_id, ast, *right);
                 let operator = self.lower_unary_operator(*operator);
-                Expression::Unary { operator, right }
+                Expression::Unary { operator, expression: right }
             }
             ast::Expression::Reference { mutability, right } => {
                 let right = self.lower_expression(source_id, ast, *right);

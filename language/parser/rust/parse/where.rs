@@ -167,9 +167,9 @@ mod tests {
 
         // !Bar
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
+            assert_node!(parser.tree, *guard, Expression::Unary { operator, expression } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
+                assert_expr_path!(parser, parser.tree.get(*expression), "Bar");
             });
         });
 
@@ -206,9 +206,9 @@ mod tests {
 
         // !Bar
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
+            assert_node!(parser.tree, *guard, Expression::Unary { operator, expression } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
+                assert_expr_path!(parser, parser.tree.get(*expression), "Bar");
             });
         });
 

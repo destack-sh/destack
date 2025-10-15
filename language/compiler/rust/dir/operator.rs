@@ -6,6 +6,10 @@ impl<'a> Compiler<'a> {
     /// Lower a unary operator to a DIR unary operator.
     pub fn lower_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {
         match unary_operator {
+            ast::UnaryOperator::PostIncrement => UnaryOperator::PostIncrement,
+            ast::UnaryOperator::PostDecrement => UnaryOperator::PostDecrement,
+            ast::UnaryOperator::PreIncrement => UnaryOperator::PreIncrement,
+            ast::UnaryOperator::PreDecrement => UnaryOperator::PreDecrement,
             ast::UnaryOperator::Not => UnaryOperator::Not,
             ast::UnaryOperator::Negate => UnaryOperator::Negate,
             ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,

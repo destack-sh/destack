@@ -1199,7 +1199,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::Unary { operator, right: _ } => {
+            Expression::Unary { operator, expression: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();

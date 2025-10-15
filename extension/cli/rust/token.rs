@@ -199,6 +199,8 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Subtract => "93",
         TokenType::WrappingSubtract => "93",
         TokenType::SaturatingSubtract => "93",
+        TokenType::Increment => "93",
+        TokenType::Decrement => "93",
         TokenType::ShiftLeft => "96",
         TokenType::SaturatingShiftLeft => "96",
         TokenType::ElementwiseAnd => "96",

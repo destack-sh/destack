@@ -329,6 +329,11 @@ impl Tokenizer<'_> {
                     self.bump();
                     (TokenType::SubtractAssign, None)
                 }
+                // --
+                else if self.peek() == '-' {
+                    self.bump();
+                    (TokenType::Decrement, None)
+                }
                 // -
                 else {
                     (TokenType::Subtract, None)
@@ -516,6 +521,11 @@ impl Tokenizer<'_> {
                 else if self.peek() == '=' {
                     self.bump();
                     (TokenType::AddAssign, None)
+                }
+                // ++
+                else if self.peek() == '+' {
+                    self.bump();
+                    (TokenType::Increment, None)
                 }
                 // +
                 else {
