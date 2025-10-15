@@ -393,12 +393,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Type {
                 name,
                 visibility: _,
+                static_parameters,
                 export: _,
                 value,
             } => {
                 write!(f, [Keyword::Type])?;
                 if let Some(name) = name {
-                    write!(f, [space(), name, space(), token("="), space(), value])?;
+                    write!(f, [space(), name])?;
+                    if let Some(static_parameters) = static_parameters {
+                        write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    }
+                    write!(f, [space(), token("="), space(), value])?;
                 } else {
                     write!(f, [space(), value])?;
                 }

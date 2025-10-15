@@ -1181,7 +1181,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Type", id.id)
                     .field_optional("name", name)
-                    .field_optional("static_parameters", static_parameters)
                     .field_optional("visibility", visibility)
                     .end();
             }
