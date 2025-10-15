@@ -1,3 +1,5 @@
+use dyst_ast::{Expression, ScalarLiteral};
+
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
 
@@ -149,7 +151,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an argument (e.g., `x: 1` or `y`).
-    /// For use in tree fragments (and general leniency) also accept `=` as well.
     /// Does not support named shorthand arguments.
     ///
     /// Examples:
@@ -164,11 +165,10 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // named argument
         if self.peek_token(TokenType::Identifier).is_ok()
-            && (self.peek_next_token(TokenType::Colon).is_ok()
-                || self.peek_next_token(TokenType::Assign).is_ok())
+            && (self.peek_next_token(TokenType::Colon).is_ok())
         {
             let name = self.eat_identifier().for_node_type(NodeType::Argument)?;
-            self.bump(); // eat colon or assign
+            self.bump(); // eat colon
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
@@ -192,6 +192,56 @@ impl<'a> Parser<'a> {
             let argument_id = self
                 .tree
                 .insert(Argument::Positional { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+    }
+
+    /// Eat a tree literal argument (e.g., `x=1` or `long-name=2` or `flag-is-set`).
+    /// Does not support named shorthand arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// x: 1
+    /// y
+    /// 2
+    /// ...args
+    /// ```
+    #[inline]
+    pub fn eat_tree_literal_argument(&mut self) -> ParserResult<NodeId<Argument>> {
+        let start = self.mark();
+        // spread argument
+        if self.peek_token(TokenType::Range).is_ok()
+            || self.peek_token(TokenType::RangeWide).is_ok()
+        {
+            self.bump(); // eat range
+            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // named argument
+        else {
+            let name = self.eat_tree_literal_identifier()?;
+
+            // named argument with value
+            let value = if self.peek_token(TokenType::Colon).is_ok()
+                || self.peek_token(TokenType::Assign).is_ok()
+            {
+                self.bump(); // eat colon or assign
+                self.eat_expression().for_node_type(NodeType::Argument)?
+            }
+            // implicit boolean true
+            else {
+                self.tree.insert(
+                    Expression::ScalarLiteral(ScalarLiteral::Boolean(true)),
+                    self.get_span_from(start),
+                )
+            };
+
+            let argument_id = self
+                .tree
+                .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
     }

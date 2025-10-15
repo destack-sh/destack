@@ -2,7 +2,7 @@
     title: 'Annotation',
     key: 'annotation',
     width: '30%',
-    render: function RenderAnnotation(_, annotation: AnnotationType): JSX.Element {
+    render: function RenderAnnotation(annotation: AnnotationType): JSX.Element {
         let renderedContent = <>{annotation.content ?? ''}</>
         if ((annotation.content || '').trim().length > 30) {
             renderedContent = (

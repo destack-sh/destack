@@ -4,8 +4,8 @@ use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
 
 use crate::{
-    Definition, ExportMode, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
-    SelfParameter, Visibility,
+    Definition, ExportMode, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult,
+    Runtime, SelfParameter, Visibility,
 };
 
 // nocheckin TODO #Incomplete: support destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
@@ -214,8 +214,8 @@ impl<'a> Parser<'a> {
         let (return_type, with_clauses, where_clauses) = {
             if style == FunctionStyle::Function || self.options.in_type {
                 // return type
-                let return_type = if self.peek_arrow().is_ok() {
-                    self.bump(); // eat arrow
+                let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
+                    self.bump(); // eat arrow or colon
                     let return_type = self
                         .with_options(self.options.nested_type_in_before_block(), |parser| {
                             parser.eat_expression()

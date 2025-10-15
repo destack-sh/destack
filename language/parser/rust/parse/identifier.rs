@@ -50,4 +50,30 @@ impl<'a> Parser<'a> {
             Ok(None)
         }
     }
+
+    /// Eat a tree literal identifier (`kebab-case` as `kebabCase`).
+    #[inline]
+    pub fn eat_tree_literal_identifier(&mut self) -> ParserResult<StringId> {
+        let mut identifier = String::new();
+        loop {
+            let token = *self.eat_token(TokenType::Identifier)?;
+            let token_part = self.get_token_str(token);
+
+            // uppercase first letter (except at start)
+            if identifier.is_empty() {
+                identifier.push_str(token_part);
+            } else {
+                identifier.push_str(&token_part[0..1].to_uppercase());
+                identifier.push_str(&token_part[1..]);
+            }
+
+            if self.peek_token(TokenType::Subtract).is_ok() {
+                self.bump();
+            } else {
+                break;
+            }
+        }
+        let string_id = self.intern_string(identifier);
+        Ok(string_id)
+    }
 }

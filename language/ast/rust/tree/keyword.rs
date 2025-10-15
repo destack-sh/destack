@@ -5,7 +5,7 @@ use std::str::FromStr;
 pub enum Keyword {
     /// Visibility modifier
     Public,
-    /// Visibility modifier (reserved)
+    /// Visibility modifier
     Protected,
     /// Visibility modifier (reserved)
     Internal,

@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         // keyword
-        self.eat_keyword(Keyword::Match)?;
+        self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
 
         // body
         self.eat_match_body(runtime)
@@ -94,6 +94,14 @@ impl<'a> Parser<'a> {
     fn eat_match_case(&mut self) -> ParserResult<NodeId<MatchCase>> {
         let start = self.mark();
 
+        // tolerate case for leniency
+        let is_case = if self.peek_keyword(Keyword::Case).is_ok() {
+            self.bump();
+            true
+        } else {
+            false
+        };
+
         // pattern
         let pattern_id =
             self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
@@ -109,8 +117,13 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // arrow
-        self.eat_arrow()?;
+        // "arrow"
+        if is_case {
+            self.eat_colon()?;
+            self.eat_newlines_maybe()?;
+        } else {
+            self.eat_arrow()?;
+        }
 
         // body
         if self.peek_block().is_ok() {

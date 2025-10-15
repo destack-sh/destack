@@ -75,6 +75,11 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // eat type (doesn't do anything, but is allowed for leniency)
+        if self.peek_keyword(Keyword::Type).is_ok() {
+            self.bump(); // eat type
+        }
+
         // clauses
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_import_clauses()

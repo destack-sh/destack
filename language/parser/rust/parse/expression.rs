@@ -301,9 +301,10 @@ impl<'a> Parser<'a> {
                 };
 
                 // if followed by an arrow, backtrack and parse as a lambda
+                //  (also support colon for leniency)
                 if !self.options.in_match_case
                     && !self.options.in_before_block
-                    && self.peek_arrow().is_ok()
+                    && (self.peek_arrow().is_ok() || self.peek_colon().is_ok())
                 {
                     self.restore(speculative_start.0, speculative_start.1);
                     let lambda_id = self.eat_function(visibility, export)?;
@@ -764,7 +765,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, ExportMode, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause};
+    use dyst_ast::{
+        Definition, ExportMode, FunctionStyle, IntType, Parameter, TypeLiteral, WithClause,
+    };
 
     use crate::parse::tests::TestParser;
     use crate::{

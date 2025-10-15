@@ -12,6 +12,7 @@ impl<'a> Compiler<'a> {
     pub fn lower_visibility(&self, visibility: ast::Visibility) -> Visibility {
         match visibility {
             ast::Visibility::Public => Visibility::Public,
+            ast::Visibility::Protected => Visibility::Protected,
             ast::Visibility::Private => Visibility::Private,
         }
     }
