@@ -1,5 +1,6 @@
-import { Catch } from '../ivm/catch.ts';
+import { Catch} from '../ivm/catch.ts';
 import { Other } from "../ivm/catch.ts";
+import "fish";
 
 {
     title: 'Annotation',
