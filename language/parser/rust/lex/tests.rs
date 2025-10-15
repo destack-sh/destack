@@ -34,23 +34,23 @@ fn assert_raw_str_eq(s: &str, expected: Result<u8, RawStringError>) {
 }
 
 #[test]
-fn test_naked_raw_str() {
+fn test_lex_raw_string_naked() {
     assert_raw_str_eq(r#""abc""#, Ok(0));
 }
 
 #[test]
-fn test_raw_no_start() {
+fn test_lex_raw_string_no_start() {
     assert_raw_str_eq(r##""abc"#"##, Ok(0));
 }
 
 #[test]
-fn test_too_many_terminators() {
+fn test_lex_raw_string_too_many_terminators() {
     // this error is handled in the parser later
     assert_raw_str_eq(r###"#"abc"##"###, Ok(1));
 }
 
 #[test]
-fn test_unterminated() {
+fn test_lex_raw_string_unterminated() {
     assert_raw_str_eq(
         r#"#"abc"#,
         Err(RawStringError::NoTerminator {
@@ -79,7 +79,7 @@ fn test_unterminated() {
 }
 
 #[test]
-fn test_valid_weird_unicode() {
+fn test_lex_valid_weird_unicode() {
     assert_tokenize_eq_roundtrip!(
         "\u{3}\n",
         Token::new(TokenType::Unknown, 1, None),
@@ -88,7 +88,7 @@ fn test_valid_weird_unicode() {
 }
 
 #[test]
-fn test_random_symbols() {
+fn test_lex_random_symbols() {
     assert_tokenize_eq_roundtrip!(
         "a..b => c->d x _ : ? $ ! @ ~",
         // a
@@ -145,7 +145,7 @@ fn test_random_symbols() {
 }
 
 #[test]
-fn test_comparisons_and_equals() {
+fn test_lex_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(
         "a==b != c <= d >= e < f > g",
         Token::new(TokenType::Identifier, 1, None),
@@ -175,7 +175,7 @@ fn test_comparisons_and_equals() {
 }
 
 #[test]
-fn test_unterminated_no_pound() {
+fn test_lex_raw_string_unterminated_no_pound() {
     // https://github.com/rust-library/rust/issues/70677
     assert_raw_str_eq(
         r#"""#,
@@ -188,7 +188,7 @@ fn test_unterminated_no_pound() {
 }
 
 #[test]
-fn test_too_many_hashes() {
+fn test_lex_raw_string_too_many_hashes() {
     let max_count = u8::MAX;
     let hashes1 = "#".repeat(max_count as usize);
     let hashes2 = "#".repeat(max_count as usize + 1);
@@ -209,7 +209,7 @@ fn test_too_many_hashes() {
 }
 
 #[test]
-fn test_smoke() {
+fn test_lex_smoke() {
     assert_tokenize_eq_roundtrip!(
         "fn main() { println!(\"zebra\"); }\n",
         Token::new(TokenType::Identifier, 2, None),
@@ -239,7 +239,7 @@ fn test_smoke() {
 }
 
 #[test]
-fn test_comments() {
+fn test_lex_comments() {
     assert_tokenize_eq_roundtrip!(
         r"
 // comment
@@ -257,7 +257,7 @@ fn test_comments() {
 }
 
 #[test]
-fn test_characters() {
+fn test_lex_characters() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
         Token::new(
@@ -287,9 +287,9 @@ fn test_characters() {
 }
 
 #[test]
-fn test_single_quoted_strings() {
+fn test_lex_single_quoted_strings() {
     assert_tokenize_eq_roundtrip!(
-        "'ab' 'multi word'",
+        "'ab' 'multi word' '../ivm/catch.ts'",
         Token::new(
             TokenType::Literal,
             4,
@@ -305,11 +305,19 @@ fn test_single_quoted_strings() {
                 is_terminated: true
             })
         ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            17,
+            Some(LiteralType::String {
+                is_terminated: true
+            })
+        ),
     );
 }
 
 #[test]
-fn test_raw_string() {
+fn test_lex_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
         Token::new(
@@ -321,7 +329,7 @@ fn test_raw_string() {
 }
 
 #[test]
-fn test_literals() {
+fn test_lex_literals() {
     assert_tokenize_eq_roundtrip!(
         r####"
 true
@@ -468,7 +476,7 @@ br###"raw"###
 }
 
 #[test]
-fn test_block_comments_basic_and_doc() {
+fn test_lex_block_comments_basic_and_doc() {
     assert_tokenize_eq_roundtrip!(
         "/* abc */ /** doc */",
         Token::new(TokenType::BlockComment, 9, None),
@@ -478,7 +486,7 @@ fn test_block_comments_basic_and_doc() {
 }
 
 #[test]
-fn test_block_comment_nested() {
+fn test_lex_block_comment_nested() {
     assert_tokenize_eq_roundtrip!(
         "/* a /* b */ c */ d",
         Token::new(TokenType::BlockComment, 17, None),
@@ -488,7 +496,7 @@ fn test_block_comment_nested() {
 }
 
 #[test]
-fn test_doc_line_exact_three_slashes() {
+fn test_lex_doc_line_exact_three_slashes() {
     assert_tokenize_eq_roundtrip!(
         "//// not doc but line",
         Token::new(TokenType::LineComment, 21, None),
@@ -496,7 +504,7 @@ fn test_doc_line_exact_three_slashes() {
 }
 
 #[test]
-fn test_doc_block_exact_two_stars() {
+fn test_lex_doc_block_exact_two_stars() {
     assert_tokenize_eq_roundtrip!(
         "/*** not doc ***/",
         Token::new(TokenType::BlockComment, 17, None),
@@ -504,7 +512,7 @@ fn test_doc_block_exact_two_stars() {
 }
 
 #[test]
-fn test_logical_assignments() {
+fn test_lex_logical_assignments() {
     assert_tokenize_eq_roundtrip!(
         "a&&=b ||= c",
         Token::new(TokenType::Identifier, 1, None),
