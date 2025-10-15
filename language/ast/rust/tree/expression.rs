@@ -6,9 +6,10 @@ use crate::{
     TypeLiteral, UnaryOperator, Visibility,
 };
 
-// nocheckin TODO #Incomplete: support arbitrary string literals as fields/arguments...?
-//  or for fields/arguments: `{ "Content-Type": "application/json" }`
-//  and in literals like { [variable]: 2 }
+// TODO #Incomplete: support arbitrary string literals as fields/arguments...?
+//  for fields/arguments: `{ "Content-Type": "application/json" }`
+//  also regex literals like `/^[a-z]+$/`
+//  and for literals like { [variable]: 2 }
 
 /// An Expression is a generic container for value-producing forms.
 ///

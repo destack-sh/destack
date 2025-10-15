@@ -8,7 +8,7 @@ use crate::{
     Runtime, SelfParameter, Visibility,
 };
 
-// nocheckin TODO #Incomplete: support destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
+// TODO #Incomplete: support destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
 
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).

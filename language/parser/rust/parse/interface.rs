@@ -6,6 +6,8 @@ use crate::{
     Visibility,
 };
 
+// TODO #Incomplete: fields in Interfaces (InterfaceFields)?
+
 impl<'a> Parser<'a> {
     /// Eat a Interface.
     ///

@@ -1,6 +1,7 @@
 use crate::StringId;
 
-// nocheckin TODO #Incomplete: format string literals?
+// TODO #Incomplete: format string literals
+//  (TS-style tagged template literals: `hey ${name}` with optional prefix)
 
 /// A ScalarLiteral is literal scalar value node.
 /// NOTE: for #Leniency we parse multi-character `'aa'` as regular string literals.

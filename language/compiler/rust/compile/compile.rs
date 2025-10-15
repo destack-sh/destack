@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, NodeId, NodeIdAny, Type};
+use dyst_dir::{Destination, Expression, NodeId, NodeIdAny, Path, Type};
 
 use crate::{AstNodeIdAny, Compiler, CompilerMode};
 
@@ -9,6 +9,13 @@ pub enum EvaluateRequest {
     EvaluateType { ty: NodeId<Type> },
     /// Evaluate an Expression to its result value.
     EvaluateExpression { expression: NodeId<Expression> },
+    /// Evaluate a Destination to its result value.
+    EvaluateDestination {
+        scope_id: NodeIdAny,
+        destination: Destination,
+    },
+    /// Evaluate a Path to its result value.
+    EvaluatePath { scope_id: NodeIdAny, path: Path },
 }
 
 /// Request to check something statically.
@@ -39,7 +46,7 @@ pub enum CompilerMessage {
 }
 
 impl<'s> Compiler<'s> {
-    /// Evaluate compile time constructs and check all compile time invariants.
+    /// Evaluate compile time constructs and check compile time invariants.
     /// Runs until there is nothing left to evaluate.
     pub fn compile(&mut self) {
         assert!(self.mode == CompilerMode::Parsed);

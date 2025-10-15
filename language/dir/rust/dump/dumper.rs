@@ -884,9 +884,9 @@ impl Dump for FunctionStyle {
 impl Dump for Destination {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Destination::Unevaluated(label) => {
+            Destination::UnevaluatedString { label } => {
                 dumper
-                    .object("Destination::LabelString")
+                    .object("Destination::UnevaluatedString")
                     .field("label", label)
                     .end();
             }
@@ -911,13 +911,13 @@ impl Dump for AnnotationPosition {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::Unevaluated { segments } => {
+            Path::UnevaluatedString { segments } => {
                 let path = segments
                     .iter()
                     .map(|s| dumper.strings.get(*s))
                     .collect::<Vec<_>>()
                     .join(".");
-                dumper.object("Path::Unevaluated").value(&path).end();
+                dumper.object("Path::UnevaluatedString").value(&path).end();
             }
             Path::Intrinsic { intrinsic } => {
                 dumper

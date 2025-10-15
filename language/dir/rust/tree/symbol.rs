@@ -16,7 +16,7 @@ pub struct SymbolId(pub u32);
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
     /// Unevaluated absolute string path.
-    Unevaluated { segments: SmallVec<StringId, 3> },
+    UnevaluatedString { segments: SmallVec<StringId, 3> },
     /// Resolved Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
     /// Resolved to a Definition.
@@ -29,7 +29,7 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Destination {
     /// Unevaluated Destination with a string label.
-    Unevaluated(StringId),
+    UnevaluatedString { label: StringId },
     /// Resolved Destination to a Definition.
     Definition { definition: NodeId<Definition> },
     /// Error destination.
