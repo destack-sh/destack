@@ -883,9 +883,10 @@ mod tests {
             r#"
 (
     <div className="font-semibold">
-        <Link subtle to={urls.annotation(annotation.id)}>
-            {renderedContent}
+        <Link subtle to={1}>
+            {2}
         </Link>
+        header: "Hello"
     </div>
 )
         "#,
@@ -894,10 +895,66 @@ mod tests {
         parser.eat_newline().unwrap();
         let expression = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
+            // <div className="font-semibold">
             assert_node!(parser.tree, *expression, Expression::TreeLiteral { path, arguments, elements } => {
                 assert_path!(parser, path.as_ref().unwrap(), "div");
-                assert!(arguments.is_none());
-                assert!(elements.is_none());
+                assert!(arguments.is_some());
+                assert_eq!(arguments.as_ref().unwrap().len(), 1);
+                // className="font-semibold"
+                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name, value } => {
+                    // className
+                    assert_string!(parser, *name, "className");
+                    // font-semibold
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "font-semibold");
+                    });
+                });
+
+                assert!(elements.is_some());
+                assert_eq!(elements.as_ref().unwrap().len(), 2);
+                // <Link subtle to={urls.annotation(annotation.id)}>
+                assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
+                        // Link
+                        assert_path!(parser, path.as_ref().unwrap(), "Link");
+                        assert!(arguments.is_some());
+                        assert_eq!(arguments.as_ref().unwrap().len(), 2);
+                        // subtle
+                        assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name, value } => {
+                            assert_string!(parser, *name, "subtle");
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+                        });
+                        // to={1}
+                        assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
+                            assert_string!(parser, *name, "to");
+                            assert_node!(parser.tree, *value, Expression::Block(block_id) => {
+                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                    assert_eq!(expressions.len(), 1);
+                                    assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                                });
+                            });
+                        });
+
+                        assert!(elements.is_some());
+                        assert_eq!(elements.as_ref().unwrap().len(), 1);
+                        // {2}
+                        assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_node!(parser.tree, *value, Expression::Block(block_id) => {
+                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                    assert_eq!(expressions.len(), 1);
+                                    assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                                });
+                            });
+                        });
+                    });
+                });
+                // header="Hello"
+                assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Named { name, value } => {
+                    assert_string!(parser, *name, "header");
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "Hello");
+                    });
+                });
             });
         });
     }

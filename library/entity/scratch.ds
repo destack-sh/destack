@@ -41,10 +41,10 @@ export type NonNullValue = Exclude<Value, null | undefined>;
 type x =  (lhs: string) => boolean;
 
 // nocheckin
-// function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
-//     const re = patternToRegExp(pattern, flags);
-//     return (lhs: string) => re.test(lhs);
-// }
+function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
+    const re = patternToRegExp(pattern, flags);
+    return (lhs: string) => re.test(lhs);
+}
 
 function valuePosName(left: ValuePosition) {
   switch (left.type) {
