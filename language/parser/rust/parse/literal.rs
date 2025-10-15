@@ -465,7 +465,7 @@ impl<'a> Parser<'a> {
                     && self.peek_token(TokenType::GreaterThan).is_err()
                 {
                     let argument = self.with_options(self.options.in_tree_literal(), |parser| {
-                        parser.eat_argument()
+                        parser.eat_tree_literal_argument()
                     })?;
                     arguments.push(argument);
                     if self.peek_any_stop().is_ok() {
@@ -737,23 +737,33 @@ mod tests {
 
     #[test]
     fn test_parse_tree_fragment_with_arguments() {
-        let mut test = TestParser::new("<A a=1 b=2 />");
+        let mut test = TestParser::new("<A a=1 annoying-bee=2 c=3 flag />");
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        // <A a=1 b=2 />
+        // <A a=1 annoying-b=2 c=3 />
         assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
             // A
             assert_path!(parser, path.as_ref().unwrap(), "A");
-            assert_eq!(arguments.as_ref().unwrap().len(), 2);
+            assert_eq!(arguments.as_ref().unwrap().len(), 4);
             // a=1
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name, value } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            // b=2
+            // annoying-b=2
             assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
-                assert_string!(parser, *name, "b");
+                assert_string!(parser, *name, "annoyingBee");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+            // c=3
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "c");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+            });
+            // flag
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[3], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "flag");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
 
             assert!(elements.is_none());

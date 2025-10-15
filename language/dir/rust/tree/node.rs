@@ -100,6 +100,8 @@ pub trait Node: Sized {
 pub enum Visibility {
     /// Public to everything.
     Public,
+    /// Protected to derived constructs.
+    Protected,
     /// Private to the closest module scope.
     Private,
 }
