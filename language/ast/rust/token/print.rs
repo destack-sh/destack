@@ -95,6 +95,8 @@ impl Token {
             TokenType::Subtract => "-".to_string(),
             TokenType::WrappingSubtract => "-%".to_string(),
             TokenType::SaturatingSubtract => "-|".to_string(),
+            TokenType::Increment => "++".to_string(),
+            TokenType::Decrement => "--".to_string(),
 
             // shift
             TokenType::ShiftLeft => "<<".to_string(),

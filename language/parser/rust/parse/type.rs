@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
             || token_type == TokenType::Literal
             // (if we're before a block then { is a terminator, not the start of a block)
             || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
-            || UnaryOperator::from_token(token_type).is_some()
+            || UnaryOperator::from_prefix_token(token_type).is_some()
     }
 
     /// Whether the token string encodes a type literal with an explicit width.

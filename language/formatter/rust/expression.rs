@@ -629,7 +629,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // unary
-            Expression::Unary { operator, right } => write!(f, [operator, right])?,
+            Expression::Unary {
+                operator,
+                expression,
+            } => {
+                if operator.is_prefix() {
+                    write!(f, [expression, operator])?;
+                } else {
+                    write!(f, [operator, expression])?;
+                }
+            }
 
             // reference
             Expression::Reference { mutability, right } => {
@@ -724,6 +733,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
+            UnaryOperator::PostIncrement => token("++"),
+            UnaryOperator::PostDecrement => token("--"),
+            UnaryOperator::PreIncrement => token("++"),
+            UnaryOperator::PreDecrement => token("--"),
             UnaryOperator::Not => token("!"),
             UnaryOperator::Negate => token("-"),
             UnaryOperator::WrappingNegate => token("-%"),

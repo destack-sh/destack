@@ -92,18 +92,25 @@ fn to_infix_operator(
 }
 
 impl<'a> Parser<'a> {
-    /// Peek a unary operator.
+    /// Peek a unary prefix operator.
     #[inline]
-    pub fn peek_unary_operator(&self) -> ParserResult<UnaryOperator> {
+    pub fn peek_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
-    /// Peek a next unary operator.
+    /// Peek a next unary prefix operator.
     #[inline]
-    pub fn peek_next_unary_operator(&self) -> ParserResult<UnaryOperator> {
+    pub fn peek_next_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek_next()?;
-        UnaryOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+    }
+
+    /// Peek a unary postfix operator.
+    #[inline]
+    pub fn peek_unary_postfix_operator(&self) -> ParserResult<UnaryOperator> {
+        let token = self.peek()?;
+        UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek an assign operator.
@@ -340,8 +347,8 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
-            // unary operations
-            else if let Ok(unary_operator) = self.peek_unary_operator() {
+            // unary prefix operations
+            else if let Ok(unary_operator) = self.peek_unary_prefix_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
                 let right = self.with_options(
@@ -350,7 +357,7 @@ impl<'a> Parser<'a> {
                 )?;
                 let expression = Expression::Unary {
                     operator: unary_operator,
-                    right,
+                    expression: right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
@@ -615,8 +622,19 @@ impl<'a> Parser<'a> {
 
         // eat all regular postfix operators
         loop {
+            // unary postfix operations
+            if let Ok(unary_operator) = self.peek_unary_postfix_operator() {
+                self.bump(); // eat unary operator
+                left_expression_id = self.tree.insert(
+                    Expression::Unary {
+                        operator: unary_operator,
+                        expression: left_expression_id,
+                    },
+                    self.get_span_from(start),
+                );
+            }
             // range (`..`, `..=`)
-            if self.peek_token(TokenType::Range).is_ok()
+            else if self.peek_token(TokenType::Range).is_ok()
                 || self.peek_token(TokenType::RangeWide).is_ok()
             {
                 self.bump(); // eat ..
@@ -959,6 +977,57 @@ mod tests {
                 assert_string!(parser, alias.unwrap(), "baz");
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
+            });
+        });
+    }
+
+    /// Parse mixed prefix and postfix increment/decrement operations.
+    #[test]
+    fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
+        let mut test = TestParser::new("(a++ + ++a) * (b-- - --b)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // (a++ + ++a) * (b-- - --b)
+        assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
+
+            // (a++ + ++a)
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
+                    // a++
+                    assert_node!(parser.tree, *left, Expression::Unary { operator, expression } => {
+                        assert_eq!(*operator, UnaryOperator::PostIncrement);
+                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
+                    });
+                    // +
+                    assert_eq!(*operator, BinaryOperator::Add);
+                    // ++a
+                    assert_node!(parser.tree, *right, Expression::Unary { operator, expression } => {
+                        assert_eq!(*operator, UnaryOperator::PreIncrement);
+                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
+                    });
+                });
+            });
+
+            // *
+            assert_eq!(*operator, BinaryOperator::Multiply);
+
+            // (b-- - --b)
+            assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
+                    // b--
+                    assert_node!(parser.tree, *left, Expression::Unary { operator, expression } => {
+                        assert_eq!(*operator, UnaryOperator::PostDecrement);
+                        assert_expr_path!(parser, parser.tree.get(*expression), "b");
+                    });
+                    // -
+                    assert_eq!(*operator, BinaryOperator::Subtract);
+                    // --b
+                    assert_node!(parser.tree, *right, Expression::Unary { operator, expression } => {
+                        assert_eq!(*operator, UnaryOperator::PreDecrement);
+                        assert_expr_path!(parser, parser.tree.get(*expression), "b");
+                    });
+                });
             });
         });
     }
@@ -1316,10 +1385,10 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // *x
-        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, expression, .. } => {
             assert_eq!(*operator, UnaryOperator::Dereference);
             // x
-            assert_expr_path!(parser, parser.tree.get(*right), "x");
+            assert_expr_path!(parser, parser.tree.get(*expression), "x");
         });
     }
 
@@ -1740,9 +1809,9 @@ self
                 assert_node!(
                     parser.tree,
                     *left,
-                    Expression::Unary { right, .. } => {
+                    Expression::Unary { expression, .. } => {
                         // a
-                        assert_expr_path!(parser, parser.tree.get(*right), "a");
+                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
                     }
                 );
                 // b

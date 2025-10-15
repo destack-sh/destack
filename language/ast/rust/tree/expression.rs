@@ -450,7 +450,7 @@ pub enum Expression {
     /// Unary operation.
     Unary {
         operator: UnaryOperator,
-        right: NodeId<Expression>,
+        expression: NodeId<Expression>,
     },
 
     /// Reference operation.

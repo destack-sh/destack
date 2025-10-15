@@ -60,7 +60,7 @@ impl<'a> Compiler<'a> {
             match expression {
                 ast::Expression::Unary {
                     operator: ast::UnaryOperator::Spread,
-                    right,
+                    expression: right,
                 } => {
                     let right = self.lower_expression_to_type(source_id, ast, *right);
                     self.tree.alias(source_id, expression_id.id, right);

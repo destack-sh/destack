@@ -175,7 +175,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Expression::Unary { operator: _, right }
+        Expression::Unary { operator: _, expression: right }
         | Expression::Reference {
             mutability: _,
             right,

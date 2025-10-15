@@ -122,7 +122,9 @@ impl SemanticType {
             | TokenType::WrappingSubtract
             | TokenType::SaturatingSubtract
             | TokenType::ShiftLeft
-            | TokenType::SaturatingShiftLeft => SemanticType::Operator,
+            | TokenType::SaturatingShiftLeft
+            | TokenType::Increment
+            | TokenType::Decrement => SemanticType::Operator,
 
             // elementwise operators
             TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::ElementwiseOr => {

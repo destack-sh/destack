@@ -44,7 +44,7 @@ pub enum Expression {
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
-        right: NodeId<Expression>,
+        expression: NodeId<Expression>,
     },
     /// Reference operation (e.g., `&x`).
     Reference {
