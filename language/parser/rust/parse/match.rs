@@ -190,8 +190,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
-        assert_string,
+        assert_expr_path, assert_node, assert_path, assert_string, Expression, MatchCase, Pattern,
+        ScalarLiteral,
     };
 
     #[test]

@@ -9,6 +9,21 @@ use crate::{
     TokenSpan, TokenType, UnaryOperator, Visibility,
 };
 
+static DEFINITION_KEYWORDS: [Keyword; 12] = [
+    Keyword::Module,
+    Keyword::Struct,
+    Keyword::Class,
+    Keyword::Enum,
+    Keyword::Union,
+    Keyword::Function,
+    Keyword::Interface,
+    Keyword::Trait,
+    Keyword::Type,
+    Keyword::Let,
+    Keyword::Var,
+    Keyword::Implement,
+];
+
 // can't use anything with `<` or `>` in static arguments
 // (to avoid parsing ambiguity with `<>` brackets)
 static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
@@ -216,8 +231,11 @@ impl<'a> Parser<'a> {
                 Some(ExportMode::Item)
             };
 
-            // bail if immediately followed by import items
-            if self.peek_import_clause().is_ok() {
+            // just parse the export if followed by import items
+            let keyword = self.peek_any_keyword().ok();
+            if (keyword.is_none() || !DEFINITION_KEYWORDS.contains(&keyword.unwrap()))
+                && self.peek_import_clause().is_ok()
+            {
                 return self.eat_export(mode);
             }
 
@@ -848,6 +866,19 @@ mod tests {
                 assert!(items.is_none());
                 assert_path!(parser, *target, "foo");
             });
+        });
+    }
+
+    /// Parse an export declaration of a type definition.
+    #[test]
+    fn test_parse_export_expression_type_definition() {
+        let mut test = TestParser::new("export type NonNullValue = Something");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Type { name, visibility, export, value: _ } => {
+            assert_string!(parser, name.unwrap(), "NonNullValue");
+            assert!(visibility.is_none());
+            assert!(export.is_some());
         });
     }
 
