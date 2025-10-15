@@ -876,4 +876,29 @@ mod tests {
             });
         });
     }
+
+    #[test]
+    fn test_parse_tree_in_parenthesis() {
+        let mut test = TestParser::new(
+            r#"
+(
+    <div className="font-semibold">
+        <Link subtle to={urls.annotation(annotation.id)}>
+            {renderedContent}
+        </Link>
+    </div>
+)
+        "#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expression = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::TreeLiteral { path, arguments, elements } => {
+                assert_path!(parser, path.as_ref().unwrap(), "div");
+                assert!(arguments.is_none());
+                assert!(elements.is_none());
+            });
+        });
+    }
 }
