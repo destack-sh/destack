@@ -1,4 +1,5 @@
-use dyst_ast::{ExportMode, FloatType, Keyword, Visibility};
+use dyst_ast::{ExportMode, FloatType, Keyword, Path, Visibility};
+use dyst_container::smallvec;
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -164,7 +165,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         self.eat_keyword(Keyword::Type)?;
 
-        // alias
+        // alias (or expression with static parameters)
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::LessThan).is_ok())
@@ -175,19 +176,39 @@ impl<'a> Parser<'a> {
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;
 
-            // =
-            self.eat_token(TokenType::Assign)?;
-
-            let value =
-                self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-            let expression = Expression::Type {
-                name: Some(alias),
-                static_parameters,
-                value,
-                visibility,
-                export,
-            };
-            Ok(self.tree.insert(expression, self.get_span_from(start)))
+            // if followed by =, then it's a type alias
+            if self.peek_token(TokenType::Assign).is_ok() {
+                // =
+                self.eat_token(TokenType::Assign)?;
+                let value =
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                let expression = Expression::Type {
+                    name: Some(alias),
+                    static_parameters,
+                    value,
+                    visibility,
+                    export,
+                };
+                Ok(self.tree.insert(expression, self.get_span_from(start)))
+            }
+            // otherwise it's a statically parameterised type expression
+            else {
+                let expression = Expression::Path {
+                    path: Path {
+                        segments: smallvec![alias],
+                    },
+                    static_arguments: None,
+                };
+                let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                let expression = Expression::Type {
+                    name: Some(alias),
+                    static_parameters,
+                    value: expression_id,
+                    visibility,
+                    export,
+                };
+                Ok(self.tree.insert(expression, self.get_span_from(start)))
+            }
         }
         // expression
         else {
@@ -296,6 +317,18 @@ mod tests {
             assert_string!(parser, name.unwrap(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
+            assert!(static_parameters.is_some());
+            assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+        });
+    }
+    #[test]
+    fn test_parse_type_expression_with_static_parameters() {
+        let mut test = TestParser::new("type T<A, B>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // type T<A, B>
+        assert_node!(parser.tree, expr_id, Expression::Type { name, static_parameters, .. } => {
+            assert_string!(parser, name.unwrap(), "T");
             assert!(static_parameters.is_some());
             assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
         });
