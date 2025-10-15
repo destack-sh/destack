@@ -124,15 +124,23 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Type {
                 name,
+                static_parameters,
                 visibility,
                 export: _,
                 value,
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
+                let static_parameters = static_parameters.as_ref().map(|params| {
+                    params
+                        .iter()
+                        .map(|param| self.lower_parameter(source_id, ast, *param))
+                        .collect()
+                });
                 let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
                 let value = self.lower_expression(source_id, ast, *value);
                 Expression::Type {
                     name,
+                    static_parameters,
                     visibility,
                     value,
                 }

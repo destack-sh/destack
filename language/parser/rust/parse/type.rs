@@ -165,13 +165,24 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Type)?;
 
         // alias
-        if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Assign).is_ok() {
+        if self.peek_identifier().is_ok()
+            && (self.peek_next_token(TokenType::Assign).is_ok()
+                || self.peek_next_token(TokenType::LessThan).is_ok())
+        {
+            // identifier
             let alias = self.eat_identifier()?;
+
+            // static parameters
+            let static_parameters = self.eat_static_parameters_maybe()?;
+
+            // =
             self.eat_token(TokenType::Assign)?;
+
             let value =
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
             let expression = Expression::Type {
                 name: Some(alias),
+                static_parameters,
                 value,
                 visibility,
                 export,
@@ -184,6 +195,7 @@ impl<'a> Parser<'a> {
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
             let expression = Expression::Type {
                 name: None,
+                static_parameters: None,
                 value,
                 visibility,
                 export,
@@ -271,6 +283,21 @@ mod tests {
             assert_string!(parser, name.unwrap(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
+        });
+    }
+
+    #[test]
+    fn test_parse_type_alias_with_static_parameters() {
+        let mut test = TestParser::new("type T<A, B> = int32");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // type T<A, B> = int32
+        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility, static_parameters, .. } => {
+            assert_string!(parser, name.unwrap(), "T");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+            assert_eq!(*visibility, None);
+            assert!(static_parameters.is_some());
+            assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
         });
     }
 

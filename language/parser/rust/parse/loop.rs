@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             parser.eat_pattern()
         })?;
 
-        // in (with of for leniency)
+        // in (with of for #Leniency)
         self.eat_keyword_in(&[Keyword::In, Keyword::Of])?;
 
         // iterator

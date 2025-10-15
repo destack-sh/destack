@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
 
         // super type
         let super_type = {
-            // if followed by a for, then invert (for leniency)
+            // if followed by a for, then invert (for #Leniency)
             if self.peek_keyword(Keyword::For).is_ok() {
                 self.bump();
                 let super_type = target_type;

@@ -575,7 +575,7 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // character literal (with fallback to string literal for leniency)
+            // character literal (with fallback to string literal for #Leniency)
             '\'' => match self.eat_single_quoted_string() {
                 SingleQuotedLiteral::Character { is_terminated } => {
                     let kind = LiteralType::Character { is_terminated };

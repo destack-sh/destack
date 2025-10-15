@@ -1093,6 +1093,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Type {
                 name,
+                static_parameters: _,
                 visibility,
                 export,
                 value: _,
