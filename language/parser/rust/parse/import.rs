@@ -344,7 +344,7 @@ mod tests {
         // import core.memory
         assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
             assert_eq!(clauses.len(), 1);
-
+            // import core.memory
             assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());

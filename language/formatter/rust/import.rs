@@ -1,3 +1,4 @@
+use dyst_ast::Keyword;
 use dyst_fir::format::FormatResult;
 
 use crate::{
@@ -12,7 +13,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ImportTarget::Virtual(path) => write!(f, [path]),
-            ImportTarget::Physical(string) => write!(f, [string]),
+            ImportTarget::Physical(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }
@@ -25,28 +26,39 @@ impl<'ast> FormatNode<'ast, ImportClause> for ImportClause {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        // target expression
-        write!(f, [self.target])?;
-
         // grouped items
         if let Some(items) = &self.items
             && !items.is_empty()
         {
             write!(
                 f,
-                [group(&format_args![
-                    token(".{"),
-                    soft_block_indent(&format_with(|f| {
-                        f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                [
+                    group(&format_args![
+                        token("{"),
+                        if_group_fits_on_line(&space()),
+                        soft_block_indent(&format_with(|f| {
+                            f.join_with(&format_args![
+                                if_group_fits_on_line(&token(",")),
+                                soft_line_break_or_space()
+                            ])
                             .entries(items)
                             .finish()
-                    })),
-                    token("}")
-                ])]
+                        })),
+                        if_group_fits_on_line(&space()),
+                        token("}")
+                    ]),
+                    space(),
+                    Keyword::From,
+                    space(),
+                ]
             )?;
         }
+
+        // target expression
+        write!(f, [self.target])?;
+
         // alias
-        else if let Some(alias) = self.alias {
+        if let Some(alias) = self.alias {
             write!(f, [token(" as "), alias])?;
         }
 
@@ -115,7 +127,7 @@ mod tests {
     fn test_format_import_with_items() {
         assert_format!(
             "import foo.{bar, baz}",
-            "import foo.{bar, baz}",
+            "import { bar, baz } from foo",
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(60)
         );
@@ -124,7 +136,7 @@ mod tests {
     fn test_format_import_with_items_from() {
         assert_format!(
             "import {bar, baz} from foo",
-            "import foo.{bar, baz}",
+            "import { bar, baz } from foo",
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(60)
         );
@@ -135,6 +147,16 @@ mod tests {
         assert_format!(
             "import #foo foo",
             "import #foo foo",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_import_with_physical_target() {
+        assert_format!(
+            "import \"foo\"",
+            "import \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
