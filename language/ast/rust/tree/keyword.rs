@@ -83,8 +83,10 @@ pub enum Keyword {
     While,
     /// Loop expression.
     For,
-    /// Loop expression.
+    /// In expression.
     In,
+    /// Of expression.
+    Of,
     /// Loop expression.
     Loop,
     /// Break expression.
@@ -120,7 +122,6 @@ pub enum Keyword {
     /// Move expression (reserved).
     Move,
     /// New expression (reserved).
-    /// nocheckin: new as alias (for ..?)
     New,
     /// Constructor (reserved).
     Constructor,
@@ -132,6 +133,8 @@ pub enum Keyword {
     Typeof,
     /// Any expression (alias).
     Any,
+    /// Never expression (alias).
+    Never,
 }
 
 impl Keyword {
@@ -179,6 +182,7 @@ impl Keyword {
             Keyword::While => "while",
             Keyword::For => "for",
             Keyword::In => "in",
+            Keyword::Of => "of",
             Keyword::Loop => "loop",
             Keyword::Break => "break",
             Keyword::Continue => "continue",
@@ -202,6 +206,7 @@ impl Keyword {
             Keyword::Virtual => "virtual",
             Keyword::Typeof => "typeof",
             Keyword::Any => "any",
+            Keyword::Never => "never",
         }
     }
 }
@@ -251,6 +256,7 @@ impl FromStr for Keyword {
             "while" => Ok(Keyword::While),
             "for" => Ok(Keyword::For),
             "in" => Ok(Keyword::In),
+            "of" => Ok(Keyword::Of),
             "loop" => Ok(Keyword::Loop),
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
@@ -274,6 +280,7 @@ impl FromStr for Keyword {
             "virtual" => Ok(Keyword::Virtual),
             "typeof" => Ok(Keyword::Typeof),
             "any" => Ok(Keyword::Any),
+            "never" => Ok(Keyword::Never),
             _ => Err(()),
         }
     }

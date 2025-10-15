@@ -764,7 +764,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parse a single-quoted literal (excluding the initial `'`).
-    /// Classify the literal as either a character or a string.
+    /// Might be a character if single-quoted length is 1 or a string otherwise.
     fn eat_single_quoted_string(&mut self) -> SingleQuotedLiteral {
         debug_assert!(self.prev() == '\'');
 
@@ -811,7 +811,7 @@ impl Tokenizer<'_> {
 
     #[inline]
     fn finish_single_quoted_literal(logical_len: u32, is_terminated: bool) -> SingleQuotedLiteral {
-        if logical_len <= 1 {
+        if logical_len == 1 {
             SingleQuotedLiteral::Character { is_terminated }
         } else {
             SingleQuotedLiteral::String { is_terminated }

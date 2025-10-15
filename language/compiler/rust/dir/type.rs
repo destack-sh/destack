@@ -41,6 +41,10 @@ impl<'a> Compiler<'a> {
             "void" => Some(ast::TypeLiteral::Void),
             // null
             "null" => Some(ast::TypeLiteral::Null),
+            // any
+            "any" => Some(ast::TypeLiteral::Any),
+            // never
+            "never" => Some(ast::TypeLiteral::Never),
             // boolean
             "boolean" | "bool" => Some(ast::TypeLiteral::Boolean),
             // character

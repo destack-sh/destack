@@ -42,6 +42,8 @@ impl<'a> Parser<'a> {
             "null" => Some(TypeLiteral::Null),
             // any
             "any" => Some(TypeLiteral::Any),
+            // never
+            "never" => Some(TypeLiteral::Never),
             _ => None,
         };
         if let Some(literal) = literal {
