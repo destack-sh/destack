@@ -413,4 +413,32 @@ function b(
             assert!(where_clauses.is_none());
         });
     }
+
+    #[test]
+    fn test_parse_function_with_function_return_type() {
+        let mut test = TestParser::new("function foo() => (str: string) => boolean {}");
+        let mut parser = test.prepare();
+
+        // function foo() => (str: string) => boolean
+        let function_id = parser.eat_function(None, None).unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { name, return_type, .. } => {
+            // foo
+            assert_string!(parser, name.unwrap(), "foo");
+
+            // (str: string) => boolean
+            assert_node!(parser.tree, return_type.unwrap(), Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
+                    assert_eq!(dynamic_parameters.len(), 1);
+                    // str: string
+                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
+                        assert_string!(parser, *name, "str");
+                        assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                    });
+
+                    // boolean
+                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+                });
+            });
+        });
+    }
 }
