@@ -1,4 +1,3 @@
-// nocheckin
 
 {
     title: 'Annotation',
@@ -9,14 +8,9 @@
         if ((annotation.content || '').trim().length > 30) {
             renderedContent = (
                 <Tooltip
-                    title={
-                        <TextContent
-                            text={annotation.content ?? ''}
-                            data-attr="annotation-scene-comment-title-rendered-content"
-                        />
-                    }
+                    title=false
                 >
-                    {(annotation.content ?? '').slice(0, 27) + '...'}
+                    true
                 </Tooltip>
             )
         }
@@ -46,10 +40,11 @@
 export type NonNullValue = Exclude<Value, null | undefined>;
 type x =  (lhs: string) => boolean;
 
-function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
-    const re = patternToRegExp(pattern, flags);
-    return (lhs: string) => re.test(lhs);
-}
+// nocheckin
+// function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
+//     const re = patternToRegExp(pattern, flags);
+//     return (lhs: string) => re.test(lhs);
+// }
 
 function valuePosName(left: ValuePosition) {
   switch (left.type) {

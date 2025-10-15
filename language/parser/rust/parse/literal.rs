@@ -560,8 +560,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_node, assert_path,
-        assert_string,
+        Argument, Block, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_node,
+        assert_path, assert_string,
     };
 
     /// Parse integer literals in various formats.
@@ -771,7 +771,61 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_tree_nested() {
+    fn test_parse_tree_fragment_with_arguments_and_child() {
+        let mut test = TestParser::new(
+            r"
+<Tooltip
+    title=true
+    flag
+    something-else={false}
+>
+    {true}
+</Tooltip>
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expression = parser.eat_tree_literal().unwrap();
+        // <Tooltip>
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+            assert_path!(parser, path.as_ref().unwrap(), "Tooltip");
+            assert_eq!(arguments.as_ref().unwrap().len(), 3);
+            // title=true
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "title");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            });
+            // flag
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "flag");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            });
+            // something-else=false
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name, value } => {
+                assert_string!(parser, *name, "somethingElse");
+                assert_node!(parser.tree, *value, Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+                    });
+                })
+            });
+
+            assert!(elements.is_some());
+            // {true}
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+                    });
+                })
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_nested_deep() {
         let mut test = TestParser::new(
             r"
 <A>
