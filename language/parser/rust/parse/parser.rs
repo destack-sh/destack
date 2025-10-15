@@ -101,6 +101,7 @@ impl ParserOptions {
     pub(crate) fn in_tree_literal(self) -> Self {
         Self {
             in_tree_literal: true,
+            in_parenthesis: false,
             ..self
         }
     }
@@ -109,6 +110,14 @@ impl ParserOptions {
     pub(crate) fn in_match_case(self) -> Self {
         Self {
             in_match_case: true,
+            ..self
+        }
+    }
+
+    /// Adapt and reset options for left precedence.
+    pub(crate) fn in_left_precedence(self, precedence: u8) -> Self {
+        Self {
+            left_precedence: Some(precedence),
             ..self
         }
     }
@@ -144,7 +153,7 @@ impl ParserOptions {
     }
 
     /// Adapt and reset options for a parenthesis expression (with `(`).
-    pub(crate) fn in_parenthesis(self) -> Self {
+    pub(crate) fn nested_in_parenthesis(self) -> Self {
         Self {
             in_type: false,
             in_static: false,
@@ -159,7 +168,7 @@ impl ParserOptions {
     }
 
     /// Adapt and reset options for a nested expression (that's not `(`).
-    pub(crate) fn in_nested(self) -> Self {
+    pub(crate) fn nested(self) -> Self {
         Self {
             in_type: false,
             in_static: false,
@@ -168,14 +177,6 @@ impl ParserOptions {
             in_match_case: false,
             in_tree_literal: false,
             left_precedence: None,
-            ..self
-        }
-    }
-
-    /// Adapt and reset options for left precedence.
-    pub(crate) fn in_left_precedence(self, precedence: u8) -> Self {
-        Self {
-            left_precedence: Some(precedence),
             ..self
         }
     }

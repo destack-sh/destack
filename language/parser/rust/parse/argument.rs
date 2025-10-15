@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular dynamic parameters
-        let parameters = self.with_options(self.options.in_nested(), |parser| {
+        let parameters = self.with_options(self.options.nested(), |parser| {
             parser.eat_parameters_body()
         })?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -292,7 +292,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular dynamic arguments
-        let dynamic_arguments = self.with_options(self.options.in_nested(), |parser| {
+        let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
             parser.eat_arguments_body()
         })?;
 

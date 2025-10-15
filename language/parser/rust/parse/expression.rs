@@ -281,6 +281,7 @@ impl<'a> Parser<'a> {
                         let tuple_elements = self
                             .eat_tuple_literal_body(None)
                             .for_node_type(NodeType::Expression)?;
+                        self.eat_newlines_maybe()?;
                         self.eat_token(TokenType::CloseParenthesis)?;
                         self.tree.insert(
                             Expression::TupleLiteral {
@@ -293,9 +294,10 @@ impl<'a> Parser<'a> {
                     else {
                         let inner_start = self.pos();
                         let expression_id = self
-                            .with_options(self.options.in_parenthesis(), |parser| {
+                            .with_options(self.options.nested_in_parenthesis(), |parser| {
                                 parser.eat_expression()
                             })?;
+                        self.eat_newlines_maybe()?;
                         self.eat_token(TokenType::CloseParenthesis)?;
                         match self.tree.get(expression_id) {
                             // if it was a tuple starting here, expand it to cover the entire span
@@ -700,29 +702,35 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 );
             }
-            // tuple (if we have a comma / newline following an expression inside parentheses)
+            // tuple
+            // (if we have a delimiter following an expression inside parentheses)
             else if self.options.in_parenthesis
                 && (self.peek_token(TokenType::Comma).is_ok()
                     || self.peek_token(TokenType::Newline).is_ok())
             {
-                self.bump(); // eat comma
+                let is_comma = self.peek_token(TokenType::Comma).is_ok();
+                self.bump(); // eat comma or newline
                 self.eat_newlines_maybe()?;
-                // we already have the first element (the expression itself)
-                let first_element_id = self.tree.insert(
-                    Argument::Positional {
-                        value: left_expression_id,
-                    },
-                    self.get_span_from(start),
-                );
-                // parse remaining elements
-                let tuple_elements = self.eat_tuple_literal_body(Some(first_element_id))?;
-                // build tuple literal
-                left_expression_id = self.tree.insert(
-                    Expression::TupleLiteral {
-                        elements: tuple_elements,
-                    },
-                    self.get_span_from(start),
-                );
+
+                // only consider as tuple if there is more to come or there is a comma
+                if is_comma || self.peek_token(TokenType::CloseParenthesis).is_err() {
+                    // we already have the first element (the expression itself)
+                    let first_element_id = self.tree.insert(
+                        Argument::Positional {
+                            value: left_expression_id,
+                        },
+                        self.get_span_from(start),
+                    );
+                    // parse remaining elements
+                    let tuple_elements = self.eat_tuple_literal_body(Some(first_element_id))?;
+                    // build tuple literal
+                    left_expression_id = self.tree.insert(
+                        Expression::TupleLiteral {
+                            elements: tuple_elements,
+                        },
+                        self.get_span_from(start),
+                    );
+                }
             }
             // done
             else {
