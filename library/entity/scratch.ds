@@ -1,3 +1,5 @@
+// nocheckin
+
 {
     title: 'Annotation',
     key: 'annotation',
@@ -40,3 +42,14 @@
         customHog={MicrophoneHog}
     />
 </div>
+
+function valuePosName(left: ValuePosition) {
+  switch (left.type) {
+    case 'static':
+      return left.field;
+    case 'literal':
+      return left.value;
+    default:
+      return left.name;
+  }
+}

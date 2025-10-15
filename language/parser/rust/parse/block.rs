@@ -214,7 +214,7 @@ impl<'a> Parser<'a> {
         // catch
         if self.peek_keyword(Keyword::Catch).is_ok() {
             self.bump(); // eat keyword
-            let match_id = self.eat_match_body(None)?;
+            let match_id = self.eat_match_body(None, false)?;
             let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: None,

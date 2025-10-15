@@ -1,10 +1,12 @@
+use dyst_ast::Pattern;
+
 use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
-    /// Eat a match statement.
+    /// Eat a match statement. Tolerates switch-style syntax for leniency.
     ///
     /// Examples:
     /// ```
@@ -20,14 +22,20 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         // keyword
-        self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
+        // (accept switch for leniency)
+        let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
+        let is_switch = keyword == Keyword::Switch;
 
         // body
-        self.eat_match_body(runtime)
+        self.eat_match_body(runtime, is_switch)
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_match_body(
+        &mut self,
+        runtime: Option<Runtime>,
+        is_switch: bool,
+    ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -37,7 +45,7 @@ impl<'a> Parser<'a> {
 
         // cases
         self.eat_token(TokenType::OpenBrace)?;
-        let cases_id = self.eat_match_cases()?;
+        let cases_id = self.eat_match_cases(is_switch)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
@@ -61,7 +69,10 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub(crate) fn eat_match_cases(&mut self) -> ParserResult<Vec<NodeId<MatchCase>>> {
+    pub(crate) fn eat_match_cases(
+        &mut self,
+        is_switch: bool,
+    ) -> ParserResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
         loop {
             // stop on closing brace
@@ -74,7 +85,9 @@ impl<'a> Parser<'a> {
             }
             // case
             else {
-                let case = self.eat_match_case().for_node_type(NodeType::MatchCase)?;
+                let case = self
+                    .eat_match_case(is_switch)
+                    .for_node_type(NodeType::MatchCase)?;
                 cases.push(case);
             }
         }
@@ -91,39 +104,58 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self) -> ParserResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self, is_switch: bool) -> ParserResult<NodeId<MatchCase>> {
         let start = self.mark();
 
-        // tolerate case for leniency
-        let is_case = if self.peek_keyword(Keyword::Case).is_ok() {
-            self.bump();
-            true
-        } else {
-            false
+        let (pattern_id, guard) = {
+            // switch-style
+            if is_switch {
+                // default case
+                if self.peek_keyword(Keyword::Default).is_ok() {
+                    self.bump();
+                    self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
+                    let pattern_id = self
+                        .tree
+                        .insert(Pattern::Wildcard, self.get_span_from(start));
+
+                    (pattern_id, None)
+                }
+                // regular case
+                else {
+                    self.eat_keyword(Keyword::Case)?;
+                    let pattern_id = self.eat_pattern()?;
+                    self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
+                    let guard = None;
+
+                    (pattern_id, guard)
+                }
+            }
+            // match-style
+            else {
+                // pattern
+                let pattern_id =
+                    self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
+
+                // guard
+                let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                    self.eat_keyword(Keyword::If)?;
+                    let guard = self
+                        .with_options(self.options.nested_in_before_block(), |parser| {
+                            parser.try_eat_expression(TokenType::ArrowWide)
+                        })?;
+                    Some(guard)
+                } else {
+                    None
+                };
+
+                // "arrow"
+                self.eat_arrow()?;
+
+                (pattern_id, guard)
+            }
         };
-
-        // pattern
-        let pattern_id =
-            self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
-
-        // guard
-        let guard = if self.peek_keyword(Keyword::If).is_ok() {
-            self.eat_keyword(Keyword::If)?;
-            let guard = self.with_options(self.options.nested_in_before_block(), |parser| {
-                parser.try_eat_expression(TokenType::ArrowWide)
-            })?;
-            Some(guard)
-        } else {
-            None
-        };
-
-        // "arrow"
-        if is_case {
-            self.eat_colon()?;
-            self.eat_newlines_maybe()?;
-        } else {
-            self.eat_arrow()?;
-        }
 
         // body
         if self.peek_block().is_ok() {
@@ -163,7 +195,7 @@ mod tests {
     };
 
     #[test]
-    fn test_match_simple_arms() {
+    fn test_parse_match_simple_arms() {
         let mut test = TestParser::new(
             r###"
 match x {
@@ -221,7 +253,7 @@ match x {
     }
 
     #[test]
-    fn test_match_with_guard() {
+    fn test_parse_match_with_guard() {
         let mut test = TestParser::new(
             r###"
 match x {
@@ -254,7 +286,7 @@ match x {
     }
 
     #[test]
-    fn test_match_with_paths() {
+    fn test_parse_match_with_paths() {
         let mut test = TestParser::new(
             r"
 match self {
@@ -304,6 +336,58 @@ match self {
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // Color.Gray
                 assert_expr_path!(parser, parser.tree.get(*body), "Color.Gray");
+            });
+        });
+    }
+
+    /// Parse a switch-case statement for leniency.
+    #[test]
+    fn test_parse_match_from_switch_case() {
+        let mut test = TestParser::new(
+            r###"
+switch (left.type) {
+    case 'static':
+        return left.field;
+    case 'literal':
+        return left.value;
+    default:
+        return left.name;
+  }
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let switch_id = parser.eat_match(None).unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, value: _, cases } => {
+            assert_eq!(cases.len(), 3);
+
+            // case 'static'
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body: _, guard } => {
+                assert!(guard.is_none());
+                // 'static'
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                        assert_string!(parser, *literal, "static");
+                    });
+                });
+            });
+
+            // case 'literal'
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body: _, guard } => {
+                assert!(guard.is_none());
+                // 'literal'
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                        assert_string!(parser, *literal, "literal");
+                    });
+                });
+            });
+
+            // case default
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body: _, guard } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             });
         });
     }

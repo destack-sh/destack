@@ -46,7 +46,7 @@ impl<'a> Parser<'a> {
 
                 // catch match cases
                 self.eat_token(TokenType::OpenBrace)?;
-                let catch_match_cases_id = self.eat_match_cases()?;
+                let catch_match_cases_id = self.eat_match_cases(false)?;
                 self.eat_token(TokenType::CloseBrace)?;
 
                 // catch match

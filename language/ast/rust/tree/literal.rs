@@ -1,6 +1,6 @@
 use crate::StringId;
 
-// NOTE #Incomplete: format string literals?
+// nocheckin TODO #Incomplete: format string literals?
 
 /// A ScalarLiteral is literal scalar value node.
 /// NOTE: for leniency we parse multi-character `'aa'` as regular string literals.
