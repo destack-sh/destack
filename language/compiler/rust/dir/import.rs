@@ -39,7 +39,7 @@ impl<'a> Compiler<'a> {
                         .alias
                         .map(|alias| self.intern_string(source_id, alias));
                     let import_item = ImportItem {
-                        source: path.clone(),
+                        target: path.clone(),
                         alias,
                     };
                     self.tree.insert(import_item, source_id, import_clause_id)
@@ -52,7 +52,7 @@ impl<'a> Compiler<'a> {
                 .alias
                 .map(|alias| self.intern_string(source_id, alias));
             let import_item = ImportItem {
-                source: path,
+                target: path,
                 alias,
             };
             vec![self.tree.insert(import_item, source_id, import_clause_id)]

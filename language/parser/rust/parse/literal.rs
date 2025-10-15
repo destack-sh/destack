@@ -376,7 +376,8 @@ impl<'a> Parser<'a> {
                 {
                     let name = self.eat_identifier()?;
                     self.bump(); // eat colon or assign
-                    let value = self.eat_expression()?;
+                    let value =
+                        self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
                 }
@@ -385,7 +386,8 @@ impl<'a> Parser<'a> {
                     || self.peek_token(TokenType::RangeWide).is_ok()
                 {
                     self.bump(); // eat range
-                    let value = self.eat_expression()?;
+                    let value =
+                        self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
                     self.tree
                         .insert(Argument::Spread { value }, self.get_span_from(start))
                 }

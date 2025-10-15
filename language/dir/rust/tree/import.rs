@@ -14,8 +14,8 @@ pub enum ExportMode {
 /// A ImportItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportItem {
-    /// The source of the item.
-    pub source: Path,
+    /// The target of the item.
+    pub target: Path,
     /// The alias to use for the item.
     pub alias: Option<StringId>,
 }
@@ -23,3 +23,4 @@ pub struct ImportItem {
 impl Node for ImportItem {
     const KIND: NodeType = NodeType::ImportItem;
 }
+

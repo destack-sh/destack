@@ -26,6 +26,16 @@ import {Other} from "../ivm/catch.ts";
     }
 }
 
+const mockFilters: { search: string, page: number } = {
+    search: '',
+    page: 1,
+}
+
+({
+    values: [teamLogic, ['currentTeam']],
+    actions: [teamLogic, ['updateCurrentTeam', 'loadCurrentTeamSuccess', 'updateCurrentTeamSuccess']],
+})
+
 <div className={cn('mt-4 mb-0 empty:hidden')}>
     <ProductIntroduction
         productName="Annotations"

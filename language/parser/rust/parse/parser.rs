@@ -48,7 +48,7 @@ impl ParserOptions {
         Self::default()
     }
 
-    /// Adapt and reset options for a type.
+    /// Set `in_type=true`.
     pub(crate) fn in_type(self) -> Self {
         Self {
             in_type: true,
@@ -56,7 +56,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for a static context.
+    /// Set `in_static=true`.
     pub(crate) fn in_static(self) -> Self {
         Self {
             in_static: true,
@@ -64,7 +64,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for an implicit union pattern.
+    /// Set `in_union_pattern=true`.
     pub(crate) fn in_implicit_union(self) -> Self {
         Self {
             in_union_pattern: true,
@@ -72,7 +72,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for before a type annotation.
+    /// Set `in_before_type=true`.
     pub(crate) fn in_before_type(self) -> Self {
         Self {
             in_before_type: true,
@@ -80,7 +80,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for before a block.
+    /// Set `in_before_block=true`.
     pub(crate) fn in_before_block(self) -> Self {
         Self {
             in_before_block: true,
@@ -88,7 +88,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for a static before a block.
+    /// Set `in_static=true` and `in_before_block=true`.
     pub(crate) fn static_in_before_block(self) -> Self {
         Self {
             in_static: true,
@@ -97,7 +97,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for a tree fragment.
+    /// Set `in_tree_literal=true` and `in_parenthesis=false`.
     pub(crate) fn in_tree_literal(self) -> Self {
         Self {
             in_tree_literal: true,
@@ -106,7 +106,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for a match case.
+    /// Set `in_match_case=true`.
     pub(crate) fn in_match_case(self) -> Self {
         Self {
             in_match_case: true,
@@ -114,7 +114,7 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for left precedence.
+    /// Set `left_precedence=precedence`.
     pub(crate) fn in_left_precedence(self, precedence: u8) -> Self {
         Self {
             left_precedence: Some(precedence),
@@ -122,63 +122,34 @@ impl ParserOptions {
         }
     }
 
-    /// Adapt and reset options for a nested expression before a block.
+    /// Reset all options, set `in_before_block=true`.
     pub(crate) fn nested_in_before_block(self) -> Self {
         Self {
-            in_type: false,
-            in_static: false,
-            in_union_pattern: false,
-            in_parenthesis: false,
             in_before_block: true,
-            in_before_type: false,
-            in_match_case: false,
-            in_tree_literal: false,
-            left_precedence: None,
+            ..Self::default()
         }
     }
 
-    /// Adapt and reset options for a nested type before a block.
+    /// Reset all options, set `in_type=true` and `in_before_block=true`.
     pub(crate) fn nested_type_in_before_block(self) -> Self {
         Self {
             in_type: true,
-            in_static: false,
-            in_union_pattern: false,
-            in_parenthesis: false,
             in_before_block: true,
-            in_before_type: false,
-            in_match_case: false,
-            in_tree_literal: false,
-            left_precedence: None,
+            ..Self::default()
         }
     }
 
-    /// Adapt and reset options for a parenthesis expression (with `(`).
+    /// Reset all options, set `in_parenthesis=true`.
     pub(crate) fn nested_in_parenthesis(self) -> Self {
         Self {
-            in_type: false,
-            in_static: false,
             in_parenthesis: true,
-            in_union_pattern: false,
-            in_before_type: false,
-            in_match_case: false,
-            in_tree_literal: false,
-            left_precedence: None,
-            ..self
+            ..Self::default()
         }
     }
 
-    /// Adapt and reset options for a nested expression (that's not `(`).
+    /// Reset all options.
     pub(crate) fn nested(self) -> Self {
-        Self {
-            in_type: false,
-            in_static: false,
-            in_parenthesis: false,
-            in_union_pattern: false,
-            in_match_case: false,
-            in_tree_literal: false,
-            left_precedence: None,
-            ..self
-        }
+        Self::default()
     }
 }
 
