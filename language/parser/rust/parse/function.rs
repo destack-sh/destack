@@ -8,6 +8,8 @@ use crate::{
     SelfParameter, Visibility,
 };
 
+// nocheckin TODO #Incomplete: support destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
+
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
     fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {

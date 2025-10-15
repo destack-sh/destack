@@ -6,7 +6,7 @@ use crate::{
     UnaryOperator, Visibility,
 };
 
-// NOTE #Incomplete: support arbitrary string literals as variant fields/imports?
+// nocheckin TODO #Incomplete: support arbitrary string literals as variant fields/imports?
 //  like for imports: `import "./foo.bar"` or `import { x } from "z"`
 //  or for fields/arguments: `{ "Content-Type": "application/json" }`
 

@@ -1,0 +1,42 @@
+{
+    title: 'Annotation',
+    key: 'annotation',
+    width: '30%',
+    render: function RenderAnnotation(_, annotation: AnnotationType): JSX.Element {
+        let renderedContent = <>{annotation.content ?? ''}</>
+        if ((annotation.content || '').trim().length > 30) {
+            renderedContent = (
+                <Tooltip
+                    title={
+                        <TextContent
+                            text={annotation.content ?? ''}
+                            data-attr="annotation-scene-comment-title-rendered-content"
+                        />
+                    }
+                >
+                    {(annotation.content ?? '').slice(0, 27) + '...'}
+                </Tooltip>
+            )
+        }
+        return (
+            <div className="font-semibold">
+                <Link subtle to={urls.annotation(annotation.id)}>
+                    {renderedContent}
+                </Link>
+            </div>
+        )
+    }
+}
+
+<div className={cn('mt-4 mb-0 empty:hidden')}>
+    <ProductIntroduction
+        productName="Annotations"
+        productKey={ProductKey.ANNOTATIONS}
+        thingName="annotation"
+        description="Annotations allow you to mark when certain changes happened so you can easily see how they impacted your metrics."
+        docsURL="https://posthog.com/docs/data/annotations"
+        action={() => openModalToCreateAnnotation()}
+        isEmpty={shouldShowEmptyState}
+        customHog={MicrophoneHog}
+    />
+</div>

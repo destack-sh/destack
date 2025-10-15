@@ -64,8 +64,8 @@ impl<'a> Parser<'a> {
             parser.eat_pattern()
         })?;
 
-        // in
-        self.eat_keyword(Keyword::In)?;
+        // in (with of for leniency)
+        self.eat_keyword_in(&[Keyword::In, Keyword::Of])?;
 
         // iterator
         let iterator_id = self.with_options(self.options.nested_in_before_block(), |parser| {
