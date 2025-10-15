@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{ExportMode, ImportItem, NodeId};
+use dyst_dir::{ExportMode, ImportItem, ImportTarget as DirImportTarget, NodeId};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -27,35 +27,58 @@ impl<'a> Compiler<'a> {
         import_clause_id: ast::NodeId<ast::ImportClause>,
     ) -> Vec<NodeId<ImportItem>> {
         let import_clause = ast.get(import_clause_id);
-        let path = self.lower_path(source_id, ast, &import_clause.target);
+        let target = self.lower_import_target(source_id, ast, &import_clause.target);
 
-        // flatten items
-        if let Some(items) = &import_clause.items {
-            items
+        match &import_clause.items {
+            Some(items) => items
                 .iter()
                 .map(|item| {
                     let import_item = ast.get(*item);
+                    let name = self.lower_string_id(source_id, import_item.name);
                     let alias = import_item
                         .alias
-                        .map(|alias| self.intern_string(source_id, alias));
-                    let import_item = ImportItem {
-                        target: path.clone(),
+                        .map(|alias| self.lower_string_id(source_id, alias));
+                    let import_item = ImportItem::Scalar {
+                        target: target.clone(),
+                        name,
                         alias,
                     };
                     self.tree.insert(import_item, source_id, import_clause_id)
                 })
-                .collect()
+                .collect(),
+            None => {
+                let alias = import_clause
+                    .alias
+                    .map(|alias| self.lower_string_id(source_id, alias));
+                let import_item = ImportItem::Glob { target, alias };
+                vec![self.tree.insert(import_item, source_id, import_clause_id)]
+            }
         }
-        // single item
-        else {
-            let alias = import_clause
-                .alias
-                .map(|alias| self.intern_string(source_id, alias));
-            let import_item = ImportItem {
-                target: path,
-                alias,
-            };
-            vec![self.tree.insert(import_item, source_id, import_clause_id)]
+    }
+
+    fn lower_import_target(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        target: &ast::ImportTarget,
+    ) -> DirImportTarget {
+        match target {
+            ast::ImportTarget::Virtual(path) => {
+                let path = self.lower_path(source_id, ast, path);
+                DirImportTarget::Virtual(path)
+            }
+            ast::ImportTarget::Physical(string_id) => {
+                let string_id = self.lower_string_id(source_id, *string_id);
+                DirImportTarget::Physical(string_id)
+            }
         }
+    }
+
+    fn lower_string_id(
+        &mut self,
+        source_id: SourceId,
+        string_id: dyst_source::StringId,
+    ) -> dyst_source::StringId {
+        self.intern_string(source_id, string_id)
     }
 }
