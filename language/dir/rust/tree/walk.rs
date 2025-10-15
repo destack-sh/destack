@@ -162,9 +162,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Type {
             name: _,
+            static_parameters,
             visibility: _,
             value,
         } => {
+            if let Some(static_parameters) = static_parameters {
+                for parameter_id in static_parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

@@ -44,6 +44,7 @@
 </div>
 
 export type NonNullValue = Exclude<Value, null | undefined>;
+type x =  (lhs: string) => boolean;
 
 function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
     const re = patternToRegExp(pattern, flags);

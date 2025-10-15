@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
-    ImportItem, Node, NodeId, NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
-    Type, TypeLiteral, UnaryOperator, Visibility,
+    ImportItem, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral,
+    ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +36,7 @@ pub enum Expression {
     /// Type alias or expression to declare some value as a type.
     Type {
         name: Option<StringId>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
         value: NodeId<Expression>,
     },

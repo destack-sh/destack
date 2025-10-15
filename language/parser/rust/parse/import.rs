@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
 
         // keyword
         self.eat_keyword_in(&[Keyword::Import, Keyword::Use])?;
-        // eat type (doesn't do anything, but is allowed for leniency)
+        // eat type (doesn't do anything, but is allowed for #Leniency)
         if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type
         }
@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // eat type (doesn't do anything, but is allowed for leniency)
+        // eat type (doesn't do anything, but is allowed for #Leniency)
         if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type
         }

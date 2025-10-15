@@ -102,7 +102,7 @@ impl<'a> Parser<'a> {
                 || self.peek_keyword(Keyword::Const).is_ok()
             {
                 self.bump(); // eat let or const
-                // also support `let mut` or `let var` as an alias for leniency
+                // also support `let mut` or `let var` as an alias for #Leniency
                 if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
                     self.eat_scoped_mutability()?
                 } else {

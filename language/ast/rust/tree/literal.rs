@@ -3,7 +3,7 @@ use crate::StringId;
 // nocheckin TODO #Incomplete: format string literals?
 
 /// A ScalarLiteral is literal scalar value node.
-/// NOTE: for leniency we parse multi-character `'aa'` as regular string literals.
+/// NOTE: for #Leniency we parse multi-character `'aa'` as regular string literals.
 ///
 ///
 /// Examples:

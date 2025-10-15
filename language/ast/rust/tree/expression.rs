@@ -2,8 +2,8 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportClause, Node,
-    NodeId, NodeType, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TypeLiteral,
-    UnaryOperator, Visibility,
+    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
+    TypeLiteral, UnaryOperator, Visibility,
 };
 
 // nocheckin TODO #Incomplete: support arbitrary string literals as variant fields/imports?
@@ -113,12 +113,14 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// type T = int32
-    /// type T = foo()
+    /// type Foo = foo()
+    /// type Foo<T> = Baz<T> | null
     /// type T = { a: int32, b: boolean } | true
     /// type 1 | 2 |3
     /// ```
     Type {
         name: Option<StringId>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
         value: NodeId<Expression>,

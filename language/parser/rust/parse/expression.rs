@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
                 };
 
                 // if followed by an arrow, backtrack and parse as a lambda
-                //  (also support colon for leniency)
+                //  (also support colon for #Leniency)
                 if !self.options.in_match_case
                     && !self.options.in_before_block
                     && (self.peek_arrow().is_ok() || self.peek_colon().is_ok())
@@ -875,7 +875,7 @@ mod tests {
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Type { name, visibility, export, value: _ } => {
+        assert_node!(parser.tree, expression_id, Expression::Type { name, visibility, export, .. } => {
             assert_string!(parser, name.unwrap(), "NonNullValue");
             assert!(visibility.is_none());
             assert!(export.is_some());
