@@ -42,7 +42,6 @@ import {Other} from "../ivm/catch.ts";
 export type NonNullValue = Exclude<Value, null | undefined>;
 type x =  (lhs: string) => boolean;
 
-// nocheckin
 function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
     const re = patternToRegExp(pattern, flags);
     return (lhs: string) => re.test(lhs);
@@ -59,3 +58,50 @@ function valuePosName(left: ValuePosition) {
   }
 }
 
+
+<LemonDivider className="my-0" />
+
+<SceneSection
+    title="Variant keys"
+    description="The rollout percentage of feature flag variants must add up to 100%"
+>
+    <FeatureFlagVariantsForm
+        variants={variants}
+        payloads={featureFlag.filters?.payloads}
+        filterGroups={filterGroups}
+        onAddVariant={addVariant}
+        onRemoveVariant={removeVariant}
+        onDistributeEqually={distributeVariantsEqually}
+        canEditVariant={canEditVariant}
+        isDraftExperiment={isDraftExperiment}
+        onVariantChange={(index, field, value) => {
+            const currentVariants = [...variants]
+            currentVariants[index] = { ...currentVariants[index], [field]: value }
+            setFeatureFlag({
+                ...featureFlag,
+                filters: {
+                    ...featureFlag.filters,
+                    multivariate: {
+                        ...featureFlag.filters.multivariate,
+                        variants: currentVariants,
+                    },
+                },
+            })
+        }}
+        onPayloadChange={(index, value) => {
+            const currentPayloads = { ...featureFlag.filters.payloads }
+            if (value === undefined) {
+                delete currentPayloads[index]
+            } else {
+                currentPayloads[index] = value
+            }
+            setFeatureFlag({
+                ...featureFlag,
+                filters: {
+                    ...featureFlag.filters,
+                    payloads: currentPayloads,
+                },
+            })
+        }}
+    />
+</SceneSection>
