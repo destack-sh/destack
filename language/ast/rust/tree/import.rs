@@ -11,6 +11,15 @@ pub enum ExportMode {
     Default,
 }
 
+/// A ImportTarget is the target to import from.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImportTarget {
+    // Regular virtual target as an identifier/path (like `foo` or `foo.bar`)
+    Virtual(Path),
+    // Physical target as a literal string (like `"foo"` or `"foo/bar"`)
+    Physical(StringId),
+}
+
 /// A ImportClause is a single clause in a import dependency declaration.
 ///
 /// Examples:
@@ -26,7 +35,7 @@ pub enum ExportMode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportClause {
     /// The target to import from (like `foo.bar` in `import foo.bar.{baz, qux}`)
-    pub target: Path,
+    pub target: ImportTarget,
     /// The alias to use for the definition (like `bar` in `import foo as bar`)
     pub alias: Option<StringId>,
     /// The items to import from the target (like `{baz, qux}` in `import foo.bar.{baz, qux}`)

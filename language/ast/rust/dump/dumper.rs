@@ -886,6 +886,20 @@ impl Dump for DocStyle {
     }
 }
 
+/// Dump an ImportTarget as a string.
+impl Dump for ImportTarget {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ImportTarget::Virtual(path) => {
+                dumper.object("ImportTarget::Virtual").value(path).end();
+            }
+            ImportTarget::Physical(string) => {
+                dumper.object("ImportTarget::Physical").value(string).end();
+            }
+        }
+    }
+}
+
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
