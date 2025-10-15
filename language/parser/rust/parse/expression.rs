@@ -451,7 +451,7 @@ impl<'a> Parser<'a> {
                 self.eat_try(runtime)?
             }
             // match
-            else if keyword == Some(Keyword::Match) {
+            else if keyword == Some(Keyword::Match) || keyword == Some(Keyword::Switch) {
                 self.eat_match(runtime)?
             }
             // break
