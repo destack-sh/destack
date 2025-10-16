@@ -178,7 +178,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 } else {
                     &[]
                 };
-                let variant_fields: &[NodeId<VariantField>] = if *style == VariantStyle::Struct {
+                let fields: &[NodeId<VariantField>] = if *style == VariantStyle::Struct {
                     fields
                 } else {
                     &[]
@@ -260,7 +260,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty body
-                if variant_fields.is_empty() && expressions.is_empty() {
+                if fields.is_empty() && expressions.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -270,18 +270,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [token("{"), hard_line_break()])?;
 
                 // fields
-                if !variant_fields.is_empty() {
+                if !fields.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| f
                             .join_with(hard_line_break())
-                            .entries(variant_fields)
+                            .entries(fields)
                             .finish())),])]
                     )?;
                 }
 
                 // blank line between fields and statements
-                if !variant_fields.is_empty() && !expressions.is_empty() {
+                if !fields.is_empty() && !expressions.is_empty() {
                     write!(f, [hard_line_break()])?;
                     if !f.context().has_blank_prefix_annotation(expressions[0]) {
                         write!(f, [empty_line()])?;
@@ -420,6 +420,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 super_types,
                 with_clauses: with,
                 where_clauses,
+                fields,
                 expressions,
             } => {
                 // export
@@ -482,14 +483,39 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
-                write!(
-                    f,
-                    [group(&format_args![block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(expressions)
-                        .finish())),])]
-                )?;
+
+                // fields
+                if !fields.is_empty() {
+                    write!(
+                        f,
+                        [group(&format_args![block_indent(&format_with(|f| f
+                            .join_with(hard_line_break())
+                            .entries(fields)
+                            .finish())),])]
+                    )?;
+                }
+
+                // blank line between fields and statements
+                if !fields.is_empty() && !expressions.is_empty() {
+                    write!(f, [hard_line_break()])?;
+                    if !f.context().has_blank_prefix_annotation(expressions[0]) {
+                        write!(f, [empty_line()])?;
+                    }
+                }
+
+                // statements
+                if !expressions.is_empty() {
+                    write!(
+                        f,
+                        [group(&format_args![block_indent(&format_with(|f| f
+                            .join_with(hard_line_break())
+                            .entries(expressions)
+                            .finish())),])]
+                    )?;
+                }
+
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
+
                 write!(f, [hard_line_break(), token("}")])?;
             }
 

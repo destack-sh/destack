@@ -1,6 +1,6 @@
 use crate::{
     ExportMode, Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime,
-    ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause,
+    ScopedMutability, StringId, Type, Variant, VariantField, Visibility, WhereClause, WithClause,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -103,6 +103,7 @@ pub enum Definition {
         embedded_definitions: Vec<EmbeddedDefinition>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        fields: Vec<NodeId<VariantField>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Function definition. Nested definitions are lifted from the body.

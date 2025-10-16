@@ -1,5 +1,7 @@
 #![allow(clippy::type_complexity)]
 
+use dyst_ast::Expression;
+
 use crate::TokenType;
 use crate::parse::prelude::*;
 
@@ -58,14 +60,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single variant field: `T`,`name: T`, or `name: T = <expr>` (including visibility).
-	/// 
-	/// Examples:
-	/// ```
-	/// T
-	/// name: T
-	/// name: T = <expr>
-	/// public T
-	/// ```
+    ///
+    /// Examples:
+    /// ```
+    /// T
+    /// name: T
+    /// name: T = <expr>
+    /// public T
+    /// ```
     pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
 
@@ -105,5 +107,41 @@ impl<'a> Parser<'a> {
             self.get_span_from(start),
         );
         Ok(field_id)
+    }
+
+    /// Eat a struct body (without the header or `{` and `}`).
+    pub fn eat_variant_body_mixed(
+        &mut self,
+        allow_fields: bool,
+    ) -> ParserResult<(Vec<NodeId<VariantField>>, Vec<NodeId<Expression>>)> {
+        // eat everything
+        let mut fields: Vec<NodeId<VariantField>> = Vec::new();
+        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+        loop {
+            // stop on closing brace
+            if self.peek_token(TokenType::CloseBrace).is_ok() {
+                break;
+            }
+            // consume any stop
+            else if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
+            }
+            // struct field
+            else if allow_fields && self.peek_variant_field().is_ok() {
+                let field = self
+                    .eat_variant_field()
+                    .for_node_type(NodeType::VariantField)?;
+                fields.push(field);
+            }
+            // eat expressions
+            else {
+                let expression_id = self
+                    .try_eat_expression_as_statement()
+                    .for_node_type(NodeType::Expression)?;
+                expressions.push(expression_id);
+            }
+        }
+
+        Ok((fields, expressions))
     }
 }

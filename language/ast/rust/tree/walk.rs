@@ -678,6 +678,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             static_parameters,
             with_clauses,
             where_clauses,
+            fields,
             expressions,
         } => {
             if let Some(super_types) = super_types {
@@ -703,6 +704,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     let where_clause = tree.get(*where_id);
                     visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
+            }
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_variant_field(tree, *field_id, field);
             }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);

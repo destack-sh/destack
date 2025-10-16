@@ -191,6 +191,9 @@ pub enum Definition {
     /// interface Foo: Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
+    /// 
+    ///     myField: int32
+    ///     myOtherField: boolean | Vector2
     ///     
     ///     let x: int32 // associated constant/type
     ///     function foo() => int32
@@ -213,6 +216,7 @@ pub enum Definition {
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        fields: Vec<NodeId<VariantField>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -416,7 +420,7 @@ pub struct VariantField {
     pub default: Option<NodeId<Expression>>,
 }
 
-// TODO #Incomplete: getter/setter functions for Struct/Union/...Fields?
+// TODO #Incomplete: getter/setter functions for Struct/Union/Interface/...Fields?
 //  (useful for SOA-style struct views?)
 //  (how does this interact with interfaces and unions?)
 //  (how does this relate with Entities?)

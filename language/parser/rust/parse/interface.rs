@@ -1,12 +1,7 @@
 use crate::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{
-    BlockFormat, Definition, ExportMode, Keyword, NodeId, NodeType, Parser, ParserResult,
-    Visibility,
-};
-
-// TODO #Incomplete: fields in Interfaces (InterfaceFields)?
+use crate::{Definition, ExportMode, Keyword, NodeId, NodeType, Parser, ParserResult, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a Interface.
@@ -23,6 +18,9 @@ impl<'a> Parser<'a> {
     ///     ..Bar
     ///     ..Boz
     ///     
+    ///     myField: int32
+    ///     myOtherField: boolean | Vector2
+    ///     
     ///     let x: int32 // constant
     ///     function foo() => int32
     ///
@@ -32,6 +30,8 @@ impl<'a> Parser<'a> {
     ///
     /// interface Baz<T> {
     ///     ..Bar
+    ///
+    ///     isThing: true
     ///
     ///     function baz() => T // semicolon optional
     /// }
@@ -66,9 +66,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::OpenBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let expressions = self
-            .eat_block_body(BlockFormat::Explicit)
-            .for_node_type(NodeType::Block)?;
+        let (fields, expressions) = self
+            .eat_variant_body_mixed(true)
+            .for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
@@ -81,6 +81,7 @@ impl<'a> Parser<'a> {
                 super_types,
                 with_clauses,
                 where_clauses,
+                fields,
                 expressions,
             },
             self.get_span_from(start),
@@ -93,7 +94,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, Expression, WhereClause, WithClause, assert_node, assert_path, assert_string,
+        Definition, Expression, IntType, ScalarLiteral, TypeLiteral, VariantField, WhereClause,
+        WithClause, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -136,6 +138,9 @@ mod tests {
         let mut test = TestParser::new(
             r###"
 interface Foo: Baz {
+    value: int32
+    count: int32 = 4
+
     let x: int32 = 4
 
     use Baz
@@ -148,8 +153,9 @@ interface Foo: Baz {
         parser.eat_newline().unwrap();
 
         let interface_id = parser.eat_interface(None, None).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { name, expressions, super_types, where_clauses, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { name, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
+            assert_eq!(fields.len(), 2);
             assert_eq!(expressions.len(), 3);
             assert!(where_clauses.is_none());
 
@@ -158,6 +164,25 @@ interface Foo: Baz {
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
+            });
+
+            // value: int32
+            assert_node!(parser.tree, fields[0], VariantField { visibility, name, ty, default } => {
+                assert!(visibility.is_none());
+                assert_string!(parser, name.unwrap(), "value");
+                assert!(default.is_none());
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+            });
+
+            // count: int32 = 4
+            assert_node!(parser.tree, fields[1], VariantField { visibility, name, ty, default } => {
+                assert!(visibility.is_none());
+                assert_string!(parser, name.unwrap(), "count");
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                let default_id = default.expect("expected default value");
+                assert_node!(parser.tree, default_id, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                    assert_eq!(*value, 4);
+                });
             });
         });
     }

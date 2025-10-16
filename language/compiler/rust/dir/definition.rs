@@ -355,6 +355,7 @@ impl<'a> Compiler<'a> {
                 static_parameters,
                 with_clauses,
                 where_clauses,
+                fields,
                 expressions,
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
@@ -385,6 +386,10 @@ impl<'a> Compiler<'a> {
                         .map(|clause| self.lower_where_clause(source_id, ast, *clause))
                         .collect()
                 });
+                let fields = fields
+                    .iter()
+                    .map(|field| self.lower_variant_field(source_id, ast, *field))
+                    .collect();
                 let definitions = expressions
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
@@ -398,6 +403,7 @@ impl<'a> Compiler<'a> {
                         embedded_definitions,
                         with_clauses,
                         where_clauses,
+                        fields,
                         definitions,
                     },
                     source_id,
