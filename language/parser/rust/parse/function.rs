@@ -1,5 +1,7 @@
 //! Parse functions and closures.
 
+use dyst_ast::Parameter;
+
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
 
@@ -9,7 +11,6 @@ use crate::{
 };
 
 // TODO #Incomplete: support function destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
-// TODO #Incomplete: support no-parens single-arg lambdas (like `n => y` instead of `(n) => y`)
 
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
@@ -192,24 +193,48 @@ impl<'a> Parser<'a> {
         };
 
         // dynamic parameters
-        self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
+        let (self_parameter, dynamic_parameters) = {
+            // regular `(...) => ...` function/lambda
+            if style == FunctionStyle::Function
+                || self.options.in_type
+                || self.peek_token(TokenType::OpenParenthesis).is_ok()
+            {
+                self.eat_token(TokenType::OpenParenthesis)?;
+                self.eat_newlines_maybe()?;
 
-        // self parameter maybe
-        let self_parameter = self.eat_self_parameter_maybe()?;
-        // optional separator after self (comma or newline) before other parameters
-        if self_parameter.is_some() && self.peek_item_stop().is_ok() {
-            self.eat_item_stop_with_newlines()?;
-        }
+                // self parameter maybe
+                let self_parameter = self.eat_self_parameter_maybe()?;
+                // optional separator after self (comma or newline) before other parameters
+                if self_parameter.is_some() && self.peek_item_stop().is_ok() {
+                    self.eat_item_stop_with_newlines()?;
+                }
 
-        // other dynamic parameters
-        let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-            vec![]
-        } else {
-            self.eat_parameters_body()?
+                // other dynamic parameters
+                let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                    vec![]
+                } else {
+                    self.eat_parameters_body()?
+                };
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+
+                (self_parameter, dynamic_parameters)
+            }
+            // simple no-parentheses `x => y` lambda value
+            else {
+                let parameter_name = self.eat_identifier()?;
+                let parameter_id = self.tree.insert(
+                    Parameter::Scalar {
+                        name: parameter_name,
+                        ty: None,
+                        default: None,
+                    },
+                    self.get_span_from(start),
+                );
+
+                (None, vec![parameter_id])
+            }
         };
-        self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
 
         // return type info (including with/where)
         // only for functions or lambda types
