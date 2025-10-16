@@ -404,6 +404,8 @@ pub enum VariantStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantField {
+    /// The visibility of the field.
+    pub visibility: Option<Visibility>,
     /// The name of the field (may be unset for tuple fields).
     pub name: Option<StringId>,
     /// The type of the field.

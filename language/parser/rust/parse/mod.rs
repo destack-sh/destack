@@ -27,6 +27,7 @@ mod r#struct;
 mod r#try;
 mod r#type;
 mod union;
+mod variant;
 mod visibility;
 mod r#where;
 mod with;

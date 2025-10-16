@@ -444,6 +444,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek the next token in a list of token types.
+    #[inline]
+    pub fn peek_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+        let next = self.peek()?;
+        if token_types.contains(&next.token.ty) {
+            Ok(next)
+        } else {
+            Err(ParserError::unexpected(next.span))
+        }
+    }
+
     /// Peek the next next token.
     #[inline]
     pub fn peek_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
@@ -459,6 +470,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek the next token in a list of token types.
+    #[inline]
+    pub fn peek_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+        let next = self.peek_next()?;
+        if token_types.contains(&next.token.ty) {
+            Ok(next)
+        } else {
+            Err(ParserError::unexpected(next.span))
+        }
+    }
+
     /// Peek the next next next token.
     #[inline]
     pub fn peek_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
@@ -468,6 +490,17 @@ impl<'a> Parser<'a> {
         );
         let next = self.peek_next_next()?;
         if next.token.ty == token_type {
+            Ok(next)
+        } else {
+            Err(ParserError::unexpected(next.span))
+        }
+    }
+
+    /// Peek the next next token in a list of token types.
+    #[inline]
+    pub fn peek_next_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+        let next = self.peek_next_next()?;
+        if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
             Err(ParserError::unexpected(next.span))
