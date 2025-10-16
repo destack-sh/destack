@@ -320,6 +320,9 @@ pub enum Expression {
         catch: Option<NodeId<Expression>>,
     },
 
+    /// Await an expression.
+    Await { expression: NodeId<Expression> },
+
     /// Return expression.
     ///
     /// Examples:

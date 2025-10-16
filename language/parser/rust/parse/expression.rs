@@ -495,6 +495,10 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Defer) {
                 self.eat_defer()?
             }
+            // await
+            else if keyword == Some(Keyword::Await) {
+                self.eat_await()?
+            }
             // return
             else if keyword == Some(Keyword::Return) {
                 self.eat_return()?

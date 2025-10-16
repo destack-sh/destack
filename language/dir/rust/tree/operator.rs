@@ -93,8 +93,16 @@ pub enum BinaryOperator {
     Or,
     /// `??`
     Coalesce,
+
+    // type
     /// `as`
     Cast,
+    /// `in`
+    In,
+    /// `of`
+    Of,
+    /// `is`
+    Is,
 }
 
 /// An AssignOperator is an assignment type.

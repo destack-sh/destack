@@ -65,7 +65,12 @@ impl<'a> Compiler<'a> {
             ast::BinaryOperator::And => dyst_dir::BinaryOperator::And,
             ast::BinaryOperator::Or => dyst_dir::BinaryOperator::Or,
             ast::BinaryOperator::Coalesce => dyst_dir::BinaryOperator::Coalesce,
+
+            // type
             ast::BinaryOperator::Cast => dyst_dir::BinaryOperator::Cast,
+            ast::BinaryOperator::In => dyst_dir::BinaryOperator::In,
+            ast::BinaryOperator::Of => dyst_dir::BinaryOperator::Of,
+            ast::BinaryOperator::Is => dyst_dir::BinaryOperator::Is,
         }
     }
 

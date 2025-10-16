@@ -11,7 +11,8 @@ use crate::TokenType;
 /// << >> <<|                       // shift
 /// & ^ |                           // elementwise
 /// == != < > <= >=                 // comparison
-/// && || ?? as                     // logical
+/// && || ??                        // logical
+/// as in of is                     // type
 /// =                               // assignment
 /// *= /= %= **= *%= *|=            // assignment multiplication
 /// += -= +%= -%= +|= -|=           // assignment addition
@@ -23,28 +24,31 @@ use crate::TokenType;
 pub enum OperatorPrecedence {
     /// Unary postfix operators.
     /// `x() x[] x{} x? x! x++ x--`
-    Postfix = 1400,
+    Postfix = 1500,
     /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x ..x ++x --x`
-    Prefix = 1300,
+    Prefix = 1400,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
-    Multiplication = 1200,
+    Multiplication = 1300,
     /// Addition-related binary operators.
     /// `+ - +% -% +| -|`
-    Addition = 1100,
+    Addition = 1200,
     /// Shift-related binary operators.
     /// `<< >> <<|`
-    Shift = 1000,
+    Shift = 1100,
     /// Elementwise-related binary operators.
     /// `& ^ |`
-    Elementwise = 900,
+    Elementwise = 1000,
     /// Comparison-related binary operators.
     /// `== != < > <= >=`
-    Comparison = 800,
+    Comparison = 900,
     /// Logical-related binary operators.
     /// `&& ||`
-    Logical = 700,
+    Logical = 800,
+    /// Type-related binary operators.
+    /// `as in of is`
+    Type = 700,
     /// Assignment-related binary operators.
     /// `=`
     Assignment = 600,
@@ -70,27 +74,27 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `++`
-    PostIncrement = 1499,
+    PostIncrement = 1599,
     /// `--`
-    PostDecrement = 1498,
+    PostDecrement = 1598,
     /// `++`
-    PreIncrement = 1399,
+    PreIncrement = 1499,
     /// `--`
-    PreDecrement = 1398,
+    PreDecrement = 1498,
     /// `!`
-    Not = 1397,
+    Not = 1497,
     /// `-`
-    Negate = 1396,
+    Negate = 1496,
     /// `-%`
-    WrappingNegate = 1395,
+    WrappingNegate = 1495,
     /// `~`
-    ElementwiseNot = 1394,
+    ElementwiseNot = 1494,
     /// `*`
-    Dereference = 1393,
+    Dereference = 1493,
     /// `$`
-    Virtual = 1392,
+    Virtual = 1492,
     /// `..`
-    Spread = 1391,
+    Spread = 1491,
 }
 
 impl UnaryOperator {
@@ -177,69 +181,77 @@ impl UnaryOperator {
 pub enum BinaryOperator {
     // multiplication
     /// `*`
-    Multiply = 1205,
+    Multiply = 1305,
     /// `*%`
-    WrappingMultiply = 1204,
+    WrappingMultiply = 1304,
     /// `*|`
-    SaturatingMultiply = 1203,
+    SaturatingMultiply = 1303,
     /// `/`
-    Divide = 1202,
+    Divide = 1302,
     /// `%`
-    Remainder = 1201,
+    Remainder = 1301,
 
     // addition
     /// `+`
-    Add = 1106,
+    Add = 1206,
     /// `+%`
-    WrappingAdd = 1105,
+    WrappingAdd = 1205,
     /// `+|`
-    SaturatingAdd = 1104,
+    SaturatingAdd = 1204,
     /// `-`
-    Subtract = 1103,
+    Subtract = 1203,
     /// `-%`
-    WrappingSubtract = 1102,
+    WrappingSubtract = 1202,
     /// `-|`
-    SaturatingSubtract = 1101,
+    SaturatingSubtract = 1201,
 
     // shift
     /// `<<`
-    ShiftLeft = 1003,
+    ShiftLeft = 1103,
     /// `<<|`
-    SaturatingShiftLeft = 1002,
+    SaturatingShiftLeft = 1102,
     /// `>>`
-    ShiftRight = 1001,
+    ShiftRight = 1101,
 
     // elementwise
     /// `&`
-    ElementwiseAnd = 903,
+    ElementwiseAnd = 1003,
     /// `^`
-    ElementwiseXor = 902,
+    ElementwiseXor = 1002,
     /// `|`
-    ElementwiseOr = 901,
+    ElementwiseOr = 1001,
 
     // comparison
     /// `==`
-    Equal = 806,
+    Equal = 906,
     /// `!=`
-    NotEqual = 805,
+    NotEqual = 905,
     /// `<`
-    LessThan = 804,
+    LessThan = 904,
     /// `<=`
-    LessThanOrEqual = 803,
+    LessThanOrEqual = 903,
     /// `>`
-    GreaterThan = 802,
+    GreaterThan = 902,
     /// `>=`
-    GreaterThanOrEqual = 801,
+    GreaterThanOrEqual = 901,
 
     // logical
     /// `&&`
-    And = 704,
+    And = 803,
     /// `||`
-    Or = 703,
+    Or = 802,
     /// `??`
-    Coalesce = 702,
+    Coalesce = 801,
+
+    // type
     /// `as`
-    Cast = 701,
+    Cast = 704,
+    /// `in`
+    In = 703,
+    /// `of`
+    Of = 702,
+    /// `is`
+    Is = 701,
 }
 
 impl BinaryOperator {
@@ -285,6 +297,9 @@ impl BinaryOperator {
             BinaryOperator::Or => OperatorPrecedence::Logical,
             BinaryOperator::Coalesce => OperatorPrecedence::Logical,
             BinaryOperator::Cast => OperatorPrecedence::Logical,
+            BinaryOperator::In => OperatorPrecedence::Logical,
+            BinaryOperator::Of => OperatorPrecedence::Logical,
+            BinaryOperator::Is => OperatorPrecedence::Logical,
         }
     }
 
@@ -337,6 +352,9 @@ impl BinaryOperator {
             TokenType::LogicalOr => Some(BinaryOperator::Or),
             TokenType::Coalesce => Some(BinaryOperator::Coalesce),
             TokenType::Identifier if token_str == "as" => Some(BinaryOperator::Cast),
+            TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
+            TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
+            TokenType::Identifier if token_str == "is" => Some(BinaryOperator::Is),
             _ => None,
         }
     }
