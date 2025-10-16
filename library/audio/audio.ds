@@ -2,7 +2,7 @@ import destack
 
 /// An Audio File
 @entity
-struct Audio: File {
+export struct Audio: File {
     duration: Duration
 }
 

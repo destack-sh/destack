@@ -1,7 +1,7 @@
 import destack
 
 /// Log levels.
-enum LogLevel {
+export enum LogLevel {
     Trace = 1
     Debug = 2
     Info = 3
@@ -12,7 +12,7 @@ enum LogLevel {
 
 /// A log message.
 @event
-struct LogEvent {
+export struct LogEvent {
     /// The log name.
     name: string
     /// The log level.

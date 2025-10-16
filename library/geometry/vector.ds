@@ -1,11 +1,11 @@
 import destack.simulation
 
 /// A 2-dimensional vector with float32 components.
-struct Vector2 {
+export struct Vector2 {
     x: float32
     y: float32
 
-    /// Construct a Vector2 from x and y components.
+    /// Conexport struct a Vector2 from x and y components.
     function new(x: float32, y: float32) => Vector2 {
         Vector2 { x, y }
     }
@@ -30,7 +30,7 @@ implement Vector2 {
     /// The negative unit y Vector2 (0, -1).
     let NegUnitY: Vector2 = Vector2 { x: 0.0, y: -1.0 }
 
-    /// Construct a Vector2 with both components set to the same value.
+    /// Conexport struct a Vector2 with both components set to the same value.
     function splat(v: float32) => Vector2 {
         Vector2 { x: v, y: v }
     }
@@ -153,7 +153,7 @@ implement Vector2: Numeric<Vector2> {
 }
 
 /// A 3-dimensional vector with float32 components.
-struct Vector3 {
+export struct Vector3 {
     x: float32
     y: float32
     z: float32
@@ -177,12 +177,12 @@ implement Vector3 {
     /// The negative unit z Vector3 (0, 0, -1).
     let NegUnitZ: Vector3 = Vector3 { x: 0.0, y: 0.0, z: -1.0 }
 
-    /// Construct a Vector3 from x, y and z components.
+    /// Conexport struct a Vector3 from x, y and z components.
     function new(x: float32, y: float32, z: float32) => Vector3 {
         Vector3 { x, y, z }
     }
 
-    /// Construct a Vector3 with all components set to the same value.
+    /// Conexport struct a Vector3 with all components set to the same value.
     function splat(v: float32) => Vector3 {
         Vector3 { x: v, y: v, z: v }
     }
@@ -323,7 +323,7 @@ implement Vector3: Divide<float32> {
 }
 
 /// A 4-dimensional vector with float32 components.
-struct Vector4 {
+export struct Vector4 {
     x: float32
     y: float32
     z: float32
@@ -352,12 +352,12 @@ implement Vector4 {
     /// The negative unit w Vector4 (0, 0, 0, -1).
     let NegUnitW: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: -1.0 }
 
-    /// Construct a Vector4 from x, y, z and w components.
+    /// Conexport struct a Vector4 from x, y, z and w components.
     function new(x: float32, y: float32, z: float32, w: float32) => Vector4 {
         Vector4 { x, y, z, w }
     }
 
-    /// Construct a Vector4 with all components set to the same value.
+    /// Conexport struct a Vector4 with all components set to the same value.
     function splat(v: float32) => Vector4 {
         Vector4 { x: v, y: v, z: v, w: v }
     }
@@ -512,7 +512,7 @@ implement Vector4: Divide<float32> {
 }
 
 /// A 2-dimensional vector with int32 components.
-struct Vector2i {
+export struct Vector2i {
     x: int32
     y: int32
 }
@@ -531,12 +531,12 @@ implement Vector2i {
     /// The negative unit y Vector2i (0, -1).
     let NegUnitY: Vector2i = Vector2i { x: 0, y: -1 }
 
-    /// Construct a Vector2i from x and y components.
+    /// Conexport struct a Vector2i from x and y components.
     function new(x: int32, y: int32) => Vector2i {
         Vector2i { x, y }
     }
 
-    /// Construct a Vector2i with both components set to the same value.
+    /// Conexport struct a Vector2i with both components set to the same value.
     function splat(v: int32) => Vector2i {
         Vector2i { x: v, y: v }
     }
@@ -648,7 +648,7 @@ implement Vector2i: Divide<int32> {
 }
 
 /// A 3-dimensional vector with int32 components.
-struct Vector3i {
+export struct Vector3i {
     x: int32
     y: int32
     z: int32
@@ -672,12 +672,12 @@ implement Vector3i {
     /// The negative unit z Vector3i (0, 0, -1).
     let NegUnitZ: Vector3i = Vector3i { x: 0, y: 0, z: -1 }
 
-    /// Construct a Vector3i from x, y and z components.
+    /// Conexport struct a Vector3i from x, y and z components.
     function new(x: int32, y: int32, z: int32) => Vector3i {
         Vector3i { x, y, z }
     }
 
-    /// Construct a Vector3i with all components set to the same value.
+    /// Conexport struct a Vector3i with all components set to the same value.
     function splat(v: int32) => Vector3i {
         Vector3i { x: v, y: v, z: v }
     }
@@ -801,7 +801,7 @@ implement Vector3i: Divide<int32> {
 }
 
 /// A 4-dimensional vector with int32 components.
-struct Vector4i {
+export struct Vector4i {
     /// The x component of the Vector.
     x: int32
     /// The y component of the Vector.
@@ -832,14 +832,14 @@ struct Vector4i {
     /// The negative unit w Vector4i (0, 0, 0, -1).
     let NegUnitW: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: -1 }
 
-    /// Construct a Vector4i from x, y, z and w components.
+    /// Conexport struct a Vector4i from x, y, z and w components.
     function new(x: int32, y: int32, z: int32, w: int32) => Vector4i {
         Vector4i { x, y, z, w }
     }
 }
 
 implement Vector4i {
-    /// Construct a Vector4i with all components set to the same value.
+    /// Conexport struct a Vector4i with all components set to the same value.
     function splat(v: int32) => Vector4i {
         Vector4i { x: v, y: v, z: v, w: v }
     }

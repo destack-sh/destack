@@ -2,20 +2,20 @@ import destack
 
 /// A Star is a relationship between an Actor and a starred Node.
 @entity
-struct Star { }
+export struct Star { }
 
 /// Base Star event.
 @event
-struct StarEvent {
+export struct StarEvent {
     /// The Star self event pertains to.
     star: Reference<Star>
 }
 
 /// Star added.
 @event
-struct StarAddedEvent: StarEvent { }
+export struct StarAddedEvent: StarEvent { }
 
 /// Star removed.
 @event
-struct StarRemovedEvent: StarEvent { }
+export struct StarRemovedEvent: StarEvent { }
 

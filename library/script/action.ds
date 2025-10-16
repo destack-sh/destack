@@ -1,7 +1,7 @@
 import destack
 
 /// Definition of a builtin Action.
-struct ActionDefinition {
+export struct ActionDefinition {
     /// The Action type.
     type: ActionType
     /// The input Message type.
@@ -14,7 +14,7 @@ struct ActionDefinition {
 
 /// An implementation of a unit of work implemented for some runtimes.
 @entity
-struct Action {
+export struct Action {
     /// The Action type.
     type: ActionType
 

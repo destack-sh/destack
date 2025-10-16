@@ -1,19 +1,19 @@
 import destack
 
 /// Built-in transition types
-enum TransitionType {
+export enum TransitionType {
     Tween = 10
     Spring = 11
 }
 
 /// Built-in spring types
-enum SpringType {
+export enum SpringType {
     Time = 1
     Physical = 2
 }
 
 /// A transition value
-struct Transition {
+export struct Transition {
     type: TransitionType = TransitionType.Tween
     template: TransitionTemplate?
     delay: float32?
@@ -28,7 +28,7 @@ struct Transition {
 
 /// A transition templatecle
 @entity
-struct TransitionTemplate {
+export struct TransitionTemplate {
     type: TransitionType = TransitionType.Tween
     delay: float32?
     duration: float32?

@@ -1,7 +1,7 @@
 import destack
 
 /// Day of week.
-enum DayOfWeek {
+export enum DayOfWeek {
     Monday = 1
     Tuesday = 2
     Wednesday = 3
@@ -12,7 +12,7 @@ enum DayOfWeek {
 }
 
 /// Month of year.
-enum Month {
+export enum Month {
     January = 1
     February = 2
     March = 3
@@ -28,7 +28,7 @@ enum Month {
 }
 
 /// Schedule frequency.
-enum ScheduleFrequency {
+export enum ScheduleFrequency {
     Year = 1
     Month = 2
     Week = 3
@@ -38,7 +38,7 @@ enum ScheduleFrequency {
 }
 
 /// The time-based schedule of something (compatible with rrule).
-struct Schedule {
+export struct Schedule {
     /// The recurrence frequency.
     frequency: ScheduleFrequency
     /// The recurrence interval (>= 1).

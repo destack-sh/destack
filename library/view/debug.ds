@@ -1,1 +1,1 @@
-interface DebugDrawable { }
+export interface DebugDrawable { }

@@ -1,7 +1,7 @@
 import destack
 
 /// Text span types.
-enum TextSpanType {
+export enum TextSpanType {
     Text
     HardBreak
     Node
@@ -10,7 +10,7 @@ enum TextSpanType {
 }
 
 /// Flags that can be applied to a TextSpan.
-enum TextStyleFlag {
+export enum TextStyleFlag {
     Default = 0
     Bold
     Italic
@@ -20,7 +20,7 @@ enum TextStyleFlag {
 }
 
 /// Span of text with optional styling.
-struct TextSpan {
+export struct TextSpan {
     /// The span type.
     type: TextSpanType = TextSpanType.Text
     /// Optional textual content.
@@ -34,7 +34,7 @@ struct TextSpan {
 }
 
 /// A single paragraph composed of TextSpans with inline styling.
-struct Text {
+export struct Text {
     /// The spans composing the paragraph.
     spans: List<TextSpan>
     /// Styling flags for the whole paragraph.

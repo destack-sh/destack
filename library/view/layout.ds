@@ -1,7 +1,7 @@
 import destack
 
 /// Layout properties for a 2D view.
-struct LayoutComponent2D {
+export struct LayoutComponent2D {
     /// How to layout the children of self View.
     layout: Layout?
     /// The direction in which the children of self View are laid out.
@@ -26,6 +26,6 @@ struct LayoutComponent2D {
 
 /// A 2D layout View defines how its children are laid out.
 @entity
-struct LayoutView2D: View2D {
+export struct LayoutView2D: View2D {
     ..LayoutComponent2D
 }

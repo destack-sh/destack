@@ -2,7 +2,7 @@ import destack
 
 /// An Organization with Users and Teams.
 @entity
-struct Organization {
+export struct Organization {
     /// The URL-friendly slug of the Organization.
     slug: string
 }

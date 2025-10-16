@@ -1,14 +1,14 @@
 import destack
 
 /// The type of a Branch.
-enum BranchType {
+export enum BranchType {
     Partial = 2
     Full = 10
     Root = 11
 }
 
 /// A Branch is a version of a Snapshot.
-struct Branch {
+export struct Branch {
     /// The Branch type.
     type: BranchType
 }

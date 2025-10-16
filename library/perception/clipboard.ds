@@ -2,17 +2,17 @@ import destack
 
 /// Clipboard base event
 @event
-struct ClipboardEvent: InputEvent { }
+export struct ClipboardEvent: InputEvent { }
 
 /// Copy event
 @event
-struct CopyEvent: ClipboardEvent { }
+export struct CopyEvent: ClipboardEvent { }
 
 /// Cut event
 @event
-struct CutEvent: ClipboardEvent { }
+export struct CutEvent: ClipboardEvent { }
 
 /// Paste event
 @event
-struct PasteEvent: ClipboardEvent { }
+export struct PasteEvent: ClipboardEvent { }
 

@@ -1,7 +1,7 @@
 import destack
 
 /// A Cone is aligned with the local z axis with a base radius and height.
-struct Cone3D {
+export struct Cone3D {
     radius: float32
     height: float32
 
@@ -10,7 +10,7 @@ struct Cone3D {
 
 /// A ConeShape3D is a 3D shape that represents a cone.
 @entity
-struct ConeShape3D: Shape3D {
+export struct ConeShape3D: Shape3D {
     radius: float32
     height: float32
 

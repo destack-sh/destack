@@ -1,7 +1,7 @@
 import destack
 
 /// Definition of a builtin Method.
-struct MethodDefinition {
+export struct MethodDefinition {
     /// The Method type.
     type: MethodType
     /// Optional id of the aliased Method.
@@ -14,7 +14,7 @@ struct MethodDefinition {
 
 /// A Method is a small runtime-specific piece of logic.
 @entity
-struct Method {
+export struct Method {
     ..Function
 }
 

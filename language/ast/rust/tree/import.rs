@@ -3,7 +3,7 @@ use dyst_source::StringId;
 use crate::{Node, NodeId, NodeType, Path};
 
 /// How an Export should be treated for processing by the system.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExportMode {
     // Export as regular item (export foo)
     Item,

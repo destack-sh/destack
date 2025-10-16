@@ -6,12 +6,7 @@ use crate::Compiler;
 
 impl<'a> Compiler<'a> {
     /// Lower an export mode to a DIR export mode.
-    pub fn lower_export_mode(
-        &mut self,
-        _source_id: SourceId,
-        _ast: &ast::NodeTree,
-        export_mode: ast::ExportMode,
-    ) -> ExportMode {
+    pub fn lower_export_mode(&mut self, export_mode: ast::ExportMode) -> ExportMode {
         match export_mode {
             ast::ExportMode::Item => ExportMode::Item,
             ast::ExportMode::Default => ExportMode::Default,

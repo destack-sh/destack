@@ -39,17 +39,20 @@ pub enum Definition {
     /// Let definition.
     Let {
         name: StringId,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
     },
     /// Type definition.
     Type {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         value: NodeId<Type>,
     },
     /// Module definition.
     Module {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -58,6 +61,7 @@ pub enum Definition {
     /// Struct definition.
     Struct {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         embedded_definitions: Vec<EmbeddedDefinition>,
@@ -69,6 +73,7 @@ pub enum Definition {
     /// Enum definition.
     Enum {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         embedded_definitions: Vec<EmbeddedDefinition>,
@@ -80,6 +85,7 @@ pub enum Definition {
     /// Union definition.
     Union {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         embedded_definitions: Vec<EmbeddedDefinition>,
@@ -91,6 +97,7 @@ pub enum Definition {
     /// Interface definition.
     Interface {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         embedded_definitions: Vec<EmbeddedDefinition>,
@@ -101,6 +108,7 @@ pub enum Definition {
     /// Function definition. Nested definitions are lifted from the body.
     Function {
         name: Option<StringId>,
+        export: Option<ExportMode>,
         visibility: Option<Visibility>,
         runtime: Runtime,
         style: FunctionStyle,
@@ -115,6 +123,8 @@ pub enum Definition {
     },
     /// Implement definition.
     Implement {
+        export: Option<ExportMode>,
+        visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Type>,
         super_type: Option<NodeId<Type>>,

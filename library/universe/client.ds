@@ -2,7 +2,7 @@ import destack
 
 /// A Client to connect with the system.
 @entity
-struct Client {
+export struct Client {
     /// The client type.
     type: ClientType
     /// The access token, if any.

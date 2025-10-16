@@ -2,11 +2,11 @@ import destack
 
 /// A Gauge Metric.
 @entity
-struct GaugeMetric: Metric { }
+export struct GaugeMetric: Metric { }
 
 /// A Gauge Measurement.
 @event
-struct GaugeMeasurementEvent: MeasurementEvent {
+export struct GaugeMeasurementEvent: MeasurementEvent {
     /// The Gauge metric definition.
     definition: Reference<GaugeMetric>
 }

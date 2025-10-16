@@ -2,14 +2,14 @@ import destack
 
 /// Base type for scene events.
 @event
-struct SceneEvent {
+export struct SceneEvent {
     /// The Scene the event pertains to.
     scene: Reference<Scene>
 }
 
 /// A Scene contains some interactive part of a Stage.
 @entity
-struct Scene {
+export struct Scene {
     /// The root View of the Scene.
     rootView: Reference<LayoutView2D>?
 }

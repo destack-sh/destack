@@ -404,10 +404,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Let {
             name: _,
+            export: _,
             visibility: _,
         } => {}
         Definition::Type {
             name: _,
+            export: _,
             visibility: _,
             value,
         } => {
@@ -416,6 +418,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Module {
             name: _,
+            export: _,
             visibility: _,
             with_clauses,
             where_clauses,
@@ -440,6 +443,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Struct {
             name: _,
+            export: _,
             visibility: _,
             static_parameters,
             embedded_definitions,
@@ -480,6 +484,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Enum {
             name: _,
+            export: _,
             visibility: _,
             static_parameters,
             embedded_definitions,
@@ -522,6 +527,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Union {
             name: _,
+            export: _,
             visibility: _,
             static_parameters,
             embedded_definitions,
@@ -564,6 +570,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Interface {
             name: _,
+            export: _,
             visibility: _,
             static_parameters,
             embedded_definitions,
@@ -601,6 +608,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Function {
             name: _,
+            export: _,
             visibility: _,
             runtime: _,
             style: _,
@@ -649,6 +657,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
+            export: _,
+            visibility: _,
             static_parameters,
             target_type,
             super_type,

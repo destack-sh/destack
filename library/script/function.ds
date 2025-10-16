@@ -1,7 +1,7 @@
 import destack
 
 /// Definition of a builtin Function.
-struct FunctionDefinition {
+export struct FunctionDefinition {
     /// The Function id.
     id: uint16
     /// Whether the Function is asynchronous.
@@ -12,7 +12,7 @@ struct FunctionDefinition {
 
 /// Base Function entity.
 @entity
-struct Function {
+export struct Function {
     /// The Method type.
     type: MethodType
     /// Optional textual body.

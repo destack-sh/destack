@@ -1,2 +1,2 @@
 /// Marks a Type as an error.
-interface Error { }
+export interface Error { }

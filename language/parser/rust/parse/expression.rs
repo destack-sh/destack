@@ -212,23 +212,6 @@ impl<'a> Parser<'a> {
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
-        // visibility
-        let visibility: Option<Visibility> = match self.peek_visibility() {
-            Ok(Some(visibility)) => {
-                self.bump(); // eat visibility
-                Some(visibility)
-            }
-            _ => None,
-        };
-
-        // runtime
-        let mut runtime = if self.peek_token(TokenType::At).is_ok() {
-            self.bump(); // eat @
-            Some(Runtime::Static)
-        } else {
-            None
-        };
-
         // export
         let export = if self.peek_keyword(Keyword::Export).is_ok() {
             self.bump(); // eat export
@@ -248,6 +231,23 @@ impl<'a> Parser<'a> {
             }
 
             mode
+        } else {
+            None
+        };
+
+        // visibility
+        let visibility: Option<Visibility> = match self.peek_visibility() {
+            Ok(Some(visibility)) => {
+                self.bump(); // eat visibility
+                Some(visibility)
+            }
+            _ => None,
+        };
+
+        // runtime
+        let mut runtime = if self.peek_token(TokenType::At).is_ok() {
+            self.bump(); // eat @
+            Some(Runtime::Static)
         } else {
             None
         };
@@ -421,7 +421,7 @@ impl<'a> Parser<'a> {
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement()?;
+                let implement_id = self.eat_implement(visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(implement_id),
                     self.get_span_from(start),

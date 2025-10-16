@@ -1417,6 +1417,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Implement {
+                export,
+                visibility,
                 static_parameters: _,
                 target_type: _,
                 super_type: _,
@@ -1424,7 +1426,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 where_clauses: _,
                 expressions: _,
             } => {
-                self.node("Definition::Implement", id.id).end();
+                self.node("Definition::Implement", id.id)
+                    .field_optional("export", export)
+                    .field_optional("visibility", visibility)
+                    .end();
             }
             Definition::Function {
                 name,

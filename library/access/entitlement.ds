@@ -1,14 +1,14 @@
 import destack
 
 /// A type of Entitlement.
-enum EntitlementType {
+export enum EntitlementType {
     Permission = 1
     Role = 2
 }
 
 /// Base event regarding an Entitlement.
 @event
-struct EntitlementEvent {
+export struct EntitlementEvent {
     /// The Entitlement self event pertains to.
     entitlement: Reference<Entitlement>
     /// The Entitled target Entity.
@@ -17,23 +17,23 @@ struct EntitlementEvent {
 
 /// Entitlement was requested.
 @event
-struct EntitlementRequestedEvent: EntitlementEvent { }
+export struct EntitlementRequestedEvent: EntitlementEvent { }
 
 /// Entitlement was granted.
 @event
-struct EntitlementGrantedEvent: EntitlementEvent { }
+export struct EntitlementGrantedEvent: EntitlementEvent { }
 
 /// Entitlement was revoked.
 @event
-struct EntitlementRevokedEvent: EntitlementEvent { }
+export struct EntitlementRevokedEvent: EntitlementEvent { }
 
 /// Entitlement has expired.
 @event
-struct EntitlementExpiredEvent: EntitlementEvent { }
+export struct EntitlementExpiredEvent: EntitlementEvent { }
 
 /// An Entitlement to some Entity.
 @entity
-struct Entitlement {
+export struct Entitlement {
     /// The Entitlement type.
     type: EntitlementType
     /// When the Entitlement expires.

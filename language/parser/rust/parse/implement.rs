@@ -1,3 +1,5 @@
+use dyst_ast::{ExportMode, Visibility};
+
 use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
 impl<'a> Parser<'a> {
@@ -21,7 +23,11 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_implement(
+        &mut self,
+        visibility: Option<Visibility>,
+        export: Option<ExportMode>,
+    ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -76,6 +82,8 @@ impl<'a> Parser<'a> {
         // implement
         let implement_id = self.tree.insert(
             Definition::Implement {
+                export,
+                visibility,
                 static_parameters,
                 target_type,
                 super_type,
@@ -110,7 +118,7 @@ implement Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement().unwrap();
+        let implement_id = parser.eat_implement(None, None).unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
             assert!(super_type.is_none());
@@ -135,7 +143,7 @@ implement Foo<int32> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement().unwrap();
+        let implement_id = parser.eat_implement(None, None).unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
             assert!(super_type.is_none());
@@ -170,7 +178,7 @@ implement Bar<int32>: Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement().unwrap();
+        let implement_id = parser.eat_implement(None, None).unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
@@ -209,7 +217,7 @@ implement<U> Bar<T>: Baz<T> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement().unwrap();
+        let implement_id = parser.eat_implement(None, None).unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_type, where_clauses, expressions, .. } => {
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -264,7 +272,7 @@ implement Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement().unwrap();
+        let implement_id = parser.eat_implement(None, None).unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { with_clauses, where_clauses, expressions, target_type, .. } => {
             assert!(expressions.is_empty());
 

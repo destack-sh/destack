@@ -1,24 +1,24 @@
 import destack
 
 /// A Form2D is a 2D geometric form.
-struct Form2D {
+export struct Form2D {
     position: Vector2
 }
 
 /// A Form3D is a 3D geometric form.
-struct Form3D {
+export struct Form3D {
     position: Vector3
 }
 
 /// A Shape2D is a 2D geometric shape.
 @entity
-struct Shape2D {
+export struct Shape2D {
     ..Entity2D
 }
 
 /// A Shape3D is a 3D geometric shape.
 @entity
-struct Shape3D {
+export struct Shape3D {
     ..Entity3D
 }
 

@@ -2,7 +2,7 @@ import destack
 
 /// A Team with Users and Teams.
 @entity
-struct Team {
+export struct Team {
     /// The URL-friendly slug of the Team.
     slug: string
 }

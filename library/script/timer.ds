@@ -1,47 +1,47 @@
 import destack
 
 /// Timer types.
-enum TimerType {
+export enum TimerType {
     Once = 1
     Recurring = 2
 }
 
 /// Base Timer event.
 @event
-struct TimerEvent {
+export struct TimerEvent {
     /// The Timer self event pertains to.
     timer: Timer
 }
 
 /// Timer started.
 @event
-struct TimerStartedEvent {
+export struct TimerStartedEvent {
     ..TimerEvent
 }
 /// Timer paused.
 @event
-struct TimerPausedEvent {
+export struct TimerPausedEvent {
     ..TimerEvent
 }
 /// Timer resumed.
 @event
-struct TimerResumedEvent {
+export struct TimerResumedEvent {
     ..TimerEvent
 }
 /// Timer completed.
 @event
-struct TimerCompletedEvent {
+export struct TimerCompletedEvent {
     ..TimerEvent
 }
 /// Timer cancelled.
 @event
-struct TimerCancelledEvent {
+export struct TimerCancelledEvent {
     ..TimerEvent
 }
 
 /// A Timer.
 @entity
-struct Timer {
+export struct Timer {
     /// The Timer type.
     type: TimerType
     /// The optional Schedule for the Timer.

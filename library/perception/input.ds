@@ -2,5 +2,5 @@ import destack
 
 /// Base type for direct user input events
 @event
-struct InputEvent { }
+export struct InputEvent { }
 

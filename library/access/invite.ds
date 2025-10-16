@@ -2,7 +2,7 @@ import destack
 
 /// Base event regarding an Invite.
 @event
-struct InviteEvent {
+export struct InviteEvent {
     /// The Invite self event pertains to.
     invite: Reference<Invite>
     /// The Joinable Entity the Invite is for.
@@ -13,7 +13,7 @@ struct InviteEvent {
 
 /// Invite was sent.
 @event
-struct InviteSentEvent: InviteEvent {
+export struct InviteSentEvent: InviteEvent {
     /// The Role assigned by the Invite.
     role: Reference<Role>
     /// The type of the Role.
@@ -22,11 +22,11 @@ struct InviteSentEvent: InviteEvent {
 
 /// Invite was rescinded.
 @event
-struct InviteRescindedEvent: InviteEvent { }
+export struct InviteRescindedEvent: InviteEvent { }
 
 /// Invite was accepted.
 @event
-struct InviteAcceptedEvent: InviteEvent {
+export struct InviteAcceptedEvent: InviteEvent {
     /// The Role accepted by the member.
     role: Reference<Role>
     /// The type of the Role.
@@ -35,11 +35,11 @@ struct InviteAcceptedEvent: InviteEvent {
 
 /// Invite was rejected.
 @event
-struct InviteRejectedEvent: InviteEvent { }
+export struct InviteRejectedEvent: InviteEvent { }
 
 /// An Invite to a Joinable.
 @entity
-struct Invite {
+export struct Invite {
     /// The invited member.
     member: Reference<Actor>
     /// The Role offered by the Invite.

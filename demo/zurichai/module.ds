@@ -2,7 +2,7 @@ import destack
 
 /// A Series of related Meetups (with a common prefix).
 @entity
-struct MeetupSeries {
+export struct MeetupSeries {
     // The name of the Meetup Series.
     name: string
     /// The prefix of the Meetup Series.
@@ -10,7 +10,7 @@ struct MeetupSeries {
 }
 
 @entity
-struct Meetup {
+export struct Meetup {
     // When the Meetup is happening.
     date: Date
     // The name of the Meetup.

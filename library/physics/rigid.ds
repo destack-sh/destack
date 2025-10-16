@@ -1,14 +1,14 @@
 import destack
 
 /// Motion mode of a rigid body
-enum RigidMotionMode {
+export enum RigidMotionMode {
     Static = 1
     Kinematic = 2
     Dynamic = 3
 }
 
 /// Kinematic properties for a 2D rigid body
-struct Kinematic2D {
+export struct Kinematic2D {
     /// Linear velocity of the Body
     velocity: Vector2
     /// Angular velocity of the Body
@@ -22,7 +22,7 @@ struct Kinematic2D {
 }
 
 /// Mass properties for a 2D rigid body
-struct Mass2D {
+export struct Mass2D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
@@ -33,7 +33,7 @@ struct Mass2D {
 
 /// A solid simulated Body in 2D space
 @entity
-struct RigidBody2D {
+export struct RigidBody2D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
@@ -43,7 +43,7 @@ struct RigidBody2D {
 }
 
 /// Kinematic properties for a 3D rigid body
-struct Kinematic3D {
+export struct Kinematic3D {
     /// Linear velocity of the Body
     velocity: Vector3
     /// Angular velocity of the Body
@@ -57,7 +57,7 @@ struct Kinematic3D {
 }
 
 /// Mass properties for a 3D rigid body
-struct Mass3D {
+export struct Mass3D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
@@ -68,7 +68,7 @@ struct Mass3D {
 
 /// A solid simulated Body in 3D space
 @entity
-struct RigidBody3D {
+export struct RigidBody3D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 

@@ -2,7 +2,7 @@ import destack
 
 /// A Span traces a Run.
 @event
-struct SpanEvent {
+export struct SpanEvent {
     /// The span name.
     name: string
     /// Start time of the span.
