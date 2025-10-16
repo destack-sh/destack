@@ -7,7 +7,10 @@ use destack_file::walk::{WalkOptions, walk};
 use destack_terminal::{CommandArguments, console};
 use dyst_ast::{ModuleFormat, NodeParentIndex, TokenType};
 use dyst_diagnostic::Severity;
-use dyst_fir::format::{IndentStyle, LineEnding, format as format_fir};
+use dyst_fir::format::{
+    FormatError as FirFormatError, IndentStyle, LineEnding, PrintError as FirPrintError,
+    format as format_fir,
+};
 use dyst_fir::format_args;
 use dyst_formatter::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
@@ -72,6 +75,13 @@ struct FormattedFlags {
     did_error: bool,
 }
 
+#[derive(Debug)]
+enum FormatSourceError {
+    Diagnostics(Session),
+    Formatter(FirFormatError),
+    Printer(FirPrintError),
+}
+
 /// Run the format command using parsed CLI arguments.
 pub fn run(ctx: CommandArguments) -> i32 {
     let dry_run = ctx.flag("dry-run");
@@ -126,22 +136,12 @@ fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
             console::write_line(&canonical_display(path));
         }
 
-        match format_file(path, options, dry_run, false) {
-            Ok(FormattedFlags {
-                did_change,
-                did_error,
-            }) => {
-                if !dry_run && did_change {
-                    console::write_line(&canonical_display(path));
-                }
-                if did_error {
-                    exit_code = 1;
-                }
-            }
-            Err(message) => {
-                console::error(&message);
-                exit_code = 1;
-            }
+        let flags = format_file(path, options, dry_run, false);
+        if !dry_run && flags.did_change {
+            console::write_line(&canonical_display(path));
+        }
+        if flags.did_error {
+            exit_code = 1;
         }
     }
 
@@ -154,16 +154,9 @@ fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) 
 
     // process each file and track overall success
     for path in paths {
-        match format_file(path, options, dry_run, true) {
-            Ok(FormattedFlags { did_error, .. }) => {
-                if did_error {
-                    exit_code = 1;
-                }
-            }
-            Err(message) => {
-                console::error(&message);
-                exit_code = 1;
-            }
+        let flags = format_file(path, options, dry_run, true);
+        if flags.did_error {
+            exit_code = 1;
         }
     }
     exit_code
@@ -191,8 +184,8 @@ fn run_for_string(string: &str, options: &DystFormatOptions) -> i32 {
                 0
             }
         }
-        Err(message) => {
-            console::error(&message);
+        Err(error) => {
+            print_format_source_error("<string>", &source, error);
             1
         }
     }
@@ -221,8 +214,9 @@ fn format_file(
     options: &DystFormatOptions,
     dry_run: bool,
     emit_output: bool,
-) -> Result<FormattedFlags, String> {
+) -> FormattedFlags {
     let path_buf = path.to_path_buf();
+    let display_path = canonical_display(&path_buf);
     let format = path
         .extension()
         .and_then(|ext| ext.to_str())
@@ -230,68 +224,106 @@ fn format_file(
         .unwrap_or(options.format);
 
     // read original file content
-    let original_text = fs::read_to_string(&path_buf)
-        .map_err(|error| format!("failed to read {}: {error}", path_buf.display()))?;
+    let original_text = match fs::read_to_string(&path_buf) {
+        Ok(content) => content,
+        Err(error) => {
+            console::error(&format!("failed to read {display_path}: {error}"));
+            return FormattedFlags {
+                did_change: false,
+                did_error: true,
+            };
+        }
+    };
 
     // create source and format it
     let name = path_buf
         .iter()
         .next_back()
         .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or("<file>".to_string());
+        .unwrap_or_else(|| "<file>".to_string());
     let uri = Uri::from(&path_buf);
     let source = Source::from_string(SourceId::new(0), name, uri, format, original_text.clone());
-    let FormattedSource { formatted, session } = format_source(&source, options)
-        .map_err(|error| format!("{error} ({})", path_buf.display()))?;
+    let formatted_source = match format_source(&source, options) {
+        Ok(result) => result,
+        Err(error) => {
+            print_format_source_error(&display_path, &source, error);
+            return FormattedFlags {
+                did_change: false,
+                did_error: true,
+            };
+        }
+    };
 
-    // output formatted result if requested
-    if emit_output {
-        print_formatted_output(&canonical_display(&path_buf), &formatted);
-    }
+    // print
+    let FormattedSource { formatted, session } = formatted_source;
     print_diagnostics(&source, &session);
-
-    // check if formatting did_change the file or had errors
-    let did_error = session.has_diagnostics_of_severity(Severity::Error);
-    let did_change = formatted != original_text;
-
-    // write back to disk if not dry run and content did_change
-    if !dry_run && did_change {
-        fs::write(&path_buf, formatted)
-            .map_err(|error| format!("failed to write {}: {error}", path_buf.display()))?;
+    if emit_output {
+        print_formatted_output(&display_path, &formatted);
     }
 
-    Ok(FormattedFlags {
+    // bail on errors
+    let did_change = formatted != original_text;
+    let did_error = session.has_diagnostics_of_severity(Severity::Error);
+    if !dry_run
+        && did_change
+        && let Err(error) = fs::write(&path_buf, &formatted)
+    {
+        console::error(&format!("failed to write {display_path}: {error}"));
+        return FormattedFlags {
+            did_change: false,
+            did_error: true,
+        };
+    }
+
+    FormattedFlags {
         did_change,
         did_error,
-    })
+    }
 }
 
 /// Format the provided source into a string along with diagnostics.
-fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormattedSource, String> {
+fn format_source(
+    source: &Source,
+    options: &DystFormatOptions,
+) -> Result<FormattedSource, FormatSourceError> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
 
     // parse the source into an AST
-    let mut parser = Parser::prepare(source, &mut session);
-    let module_name_id = parser.intern_string(module_name);
-    let module_id = parser.with_recovery(
-        parser.mark(),
-        |parser| {
-            parser
-                .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
-                .map(Some)
-        },
-        None,
-        TokenType::End,
-    );
-    parser.finalize();
+    let (module_id, tokens, side_tokens, side_span, tree, strings) = {
+        let mut parser = Parser::prepare(source, &mut session);
+        let module_name_id = parser.intern_string(module_name);
+        let module_id = parser.with_recovery(
+            parser.mark(),
+            |parser| {
+                parser
+                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
+                    .map(Some)
+            },
+            None,
+            TokenType::End,
+        );
+        parser.finalize();
 
-    // create format context and format the AST
-    let side_span = parser.get_side_span();
-    let tokens = parser.tokens;
-    let side_tokens = parser.side_tokens;
-    let tree = parser.tree;
-    let strings = parser.strings;
+        let side_span = parser.get_side_span();
+        let tokens = parser.tokens;
+        let side_tokens = parser.side_tokens;
+        let tree = parser.tree;
+        let strings = parser.strings;
+
+        (module_id, tokens, side_tokens, side_span, tree, strings)
+    };
+
+    // bail on errors
+    if session.has_diagnostics_of_severity(Severity::Error) {
+        return Err(FormatSourceError::Diagnostics(session));
+    }
+    let Some(definition_id) = module_id else {
+        return Err(FormatSourceError::Diagnostics(session));
+    };
+
+    // format the AST
+    let parents = NodeParentIndex::from_tree(&tree);
     let context = DystFormatContext {
         options: options.clone(),
         source,
@@ -300,17 +332,15 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<Formatt
         side_tokens: &side_tokens,
         side_span: &side_span,
         spans: &tree.spans,
-        parents: NodeParentIndex::from_tree(&tree),
+        parents,
         session: &session,
         strings: &strings,
     };
-
-    // format and print the document
-    let formatted = format_fir(context, format_args![module_id])
-        .map_err(|error| format!("format error: {error}"))?;
-    let printed = formatted
-        .print()
-        .map_err(|error| format!("print error: {error}"))?;
+    let printed = {
+        let formatted = format_fir(context, format_args![definition_id])
+            .map_err(FormatSourceError::Formatter)?;
+        formatted.print().map_err(FormatSourceError::Printer)?
+    };
 
     Ok(FormattedSource {
         formatted: printed.into_str(),
@@ -346,6 +376,26 @@ fn print_diagnostics(source: &Source, session: &Session) {
         let header = Color::Red.apply_bold(&format!("{}: {}", diagnostic.code, diagnostic.message));
         console::error(&header);
         console::info(&annotated);
+    }
+}
+
+/// Print a format source error.
+fn print_format_source_error(path_label: &str, source: &Source, error: FormatSourceError) {
+    match error {
+        FormatSourceError::Diagnostics(session) => {
+            print_diagnostics(source, &session);
+            console::error(&format!("failed to format {path_label}"));
+        }
+        FormatSourceError::Formatter(inner) => {
+            console::error(&format!(
+                "formatter error while formatting {path_label}: {inner}"
+            ));
+        }
+        FormatSourceError::Printer(inner) => {
+            console::error(&format!(
+                "printer error while formatting {path_label}: {inner}"
+            ));
+        }
     }
 }
 
