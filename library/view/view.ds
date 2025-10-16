@@ -37,7 +37,7 @@ struct Style2D {
     /// The shadow of the View.
     shadow: Shadow?
     /// The border of the View.
-    border: Border?
+    border: Border2?
     /// The radius of the View.
     radius: Corner2
 }
