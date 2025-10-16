@@ -1,9 +1,40 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{NodeId, Pattern, PatternField};
+use dyst_dir::{Mutability, NodeId, Pattern, PatternField, ScopedMutability};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
+    /// Lower mutability into a DIR mutability.
+    #[inline]
+    pub fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
+        match mutability {
+            ast::Mutability::Immutable => Mutability::Immutable,
+            ast::Mutability::Mutable => Mutability::Mutable,
+        }
+    }
+
+    /// Lower scoped mutability into a DIR scoped mutability.
+    #[inline]
+    pub fn lower_scoped_mutability(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        scoped_mutability: &ast::ScopedMutability,
+    ) -> ScopedMutability {
+        match scoped_mutability {
+            ast::ScopedMutability::Unscoped { mutability } => ScopedMutability::Unscoped {
+                mutability: self.lower_mutability(*mutability),
+            },
+            ast::ScopedMutability::Scoped { mutability, scopes } => ScopedMutability::Scoped {
+                mutability: self.lower_mutability(*mutability),
+                scopes: scopes
+                    .iter()
+                    .map(|scope| self.lower_path(source_id, ast, scope))
+                    .collect(),
+            },
+        }
+    }
+
     /// Lower a pattern to a DIR pattern.
     pub fn lower_pattern(
         &mut self,
@@ -19,17 +50,30 @@ impl<'a> Compiler<'a> {
                 Pattern::Maybe(self.lower_pattern(source_id, ast, *pattern_id))
             }
             ast::Pattern::Reference {
-                right: right_id,
                 mutability,
+                right: right_id,
             } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let right = self.lower_pattern(source_id, ast, *right_id);
-                let mutability = self.lower_mutability(*mutability);
-                Pattern::Reference { right, mutability }
+                Pattern::Reference { mutability, right }
             }
-            ast::Pattern::Binding { name, pattern } => {
+            ast::Pattern::Binding {
+                mutability,
+                name,
+                pattern,
+            } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let name = self.intern_string(source_id, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(source_id, ast, pattern));
-                Pattern::Binding { name, pattern }
+                Pattern::Binding {
+                    mutability,
+                    name,
+                    pattern,
+                }
             }
             ast::Pattern::Expression { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
@@ -94,31 +138,35 @@ impl<'a> Compiler<'a> {
         let pattern_field = ast.get(pattern_field_id);
         let pattern_field = match pattern_field {
             ast::PatternField::Named {
+                mutability,
                 name,
                 pattern,
-                mutability,
             } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let name = self.intern_string(source_id, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(source_id, ast, pattern));
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 PatternField::Named {
+                    mutability,
                     name,
                     pattern,
-                    mutability,
                 }
             }
             ast::PatternField::NamedAlias {
+                mutability,
                 name,
                 alias,
-                mutability,
             } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let name = self.intern_string(source_id, *name);
                 let alias = self.intern_string(source_id, *alias);
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 PatternField::NamedAlias {
+                    mutability,
                     name,
                     alias,
-                    mutability,
                 }
             }
             ast::PatternField::Positional {

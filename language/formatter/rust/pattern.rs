@@ -1,8 +1,41 @@
+use dyst_ast::ScopedMutability;
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField};
+use crate::{
+    DystFormatContext, DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField,
+};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
+
+impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Mutability::Immutable => write!(f, [token("const")]),
+            Mutability::Mutable => write!(f, [token("var")]),
+        }
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for ScopedMutability {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            ScopedMutability::Unscoped { mutability } => write!(f, [mutability])?,
+            ScopedMutability::Scoped { mutability, scopes } => {
+                write!(f, [mutability])?;
+                write!(f, [token("(")])?;
+                write!(
+                    f,
+                    [format_with(|f| f
+                        .join_with(token(", "))
+                        .entries(scopes)
+                        .finish())]
+                )?;
+                write!(f, [token(")")])?;
+            }
+        }
+        Ok(())
+    }
+}
 
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
@@ -20,13 +53,20 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 right: target,
                 mutability,
             } => {
-                if *mutability == Mutability::Mutable {
-                    write!(f, [token("&var "), target])?
-                } else {
-                    write!(f, [token("&"), target])?
+                write!(f, [token("&")])?;
+                if let Some(mutability) = mutability {
+                    write!(f, [mutability, space()])?;
                 }
+                write!(f, [target])?;
             }
-            Pattern::Binding { name, pattern } => {
+            Pattern::Binding {
+                mutability,
+                name,
+                pattern,
+            } => {
+                if let Some(mutability) = mutability {
+                    write!(f, [mutability])?;
+                }
                 write!(f, [name])?;
                 if let Some(pattern) = pattern {
                     write!(f, [token(": "), pattern])?;
@@ -107,17 +147,12 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 
         match self {
             PatternField::Named {
+                mutability,
                 name,
                 pattern,
-                mutability,
             } => {
                 if let Some(mutability) = mutability {
-                    let mutability_token = if *mutability == Mutability::Mutable {
-                        token("var")
-                    } else {
-                        token("const")
-                    };
-                    write!(f, [mutability_token, space(), name])?;
+                    write!(f, [mutability])?;
                 }
                 if let Some(pattern) = pattern {
                     write!(f, [name, token(": "), pattern])?;
@@ -126,17 +161,12 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 }
             }
             PatternField::NamedAlias {
+                mutability,
                 name,
                 alias,
-                mutability,
             } => {
                 if let Some(mutability) = mutability {
-                    let mutability_token = if *mutability == Mutability::Mutable {
-                        token("var")
-                    } else {
-                        token("const")
-                    };
-                    write!(f, [mutability_token, space(), name])?;
+                    write!(f, [mutability])?;
                 }
                 write!(f, [name, token(": "), alias])?;
             }

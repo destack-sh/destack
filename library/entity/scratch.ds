@@ -44,6 +44,11 @@ test('source-only', () => {
   )
 });
 
+implement New for MyType {
+    function new() {
+        return { ..Self.default() };
+    }
+}
 
 const renderCounterRegistry: Map<
   string,
@@ -56,6 +61,19 @@ export function clearRenderCounterRegistry() {
     });
   }
 }
+
+const ast = await parseAsync(text, {
+    sourceFileName: file,
+    parserOpts: {
+      plugins: ['typescript', 'jsx'],
+    },
+    sourceType: 'module',
+    configFile: false,
+    babelrc: false,
+  });
+  if (ast == null) {
+    return null;
+  }
 
 function registerRenderCounter(name: string, val: {count: number}) {
   let counters = renderCounterRegistry.get(name);

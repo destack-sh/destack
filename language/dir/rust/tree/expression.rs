@@ -48,7 +48,7 @@ pub enum Expression {
     },
     /// Reference operation (e.g., `&x`).
     Reference {
-        mutability: ScopedMutability,
+        mutability: Option<ScopedMutability>,
         right: NodeId<Expression>,
     },
     /// Binary operation.

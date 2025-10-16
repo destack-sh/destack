@@ -5,11 +5,34 @@ use crate::{Expression, ParserError, Path, TokenType};
 use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability, Visibility};
 
 impl<'a> Parser<'a> {
-    /// Eat a scoped mutability modifier. Allows nothing.
+    /// Peek a mutability modifier.
+    pub fn peek_mutability(&mut self) -> ParserResult<()> {
+        let keyword = self.peek_any_keyword()?;
+        if keyword == Keyword::Var || keyword == Keyword::Mut || keyword == Keyword::Const {
+            Ok(())
+        } else {
+            Err(ParserError::expected(
+                self.peek_token(TokenType::Identifier)?.span,
+                TokenType::Identifier,
+            ))
+        }
+    }
+
+    /// Eat a scoped mutability modifier maybe.
+    /// Instead of defaulting to immutable returns None.
+    pub fn eat_scoped_mutability_maybe(&mut self) -> ParserResult<Option<ScopedMutability>> {
+        if self.peek_mutability().is_ok() {
+            Ok(Some(self.eat_scoped_mutability()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Eat a scoped mutability modifier. 
+    /// Allows empty, defaulting to unscoped immutable.
     ///
     /// Examples:
     /// ```
-    ///  // nothing is unscoped const!
     /// var
     /// const
     /// var(x, y)

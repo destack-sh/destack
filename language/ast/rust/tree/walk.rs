@@ -398,7 +398,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression, expr);
         }
 
-        Expression::Unary { operator: _, expression: right } => {
+        Expression::Unary {
+            operator: _,
+            expression: right,
+        } => {
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }
@@ -1020,7 +1023,11 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let target_pattern = tree.get(*target);
             visitor.visit_pattern(tree, *target, target_pattern);
         }
-        Pattern::Binding { name: _, pattern } => {
+        Pattern::Binding {
+            mutability: _,
+            name: _,
+            pattern,
+        } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);

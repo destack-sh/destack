@@ -1,7 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    ExportMode, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
+    ExportMode, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
+    Visibility, WhereClause, WithClause,
 };
 
 /// Definition introduces a type or such into a scope.

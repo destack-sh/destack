@@ -24,7 +24,7 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a type.
     /// Type context eagerly evaluates some constructs to their type-ish variants.
     pub in_type: bool = false,
-    
+
     // ------------------------------------------------------------
     // Structural
     // (these usually reset inside nested contexts)

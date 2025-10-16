@@ -771,6 +771,27 @@ impl Dump for Mutability {
     }
 }
 
+/// Dump a ScopedMutability as a string.
+impl Dump for ScopedMutability {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ScopedMutability::Scoped { mutability, scopes } => {
+                dumper
+                    .object("ScopedMutability::Scoped")
+                    .field("mutability", mutability)
+                    .field("scopes", scopes)
+                    .end();
+            }
+            ScopedMutability::Unscoped { mutability } => {
+                dumper
+                    .object("ScopedMutability::Unscoped")
+                    .field("mutability", mutability)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump an ExportMode as a string.
 impl Dump for ExportMode {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -796,27 +817,6 @@ impl Dump for BinaryOperator {
 impl Dump for AssignOperator {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a ScopedMutability structure.
-impl Dump for ScopedMutability {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            ScopedMutability::Unscoped { mutability } => {
-                dumper
-                    .object("ScopedMutability::Unscoped")
-                    .field("mutability", mutability)
-                    .end();
-            }
-            ScopedMutability::Scoped { mutability, scopes } => {
-                dumper
-                    .object("ScopedMutability::Scoped")
-                    .field("mutability", mutability)
-                    .field("scopes", scopes)
-                    .end();
-            }
-        }
     }
 }
 
@@ -1199,7 +1199,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::Unary { operator, expression: _ } => {
+            Expression::Unary {
+                operator,
+                expression: _,
+            } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();
@@ -1704,7 +1707,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("alias", alias)
                     .end();
             }
-            ImportItem::Scalar { target, name, alias } => {
+            ImportItem::Scalar {
+                target,
+                name,
+                alias,
+            } => {
                 self.node("ImportItem::Scalar", id.id)
                     .field("target", target)
                     .field("name", name)
@@ -1800,8 +1807,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Pattern::Binding { name, pattern: _ } => {
+            Pattern::Binding {
+                mutability,
+                name,
+                pattern: _,
+            } => {
                 self.node("Pattern::Binding", id.id)
+                    .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }

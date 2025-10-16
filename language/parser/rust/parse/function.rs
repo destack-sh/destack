@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
     /// Eat the self parameter maybe.
     fn eat_self_parameter_maybe(&mut self) -> ParserResult<Option<SelfParameter>> {
         // var_ self
-        if self.peek_keyword(Keyword::Var).is_ok() {
+        if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
             let mutability = self.eat_scoped_mutability()?;
             self.eat_self_keyword()?; // eat self
             Ok(Some(SelfParameter {
@@ -57,7 +57,8 @@ impl<'a> Parser<'a> {
         // &var_ self
         else if (self.peek_token(TokenType::Multiply).is_ok()
             || self.peek_token(TokenType::ElementwiseAnd).is_ok())
-            && self.peek_next_keyword(Keyword::Var).is_ok()
+            && (self.peek_next_keyword(Keyword::Var).is_ok()
+                || self.peek_next_keyword(Keyword::Mut).is_ok())
         {
             self.bump(); // eat &
             let mutability = self.eat_scoped_mutability()?;

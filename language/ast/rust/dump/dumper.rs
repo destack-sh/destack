@@ -1237,7 +1237,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }
-            Expression::Unary { operator, expression: _ } => {
+            Expression::Unary {
+                operator,
+                expression: _,
+            } => {
                 self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
                     .end();
@@ -1247,7 +1250,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 right: _,
             } => {
                 self.node("Expression::Reference", _id.id)
-                    .field("mutability", mutability)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Expression::Member { receiver: _, path } => {
@@ -1657,15 +1660,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Pattern::Unwrap", _id.id).end();
             }
             Pattern::Reference {
-                right: _,
                 mutability,
+                right: _,
             } => {
                 self.node("Pattern::Pointer", _id.id)
-                    .field("mutability", mutability)
+                    .field_optional("mutability", mutability)
                     .end();
             }
-            Pattern::Binding { name, pattern: _ } => {
+            Pattern::Binding {
+                mutability,
+                name,
+                pattern: _,
+            } => {
                 self.node("Pattern::Binding", _id.id)
+                    .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }

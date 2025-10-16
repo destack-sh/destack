@@ -1,5 +1,6 @@
 use crate::{
-    ExportMode, Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause
+    ExportMode, Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime,
+    ScopedMutability, StringId, Type, Variant, Visibility, WhereClause, WithClause,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.

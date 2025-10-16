@@ -4,9 +4,9 @@ use dyst_ast::{ExportMode, IfStyle};
 
 use crate::parse::prelude::*;
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability,
-    NodeId, NodeType, Parser, ParserError, ParserMark, ParserResult, Runtime, ScopedMutability,
-    TokenSpan, TokenType, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, NodeType,
+    Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
+    Visibility,
 };
 
 static DEFINITION_KEYWORDS: [Keyword; 13] = [
@@ -365,17 +365,7 @@ impl<'a> Parser<'a> {
             // reference (`&` or `&var` or `&const`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
-                let mutability = if self.peek_keyword(Keyword::Var).is_ok()
-                    || self.peek_keyword(Keyword::Const).is_ok()
-                    || self.peek_keyword(Keyword::Mut).is_ok()
-                {
-                    self.eat_scoped_mutability()
-                        .for_node_type(NodeType::Expression)?
-                } else {
-                    ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    }
-                };
+                let mutability = self.eat_scoped_mutability_maybe()?;
                 let right = self.eat_expression()?;
                 let expression = Expression::Reference { mutability, right };
                 self.tree.insert(expression, self.get_span_from(start))
@@ -1403,8 +1393,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Reference { mutability, right, .. } => {
-                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            Expression::Reference { mutability: None, right, .. } => {
                 // x
                 assert_expr_path!(parser, parser.tree.get(*right), "x");
             }
@@ -1421,8 +1410,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Reference { mutability, right, .. } => {
-                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
+            Expression::Reference { mutability: Some(ScopedMutability::Unscoped { mutability: Mutability::Mutable }), right, .. } => {
                 // self.foo()
                 assert_node!(
                     parser.tree,
