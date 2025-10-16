@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword_in(&[Keyword::Import, Keyword::Use])?;
+        self.eat_keyword(Keyword::Import)?;
         // eat type (doesn't do anything, but is allowed for #Leniency)
         if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type

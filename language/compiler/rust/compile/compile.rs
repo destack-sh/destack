@@ -18,6 +18,20 @@ pub enum EvaluateRequest {
     EvaluatePath { scope_id: NodeIdAny, path: Path },
 }
 
+/// Error when evaluating something statically.
+#[derive(Debug, Clone)]
+pub enum EvaluateError {
+    NotYetEvaluatable,
+}
+
+impl std::fmt::Display for EvaluateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+pub type EvaluateResult<T> = Result<T, EvaluateError>;
+
 /// Request to check something statically.
 #[derive(Debug, Clone)]
 pub enum CheckRequest {

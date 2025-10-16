@@ -1,6 +1,6 @@
 use dyst_dir::{Destination, NodeIdAny};
 
-use crate::Compiler;
+use crate::{Compiler, EvaluateResult};
 
 impl<'a> Compiler<'a> {
     /// Evaluate a Destination.
@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         scope_id: NodeIdAny,
         destination: Destination,
-    ) -> Destination {
+    ) -> EvaluateResult<Destination> {
         todo!("evaluate_destination({destination:?})")
     }
 }

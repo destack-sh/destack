@@ -53,7 +53,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for ExportMode {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ExportMode::Item => write!(f, [Keyword::Export])?,
-            ExportMode::Default => write!(f, [Keyword::Export, Keyword::Default])?,
+            ExportMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
         };
         Ok(())
     }
