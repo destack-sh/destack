@@ -264,9 +264,20 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
+            // shorthand lambda function value
+            if token.token.ty == TokenType::Identifier
+                && !self.options.in_type
+                && !self.options.in_match_case
+                && (self.peek_next_token(TokenType::Arrow).is_ok()
+                    || self.peek_next_token(TokenType::ArrowWide).is_ok())
+            {
+                let lambda_id = self.eat_function(visibility, export)?;
+                self.tree
+                    .insert(Expression::Definition(lambda_id), self.get_span_from(start))
+            }
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
-            if token.token.ty == TokenType::OpenParenthesis {
+            else if token.token.ty == TokenType::OpenParenthesis {
                 // speculative start (need to backtrack for lambda)
                 let speculative_start = (self.mark(), self.tree.next_id());
 
@@ -1234,6 +1245,33 @@ mod tests {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
                     assert_expr_path!(parser, parser.tree.get(*left), "a");
                     assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+            });
+        });
+    }
+
+    /// Parse a lambda function value with a shorthand argument.
+    #[test]
+    fn test_parse_lambda_function_value_shorthand() {
+        let mut test = TestParser::new("x => x");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function {
+                style: FunctionStyle::Lambda,
+                dynamic_parameters,
+                return_type: None,
+                body,
+                ..
+            } => {
+                assert_eq!(dynamic_parameters.len(), 1);
+                // x
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty: None, .. } => {
+                    assert_string!(parser, *name, "x");
+                });
+                // x
+                assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "x");
                 });
             });
         });

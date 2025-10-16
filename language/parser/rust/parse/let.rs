@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a scoped mutability modifier. 
+    /// Eat a scoped mutability modifier.
     /// Allows empty, defaulting to unscoped immutable.
     ///
     /// Examples:
