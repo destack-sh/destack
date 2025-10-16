@@ -130,10 +130,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::ScopedMutability;
+
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Block, Expression, Pattern, assert_expr_path, assert_node, assert_path,
-        assert_string,
+        BinaryOperator, Block, Expression, Mutability, Pattern, assert_expr_path, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -169,7 +171,7 @@ for item in items {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
             // in items
@@ -181,7 +183,7 @@ for item in items {
     fn test_parse_for_loop_with_label() {
         let mut test = TestParser::new(
             r###"
-for item in items outer: {
+for const item in items outer: {
     x
 }
 "###,
@@ -192,7 +194,8 @@ for item in items outer: {
         let for_id = parser.eat_for(None).unwrap();
         assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(ScopedMutability::Unscoped { mutability }), name, pattern: None } => {
+                assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
             // in items

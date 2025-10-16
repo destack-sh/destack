@@ -294,8 +294,9 @@ impl<'a> Parser<'a> {
         }
 
         // regular dynamic arguments
-        let dynamic_arguments =
-            self.with_options(self.options.nested(), |parser| parser.eat_arguments_body(TokenType::CloseParenthesis))?;
+        let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
+            parser.eat_arguments_body(TokenType::CloseParenthesis)
+        })?;
 
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -316,7 +317,10 @@ impl<'a> Parser<'a> {
     /// z
     /// ```
     #[inline]
-    pub fn eat_arguments_body(&mut self, terminator: TokenType) -> ParserResult<Vec<NodeId<Argument>>> {
+    pub fn eat_arguments_body(
+        &mut self,
+        terminator: TokenType,
+    ) -> ParserResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
         loop {
             if self.peek_token(terminator).is_ok() {

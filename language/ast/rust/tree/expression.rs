@@ -455,7 +455,7 @@ pub enum Expression {
 
     /// Reference operation.
     Reference {
-        mutability: ScopedMutability,
+        mutability: Option<ScopedMutability>,
         right: NodeId<Expression>,
     },
 

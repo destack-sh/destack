@@ -175,7 +175,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Expression::Unary { operator: _, expression: right }
+        Expression::Unary {
+            operator: _,
+            expression: right,
+        }
         | Expression::Reference {
             mutability: _,
             right,
@@ -959,7 +962,11 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let target_pattern = tree.get(*target);
             visitor.visit_pattern(tree, *target, target_pattern);
         }
-        Pattern::Binding { name: _, pattern } => {
+        Pattern::Binding {
+            mutability: _,
+            name: _,
+            pattern,
+        } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);

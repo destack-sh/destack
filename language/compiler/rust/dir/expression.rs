@@ -1,7 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{
-    Expression, FunctionStyle, Mutability, NodeId, Runtime, ScopedMutability, Visibility,
-};
+use dyst_dir::{Expression, FunctionStyle, NodeId, Runtime, Visibility};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -26,43 +24,12 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower mutability into a DIR mutability.
-    #[inline]
-    pub fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
-        match mutability {
-            ast::Mutability::Immutable => Mutability::Immutable,
-            ast::Mutability::Mutable => Mutability::Mutable,
-        }
-    }
-
     /// Lower function style into a DIR function style.
     #[inline]
     pub fn lower_function_style(&self, style: ast::FunctionStyle) -> FunctionStyle {
         match style {
             ast::FunctionStyle::Function => FunctionStyle::Function,
             ast::FunctionStyle::Lambda => FunctionStyle::Lambda,
-        }
-    }
-
-    /// Lower scoped mutability into a DIR scoped mutability.
-    #[inline]
-    pub fn lower_scoped_mutability(
-        &mut self,
-        source_id: SourceId,
-        ast: &ast::NodeTree,
-        scoped_mutability: &ast::ScopedMutability,
-    ) -> ScopedMutability {
-        match scoped_mutability {
-            ast::ScopedMutability::Unscoped { mutability } => ScopedMutability::Unscoped {
-                mutability: self.lower_mutability(*mutability),
-            },
-            ast::ScopedMutability::Scoped { mutability, scopes } => ScopedMutability::Scoped {
-                mutability: self.lower_mutability(*mutability),
-                scopes: scopes
-                    .iter()
-                    .map(|scope| self.lower_path(source_id, ast, scope))
-                    .collect(),
-            },
         }
     }
 
@@ -146,14 +113,22 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            ast::Expression::Unary { operator, expression: right } => {
+            ast::Expression::Unary {
+                operator,
+                expression: right,
+            } => {
                 let right = self.lower_expression(source_id, ast, *right);
                 let operator = self.lower_unary_operator(*operator);
-                Expression::Unary { operator, expression: right }
+                Expression::Unary {
+                    operator,
+                    expression: right,
+                }
             }
             ast::Expression::Reference { mutability, right } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let right = self.lower_expression(source_id, ast, *right);
-                let mutability = self.lower_scoped_mutability(source_id, ast, mutability);
                 Expression::Reference { mutability, right }
             }
             ast::Expression::Binary {

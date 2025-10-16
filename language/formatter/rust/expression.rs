@@ -8,8 +8,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::literal::format_scalar_literal;
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
-    Keyword, Mutability, NodeId, Runtime, ScopedMutability, UnaryOperator,
-    empty_block_with_infix_annotations,
+    Keyword, NodeId, Runtime, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)
@@ -643,19 +642,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // reference
             Expression::Reference { mutability, right } => {
                 write!(f, [token("&")])?;
-                write!(
-                    f,
-                    [FormatScopedMutability::implicit_const(mutability.clone()),]
-                )?;
-                match mutability {
-                    ScopedMutability::Unscoped { mutability } => {
-                        if *mutability != Mutability::Immutable {
-                            write!(f, [space()])?;
-                        }
-                    }
-                    ScopedMutability::Scoped { .. } => {
-                        write!(f, [space()])?;
-                    }
+                if let Some(mutability) = mutability {
+                    write!(
+                        f,
+                        [FormatScopedMutability::implicit_const(mutability.clone())]
+                    )?;
                 }
                 right.format(f)?;
             }

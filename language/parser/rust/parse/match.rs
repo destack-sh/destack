@@ -190,8 +190,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        assert_expr_path, assert_node, assert_path, assert_string, Expression, MatchCase, Pattern,
-        ScalarLiteral,
+        Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
@@ -238,7 +238,7 @@ match x {
             // case 2: x => x
             assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body: _, guard } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: _ } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: _ } => {
                     assert_string!(parser, *name, "x");
                 });
             });

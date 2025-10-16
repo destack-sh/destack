@@ -38,8 +38,7 @@ impl<'a> Parser<'a> {
         }
 
         // expression
-        let index =
-            self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+        let index = self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
 
         // close bracket
         self.eat_token(TokenType::CloseBracket)?;
