@@ -55,11 +55,11 @@ const renderCounterRegistry: Map<
   Set<{count: number}>
 > = new Map();
 export function clearRenderCounterRegistry() {
-  for (const counters of renderCounterRegistry.values()) {
-    counters.forEach(counter => {
-      counter.count = 0;
-    });
-  }
+//   for (const counters of renderCounterRegistry.values()) {
+//     counters.forEach(counter => {
+//       counter.count = 0;
+//     });
+//   }
 }
 
 const ast = await parseAsync(text, {

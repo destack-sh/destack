@@ -3,10 +3,10 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId, Runtime, VariantField,
-    VariantStyle, empty_block_with_infix_annotations,
+    Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
+    Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
-use dyst_ast::FunctionStyle;
+use dyst_ast::{ExportMode, FunctionStyle, Visibility};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -38,6 +38,27 @@ pub(crate) fn format_super_types<'ast>(
     Ok(())
 }
 
+impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Visibility::Public => write!(f, [Keyword::Public])?,
+            Visibility::Protected => write!(f, [Keyword::Protected])?,
+            Visibility::Private => write!(f, [Keyword::Private])?,
+        };
+        Ok(())
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for ExportMode {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            ExportMode::Item => write!(f, [Keyword::Export])?,
+            ExportMode::Default => write!(f, [Keyword::Export, Keyword::Default])?,
+        };
+        Ok(())
+    }
+}
+
 impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
         &self,
@@ -51,14 +72,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Module {
                 name,
                 format,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
                 if format == &ModuleFormat::Source {
-                    // only print expressions for source modules (?)
+                    // print expressions only for source modules (?)
                     if !expressions.is_empty() {
                         write!(
                             f,
@@ -69,6 +90,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         )?;
                     }
                     return Ok(());
+                }
+
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
                 }
 
                 // keyword
@@ -130,8 +161,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // struct
             Definition::Struct {
                 name,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 style,
                 super_types,
                 representation_type,
@@ -152,6 +183,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 } else {
                     &[]
                 };
+
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
 
                 // keyword
                 write!(f, [Keyword::Struct])?;
@@ -266,8 +307,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // enum
             Definition::Enum {
                 name,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 tag_type,
                 static_parameters,
                 super_types,
@@ -276,6 +317,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 fields,
                 expressions,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+
                 // header
                 write!(f, [Keyword::Enum])?;
                 // type
@@ -363,14 +414,24 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // interface
             Definition::Interface {
                 name,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 static_parameters,
                 super_types,
                 with_clauses: with,
                 where_clauses,
                 expressions,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+
                 // keyword
                 write!(f, [Keyword::Interface])?;
 
@@ -435,8 +496,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // union
             Definition::Union {
                 name,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -446,6 +507,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 fields,
                 expressions,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+
                 // keyword
                 write!(f, [Keyword::Union])?;
 
@@ -624,8 +695,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // function
             Definition::Function {
                 name,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 runtime,
                 style,
                 static_parameters,
@@ -636,6 +707,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 where_clauses,
                 body,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+
                 if *style == FunctionStyle::Function {
                     // keyword
                     write!(f, [Keyword::Function, space()])?;
