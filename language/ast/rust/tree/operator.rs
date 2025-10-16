@@ -1,6 +1,6 @@
 use crate::TokenType;
 
-/// The operator group (for precedence parsing).
+/// The operator group (for precedence).
 ///
 /// Precedence:
 /// ```
@@ -102,9 +102,9 @@ impl UnaryOperator {
 
     /// Get the precedence of the unary operator.
     #[inline]
-    pub fn precedence(self) -> u8 {
-        // just transmute the enum value to an u8
-        self as u8
+    pub fn precedence(self) -> u16 {
+        // just transmute the enum value to an u16
+        self as u16
     }
 
     /// Whether the unary operator is a prefix operator.
@@ -289,9 +289,9 @@ impl BinaryOperator {
     }
 
     /// Get the precedence of the binary operator.
-    pub fn precedence(self) -> u8 {
+    pub fn precedence(self) -> u16 {
         // just transmute the enum value to an u8
-        self as u8
+        self as u16
     }
 
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
@@ -449,9 +449,9 @@ impl AssignOperator {
 
     /// Get the precedence of the assignment type.
     #[inline]
-    pub fn precedence(self) -> u8 {
-        // just transmute the enum value to an u8
-        self as u8
+    pub fn precedence(self) -> u16 {
+        // just transmute the enum value to an u16
+        self as u16
     }
 
     /// Convert a TokenType to an AssignOperator (if a direct mapping exists).
@@ -552,7 +552,7 @@ impl InfixOperator {
 
     /// Get the precedence of the infix operator.
     #[inline]
-    pub fn precedence(self) -> u8 {
+    pub fn precedence(self) -> u16 {
         match self {
             InfixOperator::Binary(binary_operator) => binary_operator.precedence(),
             InfixOperator::Assign(assign_operator) => assign_operator.precedence(),

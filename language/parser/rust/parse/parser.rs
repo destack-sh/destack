@@ -13,12 +13,23 @@ use dyst_session::Session;
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
+    // ------------------------------------------------------------
+    // Contextual
+    // (these usually stick inside nested contexts)
+    // ------------------------------------------------------------
+
     /// Whether we're parsing inside a static argument (`<...>`).
     /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
     /// Whether we're parsing inside a type.
     /// Type context eagerly evaluates some constructs to their type-ish variants.
     pub in_type: bool = false,
+    
+    // ------------------------------------------------------------
+    // Structural
+    // (these usually reset inside nested contexts)
+    // ------------------------------------------------------------
+
     /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
     /// Disallows binding patterns in these cases to avoid ambiguity with type annotations.
     pub in_before_type: bool = false,
@@ -39,7 +50,7 @@ pub(crate) struct ParserOptions {
     pub in_tree_literal: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines expression operator lifting / grouping.
-    pub left_precedence: Option<u8> = None,
+    pub left_precedence: Option<u16> = None,
 }
 
 impl ParserOptions {
@@ -52,14 +63,6 @@ impl ParserOptions {
     pub(crate) fn in_type(self) -> Self {
         Self {
             in_type: true,
-            ..self
-        }
-    }
-
-    /// Set `in_static=true`.
-    pub(crate) fn in_static(self) -> Self {
-        Self {
-            in_static: true,
             ..self
         }
     }
@@ -115,14 +118,22 @@ impl ParserOptions {
     }
 
     /// Set `left_precedence=precedence`.
-    pub(crate) fn in_left_precedence(self, precedence: u8) -> Self {
+    pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
         Self {
             left_precedence: Some(precedence),
             ..self
         }
     }
 
-    /// Reset all options, set `in_before_block=true`.
+    /// Reset, set `in_static=true`.
+    pub(crate) fn nested_in_static(self) -> Self {
+        Self {
+            in_static: true,
+            ..Self::default()
+        }
+    }
+
+    /// Reset, set `in_before_block=true`.
     pub(crate) fn nested_in_before_block(self) -> Self {
         Self {
             in_before_block: true,
@@ -130,7 +141,7 @@ impl ParserOptions {
         }
     }
 
-    /// Reset all options, set `in_type=true` and `in_before_block=true`.
+    /// Reset, set `in_type=true` and `in_before_block=true`.
     pub(crate) fn nested_type_in_before_block(self) -> Self {
         Self {
             in_type: true,
@@ -139,7 +150,7 @@ impl ParserOptions {
         }
     }
 
-    /// Reset all options, set `in_parenthesis=true`.
+    /// Reset, set `in_parenthesis=true`.
     pub(crate) fn nested_in_parenthesis(self) -> Self {
         Self {
             in_parenthesis: true,
@@ -147,7 +158,7 @@ impl ParserOptions {
         }
     }
 
-    /// Reset all options.
+    /// Reset.
     pub(crate) fn nested(self) -> Self {
         Self::default()
     }

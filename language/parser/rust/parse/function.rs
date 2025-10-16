@@ -8,7 +8,8 @@ use crate::{
     Runtime, SelfParameter, Visibility,
 };
 
-// TODO #Incomplete: support destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
+// TODO #Incomplete: support function destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
+// TODO #Incomplete: support no-parens single-arg lambdas (like `n => y` instead of `(n) => y`)
 
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).

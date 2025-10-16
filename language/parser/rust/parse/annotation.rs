@@ -96,7 +96,9 @@ impl<'a> Parser<'a> {
             }
             // non-empty parentheses
             else {
-                let arguments = self.eat_arguments_body().for_node_type(NodeType::Tag)?;
+                let arguments = self
+                    .eat_arguments_body(TokenType::CloseParenthesis)
+                    .for_node_type(NodeType::Tag)?;
                 self.eat_token(TokenType::CloseParenthesis)
                     .for_node_type(NodeType::Tag)?;
                 Some(arguments)
@@ -144,7 +146,7 @@ impl<'a> Parser<'a> {
             // non-empty parentheses
             else {
                 let arguments = self
-                    .eat_arguments_body()
+                    .eat_arguments_body(TokenType::CloseParenthesis)
                     .for_node_type(NodeType::Decorator)?;
                 self.eat_token(TokenType::CloseParenthesis)
                     .for_node_type(NodeType::Decorator)?;

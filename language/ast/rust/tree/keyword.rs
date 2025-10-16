@@ -67,6 +67,8 @@ pub enum Keyword {
     Var,
     /// Constant modifier.
     Const,
+    /// Readonly modifier (alias).
+    Readonly,
     /// Mutability modifier (alias).
     Mut,
     /// Static modifier (reserved).
@@ -173,6 +175,7 @@ impl Keyword {
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::Const => "const",
+            Keyword::Readonly => "readonly",
             Keyword::Mut => "mut",
             Keyword::Static => "static",
             Keyword::Final => "final",
@@ -247,6 +250,7 @@ impl FromStr for Keyword {
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
             "const" => Ok(Keyword::Const),
+            "readonly" => Ok(Keyword::Readonly),
             "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),

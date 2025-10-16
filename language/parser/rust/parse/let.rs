@@ -157,6 +157,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Argument;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
@@ -240,7 +242,6 @@ var x: float64[3] = undefined
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None, None).unwrap();
-        let x = parser.intern_string("x");
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty,  .. } => {
             // var (mutable)
@@ -248,7 +249,7 @@ var x: float64[3] = undefined
 
             // pattern: x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_eq!(*name, x);
+                assert_string!(parser, *name, "x");
             });
 
             // float64[3]
@@ -273,8 +274,6 @@ let (x, y) = foo()
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None, None).unwrap();
-        let x = parser.intern_string("x");
-        let y = parser.intern_string("y");
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // (x, y)
@@ -282,11 +281,11 @@ let (x, y) = foo()
                 assert_eq!(fields.len(), 2);
                 // x
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
-                    assert_eq!(*name, x);
+                    assert_string!(parser, *name, "x");
                 });
                 // y
                 assert_node!(parser.tree, fields[1], PatternField::Named { name, .. } => {
-                    assert_eq!(*name, y);
+                    assert_string!(parser, *name, "y");
                 });
             });
 
@@ -305,13 +304,12 @@ let (x, y) = foo()
         let mut parser = test.prepare();
 
         let let_id = parser.eat_let(None, None).unwrap();
-        let x = parser.intern_string("x");
 
         // let x: int32
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_eq!(*name, x);
+                assert_string!(parser, *name, "x");
             });
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
             // int32
@@ -332,13 +330,12 @@ let x =
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None, None).unwrap();
-        let x = parser.intern_string("x");
 
         // let x = foo.parse()
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_eq!(*name, x);
+                assert_string!(parser, *name, "x");
             });
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
@@ -348,6 +345,61 @@ let x =
                 assert_eq!(*runtime, None);
                 assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
                     assert_path!(parser, *path, "foo.parse");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_multiline_with_static_arguments() {
+        let mut test = TestParser::new(
+            r###"
+const registry: Map<
+  string,
+  Set<{count: number}>
+> = new Map();
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let let_id = parser.eat_expression().unwrap();
+
+        // const renderCounter
+        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
+            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert!(ty.is_some());
+            assert!(value.is_some());
+
+            // registry
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_string!(parser, *name, "registry");
+            });
+
+            // Map<string, Set<{count: number}>>
+            assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, static_arguments } => {
+                // Map
+                assert_path!(parser, *path, "Map");
+                // <string, Set<{count: number}>>
+                // string
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                });
+                // Set<{count: number}>
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        // Set
+                        assert_path!(parser, *path, "Set");
+                        // <{count: number}>
+                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields, .. } => {
+                                assert_eq!(fields.len(), 1);
+                                assert_node!(parser.tree, fields[0], Argument::Named { name, ..} => {
+                                    assert_string!(parser, *name, "count");
+                                });
+                            });
+                        });
+                    });
                 });
             });
         });

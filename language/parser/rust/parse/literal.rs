@@ -401,8 +401,8 @@ impl<'a> Parser<'a> {
             arguments.push(argument_id);
 
             // item stop
-            if self.peek_item_stop().is_ok() {
-                self.eat_item_stop_with_newlines()?;
+            if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
             }
         }
 
