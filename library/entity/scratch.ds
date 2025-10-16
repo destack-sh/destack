@@ -1,6 +1,7 @@
 import { Catch} from '../ivm/catch.ts';
 import { Other } from "../ivm/catch.ts";
 import "fish";
+import type * as car from "./car";
 
 {
     title: 'Annotation',
@@ -26,6 +27,26 @@ import "fish";
         )
     }
 }
+
+<form
+    onSubmit={e => {
+        e.preventDefault();
+        if (input.trim()) {
+        sendMessage({ text: input });
+        setInput('');
+        }
+    }}
+    >
+    <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        disabled={status !== 'ready'}
+        placeholder="Say something..."
+    />
+    <button type="submit" disabled={status !== 'ready'}>
+        Submit
+    </button>
+</form>
 
 test('source-only', () => {
   const {sources, delegate} = testBuilderDelegate();
