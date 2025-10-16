@@ -1492,6 +1492,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 embedded_definitions: _,
                 with_clauses: _,
                 where_clauses: _,
+                fields: _,
                 definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)

@@ -1408,6 +1408,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
+                fields: _,
                 expressions: _,
             } => {
                 self.node("Definition::Interface", id.id)

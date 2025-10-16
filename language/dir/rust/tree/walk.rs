@@ -576,6 +576,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             embedded_definitions,
             with_clauses,
             where_clauses,
+            fields,
             definitions,
         } => {
             if let Some(static_parameters) = static_parameters {
@@ -600,6 +601,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     let clause = tree.get(*clause_id);
                     visitor.visit_where_clause(tree, *clause_id, clause);
                 }
+            }
+            for field_id in fields.iter() {
+                let field = tree.get(*field_id);
+                visitor.visit_variant_field(tree, *field_id, field);
             }
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);

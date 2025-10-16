@@ -4,8 +4,8 @@ use crate::TokenType;
 use crate::parse::prelude::*;
 
 use crate::{
-    Definition, ExportMode, Expression, Keyword, NodeId, NodeType, Parser, ParserResult,
-    VariantField, VariantStyle, Visibility,
+    Definition, ExportMode, Keyword, NodeId, NodeType, Parser, ParserResult, VariantStyle,
+    Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let (mut fields, expressions) = self
-            .eat_struct_body(style)
+            .eat_variant_body_mixed(style == VariantStyle::Struct)
             .for_node_type(NodeType::Definition)?;
         if let Some(tuple_fields) = tuple_fields {
             // merge in tuple fields
@@ -135,43 +135,6 @@ impl<'a> Parser<'a> {
         );
 
         Ok(struct_id)
-    }
-
-    /// Eat a struct body (without the header or `{` and `}`).
-    /// Struct fields are only parsed if it's a struct-style struct.
-    pub fn eat_struct_body(
-        &mut self,
-        style: VariantStyle,
-    ) -> ParserResult<(Vec<NodeId<VariantField>>, Vec<NodeId<Expression>>)> {
-        // eat everything
-        let mut fields: Vec<NodeId<VariantField>> = Vec::new();
-        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
-        loop {
-            // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
-                break;
-            }
-            // consume any stop
-            else if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
-            }
-            // struct field
-            else if style == VariantStyle::Struct && self.peek_variant_field().is_ok() {
-                let field = self
-                    .eat_variant_field()
-                    .for_node_type(NodeType::VariantField)?;
-                fields.push(field);
-            }
-            // eat expressions
-            else {
-                let expression_id = self
-                    .try_eat_expression_as_statement()
-                    .for_node_type(NodeType::Expression)?;
-                expressions.push(expression_id);
-            }
-        }
-
-        Ok((fields, expressions))
     }
 }
 
