@@ -27,6 +27,45 @@ import "fish";
     }
 }
 
+test('source-only', () => {
+  const {sources, delegate} = testBuilderDelegate();
+  const sink = new Catch(
+    buildPipeline(
+      {
+        table: 'users',
+        orderBy: [
+          ['name', 'asc'],
+          ['id', 'asc'],
+        ],
+      },
+      delegate,
+      'query-id',
+    )
+  )
+});
+
+
+const renderCounterRegistry: Map<
+  string,
+  Set<{count: number}>
+> = new Map();
+export function clearRenderCounterRegistry() {
+  for (const counters of renderCounterRegistry.values()) {
+    counters.forEach(counter => {
+      counter.count = 0;
+    });
+  }
+}
+
+function registerRenderCounter(name: string, val: {count: number}) {
+  let counters = renderCounterRegistry.get(name);
+  if (counters == null) {
+    counters = new Set();
+    renderCounterRegistry.set(name, counters);
+  }
+  counters.add(val);
+}
+
 const mockFilters: { search: string, page: number } = {
     search: '',
     page: 1,

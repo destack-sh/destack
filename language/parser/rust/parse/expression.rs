@@ -9,7 +9,7 @@ use crate::{
     TokenSpan, TokenType, UnaryOperator, Visibility,
 };
 
-static DEFINITION_KEYWORDS: [Keyword; 12] = [
+static DEFINITION_KEYWORDS: [Keyword; 13] = [
     Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
@@ -19,6 +19,7 @@ static DEFINITION_KEYWORDS: [Keyword; 12] = [
     Keyword::Interface,
     Keyword::Trait,
     Keyword::Type,
+    Keyword::Const,
     Keyword::Let,
     Keyword::Var,
     Keyword::Implement,

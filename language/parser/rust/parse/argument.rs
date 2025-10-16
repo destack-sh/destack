@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular static parameters
-        let parameters = self.with_options(self.options.in_static(), |parser| {
+        let parameters = self.with_options(self.options.nested_in_static(), |parser| {
             parser.eat_parameters_body()
         })?;
         self.eat_token(TokenType::GreaterThan)?;
@@ -265,8 +265,8 @@ impl<'a> Parser<'a> {
         }
 
         // regular static arguments
-        let static_arguments = self.with_options(self.options.in_static(), |parser| {
-            parser.eat_arguments_body()
+        let static_arguments = self.with_options(self.options.nested_in_static(), |parser| {
+            parser.eat_arguments_body(TokenType::GreaterThan)
         })?;
 
         self.eat_newlines_maybe()?;
@@ -295,7 +295,7 @@ impl<'a> Parser<'a> {
 
         // regular dynamic arguments
         let dynamic_arguments =
-            self.with_options(self.options.nested(), |parser| parser.eat_arguments_body())?;
+            self.with_options(self.options.nested(), |parser| parser.eat_arguments_body(TokenType::CloseParenthesis))?;
 
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -316,10 +316,10 @@ impl<'a> Parser<'a> {
     /// z
     /// ```
     #[inline]
-    pub fn eat_arguments_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
+    pub fn eat_arguments_body(&mut self, terminator: TokenType) -> ParserResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
         loop {
-            if self.peek_any_close_parenthesis().is_ok() {
+            if self.peek_token(terminator).is_ok() {
                 break;
             }
             let argument_id = self.eat_argument()?;
