@@ -87,13 +87,14 @@ impl<'a> Compiler<'a> {
             ast::Definition::Module {
                 name,
                 visibility,
-                export: _,
+                export,
                 format: _,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
+                let export = export.map(|e| self.lower_export_mode(e));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
@@ -115,6 +116,7 @@ impl<'a> Compiler<'a> {
                 self.tree.insert(
                     Definition::Module {
                         name,
+                        export,
                         visibility,
                         with_clauses,
                         where_clauses,
@@ -128,8 +130,8 @@ impl<'a> Compiler<'a> {
             // Struct definition
             ast::Definition::Struct {
                 name,
+                export,
                 visibility,
-                export: _,
                 style,
                 super_types,
                 representation_type,
@@ -140,6 +142,7 @@ impl<'a> Compiler<'a> {
                 expressions,
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
+                let export = export.map(|e| self.lower_export_mode(e));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
@@ -186,6 +189,7 @@ impl<'a> Compiler<'a> {
                     Definition::Struct {
                         name,
                         visibility,
+                        export,
                         static_parameters,
                         embedded_definitions,
                         variant,
@@ -202,7 +206,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Enum {
                 name,
                 visibility,
-                export: _,
+                export,
                 super_types,
                 static_parameters,
                 tag_type,
@@ -213,6 +217,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
+                let export = export.map(|e| self.lower_export_mode(e));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -251,6 +256,7 @@ impl<'a> Compiler<'a> {
                     Definition::Enum {
                         name,
                         visibility,
+                        export,
                         static_parameters,
                         embedded_definitions,
                         variants,
@@ -267,7 +273,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Union {
                 name,
                 visibility,
-                export: _,
+                export,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -279,6 +285,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
+                let export = export.map(|e| self.lower_export_mode(e));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -326,6 +333,7 @@ impl<'a> Compiler<'a> {
                     Definition::Union {
                         name,
                         visibility,
+                        export,
                         static_parameters,
                         embedded_definitions,
                         variants,
@@ -342,7 +350,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Interface {
                 name,
                 visibility,
-                export: _,
+                export,
                 super_types,
                 static_parameters,
                 with_clauses,
@@ -351,6 +359,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
+                let export = export.map(|e| self.lower_export_mode(e));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -384,6 +393,7 @@ impl<'a> Compiler<'a> {
                     Definition::Interface {
                         name,
                         visibility,
+                        export,
                         static_parameters,
                         embedded_definitions,
                         with_clauses,
@@ -399,7 +409,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Function {
                 name,
                 visibility,
-                export: _,
+                export,
                 runtime,
                 style,
                 self_parameter,
@@ -414,6 +424,7 @@ impl<'a> Compiler<'a> {
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let runtime = self.lower_runtime(*runtime);
                 let style = self.lower_function_style(*style);
+                let export = export.map(|e| self.lower_export_mode(e));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -450,6 +461,7 @@ impl<'a> Compiler<'a> {
                     Definition::Function {
                         name,
                         visibility,
+                        export,
                         runtime,
                         style,
                         static_parameters,
@@ -468,6 +480,8 @@ impl<'a> Compiler<'a> {
 
             // Implement definition
             ast::Definition::Implement {
+                export,
+                visibility,
                 static_parameters,
                 target_type,
                 super_type,
@@ -475,6 +489,8 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
+                let export = export.map(|e| self.lower_export_mode(e));
+                let visibility = visibility.map(|v| self.lower_visibility(v));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -503,6 +519,8 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.tree.insert(
                     Definition::Implement {
+                        export,
+                        visibility,
                         static_parameters,
                         target_type,
                         super_type,

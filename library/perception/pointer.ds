@@ -2,13 +2,13 @@ import destack
 
 /// A Pointer is a user input device that can be used to interact with the UI
 @entity
-struct Pointer2D {
+export struct Pointer2D {
     ..Body2D
 }
 
 /// Base pointer event with position, pressure and modifiers
 @event
-struct PointerEvent: InputEvent {
+export struct PointerEvent: InputEvent {
     position: Vector2
     pressure: float32?
     shiftKey: boolean
@@ -19,29 +19,29 @@ struct PointerEvent: InputEvent {
 
 /// A PointerEvent when a pointer is pressed down
 @event
-struct PointerDownEvent: PointerEvent { }
+export struct PointerDownEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer is released
 @event
-struct PointerUpEvent: PointerEvent { }
+export struct PointerUpEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer is moved
 @event
-struct PointerMoveEvent: PointerEvent { }
+export struct PointerMoveEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer enters an element
 @event
-struct PointerEnterEvent: PointerEvent { }
+export struct PointerEnterEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer is over an element
 @event
-struct PointerOverEvent: PointerEvent { }
+export struct PointerOverEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer leaves an element
 @event
-struct PointerLeaveEvent: PointerEvent { }
+export struct PointerLeaveEvent: PointerEvent { }
 
 /// A PointerEvent when a pointer is pressed and held
 @event
-struct PointerLongPressEvent: PointerEvent { }
+export struct PointerLongPressEvent: PointerEvent { }
 

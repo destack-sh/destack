@@ -1,20 +1,20 @@
 import destack
 
 /// Trigger types.
-enum TriggerType {
+export enum TriggerType {
     Event = 1
 }
 
 /// Base Trigger event.
 @event
-struct TriggerEvent {
+export struct TriggerEvent {
     /// The Trigger self event pertains to.
     trigger: Trigger
 }
 
 /// A Trigger is a dynamic event to run something.
 @entity
-struct Trigger {
+export struct Trigger {
     /// The Event type to react to.
     event: NodeType?
     /// The optional filter Condition for the Event payload.

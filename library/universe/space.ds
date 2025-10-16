@@ -1,7 +1,7 @@
 import destack
 
 /// The result of creating a new Space.
-struct CreateSpaceResult {
+export struct CreateSpaceResult {
     /// The created Space.
     space: Space
     /// The meta Branch.
@@ -16,7 +16,7 @@ struct CreateSpaceResult {
 
 /// A Space is the root of an isolated workspace in the Destack computational universe.
 @entity
-struct Space {
+export struct Space {
     /// The URL-friendly slug of the Space.
     slug: string
     /// The hosting region for the Space.

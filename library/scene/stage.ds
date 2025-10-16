@@ -2,5 +2,5 @@ import destack
 
 /// A Stage for someone to interact with a Space
 @entity
-struct Stage { }
+export struct Stage { }
 

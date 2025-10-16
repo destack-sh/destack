@@ -2,7 +2,7 @@ import destack
 
 /// A Layer is a container for Views
 @entity
-struct Layer {
+export struct Layer {
     /// Whether the layer is visible
     isVisible: boolean?
     /// Layer opacity

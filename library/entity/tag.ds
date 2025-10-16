@@ -1,7 +1,7 @@
 import destack
 
 /// Definition of a builtin Tag to associate builtin definitions to.
-struct TagDefinition {
+export struct TagDefinition {
     /// The Tag id.
     id: uint8
     /// The Tag name.
@@ -14,7 +14,7 @@ struct TagDefinition {
 
 /// A Tag to tag an Entity with.
 @entity
-struct Tag {
+export struct Tag {
     /// The designated Type for Values associated with self Tag. Any if unset.
     type: Type?
 }

@@ -710,6 +710,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
+            export: _,
+            visibility: _,
             static_parameters,
             target_type,
             super_type,

@@ -1,10 +1,10 @@
 import destack
 
-struct Path {
+export struct Path {
     segments: List<PathSegment>
 }
 
-struct PathSegment {
+export struct PathSegment {
     name: string
 }
 

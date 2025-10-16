@@ -1,7 +1,7 @@
 import destack
 
 /// A Transform2D is a 2D geometric transform.
-struct Transform2D {
+export struct Transform2D {
     /// The position of the Entity in 2D space.
     position: Vector2
     /// The scale of the Entity in 2D space.
@@ -11,7 +11,7 @@ struct Transform2D {
 }
 
 /// A Transform3D is a 3D geometric transform.
-struct Transform3D {
+export struct Transform3D {
     /// The position of the Entity in 3D space.
     position: Vector3
     /// The scale of the Entity in 3D space.
@@ -22,12 +22,12 @@ struct Transform3D {
 
 /// An Entity2D is a 2D geometric Entity.
 @entity
-struct Entity2D {
+export struct Entity2D {
     ..Transform2D
 }
 
 /// An Entity3D is a 3D geometric Entity.
 @entity
-struct Entity3D {
+export struct Entity3D {
     ..Transform3D
 }

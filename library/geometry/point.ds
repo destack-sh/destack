@@ -1,7 +1,7 @@
 import destack
 
 /// A Point is a zero-area shape with an optional local offset.
-struct Point2D {
+export struct Point2D {
     position: Vector2
 
     ..Form2D
@@ -9,12 +9,12 @@ struct Point2D {
 
 /// A PointShape represents a zero-area shape with an optional local offset.
 @entity
-struct PointShape2D: Shape2D {
+export struct PointShape2D: Shape2D {
     ..Point2D
 }
 
 /// A Point3D is a zero-volume shape with an optional local offset.
-struct Point3D {
+export struct Point3D {
     position: Vector3
 
     ..Form3D
@@ -22,6 +22,6 @@ struct Point3D {
 
 /// A PointShape3D represents a zero-volume shape with an optional local offset.
 @entity
-struct PointShape3D: Shape3D {
+export struct PointShape3D: Shape3D {
     ..Point3D
 }

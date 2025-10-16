@@ -1,7 +1,7 @@
 import destack
 
 /// A Circle is centered at a point with a radius.
-struct Circle2D {
+export struct Circle2D {
     radius: float32
 
     ..Shape3D
@@ -10,12 +10,12 @@ struct Circle2D {
 
 /// A CircleShape is a shape that represents a circle.
 @entity
-struct CircleShape2D: Shape2D {
+export struct CircleShape2D: Shape2D {
     ..Circle2D
 }
 
 /// A Sphere is centered at a point with a radius.
-struct Sphere3D {
+export struct Sphere3D {
     radius: float32
 
     ..Form3D
@@ -23,6 +23,6 @@ struct Sphere3D {
 
 /// A SphereShape3D is a shape that represents a sphere.
 @entity
-struct SphereShape3D: Shape3D {
+export struct SphereShape3D: Shape3D {
     ..Sphere3D
 }

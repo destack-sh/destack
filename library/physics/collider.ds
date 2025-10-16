@@ -2,11 +2,11 @@ import destack
 
 /// Base Collider event
 @event
-struct ColliderEvent { }
+export struct ColliderEvent { }
 
 /// Collision contact between two colliders
 @event
-struct ColliderContactEvent: ColliderEvent {
+export struct ColliderContactEvent: ColliderEvent {
     /// First collider
     colliderA: Reference<Collider2D>
     /// Second collider
@@ -15,13 +15,13 @@ struct ColliderContactEvent: ColliderEvent {
 
 /// A Collider in 2D space
 @entity
-struct Collider2D {
+export struct Collider2D {
     ..Entity2D
 }
 
 /// A Collider in 3D space
 @entity
-struct Collider3D {
+export struct Collider3D {
     ..Entity3D
 }
 

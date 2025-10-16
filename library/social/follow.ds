@@ -2,19 +2,19 @@ import destack
 
 /// A Follow is a relationship between an Actor and a followable Node.
 @entity
-struct Follow { }
+export struct Follow { }
 
 /// Base Follow event.
 @event
-struct FollowEvent {
+export struct FollowEvent {
     /// The Follow self event pertains to.
     follow: Reference<Follow>
 }
 
 /// Follow added.
 @event
-struct FollowAddedEvent: FollowEvent { }
+export struct FollowAddedEvent: FollowEvent { }
 
 /// Follow removed.
 @event
-struct FollowRemovedEvent: FollowEvent { }
+export struct FollowRemovedEvent: FollowEvent { }

@@ -74,8 +74,8 @@ pub enum Definition {
     Struct {
         name: Option<StringId>,
         visibility: Option<Visibility>,
-        style: VariantStyle,
         export: Option<ExportMode>,
+        style: VariantStyle,
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -239,6 +239,8 @@ pub enum Definition {
     /// }
     /// ```
     Implement {
+        export: Option<ExportMode>,
+        visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
         super_type: Option<NodeId<Expression>>,

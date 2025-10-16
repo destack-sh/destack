@@ -1,14 +1,14 @@
 import destack
 
 /// A type of Sanction.
-enum SanctionType {
+export enum SanctionType {
     Ban = 1
     Mute = 2
 }
 
 /// Base event regarding a Sanction.
 @event
-struct SanctionEvent {
+export struct SanctionEvent {
     /// The Sanction self event pertains to.
     sanction: Sanction
     /// The sanctioned target Entity.
@@ -17,31 +17,31 @@ struct SanctionEvent {
 
 /// Sanction was requested.
 @event
-struct SanctionRequestedEvent {
+export struct SanctionRequestedEvent {
     ..SanctionEvent
 }
 
 /// Sanction was granted.
 @event
-struct SanctionGrantedEvent {
+export struct SanctionGrantedEvent {
     ..SanctionEvent
 }
 
 /// Sanction was revoked.
 @event
-struct SanctionRevokedEvent {
+export struct SanctionRevokedEvent {
     ..SanctionEvent
 }
 
 /// Sanction has expired.
 @event
-struct SanctionExpiredEvent {
+export struct SanctionExpiredEvent {
     ..SanctionEvent
 }
 
 /// A Sanction on some Actor.
 @entity
-struct Sanction {
+export struct Sanction {
     /// The Sanction type.
     type: SanctionType
     /// When the Sanction expires.

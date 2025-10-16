@@ -2,11 +2,11 @@ import destack
 
 /// A 2D content View
 @entity
-struct ContentView2D: View2D { }
+export struct ContentView2D: View2D { }
 
 /// A 2D Text View
 @entity
-struct TextView2D: ContentView2D {
+export struct TextView2D: ContentView2D {
     /// The text to display
     text: Text?
     /// The font to use for the text

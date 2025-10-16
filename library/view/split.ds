@@ -2,7 +2,7 @@ import destack
 
 /// A container that splits its children
 @entity
-struct SplitView2D {
+export struct SplitView2D {
     ..LayoutView2D
 }
 

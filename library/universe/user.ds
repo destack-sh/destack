@@ -2,7 +2,7 @@ import destack
 
 /// A User is a human ..Destack.
 @entity
-struct User {
+export struct User {
     /// The URL-friendly slug of the User.
     slug: string
     /// When the User last logged in.

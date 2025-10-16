@@ -2,7 +2,7 @@ import destack
 import destack.entity
 
 /// A color in the Tetris game.
-enum Color {
+export enum Color {
     Red
     Orange
     Yellow
@@ -13,26 +13,26 @@ enum Color {
 }
 
 /// Game state for Tetris.
-enum GameState {
+export enum GameState {
     Playing
     Paused
     GameOver
 }
 
 /// Position on the game board.
-struct Position {
+export struct Position {
     x: int32
     y: int32
 }
 
 /// A cell on the Tetris board.
-struct Cell {
+export struct Cell {
     isFilled: boolean
     color: Color?
 }
 
 /// The Tetris game board.
-struct Board {
+export struct Board {
     width: int32 = 10
     height: int32 = 20
     cells: Cell[][]
@@ -96,7 +96,7 @@ implement Board {
 }
 
 @entity
-struct TetrisGame {
+export struct TetrisGame {
     board: Board
     currentPiece: TetrisPiece?
     currentPosition: Position
@@ -112,7 +112,7 @@ struct TetrisGame {
 implement TetrisGame: Context { }
 
 /// The shape of a Tetris piece.
-enum TetrisPieceShape {
+export enum TetrisPieceShape {
     I
     J
     L
@@ -123,7 +123,7 @@ enum TetrisPieceShape {
 }
 
 /// A Tetris piece with its rotation state.
-struct TetrisPiece {
+export struct TetrisPiece {
     shape: TetrisPieceShape
     rotation: int32 = 0
     blocks: Position[]

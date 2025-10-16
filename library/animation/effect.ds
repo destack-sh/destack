@@ -1,7 +1,7 @@
 import destack
 
 /// When the effect fires.
-enum EffectType {
+export enum EffectType {
     Appear = 10
     Enter = 11
     Exit = 12
@@ -13,27 +13,27 @@ enum EffectType {
 }
 
 /// How a repeating animation behaves.
-enum RepeatType {
+export enum RepeatType {
     Loop = 1
     Reverse = 2
     Mirror = 3
 }
 
 /// How to split text for per-part effects.
-enum TextSplitType {
+export enum TextSplitType {
     Char = 1
     Word = 2
     Line = 3
 }
 
 /// What happens when the element is offscreen.
-enum OffscreenBehavior {
+export enum OffscreenBehavior {
     Play = 1
     Pause = 2
 }
 
 /// An effect value.
-struct Effect {
+export struct Effect {
     /// When the effect is applied.
     type: EffectType
     /// Optional template reference to inherit values from.
@@ -70,7 +70,7 @@ struct Effect {
 
 /// An effect template.
 @entity
-struct EffectTemplate {
+export struct EffectTemplate {
     /// When the effect is applied.
     type: EffectType
     /// Optional opacity multiplier.

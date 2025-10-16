@@ -1,7 +1,7 @@
 import destack
 
 /// Position properties for a 2D view.
-struct Position2D {
+export struct Position2D {
     /// The origin of the Entity in 2D space.
     origin: Vector2?
     /// The anchor of the Entity in 2D space.
@@ -11,7 +11,7 @@ struct Position2D {
 }
 
 /// Sizing properties for a 2D view.
-struct Sizing2D {
+export struct Sizing2D {
     /// The width of the View.
     width: Length?
     /// The height of the View.
@@ -27,7 +27,7 @@ struct Sizing2D {
 }
 
 /// Style properties for a 2D view.
-struct Style2D {
+export struct Style2D {
     /// Whether the View is visible.
     isVisible: boolean?
     /// The opacity of the View.
@@ -42,9 +42,9 @@ struct Style2D {
     radius: Corner2
 }
 
-/// A View2D is a 2D interface element.
+/// A View2D is a 2D export interface element.
 @entity
-struct View2D: RigidBody2D {
+export struct View2D: RigidBody2D {
     ..Position2D
     ..Sizing2D
     ..Style2D

@@ -2,11 +2,11 @@ import destack
 
 /// A Histogram Metric.
 @entity
-struct HistogramMetric: Metric { }
+export struct HistogramMetric: Metric { }
 
 /// A Histogram Measurement.
 @event
-struct HistogramMeasurementEvent: MeasurementEvent {
+export struct HistogramMeasurementEvent: MeasurementEvent {
     /// The Histogram metric definition.
     definition: Reference<HistogramMetric>
 }

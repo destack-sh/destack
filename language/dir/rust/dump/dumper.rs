@@ -757,6 +757,16 @@ impl Dump for Visibility {
     }
 }
 
+/// Dump a ExportMode as a string.
+impl Dump for ExportMode {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ExportMode::Item => dumper.write_str("ExportMode::Item", Some(Color::Yellow)),
+            ExportMode::Default => dumper.write_str("ExportMode::Default", Some(Color::Yellow)),
+        }
+    }
+}
+
 /// Dump a Runtime as a string.
 impl Dump for Runtime {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -789,13 +799,6 @@ impl Dump for ScopedMutability {
                     .end();
             }
         }
-    }
-}
-
-/// Dump an ExportMode as a string.
-impl Dump for ExportMode {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -1393,24 +1396,32 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mode", mode)
                     .end();
             }
-            Definition::Let { name, visibility } => {
+            Definition::Let {
+                name,
+                export,
+                visibility,
+            } => {
                 self.node("Definition::Let", id.id)
                     .field("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Type {
                 name,
+                export,
                 visibility,
                 value: _,
             } => {
                 self.node("Definition::Type", id.id)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Module {
                 name,
+                export,
                 visibility,
                 with_clauses: _,
                 where_clauses: _,
@@ -1418,11 +1429,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Module", id.id)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Struct {
                 name,
+                export,
                 visibility,
                 static_parameters: _,
                 embedded_definitions: _,
@@ -1433,11 +1446,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Struct", id.id)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Enum {
                 name,
+                export,
                 visibility,
                 static_parameters: _,
                 embedded_definitions: _,
@@ -1448,11 +1463,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Enum", id.id)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Union {
                 name,
+                export,
                 visibility,
                 static_parameters: _,
                 embedded_definitions: _,
@@ -1464,10 +1481,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Union", id.id)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
+                    .field_optional("export", export)
                     .end();
             }
             Definition::Interface {
                 name,
+                export,
                 visibility,
                 static_parameters: _,
                 embedded_definitions: _,
@@ -1477,11 +1496,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Interface", id.id)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Function {
                 name,
+                export,
                 visibility,
                 runtime,
                 style,
@@ -1498,11 +1519,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("runtime", runtime)
                     .field("style", style)
                     .field_optional("name", name)
+                    .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .field_optional("self_parameter", self_parameter)
                     .end();
             }
             Definition::Implement {
+                export,
+                visibility,
                 static_parameters: _,
                 target_type: _,
                 super_type: _,
@@ -1510,7 +1534,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 where_clauses: _,
                 definitions: _,
             } => {
-                self.node("Definition::Implement", id.id).end();
+                self.node("Definition::Implement", id.id)
+                    .field_optional("export", export)
+                    .field_optional("visibility", visibility)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

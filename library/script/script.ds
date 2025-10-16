@@ -2,7 +2,7 @@ import destack
 
 /// A Script.
 @entity
-struct Script {
+export struct Script {
     /// The script code.
     code: string
 }

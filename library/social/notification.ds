@@ -1,7 +1,7 @@
 import destack
 
 /// Notification status.
-enum NotificationStatus {
+export enum NotificationStatus {
     Unread = 1
     Read = 2
     Dismissed = 3
@@ -11,30 +11,30 @@ enum NotificationStatus {
 
 /// Base Notification event.
 @event
-struct NotificationEvent {
+export struct NotificationEvent {
     /// The Notification self event pertains to.
     notification: Reference<Notification>
 }
 
 /// Notification sent.
 @event
-struct NotificationSentEvent: NotificationEvent { }
+export struct NotificationSentEvent: NotificationEvent { }
 /// Notification rescinded.
 @event
-struct NotificationRescindedEvent: NotificationEvent { }
+export struct NotificationRescindedEvent: NotificationEvent { }
 /// Notification read.
 @event
-struct NotificationReadEvent: NotificationEvent { }
+export struct NotificationReadEvent: NotificationEvent { }
 /// Notification dismissed.
 @event
-struct NotificationDismissedEvent: NotificationEvent { }
+export struct NotificationDismissedEvent: NotificationEvent { }
 /// Notification expired.
 @event
-struct NotificationExpiredEvent: NotificationEvent { }
+export struct NotificationExpiredEvent: NotificationEvent { }
 
 /// A Notification is a message about something.
 @entity
-struct Notification {
+export struct Notification {
     /// The title of the Notification.
     title: string
     /// The status of the Notification.

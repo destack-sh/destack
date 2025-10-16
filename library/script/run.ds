@@ -1,7 +1,7 @@
 import destack
 
 /// Run status values.
-enum RunStatus {
+export enum RunStatus {
     Scheduled = 2
     Running = 10
     Paused = 21
@@ -14,7 +14,7 @@ enum RunStatus {
 
 /// Base event regarding a Run.
 @event
-struct RunEvent {
+export struct RunEvent {
     /// The Run self event pertains to.
     run: Run
 
@@ -24,39 +24,39 @@ struct RunEvent {
 
 /// A Run was started.
 @event
-struct RunStartedEvent: RunEvent { }
+export struct RunStartedEvent: RunEvent { }
 
 /// A Run pause was requested.
 @event
-struct RunPauseRequestedEvent: RunEvent { }
+export struct RunPauseRequestedEvent: RunEvent { }
 
 /// A Run was paused.
 @event
-struct RunPausedEvent: RunEvent { }
+export struct RunPausedEvent: RunEvent { }
 
 /// A Run resume was requested.
 @event
-struct RunResumeRequestedEvent: RunEvent { }
+export struct RunResumeRequestedEvent: RunEvent { }
 
 /// A Run was resumed.
 @event
-struct RunResumedEvent: RunEvent { }
+export struct RunResumedEvent: RunEvent { }
 
 /// A Run stop was requested.
 @event
-struct RunStopRequestedEvent: RunEvent { }
+export struct RunStopRequestedEvent: RunEvent { }
 
 /// A Run failed.
 @event
-struct RunFailedEvent: RunEvent { }
+export struct RunFailedEvent: RunEvent { }
 
 /// A Run completed.
 @event
-struct RunCompletedEvent: RunEvent { }
+export struct RunCompletedEvent: RunEvent { }
 
 /// Run of an Action.
 @entity
-struct Run {
+export struct Run {
     /// The Action being run.
     action: Reference<Action>
     /// The current Run status.

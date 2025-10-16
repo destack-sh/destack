@@ -1,6 +1,6 @@
 import destack
 
-enum KeyModifier {
+export enum KeyModifier {
     Shift
     Alt
     Ctrl
@@ -9,7 +9,7 @@ enum KeyModifier {
 
 /// Keyboard base event
 @event
-struct KeyEvent: InputEvent {
+export struct KeyEvent: InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
     key: string
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
@@ -24,13 +24,13 @@ struct KeyEvent: InputEvent {
 
 /// Key pressed down
 @event
-struct KeyDownEvent: KeyEvent { }
+export struct KeyDownEvent: KeyEvent { }
 
 /// Key released
 @event
-struct KeyUpEvent: KeyEvent { }
+export struct KeyUpEvent: KeyEvent { }
 
 /// Key pressed
 @event
-struct KeyPressEvent: KeyEvent { }
+export struct KeyPressEvent: KeyEvent { }
 

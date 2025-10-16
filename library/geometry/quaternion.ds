@@ -1,7 +1,7 @@
 import destack
 
 /// A quaternion.
-struct Quaternion {
+export struct Quaternion {
     x: float32
     y: float32
     z: float32

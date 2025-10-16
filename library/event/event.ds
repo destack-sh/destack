@@ -2,7 +2,7 @@ import destack
 import destack.entity
 
 /// The consensus status of an Event.
-enum EventStatus {
+export enum EventStatus {
     Pending
     Staged
     Approved
@@ -12,7 +12,7 @@ enum EventStatus {
 }
 
 /// An immutable datum of something happening to an Entity.
-struct Event {
+export struct Event {
     /// The logical time self Event was created (system).
     createdAt: Epoch
     /// The exclusive owner of self Entity (the root on access).

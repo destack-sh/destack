@@ -2,7 +2,7 @@ import destack
 
 /// Base event regarding a Role.
 @event
-struct RoleEvent {
+export struct RoleEvent {
     /// The Role self event pertains to.
     role: Reference<Role>
     /// The actor Entity affected by the Role.
@@ -11,19 +11,19 @@ struct RoleEvent {
 
 /// A Role was assigned.
 @event
-struct RoleAssignedEvent {
+export struct RoleAssignedEvent {
     ..RoleEvent
 }
 
 /// A Role was unassigned.
 @event
-struct RoleUnassignedEvent {
+export struct RoleUnassignedEvent {
     ..RoleEvent
 }
 
 /// A Role for Actors to take.
 @entity
-struct Role {
+export struct Role {
     /// The Role type.
     type: RoleType
 }

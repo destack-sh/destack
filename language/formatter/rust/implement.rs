@@ -8,7 +8,7 @@ mod tests {
         assert_format!(
             "implement Foo {}",
             "implement Foo { }",
-            |p| p.eat_implement(),
+            |p| p.eat_implement(None, None),
             DystFormatOptions::default()
         );
     }
@@ -18,7 +18,7 @@ mod tests {
         assert_format!(
             "implement Foo: Bar { let X = 1 }",
             "implement Foo: Bar {\n\tlet X = 1\n}",
-            |p| p.eat_implement(),
+            |p| p.eat_implement(None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -28,7 +28,7 @@ mod tests {
         assert_format!(
             "implement<T> Foo<T> { }",
             "implement<T> Foo<T> { }",
-            |p| p.eat_implement(),
+            |p| p.eat_implement(None, None),
             DystFormatOptions::default()
         );
     }

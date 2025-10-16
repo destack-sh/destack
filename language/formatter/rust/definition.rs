@@ -619,6 +619,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
+                export,
+                visibility,
                 static_parameters: static_arguments,
                 target_type,
                 super_type,
@@ -626,6 +628,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 where_clauses,
                 expressions,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+
                 // keyword
                 write!(f, [Keyword::Implement])?;
 

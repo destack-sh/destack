@@ -1,9 +1,9 @@
 import destack
 
 /// Definition of a builtin Permission for a builtin Node.
-struct PermissionDefinition { }
+export struct PermissionDefinition { }
 
 /// A Permission for something.
 @entity
-struct Permission { }
+export struct Permission { }
 

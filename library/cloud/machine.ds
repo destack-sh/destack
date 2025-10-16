@@ -1,7 +1,7 @@
 import destack
 
 /// Types of machines that provide compute.
-enum MachineType {
+export enum MachineType {
     Runtime = 10
     Ubuntu = 1000
     Mac = 1100
@@ -11,7 +11,7 @@ enum MachineType {
 
 /// A Machine provides physical compute.
 @entity
-struct Machine {
+export struct Machine {
     /// Machine type.
     type: MachineType = MachineType.Runtime
     /// Runtime version string.

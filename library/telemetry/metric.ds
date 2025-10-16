@@ -2,11 +2,11 @@ import destack
 
 /// An Entity that represents a Metric.
 @entity
-struct Metric { }
+export struct Metric { }
 
 /// An Event that represents a Measurement.
 @event
-struct MeasurementEvent {
+export struct MeasurementEvent {
     /// The metric definition self measurement is for.
     definition: Reference<Metric>
 }

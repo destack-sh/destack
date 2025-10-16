@@ -1,8 +1,8 @@
-/// Marker interface for contexts.
-interface Context { }
+/// Marker export interface for contexts.
+export interface Context { }
 
 /// Default context.
-struct DefaultContext {
+export struct DefaultContext {
     /// The default allocator.
     defaultAllocator: Allocator
     /// The temporary allocator.

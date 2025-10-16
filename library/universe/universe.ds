@@ -1,7 +1,7 @@
 import destack
 
 /// Universe signup request.
-struct UniverseSignupRequest {
+export struct UniverseSignupRequest {
     /// The desired user name.
     name: string
     /// The email address.
@@ -11,13 +11,13 @@ struct UniverseSignupRequest {
 }
 
 /// Universe signup response.
-struct UniverseSignupResponse {
+export struct UniverseSignupResponse {
     /// The created User.
     user: User
 }
 
 /// Universe spawn request.
-struct UniverseSpawnRequest {
+export struct UniverseSpawnRequest {
     /// The Space name.
     name: string
     /// The desired hosting region.
@@ -27,14 +27,14 @@ struct UniverseSpawnRequest {
 }
 
 /// Universe spawn response.
-struct UniverseSpawnResponse {
+export struct UniverseSpawnResponse {
     /// The created Space.
     space: Space
 }
 
 /// The Destack computational universe.
 @entity
-struct Universe {
+export struct Universe {
     /// The current version of Destack.
     VERSION: string
     /// The float epsilon used for floating point comparisons.

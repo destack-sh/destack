@@ -1,7 +1,7 @@
 import destack
 
 /// Built-in easing types
-enum Easing {
+export enum Easing {
     Linear = 1
     EaseInQuad = 10
     EaseOutQuad = 11

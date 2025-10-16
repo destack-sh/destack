@@ -2,14 +2,14 @@ import destack
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
 @entity
-struct Reaction {
+export struct Reaction {
     /// The reaction content, e.g. an emoji.
     content: string
 }
 
 /// Base Reaction event.
 @event
-struct ReactionEvent {
+export struct ReactionEvent {
     /// The Reaction self event pertains to.
     reaction: Reference<Reaction>
     /// The reaction content.
@@ -18,9 +18,9 @@ struct ReactionEvent {
 
 /// Reaction added.
 @event
-struct ReactionAddedEvent: ReactionEvent { }
+export struct ReactionAddedEvent: ReactionEvent { }
 
 /// Reaction removed.
 @event
-struct ReactionRemovedEvent: ReactionEvent { }
+export struct ReactionRemovedEvent: ReactionEvent { }
 

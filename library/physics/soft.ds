@@ -2,13 +2,13 @@ import destack
 
 /// A deformable body in 2D
 @entity
-struct SoftBody2D {
+export struct SoftBody2D {
     ..Body2D
 }
 
 /// A deformable body in 3D
 @entity
-struct SoftBody3D {
+export struct SoftBody3D {
     ..Body3D
 }
 

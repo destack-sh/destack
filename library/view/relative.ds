@@ -1,26 +1,26 @@
 import destack
 
 /// The layout of elements
-enum Layout {
+export enum Layout {
     Stack = 1
     Grid = 2
 }
 
 /// The overflow behavior of elements
-enum Overflow {
+export enum Overflow {
     Hidden = 2
     Visible = 3
     Scroll = 4
 }
 
 /// The direction of elements
-enum Direction {
+export enum Direction {
     Horizontal = 1
     Vertical = 2
 }
 
 /// The distribution of elements
-enum Distribute {
+export enum Distribute {
     Start = 1
     Center = 2
     End = 3
@@ -30,14 +30,14 @@ enum Distribute {
 }
 
 /// The alignment of elements
-enum Align {
+export enum Align {
     Start = 1
     Center = 2
     End = 3
 }
 
 /// The position of elements
-enum Anchor {
+export enum Anchor {
     Relative = 1
     Absolute = 2
     Fixed = 3
@@ -45,7 +45,7 @@ enum Anchor {
 }
 
 /// The unit of a length value
-enum LengthType {
+export enum LengthType {
     Pixel = 1
     Percent = 2
     Fit = 3
@@ -53,7 +53,7 @@ enum LengthType {
 }
 
 /// An absolute or relative length value
-struct Length {
+export struct Length {
     /// The unit type for self length
     unit: LengthType
     /// The numeric value in the specified unit
@@ -61,7 +61,7 @@ struct Length {
 }
 
 /// A 2-dimensional position value (relative or absolute)
-struct Offset2 {
+export struct Offset2 {
     /// The positioning type (relative, absolute, etc.)
     type: Anchor
     /// Distance from top edge
@@ -75,7 +75,7 @@ struct Offset2 {
 }
 
 /// A 2-dimensional insets value (base + side overrides)
-struct Inset2 {
+export struct Inset2 {
     /// Top inset value
     top: int16
     /// Left inset value
@@ -87,7 +87,7 @@ struct Inset2 {
 }
 
 /// A 2-dimensional corners value (base + corner overrides)
-struct Corner2 {
+export struct Corner2 {
     /// Top-left corner radius
     topLeft: int16
     /// Top-right corner radius
@@ -99,7 +99,7 @@ struct Corner2 {
 }
 
 /// A 2-dimensional axis value (base + x/y overrides)
-struct Axis2 {
+export struct Axis2 {
     /// X-axis value
     x: int16
     /// Y-axis value
@@ -107,7 +107,7 @@ struct Axis2 {
 }
 
 /// A 3-dimensional axis value (base + x/y/z overrides)
-struct Axis3 {
+export struct Axis3 {
     /// X-axis value
     x: int16
     /// Y-axis value
@@ -117,7 +117,7 @@ struct Axis3 {
 }
 
 /// A 2-dimensional grid configuration value
-struct Grid2 {
+export struct Grid2 {
     /// Number of columns in the grid
     columns: int16
     /// Number of rows in the grid
@@ -131,7 +131,7 @@ struct Grid2 {
 }
 
 /// A 2-dimensional grid span value
-struct GridSpan2 {
+export struct GridSpan2 {
     /// Number of columns to span
     columns: int16
     /// Number of rows to span

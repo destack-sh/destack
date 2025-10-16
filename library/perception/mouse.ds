@@ -2,10 +2,10 @@ import destack
 
 /// A Mouse is a user input device that can be used to interact with the UI
 @entity
-struct Mouse2D: Pointer2D { }
+export struct Mouse2D: Pointer2D { }
 
 /// Mouse buttons
-enum MouseButton {
+export enum MouseButton {
     Left = 1
     Right = 2
     Middle = 3
@@ -13,29 +13,29 @@ enum MouseButton {
 
 /// Mouse-derived event with a button
 @event
-struct MouseEvent: PointerEvent {
+export struct MouseEvent: PointerEvent {
     button: MouseButton
 }
 
 /// Click event base
 @event
-struct ClickEvent: MouseEvent { }
+export struct ClickEvent: MouseEvent { }
 
 /// Single click
 @event
-struct SingleClickEvent: ClickEvent { }
+export struct SingleClickEvent: ClickEvent { }
 
 /// Double click
 @event
-struct DoubleClickEvent: ClickEvent { }
+export struct DoubleClickEvent: ClickEvent { }
 
 /// Triple click
 @event
-struct TripleClickEvent: ClickEvent { }
+export struct TripleClickEvent: ClickEvent { }
 
 /// Wheel scroll
 @event
-struct WheelEvent: MouseEvent {
+export struct WheelEvent: MouseEvent {
     delta: Vector2
 }
 
