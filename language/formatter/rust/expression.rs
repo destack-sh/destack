@@ -633,9 +633,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 expression,
             } => {
                 if operator.is_prefix() {
-                    write!(f, [expression, operator])?;
-                } else {
                     write!(f, [operator, expression])?;
+                } else {
+                    write!(f, [expression, operator])?;
                 }
             }
 

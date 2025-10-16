@@ -65,7 +65,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 pattern,
             } => {
                 if let Some(mutability) = mutability {
-                    write!(f, [mutability])?;
+                    write!(f, [mutability, space()])?;
                 }
                 write!(f, [name])?;
                 if let Some(pattern) = pattern {
@@ -152,7 +152,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 pattern,
             } => {
                 if let Some(mutability) = mutability {
-                    write!(f, [mutability])?;
+                    write!(f, [mutability, space()])?;
                 }
                 if let Some(pattern) = pattern {
                     write!(f, [name, token(": "), pattern])?;
@@ -166,7 +166,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 alias,
             } => {
                 if let Some(mutability) = mutability {
-                    write!(f, [mutability])?;
+                    write!(f, [mutability, space()])?;
                 }
                 write!(f, [name, token(": "), alias])?;
             }
