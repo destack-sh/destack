@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         let (pattern_id, guard) = {
-            // switch-style
+            // switch-style for #Leniency
             if is_switch {
                 // default case
                 if self.peek_keyword(Keyword::Default).is_ok() {
@@ -141,10 +141,14 @@ impl<'a> Parser<'a> {
                 // guard
                 let guard = if self.peek_keyword(Keyword::If).is_ok() {
                     self.eat_keyword(Keyword::If)?;
-                    let guard = self
-                        .with_options(self.options.nested_in_before_block(), |parser| {
-                            parser.try_eat_expression(TokenType::ArrowWide)
-                        })?;
+                    let guard = self.with_options(
+                        ParserOptions {
+                            in_match_case: true,
+                            in_before_block: true,
+                            ..Default::default()
+                        },
+                        |parser| parser.try_eat_expression(TokenType::ArrowWide),
+                    )?;
                     Some(guard)
                 } else {
                     None
