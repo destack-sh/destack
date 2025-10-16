@@ -12,6 +12,11 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
+        // visibility
+        if let Some(visibility) = self.visibility {
+            write!(f, [visibility, space()])?;
+        }
+
         // name
         if let Some(name) = self.name {
             write!(f, [name, token(": ")])?;

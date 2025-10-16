@@ -19,9 +19,9 @@ pub mod literal;
 pub mod r#match;
 pub mod path;
 pub mod pattern;
-pub mod r#struct;
 pub mod r#try;
 pub mod union;
+pub mod variant;
 pub mod r#where;
 pub mod with;
 
