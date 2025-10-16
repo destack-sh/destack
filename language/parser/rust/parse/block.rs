@@ -252,6 +252,31 @@ impl<'a> Parser<'a> {
             Ok(defer_id)
         }
     }
+
+    /// Eat an await expression.
+    ///
+    /// Examples:
+    /// ```
+    /// await someFunction()
+    /// ```
+    pub fn eat_await(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::Await)?;
+
+        // expression
+        let expression_id = self.eat_expression()?;
+
+        // await
+        let await_id = self.tree.insert(
+            Expression::Await {
+                expression: expression_id,
+            },
+            self.get_span_from(start),
+        );
+        Ok(await_id)
+    }
 }
 
 #[cfg(test)]
@@ -392,6 +417,21 @@ mod tests {
                 assert_expr_path!(parser, parser.tree.get(*value), "e");
             });
             assert!(expression.is_none());
+        });
+    }
+
+    #[test]
+    fn test_await_expression() {
+        let mut test = TestParser::new("await someFunction()");
+        let mut parser = test.prepare();
+        let await_id = parser.eat_await().unwrap();
+        // await someFunction()
+        assert_node!(parser.tree, await_id, Expression::Await { expression } => {
+            // someFunction()
+            assert_node!(parser.tree, *expression, Expression::Call { runtime: _, receiver, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
+                assert!(dynamic_arguments.is_empty());
+            });
         });
     }
 }

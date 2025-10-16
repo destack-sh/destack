@@ -475,7 +475,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty body
-                if expressions.is_empty() {
+                if expressions.is_empty() && fields.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());

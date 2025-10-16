@@ -1188,6 +1188,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Defer", _id.id).end();
             }
+            Expression::Await { expression: _ } => {
+                self.node("Expression::Await", _id.id).end();
+            }
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();
             }

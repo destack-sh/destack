@@ -533,6 +533,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             }
 
+            // await
+            Expression::Await { expression } => {
+                write!(f, [Keyword::Await, space(), expression])?;
+            }
+
             // return
             Expression::Return { value } => {
                 write!(f, [token("return")])?;
@@ -781,6 +786,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::Or => token("||"),
             BinaryOperator::Coalesce => token("??"),
             BinaryOperator::Cast => token("as"),
+            BinaryOperator::In => token("in"),
+            BinaryOperator::Of => token("of"),
+            BinaryOperator::Is => token("is"),
         };
         write!(f, [token])
     }
