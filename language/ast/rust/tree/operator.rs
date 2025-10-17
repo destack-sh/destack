@@ -91,8 +91,6 @@ pub enum UnaryOperator {
     ElementwiseNot = 1494,
     /// `*`
     Dereference = 1493,
-    /// `$`
-    Dynamic = 1492,
     /// `..`
     Spread = 1491,
 }
@@ -122,7 +120,6 @@ impl UnaryOperator {
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
             | UnaryOperator::Dereference
-            | UnaryOperator::Dynamic
             | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
         }
@@ -139,7 +136,6 @@ impl UnaryOperator {
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
-            TokenType::Dynamic => Some(UnaryOperator::Dynamic),
             TokenType::Range => Some(UnaryOperator::Spread),
             TokenType::RangeWide => Some(UnaryOperator::Spread),
             _ => None,
@@ -169,7 +165,6 @@ impl UnaryOperator {
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
             UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
             UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::Dynamic => TokenType::Dynamic,
             UnaryOperator::Spread => TokenType::Range,
         }
     }
@@ -252,6 +247,8 @@ pub enum BinaryOperator {
     Of = 702,
     /// `is`
     Is = 701,
+    /// `instanceof`
+    Instanceof = 700,
 }
 
 impl BinaryOperator {
@@ -300,6 +297,7 @@ impl BinaryOperator {
             BinaryOperator::In => OperatorPrecedence::Logical,
             BinaryOperator::Of => OperatorPrecedence::Logical,
             BinaryOperator::Is => OperatorPrecedence::Logical,
+            BinaryOperator::Instanceof => OperatorPrecedence::Logical,
         }
     }
 
@@ -355,6 +353,7 @@ impl BinaryOperator {
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
             TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
             TokenType::Identifier if token_str == "is" => Some(BinaryOperator::Is),
+            TokenType::Identifier if token_str == "instanceof" => Some(BinaryOperator::Instanceof),
             _ => None,
         }
     }

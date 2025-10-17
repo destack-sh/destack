@@ -381,6 +381,14 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Reference { mutability, right };
                 self.tree.insert(expression, self.get_span_from(start))
             }
+            // dynamic (`$` or `$var` or `$const`)
+            else if self.peek_token(TokenType::Dynamic).is_ok() {
+                self.bump(); // eat $
+                let mutability = self.eat_scoped_mutability_maybe()?;
+                let right = self.eat_expression()?;
+                let expression = Expression::Dynamic { mutability, right };
+                self.tree.insert(expression, self.get_span_from(start))
+            }
             //
             // ------------------------------------------------------------
             // Declarations

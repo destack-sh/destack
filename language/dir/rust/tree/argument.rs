@@ -58,3 +58,10 @@ pub enum Argument {
 impl Node for Argument {
     const KIND: NodeType = NodeType::Argument;
 }
+
+impl Argument {
+    /// Whether the argument is evaluated (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
+    }
+}

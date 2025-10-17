@@ -15,7 +15,6 @@ impl<'a> Compiler<'a> {
             ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
-            ast::UnaryOperator::Dynamic => UnaryOperator::Virtual,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
         }
     }
@@ -71,6 +70,7 @@ impl<'a> Compiler<'a> {
             ast::BinaryOperator::In => dyst_dir::BinaryOperator::In,
             ast::BinaryOperator::Of => dyst_dir::BinaryOperator::Of,
             ast::BinaryOperator::Is => dyst_dir::BinaryOperator::Is,
+            ast::BinaryOperator::Instanceof => dyst_dir::BinaryOperator::Instanceof,
         }
     }
 

@@ -309,6 +309,6 @@ impl<'a> Compiler<'a> {
 
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
-        self.tree.insert(expression, source_id, expression_id)
+        self.tree.insert_from_ast(expression, source_id, expression_id)
     }
 }

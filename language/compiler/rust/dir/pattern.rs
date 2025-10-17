@@ -125,7 +125,7 @@ impl<'a> Compiler<'a> {
                 Pattern::Union { patterns }
             }
         };
-        self.tree.insert(pattern, source_id, pattern_id)
+        self.tree.insert_from_ast(pattern, source_id, pattern_id)
     }
 
     /// Lower a pattern field to a DIR pattern field.
@@ -176,6 +176,6 @@ impl<'a> Compiler<'a> {
                 PatternField::Positional { pattern }
             }
         };
-        self.tree.insert(pattern_field, source_id, pattern_field_id)
+        self.tree.insert_from_ast(pattern_field, source_id, pattern_field_id)
     }
 }

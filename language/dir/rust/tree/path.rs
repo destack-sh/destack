@@ -2,16 +2,6 @@ use dyst_container::SmallVec;
 
 use crate::{Definition, Intrinsic, NodeId, StringId};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Symbol {
-    // NOTE #Incomplete: Symbol?
-}
-
-/// The id of a symbol.
-#[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct SymbolId(pub u32);
-
 /// The base of a path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathBase {
@@ -46,6 +36,13 @@ pub enum Path {
     Error,
 }
 
+impl Path {
+    /// Whether the path is evaluated (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        matches!(self, Path::Intrinsic { .. } | Path::Definition { .. })
+    }
+}
+
 /// A destination is a target for a control flow statement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Destination {
@@ -55,4 +52,11 @@ pub enum Destination {
     Definition { definition: NodeId<Definition> },
     /// Error destination.
     Error,
+}
+
+impl Destination {
+    /// Whether the destination is evaluated (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        matches!(self, Destination::Definition { .. })
+    }
 }

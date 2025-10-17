@@ -18,7 +18,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Parameter::Scalar { name, ty, default },
                     source_id,
                     parameter_id,
@@ -28,7 +28,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 self.tree
-                    .insert(Parameter::Variadic { name, ty }, source_id, parameter_id)
+                    .insert_from_ast(Parameter::Variadic { name, ty }, source_id, parameter_id)
             }
         }
     }
@@ -45,7 +45,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::Named { name, value } => {
                 let name = self.intern_string(source_id, *name);
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed { name, value },
                     source_id,
                     argument_id,
@@ -58,8 +58,8 @@ impl<'a> Compiler<'a> {
                 };
                 let value = self
                     .tree
-                    .insert(Expression::Path { path }, source_id, argument_id);
-                self.tree.insert(
+                    .insert_from_ast(Expression::Path { path }, source_id, argument_id);
+                self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed { name, value },
                     source_id,
                     argument_id,
@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Argument::Positional { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Argument::UnevaluatedPositional { value },
                     source_id,
                     argument_id,
@@ -75,7 +75,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Argument::Spread { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Argument::UnevaluatedSpread { value },
                     source_id,
                     argument_id,

@@ -428,6 +428,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
+        Expression::Dynamic {
+            mutability: _,
+            right,
+        } => {
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+
         Expression::Member { receiver, path: _ } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);

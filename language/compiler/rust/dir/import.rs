@@ -41,7 +41,7 @@ impl<'a> Compiler<'a> {
                         name,
                         alias,
                     };
-                    self.tree.insert(import_item, source_id, origin_id)
+                    self.tree.insert_from_ast(import_item, source_id, origin_id)
                 })
                 .collect();
         }
@@ -51,7 +51,7 @@ impl<'a> Compiler<'a> {
                 target,
                 alias: lowered_alias,
             };
-            vec![self.tree.insert(import_item, source_id, origin_id)]
+            vec![self.tree.insert_from_ast(import_item, source_id, origin_id)]
         } else {
             Vec::new()
         }

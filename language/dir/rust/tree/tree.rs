@@ -26,9 +26,11 @@ pub struct NodeTree {
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The source AST ids of all nodes. Index is the global node id.
-    pub(crate) ast_id_by_node_id: Vec<u32>,
-    /// The node id by AST source / node id.
-    pub(crate) node_id_by_ast_id: HashMap<(SourceId, u32), u32>,
+    pub(crate) ast_id_by_node_id: Vec<Option<u32>>,
+    /// The alias node id by AST source / node id.
+    pub(crate) alias_node_id_by_ast_id: HashMap<(SourceId, u32), u32>,
+    /// The alias node id by DIR source / node id.
+    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
 
     // per-node arenas
     // groupings
@@ -84,7 +86,8 @@ impl NodeTree {
             type_by_node_id: Vec::with_capacity(capacity),
             source_by_node_id: Vec::with_capacity(capacity),
             ast_id_by_node_id: Vec::with_capacity(capacity),
-            node_id_by_ast_id: HashMap::new(),
+            alias_node_id_by_ast_id: HashMap::new(),
+            alias_node_id_by_dir_id: HashMap::new(),
             annotations_per_node_id: HashMap::new(),
             // groupings
             expressions: NodeArena::new(),
@@ -111,8 +114,23 @@ impl NodeTree {
         }
     }
 
-    /// Allocate a new node in the tree.
-    pub fn insert<T, U>(
+    /// Allocate a new node in the tree from a source AST node.
+    fn insert<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
+        self.type_by_node_id.push(T::KIND);
+        let local_id = <Self as NodeTreeStore<T>>::push(self, node);
+        self.local_id_by_node_id.push(local_id);
+        self.source_by_node_id.push(source_id);
+        NodeId::new(global_id)
+    }
+
+    /// Allocate a new node in the DIR tree lowered from a source AST node.
+    pub fn insert_from_ast<T, U>(
         &mut self,
         node: T,
         source_id: SourceId,
@@ -124,27 +142,44 @@ impl NodeTree {
         U: ast::Node,
         ast::NodeTree: ast::NodeTreeStore<U>,
     {
-        let global_id = self.next_global_id;
-        self.next_global_id = global_id + 1;
-        self.type_by_node_id.push(T::KIND);
-        let local_id = <Self as NodeTreeStore<T>>::push(self, node);
-        self.local_id_by_node_id.push(local_id);
-
-        self.source_by_node_id.push(source_id);
-        self.ast_id_by_node_id.push(ast_node_id.id);
-        self.node_id_by_ast_id
-            .insert((source_id, ast_node_id.id), global_id);
-
-        NodeId::new(global_id)
+        let node_id = self.insert(node, source_id);
+        self.ast_id_by_node_id.push(Some(ast_node_id.id));
+        self.alias_node_id_by_ast_id
+            .insert((source_id, ast_node_id.id), node_id.id);
+        node_id
     }
 
-    /// Add an alias for an AST id.
-    pub fn alias<T>(&mut self, source_id: SourceId, ast_id: u32, alias: NodeId<T>)
+    /// Allocate a new node in the DIR tree derived from another node.
+    pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+        U: Node,
+        Self: NodeTreeStore<U>,
+    {
+        let source_id = self.source_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, source_id);
+        self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
+        node_id
+    }
+
+    /// Add an alias node for a lowered AST id.
+    pub fn alias_from_ast<T>(&mut self, source_id: SourceId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        self.node_id_by_ast_id.insert((source_id, ast_id), alias.id);
+        self.alias_node_id_by_ast_id
+            .insert((source_id, ast_id), alias.id);
+    }
+
+    /// Add an alias node for a derived DIR id.
+    pub fn alias_from_dir<T>(&mut self, dir_id: u32, alias: NodeId<T>)
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
     }
 
     /// Get the type of an untyped node id.
@@ -175,24 +210,31 @@ impl NodeTree {
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
     }
 
-    /// Get the nodes for all nodes of a given type.
+    /// Iterate over all nodes of a given type together with their NodeId.
     #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<NodeId<T>>
+    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
     where
-        T: Node,
+        T: Node + 'a,
+        Self: NodeTreeStore<T>,
     {
-        let mut nodes = Vec::new();
-        for (idx, ty) in self.type_by_node_id.iter().enumerate() {
-            if *ty == T::KIND {
-                nodes.push(NodeId::new(idx as u32));
-            }
-        }
-        nodes
+        self
+            .local_id_by_node_id
+            .iter()
+            .enumerate()
+            .filter_map(|(global_index, &local_index)| {
+                if self.type_by_node_id[global_index] == T::KIND {
+                    let node_id = NodeId::new(global_index as u32);
+                    let node = <Self as NodeTreeStore<T>>::get(self, local_index);
+                    Some((node_id, node))
+                } else {
+                    None
+                }
+            })
     }
 
-    // Get the source of a node by its global id.
-    #[inline]
-    pub fn get_source(&self, node_id: u32) -> (SourceId, u32) {
+    /// Get the source and AST id of a node by its global id.
+    /// Every DIR node has a source, but only some come directly from AST nodes. 
+    pub fn get_source(&self, node_id: u32) -> (SourceId, Option<u32>) {
         (
             self.source_by_node_id[node_id as usize],
             self.ast_id_by_node_id[node_id as usize],
@@ -202,7 +244,9 @@ impl NodeTree {
     // Get the node id by its source / AST id.
     #[inline]
     pub fn get_node_id_by_ast_id(&self, source_id: SourceId, ast_id: u32) -> Option<u32> {
-        self.node_id_by_ast_id.get(&(source_id, ast_id)).copied()
+        self.alias_node_id_by_ast_id
+            .get(&(source_id, ast_id))
+            .copied()
     }
 
     /// Append a doc to a node by its global id.

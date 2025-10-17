@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
-    ImportItem, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral,
-    ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility,
+    ImportItem, MatchCase, MatchSource, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime,
+    ScalarLiteral, ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +48,11 @@ pub enum Expression {
     },
     /// Reference operation (e.g., `&x`).
     Reference {
+        mutability: Option<ScopedMutability>,
+        right: NodeId<Expression>,
+    },
+    /// Dynamic operation (e.g., `$x`).
+    Dynamic {
         mutability: Option<ScopedMutability>,
         right: NodeId<Expression>,
     },
@@ -170,6 +175,58 @@ impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
 }
 
+impl Expression {
+    /// Whether the expression is evaluated (ignoring child nodes).
+    /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        match self {
+            // values 
+            Expression::Path { path } => path.is_evaluated_self(),
+            Expression::ScalarLiteral { .. }
+            | Expression::TypeLiteral { .. }
+            | Expression::RangeLiteral { .. }
+            | Expression::ArrayLiteral { .. }
+            | Expression::TupleLiteral { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::TreeLiteral { .. } => true,
+
+            // control flow
+            Expression::If { .. }
+            | Expression::Loop { .. }
+            | Expression::Match { .. }
+            | Expression::Break { .. }
+            | Expression::Continue { .. }
+            | Expression::Defer { .. }
+            | Expression::Return { .. } => false,
+
+            // definitions and declarations
+            Expression::Definition { .. }
+            | Expression::With { .. }
+            | Expression::Import { .. }
+            | Expression::Export { .. }
+            | Expression::Let { .. }
+            | Expression::Type { .. } => true,
+
+            // operators
+            Expression::Block { .. }
+            | Expression::Unary { .. }
+            | Expression::Reference { .. }
+            | Expression::Dynamic { .. }
+            | Expression::Binary { .. }
+            | Expression::AssignDirect { .. }
+            | Expression::AssignBinary { .. }
+            | Expression::Member { .. }
+            | Expression::Call { .. }
+            | Expression::Index { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. } => false,
+
+            // error
+            Expression::Error => false,
+        }
+    }
+}
+
 /// A LoopSource is where the loop was lowered from.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopSource {
@@ -192,39 +249,4 @@ pub struct WithClause {
 
 impl Node for WithClause {
     const KIND: NodeType = NodeType::WithClause;
-}
-
-/// A MatchSource is where the match was lowered from.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum MatchSource {
-    /// Match expression (regular match with cases).
-    Match,
-    /// Explicit try expression or block (`try { ... }` with optional catch).
-    Try,
-    /// Maybe unary expression (postfix `?`).
-    Maybe,
-    /// Must unary expression (postfix `!`).
-    Must,
-}
-
-/// A MatchCase is a match case inside a Match expression.
-/// MatchCases can be any Pattern and can have an optional `if` guard.
-#[derive(Debug, Clone, PartialEq)]
-pub enum MatchCase {
-    /// A match case with an expression body.
-    Expression {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Expression>,
-        guard: Option<NodeId<Expression>>,
-    },
-    /// A match case with a block body.
-    Block {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Block>,
-        guard: Option<NodeId<Expression>>,
-    },
-}
-
-impl Node for MatchCase {
-    const KIND: NodeType = NodeType::MatchCase;
 }

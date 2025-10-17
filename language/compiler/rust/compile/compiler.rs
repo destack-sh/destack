@@ -5,7 +5,7 @@ use dyst_session::Session;
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
 use dyst_source::SourceId;
 
-use crate::AstNodeId;
+use crate::{AstNodeId, CompilerQueue};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -43,6 +43,8 @@ pub struct Compiler<'s> {
     pub options: CompilerOptions,
     /// The mode the compiler is in.
     pub mode: CompilerMode,
+    /// The queue of compiler messages.
+    pub queue: CompilerQueue,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -58,6 +60,7 @@ impl<'s> Compiler<'s> {
             strings: StringPool::new(),
             options,
             mode: CompilerMode::Parsed,
+            queue: CompilerQueue::new(),
         }
     }
 

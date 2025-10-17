@@ -88,6 +88,12 @@ pub enum Type {
         target: NodeId<Type>,
     },
 
+    /// Range type `T..T` (or `T..=T` for inclusive range).
+    Range {
+        start: NodeId<Type>,
+        end: NodeId<Type>,
+        is_inclusive: bool,
+    },
     /// Array type `T[N]`. Must have static length.
     Array {
         element: NodeId<Type>,
@@ -111,6 +117,16 @@ pub enum Type {
 
 impl Node for Type {
     const KIND: NodeType = NodeType::Type;
+}
+
+impl Type {
+    /// Whether the type is evaluated (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        !matches!(
+            self,
+            Type::UnevaluatedExpression(_) | Type::UnevaluatedSelf | Type::Error
+        )
+    }
 }
 
 /// An IntType represents arbitrary width integer with signedness.
