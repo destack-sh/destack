@@ -37,8 +37,8 @@ pub enum Path {
 }
 
 impl Path {
-    /// Whether the path is evaluated (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    /// Whether the path is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, Path::Intrinsic { .. } | Path::Definition { .. })
     }
 }
@@ -55,8 +55,8 @@ pub enum Destination {
 }
 
 impl Destination {
-    /// Whether the destination is evaluated (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    /// Whether the destination is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, Destination::Definition { .. })
     }
 }

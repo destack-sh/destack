@@ -176,12 +176,12 @@ impl Node for Expression {
 }
 
 impl Expression {
-    /// Whether the expression is evaluated (ignoring child nodes).
+    /// Whether the expression is resolved (ignoring child nodes).
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    pub fn is_resolved(&self) -> bool {
         match self {
-            // values 
-            Expression::Path { path } => path.is_evaluated_self(),
+            // values
+            Expression::Path { path } => path.is_resolved(),
             Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
             | Expression::RangeLiteral { .. }

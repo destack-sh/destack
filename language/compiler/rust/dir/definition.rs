@@ -32,12 +32,16 @@ impl<'a> Compiler<'a> {
                     items.as_ref().map(|items| items.as_slice()),
                 );
                 let definition = Definition::Import { items };
-                Some(self.tree.insert_from_ast(definition, source_id, expression_id))
+                Some(
+                    self.tree
+                        .insert_from_ast(definition, source_id, expression_id),
+                )
             }
             _ => None,
         };
         if let Some(definition) = definition {
-            self.tree.alias_from_ast(source_id, expression_id.id, definition);
+            self.tree
+                .alias_from_ast(source_id, expression_id.id, definition);
         }
         definition
     }

@@ -60,10 +60,10 @@ impl Annotation {
         }
     }
 
-    /// Whether this annotation is evaluated (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    /// Whether this annotation is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         match self.receiver() {
-            Some(receiver) => receiver.is_evaluated_self(),
+            Some(receiver) => receiver.is_resolved(),
             None => true,
         }
     }

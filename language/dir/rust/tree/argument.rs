@@ -60,8 +60,8 @@ impl Node for Argument {
 }
 
 impl Argument {
-    /// Whether the argument is evaluated (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    /// Whether the argument is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
     }
 }

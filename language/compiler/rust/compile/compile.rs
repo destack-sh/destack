@@ -4,63 +4,27 @@ use dyst_dir::{
     Annotation, Argument, Expression, Node, NodeId, NodeIdAny, NodeTreeStore, NodeType, Type,
 };
 
-use crate::{AstNodeIdAny, Compiler, CompilerMode};
-
-/// Request to statically evaluate something to a value in-place.
-#[derive(Debug, Clone)]
-pub enum EvaluateRequest {
-    /// Evaluate an Expression fully (in-place).
-    EvaluateExpression { expression: NodeId<Expression> },
-    /// Evaluate a Type to its Type value (in-place).
-    EvaluateType { ty: NodeId<Type> },
-    /// Evaluate an Argument (in-place).
-    EvaluateArgument { argument: NodeId<Argument> },
-    /// Evaluate an Annotation fully (in-place).
-    EvaluateAnnotation { annotation: NodeId<Annotation> },
-}
-
-/// Error when evaluating something statically.
-#[derive(Debug, Clone)]
-pub enum EvaluateError {
-    NotYetEvaluatable {
-        node_id: NodeIdAny,
-        depends_on: Option<NodeIdAny>,
-    },
-}
-
-impl std::fmt::Display for EvaluateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
-pub type EvaluateResult<T> = Result<T, EvaluateError>;
-
-/// Request to check something statically.
-#[derive(Debug, Clone)]
-pub enum CheckRequest {
-    /// Typecheck a node.
-    CheckType { node: NodeIdAny },
-}
-
-/// Request to lower something.
-#[derive(Debug, Clone)]
-pub enum LowerRequest {
-    /// Lower a node to DIR.
-    LowerToDir { node: AstNodeIdAny },
-    /// Lower a node to MIR.
-    LowerToMir { node: AstNodeIdAny },
-}
+use crate::{
+    Compiler, CompilerMode, ExecuteRequest, LowerRequest, ResolveRequest, ValidateRequest,
+};
 
 /// Message from the compiler during compilation.
 #[derive(Debug, Clone)]
 pub enum CompilerMessage {
-    /// Request to evaluate something statically.
-    EvaluateRequest(EvaluateRequest),
-    /// Request to check something statically.
-    CheckRequest(CheckRequest),
-    /// Request to lower something.
+    /// Request to resolve something statically.
+    ResolveRequest(ResolveRequest),
+    /// Request to validate something statically.
+    ValidateRequest(ValidateRequest),
+    /// Execute something at compile time.
+    ExecuteRequest(ExecuteRequest),
+    /// Lower something to DIR/MIR.
     LowerRequest(LowerRequest),
+}
+
+/// A result of compiling something.
+pub trait CompileResult {
+    /// The node that this result depends on.
+    fn depends_on(&self) -> Option<NodeIdAny>;
 }
 
 /// Queue of compiler messages.
@@ -100,14 +64,14 @@ impl CompilerQueue {
 }
 
 impl<'s> Compiler<'s> {
-    /// Evaluate compile time constructs and check compile time invariants.
-    /// Runs until there is nothing left to evaluate.
+    /// Resolve compile time constructs and check compile time invariants.
+    /// Runs until there is nothing left to resolve.
     pub fn compile(&mut self) {
         assert!(self.mode == CompilerMode::Parsed);
         self.mode = CompilerMode::Compiling;
 
-        // process all unevaluated nodes
-        self.queue_all_unevaluated_nodes();
+        // process all unresolved nodes
+        self.queue_all_unresolved_nodes();
         while let Some(message) = self.queue.pop_front() {
             self.process_message(message);
         }
@@ -115,15 +79,15 @@ impl<'s> Compiler<'s> {
         self.mode = CompilerMode::Compiled;
     }
 
-    // Generate messages for all unevaluated nodes.
-    fn queue_all_unevaluated_nodes(&mut self) {
+    // Generate messages for all unresolved nodes.
+    fn queue_all_unresolved_nodes(&mut self) {
         assert!(self.queue.is_empty());
 
         // expressions
         for (expression_id, expression) in self.tree.iter_nodes::<Expression>() {
-            if !expression.is_evaluated_self() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateExpression {
+            if !expression.is_resolved() {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveExpression {
                         expression: expression_id,
                     },
                 ));
@@ -132,18 +96,18 @@ impl<'s> Compiler<'s> {
 
         // types
         for (type_id, type_) in self.tree.iter_nodes::<Type>() {
-            if !type_.is_evaluated_self() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateType { ty: type_id },
+            if !type_.is_resolved() {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveType { ty: type_id },
                 ));
             }
         }
 
         // arguments
         for (argument_id, argument) in self.tree.iter_nodes::<Argument>() {
-            if !argument.is_evaluated_self() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateArgument {
+            if !argument.is_resolved() {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveArgument {
                         argument: argument_id,
                     },
                 ));
@@ -152,9 +116,9 @@ impl<'s> Compiler<'s> {
 
         // annotations
         for (annotation_id, annotation) in self.tree.iter_nodes::<Annotation>() {
-            if !annotation.is_evaluated_self() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateAnnotation {
+            if !annotation.is_resolved() {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveAnnotation {
                         annotation: annotation_id,
                     },
                 ));
@@ -162,58 +126,56 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    // Queue a node to be evaluated.
-    fn queue_evaluate_node<T>(&mut self, node_id: NodeId<T>)
+    // Queue a node to be resolved.
+    fn queue_resolve_node<T>(&mut self, node_id: NodeId<T>)
     where
         Self: NodeTreeStore<T>,
         T: Node,
     {
         match T::KIND {
             NodeType::Expression => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateExpression {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveExpression {
                         expression: NodeId::new(node_id.id),
                     },
                 ));
             }
             NodeType::Type => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateType {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveType {
                         ty: NodeId::new(node_id.id),
                     },
                 ));
             }
             NodeType::Argument => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateArgument {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveArgument {
                         argument: NodeId::new(node_id.id),
                     },
                 ));
             }
             NodeType::Annotation => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateAnnotation {
+                self.queue.push_back(CompilerMessage::ResolveRequest(
+                    ResolveRequest::ResolveAnnotation {
                         annotation: NodeId::new(node_id.id),
                     },
                 ));
             }
-            _ => panic!("unexpected node to evaluate: {node_id:?}"),
+            _ => panic!("unexpected node to resolve: {node_id:?}"),
         }
     }
 
     fn process_message(&mut self, message: CompilerMessage) {
         match message {
-            CompilerMessage::EvaluateRequest(request) => {
+            CompilerMessage::ResolveRequest(request) => {
                 let result = match request {
-                    EvaluateRequest::EvaluateExpression { expression } => {
-                        self.evaluate_expression(expression)
+                    ResolveRequest::ResolveExpression { expression } => {
+                        self.resolve_expression(expression)
                     }
-                    EvaluateRequest::EvaluateType { ty } => self.evaluate_type(ty),
-                    EvaluateRequest::EvaluateArgument { argument } => {
-                        self.evaluate_argument(argument)
-                    }
-                    EvaluateRequest::EvaluateAnnotation { annotation } => {
-                        self.evaluate_annotation(annotation)
+                    ResolveRequest::ResolveType { ty } => self.resolve_type(ty),
+                    ResolveRequest::ResolveArgument { argument } => self.resolve_argument(argument),
+                    ResolveRequest::ResolveAnnotation { annotation } => {
+                        self.resolve_annotation(annotation)
                     }
                 };
             }

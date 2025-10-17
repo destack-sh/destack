@@ -26,7 +26,8 @@ impl<'a> Compiler<'a> {
                 VariantField::Positional { ty, default }
             }
         };
-        self.tree.insert_from_ast(variant_field, source_id, field_id)
+        self.tree
+            .insert_from_ast(variant_field, source_id, field_id)
     }
 
     /// Lower an AST struct to a DIR variant.
