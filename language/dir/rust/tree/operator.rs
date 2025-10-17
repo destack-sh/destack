@@ -103,6 +103,8 @@ pub enum BinaryOperator {
     Is,
     /// `instanceof`
     Instanceof,
+    /// `satisfies`
+    Satisfies,
 }
 
 /// An AssignOperator is an assignment type.

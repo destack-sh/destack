@@ -1,8 +1,9 @@
 use std::str::FromStr;
-
-/// A contextual keyword.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
+    // ------------------------------------------------------------
+    // Modifiers
+    // ------------------------------------------------------------
     /// Visibility modifier
     Public,
     /// Visibility modifier
@@ -11,32 +12,56 @@ pub enum Keyword {
     Internal,
     /// Visibility modifier
     Private,
-    /// Import an item.
-    Import,
-    /// Export an item.
-    Export,
+    /// Constant modifier.
+    Const,
+    /// Readonly modifier (alias).
+    Readonly,
+    /// Mutability modifier (alias).
+    Mut,
+    /// Static modifier (reserved).
+    Static,
+    /// Final modifier (reserved).  
+    Final,
     /// Default export mode.
     Default,
-    /// From expression.
-    From,
+
+    // ------------------------------------------------------------
+    // Context
+    // ------------------------------------------------------------
     /// Refer to the containing instance type.
     Self_,
     /// Refer to the containing instance type (alias to `self`).
     This,
     /// Super expression (reserved).
     Super,
-    /// Extends (alias).
-    Extends,
-    /// Implements (alias).
-    Implements,
-    /// Override (reserved).
-    Override,
     /// Refer to the containing package (alias).
     Package,
+
+    // ------------------------------------------------------------
+    // Dependencies
+    // ------------------------------------------------------------
+    /// Import an item.
+    Import,
+    /// Export an item.
+    Export,
+    /// From expression.
+    From,
+    /// Import an item (reserved).
+    Use,
+    /// With expression to declare use of items for a scope.
+    With,
+    /// Declare a namespace (reserved).
+    Namespace,
+
+    // ------------------------------------------------------------
+    // Definitions
+    // ------------------------------------------------------------
+    /// Let expression.
+    Let,
+    /// Var expression.
+    Var,
     /// Declare a Module.
     Module,
-    /// Declare a tuple (reserved).
-    Tuple,
     /// Declare a type.
     Type,
     /// Declare a Struct.
@@ -55,48 +80,74 @@ pub enum Keyword {
     Function,
     /// Implement a type.
     Implement,
-    /// Import an item (alias).
-    Use,
-    /// With expression to declare use of items for a scope.
-    With,
+    /// Declare statement (reserved).
+    Declare,
+    /// New expression (reserved).
+    New,
+    /// Constructor (reserved).
+    Constructor,
+
+    // ------------------------------------------------------------
+    // Typing
+    // ------------------------------------------------------------
+    /// Extends (alias).
+    Extends,
+    /// Implements (alias).
+    Implements,
+    /// Satisfies (reserved).
+    Satisfies,
+    /// Override (reserved).
+    Override,
+    /// Declare a tuple (reserved).
+    Tuple,
+    /// Instanceof test.
+    Instanceof,
     /// Where assertion.
     Where,
+    /// Typeof expression (reserved).
+    Typeof,
+    /// Any expression (alias).
+    Any,
+    /// Never expression (alias).
+    Never,
     /// Alias or cast an item.
     As,
     /// Is test.
     Is,
-    /// Instanceof test.
-    Instanceof,
-    /// Let expression.
-    Let,
-    /// Var expression.
-    Var,
-    /// Constant modifier.
-    Const,
-    /// Readonly modifier (alias).
-    Readonly,
-    /// Mutability modifier (alias).
-    Mut,
-    /// Static modifier (reserved).
-    Static,
-    /// Final modifier (reserved).  
-    Final,
-    /// Do expression (reserved).
-    Do,
-    /// Conditional expression.
-    If,
-    /// Conditional expression.
-    Else,
-    /// Loop expression.
-    While,
-    /// Loop expression.
-    For,
     /// In expression.
     In,
     /// Of expression.
     Of,
+
+    // ------------------------------------------------------------
+    // Branching
+    // ------------------------------------------------------------
+    /// Conditional expression.
+    If,
+    /// Conditional expression.
+    Else,
+    /// Match expression.
+    Match,
+    /// Switch expression (reserved).
+    Switch,
+    /// Case expression (reserved).
+    Case,
+
+    // ------------------------------------------------------------
+    // Loops
+    // ------------------------------------------------------------
+    /// Do expression (reserved).
+    Do,
+    /// Loop expression.
+    While,
+    /// Loop expression.
+    For,
     /// Loop expression.
     Loop,
+
+    // ------------------------------------------------------------
+    // Flow control
+    // ------------------------------------------------------------
     /// Break expression.
     Break,
     /// Continue expression.
@@ -107,12 +158,10 @@ pub enum Keyword {
     Return,
     /// Yield expression (reserved).
     Yield,
-    /// Match expression.
-    Match,
-    /// Switch expression (reserved).
-    Switch,
-    /// Case expression (reserved).
-    Case,
+
+    // ------------------------------------------------------------
+    // Errors
+    // ------------------------------------------------------------
     /// Try expression.
     Try,
     /// Catch expression.
@@ -121,6 +170,10 @@ pub enum Keyword {
     Throw,
     /// Finally expression (reserved).
     Finally,
+
+    // ------------------------------------------------------------
+    // Async & Dispatch
+    // ------------------------------------------------------------
     /// Async expression (reserved).
     Async,
     /// Await expression (reserved).
@@ -129,96 +182,108 @@ pub enum Keyword {
     Unsafe,
     /// Move expression (reserved).
     Move,
-    /// New expression (reserved).
-    New,
-    /// Constructor (reserved).
-    Constructor,
     /// Dynamic expression (reserved).
     Dynamic,
     /// Virtual expression (reserved).
     Virtual,
-    /// Typeof expression (reserved).
-    Typeof,
-    /// Any expression (alias).
-    Any,
-    /// Never expression (alias).
-    Never,
 }
 
 impl Keyword {
     #[inline]
     pub const fn as_str(&self) -> &'static str {
         match self {
+            // modifiers
             Keyword::Public => "public",
-            Keyword::Private => "private",
             Keyword::Protected => "protected",
             Keyword::Internal => "internal",
-            Keyword::Import => "import",
-            Keyword::Export => "export",
-            Keyword::Default => "default",
-            Keyword::From => "from",
-            Keyword::Self_ => "self",
-            Keyword::This => "this",
-            Keyword::Super => "super",
-            Keyword::Override => "override",
-            Keyword::Package => "package",
-            Keyword::Module => "module",
-            Keyword::Tuple => "tuple",
-            Keyword::Type => "type",
-            Keyword::Struct => "struct",
-            Keyword::Class => "class",
-            Keyword::Interface => "interface",
-            Keyword::Enum => "enum",
-            Keyword::Union => "union",
-            Keyword::Trait => "trait",
-            Keyword::Function => "function",
-            Keyword::Implement => "implement",
-            Keyword::Use => "use",
-            Keyword::With => "with",
-            Keyword::Where => "where",
-            Keyword::Extends => "extends",
-            Keyword::Implements => "implements",
-            Keyword::As => "as",
-            Keyword::Is => "is",
-            Keyword::Instanceof => "instanceof",
-            Keyword::Let => "let",
-            Keyword::Var => "var",
+            Keyword::Private => "private",
             Keyword::Const => "const",
             Keyword::Readonly => "readonly",
             Keyword::Mut => "mut",
             Keyword::Static => "static",
             Keyword::Final => "final",
-            Keyword::Do => "do",
-            Keyword::If => "if",
-            Keyword::Else => "else",
-            Keyword::While => "while",
-            Keyword::For => "for",
+            Keyword::Default => "default",
+
+            // context
+            Keyword::Self_ => "self",
+            Keyword::This => "this",
+            Keyword::Super => "super",
+            Keyword::Package => "package",
+
+            // dependencies
+            Keyword::Import => "import",
+            Keyword::Export => "export",
+            Keyword::From => "from",
+            Keyword::Use => "use",
+            Keyword::With => "with",
+            Keyword::Namespace => "namespace",
+
+            // definitions
+            Keyword::Let => "let",
+            Keyword::Var => "var",
+            Keyword::Module => "module",
+            Keyword::Type => "type",
+            Keyword::Struct => "struct",
+            Keyword::Class => "class",
+            Keyword::Enum => "enum",
+            Keyword::Union => "union",
+            Keyword::Trait => "trait",
+            Keyword::Interface => "interface",
+            Keyword::Function => "function",
+            Keyword::Implement => "implement",
+            Keyword::Declare => "declare",
+            Keyword::New => "new",
+            Keyword::Constructor => "constructor",
+
+            // typing
+            Keyword::Extends => "extends",
+            Keyword::Implements => "implements",
+            Keyword::Satisfies => "satisfies",
+            Keyword::Override => "override",
+            Keyword::Tuple => "tuple",
+            Keyword::Instanceof => "instanceof",
+            Keyword::Where => "where",
+            Keyword::Typeof => "typeof",
+            Keyword::Any => "any",
+            Keyword::Never => "never",
+            Keyword::As => "as",
+            Keyword::Is => "is",
             Keyword::In => "in",
             Keyword::Of => "of",
+
+            // branching
+            Keyword::If => "if",
+            Keyword::Else => "else",
+            Keyword::Match => "match",
+            Keyword::Switch => "switch",
+            Keyword::Case => "case",
+
+            // loops
+            Keyword::Do => "do",
+            Keyword::While => "while",
+            Keyword::For => "for",
             Keyword::Loop => "loop",
+
+            // flow control
             Keyword::Break => "break",
             Keyword::Continue => "continue",
             Keyword::Defer => "defer",
             Keyword::Return => "return",
             Keyword::Yield => "yield",
-            Keyword::Match => "match",
-            Keyword::Switch => "switch",
-            Keyword::Case => "case",
+
+            // errors
             Keyword::Try => "try",
             Keyword::Catch => "catch",
             Keyword::Throw => "throw",
             Keyword::Finally => "finally",
+
+            // async & dispatch
             Keyword::Async => "async",
             Keyword::Await => "await",
             Keyword::Unsafe => "unsafe",
             Keyword::Move => "move",
-            Keyword::New => "new",
-            Keyword::Constructor => "constructor",
             Keyword::Dynamic => "dynamic",
             Keyword::Virtual => "virtual",
-            Keyword::Typeof => "typeof",
-            Keyword::Any => "any",
-            Keyword::Never => "never",
         }
     }
 }
@@ -228,75 +293,99 @@ impl FromStr for Keyword {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            // modifiers
             "public" => Ok(Keyword::Public),
-            "private" => Ok(Keyword::Private),
             "protected" => Ok(Keyword::Protected),
             "internal" => Ok(Keyword::Internal),
-            "import" => Ok(Keyword::Import),
-            "export" => Ok(Keyword::Export),
-            "from" => Ok(Keyword::From),
-            "self" => Ok(Keyword::Self_),
-            "this" => Ok(Keyword::This),
-            "override" => Ok(Keyword::Override),
-            "extends" => Ok(Keyword::Extends),
-            "implements" => Ok(Keyword::Implements),
-            "tuple" => Ok(Keyword::Tuple),
-            "super" => Ok(Keyword::Super),
-            "package" => Ok(Keyword::Package),
-            "module" => Ok(Keyword::Module),
-            "type" => Ok(Keyword::Type),
-            "struct" => Ok(Keyword::Struct),
-            "class" => Ok(Keyword::Class),
-            "interface" => Ok(Keyword::Interface),
-            "enum" => Ok(Keyword::Enum),
-            "union" => Ok(Keyword::Union),
-            "trait" => Ok(Keyword::Trait),
-            "function" => Ok(Keyword::Function),
-            "implement" => Ok(Keyword::Implement),
-            "use" => Ok(Keyword::Use),
-            "with" => Ok(Keyword::With),
-            "where" => Ok(Keyword::Where),
-            "as" => Ok(Keyword::As),
-            "is" => Ok(Keyword::Is),
-            "instanceof" => Ok(Keyword::Instanceof),
-            "let" => Ok(Keyword::Let),
-            "var" => Ok(Keyword::Var),
+            "private" => Ok(Keyword::Private),
             "const" => Ok(Keyword::Const),
             "readonly" => Ok(Keyword::Readonly),
             "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),
-            "do" => Ok(Keyword::Do),
-            "if" => Ok(Keyword::If),
-            "else" => Ok(Keyword::Else),
-            "while" => Ok(Keyword::While),
-            "for" => Ok(Keyword::For),
+            "default" => Ok(Keyword::Default),
+
+            // context
+            "self" => Ok(Keyword::Self_),
+            "this" => Ok(Keyword::This),
+            "super" => Ok(Keyword::Super),
+            "package" => Ok(Keyword::Package),
+
+            // dependencies
+            "import" => Ok(Keyword::Import),
+            "export" => Ok(Keyword::Export),
+            "from" => Ok(Keyword::From),
+            "use" => Ok(Keyword::Use),
+            "with" => Ok(Keyword::With),
+            "namespace" => Ok(Keyword::Namespace),
+
+            // definitions
+            "let" => Ok(Keyword::Let),
+            "var" => Ok(Keyword::Var),
+            "module" => Ok(Keyword::Module),
+            "type" => Ok(Keyword::Type),
+            "struct" => Ok(Keyword::Struct),
+            "class" => Ok(Keyword::Class),
+            "enum" => Ok(Keyword::Enum),
+            "union" => Ok(Keyword::Union),
+            "trait" => Ok(Keyword::Trait),
+            "interface" => Ok(Keyword::Interface),
+            "function" => Ok(Keyword::Function),
+            "implement" => Ok(Keyword::Implement),
+            "declare" => Ok(Keyword::Declare),
+            "new" => Ok(Keyword::New),
+            "constructor" => Ok(Keyword::Constructor),
+
+            // typing
+            "extends" => Ok(Keyword::Extends),
+            "implements" => Ok(Keyword::Implements),
+            "satisfies" => Ok(Keyword::Satisfies),
+            "override" => Ok(Keyword::Override),
+            "tuple" => Ok(Keyword::Tuple),
+            "instanceof" => Ok(Keyword::Instanceof),
+            "where" => Ok(Keyword::Where),
+            "typeof" => Ok(Keyword::Typeof),
+            "any" => Ok(Keyword::Any),
+            "never" => Ok(Keyword::Never),
+            "as" => Ok(Keyword::As),
+            "is" => Ok(Keyword::Is),
             "in" => Ok(Keyword::In),
             "of" => Ok(Keyword::Of),
+
+            // branching
+            "if" => Ok(Keyword::If),
+            "else" => Ok(Keyword::Else),
+            "match" => Ok(Keyword::Match),
+            "switch" => Ok(Keyword::Switch),
+            "case" => Ok(Keyword::Case),
+
+            // loops
+            "do" => Ok(Keyword::Do),
+            "while" => Ok(Keyword::While),
+            "for" => Ok(Keyword::For),
             "loop" => Ok(Keyword::Loop),
+
+            // flow control
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
             "defer" => Ok(Keyword::Defer),
             "return" => Ok(Keyword::Return),
             "yield" => Ok(Keyword::Yield),
-            "match" => Ok(Keyword::Match),
-            "switch" => Ok(Keyword::Switch),
-            "case" => Ok(Keyword::Case),
+
+            // errors
             "try" => Ok(Keyword::Try),
             "catch" => Ok(Keyword::Catch),
             "throw" => Ok(Keyword::Throw),
             "finally" => Ok(Keyword::Finally),
+
+            // async & dispatch
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),
             "unsafe" => Ok(Keyword::Unsafe),
             "move" => Ok(Keyword::Move),
-            "new" => Ok(Keyword::New),
-            "constructor" => Ok(Keyword::Constructor),
             "dynamic" => Ok(Keyword::Dynamic),
             "virtual" => Ok(Keyword::Virtual),
-            "typeof" => Ok(Keyword::Typeof),
-            "any" => Ok(Keyword::Any),
-            "never" => Ok(Keyword::Never),
+
             _ => Err(()),
         }
     }
