@@ -12,11 +12,32 @@ pub enum Symbol {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SymbolId(pub u32);
 
+/// The base of a path.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PathBase {
+    /// The self base type.
+    SelfType,
+    /// The self base value.
+    SelfValue,
+    /// The module base.
+    Module,
+    /// The package base.
+    Package,
+}
+
 /// A resolved path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
+    /// Unevaluated base.
+    UnevaluatedBase { base: PathBase },
+    /// Unevaluated relative string path.
+    UnevaluatedRelativeString {
+        base: PathBase,
+        segments: SmallVec<StringId, 3>,
+    },
     /// Unevaluated absolute string path.
-    UnevaluatedString { segments: SmallVec<StringId, 3> },
+    UnevaluatedAbsoluteString { segments: SmallVec<StringId, 3> },
+
     /// Resolved Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
     /// Resolved to a Definition.

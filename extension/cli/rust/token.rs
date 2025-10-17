@@ -186,7 +186,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::ElementwiseNot => "96",
         TokenType::Maybe => "95",
         TokenType::Coalesce => "95",
-        TokenType::Virtual => "95",
+        TokenType::Dynamic => "95",
         TokenType::Not => "95",
         TokenType::Multiply => "93",
         TokenType::WrappingMultiply => "93",

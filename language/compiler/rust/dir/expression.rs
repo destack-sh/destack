@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Expression, FunctionStyle, NodeId, Runtime, Visibility};
+use dyst_dir::{Expression, FunctionStyle, NodeId, Path, PathBase, Runtime, Visibility};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -242,8 +242,12 @@ impl<'a> Compiler<'a> {
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TypeLiteral(value) => {
-                let value = self.lower_type_literal(value);
-                Expression::TypeLiteral { value }
+                if *value == ast::TypeLiteral::Self_ {
+                    Expression::Path { path: Path::UnevaluatedBase { base: PathBase::SelfType } }
+                } else {
+                    let value = self.lower_type_literal(value);
+                    Expression::TypeLiteral { value }
+                }
             }
             ast::Expression::StructLiteral { ty, fields } => {
                 let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));

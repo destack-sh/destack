@@ -2,21 +2,9 @@ use crate::{
     Definition, Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId,
 };
 
-/// A TypeLiteral is literal type node.
+/// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeLiteral {
-    /// Never type `!`.
-    Never,
-    /// Any type `$`.
-    Any,
-    /// Infer type `_`.
-    Infer,
-    /// Unknown / uninitialized type and value.
-    Undefined,
-    /// Void / empty / unit type.
-    Void,
-    /// Null type and value.
-    Null,
+pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
     /// Character type.
@@ -29,10 +17,6 @@ pub enum TypeLiteral {
     Int(IntType),
     /// Float type.
     Float(FloatType),
-    /// Composite type.
-    Composite(CompositeType),
-    /// Self type.
-    Self_,
 }
 
 /// A CompositeType represents composite types.
@@ -54,24 +38,55 @@ pub enum CompositeType {
     Function,
 }
 
+/// A TypeLiteral is a scalar type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeLiteral {
+    /// Never type `!`.
+    Never,
+    /// Any type `$` or `any`.
+    Any,
+    /// Infer placeholder `_`.
+    Infer,
+    /// Undefined type and value.
+    Undefined,
+    /// Void / empty / unit type.
+    Void,
+    /// Null type and value.
+    Null,
+    /// Primitive type.
+    Primitive(PrimitiveType),
+    /// Composite type.
+    Composite(CompositeType),
+    /// Scalar literal.
+    ScalarLiteral(ScalarLiteral),
+}
+
 /// An Type in the type system.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    /// Infer placeholder `_`.
-    Infer,
-    /// Never `!`.
-    Never,
+    /// Scalar type literal.
+    Scalar(TypeLiteral),
+    /// Resolved definition type.
+    /// NOTE #Incomplete: shouldn't Type::Definition be an instance (statically parameterized)?
+    ///  (same with all statically parameterized instantiations like Functions etc.?)
+    Definition(NodeId<Definition>),
+
     /// Not `!T`.
     Not(NodeId<Type>),
-    /// Maybe '?T'.
+    /// Maybe 'T?'.
     Maybe(NodeId<Type>),
+    /// Must 'T!'.
+    Must(NodeId<Type>),
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
-        mutability: ScopedMutability,
+        mutability: Option<ScopedMutability>,
         target: NodeId<Type>,
     },
-    /// Virtual type `$T` (any subtype or Into<T>).
-    Virtual(NodeId<Type>),
+    /// Dynamic type `$T` (any subtype or Into<T>).
+    Dynamic {
+        mutability: Option<ScopedMutability>,
+        target: NodeId<Type>,
+    },
 
     /// Array type `T[N]`. Must have static length.
     Array {
@@ -82,23 +97,13 @@ pub enum Type {
     Slice { element: NodeId<Type> },
     /// Tuple type.
     Tuple(Vec<NodeId<Type>>),
-    /// Union type `A | B | C`.
-    Union(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
 
-    /// Scalar primitive type.
-    TypeLiteral(TypeLiteral),
-    /// Literal value type.
-    ScalarLiteral(ScalarLiteral),
-    /// Self type (only inside associated scopes for types).
-    Self_,
-    /// Definition type.
-    /// NOTE #Incomplete: shouldn't the Definition type be an instance (statically parameterized)?
-    ///  (same with all statically parameterized instantiations like Functions etc.?)
-    Definition(NodeId<Definition>),
     /// Expression yet to be evaluated into a Type (like a Path).
-    Unevaluated(NodeId<Expression>),
+    UnevaluatedExpression(NodeId<Expression>),
+    /// Unevaluated Self type.
+    UnevaluatedSelf,
 
     /// Error type that could not be evaluated.
     Error,

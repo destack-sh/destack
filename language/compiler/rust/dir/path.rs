@@ -1,9 +1,20 @@
 use crate::Compiler;
-use dyst_ast as ast;
-use dyst_dir::Path;
+use dyst_ast::{self as ast, StringId};
+use dyst_container::SmallVec;
+use dyst_dir::{Path, PathBase};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
+    fn lower_path_base(&self, string_id: StringId) -> Option<PathBase> {
+        match self.get_string(string_id) {
+            "self" => Some(PathBase::SelfValue),
+            "Self" => Some(PathBase::SelfType),
+            "module" => Some(PathBase::Module),
+            "package" => Some(PathBase::Package),
+            _ => None,
+        }
+    }
+
     /// Lower a path to a DIR path.
     pub fn lower_path(
         &mut self,
@@ -11,12 +22,24 @@ impl<'a> Compiler<'a> {
         _ast: &ast::NodeTree,
         path: &ast::Path,
     ) -> Path {
-        Path::UnevaluatedString {
-            segments: path
-                .segments
-                .iter()
-                .map(|segment| self.intern_string(source_id, *segment))
-                .collect(),
+        assert!(!path.segments.is_empty());
+        let segments: SmallVec<StringId, 3> = path
+            .segments
+            .iter()
+            .map(|segment| self.intern_string(source_id, *segment))
+            .collect();
+        match self.lower_path_base(segments[0]) {
+            Some(base) => {
+                if segments.len() == 1 {
+                    Path::UnevaluatedBase { base }
+                } else {
+                    Path::UnevaluatedRelativeString {
+                        base,
+                        segments: segments.into_iter().skip(1).collect(),
+                    }
+                }
+            }
+            None => Path::UnevaluatedAbsoluteString { segments },
         }
     }
 }

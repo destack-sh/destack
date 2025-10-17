@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
             ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
-            ast::UnaryOperator::Virtual => UnaryOperator::Virtual,
+            ast::UnaryOperator::Dynamic => UnaryOperator::Virtual,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
         }
     }

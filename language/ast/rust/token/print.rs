@@ -78,7 +78,7 @@ impl Token {
             TokenType::ElementwiseNot => "~".to_string(),
             TokenType::Maybe => "?".to_string(),
             TokenType::Coalesce => "??".to_string(),
-            TokenType::Virtual => "$".to_string(),
+            TokenType::Dynamic => "$".to_string(),
             TokenType::Not => "!".to_string(),
 
             // multiplication

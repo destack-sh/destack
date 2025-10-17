@@ -21,7 +21,7 @@ pub enum EvaluateRequest {
 /// Error when evaluating something statically.
 #[derive(Debug, Clone)]
 pub enum EvaluateError {
-    NotYetEvaluatable,
+    NotYetEvaluatable { depends_on: Option<NodeIdAny> },
 }
 
 impl std::fmt::Display for EvaluateError {

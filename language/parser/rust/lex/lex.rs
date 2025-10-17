@@ -260,7 +260,7 @@ impl Tokenizer<'_> {
                     (TokenType::Maybe, None)
                 }
             }
-            '$' => (TokenType::Virtual, None),
+            '$' => (TokenType::Dynamic, None),
 
             // brackets
             '(' => (TokenType::OpenParenthesis, None),

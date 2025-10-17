@@ -92,7 +92,7 @@ pub enum UnaryOperator {
     /// `*`
     Dereference = 1493,
     /// `$`
-    Virtual = 1492,
+    Dynamic = 1492,
     /// `..`
     Spread = 1491,
 }
@@ -122,7 +122,7 @@ impl UnaryOperator {
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
             | UnaryOperator::Dereference
-            | UnaryOperator::Virtual
+            | UnaryOperator::Dynamic
             | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
         }
@@ -139,7 +139,7 @@ impl UnaryOperator {
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
-            TokenType::Virtual => Some(UnaryOperator::Virtual),
+            TokenType::Dynamic => Some(UnaryOperator::Dynamic),
             TokenType::Range => Some(UnaryOperator::Spread),
             TokenType::RangeWide => Some(UnaryOperator::Spread),
             _ => None,
@@ -169,7 +169,7 @@ impl UnaryOperator {
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
             UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
             UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::Virtual => TokenType::Virtual,
+            UnaryOperator::Dynamic => TokenType::Dynamic,
             UnaryOperator::Spread => TokenType::Range,
         }
     }

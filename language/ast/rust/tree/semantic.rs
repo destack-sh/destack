@@ -98,7 +98,7 @@ impl SemanticType {
             | TokenType::ElementwiseNot
             | TokenType::Maybe
             | TokenType::Coalesce
-            | TokenType::Virtual
+            | TokenType::Dynamic
             | TokenType::Not => SemanticType::Operator,
 
             // parentheses

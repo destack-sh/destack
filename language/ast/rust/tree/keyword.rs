@@ -31,6 +31,8 @@ pub enum Keyword {
     Implements,
     /// Override (reserved).
     Override,
+    /// Refer to the containing package (alias).
+    Package,
     /// Declare a Module.
     Module,
     /// Declare a tuple (reserved).
@@ -157,6 +159,7 @@ impl Keyword {
             Keyword::This => "this",
             Keyword::Super => "super",
             Keyword::Override => "override",
+            Keyword::Package => "package",
             Keyword::Module => "module",
             Keyword::Tuple => "tuple",
             Keyword::Type => "type",
@@ -236,6 +239,7 @@ impl FromStr for Keyword {
             "implements" => Ok(Keyword::Implements),
             "tuple" => Ok(Keyword::Tuple),
             "super" => Ok(Keyword::Super),
+            "package" => Ok(Keyword::Package),
             "module" => Ok(Keyword::Module),
             "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),

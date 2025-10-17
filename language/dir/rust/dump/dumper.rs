@@ -910,18 +910,42 @@ impl Dump for AnnotationPosition {
     }
 }
 
+/// Dump a PathBase as a string.
+impl Dump for PathBase {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            PathBase::SelfValue => dumper.write_str("PathBase::SelfValue", Some(Color::Yellow)),
+            PathBase::SelfType => dumper.write_str("PathBase::SelfType", Some(Color::Yellow)),
+            PathBase::Module => dumper.write_str("PathBase::Module", Some(Color::Yellow)),
+            PathBase::Package => dumper.write_str("PathBase::Package", Some(Color::Yellow)),
+        }
+    }
+}
+
 /// Dump a Path as a structured representation.
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::UnevaluatedString { segments } => {
-                let path = segments
-                    .iter()
-                    .map(|s| dumper.strings.get(*s))
-                    .collect::<Vec<_>>()
-                    .join(".");
-                dumper.object("Path::UnevaluatedString").value(&path).end();
+            Path::UnevaluatedBase { base } => {
+                dumper
+                    .object("Path::UnevaluatedBase")
+                    .field("base", base)
+                    .end();
             }
+            Path::UnevaluatedRelativeString { base, segments } => {
+                dumper
+                    .object("Path::UnevaluatedRelativeString")
+                    .field("base", base)
+                    .value(segments)
+                    .end();
+            }
+            Path::UnevaluatedAbsoluteString { segments } => {
+                dumper
+                    .object("Path::UnevaluatedAbsoluteString")
+                    .value(segments)
+                    .end();
+            }
+
             Path::Intrinsic { intrinsic } => {
                 dumper
                     .object("Path::Intrinsic")
@@ -1031,6 +1055,32 @@ impl Dump for CompositeType {
 }
 
 /// Dump a TypeLiteral as a structured representation.
+impl Dump for PrimitiveType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            PrimitiveType::Boolean => {
+                dumper.object("TypeLiteral::Boolean").end();
+            }
+            PrimitiveType::Character => {
+                dumper.object("TypeLiteral::Character").end();
+            }
+            PrimitiveType::String => {
+                dumper.object("TypeLiteral::String").end();
+            }
+            PrimitiveType::Number => {
+                dumper.object("TypeLiteral::Number").end();
+            }
+            PrimitiveType::Int(int_type) => {
+                dumper.object("TypeLiteral::Int").value(int_type).end();
+            }
+            PrimitiveType::Float(float_type) => {
+                dumper.object("TypeLiteral::Float").value(float_type).end();
+            }
+        }
+    }
+}
+
+/// Dump a TypeLiteral as a structured representation.
 impl Dump for TypeLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
@@ -1052,32 +1102,23 @@ impl Dump for TypeLiteral {
             TypeLiteral::Null => {
                 dumper.object("TypeLiteral::Null").end();
             }
-            TypeLiteral::Boolean => {
-                dumper.object("TypeLiteral::Boolean").end();
-            }
-            TypeLiteral::Character => {
-                dumper.object("TypeLiteral::Character").end();
-            }
-            TypeLiteral::String => {
-                dumper.object("TypeLiteral::String").end();
-            }
-            TypeLiteral::Number => {
-                dumper.object("TypeLiteral::Number").end();
-            }
-            TypeLiteral::Int(int_type) => {
-                dumper.object("TypeLiteral::Int").value(int_type).end();
-            }
-            TypeLiteral::Float(float_type) => {
-                dumper.object("TypeLiteral::Float").value(float_type).end();
-            }
-            TypeLiteral::Composite(composite_type) => {
+            TypeLiteral::Primitive(primitive) => {
                 dumper
-                    .object("TypeLiteral::Composite")
-                    .value(composite_type)
+                    .object("TypeLiteral::Primitive")
+                    .value(primitive)
                     .end();
             }
-            TypeLiteral::Self_ => {
-                dumper.object("TypeLiteral::Self_").end();
+            TypeLiteral::Composite(composite) => {
+                dumper
+                    .object("TypeLiteral::Composite")
+                    .value(composite)
+                    .end();
+            }
+            TypeLiteral::ScalarLiteral(scalar_literal) => {
+                dumper
+                    .object("TypeLiteral::ScalarLiteral")
+                    .value(scalar_literal)
+                    .end();
             }
         }
     }
@@ -1552,29 +1593,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
         match ty {
-            Type::Infer => {
-                self.node("Type::Infer", id.id).end();
+            Type::Scalar(scalar) => {
+                self.node("Type::Scalar", id.id)
+                    .field("scalar", scalar)
+                    .end();
             }
-            Type::Never => {
-                self.node("Type::Never", id.id).end();
+            Type::Definition(_) => {
+                self.node("Type::Definition", id.id).end();
             }
+
             Type::Not(_) => {
                 self.node("Type::Not", id.id).end();
             }
             Type::Maybe(_) => {
                 self.node("Type::Maybe", id.id).end();
             }
+            Type::Must(_) => {
+                self.node("Type::Must", id.id).end();
+            }
             Type::Reference {
                 mutability,
                 target: _,
             } => {
                 self.node("Type::Reference", id.id)
-                    .field("mutability", mutability)
+                    .field_optional("mutability", mutability)
                     .end();
             }
-            Type::Virtual(_) => {
-                self.node("Type::Virtual", id.id).end();
+            Type::Dynamic {
+                mutability,
+                target: _,
+            } => {
+                self.node("Type::Dynamic", id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
             }
+
             Type::Array {
                 element: _,
                 count: _,
@@ -1587,31 +1640,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Tuple(_) => {
                 self.node("Type::Tuple", id.id).end();
             }
-            Type::Union(_) => {
-                self.node("Type::Union", id.id).end();
-            }
             Type::Intersection(_) => {
                 self.node("Type::Intersection", id.id).end();
             }
-            Type::TypeLiteral(literal) => {
-                self.node("Type::TypeLiteral", id.id)
-                    .field("literal", literal)
-                    .end();
+
+            Type::UnevaluatedExpression(_) => {
+                self.node("Type::UnevaluatedExpression", id.id).end();
             }
-            Type::ScalarLiteral(literal) => {
-                self.node("Type::ScalarLiteral", id.id)
-                    .field("literal", literal)
-                    .end();
+            Type::UnevaluatedSelf => {
+                self.node("Type::UnevaluatedSelf", id.id).end();
             }
-            Type::Self_ => {
-                self.node("Type::Self_", id.id).end();
-            }
-            Type::Definition(_) => {
-                self.node("Type::Definition", id.id).end();
-            }
-            Type::Unevaluated(_) => {
-                self.node("Type::Unevaluated", id.id).end();
-            }
+
             Type::Error => {
                 self.node("Type::Error", id.id).end();
             }

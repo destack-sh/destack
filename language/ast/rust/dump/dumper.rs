@@ -1041,7 +1041,7 @@ impl Dump for TypeLiteral {
                     .end();
             }
             TypeLiteral::Self_ => {
-                dumper.object("TypeLiteral::Self_").end();
+                dumper.object("TypeLiteral::Self").end();
             }
         }
     }
