@@ -32,12 +32,12 @@ impl<'a> Compiler<'a> {
                     items.as_ref().map(|items| items.as_slice()),
                 );
                 let definition = Definition::Import { items };
-                Some(self.tree.insert(definition, source_id, expression_id))
+                Some(self.tree.insert_from_ast(definition, source_id, expression_id))
             }
             _ => None,
         };
         if let Some(definition) = definition {
-            self.tree.alias(source_id, expression_id.id, definition);
+            self.tree.alias_from_ast(source_id, expression_id.id, definition);
         }
         definition
     }
@@ -71,7 +71,7 @@ impl<'a> Compiler<'a> {
                     expression: right,
                 } => {
                     let right = self.lower_expression_to_type(source_id, ast, *right);
-                    self.tree.alias(source_id, expression_id.id, right);
+                    self.tree.alias_from_ast(source_id, expression_id.id, right);
                     Some(EmbeddedDefinition::Include { ty: right })
                 }
                 _ => None,
@@ -121,7 +121,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Module {
                         name,
                         export,
@@ -193,7 +193,7 @@ impl<'a> Compiler<'a> {
                     representation_type,
                     fields,
                 );
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Struct {
                         name,
                         visibility,
@@ -260,7 +260,7 @@ impl<'a> Compiler<'a> {
                     .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
                 let variants =
                     self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Enum {
                         name,
                         visibility,
@@ -337,7 +337,7 @@ impl<'a> Compiler<'a> {
                     tag_type,
                     fields,
                 );
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Union {
                         name,
                         visibility,
@@ -402,7 +402,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Interface {
                         name,
                         visibility,
@@ -471,7 +471,7 @@ impl<'a> Compiler<'a> {
                 let body = body
                     .as_ref()
                     .map(|body| self.lower_expression(source_id, ast, *body));
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Function {
                         name,
                         visibility,
@@ -531,7 +531,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
-                self.tree.insert(
+                self.tree.insert_from_ast(
                     Definition::Implement {
                         export,
                         visibility,

@@ -468,6 +468,12 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
+    /// Dynamic operation.
+    Dynamic {
+        mutability: Option<ScopedMutability>,
+        right: NodeId<Expression>,
+    },
+
     /// Member access.
     ///
     /// Examples:

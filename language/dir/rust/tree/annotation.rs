@@ -50,4 +50,21 @@ impl Annotation {
             Annotation::Decorator { position, .. } => *position,
         }
     }
+
+    /// Get the receiver path of the annotation.
+    pub fn receiver(&self) -> Option<&Path> {
+        match self {
+            Annotation::Tag { receiver, .. } => Some(receiver),
+            Annotation::Decorator { receiver, .. } => Some(receiver),
+            _ => None,
+        }
+    }
+
+    /// Whether this annotation is evaluated (ignoring child nodes).
+    pub fn is_evaluated_self(&self) -> bool {
+        match self.receiver() {
+            Some(receiver) => receiver.is_evaluated_self(),
+            None => true,
+        }
+    }
 }

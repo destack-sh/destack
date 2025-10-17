@@ -33,6 +33,6 @@ impl<'a> Compiler<'a> {
             .map(|expression| self.lower_expression(source_id, ast, *expression))
             .collect();
         self.tree
-            .insert(Block { label, expressions }, source_id, block_id)
+            .insert_from_ast(Block { label, expressions }, source_id, block_id)
     }
 }

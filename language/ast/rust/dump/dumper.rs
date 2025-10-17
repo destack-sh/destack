@@ -1270,6 +1270,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
+            Expression::Dynamic {
+                mutability,
+                right: _,
+            } => {
+                self.node("Expression::Dynamic", _id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
             Expression::Member { receiver: _, path } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)

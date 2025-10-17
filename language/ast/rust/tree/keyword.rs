@@ -63,8 +63,10 @@ pub enum Keyword {
     Where,
     /// Alias or cast an item.
     As,
-    /// Is test (reserved).
+    /// Is test.
     Is,
+    /// Instanceof test.
+    Instanceof,
     /// Let expression.
     Let,
     /// Var expression.
@@ -178,6 +180,7 @@ impl Keyword {
             Keyword::Implements => "implements",
             Keyword::As => "as",
             Keyword::Is => "is",
+            Keyword::Instanceof => "instanceof",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::Const => "const",
@@ -255,6 +258,7 @@ impl FromStr for Keyword {
             "where" => Ok(Keyword::Where),
             "as" => Ok(Keyword::As),
             "is" => Ok(Keyword::Is),
+            "instanceof" => Ok(Keyword::Instanceof),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
             "const" => Ok(Keyword::Const),

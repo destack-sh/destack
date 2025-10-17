@@ -674,6 +674,18 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 right.format(f)?;
             }
 
+            // dynamic
+            Expression::Dynamic { mutability, right } => {
+                write!(f, [token("$")])?;
+                if let Some(mutability) = mutability {
+                    write!(
+                        f,
+                        [FormatScopedMutability::implicit_const(mutability.clone())]
+                    )?;
+                }
+                right.format(f)?;
+            }
+
             // member
             Expression::Member { receiver, path } => write!(f, [receiver, token("."), path])?,
 
@@ -756,7 +768,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::WrappingNegate => token("-%"),
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
-            UnaryOperator::Dynamic => token("$"),
             UnaryOperator::Spread => token(".."),
         };
         write!(f, [token])
@@ -807,6 +818,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::In => token("in"),
             BinaryOperator::Of => token("of"),
             BinaryOperator::Is => token("is"),
+            BinaryOperator::Instanceof => token("instanceof"),
         };
         write!(f, [token])
     }

@@ -68,6 +68,18 @@ impl NodeIdAny {
     }
 }
 
+impl<T: Node> From<NodeId<T>> for NodeIdAny
+where
+    T: Node,
+{
+    fn from(id: NodeId<T>) -> Self {
+        Self {
+            id: id.id,
+            ty: T::KIND,
+        }
+    }
+}
+
 impl Debug for NodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeIdAny")

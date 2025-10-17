@@ -20,8 +20,6 @@ pub enum UnaryOperator {
     ElementwiseNot,
     /// `*`
     Dereference,
-    /// `$`
-    Virtual,
     /// `..`
     Spread,
 }
@@ -103,6 +101,8 @@ pub enum BinaryOperator {
     Of,
     /// `is`
     Is,
+    /// `instanceof`
+    Instanceof,
 }
 
 /// An AssignOperator is an assignment type.

@@ -579,6 +579,22 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         self
     }
 
+    fn end_postfix(&mut self, node_id: u32) {
+        let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+        let source_id = source_id.0;
+        if let Some(source_ast_id) = source_ast_id {
+            self.dumper.write_str(
+                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
+                Some(Color::White),
+            );
+        } else {
+            self.dumper.write_str(
+                format!(" :{node_id} [{source_id:?}]").as_str(),
+                Some(Color::White),
+            );
+        }
+    }
+
     /// Finish node and mark the struct as non-exhaustive (with a ..)
     pub fn end_non_exhaustive(&mut self) -> &mut Self {
         if self.has_fields {
@@ -587,13 +603,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" { .. }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let source_id = source_id.0;
-            self.dumper.write_str(
-                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
-                Some(Color::White),
-            );
-            self.dumper.write_char('\n', None);
+            self.end_postfix(node_id);
         }
         self
     }
@@ -604,13 +614,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let source_id = source_id.0;
-            self.dumper.write_str(
-                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
-                Some(Color::White),
-            );
-            self.dumper.write_char('\n', None);
+            self.end_postfix(node_id);
         }
         self
     }
@@ -1256,7 +1260,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 right: _,
             } => {
                 self.node("Expression::Reference", id.id)
-                    .field("mutability", mutability)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
+            Expression::Dynamic {
+                mutability,
+                right: _,
+            } => {
+                self.node("Expression::Dynamic", id.id)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Expression::Binary {
@@ -1628,6 +1640,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
+            Type::Range {
+                start: _,
+                end: _,
+                is_inclusive,
+            } => {
+                self.node("Type::Range", id.id)
+                    .field("is_inclusive", is_inclusive)
+                    .end();
+            }
             Type::Array {
                 element: _,
                 count: _,
