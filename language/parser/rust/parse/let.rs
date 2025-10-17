@@ -8,7 +8,11 @@ impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParserResult<()> {
         let keyword = self.peek_any_keyword()?;
-        if keyword == Keyword::Var || keyword == Keyword::Mut || keyword == Keyword::Const {
+        if keyword == Keyword::Var
+            || keyword == Keyword::Mut
+            || keyword == Keyword::Const
+            || keyword == Keyword::Readonly
+        {
             Ok(())
         } else {
             Err(ParserError::expected(
@@ -45,6 +49,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat var or mut
                 Mutability::Mutable
             } else if self.peek_keyword(Keyword::Const).is_ok()
+                || self.peek_keyword(Keyword::Readonly).is_ok()
                 || self.peek_keyword(Keyword::Let).is_ok()
             {
                 self.bump(); // eat const or let
@@ -123,6 +128,7 @@ impl<'a> Parser<'a> {
             // let or const 
             else if self.peek_keyword(Keyword::Let).is_ok()
                 || self.peek_keyword(Keyword::Const).is_ok()
+                || self.peek_keyword(Keyword::Readonly).is_ok()
             {
                 self.bump(); // eat let or const
                 // also support `let mut` or `let var` as an alias for #Leniency

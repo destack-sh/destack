@@ -1,3 +1,4 @@
+use dyst_ast::{Keyword, Mutability, ScopedMutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -15,6 +16,16 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
         // visibility
         if let Some(visibility) = self.visibility {
             write!(f, [visibility, space()])?;
+        }
+
+        // mutability
+        if matches!(
+            self.mutability,
+            Some(ScopedMutability::Unscoped {
+                mutability: Mutability::Immutable
+            })
+        ) {
+            write!(f, [Keyword::Readonly, space()])?;
         }
 
         // name
@@ -56,6 +67,16 @@ mod tests {
         assert_format!(
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32\n\tb: boolean\n}",
+            |p| p.eat_struct(None, None),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_struct_with_modified_fields() {
+        assert_format!(
+            "struct { readonly a: int32, private b: boolean }",
+            "struct {\n\treadonly a: int32\n\tprivate b: boolean\n}",
             |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );

@@ -92,6 +92,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::{Mutability, ScopedMutability};
+
     use crate::parse::tests::TestParser;
     use crate::{
         Definition, Expression, IntType, ScalarLiteral, TypeLiteral, VariantField, WhereClause,
@@ -138,7 +140,7 @@ mod tests {
         let mut test = TestParser::new(
             r###"
 interface Foo: Baz {
-    value: int32
+    readonly value: int32
     count: int32 = 4
 
     let x: int32 = 4
@@ -165,7 +167,9 @@ interface Foo: Baz {
             });
 
             // value: int32
-            assert_node!(parser.tree, fields[0], VariantField { visibility, name, ty, default } => {
+            assert_node!(parser.tree, fields[0], VariantField { mutability, visibility, name, ty, default } => {
+                assert!(mutability.is_some());
+                assert_eq!(*mutability.as_ref().unwrap(), ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 assert!(visibility.is_none());
                 assert_string!(parser, name.unwrap(), "value");
                 assert!(default.is_none());
@@ -173,7 +177,8 @@ interface Foo: Baz {
             });
 
             // count: int32 = 4
-            assert_node!(parser.tree, fields[1], VariantField { visibility, name, ty, default } => {
+            assert_node!(parser.tree, fields[1], VariantField { mutability, visibility, name, ty, default } => {
+                assert!(mutability.is_none());
                 assert!(visibility.is_none());
                 assert_string!(parser, name.unwrap(), "count");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));

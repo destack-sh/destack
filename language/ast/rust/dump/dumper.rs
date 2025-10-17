@@ -591,24 +591,6 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         self
     }
 
-    /// Finish node and mark the struct as non-exhaustive (with a ..)
-    pub fn end_non_exhaustive(&mut self) -> &mut Self {
-        if self.has_fields {
-            self.dumper.write_str(", .. }", Some(Color::White));
-        } else {
-            self.dumper.write_str(" { .. }", Some(Color::White));
-        }
-        if let Some(node_id) = self.node_id {
-            let span = self.dumper.tree.spans.get_by_id(node_id);
-            self.dumper.write_str(
-                format!(" :{} [{}..{}]", node_id, span.start, span.end).as_str(),
-                Some(Color::White),
-            );
-            self.dumper.write_char('\n', None);
-        }
-        self
-    }
-
     /// Finish node and close the struct as exhaustive.
     pub fn end(&mut self) -> &mut Self {
         if self.has_fields {
@@ -1120,6 +1102,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Type {
+                mutability,
                 name,
                 static_parameters: _,
                 visibility,
@@ -1127,6 +1110,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 value: _,
             } => {
                 self.node("Expression::Type", _id.id)
+                    .field_optional("mutability", mutability)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .field_optional("export", export)

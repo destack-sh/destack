@@ -161,6 +161,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Type {
+            mutability: _,
             name: _,
             static_parameters,
             visibility: _,
@@ -841,11 +842,16 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::VariantField, id.id);
     match variant_field {
         VariantField::Named {
+            mutability: _,
             name: _,
             ty,
             default,
         }
-        | VariantField::Positional { ty, default } => {
+        | VariantField::Positional {
+            mutability: _,
+            ty,
+            default,
+        } => {
             let ty_node = tree.get(*ty);
             visitor.visit_type(tree, *ty, ty_node);
             if let Some(default) = default {

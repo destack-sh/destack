@@ -14,6 +14,10 @@ impl<'a> Compiler<'a> {
         field_id: ast::NodeId<ast::VariantField>,
     ) -> NodeId<VariantField> {
         let field = ast.get(field_id);
+        let mutability = field
+            .mutability
+            .as_ref()
+            .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
         let name = field.name.map(|name| self.intern_string(source_id, name));
         let ty = self.lower_expression_to_type(source_id, ast, field.ty);
         let default = field
@@ -21,9 +25,18 @@ impl<'a> Compiler<'a> {
             .map(|default| self.lower_expression(source_id, ast, default));
         let variant_field = {
             if let Some(name) = name {
-                VariantField::Named { name, ty, default }
+                VariantField::Named {
+                    mutability,
+                    name,
+                    ty,
+                    default,
+                }
             } else {
-                VariantField::Positional { ty, default }
+                VariantField::Positional {
+                    mutability,
+                    ty,
+                    default,
+                }
             }
         };
         self.tree

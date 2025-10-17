@@ -579,42 +579,26 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         self
     }
 
-    fn end_postfix(&mut self, node_id: u32) {
-        let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-        let source_id = source_id.0;
-        if let Some(source_ast_id) = source_ast_id {
-            self.dumper.write_str(
-                format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
-                Some(Color::White),
-            );
-        } else {
-            self.dumper.write_str(
-                format!(" :{node_id} [{source_id:?}]").as_str(),
-                Some(Color::White),
-            );
-        }
-    }
-
-    /// Finish node and mark the struct as non-exhaustive (with a ..)
-    pub fn end_non_exhaustive(&mut self) -> &mut Self {
-        if self.has_fields {
-            self.dumper.write_str(", .. }", Some(Color::White));
-        } else {
-            self.dumper.write_str(" { .. }", Some(Color::White));
-        }
-        if let Some(node_id) = self.node_id {
-            self.end_postfix(node_id);
-        }
-        self
-    }
-
     /// Finish node and close the struct as exhaustive.
     pub fn end(&mut self) -> &mut Self {
         if self.has_fields {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            self.end_postfix(node_id);
+            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+            let source_id = source_id.0;
+            if let Some(source_ast_id) = source_ast_id {
+                self.dumper.write_str(
+                    format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
+                    Some(Color::White),
+                );
+            } else {
+                self.dumper.write_str(
+                    format!(" :{node_id} [{source_id:?}]").as_str(),
+                    Some(Color::White),
+                );
+            }
+            self.dumper.write_str("\n", Some(Color::White));
         }
         self
     }
@@ -1236,12 +1220,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Type {
+                mutability,
                 name,
                 static_parameters: _,
                 visibility,
                 value: _,
             } => {
                 self.node("Expression::Type", id.id)
+                    .field_optional("mutability", mutability)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .end();
@@ -1726,16 +1712,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match variant_field {
             VariantField::Named {
+                mutability,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Named", id.id)
+                    .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }
-            VariantField::Positional { ty: _, default: _ } => {
-                self.node("VariantField::Positional", id.id).end();
+            VariantField::Positional {
+                mutability,
+                ty: _,
+                default: _,
+            } => {
+                self.node("VariantField::Positional", id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

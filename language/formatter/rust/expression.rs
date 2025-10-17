@@ -1,4 +1,4 @@
-use dyst_ast::{Argument, Path};
+use dyst_ast::{Argument, Mutability, Path, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -398,6 +398,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // type
             Expression::Type {
+                mutability,
                 name,
                 export,
                 visibility,
@@ -413,7 +414,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [visibility, space()])?;
                 }
                 // keyword
-                write!(f, [Keyword::Type])?;
+                if matches!(
+                    mutability,
+                    Some(ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable
+                    })
+                ) {
+                    // for readonly type expression
+                    write!(f, [Keyword::Readonly])?;
+                } else {
+                    write!(f, [Keyword::Type])?;
+                }
                 // name
                 if let Some(name) = name {
                     write!(f, [space(), name])?;

@@ -117,12 +117,16 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Type {
+                mutability,
                 name,
                 static_parameters,
                 visibility,
                 export: _,
                 value,
             } => {
+                let mutability = mutability
+                    .as_ref()
+                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
@@ -133,6 +137,7 @@ impl<'a> Compiler<'a> {
                 let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
                 let value = self.lower_expression(source_id, ast, *value);
                 Expression::Type {
+                    mutability,
                     name,
                     static_parameters,
                     visibility,

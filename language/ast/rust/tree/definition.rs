@@ -407,9 +407,13 @@ pub enum VariantStyle {
 /// ```
 /// bar: int32
 /// baz: T
+/// public T
+/// readonly bar: int32
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantField {
+    /// The mutability of the field.
+    pub mutability: Option<ScopedMutability>,
     /// The visibility of the field.
     pub visibility: Option<Visibility>,
     /// The name of the field (may be unset for tuple fields).

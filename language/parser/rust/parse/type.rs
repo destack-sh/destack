@@ -1,4 +1,4 @@
-use dyst_ast::{ExportMode, FloatType, Keyword, Path, Visibility};
+use dyst_ast::{ExportMode, FloatType, Keyword, Mutability, Path, ScopedMutability, Visibility};
 use dyst_container::smallvec;
 
 use crate::{
@@ -156,6 +156,7 @@ impl<'a> Parser<'a> {
     /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
     /// type 1 | 2 |3
+    /// readonly T
     /// ```
     pub fn eat_type_alias_or_expression(
         &mut self,
@@ -163,7 +164,16 @@ impl<'a> Parser<'a> {
         export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
-        self.eat_keyword(Keyword::Type)?;
+        let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly])?;
+
+        // mutability
+        let mutability = if keyword == Keyword::Readonly {
+            Some(ScopedMutability::Unscoped {
+                mutability: Mutability::Immutable,
+            })
+        } else {
+            None
+        };
 
         // alias (or expression with static parameters)
         if self.peek_identifier().is_ok()
@@ -183,6 +193,7 @@ impl<'a> Parser<'a> {
                 let value =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 let expression = Expression::Type {
+                    mutability,
                     name: Some(alias),
                     static_parameters,
                     value,
@@ -201,6 +212,7 @@ impl<'a> Parser<'a> {
                 };
                 let expression_id = self.tree.insert(expression, self.get_span_from(start));
                 let expression = Expression::Type {
+                    mutability,
                     name: Some(alias),
                     static_parameters,
                     value: expression_id,
@@ -215,6 +227,7 @@ impl<'a> Parser<'a> {
             let value =
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
             let expression = Expression::Type {
+                mutability,
                 name: None,
                 static_parameters: None,
                 value,
@@ -292,9 +305,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::{Mutability, ScopedMutability};
+
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_string,
+        BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
@@ -353,6 +369,20 @@ mod tests {
                     assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_readonly_type_expression() {
+        let mut test = TestParser::new("readonly T");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // readonly T
+        assert_node!(parser.tree, expr_id, Expression::Type { mutability, value, .. } => {
+            assert_eq!(*mutability, Some(ScopedMutability::Unscoped { mutability: Mutability::Immutable }));
+            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "T");
             });
         });
     }
