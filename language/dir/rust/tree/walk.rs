@@ -186,7 +186,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }
-        Expression::Dynamic { mutability: _, right } => {
+        Expression::Dynamic {
+            mutability: _,
+            right,
+        } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }
@@ -740,7 +743,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let definition = tree.get(*definition_id);
             visitor.visit_definition(tree, *definition_id, definition);
         }
-        
+
         Type::Range {
             start,
             end,
@@ -767,7 +770,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        
+
         Type::UnevaluatedExpression(expression_id) => {
             let expression = tree.get(*expression_id);
             visitor.visit_expression(tree, *expression_id, expression);

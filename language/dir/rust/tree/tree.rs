@@ -217,8 +217,7 @@ impl NodeTree {
         T: Node + 'a,
         Self: NodeTreeStore<T>,
     {
-        self
-            .local_id_by_node_id
+        self.local_id_by_node_id
             .iter()
             .enumerate()
             .filter_map(|(global_index, &local_index)| {
@@ -233,7 +232,7 @@ impl NodeTree {
     }
 
     /// Get the source and AST id of a node by its global id.
-    /// Every DIR node has a source, but only some come directly from AST nodes. 
+    /// Every DIR node has a source, but only some come directly from AST nodes.
     pub fn get_source(&self, node_id: u32) -> (SourceId, Option<u32>) {
         (
             self.source_by_node_id[node_id as usize],

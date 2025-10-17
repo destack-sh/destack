@@ -243,7 +243,11 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::TypeLiteral(value) => {
                 if *value == ast::TypeLiteral::Self_ {
-                    Expression::Path { path: Path::UnevaluatedBase { base: PathBase::SelfType } }
+                    Expression::Path {
+                        path: Path::UnevaluatedBase {
+                            base: PathBase::SelfType,
+                        },
+                    }
                 } else {
                     let value = self.lower_type_literal(value);
                     Expression::TypeLiteral { value }
@@ -309,6 +313,7 @@ impl<'a> Compiler<'a> {
 
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
-        self.tree.insert_from_ast(expression, source_id, expression_id)
+        self.tree
+            .insert_from_ast(expression, source_id, expression_id)
     }
 }

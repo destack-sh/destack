@@ -112,6 +112,9 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        Some(self.tree.insert_from_ast(annotation, source_id, annotation_id))
+        Some(
+            self.tree
+                .insert_from_ast(annotation, source_id, annotation_id),
+        )
     }
 }

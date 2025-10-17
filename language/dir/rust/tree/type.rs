@@ -120,8 +120,8 @@ impl Node for Type {
 }
 
 impl Type {
-    /// Whether the type is evaluated (ignoring child nodes).
-    pub fn is_evaluated_self(&self) -> bool {
+    /// Whether the type is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         !matches!(
             self,
             Type::UnevaluatedExpression(_) | Type::UnevaluatedSelf | Type::Error

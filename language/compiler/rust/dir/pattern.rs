@@ -176,6 +176,7 @@ impl<'a> Compiler<'a> {
                 PatternField::Positional { pattern }
             }
         };
-        self.tree.insert_from_ast(pattern_field, source_id, pattern_field_id)
+        self.tree
+            .insert_from_ast(pattern_field, source_id, pattern_field_id)
     }
 }

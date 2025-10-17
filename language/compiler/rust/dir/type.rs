@@ -17,7 +17,8 @@ impl<'a> Compiler<'a> {
             source_id,
             expression_id,
         );
-        self.tree.alias_from_ast(source_id, expression_id.id, type_id);
+        self.tree
+            .alias_from_ast(source_id, expression_id.id, type_id);
         type_id
     }
 
