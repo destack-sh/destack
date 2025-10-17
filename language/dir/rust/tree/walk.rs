@@ -716,13 +716,16 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Type, id.id);
     match ty {
-        Type::Infer | Type::Never | Type::TypeLiteral(_) | Type::ScalarLiteral(_) | Type::Self_ => {
-        }
-        Type::Maybe(inner) | Type::Not(inner) | Type::Virtual(inner) => {
+        Type::Scalar(_) => {}
+        Type::Maybe(inner) | Type::Not(inner) | Type::Must(inner) => {
             let inner_type = tree.get(*inner);
             visitor.visit_type(tree, *inner, inner_type);
         }
         Type::Reference {
+            mutability: _,
+            target,
+        }
+        | Type::Dynamic {
             mutability: _,
             target,
         } => {
@@ -743,16 +746,17 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
         }
-        Type::Tuple(elements) | Type::Union(elements) | Type::Intersection(elements) => {
+        Type::Tuple(elements) | Type::Intersection(elements) => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        Type::Unevaluated(expression_id) => {
+        Type::UnevaluatedExpression(expression_id) => {
             let expression = tree.get(*expression_id);
             visitor.visit_expression(tree, *expression_id, expression);
         }
+        Type::UnevaluatedSelf => {}
         Type::Error => {}
     }
 }

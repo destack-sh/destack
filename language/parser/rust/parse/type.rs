@@ -62,14 +62,14 @@ impl<'a> Parser<'a> {
 
         // !, $, _
         if (next_type == TokenType::Not
-            || next_type == TokenType::Virtual
+            || next_type == TokenType::Dynamic
             || next_type == TokenType::Wildcard)
             // if next token doesn't start a related expression
             && (next_next_type.is_none() || !self.is_start_of_expression(next_next_type.unwrap()))
         {
             return match next_type {
                 TokenType::Not => Ok(TypeLiteral::Never),
-                TokenType::Virtual => Ok(TypeLiteral::Any),
+                TokenType::Dynamic => Ok(TypeLiteral::Any),
                 TokenType::Wildcard => Ok(TypeLiteral::Infer),
                 _ => unreachable!(),
             };

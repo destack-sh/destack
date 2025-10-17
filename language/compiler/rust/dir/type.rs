@@ -12,9 +12,11 @@ impl<'a> Compiler<'a> {
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
         let expression = self.lower_expression(source_id, ast, expression_id);
-        let type_id = self
-            .tree
-            .insert(Type::Unevaluated(expression), source_id, expression_id);
+        let type_id = self.tree.insert(
+            Type::UnevaluatedExpression(expression),
+            source_id,
+            expression_id,
+        );
         self.tree.alias(source_id, expression_id.id, type_id);
         type_id
     }
@@ -28,12 +30,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower an expression path string into a type.
+    /// Lower an expression string into a DIR type literal.
     pub fn lower_string_to_type(&mut self, string_id: ast::StringId) -> Option<TypeLiteral> {
         let string = self.get_string(string_id);
 
-        // map to ast literal first
-        // (we already have an AST->DIR literal mapping)
+        // NOTE: we map the string to an AST type literal first
         let ast_literal = match string {
             // undefined
             "undefined" => Some(ast::TypeLiteral::Undefined),
@@ -105,7 +106,7 @@ impl<'a> Compiler<'a> {
             _ => None,
         };
 
-        // map to DIR literal
+        // then map to DIR type literal (re-using the existing mapping)
         ast_literal.map(|ast_literal| self.lower_type_literal(&ast_literal))
     }
 }

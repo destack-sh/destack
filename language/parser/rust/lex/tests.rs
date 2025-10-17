@@ -128,7 +128,7 @@ fn test_lex_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // $
-        Token::new(TokenType::Virtual, 1, None),
+        Token::new(TokenType::Dynamic, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // !

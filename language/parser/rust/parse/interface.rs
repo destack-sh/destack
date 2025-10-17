@@ -143,8 +143,6 @@ interface Foo: Baz {
 
     let x: int32 = 4
 
-    use Baz
-
     function foo() => int32
 }
 "###,
@@ -156,7 +154,7 @@ interface Foo: Baz {
         assert_node!(parser.tree, interface_id, Definition::Interface { name, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(fields.len(), 2);
-            assert_eq!(expressions.len(), 3);
+            assert_eq!(expressions.len(), 2);
             assert!(where_clauses.is_none());
 
             // : Baz
