@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    ImportClause, ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
+    ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -53,10 +53,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::WhereClause => {
             let where_clause = tree.where_clauses.get(local_idx);
             walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
-        }
-        NodeType::ImportClause => {
-            let import_clause = tree.import_clauses.get(local_idx);
-            walk_import_clause(visitor, tree, NodeId::new(node_id), import_clause);
         }
         NodeType::ImportItem => {
             let import_item = tree.import_items.get(local_idx);
@@ -167,17 +163,30 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Import { clauses } => {
-            for clause_id in clauses {
-                let clause = tree.get(*clause_id);
-                visitor.visit_import_clause(tree, *clause_id, clause);
+        Expression::Import {
+            target: _,
+            alias: _,
+            items,
+        } => {
+            if let Some(items) = items {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_import_item(tree, *item_id, item);
+                }
             }
         }
 
-        Expression::Export { mode: _, clauses } => {
-            for clause_id in clauses {
-                let clause = tree.get(*clause_id);
-                visitor.visit_import_clause(tree, *clause_id, clause);
+        Expression::Export {
+            mode: _,
+            target: _,
+            alias: _,
+            items,
+        } => {
+            if let Some(items) = items {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_import_item(tree, *item_id, item);
+                }
             }
         }
 
@@ -920,21 +929,6 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the UseClause.
-pub fn walk_import_clause<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: NodeId<ImportClause>,
-    import_clause: &ImportClause,
-) {
-    visitor.visit_any(tree, NodeType::ImportClause, id.id);
-    if let Some(items) = &import_clause.items {
-        for item_id in items {
-            let item = tree.get(*item_id);
-            visitor.visit_import_item(tree, *item_id, item);
-        }
-    }
-}
-
 /// Walk the UseItem.
 pub fn walk_import_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,

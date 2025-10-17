@@ -445,7 +445,7 @@ impl<'a> Parser<'a> {
                 self.eat_with()?
             }
             // import
-            else if keyword == Some(Keyword::Import) || keyword == Some(Keyword::Use) {
+            else if keyword == Some(Keyword::Import) {
                 self.eat_import()?
             }
             // let
@@ -822,36 +822,10 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, BinaryOperator, Expression, ImportClause, ImportItem, Mutability, Pattern,
-        Runtime, ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_node,
-        assert_path, assert_string,
+        Argument, BinaryOperator, Expression, ImportItem, Mutability, Pattern, Runtime,
+        ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_node, assert_path,
+        assert_string,
     };
-
-    /// Parse `export foo, bar` through the expression parser.
-    #[test]
-    fn test_parse_export_expression_multiple_clauses() {
-        let mut test = TestParser::new("export foo, bar");
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
-
-        // export foo, bar
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
-            assert_eq!(*mode, ExportMode::Item);
-            assert_eq!(clauses.len(), 2);
-            // export foo
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert!(alias.is_none());
-                assert!(items.is_none());
-                assert_path!(parser, *target, "foo");
-            });
-            // export bar
-            assert_node!(parser.tree, clauses[1], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert!(alias.is_none());
-                assert!(items.is_none());
-                assert_path!(parser, *target, "bar");
-            });
-        });
-    }
 
     /// Parse `export { bar, baz } from foo` through the expression parser.
     #[test]
@@ -861,24 +835,43 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Virtual(target)), alias, items } => {
             assert_eq!(*mode, ExportMode::Item);
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
+            assert!(alias.is_none());
+            let items = items.as_ref().expect("expected items");
+            assert_eq!(items.len(), 2);
+            assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "bar");
                 assert!(alias.is_none());
-                let items = items.as_ref().expect("expected items");
-                assert_eq!(items.len(), 2);
-                // export bar
-                assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
-                    assert_string!(parser, *name, "bar");
-                    assert!(alias.is_none());
-                });
-                // export baz
-                assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
-                    assert_string!(parser, *name, "baz");
-                    assert!(alias.is_none());
-                });
-                assert_path!(parser, *target, "foo");
+            });
+            assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "baz");
+                assert!(alias.is_none());
+            });
+            assert_path!(parser, *target, "foo");
+        });
+    }
+
+    /// Parse `export { bar, baz }` through the expression parser.
+    #[test]
+    fn test_parse_export_expression_items_without_target() {
+        let mut test = TestParser::new("export { bar, baz }");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, target, alias, items } => {
+            assert_eq!(*mode, ExportMode::Item);
+            assert!(alias.is_none());
+            assert!(target.is_none());
+            let items = items.as_ref().expect("expected items");
+            assert_eq!(items.len(), 2);
+            assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "bar");
+                assert!(alias.is_none());
+            });
+            assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "baz");
+                assert!(alias.is_none());
             });
         });
     }
@@ -891,14 +884,11 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, clauses } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Virtual(target)), alias, items } => {
             assert_eq!(*mode, ExportMode::Item);
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert_string!(parser, alias.unwrap(), "baz");
-                assert!(items.is_none());
-                assert_path!(parser, *target, "foo");
-            });
+            assert_string!(parser, alias.unwrap(), "baz");
+            assert!(items.is_none());
+            assert_path!(parser, *target, "foo");
         });
     }
 
@@ -915,31 +905,6 @@ mod tests {
         });
     }
 
-    /// Parse `import foo, bar` through the expression parser.
-    #[test]
-    fn test_parse_import_expression_multiple_clauses() {
-        let mut test = TestParser::new("import foo, bar");
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
-
-        // import foo, bar
-        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
-            assert_eq!(clauses.len(), 2);
-            // import foo
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert!(alias.is_none());
-                assert!(items.is_none());
-                assert_path!(parser, *target, "foo");
-            });
-            // import bar
-            assert_node!(parser.tree, clauses[1], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert!(alias.is_none());
-                assert!(items.is_none());
-                assert_path!(parser, *target, "bar");
-            });
-        });
-    }
-
     /// Parse `import { bar, baz } from foo` through the expression parser.
     #[test]
     fn test_parse_import_expression_with_items_block() {
@@ -948,24 +913,19 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+            assert!(alias.is_none());
+            let items = items.as_ref().expect("expected items");
+            assert_eq!(items.len(), 2);
+            assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "bar");
                 assert!(alias.is_none());
-                let items = items.as_ref().expect("expected items");
-                assert_eq!(items.len(), 2);
-                // import bar
-                assert_node!(parser.tree, items[0], ImportItem { name, alias } => {
-                    assert_string!(parser, *name, "bar");
-                    assert!(alias.is_none());
-                });
-                // import baz
-                assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
-                    assert_string!(parser, *name, "baz");
-                    assert!(alias.is_none());
-                });
-                assert_path!(parser, *target, "foo");
             });
+            assert_node!(parser.tree, items[1], ImportItem { name, alias } => {
+                assert_string!(parser, *name, "baz");
+                assert!(alias.is_none());
+            });
+            assert_path!(parser, *target, "foo");
         });
     }
 
@@ -977,14 +937,19 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { clauses } => {
-            assert_eq!(clauses.len(), 1);
-            assert_node!(parser.tree, clauses[0], ImportClause { target: ImportTarget::Virtual(target), alias, items } => {
-                assert_string!(parser, alias.unwrap(), "baz");
-                assert!(items.is_none());
-                assert_path!(parser, *target, "foo");
-            });
+        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+            assert_string!(parser, alias.unwrap(), "baz");
+            assert!(items.is_none());
+            assert_path!(parser, *target, "foo");
         });
+    }
+
+    /// Reject `import { foo }` without a target.
+    #[test]
+    fn test_parse_import_expression_items_without_target_error() {
+        let mut test = TestParser::new("import { foo }");
+        let mut parser = test.prepare();
+        assert!(parser.eat_expression().is_err());
     }
 
     /// Parse mixed prefix and postfix increment/decrement operations.

@@ -1,9 +1,8 @@
 use dyst_ast::Keyword;
 use dyst_fir::format::FormatResult;
+use dyst_source::StringId;
 
-use crate::{
-    DystFormatContext, DystFormatter, FormatNode, ImportClause, ImportItem, ImportTarget, NodeId,
-};
+use crate::{DystFormatContext, DystFormatter, FormatNode, ImportItem, ImportTarget, NodeId};
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -15,56 +14,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
             ImportTarget::Virtual(path) => write!(f, [path]),
             ImportTarget::Physical(string) => write!(f, [token("\""), string, token("\"")]),
         }
-    }
-}
-
-impl<'ast> FormatNode<'ast, ImportClause> for ImportClause {
-    fn format_node(
-        &self,
-        node_id: NodeId<ImportClause>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        // grouped items
-        if let Some(items) = &self.items
-            && !items.is_empty()
-        {
-            write!(
-                f,
-                [
-                    group(&format_args![
-                        token("{"),
-                        if_group_fits_on_line(&space()),
-                        soft_block_indent(&format_with(|f| {
-                            f.join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
-                                soft_line_break_or_space()
-                            ])
-                            .entries(items)
-                            .finish()
-                        })),
-                        if_group_fits_on_line(&space()),
-                        token("}")
-                    ]),
-                    space(),
-                    Keyword::From,
-                    space(),
-                ]
-            )?;
-        }
-
-        // target expression
-        write!(f, [self.target])?;
-
-        // alias
-        if let Some(alias) = self.alias {
-            write!(f, [token(" as "), alias])?;
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
     }
 }
 
@@ -88,6 +37,65 @@ impl<'ast> FormatNode<'ast, ImportItem> for ImportItem {
     }
 }
 
+/// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
+pub(crate) fn format_import_binding<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    target: Option<&ImportTarget>,
+    alias: Option<StringId>,
+    items: Option<&[NodeId<ImportItem>]>,
+) -> FormatResult<()> {
+    // items with maybe target
+    if let Some(items) = items
+        && !items.is_empty()
+    {
+        // items
+        write!(
+            f,
+            [group(&format_args![
+                token("{"),
+                if_group_fits_on_line(&space()),
+                soft_block_indent(&format_with(|f| {
+                    f.join_with(&format_args![
+                        if_group_fits_on_line(&token(",")),
+                        soft_line_break_or_space()
+                    ])
+                    .entries(items)
+                    .finish()
+                })),
+                if_group_fits_on_line(&space()),
+                token("}")
+            ]),]
+        )?;
+        // target
+        if let Some(target) = target {
+            write!(f, [space(), Keyword::From, space(), target])?;
+        }
+    }
+    // target only
+    else if let Some(target) = target {
+        // alias as `* as foo`
+        if let Some(alias) = alias {
+            write!(
+                f,
+                [
+                    token("*"),
+                    space(),
+                    Keyword::As,
+                    space(),
+                    alias,
+                    space(),
+                    Keyword::From,
+                    space(),
+                ]
+            )?;
+        }
+        // target
+        write!(f, [target])?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
@@ -104,20 +112,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_import_multiple_clauses() {
-        assert_format!(
-            "import foo, bar, baz",
-            "import foo, bar, baz",
-            |p| p.eat_expression(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
     fn test_format_import_with_alias() {
         assert_format!(
             "import foo as bar",
-            "import foo as bar",
+            "import * as bar from foo",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
@@ -143,22 +141,28 @@ mod tests {
     }
 
     #[test]
-    fn test_format_import_with_annotations() {
-        assert_format!(
-            "import #foo foo",
-            "import #foo foo",
-            |p| p.eat_expression(),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
     fn test_format_import_with_physical_target() {
         assert_format!(
             "import \"foo\"",
             "import \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_import_with_overflow() {
+        let source = r#"import {
+    StructuredObject
+    StructuredObjectOptions
+    StructuredObjectOptions2
+    StructuredObjectOptions3
+} from lib"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DystFormatOptions::default_with_line_width(60)
         );
     }
 }

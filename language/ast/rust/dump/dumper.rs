@@ -1083,12 +1083,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", _id.id).end();
             }
-            Expression::Import { clauses: _ } => {
-                self.node("Expression::Use", _id.id).end();
+            Expression::Import {
+                target,
+                alias,
+                items: _,
+            } => {
+                self.node("Expression::Use", _id.id)
+                    .field("target", target)
+                    .field_optional("alias", alias)
+                    .end();
             }
-            Expression::Export { mode, clauses: _ } => {
+            Expression::Export {
+                mode,
+                target,
+                alias,
+                items: _,
+            } => {
                 self.node("Expression::Export", _id.id)
                     .field("mode", mode)
+                    .field_optional("target", target)
+                    .field_optional("alias", alias)
                     .end();
             }
             Expression::Let {
@@ -1553,21 +1567,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_where_clause(dumper, _tree, _id, clause);
-        });
-    }
-
-    fn visit_import_clause(
-        &mut self,
-        _tree: &NodeTree,
-        _id: NodeId<ImportClause>,
-        clause: &ImportClause,
-    ) {
-        self.node("UseClause", _id.id)
-            .field("target", &clause.target)
-            .field_optional("alias", &clause.alias)
-            .end();
-        self.with_depth(|dumper| {
-            walk_import_clause(dumper, _tree, _id, clause);
         });
     }
 

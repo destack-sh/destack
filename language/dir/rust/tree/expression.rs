@@ -18,9 +18,9 @@ pub enum Expression {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-    /// Import dependency declaration (flattened, like `import foo.bar` for `import foo.bar, baz.quz`)
+    /// Import dependency declaration (flattened for grouped items like `import foo.{bar, baz}`)
     Import { items: Vec<NodeId<ImportItem>> },
-    /// Export dependency declaration (flattened, like `export foo.bar` for `export foo.bar, baz.quz`)
+    /// Export dependency declaration (flattened for grouped items like `export { bar } from foo`)
     Export {
         mode: ExportMode,
         items: Vec<NodeId<ImportItem>>,

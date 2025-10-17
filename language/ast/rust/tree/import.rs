@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Node, NodeId, NodeType, Path};
+use crate::{Node, NodeType, Path};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,32 +18,6 @@ pub enum ImportTarget {
     Virtual(Path),
     // Physical target as a literal string (like `"foo"` or `"foo/bar"`)
     Physical(StringId),
-}
-
-/// A ImportClause is a single clause in a import dependency declaration.
-///
-/// Examples:
-/// ```
-/// foo
-/// foo as bar
-/// foo.bar as baz
-/// foo.{baz, qux}
-/// { baz, qux } from foo // equivalent
-/// * from foo // equivalent
-/// * as foo from foo // equivalent
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImportClause {
-    /// The target to import from (like `foo.bar` in `import foo.bar.{baz, qux}`)
-    pub target: ImportTarget,
-    /// The alias to use for the definition (like `bar` in `import foo as bar`)
-    pub alias: Option<StringId>,
-    /// The items to import from the target (like `{baz, qux}` in `import foo.bar.{baz, qux}`)
-    pub items: Option<Vec<NodeId<ImportItem>>>,
-}
-
-impl Node for ImportClause {
-    const KIND: NodeType = NodeType::ImportClause;
 }
 
 /// A ImportItem is an item to import from a target in a import clause.

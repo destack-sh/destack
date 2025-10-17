@@ -6,9 +6,8 @@ use dyst_source::{SourceId, Span};
 use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
-    EnumField, Expression, ImportClause, ImportItem, MatchCase, Node, NodeId, NodeSpanIndex,
-    NodeType, Parameter, Pattern, PatternField, Tag, UnionField, VariantField, WhereClause,
-    WithClause,
+    EnumField, Expression, ImportItem, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter,
+    Pattern, PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
 };
 
 /// The AST Node tree for a single source unit.
@@ -39,7 +38,6 @@ pub struct NodeTree {
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) import_clauses: NodeArena<ImportClause>,
     pub(crate) import_items: NodeArena<ImportItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
@@ -93,7 +91,6 @@ impl NodeTree {
             // context
             with_clauses: NodeArena::new(),
             where_clauses: NodeArena::new(),
-            import_clauses: NodeArena::new(),
             import_items: NodeArena::new(),
             // bindings
             parameters: NodeArena::new(),
@@ -253,7 +250,6 @@ impl NodeTree {
             // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            NodeType::ImportClause => self.import_clauses.deallocate(local_ids),
             NodeType::ImportItem => self.import_items.deallocate(local_ids),
             // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
@@ -400,7 +396,6 @@ impl_node_tree_stores! {
     // context
     WithClause => with_clauses,
     WhereClause => where_clauses,
-    ImportClause => import_clauses,
     ImportItem => import_items,
     // bindings
     Parameter => parameters,

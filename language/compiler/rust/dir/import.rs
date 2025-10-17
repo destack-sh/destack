@@ -13,19 +13,22 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a import clause to a DIR import items.
-    /// Import clauses with multiple items are flattened into multiple import items.
-    pub fn lower_import_clause(
+    /// Lower an import-like binding into DIR import items.
+    /// Expressions with grouped items are flattened into scalar import items.
+    pub fn lower_import_binding(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        import_clause_id: ast::NodeId<ast::ImportClause>,
+        origin_id: ast::NodeId<ast::Expression>,
+        target: Option<&ast::ImportTarget>,
+        alias: Option<dyst_source::StringId>,
+        items: Option<&[ast::NodeId<ast::ImportItem>]>,
     ) -> Vec<NodeId<ImportItem>> {
-        let import_clause = ast.get(import_clause_id);
-        let target = self.lower_import_target(source_id, ast, &import_clause.target);
+        let lowered_target = target.map(|target| self.lower_import_target(source_id, ast, target));
+        let lowered_alias = alias.map(|alias| self.lower_string_id(source_id, alias));
 
-        match &import_clause.items {
-            Some(items) => items
+        if let Some(items) = items {
+            return items
                 .iter()
                 .map(|item| {
                     let import_item = ast.get(*item);
@@ -34,20 +37,23 @@ impl<'a> Compiler<'a> {
                         .alias
                         .map(|alias| self.lower_string_id(source_id, alias));
                     let import_item = ImportItem::Scalar {
-                        target: target.clone(),
+                        target: lowered_target.clone(),
                         name,
                         alias,
                     };
-                    self.tree.insert(import_item, source_id, import_clause_id)
+                    self.tree.insert(import_item, source_id, origin_id)
                 })
-                .collect(),
-            None => {
-                let alias = import_clause
-                    .alias
-                    .map(|alias| self.lower_string_id(source_id, alias));
-                let import_item = ImportItem::Glob { target, alias };
-                vec![self.tree.insert(import_item, source_id, import_clause_id)]
-            }
+                .collect();
+        }
+
+        if let Some(target) = lowered_target {
+            let import_item = ImportItem::Glob {
+                target,
+                alias: lowered_alias,
+            };
+            vec![self.tree.insert(import_item, source_id, origin_id)]
+        } else {
+            Vec::new()
         }
     }
 

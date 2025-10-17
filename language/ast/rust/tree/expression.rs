@@ -1,9 +1,9 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportClause, Node,
-    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
-    TypeLiteral, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportItem,
+    ImportTarget, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral,
+    ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
 };
 
 // TODO #Incomplete: support arbitrary string literals as fields/arguments...?
@@ -50,7 +50,6 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// import foo
-    /// import foo, bar
     /// import foo.bar
     /// import foo.{bar, baz}
     /// import * from foo // same as `import foo`
@@ -59,7 +58,11 @@ pub enum Expression {
     /// import foo.{} // valid but linted
     /// import foo as baz
     /// ```
-    Import { clauses: Vec<NodeId<ImportClause>> },
+    Import {
+        target: ImportTarget,
+        alias: Option<StringId>,
+        items: Option<Vec<NodeId<ImportItem>>>,
+    },
 
     /// An Export is an explicit export declaration for dependency management.
     /// Implicit exports may also be specified on lets and any definitions.
@@ -67,18 +70,20 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// export foo
-    /// export foo, bar
     /// export foo.bar
     /// export foo.{bar, baz}
     /// export * from foo // same as `export foo`
     /// export * as foo from foo // same as `export foo as foo`
     /// export { bar, baz } from foo
+    /// export { bar, baz }
     /// export foo.{} // valid but linted
     /// export foo as baz
     /// ```
     Export {
         mode: ExportMode,
-        clauses: Vec<NodeId<ImportClause>>,
+        target: Option<ImportTarget>,
+        alias: Option<StringId>,
+        items: Option<Vec<NodeId<ImportItem>>>,
     },
 
     /// Let or var binding for constant or mutable variables.
