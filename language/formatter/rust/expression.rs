@@ -4,6 +4,7 @@ use dyst_fir::{format_args, write};
 
 use crate::argument::list_like;
 use crate::block::format_block;
+use crate::import::format_import_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::format_scalar_literal;
 use crate::{
@@ -310,46 +311,53 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // import
-            Expression::Import { clauses } => {
-                // keyword
+            Expression::Import {
+                target,
+                alias,
+                items,
+            } => {
                 write!(f, [Keyword::Import, space()])?;
-
-                // clauses
-                let mut first = true;
-                for clause in clauses {
-                    if !first {
-                        write!(f, [token(", ")])?;
-                    }
-                    first = false;
-                    write!(f, [*clause])?;
-                }
+                format_import_binding(
+                    f,
+                    Some(target),
+                    alias.as_ref().copied(),
+                    items.as_ref().map(|items| items.as_slice()),
+                )?;
             }
 
             // export
-            Expression::Export { mode: _, clauses } => {
-                // keyword
-                write!(f, [Keyword::Export, space()])?;
-
-                // clauses
-                let mut first = true;
-                for clause in clauses {
-                    if !first {
-                        write!(f, [token(", ")])?;
-                    }
-                    first = false;
-                    write!(f, [*clause])?;
-                }
+            Expression::Export {
+                mode,
+                target,
+                alias,
+                items,
+            } => {
+                write!(f, [mode, space()])?;
+                format_import_binding(
+                    f,
+                    target.as_ref(),
+                    alias.as_ref().copied(),
+                    items.as_ref().map(|items| items.as_slice()),
+                )?;
             }
 
             // let
             Expression::Let {
                 mutability,
-                visibility: _,
-                export: _,
+                visibility,
+                export,
                 pattern,
                 ty,
                 value,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
                 write!(
                     f,
                     [group(&format_with(|f| {
@@ -391,12 +399,22 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // type
             Expression::Type {
                 name,
-                visibility: _,
+                export,
+                visibility,
                 static_parameters,
-                export: _,
                 value,
             } => {
+                // export
+                if let Some(export) = export {
+                    write!(f, [export, space()])?;
+                }
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+                // keyword
                 write!(f, [Keyword::Type])?;
+                // name
                 if let Some(name) = name {
                     write!(f, [space(), name])?;
                     if let Some(static_parameters) = static_parameters {

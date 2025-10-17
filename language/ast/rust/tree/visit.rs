@@ -2,12 +2,12 @@
 
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    ImportClause, ImportItem, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Tag, UnionField, VariantField, WhereClause, WithClause, walk_annotation,
-    walk_argument, walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
-    walk_enum_field, walk_expression, walk_import_clause, walk_import_item, walk_match_case,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_tag, walk_union_field,
-    walk_variant_field, walk_where_clause, walk_with_clause,
+    ImportItem, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Tag,
+    UnionField, VariantField, WhereClause, WithClause, walk_annotation, walk_argument, walk_blank,
+    walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field,
+    walk_expression, walk_import_item, walk_match_case, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_tag, walk_union_field, walk_variant_field, walk_where_clause,
+    walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the AST.
@@ -97,16 +97,6 @@ pub trait NodeVisitor {
         where_clause: &WhereClause,
     ) {
         walk_where_clause(self, tree, id, where_clause);
-    }
-
-    /// Visit a UseClause.
-    fn visit_import_clause(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ImportClause>,
-        import_clause: &ImportClause,
-    ) {
-        walk_import_clause(self, tree, id, import_clause);
     }
 
     /// Visit a UseItem.
@@ -287,15 +277,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         with_clause: &WithClause,
     ) {
         self.visit_any(tree, NodeType::WithClause, id.id);
-    }
-
-    fn visit_import_clause(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<ImportClause>,
-        import_clause: &ImportClause,
-    ) {
-        self.visit_any(tree, NodeType::ImportClause, id.id);
     }
 
     fn visit_import_item(

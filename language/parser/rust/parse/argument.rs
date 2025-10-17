@@ -1,4 +1,4 @@
-use dyst_ast::{Expression, ScalarLiteral};
+use dyst_ast::{Expression, Keyword, ScalarLiteral};
 
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
@@ -32,9 +32,13 @@ impl<'a> Parser<'a> {
         // name
         let name = self.eat_identifier()?;
 
-        // : type
-        let ty = if self.peek_colon().is_ok() {
-            self.bump(); // eat colon
+        // : type (or keyword for #Leniency)
+        let ty = if self.peek_colon().is_ok()
+            || (self.options.in_static
+                && (self.peek_keyword(Keyword::Extends).is_ok()
+                    || self.peek_keyword(Keyword::Implements).is_ok()))
+        {
+            self.bump(); // eat colon or keyword
             let ty = self
                 .with_options(self.options.in_type(), |parser| parser.eat_expression())
                 .for_node_type(NodeType::Parameter)?;

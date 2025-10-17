@@ -38,18 +38,16 @@ pub(crate) fn format_scalar_literal<'ast>(
             write!(f, [token("b'"), text(&value.to_string()), token("'")])?;
         }
         ScalarLiteral::String(_) => {
-            let normalized_str = if span_str.len() >= 2
-                && span_str.starts_with('\'')
-                && span_str.ends_with('\'')
-            {
-                let mut normalized = String::with_capacity(span_str.len());
-                normalized.push('"');
-                normalized.push_str(&span_str[1..span_str.len() - 1]);
-                normalized.push('"');
-                Cow::Owned(normalized)
-            } else {
-                Cow::Borrowed(span_str)
-            };
+            let normalized_str =
+                if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'') {
+                    let mut normalized = String::with_capacity(span_str.len());
+                    normalized.push('"');
+                    normalized.push_str(&span_str[1..span_str.len() - 1]);
+                    normalized.push('"');
+                    Cow::Owned(normalized)
+                } else {
+                    Cow::Borrowed(span_str)
+                };
 
             write!(f, [text(normalized_str.as_ref())])?;
         }
@@ -246,9 +244,8 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
-    use crate::DystFormatOptions;
     use crate::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
 
     /// Strings parsed with single quotes should be rewritten with double quotes.
     #[test]

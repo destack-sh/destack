@@ -23,14 +23,14 @@ pub enum ImportTarget {
 /// A ImportItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImportItem {
-    // Import all items from a target.
+    // import all items from a target
     Glob {
         target: ImportTarget,
         alias: Option<StringId>,
     },
-    // Import a single item from a target.
+    // import a single item from a target (or current scope when target is None)
     Scalar {
-        target: ImportTarget,
+        target: Option<ImportTarget>,
         name: StringId,
         alias: Option<StringId>,
     },

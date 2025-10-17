@@ -18,11 +18,19 @@ impl<'a> Compiler<'a> {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
-            ast::Expression::Import { clauses } => {
-                let items = clauses
-                    .iter()
-                    .flat_map(|clause| self.lower_import_clause(source_id, ast, *clause))
-                    .collect();
+            ast::Expression::Import {
+                target,
+                alias,
+                items,
+            } => {
+                let items = self.lower_import_binding(
+                    source_id,
+                    ast,
+                    expression_id,
+                    Some(target),
+                    alias.as_ref().copied(),
+                    items.as_ref().map(|items| items.as_slice()),
+                );
                 let definition = Definition::Import { items };
                 Some(self.tree.insert(definition, source_id, expression_id))
             }

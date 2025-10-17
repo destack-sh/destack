@@ -1741,7 +1741,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 alias,
             } => {
                 self.node("ImportItem::Scalar", id.id)
-                    .field("target", target)
+                    .field_optional("target", target)
                     .field("name", name)
                     .field_optional("alias", alias)
                     .end();

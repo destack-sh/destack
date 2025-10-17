@@ -191,7 +191,7 @@ pub enum Definition {
     /// interface Foo: Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
-    /// 
+    ///
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
     ///     

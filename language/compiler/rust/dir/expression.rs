@@ -61,12 +61,39 @@ impl<'a> Compiler<'a> {
                 let body = body.map(|body| self.lower_block(source_id, ast, body));
                 Expression::With { clauses, body }
             }
-            ast::Expression::Import { clauses } => {
-                let items = clauses
-                    .iter()
-                    .flat_map(|clause| self.lower_import_clause(source_id, ast, *clause))
-                    .collect();
+            ast::Expression::Import {
+                target,
+                alias,
+                items,
+            } => {
+                let items = self.lower_import_binding(
+                    source_id,
+                    ast,
+                    expression_id,
+                    Some(target),
+                    alias.as_ref().copied(),
+                    items.as_ref().map(|items| items.as_slice()),
+                );
                 Expression::Import { items }
+            }
+            ast::Expression::Export {
+                mode,
+                target,
+                alias,
+                items,
+            } => {
+                let items = self.lower_import_binding(
+                    source_id,
+                    ast,
+                    expression_id,
+                    target.as_ref(),
+                    alias.as_ref().copied(),
+                    items.as_ref().map(|items| items.as_slice()),
+                );
+                Expression::Export {
+                    mode: self.lower_export_mode(*mode),
+                    items,
+                }
             }
             ast::Expression::Let {
                 mutability,
