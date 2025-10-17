@@ -398,6 +398,14 @@ impl<'a> Parser<'a> {
             .ok_or(ParserError::unexpected(self.eof_token.span))
     }
 
+    /// Peek the next next next Token or error.
+    #[inline]
+    pub fn peek_next_next_next(&self) -> ParserResult<&TokenSpan> {
+        self.tokens
+            .get(self.pos + 3)
+            .ok_or(ParserError::unexpected(self.eof_token.span))
+    }
+
     /// Eat the next Token or error.
     #[inline]
     pub fn eat(&mut self) -> ParserResult<&TokenSpan> {
@@ -500,6 +508,20 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_next_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
         let next = self.peek_next_next()?;
+        if token_types.contains(&next.token.ty) {
+            Ok(next)
+        } else {
+            Err(ParserError::unexpected(next.span))
+        }
+    }
+
+    /// Peek the next next next token in a list of token types.
+    #[inline]
+    pub fn peek_next_next_next_token_in(
+        &self,
+        token_types: &[TokenType],
+    ) -> ParserResult<&TokenSpan> {
+        let next = self.peek_next_next_next()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {

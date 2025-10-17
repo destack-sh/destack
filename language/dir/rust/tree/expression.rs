@@ -35,6 +35,7 @@ pub enum Expression {
     },
     /// Type alias or expression to declare some value as a type.
     Type {
+        mutability: Option<ScopedMutability>,
         name: Option<StringId>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
@@ -231,7 +232,9 @@ impl Expression {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopSource {
     /// For loop.
-    For,
+    ForThree,
+    /// For loop.
+    ForEach,
     /// While loop.
     While,
     /// Loop loop.

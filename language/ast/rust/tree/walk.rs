@@ -211,6 +211,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Type {
+            mutability: _,
             name: _,
             static_parameters,
             visibility: _,

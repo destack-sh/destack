@@ -1,11 +1,19 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::Expression;
+use dyst_ast::{Expression, Keyword, Mutability, ScopedMutability};
+use std::str::FromStr;
 
 use crate::TokenType;
 use crate::parse::prelude::*;
 
 use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
+
+static VARIANT_FIELD_MODIFIERS: [Keyword; 4] = [
+    Keyword::Readonly,
+    Keyword::Public,
+    Keyword::Protected,
+    Keyword::Private,
+];
 
 static VARIANT_FIELD_START_TOKENS: [TokenType; 6] = [
     TokenType::Colon,
@@ -41,19 +49,31 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a variant field: `name: Type` with optional default `= <expr>`.
+    /// May be preceded by any number of field modifiers.
     pub(crate) fn peek_variant_field(&self) -> ParserResult<()> {
-        if (self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token_in(&VARIANT_FIELD_START_TOKENS).is_ok())
-            || (self.peek_visibility().is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-                && self
-                    .peek_next_next_token_in(&VARIANT_FIELD_START_TOKENS)
-                    .is_ok())
+        let mut pos = self.pos() as usize;
+        // eat modifiers
+        while let Some(token) = self.tokens.get(pos) {
+            let keyword = Keyword::from_str(self.get_span_str(token.span));
+            if let Ok(keyword) = keyword
+                && VARIANT_FIELD_MODIFIERS.contains(&keyword)
+            {
+                pos += 1;
+            } else {
+                break;
+            }
+        }
+        // followed by identifier + field start
+        let next_token_ty = self.tokens.get(pos).map(|token| token.token.ty);
+        let next_next_token_ty = self.tokens.get(pos + 1).map(|token| token.token.ty);
+        if next_token_ty == Some(TokenType::Identifier)
+            && let Some(next_next_token_ty) = next_next_token_ty
+            && VARIANT_FIELD_START_TOKENS.contains(&next_next_token_ty)
         {
             Ok(())
         } else {
             Err(ParserError::expected(
-                self.peek()?.span,
+                self.tokens[pos].span,
                 TokenType::Identifier,
             ))
         }
@@ -67,12 +87,23 @@ impl<'a> Parser<'a> {
     /// name: T
     /// name: T = <expr>
     /// public T
+    /// readonly name: T
     /// ```
     pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
 
         // visibility
         let visibility = self.eat_visibility_maybe()?;
+
+        // mutability
+        let mutability = if self.peek_keyword(Keyword::Readonly).is_ok() {
+            self.bump(); // eat readonly
+            Some(ScopedMutability::Unscoped {
+                mutability: Mutability::Immutable,
+            })
+        } else {
+            None
+        };
 
         // name:
         let name =
@@ -99,6 +130,7 @@ impl<'a> Parser<'a> {
 
         let field_id = self.tree.insert(
             VariantField {
+                mutability,
                 visibility,
                 name,
                 ty,

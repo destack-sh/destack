@@ -124,8 +124,10 @@ pub enum Expression {
     /// type Foo<T> = Baz<T> | null
     /// type T = { a: int32, b: boolean } | true
     /// type 1 | 2 |3
+    /// readonly T
     /// ```
     Type {
+        mutability: Option<ScopedMutability>,
         name: Option<StringId>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,

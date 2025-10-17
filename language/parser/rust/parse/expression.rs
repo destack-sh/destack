@@ -9,7 +9,7 @@ use crate::{
     Visibility,
 };
 
-static DEFINITION_KEYWORDS: [Keyword; 13] = [
+static DEFINITION_KEYWORDS: [Keyword; 14] = [
     Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
@@ -20,6 +20,7 @@ static DEFINITION_KEYWORDS: [Keyword; 13] = [
     Keyword::Trait,
     Keyword::Type,
     Keyword::Const,
+    Keyword::Readonly,
     Keyword::Let,
     Keyword::Var,
     Keyword::Implement,
@@ -464,7 +465,7 @@ impl<'a> Parser<'a> {
                 self.eat_let(visibility, export)?
             }
             // type
-            else if keyword == Some(Keyword::Type) {
+            else if keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly) {
                 self.eat_type_alias_or_expression(visibility, export)?
             }
             // if

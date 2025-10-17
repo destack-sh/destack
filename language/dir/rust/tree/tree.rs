@@ -159,6 +159,7 @@ impl NodeTree {
     {
         let source_id = self.source_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, source_id);
+        self.ast_id_by_node_id.push(None);
         self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
         node_id
     }

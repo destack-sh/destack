@@ -1,10 +1,12 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId, Type};
+use crate::{Expression, Node, NodeId, NodeType, ScopedMutability, StringId, Type};
 
 /// A VariantField is a field of a variant.
 #[derive(Debug, Clone, PartialEq)]
 pub enum VariantField {
     /// Named field.
     Named {
+        /// The mutability of the field.
+        mutability: Option<ScopedMutability>,
         /// The name of the field.
         name: StringId,
         /// The type of the field.
@@ -14,6 +16,8 @@ pub enum VariantField {
     },
     /// Positional field.
     Positional {
+        /// The mutability of the field.
+        mutability: Option<ScopedMutability>,
         /// The type of the field.
         ty: NodeId<Type>,
         /// The default value of the field.
