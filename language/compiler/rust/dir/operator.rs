@@ -71,6 +71,7 @@ impl<'a> Compiler<'a> {
             ast::BinaryOperator::Of => dyst_dir::BinaryOperator::Of,
             ast::BinaryOperator::Is => dyst_dir::BinaryOperator::Is,
             ast::BinaryOperator::Instanceof => dyst_dir::BinaryOperator::Instanceof,
+            ast::BinaryOperator::Satisfies => dyst_dir::BinaryOperator::Satisfies,
         }
     }
 

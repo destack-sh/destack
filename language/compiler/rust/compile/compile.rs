@@ -127,7 +127,7 @@ impl<'s> Compiler<'s> {
     }
 
     // Queue a node to be resolved.
-    fn queue_resolve_node<T>(&mut self, node_id: NodeId<T>)
+    pub(crate) fn queue_resolve_node<T>(&mut self, node_id: NodeId<T>)
     where
         Self: NodeTreeStore<T>,
         T: Node,
@@ -165,6 +165,7 @@ impl<'s> Compiler<'s> {
         }
     }
 
+    /// Process a compiler message.
     fn process_message(&mut self, message: CompilerMessage) {
         match message {
             CompilerMessage::ResolveRequest(request) => {

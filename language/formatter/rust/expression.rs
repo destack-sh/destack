@@ -819,6 +819,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::Of => token("of"),
             BinaryOperator::Is => token("is"),
             BinaryOperator::Instanceof => token("instanceof"),
+            BinaryOperator::Satisfies => token("satisfies"),
         };
         write!(f, [token])
     }

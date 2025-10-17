@@ -240,15 +240,17 @@ pub enum BinaryOperator {
 
     // type
     /// `as`
-    Cast = 704,
+    Cast = 706,
     /// `in`
-    In = 703,
+    In = 705,
     /// `of`
-    Of = 702,
+    Of = 704,
     /// `is`
-    Is = 701,
+    Is = 703,
     /// `instanceof`
-    Instanceof = 700,
+    Instanceof = 702,
+    /// `satisfies`
+    Satisfies = 701,
 }
 
 impl BinaryOperator {
@@ -298,6 +300,7 @@ impl BinaryOperator {
             BinaryOperator::Of => OperatorPrecedence::Logical,
             BinaryOperator::Is => OperatorPrecedence::Logical,
             BinaryOperator::Instanceof => OperatorPrecedence::Logical,
+            BinaryOperator::Satisfies => OperatorPrecedence::Logical,
         }
     }
 
@@ -354,6 +357,7 @@ impl BinaryOperator {
             TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
             TokenType::Identifier if token_str == "is" => Some(BinaryOperator::Is),
             TokenType::Identifier if token_str == "instanceof" => Some(BinaryOperator::Instanceof),
+            TokenType::Identifier if token_str == "satisfies" => Some(BinaryOperator::Satisfies),
             _ => None,
         }
     }
