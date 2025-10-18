@@ -72,7 +72,7 @@ pub(crate) fn format_template_literal<'ast>(
     span: Span,
     f: &mut DystFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    todo!("nocheckin: TODO #Incomplete: format template literals {template:?}");
+    todo!("nocheckin {template:?}");
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {

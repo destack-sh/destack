@@ -9,7 +9,7 @@ use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenTyp
 use destack_unicode::UnicodeEmoji;
 use dyst_source::{SourceId, Span};
 
-/// Classification of a parsed single-quoted literal.
+/// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {
     Character { is_terminated: bool },
     String { is_terminated: bool },
@@ -28,47 +28,48 @@ pub fn is_semantic(token_type: TokenType) -> bool {
     !TRIVIA_TOKEN_TYPES.contains(&token_type)
 }
 
-/// Tokenize the input string into an Iterator of Tokens and Spans.
-/// Returns both semantic and trivia tokens.
-pub fn lex(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
-    let mut cursor = Lexer::new(input);
-    let mut tokens: Vec<TokenSpan> = Vec::new();
-    let mut pos = 0;
-
-    // tokenize with spans
-    loop {
-        let token = cursor.advance(&tokens);
-        let token_span = TokenSpan {
-            token,
-            span: Span {
-                source: source_id,
-                start: pos,
-                end: pos + token.len,
-            },
-        };
-        tokens.push(token_span);
-        pos = pos.saturating_add(token.len);
-        if token.ty == TokenType::End {
-            break;
-        }
+impl Lexer<'_> {
+    /// Lex the input string into TokenSpans and the end-of-sequence Token.
+    pub fn lex(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
+        let mut lexer = Lexer::new(source_id, input);
+        let eof_token = lexer.run();
+        (lexer.tokens, eof_token)
     }
 
-    // eof token
-    let eof_token = *tokens.last().unwrap_or(&TokenSpan {
-        span: Span {
-            source: source_id,
-            start: 0,
-            end: 0,
-        },
-        token: Token::end(),
-    });
+    /// Runs the lexer until the end of the input string.
+    /// Returns the end-of-sequence Token.
+    fn run(&mut self) -> TokenSpan {
+        // tokenize with spans
+        loop {
+            let start = self.pos as u32;
+            let token = self.advance();
+            let token_span = TokenSpan {
+                token,
+                span: Span {
+                    source: self.source_id,
+                    start,
+                    end: (start + token.len),
+                },
+            };
+            self.tokens.push(token_span);
+            if token.ty == TokenType::End {
+                break;
+            }
+        }
 
-    (tokens, eof_token)
-}
+        // eof token
+        *self.tokens.last().unwrap_or(&TokenSpan {
+            span: Span {
+                source: self.source_id,
+                start: 0,
+                end: 0,
+            },
+            token: Token::end(),
+        })
+    }
 
-impl Lexer<'_> {
     /// Parses a token from the input string.
-    pub(crate) fn advance(&mut self, prev_tokens: &[TokenSpan]) -> Token {
+    fn advance(&mut self) -> Token {
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.eat() else {
             return Token::new(TokenType::End, 0, None);
@@ -124,12 +125,11 @@ impl Lexer<'_> {
                     _ => {
                         // /regex/ if we're in a "start" context
                         let prev_non_whitespace_token = {
-                            prev_tokens
+                            self.tokens
                                 .iter()
                                 .rev()
                                 .find(|token| token.token.ty != TokenType::Whitespace)
                         };
-
                         if prev_non_whitespace_token.is_none()
                             || [
                                 TokenType::Newline,
@@ -631,6 +631,11 @@ impl Lexer<'_> {
                 (TokenType::Literal, Some(kind))
             }
 
+            // template string literal
+            '`' => {
+                todo!("nocheckin");
+            }
+
             // identifier starting with an emoji (for graceful error recovery)
             c if !c.is_ascii() && c.is_emoji_char() => (self.eat_invalid_identifier(), None),
             _ => (TokenType::Unknown, None),
@@ -664,14 +669,14 @@ impl Lexer<'_> {
             _ => {}
         }
         // boolean
-        if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
+        if first_char == 't' && self.source[start_pos - 1..self.pos].eq("true") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: true }),
             )
         }
         // false
-        else if first_char == 'f' && self.str[start_pos - 1..self.pos].eq("false") {
+        else if first_char == 'f' && self.source[start_pos - 1..self.pos].eq("false") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: false }),

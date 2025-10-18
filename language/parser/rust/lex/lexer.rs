@@ -1,30 +1,36 @@
 use std::fmt::Debug;
 use std::str::Chars;
 
-use dyst_source::Span;
+use dyst_ast::TokenSpan;
+use dyst_source::{SourceId, Span};
 
 use super::memchr::find_byte;
 
 /// Lexer over a source string.
 pub struct Lexer<'a> {
+    /// The source ID.
+    pub source_id: SourceId,
     /// The string to tokenize.
-    pub str: &'a str,
-    /// The current head ("next") byte position in the string.
-    pub pos: usize,
-    /// The number of bytes remaining in the current token.
-    len_remaining: usize,
+    pub source: &'a str,
     /// The character iterator over the string.
     chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
+    /// The current head ("next") byte position in the string.
+    pub(super) pos: usize,
+
+    /// The number of bytes remaining in the current token.
+    len_remaining: usize,
     /// The previous character.
     prev: char,
+    /// The tokens seen so far.
+    pub(super) tokens: Vec<TokenSpan>,
 }
 
 impl Debug for Lexer<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<Lexer {{ str: {}, pos: {}, len_remaining: {}, chars: {:?} }}>",
-            self.str, self.pos, self.len_remaining, self.chars
+            "<Lexer {{ source: {}, pos: {} }}>",
+            self.source, self.pos
         )
     }
 }
@@ -33,13 +39,15 @@ pub const EOF_CHAR: char = '\0';
 
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
-    pub fn new(str: &'a str) -> Lexer<'a> {
+    pub fn new(source_id: SourceId, source: &'a str) -> Lexer<'a> {
         Lexer {
-            str,
+            source_id,
+            source,
             pos: 0,
-            len_remaining: str.len(),
-            chars: str.chars(),
+            len_remaining: source.len(),
+            chars: source.chars(),
             prev: EOF_CHAR,
+            tokens: Vec::new(),
         }
     }
 
@@ -51,7 +59,7 @@ impl<'a> Lexer<'a> {
     /// Gets the string content of a span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'a str {
-        &self.str[span.start as usize..span.end as usize]
+        &self.source[span.start as usize..span.end as usize]
     }
 
     /// Gets the last eaten symbol (or `'\0'` in release builds).
@@ -104,7 +112,7 @@ impl<'a> Lexer<'a> {
     /// Moves to the next character.
     pub fn eat(&mut self) -> Option<char> {
         let c = self.chars.next()?;
-        self.pos = self.str.len() - self.chars.as_str().len();
+        self.pos = self.source.len() - self.chars.as_str().len();
         self.prev = c;
         Some(c)
     }
@@ -129,11 +137,11 @@ impl<'a> Lexer<'a> {
             Some(idx) => {
                 // idx is at a UTF-8 boundary because we only search ASCII bytes
                 self.chars = s[idx..].chars();
-                self.pos = self.str.len() - self.chars.as_str().len();
+                self.pos = self.source.len() - self.chars.as_str().len();
             }
             None => {
                 self.chars = "".chars();
-                self.pos = self.str.len();
+                self.pos = self.source.len();
             }
         }
     }
