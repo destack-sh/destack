@@ -3,7 +3,7 @@ use dyst_source::StringId;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportItem,
     ImportTarget, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral,
-    ScopedMutability, TypeLiteral, UnaryOperator, Visibility,
+    ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator, Visibility,
 };
 
 // TODO #Incomplete: support arbitrary string literals as fields/arguments...?
@@ -363,6 +363,18 @@ pub enum Expression {
     /// 0x1234
     /// ```
     ScalarLiteral(ScalarLiteral),
+
+    /// Template literal value. Might include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// `hello`
+    /// `hello ${name}`
+    /// `hello ${name} ${age}`
+    /// `hello ${name} ${age} ${city}`
+    /// sql`SELECT * FROM users WHERE name = ${name}`
+    /// ```
+    TemplateLiteral(TemplateLiteral),
 
     /// Type literal.
     ///

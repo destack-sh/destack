@@ -966,10 +966,58 @@ impl Dump for ScalarLiteral {
             ScalarLiteral::String(value) => {
                 dumper.object("ScalarLiteral::String").value(value).end();
             }
+            ScalarLiteral::RegexString { content, flags } => {
+                dumper
+                    .object("ScalarLiteral::RegexString")
+                    .field("content", content)
+                    .field_optional("flags", flags)
+                    .end();
+            }
             ScalarLiteral::ByteString(value) => {
                 dumper
                     .object("ScalarLiteral::ByteString")
                     .value(value)
+                    .end();
+            }
+        }
+    }
+}
+
+/// Dump a TemplateLiteral as a structured representation.
+impl Dump for TemplateLiteral {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TemplateLiteral::String { template } => {
+                dumper
+                    .object("TemplateLiteral::String")
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::TaggedString { tag, template } => {
+                dumper
+                    .object("TemplateLiteral::TaggedString")
+                    .field("tag", tag)
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::InterpolatedString {
+                template,
+                arguments: _,
+            } => {
+                dumper
+                    .object("TemplateLiteral::InterpolatedString")
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::TaggedInterpolatedString {
+                tag,
+                template,
+                arguments: _,
+            } => {
+                dumper
+                    .object("TemplateLiteral::TaggedInterpolatedString")
+                    .field("tag", tag)
+                    .field("template", template)
                     .end();
             }
         }
@@ -1200,6 +1248,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ScalarLiteral(value) => {
                 self.node("Expression::ScalarLiteral", _id.id)
+                    .value(value)
+                    .end();
+            }
+            Expression::TemplateLiteral(value) => {
+                self.node("Expression::TemplateLiteral", _id.id)
                     .value(value)
                     .end();
             }

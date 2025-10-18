@@ -1,4 +1,4 @@
-use crate::StringId;
+use crate::{Argument, NodeId, Path, StringId};
 
 // TODO #Incomplete: format string literals
 //  (TS-style tagged template literals: `hey ${name}` with optional prefix)
@@ -17,6 +17,8 @@ use crate::StringId;
 /// "Hello, world!"
 /// 'a'
 /// b'a'
+/// /abc/
+/// /abc/g
 /// b"abc"
 /// 0x1234
 /// ```
@@ -34,8 +36,39 @@ pub enum ScalarLiteral {
     Character(char),
     /// String value.
     String(StringId),
+    /// Regex string value.
+    RegexString { content: StringId, flags: Option<StringId> },
     /// Byte string value.
     ByteString(Vec<u8>),
+}
+
+/// A TemplateLiteral is literal template value node.
+///
+/// Examples:
+/// ```
+/// `hello`
+/// `hello ${name}`
+/// `hello ${name} ${age}`
+/// `hello ${name} ${age} ${city}`
+/// sql`SELECT * FROM users WHERE name = ${name}`
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplateLiteral {
+    /// Template string value.
+    String { template: StringId },
+    /// Tagged template literal value.
+    TaggedString { tag: Path, template: StringId },
+    /// Interpolated template literal value.
+    InterpolatedString {
+        template: Vec<StringId>,
+        arguments: Vec<NodeId<Argument>>,
+    },
+    /// Tagged interpolated template literal value.
+    TaggedInterpolatedString {
+        tag: Path,
+        template: Vec<StringId>,
+        arguments: Vec<NodeId<Argument>>,
+    },
 }
 
 /// A TypeLiteral is literal type node.

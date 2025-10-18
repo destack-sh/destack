@@ -1152,6 +1152,13 @@ impl Dump for ScalarLiteral {
                     .field("value", value)
                     .end();
             }
+            ScalarLiteral::RegexString { content, flags } => {
+                dumper
+                    .object("ScalarLiteral::RegexString")
+                    .field("content", content)
+                    .field_optional("flags", flags)
+                    .end();
+            }
             ScalarLiteral::ByteString(value) => {
                 dumper
                     .object("ScalarLiteral::ByteString")
@@ -1309,6 +1316,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
+                    .field("value", value)
+                    .end();
+            }
+            Expression::TemplateLiteral { value } => {
+                self.node("Expression::TemplateLiteral", id.id)
                     .field("value", value)
                     .end();
             }

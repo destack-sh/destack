@@ -36,16 +36,26 @@ impl SemanticType {
     /// Map TokenType to *lexical* SemanticType.
     pub fn from_token(source: &Source, token: TokenSpan) -> Self {
         match token.token.ty {
-            // whitespace
-            TokenType::Newline | TokenType::Whitespace | TokenType::Unknown | TokenType::End => {
-                SemanticType::Whitespace
-            }
+            // --------------------------------------------------
+            // Structural
+            // --------------------------------------------------
+            TokenType::Newline
+            | TokenType::Whitespace
+            | TokenType::Unknown
+            | TokenType::End => SemanticType::Whitespace,
 
-            // annotations
-            TokenType::LineComment | TokenType::BlockComment => SemanticType::Comment,
-            TokenType::DocLineComment | TokenType::DocBlockComment => SemanticType::Doc,
+            // --------------------------------------------------
+            // Annotations
+            // --------------------------------------------------
+            TokenType::LineComment
+            | TokenType::BlockComment => SemanticType::Comment,
+            TokenType::DocLineComment
+            | TokenType::DocBlockComment => SemanticType::Doc,
+            // (tags are not parsed as tokens)
 
-            // identifiers / keywords
+            // --------------------------------------------------
+            // Identifiers / Literals
+            // --------------------------------------------------
             TokenType::Identifier
             | TokenType::InvalidIdentifier
             | TokenType::UnknownLiteralPrefix => {
@@ -55,53 +65,56 @@ impl SemanticType {
                     SemanticType::Identifier
                 }
             }
-
-            // literals
             TokenType::Literal => {
                 if let Some(literal) = token.token.literal {
                     match literal {
-                        LiteralType::Boolean { value: _ } => SemanticType::LiteralNumbery,
-                        LiteralType::Int {
-                            base: _,
-                            is_empty: _,
-                        } => SemanticType::LiteralNumbery,
-                        LiteralType::Float {
-                            base: _,
-                            is_empty_exponent: _,
-                        } => SemanticType::LiteralNumbery,
-                        LiteralType::Character { is_terminated: _ } => SemanticType::LiteralStringy,
-                        LiteralType::Byte { is_terminated: _ } => SemanticType::LiteralStringy,
-                        LiteralType::String { is_terminated: _ } => SemanticType::LiteralStringy,
-                        LiteralType::ByteString { is_terminated: _ } => {
-                            SemanticType::LiteralStringy
-                        }
-                        LiteralType::RawString { hashes: _ } => SemanticType::LiteralStringy,
-                        LiteralType::RawByteString { hashes: _ } => SemanticType::LiteralStringy,
+                        LiteralType::Boolean { .. } => SemanticType::LiteralNumbery,
+                        LiteralType::Int { .. } => SemanticType::LiteralNumbery,
+                        LiteralType::Float { .. } => SemanticType::LiteralNumbery,
+                        LiteralType::Character { .. } => SemanticType::LiteralStringy,
+                        LiteralType::Byte { .. } => SemanticType::LiteralStringy,
+                        LiteralType::String { .. } => SemanticType::LiteralStringy,
+                        LiteralType::ByteString { .. } => SemanticType::LiteralStringy,
+                        LiteralType::RegexString => SemanticType::LiteralStringy,
+                        LiteralType::RawString { .. } => SemanticType::LiteralStringy,
+                        LiteralType::RawByteString { .. } => SemanticType::LiteralStringy,
                     }
                 } else {
                     SemanticType::LiteralStringy
                 }
             }
+            TokenType::TemplateStringStart
+            | TokenType::TemplateStringMiddle
+            | TokenType::TemplateStringEnd
+            | TokenType::TemplateString => SemanticType::LiteralStringy,
 
-            // symbols
-            TokenType::Wildcard
-            | TokenType::Colon
-            | TokenType::Semicolon
-            | TokenType::Comma
-            | TokenType::Dot
-            | TokenType::Range
-            | TokenType::RangeWide
-            | TokenType::Arrow
-            | TokenType::ArrowWide
-            | TokenType::At
-            | TokenType::Tag
-            | TokenType::ElementwiseNot
-            | TokenType::Maybe
-            | TokenType::Coalesce
-            | TokenType::Dynamic
-            | TokenType::Not => SemanticType::Operator,
+            // --------------------------------------------------
+            // Symbols
+            // --------------------------------------------------
+            TokenType::Wildcard => SemanticType::Operator,
+            TokenType::Colon => SemanticType::Operator,
+            TokenType::Semicolon => SemanticType::Operator,
+            TokenType::Comma => SemanticType::Operator,
+            TokenType::Dot => SemanticType::Operator,
+            TokenType::Range => SemanticType::Operator,
+            TokenType::RangeWide => SemanticType::Operator,
+            TokenType::Arrow => SemanticType::Operator,
+            TokenType::ArrowWide => SemanticType::Operator,
+            TokenType::At => SemanticType::Operator,
+            TokenType::Tag => SemanticType::Operator,
 
-            // parentheses
+            // --------------------------------------------------
+            // Elementwise / Logical / Dynamic prefixes
+            // --------------------------------------------------
+            TokenType::ElementwiseNot => SemanticType::Operator,
+            TokenType::Maybe => SemanticType::Operator,
+            TokenType::Coalesce => SemanticType::Operator,
+            TokenType::Dynamic => SemanticType::Operator,
+            TokenType::Not => SemanticType::Operator,
+
+            // --------------------------------------------------
+            // Parentheses
+            // --------------------------------------------------
             TokenType::OpenParenthesis
             | TokenType::CloseParenthesis
             | TokenType::OpenBrace
@@ -109,60 +122,100 @@ impl SemanticType {
             | TokenType::OpenBracket
             | TokenType::CloseBracket => SemanticType::Operator,
 
-            // arithmetic operators
+            // --------------------------------------------------
+            // Multiplication
+            // --------------------------------------------------
             TokenType::Multiply
             | TokenType::WrappingMultiply
             | TokenType::SaturatingMultiply
             | TokenType::Divide
             | TokenType::Remainder
+
+            // --------------------------------------------------
+            // Addition
+            // --------------------------------------------------
             | TokenType::Add
             | TokenType::WrappingAdd
             | TokenType::SaturatingAdd
             | TokenType::Subtract
             | TokenType::WrappingSubtract
             | TokenType::SaturatingSubtract
+            | TokenType::Increment
+            | TokenType::Decrement
+            
+
+            // --------------------------------------------------
+            // Shift
+            // --------------------------------------------------
             | TokenType::ShiftLeft
             | TokenType::SaturatingShiftLeft
-            | TokenType::Increment
-            | TokenType::Decrement => SemanticType::Operator,
 
-            // elementwise operators
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::ElementwiseOr => {
-                SemanticType::Operator
-            }
+            // --------------------------------------------------
+            // Elementwise
+            // --------------------------------------------------
+            | TokenType::ElementwiseAnd
+            | TokenType::ElementwiseXor
+            | TokenType::ElementwiseOr
 
-            // comparison operators
-            TokenType::Equal
+            // --------------------------------------------------
+            // Comparison
+            // --------------------------------------------------
+            | TokenType::Equal
             | TokenType::EqualWide
             | TokenType::NotEqual
             | TokenType::NotEqualWide
             | TokenType::LessThan
             | TokenType::LessThanOrEqual
             | TokenType::GreaterThan
-            | TokenType::GreaterThanOrEqual => SemanticType::Operator,
+            | TokenType::GreaterThanOrEqual
 
-            // logical operators
-            TokenType::LogicalAnd | TokenType::LogicalOr => SemanticType::Operator,
+            // --------------------------------------------------
+            // Logical
+            // --------------------------------------------------
+            | TokenType::LogicalAnd
+            | TokenType::LogicalOr => SemanticType::Operator,
 
-            // assignment operators
+            // --------------------------------------------------
+            // Assignment
+            // --------------------------------------------------
             TokenType::Assign
+
+            // --------------------------------------------------
+            // Assignment Multiplication
+            // --------------------------------------------------
             | TokenType::MultiplyAssign
             | TokenType::WrappingMultiplyAssign
             | TokenType::SaturatingMultiplyAssign
             | TokenType::DivideAssign
             | TokenType::RemainderAssign
+
+            // --------------------------------------------------
+            // Assignment Addition
+            // --------------------------------------------------
             | TokenType::AddAssign
             | TokenType::WrappingAddAssign
             | TokenType::SaturatingAddAssign
             | TokenType::SubtractAssign
             | TokenType::WrappingSubtractAssign
             | TokenType::SaturatingSubtractAssign
+
+            // --------------------------------------------------
+            // Assignment Shift
+            // --------------------------------------------------
             | TokenType::ShiftLeftAssign
             | TokenType::SaturatingShiftLeftAssign
             | TokenType::ShiftRightAssign
+
+            // --------------------------------------------------
+            // Assignment Elementwise
+            // --------------------------------------------------
             | TokenType::ElementwiseAndAssign
             | TokenType::ElementwiseXorAssign
             | TokenType::ElementwiseOrAssign
+
+            // --------------------------------------------------
+            // Assignment Logical
+            // --------------------------------------------------
             | TokenType::LogicalAndAssign
             | TokenType::LogicalOrAssign => SemanticType::Operator,
         }

@@ -51,6 +51,13 @@ pub(crate) fn format_scalar_literal<'ast>(
 
             write!(f, [text(normalized_str.as_ref())])?;
         }
+        ScalarLiteral::RegexString { content, flags } => {
+            if let Some(flags) = flags {
+                write!(f, [token("/"), content, token("/"), flags])?;
+            } else {
+                write!(f, [token("/"), content, token("/")])?;
+            }
+        }
         ScalarLiteral::ByteString(_) => {
             write!(f, [text(span_str)])?;
         }

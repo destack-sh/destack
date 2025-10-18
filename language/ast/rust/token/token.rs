@@ -38,6 +38,10 @@ impl Token {
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TokenType {
+    /// --------------------------------------------------
+    /// Structural
+    /// --------------------------------------------------
+
     /// Newline character.
     Newline,
     /// Non-newline whitespace character sequence.
@@ -47,7 +51,10 @@ pub enum TokenType {
     /// End of sequence (e.g., end of source file)
     End,
 
-    // annotations
+    /// --------------------------------------------------
+    /// Annotations
+    /// --------------------------------------------------
+
     /// Line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,
     /// Block comment, e.g. `/* comment */`
@@ -58,7 +65,10 @@ pub enum TokenType {
     DocBlockComment,
     // (tags are not parsed as tokens)
 
-    // identifiers / literals
+    /// --------------------------------------------------
+    /// Identifiers / Literals
+    /// --------------------------------------------------
+
     /// Identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
     /// Identifier that is invalid (e.g. because it contains emoji).
@@ -67,8 +77,19 @@ pub enum TokenType {
     UnknownLiteralPrefix,
     /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
     Literal,
+    /// Template string start (`start${` in `${start}middle${end}`)
+    TemplateStringStart,
+    /// Template string middle (`}middle${` in `${start}middle${end}`)
+    TemplateStringMiddle,
+    /// Template string end (`}end` in `${start}middle${end}`)
+    TemplateStringEnd,
+    /// Template string without interpolation (`no interpolation`)
+    TemplateString,
 
-    // symbols
+    /// --------------------------------------------------
+    /// Symbols
+    /// --------------------------------------------------
+
     /// Wildcard literal `_`.
     Wildcard,
     /// `:`
@@ -102,7 +123,10 @@ pub enum TokenType {
     /// `!`
     Not,
 
-    // parentheses
+    /// --------------------------------------------------
+    /// Parentheses
+    /// --------------------------------------------------
+
     /// `(`
     OpenParenthesis,
     /// `)`
@@ -116,7 +140,10 @@ pub enum TokenType {
     /// `]`
     CloseBracket,
 
-    // multiplication
+    /// --------------------------------------------------
+    /// Multiplication
+    /// --------------------------------------------------
+
     /// `*`
     Multiply,
     /// `*%`
@@ -128,7 +155,10 @@ pub enum TokenType {
     /// `%`
     Remainder,
 
-    // addition
+    /// --------------------------------------------------
+    /// Addition
+    /// --------------------------------------------------
+
     /// `+`
     Add,
     /// `+%`
@@ -146,7 +176,10 @@ pub enum TokenType {
     /// `--`
     Decrement,
 
-    // shift
+    /// --------------------------------------------------
+    /// Shift
+    /// --------------------------------------------------
+
     /// `<<`
     ShiftLeft,
     /// `<<|`
@@ -154,7 +187,10 @@ pub enum TokenType {
     // NOTE: we don't have a `>>` token to avoid ambiguity in static parameters
     //  (otherwise we would have to perform some ugly "ungluing" which is cumbersome)
 
-    // elementwise
+    /// --------------------------------------------------
+    /// Elementwise
+    /// --------------------------------------------------
+
     /// `&`
     ElementwiseAnd,
     /// `^`
@@ -162,7 +198,10 @@ pub enum TokenType {
     /// `|`
     ElementwiseOr,
 
-    // comparison
+    /// --------------------------------------------------
+    /// Comparison
+    /// --------------------------------------------------
+
     /// `==`
     Equal,
     /// `===`
@@ -180,17 +219,26 @@ pub enum TokenType {
     /// `>=`
     GreaterThanOrEqual,
 
-    // logical
+    /// --------------------------------------------------
+    /// Logical
+    /// --------------------------------------------------
+
     /// `&&`
     LogicalAnd,
     /// `||`
     LogicalOr,
 
-    // assignment
+    /// --------------------------------------------------
+    /// Assignment
+    /// --------------------------------------------------
+
     /// `=`
     Assign,
 
-    // assignment multiplication
+    /// --------------------------------------------------
+    /// Assignment Multiplication
+    /// --------------------------------------------------
+
     /// `*=`
     MultiplyAssign,
     /// `*%=`
@@ -202,7 +250,10 @@ pub enum TokenType {
     /// `%=`
     RemainderAssign,
 
-    // assignment addition
+    /// --------------------------------------------------
+    /// Assignment Addition
+    /// --------------------------------------------------
+
     /// `+=`
     AddAssign,
     /// `+%=`
@@ -216,7 +267,10 @@ pub enum TokenType {
     /// `-|=`
     SaturatingSubtractAssign,
 
-    // assignment shift
+    /// --------------------------------------------------
+    /// Assignment Shift
+    /// --------------------------------------------------
+
     /// `<<=`
     ShiftLeftAssign,
     /// `<<|=`
@@ -224,7 +278,10 @@ pub enum TokenType {
     /// `>>=`
     ShiftRightAssign,
 
-    // assignment elementwise
+    /// --------------------------------------------------
+    /// Assignment Elementwise
+    /// --------------------------------------------------
+
     /// `&=`
     ElementwiseAndAssign,
     /// `^=`
@@ -232,7 +289,10 @@ pub enum TokenType {
     /// `|=`
     ElementwiseOrAssign,
 
-    // assignment logical
+    /// --------------------------------------------------
+    /// Assignment Logical
+    /// --------------------------------------------------
+
     /// `&&=`
     LogicalAndAssign,
     /// `||=`
@@ -259,6 +319,10 @@ impl Display for TokenType {
             TokenType::InvalidIdentifier => write!(f, "InvalidIdentifier"),
             TokenType::UnknownLiteralPrefix => write!(f, "UnknownLiteralPrefix"),
             TokenType::Literal => write!(f, "Literal"),
+            TokenType::TemplateStringStart => write!(f, "TemplateStringStart"),
+            TokenType::TemplateStringMiddle => write!(f, "TemplateStringMiddle"),
+            TokenType::TemplateStringEnd => write!(f, "TemplateStringEnd"),
+            TokenType::TemplateString => write!(f, "TemplateString"),
 
             // symbols
             TokenType::Wildcard => write!(f, "_"),
@@ -364,26 +428,28 @@ impl Display for TokenType {
 /// Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LiteralType {
-    /// Boolean
+    /// Boolean (true or false)
     Boolean { value: bool },
-    /// 12, 0o100, 0x (is_empty), 0b120, 1.0
+    /// Integer (12, 0o100, 0x (is_empty), 0b120, 1.0)
     Int { base: NumberBase, is_empty: bool },
-    /// 1.0, 1e3
+    /// Float (1.0, 1e3)
     Float {
         base: NumberBase,
         is_empty_exponent: bool,
     },
-    /// 'a', '\\', ''', ';
+    /// Character ('a', '\\', ''', ';')
     Character { is_terminated: bool },
-    /// b'a', b'\\', b''', b';
+    /// Byte string (b'a', b'\\', b''', b';)
     Byte { is_terminated: bool },
-    /// "abc", "abc
+    /// String ("abc", "abc")
     String { is_terminated: bool },
-    /// b"abc", b"abc
-    ByteString { is_terminated: bool },
-    /// r"abc", r#"abc"#, r####"ab"###"c"####, r#"a
+    /// Raw string (r"abc", r#"abc"#, r####"ab"###"c"####, r#"a")
     RawString { hashes: Option<u8> },
-    /// br"abc", br#"abc"#, br####"ab"###"c"####, br#"a
+    /// Regex string (`/abc/`, `/abc/g`, `/abc/i`, `/abc/gi`)
+    RegexString,
+    /// Byte string (b"abc", b"abc")
+    ByteString { is_terminated: bool },
+    /// Raw byte string (br"abc", br#"abc"#, br####"ab"###"c"####, br#"a")
     RawByteString { hashes: Option<u8> },
 }
 

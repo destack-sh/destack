@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
     ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
+    PatternField, Tag, TemplateLiteral, UnionField, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -348,6 +348,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit
         }
+
+        Expression::TemplateLiteral(template_literal) => match template_literal {
+            TemplateLiteral::String { .. } | TemplateLiteral::TaggedString { .. } => {}
+            TemplateLiteral::InterpolatedString { arguments, .. }
+            | TemplateLiteral::TaggedInterpolatedString { arguments, .. } => {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        },
 
         Expression::TypeLiteral(_) => {
             // no child nodes to visit
