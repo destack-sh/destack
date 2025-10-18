@@ -993,7 +993,10 @@ impl Dump for TemplateLiteral {
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString { tag, string: template } => {
+            TemplateLiteral::TaggedString {
+                tag,
+                string: template,
+            } => {
                 dumper
                     .object("TemplateLiteral::TaggedString")
                     .field("tag", tag)

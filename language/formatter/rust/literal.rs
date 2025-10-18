@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword,
-    NodeId, ScalarLiteral, TypeLiteral,
+    Argument, CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, NodeId,
+    ScalarLiteral, TypeLiteral,
 };
 
 use dyst_ast::TemplateLiteral;
@@ -116,7 +116,11 @@ pub(crate) fn format_template_literal<'ast>(
         TemplateLiteral::InterpolatedString { strings, arguments } => {
             format_interpolated_template_literal(strings, arguments, f)?;
         }
-        TemplateLiteral::TaggedInterpolatedString { tag, strings, arguments } => {
+        TemplateLiteral::TaggedInterpolatedString {
+            tag,
+            strings,
+            arguments,
+        } => {
             write!(f, [tag])?;
             format_interpolated_template_literal(strings, arguments, f)?;
         }

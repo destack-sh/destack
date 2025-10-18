@@ -10,61 +10,33 @@ impl Token {
             // Structural
             // --------------------------------------------------
             TokenType::Newline => "\n".to_string(),
-            TokenType::Whitespace => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::Unknown => {
-                source[offset..offset + len].to_string()
-            }
+            TokenType::Whitespace => source[offset..offset + len].to_string(),
+            TokenType::Unknown => source[offset..offset + len].to_string(),
             TokenType::End => String::new(),
 
             // --------------------------------------------------
             // Annotations
             // --------------------------------------------------
-            TokenType::LineComment => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::BlockComment => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::DocLineComment => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::DocBlockComment => {
-                source[offset..offset + len].to_string()
-            }
+            TokenType::LineComment => source[offset..offset + len].to_string(),
+            TokenType::BlockComment => source[offset..offset + len].to_string(),
+            TokenType::DocLineComment => source[offset..offset + len].to_string(),
+            TokenType::DocBlockComment => source[offset..offset + len].to_string(),
 
             // --------------------------------------------------
             // Identifiers
             // --------------------------------------------------
-            TokenType::Identifier => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::InvalidIdentifier => {
-                source[offset..offset + len].to_string()
-            }
+            TokenType::Identifier => source[offset..offset + len].to_string(),
+            TokenType::InvalidIdentifier => source[offset..offset + len].to_string(),
 
             // --------------------------------------------------
             // Literals & Prefixes
             // --------------------------------------------------
-            TokenType::UnknownLiteralPrefix => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::Literal => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::TemplateStringStart => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::TemplateStringMiddle => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::TemplateStringEnd => {
-                source[offset..offset + len].to_string()
-            }
-            TokenType::TemplateString => {
-                source[offset..offset + len].to_string()
-            }
+            TokenType::UnknownLiteralPrefix => source[offset..offset + len].to_string(),
+            TokenType::Literal => source[offset..offset + len].to_string(),
+            TokenType::TemplateStringStart => source[offset..offset + len].to_string(),
+            TokenType::TemplateStringMiddle => source[offset..offset + len].to_string(),
+            TokenType::TemplateStringEnd => source[offset..offset + len].to_string(),
+            TokenType::TemplateString => source[offset..offset + len].to_string(),
 
             // --------------------------------------------------
             // Symbols

@@ -414,7 +414,8 @@ fn test_lex_template_strings_with_interpolation_mixed() {
         Token::new(TokenType::Identifier, 1, None),
         Token::new(TokenType::TemplateStringEnd, 4, None),
     );
-}#[test]
+}
+#[test]
 
 fn test_lex_template_strings_with_interpolation() {
     assert_tokenize_eq_roundtrip!(
