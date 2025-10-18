@@ -64,7 +64,6 @@ pub enum TokenType {
     /// Doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
     // (tags are not parsed as tokens)
-
     /// --------------------------------------------------
     /// Identifiers / Literals
     /// --------------------------------------------------
@@ -186,7 +185,6 @@ pub enum TokenType {
     SaturatingShiftLeft,
     // NOTE: we don't have a `>>` token to avoid ambiguity in static parameters
     //  (otherwise we would have to perform some ugly "ungluing" which is cumbersome)
-
     /// --------------------------------------------------
     /// Elementwise
     /// --------------------------------------------------

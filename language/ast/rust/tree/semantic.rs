@@ -142,7 +142,6 @@ impl SemanticType {
             | TokenType::SaturatingSubtract
             | TokenType::Increment
             | TokenType::Decrement
-            
 
             // --------------------------------------------------
             // Shift
