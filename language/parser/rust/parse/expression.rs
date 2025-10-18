@@ -547,6 +547,14 @@ impl<'a> Parser<'a> {
             else if self.peek_tree_literal().is_ok() {
                 self.eat_tree_literal()?
             }
+            // template
+            else if self.peek_template_literal().is_ok() {
+                let template_literal = self.eat_template_literal(None)?;
+                self.tree.insert(
+                    Expression::TemplateLiteral(template_literal),
+                    self.get_span_from(start),
+                )
+            }
             // scalar
             else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
@@ -631,6 +639,25 @@ impl<'a> Parser<'a> {
                     ty: Some(left_expression_id),
                     fields,
                 },
+                self.get_span_from(start),
+            );
+        }
+        // template literal postfix with `sql` (like `sql`SELECT * FROM users`)
+        else if let Expression::Path {
+            path,
+            static_arguments: None, // no static arguments allowed in template literals
+        } = self.tree.get(left_expression_id)
+            && self.peek_template_literal().is_ok()
+        {
+            // remove path expression
+            let path = path.clone();
+            debug_assert!(self.tree.next_id() == left_expression_id.id + 1);
+            self.tree.reset_to(left_expression_id.id);
+
+            // replace with template literal expression
+            let template_literal = self.eat_template_literal(Some(path))?;
+            left_expression_id = self.tree.insert(
+                Expression::TemplateLiteral(template_literal),
                 self.get_span_from(start),
             );
         }

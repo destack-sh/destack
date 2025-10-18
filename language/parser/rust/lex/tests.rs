@@ -405,7 +405,7 @@ fn test_lex_tagged_template_strings() {
 }
 
 #[test]
-fn test_lex_template_strings_with_interpolation() {
+fn test_lex_template_strings_with_interpolation_mixed() {
     assert_tokenize_eq_roundtrip!(
         "`a ${b} c ${d} e`",
         Token::new(TokenType::TemplateStringStart, 5, None),
@@ -414,10 +414,33 @@ fn test_lex_template_strings_with_interpolation() {
         Token::new(TokenType::Identifier, 1, None),
         Token::new(TokenType::TemplateStringEnd, 4, None),
     );
+}#[test]
+
+fn test_lex_template_strings_with_interpolation() {
+    assert_tokenize_eq_roundtrip!(
+        "`${stmt}`",
+        Token::new(TokenType::TemplateStringStart, 3, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::TemplateStringEnd, 2, None),
+    );
 }
 
 #[test]
-fn test_lex_tagged_template_strings_with_interpolation() {
+fn test_lex_template_strings_with_interpolation_adjacent() {
+    assert_tokenize_eq_roundtrip!(
+        "`${a}${b}${c}`",
+        Token::new(TokenType::TemplateStringStart, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::TemplateStringMiddle, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::TemplateStringMiddle, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::TemplateStringEnd, 2, None),
+    );
+}
+
+#[test]
+fn test_lex_tagged_template_strings_with_interpolation_mixed() {
     assert_tokenize_eq_roundtrip!(
         "tag`sum ${lhs} + ${rhs}`",
         Token::new(TokenType::Identifier, 3, None),
@@ -430,7 +453,7 @@ fn test_lex_tagged_template_strings_with_interpolation() {
 }
 
 #[test]
-fn test_lex_tagged_template_strings_with_nested_interpolation() {
+fn test_lex_tagged_template_strings_with_interpolation_nested() {
     assert_tokenize_eq_roundtrip!(
         "tag`sum ${text + {`${nested}`}}`",
         Token::new(TokenType::Identifier, 3, None),
