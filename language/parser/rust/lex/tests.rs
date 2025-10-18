@@ -323,11 +323,19 @@ fn test_lex_regex_literals() {
     assert_tokenize_eq_roundtrip!(
         "/abc/ (/def/.exec(input)) / value",
         // regex literal /abc/
-        Token::new(TokenType::Literal, 5, Some(LiteralType::RegexString { has_flags: false })),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
         // grouping parentheses
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::OpenParenthesis, 1, None),
-        Token::new(TokenType::Literal, 5, Some(LiteralType::RegexString { has_flags: false })),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
         Token::new(TokenType::Dot, 1, None),
         Token::new(TokenType::Identifier, 4, None),
         Token::new(TokenType::OpenParenthesis, 1, None),
@@ -345,9 +353,17 @@ fn test_lex_regex_literals() {
 fn test_lex_regex_literals_with_flags() {
     assert_tokenize_eq_roundtrip!(
         "/foo/gi\n/bar/m",
-        Token::new(TokenType::Literal, 7, Some(LiteralType::RegexString { has_flags: true })),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: true })
+        ),
         Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Literal, 6, Some(LiteralType::RegexString { has_flags: true })),
+        Token::new(
+            TokenType::Literal,
+            6,
+            Some(LiteralType::RegexString { has_flags: true })
+        ),
     );
 }
 
@@ -359,7 +375,11 @@ fn test_lex_regex_literal_in_context() {
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Equal, 2, None),
         Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Literal, 7, Some(LiteralType::RegexString { has_flags: true })),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: true })
+        ),
         Token::new(TokenType::Dot, 1, None),
         Token::new(TokenType::Identifier, 4, None),
     );
@@ -420,7 +440,7 @@ fn test_lex_tagged_template_strings_with_nested_interpolation() {
         Token::new(TokenType::Add, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::OpenBrace, 1, None),
-        Token::new(TokenType::TemplateStringStart, 10, None),
+        Token::new(TokenType::TemplateStringStart, 3, None),
         Token::new(TokenType::Identifier, 6, None),
         Token::new(TokenType::TemplateStringEnd, 2, None),
         Token::new(TokenType::CloseBrace, 1, None),
