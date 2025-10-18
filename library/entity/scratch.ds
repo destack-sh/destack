@@ -16,6 +16,15 @@ export type UseChatHelpers<UI_MESSAGE extends UIMessage> {
 
 type T1 = Extract<string | number | (() => void), Function>;
 
+interface Todo {
+  title: string;
+  description: string;
+}
+ 
+function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
+  return { ...todo, ...fieldsToUpdate };
+}
+
 export default function Chat() {
   const [input, setInput] = useState('');
   const { messages, sendMessage } = useChat();

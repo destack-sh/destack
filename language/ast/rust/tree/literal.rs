@@ -3,7 +3,6 @@ use crate::{Argument, NodeId, Path, StringId};
 /// A ScalarLiteral is literal scalar value node.
 /// NOTE: for #Leniency we parse multi-character `'aa'` as regular string literals.
 ///
-///
 /// Examples:
 /// ```
 /// true
@@ -43,30 +42,32 @@ pub enum ScalarLiteral {
 }
 
 /// A TemplateLiteral is literal template value node.
+/// For interpolated templates, the start and end string may be empty.
+///  (If there is an immediate argument after the first ` or before the last `, respectively).
 ///
 /// Examples:
 /// ```
 /// `hello`
 /// `hello ${name}`
-/// `hello ${name} ${age}`
-/// `hello ${name} ${age} ${city}`
-/// sql`SELECT * FROM users WHERE name = ${name}`
+/// sql`SELECT * FROM users`
+/// sql`${stmt}`
+/// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemplateLiteral {
     /// Template string value.
-    String { template: StringId },
+    String { string: StringId },
     /// Tagged template literal value.
-    TaggedString { tag: Path, template: StringId },
+    TaggedString { tag: Path, string: StringId },
     /// Interpolated template literal value.
     InterpolatedString {
-        template: Vec<StringId>,
+        strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },
     /// Tagged interpolated template literal value.
     TaggedInterpolatedString {
         tag: Path,
-        template: Vec<StringId>,
+        strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },
 }
