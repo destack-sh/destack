@@ -1,7 +1,7 @@
 use core::fmt;
 use std::fmt::Debug;
 
-use crate::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
+use crate::{TokenSpan, TokenType, is_semantic, lex};
 use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
 
 use crate::{
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     pub fn prepare(source: &'a Source, session: &'a mut Session) -> Self {
         // tokenize
-        let (all_tokens, eof_token) = tokenize_with_spans(source.id, &source.content);
+        let (all_tokens, eof_token) = lex(source.id, &source.content);
         let (tokens, side_tokens) = all_tokens
             .iter()
             .partition(|token| is_semantic(token.token.ty));

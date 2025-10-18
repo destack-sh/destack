@@ -26,7 +26,7 @@ impl Token {
         Token { ty, len, literal }
     }
 
-    pub const fn eof() -> Token {
+    pub const fn end() -> Token {
         Token {
             ty: TokenType::End,
             len: 0,
@@ -446,7 +446,7 @@ pub enum LiteralType {
     /// Raw string (r"abc", r#"abc"#, r####"ab"###"c"####, r#"a")
     RawString { hashes: Option<u8> },
     /// Regex string (`/abc/`, `/abc/g`, `/abc/i`, `/abc/gi`)
-    RegexString,
+    RegexString { has_flags: bool },
     /// Byte string (b"abc", b"abc")
     ByteString { is_terminated: bool },
     /// Raw byte string (br"abc", br#"abc"#, br####"ab"###"c"####, br#"a")

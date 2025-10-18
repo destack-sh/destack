@@ -184,9 +184,9 @@ impl<'a> Parser<'a> {
             }
 
             // regex string literal (ignore quotes)
-            LiteralType::RegexString => {
+            LiteralType::RegexString { has_flags } => {
                 // regex without flags
-                if literal_str.ends_with('/') {
+                if !has_flags {
                     let content = literal_str.trim_start_matches("/").trim_end_matches("/");
                     let string_id = self.intern_string(content);
                     Ok(ScalarLiteral::RegexString {

@@ -1,9 +1,9 @@
 mod lex;
+mod lexer;
 mod memchr;
-mod tokenizer;
 
 pub use lex::*;
-pub use tokenizer::*;
+pub use lexer::*;
 
 #[cfg(test)]
 mod tests;

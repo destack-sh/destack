@@ -75,7 +75,7 @@ impl SemanticType {
                         LiteralType::Byte { .. } => SemanticType::LiteralStringy,
                         LiteralType::String { .. } => SemanticType::LiteralStringy,
                         LiteralType::ByteString { .. } => SemanticType::LiteralStringy,
-                        LiteralType::RegexString => SemanticType::LiteralStringy,
+                        LiteralType::RegexString { .. } => SemanticType::LiteralStringy,
                         LiteralType::RawString { .. } => SemanticType::LiteralStringy,
                         LiteralType::RawByteString { .. } => SemanticType::LiteralStringy,
                     }
