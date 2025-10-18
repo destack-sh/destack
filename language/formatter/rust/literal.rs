@@ -1,15 +1,15 @@
 use std::borrow::Cow;
 
 use crate::{
-    CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, ScalarLiteral,
-    TypeLiteral,
+    Argument, CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword,
+    NodeId, ScalarLiteral, TypeLiteral,
 };
 
 use dyst_ast::TemplateLiteral;
 use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;
-use dyst_fir::write;
-use dyst_source::Span;
+use dyst_fir::{format_args, write};
+use dyst_source::{Span, StringId};
 
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
@@ -67,9 +67,43 @@ pub(crate) fn format_scalar_literal<'ast>(
     Ok(())
 }
 
+/// Format an interpolated template literal.
+/// |strings| = |arguments| + 1
+fn format_interpolated_template_literal<'ast>(
+    strings: &[StringId],
+    arguments: &[NodeId<Argument>],
+    f: &mut DystFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
+
+    write!(f, [token("`")])?;
+
+    let mut string_segments = strings.iter();
+    if let Some(first_segment) = string_segments.next() {
+        write!(f, [*first_segment])?;
+    }
+
+    for (argument, segment) in arguments.iter().zip(string_segments) {
+        write!(
+            f,
+            [
+                group(&format_args![
+                    token("${"),
+                    indent(&format_args![soft_line_break(), argument]),
+                    soft_line_break(),
+                    token("}")
+                ]),
+                *segment,
+            ]
+        )?;
+    }
+
+    write!(f, [token("`")])
+}
+
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
-    span: Span,
+    _span: Span,
     f: &mut DystFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match template {
@@ -80,8 +114,11 @@ pub(crate) fn format_template_literal<'ast>(
             write!(f, [tag, token("`"), string, token("`")])?;
         }
         TemplateLiteral::InterpolatedString { strings, arguments } => {
+            format_interpolated_template_literal(strings, arguments, f)?;
         }
         TemplateLiteral::TaggedInterpolatedString { tag, strings, arguments } => {
+            write!(f, [tag])?;
+            format_interpolated_template_literal(strings, arguments, f)?;
         }
     }
 
