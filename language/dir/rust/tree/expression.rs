@@ -3,7 +3,7 @@ use dyst_ast::StringId;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
     ImportItem, MatchCase, MatchSource, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime,
-    ScalarLiteral, ScopedMutability, Type, TypeLiteral, UnaryOperator, Visibility,
+    ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral, UnaryOperator, Visibility,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,6 +104,8 @@ pub enum Expression {
     Path { path: Path },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
+    /// Template literal value.
+    TemplateLiteral { value: TemplateLiteral },
     /// Type literal value.
     TypeLiteral { value: TypeLiteral },
     /// Range literal value.
@@ -184,6 +186,7 @@ impl Expression {
             // values
             Expression::Path { path } => path.is_resolved(),
             Expression::ScalarLiteral { .. }
+            | Expression::TemplateLiteral { .. }
             | Expression::TypeLiteral { .. }
             | Expression::RangeLiteral { .. }
             | Expression::ArrayLiteral { .. }

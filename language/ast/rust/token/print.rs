@@ -6,55 +6,69 @@ impl Token {
     pub fn render(&self, source: &str, offset: usize) -> String {
         let len = self.len as usize;
         match self.ty {
-            // structural
+            // --------------------------------------------------
+            // Structural
+            // --------------------------------------------------
             TokenType::Newline => "\n".to_string(),
             TokenType::Whitespace => {
-                // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
             TokenType::Unknown => {
-                // emit original slice for unknown tokens to preserve them
                 source[offset..offset + len].to_string()
             }
             TokenType::End => String::new(),
 
-            // annotations
+            // --------------------------------------------------
+            // Annotations
+            // --------------------------------------------------
             TokenType::LineComment => {
-                // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
             TokenType::BlockComment => {
-                // preserve original formatting
                 source[offset..offset + len].to_string()
             }
             TokenType::DocLineComment => {
-                // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
             TokenType::DocBlockComment => {
-                // preserve original formatting
                 source[offset..offset + len].to_string()
             }
 
-            // identifiers / literals
+            // --------------------------------------------------
+            // Identifiers
+            // --------------------------------------------------
             TokenType::Identifier => {
-                // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
             TokenType::InvalidIdentifier => {
-                // emit original slice for lexemes where we don't want to reformat
-                source[offset..offset + len].to_string()
-            }
-            TokenType::UnknownLiteralPrefix => {
-                // emit original slice for lexemes where we don't want to reformat
-                source[offset..offset + len].to_string()
-            }
-            TokenType::Literal => {
-                // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
 
-            // symbols
+            // --------------------------------------------------
+            // Literals & Prefixes
+            // --------------------------------------------------
+            TokenType::UnknownLiteralPrefix => {
+                source[offset..offset + len].to_string()
+            }
+            TokenType::Literal => {
+                source[offset..offset + len].to_string()
+            }
+            TokenType::TemplateStringStart => {
+                source[offset..offset + len].to_string()
+            }
+            TokenType::TemplateStringMiddle => {
+                source[offset..offset + len].to_string()
+            }
+            TokenType::TemplateStringEnd => {
+                source[offset..offset + len].to_string()
+            }
+            TokenType::TemplateString => {
+                source[offset..offset + len].to_string()
+            }
+
+            // --------------------------------------------------
+            // Symbols
+            // --------------------------------------------------
             TokenType::Wildcard => "_".to_string(),
             TokenType::Colon => ":".to_string(),
             TokenType::Semicolon => ";".to_string(),
@@ -65,7 +79,9 @@ impl Token {
             TokenType::Arrow => "->".to_string(),
             TokenType::ArrowWide => "=>".to_string(),
 
-            // parentheses
+            // --------------------------------------------------
+            // Grouping
+            // --------------------------------------------------
             TokenType::OpenParenthesis => "(".to_string(),
             TokenType::CloseParenthesis => ")".to_string(),
             TokenType::OpenBrace => "{".to_string(),
@@ -73,41 +89,53 @@ impl Token {
             TokenType::OpenBracket => "[".to_string(),
             TokenType::CloseBracket => "]".to_string(),
 
+            // --------------------------------------------------
+            // Misc
+            // --------------------------------------------------
             TokenType::At => "@".to_string(),
             TokenType::Tag => "#".to_string(),
+
+            // --------------------------------------------------
+            // Elementwise / Logical / Dynamic prefixes
+            // --------------------------------------------------
             TokenType::ElementwiseNot => "~".to_string(),
             TokenType::Maybe => "?".to_string(),
             TokenType::Coalesce => "??".to_string(),
             TokenType::Dynamic => "$".to_string(),
             TokenType::Not => "!".to_string(),
 
-            // multiplication
+            // --------------------------------------------------
+            // Operators
+            // --------------------------------------------------
+            // Multiplication, Division, Remainder
             TokenType::Multiply => "*".to_string(),
             TokenType::WrappingMultiply => "*%".to_string(),
             TokenType::SaturatingMultiply => "*|".to_string(),
             TokenType::Divide => "/".to_string(),
             TokenType::Remainder => "%".to_string(),
 
-            // addition
+            // Addition, Subtraction
             TokenType::Add => "+".to_string(),
             TokenType::WrappingAdd => "+%".to_string(),
             TokenType::SaturatingAdd => "+|".to_string(),
             TokenType::Subtract => "-".to_string(),
             TokenType::WrappingSubtract => "-%".to_string(),
             TokenType::SaturatingSubtract => "-|".to_string(),
+
+            // Increment/Decrement
             TokenType::Increment => "++".to_string(),
             TokenType::Decrement => "--".to_string(),
 
-            // shift
+            // Shifts
             TokenType::ShiftLeft => "<<".to_string(),
             TokenType::SaturatingShiftLeft => "<<|".to_string(),
 
-            // elementwise
+            // Elementwise
             TokenType::ElementwiseAnd => "&".to_string(),
             TokenType::ElementwiseXor => "^".to_string(),
             TokenType::ElementwiseOr => "|".to_string(),
 
-            // comparison
+            // Comparison
             TokenType::Equal => "==".to_string(),
             TokenType::EqualWide => "===".to_string(),
             TokenType::NotEqual => "!=".to_string(),
@@ -117,21 +145,24 @@ impl Token {
             TokenType::GreaterThan => ">".to_string(),
             TokenType::GreaterThanOrEqual => ">=".to_string(),
 
-            // logical
+            // Logical
             TokenType::LogicalAnd => "&&".to_string(),
             TokenType::LogicalOr => "||".to_string(),
 
-            // assignment
+            // --------------------------------------------------
+            // Assignment Operators
+            // --------------------------------------------------
+            // Assignment
             TokenType::Assign => "=".to_string(),
 
-            // assignment multiplication
+            // Multiplication assignment
             TokenType::MultiplyAssign => "*=".to_string(),
             TokenType::WrappingMultiplyAssign => "*%=".to_string(),
             TokenType::SaturatingMultiplyAssign => "*|=".to_string(),
             TokenType::DivideAssign => "/=".to_string(),
             TokenType::RemainderAssign => "%=".to_string(),
 
-            // assignment addition
+            // Addition assignment
             TokenType::AddAssign => "+=".to_string(),
             TokenType::WrappingAddAssign => "+%=".to_string(),
             TokenType::SaturatingAddAssign => "+|=".to_string(),
@@ -139,17 +170,17 @@ impl Token {
             TokenType::WrappingSubtractAssign => "-%=".to_string(),
             TokenType::SaturatingSubtractAssign => "-|=".to_string(),
 
-            // assignment shift
+            // Shift assignment
             TokenType::ShiftLeftAssign => "<<=".to_string(),
             TokenType::SaturatingShiftLeftAssign => "<<|=".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
 
-            // assignment elementwise
+            // Elementwise assignment
             TokenType::ElementwiseAndAssign => "&=".to_string(),
             TokenType::ElementwiseXorAssign => "^=".to_string(),
             TokenType::ElementwiseOrAssign => "|=".to_string(),
 
-            // assignment logical
+            // Logical assignment
             TokenType::LogicalAndAssign => "&&=".to_string(),
             TokenType::LogicalOrAssign => "||=".to_string(),
         }

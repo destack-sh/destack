@@ -21,6 +21,11 @@ impl<'a> Compiler<'a> {
                 let string = self.intern_string(source_id, *string);
                 ScalarLiteral::String(string)
             }
+            ast::ScalarLiteral::RegexString { content, flags } => {
+                let content = self.intern_string(source_id, *content);
+                let flags = flags.map(|flag| self.intern_string(source_id, flag));
+                ScalarLiteral::RegexString { content, flags }
+            }
             ast::ScalarLiteral::ByteString(byte_string) => {
                 ScalarLiteral::ByteString(byte_string.clone())
             }

@@ -28,6 +28,8 @@ impl<'a> Parser<'a> {
     /// 1
     /// 1.0
     /// 0x1234
+    /// /abc/
+    /// /abc/g
     /// "hello"
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
@@ -181,17 +183,29 @@ impl<'a> Parser<'a> {
                 Ok(ScalarLiteral::String(string_id))
             }
 
-            // byte string literal (ignore quotes)
-            LiteralType::ByteString { is_terminated } => {
-                if !is_terminated {
-                    return Err(ParserError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
+            // regex string literal (ignore quotes)
+            LiteralType::RegexString => {
+                // regex without flags
+                if literal_str.ends_with('/') {
+                    let content = literal_str.trim_start_matches("/").trim_end_matches("/");
+                    let string_id = self.intern_string(content);
+                    Ok(ScalarLiteral::RegexString {
+                        content: string_id,
+                        flags: None,
+                    })
                 }
-                let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
-                Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
+                // regex with flags
+                else {
+                    let last_slash_index = literal_str.rfind('/').unwrap();
+                    let content = &literal_str[1..last_slash_index];
+                    let flags = &literal_str[last_slash_index + 1..];
+                    let string_id = self.intern_string(content);
+                    let flags_id = self.intern_string(flags);
+                    Ok(ScalarLiteral::RegexString {
+                        content: string_id,
+                        flags: Some(flags_id),
+                    })
+                }
             }
 
             // raw string literal (ignore quotes and hashes)
@@ -212,6 +226,19 @@ impl<'a> Parser<'a> {
                 let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                 let string_id = self.intern_string(content);
                 Ok(ScalarLiteral::String(string_id))
+            }
+
+            // byte string literal (ignore quotes)
+            LiteralType::ByteString { is_terminated } => {
+                if !is_terminated {
+                    return Err(ParserError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+                let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
+                Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
             }
 
             // raw byte string literal (ignore quotes and hashes)
