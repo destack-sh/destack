@@ -1,8 +1,5 @@
 use crate::{Argument, NodeId, Path, StringId};
 
-// TODO #Incomplete: format string literals
-//  (TS-style tagged template literals: `hey ${name}` with optional prefix)
-
 /// A ScalarLiteral is literal scalar value node.
 /// NOTE: for #Leniency we parse multi-character `'aa'` as regular string literals.
 ///
@@ -37,7 +34,10 @@ pub enum ScalarLiteral {
     /// String value.
     String(StringId),
     /// Regex string value.
-    RegexString { content: StringId, flags: Option<StringId> },
+    RegexString {
+        content: StringId,
+        flags: Option<StringId>,
+    },
     /// Byte string value.
     ByteString(Vec<u8>),
 }

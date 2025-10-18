@@ -1,4 +1,4 @@
-use crate::{Lexer, lex};
+use crate::Lexer;
 use dyst_ast::{LiteralType, NumberBase, RawStringError, Token, TokenType, render_tokens};
 use dyst_source::SourceId;
 
@@ -7,7 +7,7 @@ macro_rules! assert_tokenize_eq_roundtrip {
     ($src:expr, $($expected:expr),* $(,)?) => {
         let source_id = SourceId::new(0);
         // tokenize
-        let (tokens, _) = lex(source_id, $src);
+        let (tokens, _) = Lexer::lex(source_id, $src);
         let tokens: Vec<Token> = tokens.into_iter().map(|token| token.token).collect();
         // must match the expected tokens
         let mut expected_tokens = vec![$($expected),*];
@@ -20,7 +20,7 @@ macro_rules! assert_tokenize_eq_roundtrip {
         let rendered_input = render_tokens(&tokens, $src);
         assert_eq!(rendered_input, $src);
         // re-tokenize on the rendered input
-        let (tokens_again, _) = lex(source_id, &rendered_input);
+        let (tokens_again, _) = Lexer::lex(source_id, &rendered_input);
         let tokens_again: Vec<Token> = tokens_again.into_iter().map(|token| token.token).collect();
         assert_eq!(tokens_again, tokens);
     };
@@ -29,7 +29,7 @@ macro_rules! assert_tokenize_eq_roundtrip {
 /// Check whether a raw string tokenizes as expected.
 fn assert_raw_str_eq(s: &str, expected: Result<u8, RawStringError>) {
     let s = &format!("r{s}");
-    let mut cursor = Lexer::new(s);
+    let mut cursor = Lexer::new(SourceId::new(0), s);
     cursor.eat();
     let res = cursor.eat_raw_double_quoted_string(0);
     assert_eq!(res, expected);
@@ -412,16 +412,18 @@ fn test_lex_tagged_template_strings_with_interpolation() {
 #[test]
 fn test_lex_tagged_template_strings_with_nested_interpolation() {
     assert_tokenize_eq_roundtrip!(
-        "tag`sum ${text + `${nested}`}`",
+        "tag`sum ${text + {`${nested}`}}`",
         Token::new(TokenType::Identifier, 3, None),
         Token::new(TokenType::TemplateStringStart, 7, None),
         Token::new(TokenType::Identifier, 4, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Add, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenBrace, 1, None),
         Token::new(TokenType::TemplateStringStart, 10, None),
         Token::new(TokenType::Identifier, 6, None),
         Token::new(TokenType::TemplateStringEnd, 2, None),
+        Token::new(TokenType::CloseBrace, 1, None),
         Token::new(TokenType::TemplateStringEnd, 2, None),
     );
 }
