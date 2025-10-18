@@ -14,7 +14,6 @@ pub struct Tokenizer<'a> {
     /// The character iterator over the string.
     chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
     /// The previous character.
-    #[cfg(debug_assertions)]
     prev: char,
 }
 
@@ -38,7 +37,6 @@ impl<'a> Tokenizer<'a> {
             pos: 0,
             len_remaining: str.len(),
             chars: str.chars(),
-            #[cfg(debug_assertions)]
             prev: EOF_CHAR,
         }
     }
@@ -49,17 +47,9 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Gets the last eaten symbol (or `'\0'` in release builds).
-    /// (For debug assertions only.)
     #[inline]
     pub fn prev(&self) -> char {
-        #[cfg(debug_assertions)]
-        {
-            self.prev
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            EOF_CHAR
-        }
+        self.prev
     }
 
     /// Peeks the next symbol from the input stream without consuming it.

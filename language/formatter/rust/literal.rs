@@ -5,6 +5,7 @@ use crate::{
     TypeLiteral,
 };
 
+use dyst_ast::TemplateLiteral;
 use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
@@ -64,6 +65,14 @@ pub(crate) fn format_scalar_literal<'ast>(
     }
 
     Ok(())
+}
+
+pub(crate) fn format_template_literal<'ast>(
+    template: &TemplateLiteral,
+    span: Span,
+    f: &mut DystFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    todo!("nocheckin: TODO #Incomplete: format template literals {template:?}");
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {

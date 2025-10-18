@@ -1,4 +1,4 @@
-use crate::{Argument, StringId};
+use crate::{Argument, NodeId, Path, StringId};
 
 /// A ScalarLiteral is literal scalar value node.
 #[derive(Debug, Clone, PartialEq)]

@@ -317,6 +317,91 @@ fn test_lex_single_quoted_strings() {
 }
 
 #[test]
+fn test_lex_regex_literals() {
+    assert_tokenize_eq_roundtrip!(
+        "/abc/ (/def/.exec(input)) / value",
+        // regex literal /abc/
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString)
+        ),
+        // grouping parentheses
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString)
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Divide, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 5, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literals_with_flags() {
+    assert_tokenize_eq_roundtrip!(
+        "/foo/gi /bar/m",
+        Token::new(TokenType::Literal, 7, Some(LiteralType::RegexString)),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Literal, 6, Some(LiteralType::RegexString)),
+    );
+}
+
+#[test]
+fn test_lex_template_strings() {
+    assert_tokenize_eq_roundtrip!(
+        "`plain` `two words`",
+        Token::new(TokenType::TemplateString, 7, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::TemplateString, 11, None),
+    );
+}
+
+#[test]
+fn test_lex_tagged_template_strings() {
+    assert_tokenize_eq_roundtrip!(
+        "tag`item`",
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::TemplateString, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_template_strings_with_interpolation() {
+    assert_tokenize_eq_roundtrip!(
+        "`a ${b} c ${d} e`",
+        Token::new(TokenType::TemplateStringStart, 5, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::TemplateStringMiddle, 6, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::TemplateStringEnd, 4, None),
+    );
+}
+
+#[test]
+fn test_lex_tagged_template_strings_with_interpolation() {
+    assert_tokenize_eq_roundtrip!(
+        "tag`sum ${lhs} + ${rhs}`",
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::TemplateStringStart, 7, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::TemplateStringMiddle, 6, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::TemplateStringEnd, 2, None),
+    );
+}
+
+#[test]
 fn test_lex_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
