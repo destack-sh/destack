@@ -313,23 +313,32 @@ impl<'a> Parser<'a> {
             let mut strings: Vec<StringId> = Vec::new();
             let mut arguments: Vec<NodeId<Argument>> = Vec::new();
 
+            // start
+            let string = &next_str[1..next_str.len() - 2]; // remove ` and ${
+            let string_id = self.intern_string(string);
+            strings.push(string_id);
+
+            // eat until the end
             while self.peek_token(TokenType::TemplateStringEnd).is_err() {
-                // argument
-                let argument = self.eat_argument()?;
-                arguments.push(argument);
                 // string
                 if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
                     let token = *self.eat()?;
                     let string = self.get_span_str(token.span);
+                    let string = &string[1..string.len() - 2]; // remove } and ${
                     let string_id = self.intern_string(string);
                     strings.push(string_id);
                 }
+                // argument
+                else {
+                    let argument = self.eat_argument()?;
+                    arguments.push(argument);
+                }
             }
 
-            // eat the end
-            let token = *self.eat()?;
-            debug_assert!(token.token.ty == TokenType::TemplateStringEnd);
+            // end
+            let token = *self.eat_token(TokenType::TemplateStringEnd)?;
             let string = self.get_span_str(token.span);
+            let string = &string[1..string.len() - 1]; // remove } and `
             let string_id = self.intern_string(string);
             strings.push(string_id);
 
@@ -797,7 +806,8 @@ mod tests {
 `hello`
 `hello ${name}`
 `${stmt}`
-`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+`${start}${middle}${end}`
+`SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
 "#,
         );
         let mut parser = test.prepare();
@@ -818,26 +828,30 @@ mod tests {
         let literal = parser.eat_template_literal(None).unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(strings.len(), 2);
                 // hello
                 assert_string!(parser, strings[0], "hello ");
-                // ${name}
-                assert_string!(parser, strings[1], "${name}");
-                assert_eq!(arguments.len(), 1);
+                // name
                 assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "name");
                 });
+                //
+                assert_string!(parser, strings[1], "");
             }
             other => panic!("unexpected {other:?}"),
         }
+        parser.eat_newline().unwrap();
 
         // `${stmt}`
         let literal = parser.eat_template_literal(None).unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(strings.len(), 2);
                 assert_eq!(arguments.len(), 1);
-                assert_string!(parser, strings[0], ""); // empty start
-                assert_string!(parser, strings[1], ""); // empty end
-                assert_eq!(arguments.len(), 1);
+                // empty start & empty end
+                assert_string!(parser, strings[0], "");
+                assert_string!(parser, strings[1], "");
                 // stmt
                 assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "stmt");
@@ -845,8 +859,37 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
+        parser.eat_newline().unwrap();
 
-        // `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()}` LIMIT 10"
+        // `${start}${middle}${end}`
+        let literal = parser.eat_template_literal(None).unwrap();
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(strings.len(), 4);
+                assert_eq!(arguments.len(), 3);
+                // empty string before & after each argument
+                assert_string!(parser, strings[0], "");
+                assert_string!(parser, strings[1], "");
+                assert_string!(parser, strings[2], "");
+                assert_string!(parser, strings[3], "");
+                // start
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "start");
+                });
+                // middle
+                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "middle");
+                });
+                // end
+                assert_node!(parser.tree, arguments[2], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "end");
+                });
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        parser.eat_newline().unwrap();
+
+        // `SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
         let literal = parser.eat_template_literal(None).unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
@@ -863,7 +906,7 @@ mod tests {
                 // group.age()
                 assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Call { receiver, .. } => {
-                        assert_expr_path!(parser, parser.tree.get(*receiver), "group");
+                        assert_expr_path!(parser, parser.tree.get(*receiver), "group.age");
                     });
                 });
                 // LIMIT 10

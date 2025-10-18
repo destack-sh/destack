@@ -72,7 +72,20 @@ pub(crate) fn format_template_literal<'ast>(
     span: Span,
     f: &mut DystFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    todo!("nocheckin {template:?}");
+    match template {
+        TemplateLiteral::String { string } => {
+            write!(f, [token("`"), string, token("`")])?;
+        }
+        TemplateLiteral::TaggedString { tag, string } => {
+            write!(f, [tag, token("`"), string, token("`")])?;
+        }
+        TemplateLiteral::InterpolatedString { strings, arguments } => {
+        }
+        TemplateLiteral::TaggedInterpolatedString { tag, strings, arguments } => {
+        }
+    }
+
+    Ok(())
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
@@ -265,7 +278,42 @@ mod tests {
 
     /// Strings parsed with single quotes should be rewritten with double quotes.
     #[test]
-    fn test_format_string_literal_rewrites_single_quotes() {
+    fn test_format_string_literal_single_quote_leniency() {
         assert_format!("'hello'", "\"hello\"", |p| p.eat_expression());
+    }
+
+    /// Formats a template literal string with no interpolation.
+    #[test]
+    fn test_format_template_literal_plain() {
+        let source = "`hello`";
+        assert_format!(source, source, |p| p.eat_expression());
+    }
+
+    /// Formats a template literal string with one interpolation.
+    #[test]
+    fn test_format_template_literal_one_interpolation() {
+        let source = "tagged`hello ${name}`";
+        assert_format!(source, source, |p| p.eat_expression());
+    }
+
+    /// Formats a template literal string where the entire content is interpolation.
+    #[test]
+    fn test_format_template_literal_all_interpolation() {
+        let source = "sql`${stmt}`";
+        assert_format!(source, source, |p| p.eat_expression());
+    }
+
+    /// Formats a template literal string with multiple adjacent interpolations.
+    #[test]
+    fn test_format_template_literal_adjacent_interpolations() {
+        let source = "`${start}${middle}${end}`";
+        assert_format!(source, source, |p| p.eat_expression());
+    }
+
+    /// Formats a template literal with a complex SQL query and interpolation.
+    #[test]
+    fn test_format_template_literal_complex_sql() {
+        let source = r#"sql.stmt`SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`"#;
+        assert_format!(source, source, |p| p.eat_expression());
     }
 }
