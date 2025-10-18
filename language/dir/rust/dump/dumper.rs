@@ -1169,6 +1169,47 @@ impl Dump for ScalarLiteral {
     }
 }
 
+/// Dump a TemplateLiteral as a structured representation.
+impl Dump for TemplateLiteral {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TemplateLiteral::String { template } => {
+                dumper
+                    .object("TemplateLiteral::String")
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::TaggedString { tag, template } => {
+                dumper
+                    .object("TemplateLiteral::TaggedString")
+                    .field("tag", tag)
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::InterpolatedString {
+                template,
+                arguments: _,
+            } => {
+                dumper
+                    .object("TemplateLiteral::InterpolatedString")
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::TaggedInterpolatedString {
+                tag,
+                template,
+                arguments: _,
+            } => {
+                dumper
+                    .object("TemplateLiteral::TaggedInterpolatedString")
+                    .field("tag", tag)
+                    .field("template", template)
+                    .end();
+            }
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Nodes
 // ----------------------------------------------------------------------------

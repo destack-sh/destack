@@ -6,7 +6,7 @@ use crate::argument::list_like;
 use crate::block::format_block;
 use crate::import::format_import_binding;
 use crate::r#let::FormatScopedMutability;
-use crate::literal::format_scalar_literal;
+use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
     Keyword, NodeId, Runtime, UnaryOperator, empty_block_with_infix_annotations,
@@ -607,6 +607,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // scalar literal
             Expression::ScalarLiteral(node) => {
                 format_scalar_literal(node, f.context().tree.get_span(node_id), f)?;
+            }
+
+            // template literal
+            Expression::TemplateLiteral(node) => {
+                format_template_literal(node, f.context().tree.get_span(node_id), f)?;
             }
 
             // type literal
