@@ -1,9 +1,10 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
 use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
+use std::str::FromStr;
 
-use super::tokenizer::{EOF_CHAR, Tokenizer};
-use dyst_ast::{LiteralType, NumberBase, RawStringError, Token, TokenType};
+use super::lexer::{EOF_CHAR, Lexer};
+use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenType};
 
 use destack_unicode::UnicodeEmoji;
 use dyst_source::{SourceId, Span};
@@ -27,32 +28,16 @@ pub fn is_semantic(token_type: TokenType) -> bool {
     !TRIVIA_TOKEN_TYPES.contains(&token_type)
 }
 
-/// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
-pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
-    let mut cursor = Tokenizer::new(input);
-    let mut done = false;
-    std::iter::from_fn(move || {
-        if done {
-            return None;
-        }
-        let token = cursor.advance();
-        if token.ty == TokenType::End {
-            done = true;
-        }
-        Some(token)
-    })
-}
-
 /// Tokenize the input string into an Iterator of Tokens and Spans.
 /// Returns both semantic and trivia tokens.
-pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
-    let mut cursor = Tokenizer::new(input);
+pub fn lex(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
+    let mut cursor = Lexer::new(input);
     let mut tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
 
     // tokenize with spans
     loop {
-        let token = cursor.advance();
+        let token = cursor.advance(&tokens);
         let token_span = TokenSpan {
             token,
             span: Span {
@@ -75,17 +60,17 @@ pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>,
             start: 0,
             end: 0,
         },
-        token: Token::eof(),
+        token: Token::end(),
     });
 
     (tokens, eof_token)
 }
 
-impl Tokenizer<'_> {
+impl Lexer<'_> {
     /// Parses a token from the input string.
-    pub(crate) fn advance(&mut self) -> Token {
+    pub(crate) fn advance(&mut self, prev_tokens: &[TokenSpan]) -> Token {
         // eat first character until nothing is left (=EOF)
-        let Some(first_char) = self.bump() else {
+        let Some(first_char) = self.eat() else {
             return Token::new(TokenType::End, 0, None);
         };
 
@@ -100,7 +85,7 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // slash, comments (line, block, doc) or divide ops
+            // slash, comments, regex or divide ops
             '/' => {
                 // fast-path use bytes to avoid iterator cloning and extra UTF-8 decoding
                 let bytes = self.as_str().as_bytes();
@@ -127,19 +112,59 @@ impl Tokenizer<'_> {
                         let fourth_is_star = bytes.get(2).copied() == Some(b'*');
                         let is_doc_block = third_is_star && !fourth_is_star;
                         // consume the initial '*'
-                        self.bump();
-                        self.eat_block_comment_body();
+                        self.eat();
+                        self.eat_block_comment();
                         if is_doc_block {
                             (TokenType::DocBlockComment, None)
                         } else {
                             (TokenType::BlockComment, None)
                         }
                     }
-                    // divide or '/='
+                    // regex or divide
                     _ => {
+                        // /regex/ if we're in a "start" context
+                        let prev_non_whitespace_token = {
+                            prev_tokens
+                                .iter()
+                                .rev()
+                                .find(|token| token.token.ty != TokenType::Whitespace)
+                        };
+
+                        if prev_non_whitespace_token.is_none()
+                            || [
+                                TokenType::Newline,
+                                TokenType::Assign,
+                                TokenType::Comma,
+                                TokenType::Semicolon,
+                                TokenType::Equal,
+                                TokenType::NotEqual,
+                                TokenType::EqualWide,
+                                TokenType::NotEqualWide,
+                                TokenType::ElementwiseAnd,
+                                TokenType::LogicalAnd,
+                                TokenType::LogicalOr,
+                                TokenType::LogicalAndAssign,
+                                TokenType::LogicalOrAssign,
+                                TokenType::OpenParenthesis,
+                                TokenType::OpenBracket,
+                            ]
+                            .contains(&prev_non_whitespace_token.unwrap().token.ty)
+                            || prev_non_whitespace_token.unwrap().token.ty == TokenType::Identifier
+                                && Keyword::from_str(
+                                    self.get_span_str(prev_non_whitespace_token.unwrap().span),
+                                )
+                                .map(|k| k.is_control())
+                                .unwrap_or(false)
+                        {
+                            let has_flags = self.eat_regex_string();
+                            (
+                                TokenType::Literal,
+                                Some(LiteralType::RegexString { has_flags }),
+                            )
+                        }
                         // /=
-                        if self.peek() == '=' {
-                            self.bump();
+                        else if self.peek() == '=' {
+                            self.eat();
                             (TokenType::DivideAssign, None)
                         }
                         // /
@@ -171,7 +196,7 @@ impl Tokenizer<'_> {
                     // b'
                     // single-quoted byte literal
                     ('\'', _) => {
-                        this.bump();
+                        this.eat();
                         let parsed = this.eat_single_quoted_string();
                         let is_terminated = match parsed {
                             SingleQuotedLiteral::Character { is_terminated }
@@ -185,7 +210,7 @@ impl Tokenizer<'_> {
                     // b"
                     // double-quoted byte string literal
                     ('"', _) => {
-                        this.bump();
+                        this.eat();
                         let is_terminated = this.eat_double_quoted_string();
                         (
                             TokenType::Literal,
@@ -195,7 +220,7 @@ impl Tokenizer<'_> {
                     // br" or br#
                     // raw double-quoted byte string literal
                     ('r', '"') | ('r', '#') => {
-                        this.bump();
+                        this.eat();
                         let raw_dq_string = this.eat_raw_double_quoted_string(2);
                         (
                             TokenType::Literal,
@@ -230,13 +255,13 @@ impl Tokenizer<'_> {
                 if self.peek() == '.' {
                     // ...
                     if self.peek_next() == '.' {
-                        self.bump();
-                        self.bump();
+                        self.eat();
+                        self.eat();
                         (TokenType::RangeWide, None)
                     }
                     // ..
                     else {
-                        self.bump();
+                        self.eat();
                         (TokenType::Range, None)
                     }
                 }
@@ -251,8 +276,8 @@ impl Tokenizer<'_> {
             '?' => {
                 // ??
                 if self.peek() == '?' {
-                    self.bump();
-                    self.bump();
+                    self.eat();
+                    self.eat();
                     (TokenType::Coalesce, None)
                 }
                 // ?
@@ -274,10 +299,10 @@ impl Tokenizer<'_> {
             '!' => {
                 // !=
                 if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     // !==
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::NotEqualWide, None)
                     }
                     // !=
@@ -295,15 +320,15 @@ impl Tokenizer<'_> {
             '-' => {
                 // ->
                 if self.peek() == '>' {
-                    self.bump();
+                    self.eat();
                     (TokenType::Arrow, None)
                 }
                 // -%
                 else if self.peek() == '%' {
-                    self.bump();
+                    self.eat();
                     // -%=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::WrappingSubtractAssign, None)
                     }
                     // -%
@@ -313,10 +338,10 @@ impl Tokenizer<'_> {
                 }
                 // -|
                 else if self.peek() == '|' {
-                    self.bump();
+                    self.eat();
                     // -|=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::SaturatingSubtractAssign, None)
                     }
                     // -|
@@ -326,12 +351,12 @@ impl Tokenizer<'_> {
                 }
                 // -=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::SubtractAssign, None)
                 }
                 // --
                 else if self.peek() == '-' {
-                    self.bump();
+                    self.eat();
                     (TokenType::Decrement, None)
                 }
                 // -
@@ -344,10 +369,10 @@ impl Tokenizer<'_> {
             '&' => {
                 // &&
                 if self.peek() == '&' {
-                    self.bump();
+                    self.eat();
                     // &&=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::LogicalAndAssign, None)
                     }
                     // &&
@@ -357,7 +382,7 @@ impl Tokenizer<'_> {
                 }
                 // &=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::ElementwiseAndAssign, None)
                 }
                 // &
@@ -370,10 +395,10 @@ impl Tokenizer<'_> {
             '|' => {
                 // ||
                 if self.peek() == '|' {
-                    self.bump();
+                    self.eat();
                     // ||=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::LogicalOrAssign, None)
                     }
                     // ||
@@ -383,7 +408,7 @@ impl Tokenizer<'_> {
                 }
                 // |=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::ElementwiseOrAssign, None)
                 }
                 // |
@@ -396,15 +421,15 @@ impl Tokenizer<'_> {
             '=' => {
                 // =>
                 if self.peek() == '>' {
-                    self.bump();
+                    self.eat();
                     (TokenType::ArrowWide, None)
                 }
                 // ==
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     // ===
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::EqualWide, None)
                     }
                     // ==
@@ -422,13 +447,13 @@ impl Tokenizer<'_> {
             '<' => {
                 // <<
                 if self.peek() == '<' {
-                    self.bump();
+                    self.eat();
                     // <<|
                     if self.peek() == '|' {
-                        self.bump();
+                        self.eat();
                         // <<|=
                         if self.peek() == '=' {
-                            self.bump();
+                            self.eat();
                             (TokenType::SaturatingShiftLeftAssign, None)
                         }
                         // <<|
@@ -438,7 +463,7 @@ impl Tokenizer<'_> {
                     }
                     // <<=
                     else if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::ShiftLeftAssign, None)
                     }
                     // <<
@@ -448,7 +473,7 @@ impl Tokenizer<'_> {
                 }
                 // <=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::LessThanOrEqual, None)
                 }
                 // <
@@ -461,13 +486,13 @@ impl Tokenizer<'_> {
             '>' => {
                 // >>
                 if self.peek() == '>' && self.peek_next() == '=' {
-                    self.bump(); // >
-                    self.bump(); // =
+                    self.eat(); // >
+                    self.eat(); // =
                     (TokenType::ShiftRightAssign, None)
                 }
                 // >=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::GreaterThanOrEqual, None)
                 }
                 // >
@@ -480,7 +505,7 @@ impl Tokenizer<'_> {
             '^' => {
                 // ^=
                 if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::ElementwiseXorAssign, None)
                 }
                 // ^
@@ -493,10 +518,10 @@ impl Tokenizer<'_> {
             '+' => {
                 // +%
                 if self.peek() == '%' {
-                    self.bump();
+                    self.eat();
                     // +%=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::WrappingAddAssign, None)
                     }
                     // +%
@@ -506,10 +531,10 @@ impl Tokenizer<'_> {
                 }
                 // +|
                 else if self.peek() == '|' {
-                    self.bump();
+                    self.eat();
                     // +|=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::SaturatingAddAssign, None)
                     }
                     // +|
@@ -519,12 +544,12 @@ impl Tokenizer<'_> {
                 }
                 // +=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::AddAssign, None)
                 }
                 // ++
                 else if self.peek() == '+' {
-                    self.bump();
+                    self.eat();
                     (TokenType::Increment, None)
                 }
                 // +
@@ -537,10 +562,10 @@ impl Tokenizer<'_> {
             '*' => {
                 // *%
                 if self.peek() == '%' {
-                    self.bump();
+                    self.eat();
                     // *%=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::WrappingMultiplyAssign, None)
                     }
                     // *%
@@ -550,10 +575,10 @@ impl Tokenizer<'_> {
                 }
                 // *|
                 else if self.peek() == '|' {
-                    self.bump();
+                    self.eat();
                     // *|=
                     if self.peek() == '=' {
-                        self.bump();
+                        self.eat();
                         (TokenType::SaturatingMultiplyAssign, None)
                     }
                     // *|
@@ -563,7 +588,7 @@ impl Tokenizer<'_> {
                 }
                 // *=
                 else if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::MultiplyAssign, None)
                 }
                 // *
@@ -576,7 +601,7 @@ impl Tokenizer<'_> {
             '%' => {
                 // %=
                 if self.peek() == '=' {
-                    self.bump();
+                    self.eat();
                     (TokenType::RemainderAssign, None)
                 }
                 // %
@@ -681,7 +706,7 @@ impl Tokenizer<'_> {
                 // binary literal
                 'b' => {
                     base = NumberBase::Binary;
-                    self.bump();
+                    self.eat();
                     if !self.eat_decimal_digits() {
                         return LiteralType::Int {
                             base,
@@ -693,7 +718,7 @@ impl Tokenizer<'_> {
                 // octal literal
                 'o' => {
                     base = NumberBase::Octal;
-                    self.bump();
+                    self.eat();
                     if !self.eat_decimal_digits() {
                         return LiteralType::Int {
                             base,
@@ -705,7 +730,7 @@ impl Tokenizer<'_> {
                 // hexadecimal literal
                 'x' => {
                     base = NumberBase::Hexadecimal;
-                    self.bump();
+                    self.eat();
                     if !self.eat_hexadecimal_digits() {
                         return LiteralType::Int {
                             base,
@@ -741,13 +766,13 @@ impl Tokenizer<'_> {
             // (`0..2` and `12.foo()`)
             '.' if self.peek_next() != '.' && !is_identifier_start(self.peek_next()) => {
                 // might have stuff after the ., and if it does, it starts with a number
-                self.bump();
+                self.eat();
                 let mut is_empty_exponent = false;
                 if self.peek().is_ascii_digit() {
                     self.eat_decimal_digits();
                     match self.peek() {
                         'e' | 'E' => {
-                            self.bump();
+                            self.eat();
                             is_empty_exponent = !self.eat_float_exponent();
                         }
                         _ => (),
@@ -759,7 +784,7 @@ impl Tokenizer<'_> {
                 }
             }
             'e' | 'E' => {
-                self.bump();
+                self.eat();
                 let is_empty_exponent = !self.eat_float_exponent();
                 LiteralType::Float {
                     base,
@@ -785,21 +810,21 @@ impl Tokenizer<'_> {
             match self.peek() {
                 // quotes are terminated, finish parsing
                 '\'' => {
-                    self.bump();
+                    self.eat();
                     return Self::finish_single_quoted_literal(logical_len, true);
                 }
                 // escaped slash is considered one character, so bump twice
                 '\\' => {
-                    self.bump();
+                    self.eat();
                     if self.is_end() {
                         return Self::finish_single_quoted_literal(logical_len, false);
                     }
-                    self.bump();
+                    self.eat();
                     logical_len = logical_len.saturating_add(1);
                 }
                 // skip the character
                 _ => {
-                    self.bump();
+                    self.eat();
                     logical_len = logical_len.saturating_add(1);
                 }
             }
@@ -815,18 +840,48 @@ impl Tokenizer<'_> {
         }
     }
 
+    /// Parses a regex string (excluding first `/`, including any flags after `/`).
+    /// Works exactly like JS/TS regex literals.
+    fn eat_regex_string(&mut self) -> bool {
+        debug_assert!(self.prev() == '/');
+        // match until next '/'
+        while let Some(c) = self.eat() {
+            match c {
+                '/' => {
+                    break;
+                }
+                '\\' if self.peek() == '\\' || self.peek() == '/' => {
+                    // bump again to skip escaped character
+                    self.eat();
+                }
+                _ => (),
+            }
+        }
+        // flags are are any alpha characters immediately after the last '/'
+        let mut has_flags = false;
+        loop {
+            if self.peek().is_ascii_alphabetic() {
+                has_flags = true;
+                self.eat();
+            } else {
+                break;
+            }
+        }
+        has_flags
+    }
+
     /// Parses a double-quoted string (excluding first `"`).
     /// Returns whether the string is terminated.
     fn eat_double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
-        while let Some(c) = self.bump() {
+        while let Some(c) = self.eat() {
             match c {
                 '"' => {
                     return true;
                 }
                 '\\' if self.peek() == '\\' || self.peek() == '"' => {
                     // bump again to skip escaped character
-                    self.bump();
+                    self.eat();
                 }
                 _ => (),
             }
@@ -844,7 +899,7 @@ impl Tokenizer<'_> {
         // wrap the actual function to handle the error with too many hashes
         // this way, it eats the whole raw string
         // (only up to 255 `#`s are allowed in raw strings)
-        let n_hashes = self.eat_raw_string_body(prefix_len)?;
+        let n_hashes = self.eat_raw_string(prefix_len)?;
         match u8::try_from(n_hashes) {
             Ok(num) => Ok(num),
             Err(_) => Err(RawStringError::TooManyDelimiters {
@@ -855,7 +910,7 @@ impl Tokenizer<'_> {
 
     /// Parses a raw string (with hashes, excluding first `r`).
     /// Returns the number of hashes.
-    pub(crate) fn eat_raw_string_body(&mut self, prefix_len: u32) -> Result<u32, RawStringError> {
+    pub(crate) fn eat_raw_string(&mut self, prefix_len: u32) -> Result<u32, RawStringError> {
         debug_assert!(self.prev() == 'r');
         let start_pos = self.get_pos_within_token();
         let mut possible_terminator_offset: Option<u32> = None;
@@ -865,12 +920,12 @@ impl Tokenizer<'_> {
         let mut eaten = 0;
         while self.peek() == '#' {
             eaten += 1;
-            self.bump();
+            self.eat();
         }
         let n_start_hashes = eaten;
 
         // check that string is started
-        match self.bump() {
+        match self.eat() {
             Some('"') => (),
             c => {
                 let c = c.unwrap_or(EOF_CHAR);
@@ -892,7 +947,7 @@ impl Tokenizer<'_> {
             }
 
             // eat closing double quote
-            self.bump();
+            self.eat();
 
             // check that amount of closing '#' symbols
             // is equal to the amount of opening ones
@@ -902,7 +957,7 @@ impl Tokenizer<'_> {
             let mut n_end_hashes = 0;
             while self.peek() == '#' && n_end_hashes < n_start_hashes {
                 n_end_hashes += 1;
-                self.bump();
+                self.eat();
             }
 
             if n_end_hashes == n_start_hashes {
@@ -924,11 +979,11 @@ impl Tokenizer<'_> {
         loop {
             match self.peek() {
                 '_' => {
-                    self.bump();
+                    self.eat();
                 }
                 '0'..='9' => {
                     has_digits = true;
-                    self.bump();
+                    self.eat();
                 }
                 _ => break,
             }
@@ -943,11 +998,11 @@ impl Tokenizer<'_> {
         loop {
             match self.peek() {
                 '_' => {
-                    self.bump();
+                    self.eat();
                 }
                 '0'..='9' | 'a'..='f' | 'A'..='F' => {
                     has_digits = true;
-                    self.bump();
+                    self.eat();
                 }
                 _ => break,
             }
@@ -960,14 +1015,14 @@ impl Tokenizer<'_> {
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
         if self.peek() == '-' || self.peek() == '+' {
-            self.bump();
+            self.eat();
         }
         self.eat_decimal_digits()
     }
 
     /// Parses a block comment body with nesting support.
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
-    pub(crate) fn eat_block_comment_body(&mut self) {
+    pub(crate) fn eat_block_comment(&mut self) {
         let mut depth: u32 = 1;
         while !self.is_end() {
             let bytes = self.as_str().as_bytes();
@@ -975,16 +1030,16 @@ impl Tokenizer<'_> {
                 // start of nested block comment
                 if bytes[0] == b'/' && bytes[1] == b'*' {
                     // consume '/*'
-                    self.bump();
-                    self.bump();
+                    self.eat();
+                    self.eat();
                     depth = depth.saturating_add(1);
                     continue;
                 }
                 // end of current block comment level
                 if bytes[0] == b'*' && bytes[1] == b'/' {
                     // consume '*/'
-                    self.bump();
-                    self.bump();
+                    self.eat();
+                    self.eat();
                     depth = depth.saturating_sub(1);
                     if depth == 0 {
                         break;
@@ -993,7 +1048,7 @@ impl Tokenizer<'_> {
                 }
             }
             // consume a single character and continue
-            let _ = self.bump();
+            let _ = self.eat();
         }
     }
 }

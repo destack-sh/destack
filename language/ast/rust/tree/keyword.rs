@@ -189,6 +189,35 @@ pub enum Keyword {
 }
 
 impl Keyword {
+    pub const fn is_control(&self) -> bool {
+        matches!(
+            self,
+            Keyword::Break
+                | Keyword::Continue
+                | Keyword::Defer
+                | Keyword::Return
+                | Keyword::Yield
+                | Keyword::If
+                | Keyword::Try
+                | Keyword::Catch
+                | Keyword::Throw
+                | Keyword::Finally
+                | Keyword::Async
+                | Keyword::Await
+                | Keyword::Unsafe
+                | Keyword::Move
+                | Keyword::Dynamic
+                | Keyword::Virtual
+                | Keyword::Do
+                | Keyword::While
+                | Keyword::For
+                | Keyword::Loop
+                | Keyword::Match
+                | Keyword::Switch
+                | Keyword::Case
+        )
+    }
+
     #[inline]
     pub const fn as_str(&self) -> &'static str {
         match self {

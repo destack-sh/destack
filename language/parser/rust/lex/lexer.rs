@@ -1,10 +1,12 @@
 use std::fmt::Debug;
 use std::str::Chars;
 
+use dyst_source::Span;
+
 use super::memchr::find_byte;
 
-/// Tokenizer over a source string.
-pub struct Tokenizer<'a> {
+/// Lexer over a source string.
+pub struct Lexer<'a> {
     /// The string to tokenize.
     pub str: &'a str,
     /// The current head ("next") byte position in the string.
@@ -17,11 +19,11 @@ pub struct Tokenizer<'a> {
     prev: char,
 }
 
-impl Debug for Tokenizer<'_> {
+impl Debug for Lexer<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<Tokenizer {{ str: {}, pos: {}, len_remaining: {}, chars: {:?} }}>",
+            "<Lexer {{ str: {}, pos: {}, len_remaining: {}, chars: {:?} }}>",
             self.str, self.pos, self.len_remaining, self.chars
         )
     }
@@ -29,10 +31,10 @@ impl Debug for Tokenizer<'_> {
 
 pub const EOF_CHAR: char = '\0';
 
-impl<'a> Tokenizer<'a> {
-    /// Create a new tokenizer from a string.
-    pub fn new(str: &'a str) -> Tokenizer<'a> {
-        Tokenizer {
+impl<'a> Lexer<'a> {
+    /// Create a new Lexer from a string.
+    pub fn new(str: &'a str) -> Lexer<'a> {
+        Lexer {
             str,
             pos: 0,
             len_remaining: str.len(),
@@ -44,6 +46,12 @@ impl<'a> Tokenizer<'a> {
     /// Gets the underlying string.
     pub fn as_str(&self) -> &'a str {
         self.chars.as_str()
+    }
+
+    /// Gets the string content of a span.
+    #[inline]
+    pub fn get_span_str(&self, span: Span) -> &'a str {
+        &self.str[span.start as usize..span.end as usize]
     }
 
     /// Gets the last eaten symbol (or `'\0'` in release builds).
@@ -94,13 +102,10 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Moves to the next character.
-    pub fn bump(&mut self) -> Option<char> {
+    pub fn eat(&mut self) -> Option<char> {
         let c = self.chars.next()?;
         self.pos = self.str.len() - self.chars.as_str().len();
-        #[cfg(debug_assertions)]
-        {
-            self.prev = c;
-        }
+        self.prev = c;
         Some(c)
     }
 
@@ -109,7 +114,7 @@ impl<'a> Tokenizer<'a> {
         // NOTE: #Performance: rustc tried making optimized version of this for
         //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
         while predicate(self.peek()) && !self.is_end() {
-            self.bump();
+            self.eat();
         }
     }
 
