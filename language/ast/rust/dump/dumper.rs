@@ -987,13 +987,13 @@ impl Dump for ScalarLiteral {
 impl Dump for TemplateLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TemplateLiteral::String { template } => {
+            TemplateLiteral::String { string: template } => {
                 dumper
                     .object("TemplateLiteral::String")
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString { tag, template } => {
+            TemplateLiteral::TaggedString { tag, string: template } => {
                 dumper
                     .object("TemplateLiteral::TaggedString")
                     .field("tag", tag)
@@ -1001,7 +1001,7 @@ impl Dump for TemplateLiteral {
                     .end();
             }
             TemplateLiteral::InterpolatedString {
-                template,
+                strings: template,
                 arguments: _,
             } => {
                 dumper
@@ -1011,7 +1011,7 @@ impl Dump for TemplateLiteral {
             }
             TemplateLiteral::TaggedInterpolatedString {
                 tag,
-                template,
+                strings: template,
                 arguments: _,
             } => {
                 dumper

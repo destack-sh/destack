@@ -370,9 +370,9 @@ pub enum Expression {
     /// ```
     /// `hello`
     /// `hello ${name}`
-    /// `hello ${name} ${age}`
-    /// `hello ${name} ${age} ${city}`
-    /// sql`SELECT * FROM users WHERE name = ${name}`
+    /// sql`SELECT * FROM users`
+    /// sql`${stmt}`
+    /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
     TemplateLiteral(TemplateLiteral),
 

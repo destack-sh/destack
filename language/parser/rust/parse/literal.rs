@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use dyst_ast::Path;
+use dyst_ast::{Path, StringId, TemplateLiteral};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -263,6 +263,89 @@ impl<'a> Parser<'a> {
                 let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                 Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
             }
+        }
+    }
+
+    /// Peek a template literal.
+    #[inline]
+    pub fn peek_template_literal(&self) -> ParserResult<&TokenSpan> {
+        if self.peek_token(TokenType::TemplateString).is_ok()
+            || self.peek_token(TokenType::TemplateStringStart).is_ok()
+        {
+            Ok(self.peek()?)
+        } else {
+            Err(ParserError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Eat a template literal. The path (i.e. tag) must be passed in explicitly.
+    ///
+    /// Examples:
+    /// ```
+    /// `hello`
+    /// `hello ${name}`
+    /// sql`SELECT * FROM users`
+    /// sql`${stmt}`
+    /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// ```
+    pub fn eat_template_literal(&mut self, tag: Option<Path>) -> ParserResult<TemplateLiteral> {
+        let next = *self.eat()?;
+        let next_str = self.get_span_str(next.span);
+
+        // template string without interpolation
+        if next.token.ty == TokenType::TemplateString {
+            let string = next_str.trim_start_matches('`').trim_end_matches('`');
+            let string_id = self.intern_string(string);
+            // tagged template string
+            if let Some(tag) = tag {
+                Ok(TemplateLiteral::TaggedString {
+                    tag,
+                    string: string_id,
+                })
+            }
+            // plain template string
+            else {
+                Ok(TemplateLiteral::String { string: string_id })
+            }
+        }
+        // template string with interpolation
+        else if next.token.ty == TokenType::TemplateStringStart {
+            let mut strings: Vec<StringId> = Vec::new();
+            let mut arguments: Vec<NodeId<Argument>> = Vec::new();
+
+            while self.peek_token(TokenType::TemplateStringEnd).is_err() {
+                // argument
+                let argument = self.eat_argument()?;
+                arguments.push(argument);
+                // string
+                if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
+                    let token = *self.eat()?;
+                    let string = self.get_span_str(token.span);
+                    let string_id = self.intern_string(string);
+                    strings.push(string_id);
+                }
+            }
+
+            // eat the end
+            let token = *self.eat()?;
+            debug_assert!(token.token.ty == TokenType::TemplateStringEnd);
+            let string = self.get_span_str(token.span);
+            let string_id = self.intern_string(string);
+            strings.push(string_id);
+
+            if let Some(tag) = tag {
+                Ok(TemplateLiteral::TaggedInterpolatedString {
+                    tag,
+                    strings,
+                    arguments,
+                })
+            } else {
+                Ok(TemplateLiteral::InterpolatedString { strings, arguments })
+            }
+        }
+        // error
+        else {
+            Err(ParserError::unexpected(next.span))
         }
     }
 
@@ -587,10 +670,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::TemplateLiteral;
+
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Block, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_node,
-        assert_path, assert_string,
+        Argument, Block, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_expr_path,
+        assert_node, assert_path, assert_string,
     };
 
     /// Parse integer literals in various formats.
@@ -673,6 +758,118 @@ mod tests {
         match literal {
             ScalarLiteral::ByteString(bytes) => assert_eq!(bytes, b"abc"),
             other => panic!("expected byte string literal, got {other:?}"),
+        }
+    }
+
+    /// Parse a regex string literal.
+    #[test]
+    fn test_parse_regex_string_literal() {
+        let mut test = TestParser::new("/abc/\n/abc/g");
+        let mut parser = test.prepare();
+
+        // /abc/
+        let literal = parser.eat_scalar_literal().unwrap();
+        match literal {
+            ScalarLiteral::RegexString { content, flags } => {
+                assert_string!(parser, content, "abc");
+                assert!(flags.is_none());
+            }
+            other => panic!("expected regex string literal, got {other:?}"),
+        }
+        parser.eat_newline().unwrap();
+
+        // /abc/g
+        let literal = parser.eat_scalar_literal().unwrap();
+        match literal {
+            ScalarLiteral::RegexString { content, flags } => {
+                assert_string!(parser, content, "abc");
+                assert_string!(parser, flags.unwrap(), "g");
+            }
+            other => panic!("expected regex string literal, got {other:?}"),
+        }
+    }
+
+    /// Parse a template string literal.
+    #[test]
+    fn test_parse_template_literal() {
+        let mut test = TestParser::new(
+            r#"
+`hello`
+`hello ${name}`
+`${stmt}`
+`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        // `hello`
+        let literal = parser.eat_template_literal(None).unwrap();
+        match literal {
+            TemplateLiteral::String { string: template } => {
+                // hello
+                assert_string!(parser, template, "hello");
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        parser.eat_newline().unwrap();
+
+        // `hello ${name}`
+        let literal = parser.eat_template_literal(None).unwrap();
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                // hello
+                assert_string!(parser, strings[0], "hello ");
+                // ${name}
+                assert_string!(parser, strings[1], "${name}");
+                assert_eq!(arguments.len(), 1);
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "name");
+                });
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+
+        // `${stmt}`
+        let literal = parser.eat_template_literal(None).unwrap();
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(arguments.len(), 1);
+                assert_string!(parser, strings[0], ""); // empty start
+                assert_string!(parser, strings[1], ""); // empty end
+                assert_eq!(arguments.len(), 1);
+                // stmt
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "stmt");
+                });
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+
+        // `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()}` LIMIT 10"
+        let literal = parser.eat_template_literal(None).unwrap();
+        match literal {
+            TemplateLiteral::InterpolatedString { strings, arguments } => {
+                assert_eq!(arguments.len(), 2);
+                assert_eq!(strings.len(), 3);
+                // SELECT * FROM users WHERE name =
+                assert_string!(parser, strings[0], "SELECT * FROM users WHERE name = ");
+                // name
+                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "name");
+                });
+                // AND age >
+                assert_string!(parser, strings[1], " AND age > ");
+                // group.age()
+                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::Call { receiver, .. } => {
+                        assert_expr_path!(parser, parser.tree.get(*receiver), "group");
+                    });
+                });
+                // LIMIT 10
+                assert_string!(parser, strings[2], " LIMIT 10");
+            }
+            other => panic!("unexpected {other:?}"),
         }
     }
 
