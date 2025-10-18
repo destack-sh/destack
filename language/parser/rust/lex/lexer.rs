@@ -6,6 +6,15 @@ use dyst_source::{SourceId, Span};
 
 use super::memchr::find_byte;
 
+/// The options for the lexer.
+#[derive(Debug, Default, Clone)]
+pub(super) struct LexerOptions {
+    /// The nested template strings starting parentheses depth stack.
+    pub(super) template_string_stack: Vec<u8>,
+    /// The depth of nested template string parentheses.
+    pub(super) parentheses_depth: u8 = 0,
+}
+
 /// Lexer over a source string.
 pub struct Lexer<'a> {
     /// The source ID.
@@ -14,11 +23,13 @@ pub struct Lexer<'a> {
     pub source: &'a str,
     /// The character iterator over the string.
     chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
+
     /// The current head ("next") byte position in the string.
     pub(super) pos: usize,
-
+    /// The options for the lexer.
+    pub(super) options: LexerOptions,
     /// The number of bytes remaining in the current token.
-    len_remaining: usize,
+    len_remaining_in_token: usize,
     /// The previous character.
     prev: char,
     /// The tokens seen so far.
@@ -44,7 +55,8 @@ impl<'a> Lexer<'a> {
             source_id,
             source,
             pos: 0,
-            len_remaining: source.len(),
+            options: LexerOptions::default(),
+            len_remaining_in_token: source.len(),
             chars: source.chars(),
             prev: EOF_CHAR,
             tokens: Vec::new(),
@@ -100,13 +112,13 @@ impl<'a> Lexer<'a> {
     /// Gets the amount of already consumed symbols.
     #[inline]
     pub fn get_pos_within_token(&self) -> u32 {
-        (self.len_remaining - self.chars.as_str().len()) as u32
+        (self.len_remaining_in_token - self.chars.as_str().len()) as u32
     }
 
     /// Resets the number of bytes consumed to 0.
     #[inline]
     pub fn reset_pos_within_token(&mut self) {
-        self.len_remaining = self.chars.as_str().len();
+        self.len_remaining_in_token = self.chars.as_str().len();
     }
 
     /// Moves to the next character.

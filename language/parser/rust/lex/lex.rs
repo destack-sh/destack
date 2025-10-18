@@ -288,12 +288,50 @@ impl Lexer<'_> {
             '$' => (TokenType::Dynamic, None),
 
             // brackets
-            '(' => (TokenType::OpenParenthesis, None),
-            ')' => (TokenType::CloseParenthesis, None),
-            '{' => (TokenType::OpenBrace, None),
-            '}' => (TokenType::CloseBrace, None),
-            '[' => (TokenType::OpenBracket, None),
-            ']' => (TokenType::CloseBracket, None),
+            '(' => {
+                self.options.parentheses_depth += 1;
+                (TokenType::OpenParenthesis, None)
+            }
+            ')' => {
+                self.options.parentheses_depth -= 1;
+                (TokenType::CloseParenthesis, None)
+            }
+            '[' => {
+                self.options.parentheses_depth += 1;
+                (TokenType::OpenBracket, None)
+            }
+            ']' => {
+                self.options.parentheses_depth -= 1;
+                (TokenType::CloseBracket, None)
+            }
+            '{' => {
+                self.options.parentheses_depth += 1;
+                (TokenType::OpenBrace, None)
+            }
+            // closing brace or maybe start of template middle
+            '}' => {
+                self.options.parentheses_depth -= 1;
+
+                // we're at the end of an interpolation, continue or end
+                if self.options.template_string_stack.last()
+                    == Some(&self.options.parentheses_depth)
+                {
+                    self.options.template_string_stack.pop();
+                    let is_complete = self.eat_template_string();
+                    if is_complete {
+                        (TokenType::TemplateStringEnd, None)
+                    } else {
+                        // continue eating the template (after `${`, again)
+                        self.options
+                            .template_string_stack
+                            .push(self.options.parentheses_depth);
+                        self.options.parentheses_depth += 1; // for the opening `{` (again)
+                        (TokenType::TemplateStringMiddle, None)
+                    }
+                } else {
+                    (TokenType::CloseBrace, None)
+                }
+            }
 
             // bang
             '!' => {
@@ -633,7 +671,16 @@ impl Lexer<'_> {
 
             // template string literal
             '`' => {
-                todo!("nocheckin");
+                let is_complete = self.eat_template_string();
+                if is_complete {
+                    (TokenType::TemplateString, None)
+                } else {
+                    self.options
+                        .template_string_stack
+                        .push(self.options.parentheses_depth);
+                    self.options.parentheses_depth += 1; // for the opening `${`
+                    (TokenType::TemplateStringStart, None)
+                }
             }
 
             // identifier starting with an emoji (for graceful error recovery)
@@ -845,38 +892,8 @@ impl Lexer<'_> {
         }
     }
 
-    /// Parses a regex string (excluding first `/`, including any flags after `/`).
-    /// Works exactly like JS/TS regex literals.
-    fn eat_regex_string(&mut self) -> bool {
-        debug_assert!(self.prev() == '/');
-        // match until next '/'
-        while let Some(c) = self.eat() {
-            match c {
-                '/' => {
-                    break;
-                }
-                '\\' if self.peek() == '\\' || self.peek() == '/' => {
-                    // bump again to skip escaped character
-                    self.eat();
-                }
-                _ => (),
-            }
-        }
-        // flags are are any alpha characters immediately after the last '/'
-        let mut has_flags = false;
-        loop {
-            if self.peek().is_ascii_alphabetic() {
-                has_flags = true;
-                self.eat();
-            } else {
-                break;
-            }
-        }
-        has_flags
-    }
-
     /// Parses a double-quoted string (excluding first `"`).
-    /// Returns whether the string is terminated.
+    /// Returns whether the string is complete (i.e. not a true interpolation).
     fn eat_double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
         while let Some(c) = self.eat() {
@@ -892,6 +909,58 @@ impl Lexer<'_> {
             }
         }
         // end of file reached
+        false
+    }
+
+    /// Parses a regex string (excluding first `/`, including any flags after `/`).
+    /// Works exactly like JS/TS regex literals.
+    fn eat_regex_string(&mut self) -> bool {
+        debug_assert!(self.prev() == '/');
+        // match until next '/'
+        while let Some(c) = self.eat() {
+            match c {
+                '/' => {
+                    break;
+                }
+                '\\' if self.peek() == '\\' || self.peek() == '/' => {
+                    // bump again to skip escaped character
+                    self.eat();
+                }
+                _ => (), // keep eating
+            }
+        }
+        // flags are are any alpha characters immediately after the last '/'
+        let mut has_flags = false;
+        loop {
+            if self.peek().is_ascii_alphabetic() {
+                has_flags = true;
+                self.eat();
+            } else {
+                break;
+            }
+        }
+        has_flags
+    }
+
+    /// Parses a template string (excluding first ``).
+    /// Returns whether it's the start or the full string.
+    fn eat_template_string(&mut self) -> bool {
+        while let Some(c) = self.eat() {
+            match c {
+                '`' => {
+                    return true;
+                }
+                '$' if self.peek() == '{' => {
+                    self.eat();
+                    return false;
+                }
+                '\\' if self.peek() == '\\' || self.peek() == '`' => {
+                    // bump again to skip escaped character
+                    self.eat();
+                }
+                _ => (), // keep eating
+            }
+        }
         false
     }
 
