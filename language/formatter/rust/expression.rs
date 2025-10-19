@@ -111,7 +111,10 @@ pub(crate) fn format_if_chain<'ast>(
                             break;
                         }
                         // something else
-                        _ => write!(f, [*else_expression])?,
+                        _ => {
+                            write!(f, [*else_expression])?;
+                            break;
+                        }
                     }
                 } else {
                     // bare if
