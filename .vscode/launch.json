@@ -28,7 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["fmt", "--string", "#A struct #B Test #C { #D } #E"],
+            "args": ["fmt", "--file", "library/entity/scratch.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
