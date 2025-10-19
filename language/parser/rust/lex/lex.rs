@@ -141,14 +141,13 @@ impl Lexer<'_> {
                     // regex or divide
                     _ => {
                         // /regex/ if we're in a "start" context
-                        // (and not at a `/>` on a line without a closing `/` to disambiguate trees)
                         let prev_non_whitespace_token = {
                             self.tokens
                                 .iter()
                                 .rev()
                                 .find(|token| token.token.ty != TokenType::Whitespace)
                         };
-                        let is_at_start = {
+                        let is_expression_start = {
                             if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
                                 EXPRESSION_START_TOKEN_TYPES
                                     .contains(&prev_non_whitespace_token.token.ty)
@@ -162,12 +161,19 @@ impl Lexer<'_> {
                                 true
                             }
                         };
-                        // tag end looks like `/>` without a closing `/` on the same line
-                        let is_tag_end = {
-                            if self.peek() != '>' {
+                        // check it's not a closing tag
+                        // (`/>` without a closing `/` on the same line)
+                        let is_regex_start = {
+                            // not an expression start, not a regex
+                            if !is_expression_start {
                                 false
-                            } else {
-                                // if we find a closing `/` on the same line, it's not a tag end
+                            } 
+                            // not a closing tag, definitely a regex
+                            else if self.peek() != '>' {
+                                true
+                            }
+                            // might be a regex iff we find a closing `/` on the line
+                            else {
                                 let mut found_closing_slash_on_line = false;
                                 for c in self.as_str().chars() {
                                     if c == '/' {
@@ -177,11 +183,12 @@ impl Lexer<'_> {
                                         break;
                                     }
                                 }
-                                !found_closing_slash_on_line
+                                found_closing_slash_on_line
                             }
                         };
 
-                        if is_at_start && !is_tag_end {
+                        // regex
+                        if is_regex_start {
                             let has_flags = self.eat_regex_string();
                             (
                                 TokenType::Literal,
