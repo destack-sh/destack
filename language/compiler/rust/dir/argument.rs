@@ -46,21 +46,21 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
-                    Argument::UnevaluatedNamed { name, value },
+                    Argument::UnresolvedNamed { name, value },
                     source_id,
                     argument_id,
                 )
             }
             ast::Argument::NamedShorthand { name } => {
                 let name = self.intern_string(source_id, *name);
-                let path = Path::UnevaluatedAbsoluteString {
+                let path = Path::UnresolvedAbsoluteString {
                     segments: smallvec![name],
                 };
                 let value =
                     self.tree
                         .insert_from_ast(Expression::Path { path }, source_id, argument_id);
                 self.tree.insert_from_ast(
-                    Argument::UnevaluatedNamed { name, value },
+                    Argument::UnresolvedNamed { name, value },
                     source_id,
                     argument_id,
                 )
@@ -68,7 +68,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::Positional { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
-                    Argument::UnevaluatedPositional { value },
+                    Argument::UnresolvedPositional { value },
                     source_id,
                     argument_id,
                 )
@@ -76,7 +76,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::Spread { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
-                    Argument::UnevaluatedSpread { value },
+                    Argument::UnresolvedSpread { value },
                     source_id,
                     argument_id,
                 )

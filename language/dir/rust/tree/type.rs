@@ -107,9 +107,9 @@ pub enum Type {
     Intersection(Vec<NodeId<Type>>),
 
     /// Expression yet to be evaluated into a Type (like a Path).
-    UnevaluatedExpression(NodeId<Expression>),
-    /// Unevaluated Self type.
-    UnevaluatedSelf,
+    UnresolvedExpression(NodeId<Expression>),
+    /// Unresolved Self type.
+    UnresolvedSelf,
 
     /// Error type that could not be evaluated.
     Error,
@@ -124,7 +124,7 @@ impl Type {
     pub fn is_resolved(&self) -> bool {
         !matches!(
             self,
-            Type::UnevaluatedExpression(_) | Type::UnevaluatedSelf | Type::Error
+            Type::UnresolvedExpression(_) | Type::UnresolvedSelf | Type::Error
         )
     }
 }

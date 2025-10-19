@@ -32,15 +32,15 @@ pub enum ArgumentSlot {
 /// An Argument is a named or positional argument to a function or method call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Unevaluated named argument.
-    UnevaluatedNamed {
+    /// Unresolved named argument.
+    UnresolvedNamed {
         name: StringId,
         value: NodeId<Expression>,
     },
-    /// Unevaluated positional argument.
-    UnevaluatedPositional { value: NodeId<Expression> },
-    /// Unevaluated positional spread argument.
-    UnevaluatedSpread { value: NodeId<Expression> },
+    /// Unresolved positional argument.
+    UnresolvedPositional { value: NodeId<Expression> },
+    /// Unresolved positional spread argument.
+    UnresolvedSpread { value: NodeId<Expression> },
 
     /// Direct argument (named or positional).
     Direct {

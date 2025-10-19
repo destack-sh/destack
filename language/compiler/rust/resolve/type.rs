@@ -6,7 +6,7 @@ impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
     pub fn resolve_type(&mut self, ty_id: NodeId<Type>) -> ResolveResult<()> {
         let ty = self.tree.get(ty_id);
-        let Type::UnevaluatedExpression(expression_id) = ty else {
+        let Type::UnresolvedExpression(expression_id) = ty else {
             return Ok(());
         };
 
@@ -28,14 +28,14 @@ impl<'a> Compiler<'a> {
     }
 
     /// Try to Resolve an Expression as a Type.
-    /// Returns the evaluated Type value, or a Type::UnevaluatedExpression if it fails.
+    /// Returns the evaluated Type value, or a Type::UnresolvedExpression if it fails.
     fn try_resolve_expression_to_type_value(
         &mut self,
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<Type> {
         let ty = self
             .resolve_expression_to_type(expression_id)?
-            .unwrap_or(Type::UnevaluatedExpression(expression_id));
+            .unwrap_or(Type::UnresolvedExpression(expression_id));
         Ok(ty)
     }
 
