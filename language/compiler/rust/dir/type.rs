@@ -13,7 +13,7 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Type> {
         let expression = self.lower_expression(source_id, ast, expression_id);
         let type_id = self.tree.insert_from_ast(
-            Type::UnevaluatedExpression(expression),
+            Type::UnresolvedExpression(expression),
             source_id,
             expression_id,
         );

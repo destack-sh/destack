@@ -1,6 +1,6 @@
 //! Parse functions and closures.
 
-use dyst_ast::Parameter;
+use dyst_ast::{NodeType, Parameter};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
@@ -178,14 +178,9 @@ impl<'a> Parser<'a> {
             };
 
             // static parameters
-            let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
-                self.bump(); // eat less than
-                let static_parameters = self.eat_parameters_body()?;
-                self.eat_token(TokenType::GreaterThan)?;
-                Some(static_parameters)
-            } else {
-                None
-            };
+            let static_parameters = self
+                .eat_static_parameters_maybe()
+                .for_node_type(NodeType::Definition)?;
 
             (runtime, name, static_parameters)
         } else {
@@ -438,6 +433,50 @@ function b(
 
             assert!(dynamic_parameters.is_empty());
             assert!(where_clauses.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_static_and_dynamic_parameters() {
+        let mut test = TestParser::new(
+            r"
+function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
+    body
+}
+        ",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let function_id = parser.eat_function(None, None).unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { name, static_parameters, dynamic_parameters, .. } => {
+            // compute
+            assert_string!(parser, name.unwrap(), "compute");
+
+            // <Validate: bool, Precision: uint8>
+            let static_parameters = static_parameters.as_ref().unwrap();
+            assert_eq!(static_parameters.len(), 2);
+
+            // Validate: bool
+            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, ty, .. } => {
+                assert_string!(parser, *name, "Validate");
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+            });
+
+            // Precision: uint8
+            assert_node!(parser.tree, static_parameters[1], Parameter::Scalar { name, ty, .. } => {
+                assert_string!(parser, *name, "Precision");
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                    assert_eq!(int_ty.width, Some(8));
+                    assert!(!int_ty.is_signed);
+                });
+            });
+
+            // data: uint8[]
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, .. } => {
+                assert_string!(parser, *name, "data");
+            });
         });
     }
 

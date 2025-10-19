@@ -875,9 +875,9 @@ impl Dump for FunctionStyle {
 impl Dump for Destination {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Destination::UnevaluatedString { label } => {
+            Destination::UnresolvedString { label } => {
                 dumper
-                    .object("Destination::UnevaluatedString")
+                    .object("Destination::UnresolvedString")
                     .field("label", label)
                     .end();
             }
@@ -914,22 +914,22 @@ impl Dump for PathBase {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::UnevaluatedBase { base } => {
+            Path::UnresolvedBase { base } => {
                 dumper
-                    .object("Path::UnevaluatedBase")
+                    .object("Path::UnresolvedBase")
                     .field("base", base)
                     .end();
             }
-            Path::UnevaluatedRelativeString { base, segments } => {
+            Path::UnresolvedRelativeString { base, segments } => {
                 dumper
-                    .object("Path::UnevaluatedRelativeString")
+                    .object("Path::UnresolvedRelativeString")
                     .field("base", base)
                     .value(segments)
                     .end();
             }
-            Path::UnevaluatedAbsoluteString { segments } => {
+            Path::UnresolvedAbsoluteString { segments } => {
                 dumper
-                    .object("Path::UnevaluatedAbsoluteString")
+                    .object("Path::UnresolvedAbsoluteString")
                     .value(segments)
                     .end();
             }
@@ -1704,11 +1704,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Type::Intersection", id.id).end();
             }
 
-            Type::UnevaluatedExpression(_) => {
-                self.node("Type::UnevaluatedExpression", id.id).end();
+            Type::UnresolvedExpression(_) => {
+                self.node("Type::UnresolvedExpression", id.id).end();
             }
-            Type::UnevaluatedSelf => {
-                self.node("Type::UnevaluatedSelf", id.id).end();
+            Type::UnresolvedSelf => {
+                self.node("Type::UnresolvedSelf", id.id).end();
             }
 
             Type::Error => {
@@ -1887,16 +1887,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::UnevaluatedNamed { name, value: _ } => {
-                self.node("Argument::UnevaluatedNamed", id.id)
+            Argument::UnresolvedNamed { name, value: _ } => {
+                self.node("Argument::UnresolvedNamed", id.id)
                     .field("name", name)
                     .end();
             }
-            Argument::UnevaluatedPositional { value: _ } => {
-                self.node("Argument::UnevaluatedPositional", id.id).end();
+            Argument::UnresolvedPositional { value: _ } => {
+                self.node("Argument::UnresolvedPositional", id.id).end();
             }
-            Argument::UnevaluatedSpread { value: _ } => {
-                self.node("Argument::UnevaluatedSpread", id.id).end();
+            Argument::UnresolvedSpread { value: _ } => {
+                self.node("Argument::UnresolvedSpread", id.id).end();
             }
             Argument::Direct {
                 name,

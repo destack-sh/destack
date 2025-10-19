@@ -249,7 +249,7 @@ impl<'a> Compiler<'a> {
             ast::Expression::TypeLiteral(value) => {
                 if *value == ast::TypeLiteral::Self_ {
                     Expression::Path {
-                        path: Path::UnevaluatedBase {
+                        path: Path::UnresolvedBase {
                             base: PathBase::SelfType,
                         },
                     }

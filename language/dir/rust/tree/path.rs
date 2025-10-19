@@ -18,15 +18,15 @@ pub enum PathBase {
 /// A resolved path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
-    /// Unevaluated base.
-    UnevaluatedBase { base: PathBase },
-    /// Unevaluated relative string path.
-    UnevaluatedRelativeString {
+    /// Unresolved base.
+    UnresolvedBase { base: PathBase },
+    /// Unresolved relative string path.
+    UnresolvedRelativeString {
         base: PathBase,
         segments: SmallVec<StringId, 3>,
     },
-    /// Unevaluated absolute string path.
-    UnevaluatedAbsoluteString { segments: SmallVec<StringId, 3> },
+    /// Unresolved absolute string path.
+    UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
 
     /// Resolved Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
@@ -46,8 +46,8 @@ impl Path {
 /// A destination is a target for a control flow statement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Destination {
-    /// Unevaluated Destination with a string label.
-    UnevaluatedString { label: StringId },
+    /// Unresolved Destination with a string label.
+    UnresolvedString { label: StringId },
     /// Resolved Destination to a Definition.
     Definition { definition: NodeId<Definition> },
     /// Error destination.
