@@ -101,6 +101,7 @@ fn format_interpolated_template_literal<'ast>(
     write!(f, [token("`")])
 }
 
+/// Format a template literal.
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
     _span: Span,
