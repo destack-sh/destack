@@ -116,14 +116,14 @@ mod tests {
 
     #[test]
     fn test_format_let_with_value() {
-        assert_format!("let x = 1", "let x = 1", |p| p.eat_let(None, None));
+        assert_format!("const x = 1", "const x = 1", |p| p.eat_let(None, None));
     }
 
     #[test]
     fn test_format_let_breaks_if_too_long() {
         assert_format!(
-            "let veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
-            "let veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
+            "const veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
+            "const veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
             |p| p.eat_let(None, None),
             DystFormatOptions::default_tab().with_line_width(40)
         );

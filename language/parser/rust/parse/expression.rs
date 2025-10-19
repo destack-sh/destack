@@ -1479,7 +1479,7 @@ geom.Mesh<2, Dims: 4> {
     fn test_parse_let_multiline_infix() {
         let mut test = TestParser::new(
             r"
-let x = 
+const x = 
     foo.parse()
         + 2 
         + x

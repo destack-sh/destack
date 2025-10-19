@@ -91,18 +91,18 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// let x = 1
-    /// let x: int32 = 1
-    /// let (x, y) = foo()
+    /// const x = 1
+    /// const x: int32 = 1
+    /// const (x, y) = foo()
     /// var x = 1
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
-    /// let t = foo() ?? return;
+    /// const t = foo() ?? return;
     ///
-    /// if let Some(x) = someFunction() {
+    /// if const Some(x) = someFunction() {
     ///     ...
     /// }
-    /// if var Some(x) = someFunction() {
+    /// if const Some(x) = someFunction() {
     ///     ...
     /// }
     Let {

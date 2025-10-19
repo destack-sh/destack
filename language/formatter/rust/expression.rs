@@ -364,9 +364,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(
                     f,
                     [group(&format_with(|f| {
-                        // let
+                        // const
                         if mutability.is_immutable() {
-                            write!(f, [Keyword::Let])?;
+                            write!(f, [Keyword::Const])?;
                         }
                         // mutability
                         write!(

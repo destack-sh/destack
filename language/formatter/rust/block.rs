@@ -218,7 +218,7 @@ mod tests {
     fn test_format_mixed_block_with_prefix_postfix_comment() {
         let source = "{
     // prefix comment
-    let X = 1 // suffix comment
+    const X = 1 // suffix comment
     // postfix comment
 }";
         assert_format!(
@@ -232,9 +232,9 @@ mod tests {
     #[test]
     fn test_format_mixed_block_with_postfix_comment() {
         let source = "{
-    let X = 1 // this is my X
-    let Y = 2 // this is my Y
-    let Z = 3 // this is my Z
+    const X = 1 // this is my X
+    const Y = 2 // this is my Y
+    const Z = 3 // this is my Z
 }";
         assert_format!(
             source,
@@ -247,9 +247,9 @@ mod tests {
     #[test]
     fn test_format_mixed_block_with_postfix_annotations_mixed() {
         let source = "{
-    let X = 1 #x // this is my X
-    let Y = 2 #y // this is my Y
-    let Z = 3 #z // this is my Z
+    const X = 1 #x // this is my X
+    const Y = 2 #y // this is my Y
+    const Z = 3 #z // this is my Z
 }";
         assert_format!(
             source,
@@ -263,7 +263,7 @@ mod tests {
     fn test_format_block_with_nested_declaration() {
         let source = r"{
     // x comment
-    let x =
+    const x =
         // y comment
         function y(v: float32) => float32 {
             // z comment
@@ -280,7 +280,7 @@ mod tests {
     /// Block shouldn't break if the expression is used inline.
     #[test]
     fn test_format_block_inline() {
-        let source = "let x = if y { z } else { w }";
+        let source = "const x = if y { z } else { w }";
         assert_format!(
             source,
             source,
@@ -302,7 +302,7 @@ mod tests {
     /// Block should retain the explicit newline.
     #[test]
     fn test_format_block_statement_retain_newline() {
-        let source = "{\n\tlet X = 1\n\tlet Y = 2\n\tlet Z = 3\n}";
+        let source = "{\n\tconst X = 1\n\tconst Y = 2\n\tconst Z = 3\n}";
         assert_format!(
             source,
             source,
