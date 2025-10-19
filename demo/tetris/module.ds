@@ -41,7 +41,7 @@ export struct Board {
 implement Board {
     /// Create a new empty board.
     function new(width: int32, height: int32) => Board {
-        let cells = Cell[width][height]
+        const cells = Cell[width][height]
         Board { width, height, cells }
     }
 
@@ -67,10 +67,10 @@ implement Board {
 
     /// Clear completed lines and return the number cleared.
     function clearLines(&var self) => int32 {
-        let linesCleared = 0
-        let y = self.height - 1
+        const linesCleared = 0
+        const y = self.height - 1
         while y >= 0 {
-            let isComplete = true
+            const isComplete = true
             for x in 0..self.width {
                 if !self.cells[y][x].isFilled {
                     isComplete = false
@@ -81,7 +81,7 @@ implement Board {
                 // remove this line
                 self.cells.remove(y)
                 // add new empty line at top
-                let newRow: List<Cell> = Cell[self.width]
+                const newRow: List<Cell> = Cell[self.width]
                 for x in 0..self.width {
                     newRow.push(Cell { isFilled: false, color: null })
                 }
@@ -132,7 +132,7 @@ export struct TetrisPiece {
 implement TetrisPiece {
     /// Create a new Tetris piece.
     function new(shape: TetrisPieceShape) => TetrisPiece {
-        let blocks = TetrisPiece.getBlocksForShape(shape, 0)
+        const blocks = TetrisPiece.getBlocksForShape(shape, 0)
         TetrisPiece { shape, rotation: 0, blocks }
     }
 
@@ -151,7 +151,7 @@ implement TetrisPiece {
 
     /// Get block positions for a shape and rotation.
     function getBlocksForShape(shape: TetrisPieceShape, rotation: int32) => Position[] {
-        let normalizedRotation = rotation % 4
+        const normalizedRotation = rotation % 4
         match shape {
             TetrisPieceShape.I => {
                 if normalizedRotation == 0 || normalizedRotation == 2 {
@@ -310,7 +310,7 @@ implement TetrisPiece {
 
     /// Get absolute positions of blocks given a base position.
     function getAbsolutePositions(self, basePos: Position) => Position[] {
-        let positions = []
+        const positions = []
         for block in self.blocks {
             positions.push(Position { x: basePos.x + block.x, y: basePos.y + block.y })
         }
@@ -337,7 +337,7 @@ implement TetrisGame {
 
     /// Spawn a new piece at the top of the board.
     function spawnPiece(&var self, shape: TetrisPieceShape) {
-        let piece = TetrisPiece.new(shape)
+        const piece = TetrisPiece.new(shape)
         self.currentPiece = piece
         self.currentPosition = Position { x: 4, y: 0 }
         // check if game over
@@ -348,8 +348,8 @@ implement TetrisGame {
 
     /// Check if the current piece would collide at the given position.
     function collidesWith(self, pos: Position) => boolean {
-        if let Some(piece) = self.currentPiece {
-            let absolutePositions = piece.getAbsolutePositions(pos)
+        if const Some(piece) = self.currentPiece {
+            const absolutePositions = piece.getAbsolutePositions(pos)
             for blockPos in absolutePositions {
                 if self.board.isFilled(blockPos) {
                     return true
@@ -361,7 +361,7 @@ implement TetrisGame {
 
     /// Try to move the current piece in the given direction.
     function tryMove(&var self, dx: int32, dy: int32) => boolean {
-        let newPosition =
+        const newPosition =
             Position { x: self.currentPosition.x + dx, y: self.currentPosition.y + dy }
         if !self.collidesWith(newPosition) {
             self.currentPosition = newPosition
@@ -372,8 +372,8 @@ implement TetrisGame {
 
     /// Try to rotate the current piece.
     function tryRotate(&var self) => boolean {
-        if let Some(&var piece) = self.currentPiece {
-            let oldRotation = piece.rotation
+        if const Some(&var piece) = self.currentPiece {
+            const oldRotation = piece.rotation
             piece.rotate()
             if self.collidesWith(self.currentPosition) {
                 // rotation failed, revert
@@ -390,14 +390,14 @@ implement TetrisGame {
 
     /// Lock the current piece to the board.
     function lockPiece(&var self) {
-        if let Some(piece) = self.currentPiece {
-            let absolutePositions = piece.getAbsolutePositions(self.currentPosition)
-            let color = piece.getColor()
+        if const Some(piece) = self.currentPiece {
+            const absolutePositions = piece.getAbsolutePositions(self.currentPosition)
+            const color = piece.getColor()
             for pos in absolutePositions {
                 self.board.setCell(pos, color)
             }
             // clear completed lines
-            let cleared = self.board.clearLines()
+            const cleared = self.board.clearLines()
             self.linesCleared += cleared
             // update score based on lines cleared
             match cleared {
@@ -443,7 +443,7 @@ implement TetrisGame {
     /// Handle input for hard drop.
     function hardDrop(&var self) {
         if self.state == GameState.Playing {
-            let dropDistance = 0
+            const dropDistance = 0
             while self.tryMove(0, 1) {
                 dropDistance += 1
             }
@@ -461,7 +461,7 @@ implement TetrisGame {
 
     /// Get a random piece shape.
     function getRandomShape(random: &Random) => TetrisPieceShape {
-        let shapes =
+        const shapes =
             [
                 TetrisPieceShape.I
                 TetrisPieceShape.J
@@ -479,9 +479,9 @@ implement TetrisGame: Tick {
     function tick(&var self) with Time, &Random {
         // spawn initial piece if needed
         if self.currentPiece == null {
-            let shape =
-                if let Some(next) = self.nextPiece {
-                    let nextShape = next.shape
+            const shape =
+                if const Some(next) = self.nextPiece {
+                    const nextShape = next.shape
                     self.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
                     nextShape
                 } else {

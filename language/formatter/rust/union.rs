@@ -156,8 +156,8 @@ mod tests {
     #[test]
     fn test_format_union_with_expressions() {
         assert_format!(
-            "union Foo { let X = 1 }",
-            "union Foo {\n\tlet X = 1\n}",
+            "union Foo { const X = 1 }",
+            "union Foo {\n\tconst X = 1\n}",
             |p| p.eat_union(None, None),
             DystFormatOptions::default_tab()
         );

@@ -12,8 +12,6 @@ pub enum Keyword {
     Internal,
     /// Visibility modifier
     Private,
-    /// Constant modifier.
-    Const,
     /// Readonly modifier (alias).
     Readonly,
     /// Mutability modifier (alias).
@@ -56,6 +54,8 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Definitions
     // ------------------------------------------------------------
+    /// Constant modifier.
+    Const,
     /// Let expression.
     Let,
     /// Var expression.
@@ -226,7 +226,6 @@ impl Keyword {
             Keyword::Protected => "protected",
             Keyword::Internal => "internal",
             Keyword::Private => "private",
-            Keyword::Const => "const",
             Keyword::Readonly => "readonly",
             Keyword::Mut => "mut",
             Keyword::Static => "static",
@@ -248,6 +247,7 @@ impl Keyword {
             Keyword::Namespace => "namespace",
 
             // definitions
+            Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::Module => "module",
@@ -327,7 +327,6 @@ impl FromStr for Keyword {
             "protected" => Ok(Keyword::Protected),
             "internal" => Ok(Keyword::Internal),
             "private" => Ok(Keyword::Private),
-            "const" => Ok(Keyword::Const),
             "readonly" => Ok(Keyword::Readonly),
             "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
@@ -349,6 +348,7 @@ impl FromStr for Keyword {
             "namespace" => Ok(Keyword::Namespace),
 
             // definitions
+            "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
             "module" => Ok(Keyword::Module),

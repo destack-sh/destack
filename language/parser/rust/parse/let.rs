@@ -45,12 +45,14 @@ impl<'a> Parser<'a> {
     pub fn eat_scoped_mutability(&mut self) -> ParserResult<ScopedMutability> {
         // mutability
         let mutability = {
-            if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
+            if self.peek_keyword(Keyword::Var).is_ok()
+                || self.peek_keyword(Keyword::Mut).is_ok()
+                || self.peek_keyword(Keyword::Let).is_ok()
+            {
                 self.bump(); // eat var or mut
                 Mutability::Mutable
             } else if self.peek_keyword(Keyword::Const).is_ok()
                 || self.peek_keyword(Keyword::Readonly).is_ok()
-                || self.peek_keyword(Keyword::Let).is_ok()
             {
                 self.bump(); // eat const or let
                 Mutability::Immutable
@@ -95,20 +97,20 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
-    /// let x = 1
-    /// let x: int32 = 1
+    /// const x = 1
+    /// const x: int32 = 1
     /// var x = 1
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
     ///
-    /// let Some(x) = someFunction()
+    /// const Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
-    /// let t = foo() ?? return;
+    /// const t = foo() ?? return;
     ///
-    /// if let Some(x) = someFunction() {
+    /// if const Some(x) = someFunction() {
     ///     ...
     /// }
-    /// if var Some(x) = someFunction() {
+    /// if const Some(x) = someFunction() {
     ///     ...
     /// }
     /// ```
@@ -122,12 +124,14 @@ impl<'a> Parser<'a> {
         // mutability
         let mutability =
             // var or mut
-            if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
+            if self.peek_keyword(Keyword::Var).is_ok()
+                || self.peek_keyword(Keyword::Mut).is_ok()
+                || self.peek_keyword(Keyword::Let).is_ok()
+            {
                 self.eat_scoped_mutability()?
             }
             // let or const 
-            else if self.peek_keyword(Keyword::Let).is_ok()
-                || self.peek_keyword(Keyword::Const).is_ok()
+            else if self.peek_keyword(Keyword::Const).is_ok()
                 || self.peek_keyword(Keyword::Readonly).is_ok()
             {
                 self.bump(); // eat let or const
@@ -232,7 +236,7 @@ var(x, y) pos: Vector4
     fn test_parse_let_scalar() {
         let mut test = TestParser::new(
             r###"
-let x: int32 = 1
+const x: int32 = 1
 "###,
         );
         let mut parser = test.prepare();
@@ -296,7 +300,7 @@ var x: float64[3] = undefined
     fn test_parse_let_tuple_pattern() {
         let mut test = TestParser::new(
             r###"
-let (x, y) = foo()
+const (x, y) = foo()
 "###,
         );
         let mut parser = test.prepare();
@@ -329,7 +333,7 @@ let (x, y) = foo()
 
     #[test]
     fn test_parse_let_implicit_undefined() {
-        let mut test = TestParser::new("let x: int32");
+        let mut test = TestParser::new("const x: int32");
         let mut parser = test.prepare();
 
         let let_id = parser.eat_let(None, None).unwrap();
@@ -351,7 +355,7 @@ let (x, y) = foo()
     fn test_parse_let_multiline_value() {
         let mut test = TestParser::new(
             r###"
-let x = 
+const x = 
     foo.parse()
 "###,
         );
@@ -360,7 +364,7 @@ let x =
 
         let let_id = parser.eat_let(None, None).unwrap();
 
-        // let x = foo.parse()
+        // const x = foo.parse()
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, value, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {

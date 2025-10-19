@@ -73,9 +73,9 @@ mod tests {
     fn test_format_enum_with_expressions() {
         assert_format!(
             r"enum { 
-				let X = 1
+				const X = 1
 			}",
-            "enum {\n\tlet X = 1\n}",
+            "enum {\n\tconst X = 1\n}",
             |p| p.eat_enum(None, None),
             DystFormatOptions::default_tab()
         );

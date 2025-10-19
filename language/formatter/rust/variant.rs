@@ -115,8 +115,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_tuple_body_statements() {
         assert_format!(
-            "struct Foo(int32) { let X = 2 }",
-            "struct Foo(int32) {\n\tlet X = 2\n}",
+            "struct Foo(int32) { const X = 2 }",
+            "struct Foo(int32) {\n\tconst X = 2\n}",
             |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );
@@ -135,9 +135,9 @@ mod tests {
     #[test]
     fn test_format_struct_with_expressions() {
         assert_format!(
-            r"struct { let X = 1 }",
+            r"struct { const X = 1 }",
             r"struct {
-	let X = 1
+	const X = 1
 }",
             |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
@@ -147,8 +147,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields_and_statements() {
         assert_format!(
-            "struct { a: int32, let X = 1 }",
-            "struct {\n\ta: int32\n\n\tlet X = 1\n}",
+            "struct { a: int32, const X = 1 }",
+            "struct {\n\ta: int32\n\n\tconst X = 1\n}",
             |p| p.eat_struct(None, None),
             DystFormatOptions::default_tab()
         );

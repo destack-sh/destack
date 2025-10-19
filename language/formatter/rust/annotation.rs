@@ -421,7 +421,7 @@ mod tests {
         let source = "{
     // comment part 1
     // comment part 2
-    let A = 1
+    const A = 1
     // comment part 3
     // comment part 4
 }";
@@ -452,7 +452,7 @@ mod tests {
     a: {
         // comment part 1
         // comment part 2
-        let A = 1
+        const A = 1
         // comment part 3
         // comment part 4
     }
@@ -461,7 +461,7 @@ mod tests {
     b: {
         // comment part 7
         // comment part 8
-        let B = 2
+        const B = 2
         // comment part 9
         // comment part 10
     }
@@ -478,8 +478,8 @@ mod tests {
     #[test]
     fn test_format_inline_expression_comment() {
         assert_format!(
-            "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
-            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
+            "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
+            "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(200)
         );
@@ -493,13 +493,13 @@ mod tests {
     /** some multiline
      * doc comment
      * over multiple lines */
-    let X = 1 
+    const X = 1 
 }",
             "{
     /// some multiline
     /// doc comment
     /// over multiple lines
-    let X = 1
+    const X = 1
 }",
             |p| p.eat_block(),
             DystFormatOptions::default()
@@ -511,11 +511,11 @@ mod tests {
     fn test_format_multine_block_comment_push_and_convert_to_line_comment() {
         assert_format!(
             "{
-    let X = 1 /* some comment
+    const X = 1 /* some comment
     * over multiple lines yo       */
 }",
             "{
-    let X = 1
+    const X = 1
     // some comment
     // over multiple lines yo
 }",
@@ -533,7 +533,7 @@ mod tests {
     //     /// The universally unique identifier of this Entity.
     //     id: Uuid
     // }
-    let X = 1
+    const X = 1
 }";
         assert_format!(
             source,
