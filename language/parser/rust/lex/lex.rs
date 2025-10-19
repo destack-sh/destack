@@ -23,6 +23,24 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
+pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
+    TokenType::Newline,
+    TokenType::Assign,
+    TokenType::Comma,
+    TokenType::Semicolon,
+    TokenType::Equal,
+    TokenType::NotEqual,
+    TokenType::EqualWide,
+    TokenType::NotEqualWide,
+    TokenType::ElementwiseAnd,
+    TokenType::LogicalAnd,
+    TokenType::LogicalOr,
+    TokenType::LogicalAndAssign,
+    TokenType::LogicalOrAssign,
+    TokenType::OpenParenthesis,
+    TokenType::OpenBracket,
+];
+
 #[inline]
 pub fn is_semantic(token_type: TokenType) -> bool {
     !TRIVIA_TOKEN_TYPES.contains(&token_type)
@@ -88,7 +106,6 @@ impl Lexer<'_> {
 
             // slash, comments, regex or divide ops
             '/' => {
-                // fast-path use bytes to avoid iterator cloning and extra UTF-8 decoding
                 let bytes = self.as_str().as_bytes();
                 let next = bytes.first().copied();
                 match next {
@@ -124,38 +141,47 @@ impl Lexer<'_> {
                     // regex or divide
                     _ => {
                         // /regex/ if we're in a "start" context
+                        // (and not at a `/>` on a line without a closing `/` to disambiguate trees)
                         let prev_non_whitespace_token = {
                             self.tokens
                                 .iter()
                                 .rev()
                                 .find(|token| token.token.ty != TokenType::Whitespace)
                         };
-                        if prev_non_whitespace_token.is_none()
-                            || [
-                                TokenType::Newline,
-                                TokenType::Assign,
-                                TokenType::Comma,
-                                TokenType::Semicolon,
-                                TokenType::Equal,
-                                TokenType::NotEqual,
-                                TokenType::EqualWide,
-                                TokenType::NotEqualWide,
-                                TokenType::ElementwiseAnd,
-                                TokenType::LogicalAnd,
-                                TokenType::LogicalOr,
-                                TokenType::LogicalAndAssign,
-                                TokenType::LogicalOrAssign,
-                                TokenType::OpenParenthesis,
-                                TokenType::OpenBracket,
-                            ]
-                            .contains(&prev_non_whitespace_token.unwrap().token.ty)
-                            || prev_non_whitespace_token.unwrap().token.ty == TokenType::Identifier
-                                && Keyword::from_str(
-                                    self.get_span_str(prev_non_whitespace_token.unwrap().span),
-                                )
-                                .map(|k| k.is_control())
-                                .unwrap_or(false)
-                        {
+                        let is_at_start = {
+                            if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
+                                EXPRESSION_START_TOKEN_TYPES
+                                    .contains(&prev_non_whitespace_token.token.ty)
+                                    || prev_non_whitespace_token.token.ty == TokenType::Identifier
+                                        && Keyword::from_str(
+                                            self.get_span_str(prev_non_whitespace_token.span),
+                                        )
+                                        .map(|k| k.is_control())
+                                        .unwrap_or(false)
+                            } else {
+                                true
+                            }
+                        };
+                        // tag end looks like `/>` without a closing `/` on the same line
+                        let is_tag_end = {
+                            if self.peek() != '>' {
+                                false
+                            } else {
+                                // if we find a closing `/` on the same line, it's not a tag end
+                                let mut found_closing_slash_on_line = false;
+                                for c in self.as_str().chars() {
+                                    if c == '/' {
+                                        found_closing_slash_on_line = true;
+                                        break;
+                                    } else if c == '\n' {
+                                        break;
+                                    }
+                                }
+                                !found_closing_slash_on_line
+                            }
+                        };
+
+                        if is_at_start && !is_tag_end {
                             let has_flags = self.eat_regex_string();
                             (
                                 TokenType::Literal,

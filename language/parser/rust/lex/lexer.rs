@@ -64,6 +64,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Gets the underlying string.
+    #[inline]
     pub fn as_str(&self) -> &'a str {
         self.chars.as_str()
     }

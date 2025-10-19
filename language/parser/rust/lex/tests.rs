@@ -386,6 +386,37 @@ fn test_lex_regex_literal_in_context() {
 }
 
 #[test]
+fn test_lex_regex_literal_in_tree() {
+    assert_tokenize_eq_roundtrip!(
+        r"
+<input
+    type=/text/i
+    // comment
+/>",
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::LessThan, 1, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::Whitespace, 4, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::Assign, 1, None),
+        // `/text/i` is a real regex literal
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: true })
+        ),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::Whitespace, 4, None),
+        Token::new(TokenType::LineComment, 10, None),
+        Token::new(TokenType::Newline, 1, None),
+        // `/>` is a tag end, so this should become Divide + GreaterThan (instead of RegexLiteral)
+        Token::new(TokenType::Divide, 1, None),
+        Token::new(TokenType::GreaterThan, 1, None),
+    );
+}
+
+#[test]
 fn test_lex_template_strings() {
     assert_tokenize_eq_roundtrip!(
         "`plain` `two words`",
