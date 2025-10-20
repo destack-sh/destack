@@ -66,6 +66,7 @@ where
 ///  - beginning with `start_token`
 ///  - ending with `end_token`
 ///  - separated by `separator`
+// nocheckin: list_like flag to always include separator if just one element
 pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,

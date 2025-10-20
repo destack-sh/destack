@@ -10,7 +10,7 @@ export {
 	type StructuredObjectOptions,
 } from './lib/structured-object.ng';
 
-export type UseChatHelpers<UI_MESSAGE extends UIMessage> {
+export type UseChatHelpers<UI_MESSAGE: UIMessage> {
 	// hey
 }
 
@@ -20,6 +20,12 @@ interface Todo {
 	title: string;
 	description: string;
 }
+
+Bun.serve({
+  fetch(req: Request) {
+    return Response("Success!");
+  }
+});
 
 function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
 	return { ...todo, ...fieldsToUpdate };
@@ -147,18 +153,18 @@ export default app;
 
 interface T<A> {
     readonly a?: string;
-    b: (): void;
+    b?(): void;
 }
 
 type T = {
     a: string;
-    b(): void;
+    b?(): void;
 }
 
 export function createPredicate(
 	condition: NoSubqueryCondition,
 ): (row: Row) => boolean {
-	// TODO: implement createPredicate logic
+	// body
 }
 
 const result = streamText({

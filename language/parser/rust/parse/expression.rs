@@ -94,7 +94,7 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support special lenient forms for async/typeof/declare/new/throw/..?
+// TODO #Incomplete: support special lenient forms for declare/async/typeof/declare/new/throw/..?
 //  (maybe as Expression::SpecialForm or maybe just a flag somewhere?)
 
 impl<'a> Parser<'a> {
@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut left_expression_id: NodeId<Expression> = {
-            let token = self.peek()?;
+            let token = *self.peek()?;
             let keyword = self.peek_any_keyword().ok();
             #[cfg(debug_assertions)]
             let _token_str = self.get_span_str(token.span);
@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(visibility, export, false)?;
+                let lambda_id = self.eat_function(visibility, export, false, false)?;
                 self.tree
                     .insert(Expression::Definition(lambda_id), self.get_span_from(start))
             }
@@ -351,7 +351,7 @@ impl<'a> Parser<'a> {
                     && (self.peek_arrow().is_ok() || self.peek_colon().is_ok())
                 {
                     self.restore(speculative_start.0, speculative_start.1);
-                    let lambda_id = self.eat_function(visibility, export, false)?;
+                    let lambda_id = self.eat_function(visibility, export, false, false)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 } else {
@@ -442,7 +442,7 @@ impl<'a> Parser<'a> {
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self.eat_function(visibility, export, false)?;
+                let function_id = self.eat_function(visibility, export, false, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),
@@ -537,9 +537,10 @@ impl<'a> Parser<'a> {
             }
             // anonymous struct literal
             else if !self.options.in_before_block
-                && self.peek_anonymous_struct_literal_body().is_ok()
+                && token.token.ty == TokenType::OpenBrace
+                && let Ok(first_argument) = self.peek_anonymous_struct_literal_body()
             {
-                let fields = self.eat_struct_literal_body()?;
+                let fields = self.eat_struct_literal_body(first_argument)?;
                 self.tree.insert(
                     Expression::StructLiteral { ty: None, fields },
                     self.get_span_from(start),
@@ -552,7 +553,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // tree
-            else if self.peek_tree_literal().is_ok() {
+            else if token.token.ty == TokenType::LessThan && self.peek_tree_literal().is_ok() {
                 self.eat_tree_literal()?
             }
             // template
@@ -641,7 +642,7 @@ impl<'a> Parser<'a> {
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
         {
-            let fields = self.eat_struct_literal_body()?;
+            let fields = self.eat_struct_literal_body(None)?;
             left_expression_id = self.tree.insert(
                 Expression::StructLiteral {
                     ty: Some(left_expression_id),

@@ -1139,7 +1139,7 @@ function main() {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function = parser.eat_function(None, None, false).unwrap();
+        let function = parser.eat_function(None, None, false, false).unwrap();
         parser.finalize();
 
         // (annotation should be infix to innermost node, i.e. the block)

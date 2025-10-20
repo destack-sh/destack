@@ -1000,4 +1000,19 @@ mod tests {
             DystFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_expression_call_with_struct_literal() {
+        let source = r#"Destack.serve({
+    fetch(req: Request) {
+        return Response("Success!");
+    },
+})"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
 }

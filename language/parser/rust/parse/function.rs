@@ -152,6 +152,7 @@ impl<'a> Parser<'a> {
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
         expect_maybe: bool,
+        expect_body: bool,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
@@ -286,11 +287,18 @@ impl<'a> Parser<'a> {
         // body
         // only for functions or lambda values
         let body = {
-            // function with block body
+            // expect body but no opening brace
+            if expect_body && self.peek_token(TokenType::OpenBrace).is_err() {
+                return Err(ParserError::expected(
+                    self.peek()?.span,
+                    TokenType::OpenBrace,
+                ));
+            }
+            // function with body
             if style == FunctionStyle::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
                 Some(self.eat_expression()?)
             }
-            // lambda with expression body
+            // lambda with body
             else if style == FunctionStyle::Lambda && !self.options.in_type {
                 self.eat_arrow()?;
                 Some(self.eat_expression()?)
@@ -337,7 +345,7 @@ mod tests {
         let mut test = TestParser::new("foo() => int32 { body }");
         let mut parser = test.prepare();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, style, dynamic_parameters, return_type,  .. } => {
             assert_string!(parser, name.unwrap(), "foo");
             assert_eq!(*style, FunctionStyle::Function);
@@ -365,7 +373,7 @@ function foo() => int32 with (
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, with_clauses, where_clauses, return_type, .. } => {
             // function name
             assert_string!(parser, name.unwrap(), "foo");
@@ -414,7 +422,7 @@ function foo() => int32 with (
         let mut test = TestParser::new("function a(self) {}");
         let mut parser = test.prepare();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "a");
 
@@ -440,7 +448,7 @@ function b(
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "b");
 
@@ -466,7 +474,7 @@ function b(
         let mut test = TestParser::new("function c(&var self) {}");
         let mut parser = test.prepare();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, self_parameter, dynamic_parameters, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "c");
 
@@ -491,7 +499,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, static_parameters, dynamic_parameters, .. } => {
             // compute
             assert_string!(parser, name.unwrap(), "compute");
@@ -529,7 +537,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
         let mut parser = test.prepare();
 
         // function foo() => (str: string) => boolean
-        let function_id = parser.eat_function(None, None, false).unwrap();
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
         assert_node!(parser.tree, function_id, Definition::Function { name, return_type, .. } => {
             // foo
             assert_string!(parser, name.unwrap(), "foo");
