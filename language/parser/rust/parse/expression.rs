@@ -94,7 +94,8 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support special lenient forms for declare/new/throw/..?
+// TODO #Incomplete: support special lenient forms for async/declare/new/throw/..?
+//  (maybe as Expression::SpecialForm or maybe just a flag somewhere?)
 
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.

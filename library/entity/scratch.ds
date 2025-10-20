@@ -357,6 +357,8 @@ export interface Props<Input = unknown, Output = Input> {
     readonly types?: Types<Input, Output> | undefined;
 }
 
+console.log(`Listening on ${server.url}`);
+
 <LemonDivider className="my-0" />
 
 <SceneSection

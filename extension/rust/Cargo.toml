@@ -19,8 +19,5 @@ dyst_source = { workspace = true }
 dyst_prelude = { workspace = true }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
-
 [lints]
 workspace = true

@@ -22,8 +22,6 @@ destack_file = { workspace = true }
 destack_unicode = { workspace = true }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
 pprof = { workspace = true }
 criterion = { workspace = true }
 

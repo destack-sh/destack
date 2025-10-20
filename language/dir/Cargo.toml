@@ -25,8 +25,5 @@ destack_unicode = { workspace = true }
 destack_file = { workspace = true }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
-
 [lints]
 workspace = true

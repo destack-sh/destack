@@ -20,8 +20,5 @@ dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
-
 [lints]
 workspace = true
