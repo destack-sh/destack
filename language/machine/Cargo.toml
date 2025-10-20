@@ -26,8 +26,5 @@ dyst_memory = { workspace = true }
 destack_unicode = { workspace = true }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
-
 [lints]
 workspace = true

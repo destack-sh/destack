@@ -167,7 +167,7 @@ impl Lexer<'_> {
                             // not an expression start, not a regex
                             if !is_expression_start {
                                 false
-                            } 
+                            }
                             // not a closing tag, definitely a regex
                             else if self.peek() != '>' {
                                 true
