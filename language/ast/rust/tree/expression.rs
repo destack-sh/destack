@@ -328,7 +328,24 @@ pub enum Expression {
     },
 
     /// Await an expression.
+    /// This is more similar to `go` than classic `await`, but the meaning is context & runtime specific.
+    /// We keep the keyword because I don't know any better ones and it's well known.
+    ///
+    /// Examples:
+    /// ```
+    /// await someLongFunction()
+    /// ```
     Await { expression: NodeId<Expression> },
+
+    /// Yield an expression.
+    /// Suspends execution and returns a value to the caller in some way.
+    /// Conceptually, this is exactly like a state machine with yield/await as suspension points.
+    ///
+    /// Examples:
+    /// ```
+    /// yield someValue
+    /// ```
+    Yield { value: NodeId<Expression> },
 
     /// Return expression.
     ///
@@ -418,7 +435,7 @@ pub enum Expression {
     ///   1 // comma is optional here
     ///   2 // comma is optional here too
     /// ]
-    /// [10, false, "Hi"] // hetereogenous array is invalid but legal in AST
+    /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
     /// ```
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
 

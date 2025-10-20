@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
 use crate::{
-    Argument, Definition, EnumField, Keyword, LiteralType, Node, NodeId, NodeTree, NodeVisitor,
-    Parameter, PatternField, TokenSpan, TokenType, UnionField, VariantField, walk_argument,
-    walk_definition, walk_enum_field, walk_parameter, walk_pattern_field, walk_union_field,
-    walk_variant_field,
+    Argument, Definition, EnumField, Expression, Keyword, LiteralType, Node, NodeId, NodeTree,
+    NodeVisitor, Parameter, PatternField, ScalarLiteral, TokenSpan, TokenType, UnionField,
+    VariantField, walk_argument, walk_definition, walk_enum_field, walk_expression, walk_parameter,
+    walk_pattern_field, walk_union_field, walk_variant_field,
 };
 use dyst_source::Source;
 
@@ -263,6 +263,29 @@ impl<'a> SemanticTokenIndex<'a> {
 }
 
 impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Expression>,
+        expression: &Expression,
+    ) {
+        match expression {
+            Expression::ScalarLiteral(
+                ScalarLiteral::Character(_)
+                | ScalarLiteral::String(_)
+                | ScalarLiteral::ByteString(_)
+                | ScalarLiteral::RegexString { .. },
+            ) => {
+                self.set_semantic_span(tree, id, SemanticType::LiteralStringy);
+            }
+            Expression::TypeLiteral(_) => {
+                self.set_semantic_span(tree, id, SemanticType::Type);
+            }
+            _ => {}
+        }
+        walk_expression(self, tree, id, expression);
+    }
+
     // ------------------------------------------------------------
     // Types
     // ------------------------------------------------------------
