@@ -135,10 +135,13 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 
         match self {
             Argument::Named { name, value } => {
-                write!(f, [name, token(": "), value])?;
+                write!(f, [name, token(":"), space(), value])?;
             }
             Argument::NamedShorthand { name } => {
                 write!(f, [name])?;
+            }
+            Argument::ImplicitFunction { name, value } => {
+                write!(f, [name, token(":"), space(), value])?;
             }
             Argument::Positional { value } => {
                 write!(f, [value])?;

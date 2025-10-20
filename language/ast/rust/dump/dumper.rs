@@ -1677,6 +1677,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
+            Argument::ImplicitFunction { name, value: _ } => {
+                self.node("Argument::ImplicitFunction", _id.id)
+                    .field("name", name)
+                    .end();
+            }
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", _id.id).end();
             }

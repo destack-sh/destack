@@ -2,7 +2,7 @@ import destack
 
 /// An Entity Epoch.
 export struct Epoch: uint64 {
-    let Zero = Epoch(0)
+    const Zero = Epoch(0)
 }
 
 /// The materialization level of an Entity.

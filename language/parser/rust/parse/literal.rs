@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use dyst_ast::{Keyword, Mutability, Path, StringId, TemplateLiteral};
+use dyst_ast::{Definition, Keyword, Mutability, Path, StringId, TemplateLiteral};
 use std::str::FromStr;
 
 use crate::parse::prelude::*;
@@ -442,6 +442,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`).
+    /// Also accepts '{ x, y }` or  `{ x: x }` but not `{ x }` in favor of blocks expressions.
     /// The first element may also be after some newlines.
     pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -461,9 +462,15 @@ impl<'a> Parser<'a> {
                 let next_token_ty = self.tokens[pos as usize + 1].token.ty;
                 let next_next_token_ty = self.tokens[pos as usize + 2].token.ty;
                 match (token_ty, next_token_ty, next_next_token_ty) {
+                    // name:
                     (TokenType::Identifier, TokenType::Colon, _)
+                    // name?:
                     | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)
+                    // name,
+                    | (TokenType::Identifier, TokenType::Comma, _)
+                    // ..T
                     | (TokenType::Range, TokenType::Identifier, _)
+                    // ...T
                     | (TokenType::RangeWide, TokenType::Identifier, _) => {
                         return Ok(());
                     }
@@ -506,8 +513,6 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-
-                // nocheckin: struct literal function shorthand && type function shorthand
 
                 // named argument
                 if self.peek_token(TokenType::Identifier).is_ok()
@@ -561,6 +566,39 @@ impl<'a> Parser<'a> {
                     };
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
+                }
+                // function shorthand argument
+                else if self.peek_token(TokenType::Identifier).is_ok()
+                    && self
+                        .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                        .is_ok()
+                {
+                    // function
+                    let function_id = self.eat_function(None, None)?;
+                    // name
+                    let name = self
+                        .tree
+                        .get(function_id)
+                        .name()
+                        .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
+                    // wrap function as value
+                    let value = self.tree.insert(
+                        Expression::Definition(function_id),
+                        self.get_span_from(start),
+                    );
+                    // clear function name
+                    match self.tree.get_mut(function_id) {
+                        Definition::Function { name, .. } => {
+                            *name = None;
+                        }
+                        _ => {
+                            return Err(ParserError::unexpected(self.get_span_from(start)));
+                        }
+                    };
+                    self.tree.insert(
+                        Argument::ImplicitFunction { name, value },
+                        self.get_span_from(start),
+                    )
                 }
                 // spread argument
                 else if self.peek_token(TokenType::Range).is_ok()
@@ -741,7 +779,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Mutability, TemplateLiteral};
+    use dyst_ast::{Definition, Mutability, TemplateLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -1063,6 +1101,22 @@ mod tests {
             assert_string!(parser, *name, "d");
             assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "T");
+            });
+        });
+    }
+
+    /// Parse a struct literal body with implicit function arguments.
+    #[test]
+    fn test_parse_struct_literal_body_with_implicit_function() {
+        let mut test = TestParser::new("{ foo() }");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_struct_literal_body().unwrap();
+        assert_eq!(arguments.len(), 1);
+        // foo()
+        assert_node!(parser.tree, arguments[0], Argument::ImplicitFunction { name, value } => {
+            assert_string!(parser, *name, "foo");
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
             });
         });
     }

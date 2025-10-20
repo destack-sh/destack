@@ -65,6 +65,15 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
+            ast::Argument::ImplicitFunction { name, value } => {
+                let name = self.intern_string(source_id, *name);
+                let value = self.lower_expression(source_id, ast, *value);
+                self.tree.insert_from_ast(
+                    Argument::UnresolvedNamed { name, value },
+                    source_id,
+                    argument_id,
+                )
+            }
             ast::Argument::Positional { value } => {
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(

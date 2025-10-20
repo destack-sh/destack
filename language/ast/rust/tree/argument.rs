@@ -43,6 +43,7 @@ impl Node for Parameter {
 /// y
 /// false
 /// ...args
+/// foo()
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
@@ -53,6 +54,11 @@ pub enum Argument {
     },
     /// Named shorthand argument (only in certain contexts like struct literals).
     NamedShorthand { name: StringId },
+    /// Named shorthand function argument (only in certain contexts like struct literals).
+    ImplicitFunction {
+        name: StringId,
+        value: NodeId<Expression>,
+    },
     /// Positional argument.
     Positional { value: NodeId<Expression> },
     /// Positional spread argument.

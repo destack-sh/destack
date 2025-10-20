@@ -11,6 +11,7 @@ export enum EntitlementType {
 export struct EntitlementEvent {
     /// The Entitlement self event pertains to.
     entitlement: Reference<Entitlement>
+
     /// The Entitled target Entity.
     target
 }

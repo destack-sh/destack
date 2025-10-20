@@ -60,8 +60,12 @@ impl<'a> Parser<'a> {
             let next_token_ty = self.tokens[pos + 1].token.ty;
             let next_next_token_ty = self.tokens[pos + 2].token.ty;
             match (token_ty, next_token_ty, next_next_token_ty) {
+                // name:
                 (TokenType::Identifier, TokenType::Colon, _)
-                | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon) => {
+                // name?:
+                | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon) 
+                // name = 
+                | (TokenType::Identifier, TokenType::Assign, _) => {
                     return Ok(());
                 }
                 _ => {}

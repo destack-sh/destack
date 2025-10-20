@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
     ///     myField: int32
     ///     myOtherField: T
     ///
-    ///     let x: int32 = 7 // constant
+    ///     const x: int32 = 7 // constant
     ///
     ///     ..Bar // Foo has a Bar
     ///
