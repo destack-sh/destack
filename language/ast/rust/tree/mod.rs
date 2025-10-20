@@ -14,6 +14,7 @@ mod path;
 mod pattern;
 mod semantic;
 mod tree;
+mod variant;
 mod visit;
 mod walk;
 
@@ -34,5 +35,6 @@ pub use path::*;
 pub use pattern::*;
 pub use semantic::*;
 pub use tree::*;
+pub use variant::*;
 pub use visit::*;
 pub use walk::*;

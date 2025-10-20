@@ -115,7 +115,7 @@ pub enum TypeLiteral {
     /// Float type.
     Float(FloatType),
     /// Composite type.
-    Composite(CompositeType),
+    Composite(CompositeType), 
     /// Self type.
     Self_,
 }

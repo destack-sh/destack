@@ -24,7 +24,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
 
         let argument = f.context().tree.get(self.argument_id);
         match argument {
-            Argument::Named { name, value } => {
+            Argument::Named { name, value } | Argument::ImplicitFunction { name, value } => {
                 write!(f, [name, token("="), value])?;
             }
             Argument::NamedShorthand { name } => {

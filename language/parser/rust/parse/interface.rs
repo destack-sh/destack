@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
     ///     
-    ///     let x: int32 // constant
+    ///     const x: int32 // constant
     ///     function foo() => int32
     ///
     ///     function myFunc() { // nested declaration, default implementation
@@ -143,7 +143,7 @@ interface Foo: Baz {
     readonly value: int32
     count: int32 = 4
 
-    let x: int32 = 4
+    const x: int32 = 4
 
     function foo() => int32
 }

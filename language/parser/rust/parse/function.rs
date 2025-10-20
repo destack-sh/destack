@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a function or "lambda" definition or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
-    /// If no function keyword is provided, it is a lambda function.
+    /// If no function keyword is provided, it is a shorthand regular function or a lambda.
     /// (Lambda functions cannot have a name, runtime, or static parameters.)
     ///
     /// Examples:
@@ -109,6 +109,7 @@ impl<'a> Parser<'a> {
     /// function () // anonymous function with empty signature
     ///
     /// function foo() // just declaration, no body, no opening `{`
+    /// foo()
     ///
     /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
@@ -116,6 +117,7 @@ impl<'a> Parser<'a> {
     /// ) {
     ///    print("Hello, world!")
     /// }
+    /// foo<T, U>(x: T) => (int32, boolean) ... // shorthand
     ///
     /// function baz(a: int32, b: boolean) => (
     ///    MyStruct,
@@ -152,11 +154,22 @@ impl<'a> Parser<'a> {
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
-        // function / style
+        // function style
+        // regular `function` style
         let style = if self.peek_keyword(Keyword::Function).is_ok() {
-            self.bump(); // eat function
+            self.bump(); // eat function keyword
             FunctionStyle::Function
-        } else {
+        }
+        // shorthand `name()` style
+        else if self.peek_token(TokenType::Identifier).is_ok()
+            && self
+                .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                .is_ok()
+        {
+            FunctionStyle::Function
+        }
+        // lambda style
+        else {
             FunctionStyle::Lambda
         };
 
@@ -300,13 +313,32 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Parameter;
+    use dyst_ast::{FunctionStyle, Parameter};
 
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Definition, Expression, Mutability, ScopedMutability, TypeLiteral,
         WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
     };
+
+    #[test]
+    fn test_parse_function_shorthand_style() {
+        let mut test = TestParser::new("foo() => int32 { body }");
+        let mut parser = test.prepare();
+
+        let function_id = parser.eat_function(None, None).unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { name, style, dynamic_parameters, return_type,  .. } => {
+            assert_string!(parser, name.unwrap(), "foo");
+            assert_eq!(*style, FunctionStyle::Function);
+            // ()
+            assert_eq!(dynamic_parameters.len(), 0);
+            // int32
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
+            });
+        });
+    }
 
     #[test]
     fn test_parse_function_with_clause() {

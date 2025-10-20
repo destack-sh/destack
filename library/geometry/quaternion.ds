@@ -9,7 +9,7 @@ export struct Quaternion {
 }
 
 implement Quaternion {
-    let Zero: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
-    let One: Quaternion = Quaternion { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
-    let Identity: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    const Zero: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
+    const One: Quaternion = Quaternion { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
+    const Identity: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
 }

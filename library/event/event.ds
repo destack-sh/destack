@@ -25,10 +25,10 @@ export struct Event {
     clientRemoteEpoch: Epoch
     /// The logical time in the Client when it created self Event (client).
     clientLocalEpoch: Epoch
-    /// The status of the Event (system).
-    statusStatus = EventStatus.Pending
     /// The Event that caused self Event (if any).
     causedBy: Reference<Event>?
+    /// The status of the Event (system).
+    status: EventStatus = EventStatus.Pending
 
     ..Identity
 }

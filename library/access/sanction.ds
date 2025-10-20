@@ -12,7 +12,7 @@ export struct SanctionEvent {
     /// The Sanction self event pertains to.
     sanction: Sanction
     /// The sanctioned target Entity.
-    target
+    target: Reference<Entity>
 }
 
 /// Sanction was requested.
@@ -47,6 +47,6 @@ export struct Sanction {
     /// When the Sanction expires.
     expiresAt: Timestamp?
     /// The target Entity of the Sanction.
-    target
+    target: Reference<Entity>
 }
 
