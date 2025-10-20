@@ -153,151 +153,137 @@ implement TetrisPiece {
     function getBlocksForShape(shape: TetrisPieceShape, rotation: int32) => Position[] {
         const normalizedRotation = rotation % 4
         match shape {
-            TetrisPieceShape.I => {
-                if normalizedRotation == 0 || normalizedRotation == 2 {
-                    [
-                        Position { x: 0, y: 0 }
-                        Position { x: 1, y: 0 }
-                        Position { x: 2, y: 0 }
-                        Position { x: 3, y: 0 }
-                    ]
-                } else {
-                    [
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 1, y: 2 }
-                        Position { x: 1, y: 3 }
-                    ]
-                }
-            }
-            TetrisPieceShape.O => {
+            TetrisPieceShape.I => if normalizedRotation == 0 || normalizedRotation == 2 {
                 [
                     Position { x: 0, y: 0 }
                     Position { x: 1, y: 0 }
+                    Position { x: 2, y: 0 }
+                    Position { x: 3, y: 0 }
+                ]
+            } else {
+                [
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 1, y: 2 }
+                    Position { x: 1, y: 3 }
+                ]
+            }
+            TetrisPieceShape.O => [
+                Position { x: 0, y: 0 }
+                Position { x: 1, y: 0 }
+                Position { x: 0, y: 1 }
+                Position { x: 1, y: 1 }
+            ]
+            TetrisPieceShape.T => match normalizedRotation {
+                0 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                ]
+                1 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
+                2 => [
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
+                3 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
+                _ => []
+            }
+            TetrisPieceShape.S => if normalizedRotation == 0 || normalizedRotation == 2 {
+                [
+                    Position { x: 1, y: 0 }
+                    Position { x: 2, y: 0 }
                     Position { x: 0, y: 1 }
                     Position { x: 1, y: 1 }
                 ]
+            } else {
+                [
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 2, y: 2 }
+                ]
             }
-            TetrisPieceShape.T => {
-                match normalizedRotation {
-                    0 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                    ]
-                    1 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    2 => [
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    3 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    _ => []
-                }
+            TetrisPieceShape.Z => if normalizedRotation == 0 || normalizedRotation == 2 {
+                [
+                    Position { x: 0, y: 0 }
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                ]
+            } else {
+                [
+                    Position { x: 2, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
             }
-            TetrisPieceShape.S => {
-                if normalizedRotation == 0 || normalizedRotation == 2 {
-                    [
-                        Position { x: 1, y: 0 }
-                        Position { x: 2, y: 0 }
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                    ]
-                } else {
-                    [
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 2, y: 2 }
-                    ]
-                }
+            TetrisPieceShape.J => match normalizedRotation {
+                0 => [
+                    Position { x: 0, y: 0 }
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                ]
+                1 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 2, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
+                2 => [
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 2, y: 2 }
+                ]
+                3 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 0, y: 2 }
+                    Position { x: 1, y: 2 }
+                ]
+                _ => []
             }
-            TetrisPieceShape.Z => {
-                if normalizedRotation == 0 || normalizedRotation == 2 {
-                    [
-                        Position { x: 0, y: 0 }
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                    ]
-                } else {
-                    [
-                        Position { x: 2, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                }
-            }
-            TetrisPieceShape.J => {
-                match normalizedRotation {
-                    0 => [
-                        Position { x: 0, y: 0 }
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                    ]
-                    1 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 2, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    2 => [
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 2, y: 2 }
-                    ]
-                    3 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 0, y: 2 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    _ => []
-                }
-            }
-            TetrisPieceShape.L => {
-                match normalizedRotation {
-                    0 => [
-                        Position { x: 2, y: 0 }
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                    ]
-                    1 => [
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 1, y: 2 }
-                        Position { x: 2, y: 2 }
-                    ]
-                    2 => [
-                        Position { x: 0, y: 1 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 2, y: 1 }
-                        Position { x: 0, y: 2 }
-                    ]
-                    3 => [
-                        Position { x: 0, y: 0 }
-                        Position { x: 1, y: 0 }
-                        Position { x: 1, y: 1 }
-                        Position { x: 1, y: 2 }
-                    ]
-                    _ => []
-                }
+            TetrisPieceShape.L => match normalizedRotation {
+                0 => [
+                    Position { x: 2, y: 0 }
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                ]
+                1 => [
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 1, y: 2 }
+                    Position { x: 2, y: 2 }
+                ]
+                2 => [
+                    Position { x: 0, y: 1 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 2, y: 1 }
+                    Position { x: 0, y: 2 }
+                ]
+                3 => [
+                    Position { x: 0, y: 0 }
+                    Position { x: 1, y: 0 }
+                    Position { x: 1, y: 1 }
+                    Position { x: 1, y: 2 }
+                ]
+                _ => []
             }
         }
     }
@@ -461,16 +447,15 @@ implement TetrisGame: New {
 
     /// Get a random piece shape.
     function getRandomShape(random: &Random) => TetrisPieceShape {
-        const shapes =
-            [
-                TetrisPieceShape.I
-                TetrisPieceShape.J
-                TetrisPieceShape.L
-                TetrisPieceShape.O
-                TetrisPieceShape.S
-                TetrisPieceShape.T
-                TetrisPieceShape.Z
-            ]
+        const shapes = [
+            TetrisPieceShape.I
+            TetrisPieceShape.J
+            TetrisPieceShape.L
+            TetrisPieceShape.O
+            TetrisPieceShape.S
+            TetrisPieceShape.T
+            TetrisPieceShape.Z
+        ]
         shapes[random.range(0, 7)]
     }
 }

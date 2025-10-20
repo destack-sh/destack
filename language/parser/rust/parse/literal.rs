@@ -441,14 +441,16 @@ impl<'a> Parser<'a> {
         Ok(elements)
     }
 
-    /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`).
-    /// Also accepts '{ x, y }` or  `{ x: x }` but not `{ x }` in favor of blocks expressions.
-    /// The first element may also be after some newlines.
-    pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
+    /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`):
+    ///  - Accepts `{ func() { .. } }` (function shorthand)
+    ///  - Accepts `{ x, y }` or  `{ x: x }`
+    ///  - Forbids `{ x }` (in favor of blocks expressions)
+    ///  - Newlines after first `{` are skipped.
+    pub fn peek_anonymous_struct_literal_body(&mut self) -> ParserResult<Option<NodeId<Argument>>> {
         if self.peek_token(TokenType::OpenBrace).is_ok() {
-            let mut pos = self.pos() + 1;
+            let mut pos = (self.pos() + 1) as usize;
             // skip any newlines or modifiers
-            while let Some(token) = self.tokens.get(pos as usize)
+            while let Some(token) = self.tokens.get(pos)
                 && (token.token.ty == TokenType::Newline
                     || Keyword::from_str(self.get_token_str(*token))
                         .map(|keyword| VARIANT_FIELD_MODIFIERS.contains(&keyword))
@@ -456,11 +458,11 @@ impl<'a> Parser<'a> {
             {
                 pos += 1;
             }
-            // we're looking for something that looks like a struct literal field
-            if pos + 3 < (self.tokens.len() as u32) {
-                let token_ty = self.tokens[pos as usize].token.ty;
-                let next_token_ty = self.tokens[pos as usize + 1].token.ty;
-                let next_next_token_ty = self.tokens[pos as usize + 2].token.ty;
+            if pos + 3 < self.tokens.len() {
+                // struct literal field (name: type, name?: type, name = <expr>)
+                let token_ty = self.tokens[pos].token.ty;
+                let next_token_ty = self.tokens[pos + 1].token.ty;
+                let next_next_token_ty = self.tokens[pos + 2].token.ty;
                 match (token_ty, next_token_ty, next_next_token_ty) {
                     // name:
                     (TokenType::Identifier, TokenType::Colon, _)
@@ -472,9 +474,64 @@ impl<'a> Parser<'a> {
                     | (TokenType::Range, TokenType::Identifier, _)
                     // ...T
                     | (TokenType::RangeWide, TokenType::Identifier, _) => {
-                        return Ok(());
+                        return Ok(None);
                     }
                     _ => {}
+                }
+
+                // function shorthand
+                if token_ty == TokenType::Identifier
+                    && (next_token_ty == TokenType::OpenParenthesis
+                        || next_token_ty == TokenType::Maybe
+                            && next_next_token_ty == TokenType::OpenParenthesis
+                        || next_token_ty == TokenType::LessThan
+                        || next_token_ty == TokenType::Maybe
+                            && next_next_token_ty == TokenType::LessThan)
+                {
+                    // speculatively parse function definition
+                    // (since we can't just count bracket pairs here)
+                    let speculative_start = (self.mark(), self.tree.next_id());
+                    self.eat_token(TokenType::OpenBrace)?;
+                    self.eat_newlines_maybe()?;
+                    let start = self.mark();
+                    debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
+                    let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
+                    match self.eat_function(None, None, is_maybe, true) {
+                        Ok(function_id) => {
+                            // name
+                            let name = self
+                                .tree
+                                .get(function_id)
+                                .name()
+                                .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
+                            // value
+                            let value = self.tree.insert(
+                                Expression::Definition(function_id),
+                                self.get_span_from(start),
+                            );
+                            // clear function name
+                            match self.tree.get_mut(function_id) {
+                                Definition::Function { name, .. } => {
+                                    *name = None;
+                                }
+                                _ => panic!("expected function for"),
+                            };
+                            // maybe
+                            let value = if is_maybe {
+                                self.tree
+                                    .insert(Expression::Maybe(value), self.tree.spans.get(value))
+                            } else {
+                                value
+                            };
+                            return Ok(Some(self.tree.insert(
+                                Argument::ImplicitFunction { name, value },
+                                self.get_span_from(start),
+                            )));
+                        }
+                        Err(_) => {
+                            self.restore(speculative_start.0, speculative_start.1);
+                        }
+                    }
                 }
             }
         }
@@ -483,19 +540,33 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
-    pub(crate) fn eat_struct_literal_body(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
-        self.eat_token(TokenType::OpenBrace)
-            .for_node_type(NodeType::Expression)?;
-        self.eat_newlines_maybe()?;
-
-        // empty struct
-        if self.peek_token(TokenType::CloseBrace).is_ok() {
-            self.eat_token(TokenType::CloseBrace)
+    pub(crate) fn eat_struct_literal_body(
+        &mut self,
+        first_argument: Option<NodeId<Argument>>,
+    ) -> ParserResult<Vec<NodeId<Argument>>> {
+        // (skip the opening sequence if we're given first argument from a speculative parse)
+        if first_argument.is_none() {
+            self.eat_token(TokenType::OpenBrace)
                 .for_node_type(NodeType::Expression)?;
-            return Ok(vec![]);
+            self.eat_newlines_maybe()?;
+
+            // empty struct
+            if self.peek_token(TokenType::CloseBrace).is_ok() {
+                self.eat_token(TokenType::CloseBrace)
+                    .for_node_type(NodeType::Expression)?;
+                return Ok(vec![]);
+            }
+        } else {
+            // eat any stop if first argument is already given
+            if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
+            }
         }
 
         let mut arguments = Vec::new();
+        if let Some(first) = first_argument {
+            arguments.push(first);
+        }
         loop {
             // stop at closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -582,7 +653,7 @@ impl<'a> Parser<'a> {
                 {
                     // function
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    let function_id = self.eat_function(None, None, is_maybe)?;
+                    let function_id = self.eat_function(None, None, is_maybe, false)?;
                     // name
                     let name = self
                         .tree
@@ -599,9 +670,7 @@ impl<'a> Parser<'a> {
                         Definition::Function { name, .. } => {
                             *name = None;
                         }
-                        _ => {
-                            return Err(ParserError::unexpected(self.get_span_from(start)));
-                        }
+                        _ => panic!("expected function definition"),
                     };
                     // maybe
                     let value = if is_maybe {
@@ -1058,7 +1127,7 @@ mod tests {
         let mut test = TestParser::new("{ x: 1, y } ");
         let mut parser = test.prepare();
 
-        let arguments = parser.eat_struct_literal_body().unwrap();
+        let arguments = parser.eat_struct_literal_body(None).unwrap();
         assert_eq!(arguments.len(), 2);
 
         // x: 1
@@ -1087,7 +1156,7 @@ mod tests {
         );
         let mut parser = test.prepare();
 
-        let arguments = parser.eat_struct_literal_body().unwrap();
+        let arguments = parser.eat_struct_literal_body(None).unwrap();
         assert_eq!(arguments.len(), 6);
 
         // readonly a?: T
@@ -1145,18 +1214,27 @@ mod tests {
         });
     }
 
-    /// Parse a struct literal body with implicit function arguments.
+    /// Parse a struct literal body with a single shorthand function argument.
     #[test]
-    fn test_parse_struct_literal_body_with_implicit_function() {
-        let mut test = TestParser::new("{ foo() }");
+    fn test_parse_struct_literal_single_shorthand_function() {
+        let mut test = TestParser::new(
+            r#"{
+    fetch(req: Request) {
+        return Response("Success!");
+    },
+}"#,
+        );
         let mut parser = test.prepare();
-        let arguments = parser.eat_struct_literal_body().unwrap();
-        assert_eq!(arguments.len(), 1);
-        // foo()
-        assert_node!(parser.tree, arguments[0], Argument::ImplicitFunction { name, value } => {
-            assert_string!(parser, *name, "foo");
-            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
+            assert_eq!(fields.len(), 1);
+            // fetch
+            assert_node!(parser.tree, fields[0], Argument::ImplicitFunction { name, value } => {
+                assert_string!(parser, *name, "fetch");
+                assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                });
             });
         });
     }

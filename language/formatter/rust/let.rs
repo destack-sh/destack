@@ -128,4 +128,21 @@ mod tests {
             DystFormatOptions::default_tab().with_line_width(40)
         );
     }
+
+    #[test]
+    fn test_format_let_best_fitting() {
+        let source = r"const shapes = [
+            TetrisPieceShape.I
+            TetrisPieceShape.J
+            TetrisPieceShape.L
+            TetrisPieceShape.O
+            TetrisPieceShape.S
+        ]";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_let(None, None),
+            DystFormatOptions::default_tab().with_line_width(40)
+        );
+    }
 }

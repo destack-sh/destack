@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        // we're looking for something that looks like a variant field
+        // looks like a variant field (name: type, name?: type, name = <expr>)
         if pos + 3 < self.tokens.len() {
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::Identifier).is_ok()
                 && self.peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis]).is_ok()
             {
-                let function_id = self.eat_function(None, None, false)?;
+                let function_id = self.eat_function(None, None, false, false)?;
                 let expression_id = self.tree.insert(Expression::Definition(function_id), self.tree.spans.get(function_id));
                 expressions.push(expression_id);
             }
@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self.peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis]).is_ok()
             {
-                let function_id = self.eat_function(None, None, true)?;
+                let function_id = self.eat_function(None, None, true, false)?;
                 let expression_id = self.tree.insert(Expression::Definition(function_id), self.tree.spans.get(function_id));
                 let expression_id = self.tree.insert(Expression::Maybe(expression_id), self.tree.spans.get(expression_id));
                 expressions.push(expression_id);
