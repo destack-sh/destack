@@ -11,8 +11,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ImportTarget::Virtual(path) => write!(f, [path]),
-            ImportTarget::Physical(string) => write!(f, [token("\""), string, token("\"")]),
+            ImportTarget::Path(path) => write!(f, [path]),
+            ImportTarget::Virtual(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }

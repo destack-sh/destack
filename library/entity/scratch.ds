@@ -344,6 +344,15 @@ const users = createSource(
 
 users.push({ type: 'add', row: { id: 1, name: 'aaron', recruiterID: null } });
 
+const DAY_IN_MS = 86_400_000;
+
+const EMAIL_SUBJECT = "Daily campaign update";
+const EMAIL_BODY = [
+	"<p>Hi there,</p>",
+	"<p>This is your automated daily campaign email from RivetKit.</p>",
+	"<p>Have a great day!</p>",
+].join("");
+
 export interface Props<Input = unknown, Output = Input> {
     /** The version number of the standard. */
     readonly version: 1;
@@ -354,10 +363,16 @@ export interface Props<Input = unknown, Output = Input> {
       value: unknown
     ) => Result<Output> | Promise<Result<Output>>;
     /** Inferred types associated with the schema. */
-    readonly types?: Types<Input, Output> | undefined;
+    // readonly types?: Types<Input, Output> | undefined;
 }
 
 console.log(`Listening on ${server.url}`);
+
+log(`
+CPU: ${chalk.red('90%')}
+RAM: ${chalk.green('40%')}
+DISK: ${chalk.yellow('70%')}
+`);
 
 <LemonDivider className="my-0" />
 

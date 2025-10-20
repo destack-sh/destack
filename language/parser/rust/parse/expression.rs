@@ -94,7 +94,7 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support special lenient forms for async/declare/new/throw/..?
+// TODO #Incomplete: support special lenient forms for async/typeof/declare/new/throw/..?
 //  (maybe as Expression::SpecialForm or maybe just a flag somewhere?)
 
 impl<'a> Parser<'a> {
@@ -879,7 +879,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Virtual(target)), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Path(target)), alias, items } => {
             assert_eq!(*mode, ExportMode::Item);
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
@@ -928,7 +928,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Virtual(target)), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, target: Some(ImportTarget::Path(target)), alias, items } => {
             assert_eq!(*mode, ExportMode::Item);
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
@@ -957,7 +957,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -981,7 +981,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
             assert_path!(parser, *target, "foo");

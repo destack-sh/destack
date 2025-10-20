@@ -14,10 +14,10 @@ pub enum ExportMode {
 /// A ImportTarget is the target to import from.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImportTarget {
-    // Regular virtual target as an identifier/path (like `foo` or `foo.bar`)
-    Virtual(Path),
-    // String target as a literal string (like `"foo"` or `"foo/bar"`)
-    Physical(StringId),
+    // Regular Path target as an identifier/path (like `foo` or `foo.bar`)
+    Path(Path),
+    // Virtual string target as a literal string (like `"foo"` or `"foo/bar"`)
+    Virtual(StringId),
 }
 
 /// A ImportItem is an item to use in a import clause.

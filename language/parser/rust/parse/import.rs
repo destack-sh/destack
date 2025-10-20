@@ -131,14 +131,14 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Literal).is_ok() {
             let literal = self.eat_scalar_literal()?;
             match literal {
-                ScalarLiteral::String(string) => Ok(ImportTarget::Physical(string)),
+                ScalarLiteral::String(string) => Ok(ImportTarget::Virtual(string)),
                 _ => Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
             }
         }
         // virtual target
         else {
             let path = self.eat_path()?;
-            Ok(ImportTarget::Virtual(path))
+            Ok(ImportTarget::Path(path))
         }
     }
 
@@ -289,7 +289,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "dyst");
@@ -303,7 +303,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import core.memory
-        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "core.memory");
@@ -317,7 +317,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import dyst.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "dyst.geometry");
@@ -331,7 +331,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import dyst as ds
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert_string!(parser, alias.unwrap(), "ds");
             assert!(items.is_none());
             assert_path!(parser, *target, "dyst");
@@ -345,7 +345,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import ds.geometry.{Vector2, Vector3 as V3}
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -367,7 +367,7 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -390,7 +390,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Path(target), alias, items } => {
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "ds.geometry");
@@ -404,7 +404,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * as geom from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Physical(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
             assert_string!(parser, alias.unwrap(), "geom");
             assert!(items.is_none());
             assert_string!(parser, *target, "ds/geometry");
@@ -425,7 +425,7 @@ import {
         parser.eat_newline().unwrap();
 
         let import_id = parser.eat_import().unwrap();
-        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Physical(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { target: ImportTarget::Virtual(target), alias, items } => {
             assert!(alias.is_none());
             assert_string!(parser, *target, "./lib/object.ng");
 

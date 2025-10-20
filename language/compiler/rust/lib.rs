@@ -3,6 +3,7 @@
 
 mod compile;
 mod cranelift;
+mod diagnostic;
 mod dir;
 mod execute;
 mod mir;
