@@ -57,7 +57,6 @@ pub enum Keyword {
     /// Var expression.
     Var,
     /// Declare a namespace (reserved).
-    /// nocheckin: alias namespace->module
     Namespace,
     /// Declare a Module.
     Module,

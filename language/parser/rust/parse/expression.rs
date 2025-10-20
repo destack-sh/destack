@@ -9,7 +9,8 @@ use crate::{
     Visibility,
 };
 
-static DEFINITION_KEYWORDS: [Keyword; 14] = [
+static DEFINITION_KEYWORDS: [Keyword; 15] = [
+    Keyword::Namespace,
     Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
@@ -397,7 +398,7 @@ impl<'a> Parser<'a> {
             //
 
             // module
-            else if keyword == Some(Keyword::Module) {
+            else if keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace) {
                 let module_id = self.eat_module(visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
