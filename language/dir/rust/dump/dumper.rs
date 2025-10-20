@@ -961,11 +961,11 @@ impl Dump for Intrinsic {
 impl Dump for ImportTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            ImportTarget::Virtual(path) => {
-                dumper.object("ImportTarget::Virtual").value(path).end();
+            ImportTarget::Path(path) => {
+                dumper.object("ImportTarget::Path").value(path).end();
             }
-            ImportTarget::Physical(string) => {
-                dumper.object("ImportTarget::Physical").value(string).end();
+            ImportTarget::Virtual(string) => {
+                dumper.object("ImportTarget::Virtual").value(string).end();
             }
         }
     }

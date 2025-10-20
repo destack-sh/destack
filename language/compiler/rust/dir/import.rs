@@ -64,13 +64,13 @@ impl<'a> Compiler<'a> {
         target: &ast::ImportTarget,
     ) -> DirImportTarget {
         match target {
-            ast::ImportTarget::Virtual(path) => {
+            ast::ImportTarget::Path(path) => {
                 let path = self.lower_path(source_id, ast, path);
-                DirImportTarget::Virtual(path)
+                DirImportTarget::Path(path)
             }
-            ast::ImportTarget::Physical(string_id) => {
+            ast::ImportTarget::Virtual(string_id) => {
                 let string_id = self.lower_string_id(source_id, *string_id);
-                DirImportTarget::Physical(string_id)
+                DirImportTarget::Virtual(string_id)
             }
         }
     }
