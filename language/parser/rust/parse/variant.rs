@@ -179,7 +179,15 @@ impl<'a> Parser<'a> {
                     .for_node_type(NodeType::VariantField)?;
                 fields.push(field);
             }
-            // eat expressions
+            // function shorthand
+            else if self.peek_token(TokenType::Identifier).is_ok()
+                && self.peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis]).is_ok()
+            {
+                let function_id = self.eat_function(None, None)?;
+                let expression_id = self.tree.insert(Expression::Definition(function_id), self.tree.spans.get(function_id));
+                expressions.push(expression_id);
+            }
+            // eat any other expressions
             else {
                 let expression_id = self
                     .try_eat_expression_as_statement()
