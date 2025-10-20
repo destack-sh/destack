@@ -409,6 +409,7 @@ pub enum VariantStyle {
 /// baz: T
 /// public T
 /// readonly bar: int32
+/// baz?: T // shorthand for baz: T?
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantField {
