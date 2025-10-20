@@ -116,7 +116,7 @@ impl<'a> Compiler<'a> {
                     value,
                 }
             }
-            ast::Expression::Type {
+            ast::Expression::LetType {
                 mutability,
                 name,
                 static_parameters,
@@ -126,7 +126,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability
                     .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
+                    .map(|mutability| self.lower_mutability(*mutability));
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
@@ -136,7 +136,7 @@ impl<'a> Compiler<'a> {
                 });
                 let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
                 let value = self.lower_expression(source_id, ast, *value);
-                Expression::Type {
+                Expression::LetType {
                     mutability,
                     name,
                     static_parameters,
