@@ -326,6 +326,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression, expression_node);
         }
 
+        Expression::Yield { value } => {
+            let value_node = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_node);
+        }
+
         Expression::Return { value } => {
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);

@@ -161,31 +161,6 @@ impl<'a> Parser<'a> {
         Ok(continue_id)
     }
 
-    /// Eat a return expression.
-    ///
-    /// Examples:
-    /// ```
-    /// return
-    /// return 17
-    /// ```
-    pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
-        let start = self.mark();
-        self.eat_keyword(Keyword::Return)?;
-        // value
-        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
-            Some(value_id)
-        } else {
-            None
-        };
-        // return
-        let return_id = self.tree.insert(
-            Expression::Return { value: value_id },
-            self.get_span_from(start),
-        );
-        Ok(return_id)
-    }
-
     /// Eat a defer expression.
     ///
     /// Examples:
@@ -276,6 +251,54 @@ impl<'a> Parser<'a> {
             self.get_span_from(start),
         );
         Ok(await_id)
+    }
+
+    /// Eat a yield expression.
+    ///
+    /// Examples:
+    /// ```
+    /// yield someValue
+    /// ```
+    pub fn eat_yield(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::Yield)?;
+
+        // value
+        let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+
+        // yield
+        let yield_id = self.tree.insert(
+            Expression::Yield { value: value_id },
+            self.get_span_from(start),
+        );
+        Ok(yield_id)
+    }
+
+    /// Eat a return expression.
+    ///
+    /// Examples:
+    /// ```
+    /// return
+    /// return 17
+    /// ```
+    pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+        self.eat_keyword(Keyword::Return)?;
+        // value
+        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+            Some(value_id)
+        } else {
+            None
+        };
+        // return
+        let return_id = self.tree.insert(
+            Expression::Return { value: value_id },
+            self.get_span_from(start),
+        );
+        Ok(return_id)
     }
 }
 
@@ -373,27 +396,6 @@ mod tests {
     }
 
     #[test]
-    fn test_return_no_value() {
-        let mut test = TestParser::new("return");
-        let mut parser = test.prepare();
-        let return_id = parser.eat_return().unwrap();
-        assert_node!(parser.tree, return_id, Expression::Return { value } => {
-            assert!(value.is_none());
-        });
-    }
-
-    #[test]
-    fn test_return_with_value() {
-        let mut test = TestParser::new("return 42");
-        let mut parser = test.prepare();
-        let return_id = parser.eat_return().unwrap();
-        assert_node!(parser.tree, return_id, Expression::Return { value } => {
-            assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
-        });
-    }
-
-    #[test]
     fn test_defer_expression() {
         let mut test = TestParser::new("defer someFunction()");
         let mut parser = test.prepare();
@@ -432,6 +434,42 @@ mod tests {
                 assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
+        });
+    }
+
+    #[test]
+    fn test_yield_expression() {
+        let mut test = TestParser::new("yield someFunction()");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        // yield someFunction()
+        assert_node!(parser.tree, yield_id, Expression::Yield { value } => {
+            // someFunction()
+            assert_node!(parser.tree, *value, Expression::Call { runtime: _, receiver, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_return_no_value() {
+        let mut test = TestParser::new("return");
+        let mut parser = test.prepare();
+        let return_id = parser.eat_return().unwrap();
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            assert!(value.is_none());
+        });
+    }
+
+    #[test]
+    fn test_return_with_value() {
+        let mut test = TestParser::new("return 42");
+        let mut parser = test.prepare();
+        let return_id = parser.eat_return().unwrap();
+        assert_node!(parser.tree, return_id, Expression::Return { value } => {
+            assert!(value.is_some());
+            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
     }
 }

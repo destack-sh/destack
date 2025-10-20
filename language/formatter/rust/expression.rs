@@ -570,6 +570,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [Keyword::Await, space(), expression])?;
             }
 
+            // yield
+            Expression::Yield { value} => {
+                write!(f, [Keyword::Yield, space(), value])?;
+            }
+
             // return
             Expression::Return { value } => {
                 write!(f, [token("return")])?;

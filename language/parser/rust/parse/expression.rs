@@ -93,6 +93,8 @@ fn to_infix_operator(
     }
 }
 
+// TODO #Incomplete: support parsing lines starting with | for elementwise operations?
+
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
     #[inline]
@@ -507,6 +509,10 @@ impl<'a> Parser<'a> {
             // await
             else if keyword == Some(Keyword::Await) {
                 self.eat_await()?
+            }
+            // yield
+            else if keyword == Some(Keyword::Yield) {
+                self.eat_yield()?
             }
             // return
             else if keyword == Some(Keyword::Return) {

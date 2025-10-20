@@ -318,7 +318,7 @@ implement TetrisPiece {
     }
 }
 
-implement TetrisGame {
+implement TetrisGame: New {
     /// Create a new Tetris game.
     function new(width: int32, height: int32) => TetrisGame {
         TetrisGame {

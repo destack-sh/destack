@@ -1240,6 +1240,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Await { expression: _ } => {
                 self.node("Expression::Await", _id.id).end();
             }
+            Expression::Yield { value: _ } => {
+                self.node("Expression::Yield", _id.id).end();
+            }
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();
             }
