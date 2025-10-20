@@ -491,12 +491,13 @@ impl<'a> Parser<'a> {
                     // speculatively parse function definition
                     // (since we can't just count bracket pairs here)
                     let speculative_start = (self.mark(), self.tree.next_id());
-                    self.eat_token(TokenType::OpenBrace)?;
-                    self.eat_newlines_maybe()?;
+                    self.eat_token(TokenType::OpenBrace).expect("peeked");
+                    self.eat_newlines_maybe().expect("peeked");
                     let start = self.mark();
                     debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    match self.eat_function(None, None, is_maybe, true) {
+                    let expect_body = !self.options.in_type;
+                    match self.eat_function(None, None, is_maybe, expect_body) {
                         Ok(function_id) => {
                             // name
                             let name = self
@@ -1234,6 +1235,40 @@ mod tests {
                 assert_string!(parser, *name, "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                });
+            });
+        });
+    }
+
+    /// Parse a struct literal body with implicit function arguments in a type context.
+    /// (Otherwise the function call would be interpreted as a call instead of a function argument)
+    #[test]
+    fn test_parse_struct_literal_body_with_implicit_function_in_type() {
+        let mut test = TestParser::new(
+            "{ 
+    foo()
+    foo?(): T
+}",
+        );
+        let mut parser = test.prepare();
+        parser.options.in_type = true;
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
+            assert_eq!(fields.len(), 2);
+            // foo
+            assert_node!(parser.tree, fields[0], Argument::ImplicitFunction { name, value } => {
+                assert_string!(parser, *name, "foo");
+                assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                });
+            });
+            // foo?(): T
+            assert_node!(parser.tree, fields[1], Argument::ImplicitFunction { name, value } => {
+                assert_string!(parser, *name, "foo");
+                assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
+                    assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
+                        assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                    });
                 });
             });
         });
