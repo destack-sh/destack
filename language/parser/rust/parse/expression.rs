@@ -93,8 +93,6 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support parsing lines starting with | for elementwise operations?
-
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
     #[inline]
@@ -468,7 +466,7 @@ impl<'a> Parser<'a> {
             }
             // type
             else if keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly) {
-                self.eat_type_alias_or_expression(visibility, export)?
+                self.eat_type(visibility, export)?
             }
             // if
             else if keyword == Some(Keyword::If) {
@@ -1929,5 +1927,40 @@ self
                 );
             }
         );
+    }
+
+    /// Parse a leading elementwise operator.
+    #[test]
+    fn test_parse_elementwise_leading_expression() {
+        let mut test = TestParser::new(
+            "
+type Value =
+  | string
+  | number
+  | boolean
+        ",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expr_id = parser.eat_expression().unwrap();
+        // type Value = | string | number | boolean
+        assert_node!(parser.tree, expr_id, Expression::Type { name, value, .. } => {
+            // value
+            assert_string!(parser, name.unwrap(), "Value");
+            // | string | number | boolean
+            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                // string | number
+                assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    // string
+                    assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::String));
+                    // number
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                });
+                // boolean
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
+            });
+        });
     }
 }

@@ -8,8 +8,6 @@ pub enum Keyword {
     Public,
     /// Visibility modifier
     Protected,
-    /// Visibility modifier (reserved)
-    Internal,
     /// Visibility modifier
     Private,
     /// Readonly modifier (alias).
@@ -48,8 +46,6 @@ pub enum Keyword {
     Use,
     /// With expression to declare use of items for a scope.
     With,
-    /// Declare a namespace (reserved).
-    Namespace,
 
     // ------------------------------------------------------------
     // Definitions
@@ -60,6 +56,9 @@ pub enum Keyword {
     Let,
     /// Var expression.
     Var,
+    /// Declare a namespace (reserved).
+    /// nocheckin: alias namespace->module
+    Namespace,
     /// Declare a Module.
     Module,
     /// Declare a type.
@@ -224,7 +223,6 @@ impl Keyword {
             // modifiers
             Keyword::Public => "public",
             Keyword::Protected => "protected",
-            Keyword::Internal => "internal",
             Keyword::Private => "private",
             Keyword::Readonly => "readonly",
             Keyword::Mut => "mut",
@@ -244,12 +242,12 @@ impl Keyword {
             Keyword::From => "from",
             Keyword::Use => "use",
             Keyword::With => "with",
-            Keyword::Namespace => "namespace",
 
             // definitions
             Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
+            Keyword::Namespace => "namespace",
             Keyword::Module => "module",
             Keyword::Type => "type",
             Keyword::Struct => "struct",
@@ -325,7 +323,6 @@ impl FromStr for Keyword {
             // modifiers
             "public" => Ok(Keyword::Public),
             "protected" => Ok(Keyword::Protected),
-            "internal" => Ok(Keyword::Internal),
             "private" => Ok(Keyword::Private),
             "readonly" => Ok(Keyword::Readonly),
             "mut" => Ok(Keyword::Mut),
@@ -345,12 +342,12 @@ impl FromStr for Keyword {
             "from" => Ok(Keyword::From),
             "use" => Ok(Keyword::Use),
             "with" => Ok(Keyword::With),
-            "namespace" => Ok(Keyword::Namespace),
 
             // definitions
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
+            "namespace" => Ok(Keyword::Namespace),
             "module" => Ok(Keyword::Module),
             "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),

@@ -344,6 +344,19 @@ const users = createSource(
 
 users.push({ type: 'add', row: { id: 1, name: 'aaron', recruiterID: null } });
 
+export interface Props<Input = unknown, Output = Input> {
+    /** The version number of the standard. */
+    readonly version: 1;
+    /** The vendor name of the schema library. */
+    readonly vendor: string;
+    /** Validates unknown input values. */
+    readonly validate: (
+      value: unknown
+    ) => Result<Output> | Promise<Result<Output>>;
+    /** Inferred types associated with the schema. */
+    readonly types?: Types<Input, Output> | undefined;
+}
+
 <LemonDivider className="my-0" />
 
 <SceneSection
