@@ -183,8 +183,18 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::Identifier).is_ok()
                 && self.peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis]).is_ok()
             {
-                let function_id = self.eat_function(None, None)?;
+                let function_id = self.eat_function(None, None, false)?;
                 let expression_id = self.tree.insert(Expression::Definition(function_id), self.tree.spans.get(function_id));
+                expressions.push(expression_id);
+            }
+            // function maybe shorthand
+            else if self.peek_token(TokenType::Identifier).is_ok()
+                && self.peek_next_token(TokenType::Maybe).is_ok()
+                && self.peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis]).is_ok()
+            {
+                let function_id = self.eat_function(None, None, true)?;
+                let expression_id = self.tree.insert(Expression::Definition(function_id), self.tree.spans.get(function_id));
+                let expression_id = self.tree.insert(Expression::Maybe(expression_id), self.tree.spans.get(expression_id));
                 expressions.push(expression_id);
             }
             // eat any other expressions

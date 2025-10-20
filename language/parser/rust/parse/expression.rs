@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(visibility, export)?;
+                let lambda_id = self.eat_function(visibility, export, false)?;
                 self.tree
                     .insert(Expression::Definition(lambda_id), self.get_span_from(start))
             }
@@ -351,7 +351,7 @@ impl<'a> Parser<'a> {
                     && (self.peek_arrow().is_ok() || self.peek_colon().is_ok())
                 {
                     self.restore(speculative_start.0, speculative_start.1);
-                    let lambda_id = self.eat_function(visibility, export)?;
+                    let lambda_id = self.eat_function(visibility, export, false)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 } else {
@@ -442,7 +442,7 @@ impl<'a> Parser<'a> {
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self.eat_function(visibility, export)?;
+                let function_id = self.eat_function(visibility, export, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),

@@ -567,21 +567,29 @@ impl<'a> Parser<'a> {
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
                 }
-                // function shorthand argument
+                // function shorthand argument (might be maybe)
                 else if self.peek_token(TokenType::Identifier).is_ok()
-                    && self
+                    && (self
                         .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                         .is_ok()
+                        || self.peek_next_token(TokenType::Maybe).is_ok()
+                            && self
+                                .peek_next_next_token_in(&[
+                                    TokenType::LessThan,
+                                    TokenType::OpenParenthesis,
+                                ])
+                                .is_ok())
                 {
                     // function
-                    let function_id = self.eat_function(None, None)?;
+                    let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
+                    let function_id = self.eat_function(None, None, is_maybe)?;
                     // name
                     let name = self
                         .tree
                         .get(function_id)
                         .name()
                         .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
-                    // wrap function as value
+                    // value
                     let value = self.tree.insert(
                         Expression::Definition(function_id),
                         self.get_span_from(start),
@@ -594,6 +602,13 @@ impl<'a> Parser<'a> {
                         _ => {
                             return Err(ParserError::unexpected(self.get_span_from(start)));
                         }
+                    };
+                    // maybe
+                    let value = if is_maybe {
+                        self.tree
+                            .insert(Expression::Maybe(value), self.tree.spans.get(value))
+                    } else {
+                        value
                     };
                     self.tree.insert(
                         Argument::ImplicitFunction { name, value },
@@ -779,7 +794,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, Mutability, TemplateLiteral};
+    use dyst_ast::{Definition, Mutability, Parameter, TemplateLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -1066,12 +1081,14 @@ mod tests {
     b
     c?: T // T?  
     readonly d: T // readonly T
+    e<T>()
+    f?(): T
 } ",
         );
         let mut parser = test.prepare();
 
         let arguments = parser.eat_struct_literal_body().unwrap();
-        assert_eq!(arguments.len(), 4);
+        assert_eq!(arguments.len(), 6);
 
         // readonly a?: T
         assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
@@ -1101,6 +1118,29 @@ mod tests {
             assert_string!(parser, *name, "d");
             assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "T");
+            });
+        });
+
+        // e<T>()
+        assert_node!(parser.tree, arguments[4], Argument::ImplicitFunction { name, value } => {
+            assert_string!(parser, *name, "e");
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { name: None, static_parameters, .. } => {
+                    // T
+                    assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Scalar { name, .. } => {
+                        assert_string!(parser, *name, "T");
+                    });
+                });
+            });
+        });
+
+        // f?(): T
+        assert_node!(parser.tree, arguments[5], Argument::ImplicitFunction { name, value } => {
+            assert_string!(parser, *name, "f");
+            assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
+                assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
+                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                });
             });
         });
     }
