@@ -146,6 +146,8 @@ interface Foo: Baz {
     const x: int32 = 4
 
     function foo() => int32
+
+    woo() => void
 }
 "###,
         );
@@ -156,7 +158,7 @@ interface Foo: Baz {
         assert_node!(parser.tree, interface_id, Definition::Interface { name, fields, expressions, super_types, where_clauses, .. } => {
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(fields.len(), 2);
-            assert_eq!(expressions.len(), 2);
+            assert_eq!(expressions.len(), 3);
             assert!(where_clauses.is_none());
 
             // : Baz
@@ -185,6 +187,17 @@ interface Foo: Baz {
                 let default_id = default.expect("expected default value");
                 assert_node!(parser.tree, default_id, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
                     assert_eq!(*value, 4);
+                });
+            });
+
+            // woo() => void
+            let expression_id = expressions[2];
+            assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+                // woo
+                assert_node!(parser.tree, *definition_id, Definition::Function { name, return_type, .. } => {
+                    assert_string!(parser, name.unwrap(), "woo");
+                    // => void
+                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
                 });
             });
         });

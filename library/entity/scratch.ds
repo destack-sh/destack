@@ -145,6 +145,16 @@ export default function Chat() {
 
 export default app;
 
+interface T<A> {
+    readonly a?: string;
+    b: (): void;
+}
+
+type T = {
+    a: string;
+    b(): void;
+}
+
 export function createPredicate(
 	condition: NoSubqueryCondition,
 ): (row: Row) => boolean {
@@ -174,31 +184,29 @@ const result = streamText({
 });
 
 const { messages } = useChat<MyUIMessage>();
-{
-	messages.map((message) => (
-		<>
-			{message.parts.map((part, index) => {
-				switch (part.type) {
-					case 'dynamic-tool':
-						return (
-							<div key={index}>
-								<h4>Tool: {part.toolName}</h4>
-								{part.state === 'input-streaming' && (
-									<pre>{JSON.stringify(part.input, null, 2)}</pre>
-								)}
-								{part.state === 'output-available' && (
-									<pre>{JSON.stringify(part.output, null, 2)}</pre>
-								)}
-								{part.state === 'output-error' && (
-									<div>Error: {part.errorText}</div>
-								)}
-							</div>
-						);
-				}
-			})}
-		</>
-	));
-}
+messages.map((message) => (
+    <>
+        {message.parts.map((part, index) => {
+            switch (part.type) {
+                case 'dynamic-tool':
+                    return (
+                        <div key={index}>
+                            <h4>Tool: {part.toolName}</h4>
+                            {part.state === 'input-streaming' && (
+                                <pre>{JSON.stringify(part.input, null, 2)}</pre>
+                            )}
+                            {part.state === 'output-available' && (
+                                <pre>{JSON.stringify(part.output, null, 2)}</pre>
+                            )}
+                            {part.state === 'output-error' && (
+                                <div>Error: {part.errorText}</div>
+                            )}
+                        </div>
+                    );
+            }
+        })}
+    </>
+));
 
 <form
 	onSubmit={e => {
