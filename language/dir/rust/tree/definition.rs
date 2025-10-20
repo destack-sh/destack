@@ -128,7 +128,7 @@ pub enum Definition {
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Type>,
-        super_type: Option<NodeId<Type>>,
+        super_types: Option<Vec<NodeId<Type>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
