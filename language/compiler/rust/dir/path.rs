@@ -9,6 +9,7 @@ impl<'a> Compiler<'a> {
         match self.get_string(string_id) {
             "self" => Some(PathBase::SelfValue),
             "Self" => Some(PathBase::SelfType),
+            "super" => Some(PathBase::Super),
             "module" => Some(PathBase::Module),
             "package" => Some(PathBase::Package),
             _ => None,

@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Mutability, ScopedMutability};
+    use dyst_ast::Mutability;
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -169,7 +169,7 @@ interface Foo: Baz {
             // value: int32
             assert_node!(parser.tree, fields[0], VariantField { mutability, visibility, name, ty, default } => {
                 assert!(mutability.is_some());
-                assert_eq!(*mutability.as_ref().unwrap(), ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+                assert_eq!(*mutability.as_ref().unwrap(), Mutability::Immutable);
                 assert!(visibility.is_none());
                 assert_string!(parser, name.unwrap(), "value");
                 assert!(default.is_none());

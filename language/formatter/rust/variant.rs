@@ -1,4 +1,4 @@
-use dyst_ast::{Keyword, Mutability, ScopedMutability};
+use dyst_ast::{Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -19,12 +19,7 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
         }
 
         // mutability
-        if matches!(
-            self.mutability,
-            Some(ScopedMutability::Unscoped {
-                mutability: Mutability::Immutable
-            })
-        ) {
+        if self.mutability == Some(Mutability::Immutable) {
             write!(f, [Keyword::Readonly, space()])?;
         }
 

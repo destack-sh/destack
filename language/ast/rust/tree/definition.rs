@@ -1,8 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    ExportMode, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
-    Visibility, WhereClause, WithClause,
+    ExportMode, Expression, Mutability, Node, NodeId, NodeType, Parameter, Runtime,
+    ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
 /// Definition introduces a type or such into a scope.
@@ -414,7 +414,7 @@ pub enum VariantStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantField {
     /// The mutability of the field.
-    pub mutability: Option<ScopedMutability>,
+    pub mutability: Option<Mutability>,
     /// The visibility of the field.
     pub visibility: Option<Visibility>,
     /// The name of the field (may be unset for tuple fields).

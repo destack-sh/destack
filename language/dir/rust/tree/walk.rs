@@ -748,20 +748,23 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
     match ty {
         Type::Scalar(_) => {}
-        Type::Maybe(inner) | Type::Not(inner) | Type::Must(inner) => {
-            let inner_type = tree.get(*inner);
-            visitor.visit_type(tree, *inner, inner_type);
-        }
-        Type::Reference {
+        Type::Maybe(right)
+        | Type::Not(right)
+        | Type::Must(right)
+        | Type::Mutable {
             mutability: _,
-            target,
+            target: right,
+        }
+        | Type::Reference {
+            mutability: _,
+            target: right,
         }
         | Type::Dynamic {
             mutability: _,
-            target,
+            target: right,
         } => {
-            let target_type = tree.get(*target);
-            visitor.visit_type(tree, *target, target_type);
+            let target_type = tree.get(*right);
+            visitor.visit_type(tree, *right, target_type);
         }
         Type::Definition(definition_id) => {
             let definition = tree.get(*definition_id);

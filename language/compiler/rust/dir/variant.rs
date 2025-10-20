@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
         let mutability = field
             .mutability
             .as_ref()
-            .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
+            .map(|mutability| self.lower_mutability(*mutability));
         let name = field.name.map(|name| self.intern_string(source_id, name));
         let ty = self.lower_expression_to_type(source_id, ast, field.ty);
         let default = field

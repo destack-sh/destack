@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{Expression, Keyword, Mutability, ScopedMutability};
+use dyst_ast::{Expression, Keyword, Mutability};
 use std::str::FromStr;
 
 use crate::TokenType;
@@ -93,20 +93,21 @@ impl<'a> Parser<'a> {
         // mutability
         let mutability = if self.peek_keyword(Keyword::Readonly).is_ok() {
             self.bump(); // eat readonly
-            Some(ScopedMutability::Unscoped {
-                mutability: Mutability::Immutable,
-            })
+            Some(Mutability::Immutable)
         } else {
             None
         };
 
-        // name:
+        // name
         let (name, is_maybe) =
+            // name:
             if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 (Some(name), false)
-            } else if self.peek_identifier().is_ok()
+            } 
+            // name?:
+            else if self.peek_identifier().is_ok()
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self.peek_next_next_token(TokenType::Colon).is_ok()
             {
@@ -131,7 +132,7 @@ impl<'a> Parser<'a> {
 
         // optional default value: `= <expr>`
         let default = if self.peek_token(TokenType::Assign).is_ok() {
-            self.eat_token(TokenType::Assign)?;
+            self.bump(); // eat assign
             Some(self.eat_expression().for_node_type(NodeType::Definition)?)
         } else {
             None

@@ -132,7 +132,7 @@ pub enum Expression {
         value: NodeId<Expression>,
     },
 
-    /// Type expression to evaluate something as a type (with optional).
+    /// Type expression to evaluate something as a type (with optional mutability modifier).
     /// Usually, type context is implicit in type position, but sometimes we want it explicitly.
     ///
     /// Examples:
