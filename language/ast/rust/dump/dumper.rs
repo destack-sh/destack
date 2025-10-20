@@ -1152,7 +1152,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("export", export)
                     .end();
             }
-            Expression::Type {
+            Expression::LetType {
                 mutability,
                 name,
                 static_parameters: _,
@@ -1160,11 +1160,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 export,
                 value: _,
             } => {
-                self.node("Expression::Type", _id.id)
+                self.node("Expression::LetType", _id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .field_optional("export", export)
+                    .end();
+            }
+            Expression::Type {
+                mutability,
+                value: _,
+            } => {
+                self.node("Expression::Type", _id.id)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Expression::If {

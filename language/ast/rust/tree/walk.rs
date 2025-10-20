@@ -210,7 +210,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Type {
+        Expression::LetType {
             mutability: _,
             name: _,
             static_parameters,
@@ -224,6 +224,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
             }
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+
+        Expression::Type {
+            mutability: _,
+            value,
+        } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }

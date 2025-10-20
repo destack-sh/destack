@@ -2,8 +2,8 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportItem,
-    ImportTarget, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral,
-    ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator, Visibility,
+    ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime,
+    ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator, Visibility,
 };
 
 // TODO #Incomplete: support arbitrary string literals as fields/arguments...?
@@ -114,8 +114,7 @@ pub enum Expression {
         value: Option<NodeId<Expression>>,
     },
 
-    /// Type alias or expression to declare some value as a type.
-    /// In type contexts this is implict, but it can be useful to declare them elsewhere or explicitly.
+    /// Type alias binding, may be statically parameterised.
     ///
     /// Examples:
     /// ```
@@ -123,15 +122,26 @@ pub enum Expression {
     /// type Foo = foo()
     /// type Foo<T> = Baz<T> | null
     /// type T = { a: int32, b: boolean } | true
-    /// type 1 | 2 |3
-    /// readonly T
     /// ```
-    Type {
-        mutability: Option<ScopedMutability>,
+    LetType {
+        mutability: Option<Mutability>,
         name: Option<StringId>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
+        value: NodeId<Expression>,
+    },
+
+    /// Type expression to evaluate something as a type (with optional).
+    /// Usually, type context is implicit in type position, but sometimes we want it explicitly.
+    ///
+    /// Examples:
+    /// ```
+    /// type 1 | 2 |3
+    /// readonly T
+    /// ```
+    Type {
+        mutability: Option<Mutability>,
         value: NodeId<Expression>,
     },
 

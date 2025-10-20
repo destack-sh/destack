@@ -1,9 +1,7 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
-    ImportItem, MatchCase, MatchSource, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime,
-    ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode, ImportItem, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral, UnaryOperator, Visibility
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,12 +31,17 @@ pub enum Expression {
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
     },
-    /// Type alias or expression to declare some value as a type.
-    Type {
-        mutability: Option<ScopedMutability>,
+    /// Type alias binding.
+    LetType {
+        mutability: Option<Mutability>,
         name: Option<StringId>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
+        value: NodeId<Expression>,
+    },
+    /// Type expression.
+    Type {
+        mutability: Option<Mutability>,
         value: NodeId<Expression>,
     },
 
@@ -209,7 +212,8 @@ impl Expression {
             | Expression::Import { .. }
             | Expression::Export { .. }
             | Expression::Let { .. }
-            | Expression::Type { .. } => true,
+            | Expression::Type { .. }
+            | Expression::LetType { .. } => true,
 
             // operators
             Expression::Block { .. }

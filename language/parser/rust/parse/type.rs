@@ -1,7 +1,4 @@
-use dyst_ast::{
-    BinaryOperator, ExportMode, FloatType, Keyword, Mutability, Path, ScopedMutability, Visibility,
-};
-use dyst_container::smallvec;
+use dyst_ast::{BinaryOperator, ExportMode, FloatType, Keyword, Mutability, Visibility};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -171,9 +168,7 @@ impl<'a> Parser<'a> {
 
         // mutability
         let mutability = if keyword == Keyword::Readonly {
-            Some(ScopedMutability::Unscoped {
-                mutability: Mutability::Immutable,
-            })
+            Some(Mutability::Immutable)
         } else {
             None
         };
@@ -184,6 +179,8 @@ impl<'a> Parser<'a> {
                 || self.peek_next_token(TokenType::LessThan).is_ok())
         {
             // identifier
+            // (speculative because we don't know yet if we'll have a `=` afterwards)
+            let speculative_start = (self.mark(), self.tree.next_id());
             let alias = self.eat_identifier()?;
 
             // static parameters
@@ -216,7 +213,7 @@ impl<'a> Parser<'a> {
                         Expression::Binary { operator, .. }
                             if *operator == leading_binary_operator =>
                         {
-                            // all good
+                            // all good, leading operator matches inner operator
                         }
                         _ => {
                             return Err(ParserError::unexpected(self.get_span_from(start)));
@@ -225,7 +222,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // type
-                let expression = Expression::Type {
+                let expression = Expression::LetType {
                     mutability,
                     name: Some(alias),
                     static_parameters,
@@ -235,31 +232,21 @@ impl<'a> Parser<'a> {
                 };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
-            // otherwise it's a statically parameterised type expression
+            // otherwise it's a type expression with static arguments
             else {
-                let expression = Expression::Path {
-                    path: Path {
-                        segments: smallvec![alias],
-                    },
-                    static_arguments: None,
-                };
-                let expression_id = self.tree.insert(expression, self.get_span_from(start));
-                let expression = Expression::Type {
-                    mutability,
-                    name: Some(alias),
-                    static_parameters,
-                    value: expression_id,
-                    visibility,
-                    export,
-                };
+                // re-parse from before the static parameters to get them as a arguments
+                self.restore(speculative_start.0, speculative_start.1);
+                let value =
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                let expression = Expression::Type { mutability, value };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
         }
-        // expression
+        // type expression
         else {
             let value =
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-            let expression = Expression::Type {
+            let expression = Expression::LetType {
                 mutability,
                 name: None,
                 static_parameters: None,
@@ -338,7 +325,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Mutability, ScopedMutability};
+    use dyst_ast::Mutability;
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -352,7 +339,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, .. } => {
             assert_string!(parser, name.unwrap(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
@@ -365,7 +352,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility, static_parameters, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, static_parameters, .. } => {
             assert_string!(parser, name.unwrap(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
@@ -373,16 +360,18 @@ mod tests {
             assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
         });
     }
+
     #[test]
     fn test_parse_type_expression_with_static_parameters() {
         let mut test = TestParser::new("type T<A, B>");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B>
-        assert_node!(parser.tree, expr_id, Expression::Type { name, static_parameters, .. } => {
-            assert_string!(parser, name.unwrap(), "T");
-            assert!(static_parameters.is_some());
-            assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+        assert_node!(parser.tree, expr_id, Expression::Type { mutability: None, value } => {
+            assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_path!(parser, *path, "T");
+                assert_eq!(static_arguments.as_ref().unwrap().len(), 2);
+            })
         });
     }
 
@@ -392,7 +381,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, visibility: None, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility: None, .. } => {
             assert_eq!(*name, None);
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
@@ -412,8 +401,8 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // readonly T
-        assert_node!(parser.tree, expr_id, Expression::Type { mutability, value, .. } => {
-            assert_eq!(*mutability, Some(ScopedMutability::Unscoped { mutability: Mutability::Immutable }));
+        assert_node!(parser.tree, expr_id, Expression::LetType { mutability, value, .. } => {
+            assert_eq!(*mutability, Some(Mutability::Immutable));
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");
             });

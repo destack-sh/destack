@@ -421,7 +421,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // interface
-            else if keyword == Some(Keyword::Interface) || keyword == Some(Keyword::Interface) {
+            else if keyword == Some(Keyword::Interface) {
                 let interface_id = self.eat_interface(visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
@@ -938,7 +938,7 @@ mod tests {
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Type { name, visibility, export, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::LetType { name, visibility, export, .. } => {
             assert_string!(parser, name.unwrap(), "NonNullValue");
             assert!(visibility.is_none());
             assert!(export.is_some());
@@ -1944,7 +1944,7 @@ type Value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // type Value = | string | number | boolean
-        assert_node!(parser.tree, expr_id, Expression::Type { name, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, .. } => {
             // value
             assert_string!(parser, name.unwrap(), "Value");
             // | string | number | boolean
