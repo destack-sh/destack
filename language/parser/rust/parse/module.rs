@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Module)
+        self.eat_keyword_in(&[Keyword::Module, Keyword::Namespace])
             .for_node_type(NodeType::Definition)?;
 
         // name
