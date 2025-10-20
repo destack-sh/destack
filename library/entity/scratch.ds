@@ -237,12 +237,6 @@ test('source-only', () => {
 	);
 });
 
-implement New for MyType {
-	function new() {
-		return { ..Self.default() };
-	}
-}
-
 const renderCounterRegistry: Map<
 	string,
 	Set<{ count: number }>
@@ -368,11 +362,11 @@ export interface Props<Input = unknown, Output = Input> {
 
 console.log(`Listening on ${server.url}`);
 
-log(`
+`
 CPU: ${chalk.red('90%')}
 RAM: ${chalk.green('40%')}
 DISK: ${chalk.yellow('70%')}
-`);
+`;
 
 <LemonDivider className="my-0" />
 

@@ -10,9 +10,9 @@ use super::memchr::find_byte;
 #[derive(Debug, Default, Clone)]
 pub(super) struct LexerOptions {
     /// The nested template strings starting parentheses depth stack.
-    pub(super) template_string_stack: Vec<u8>,
+    pub(super) template_string_stack: Vec<i32>,
     /// The depth of nested template string parentheses.
-    pub(super) parentheses_depth: u8 = 0,
+    pub(super) parentheses_depth: i32 = 0,
 }
 
 /// Lexer over a source string.
