@@ -140,7 +140,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Mutability, ScopedMutability, Visibility};
+    use dyst_ast::{Mutability, Visibility};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -180,7 +180,7 @@ struct { public x: int32, readonly y: boolean
             // y: boolean
             assert_node!(parser.tree, fields[1], VariantField { mutability, visibility: None, name, ty, default } => {
                 assert!(mutability.is_some());
-                assert_eq!(*mutability.as_ref().unwrap(), ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+                assert_eq!(*mutability.as_ref().unwrap(), Mutability::Immutable);
                 assert_string!(parser, name.unwrap(), "y");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));

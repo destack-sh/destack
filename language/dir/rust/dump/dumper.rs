@@ -904,6 +904,7 @@ impl Dump for PathBase {
         match self {
             PathBase::SelfValue => dumper.write_str("PathBase::SelfValue", Some(Color::Yellow)),
             PathBase::SelfType => dumper.write_str("PathBase::SelfType", Some(Color::Yellow)),
+            PathBase::Super => dumper.write_str("PathBase::Super", Some(Color::Yellow)),
             PathBase::Module => dumper.write_str("PathBase::Module", Some(Color::Yellow)),
             PathBase::Package => dumper.write_str("PathBase::Package", Some(Color::Yellow)),
         }
@@ -1669,6 +1670,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Type::Must(_) => {
                 self.node("Type::Must", id.id).end();
+            }
+            Type::Mutable {
+                mutability,
+                target: _,
+            } => {
+                self.node("Type::Mutable", id.id)
+                    .field("mutability", mutability)
+                    .end();
             }
             Type::Reference {
                 mutability,

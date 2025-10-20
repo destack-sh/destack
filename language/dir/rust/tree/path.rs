@@ -9,6 +9,8 @@ pub enum PathBase {
     SelfType,
     /// The self base value.
     SelfValue,
+    /// The super base value.
+    Super,
     /// The module base.
     Module,
     /// The package base.

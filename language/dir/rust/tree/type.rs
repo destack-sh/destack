@@ -1,5 +1,5 @@
 use crate::{
-    Definition, Expression, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId,
+    Definition, Expression, Mutability, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability, StringId
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -77,6 +77,11 @@ pub enum Type {
     Maybe(NodeId<Type>),
     /// Must 'T!'.
     Must(NodeId<Type>),
+    /// Mutable or immutable type `T`.
+    Mutable {
+        mutability: Mutability,
+        target: NodeId<Type>
+    },
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
         mutability: Option<ScopedMutability>,

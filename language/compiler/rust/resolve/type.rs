@@ -70,6 +70,18 @@ impl<'a> Compiler<'a> {
                 let type_id = self.try_resolve_expression_to_type(*left)?;
                 Type::Must(type_id)
             }
+            // mutable
+            Expression::Type {
+                mutability: Some(mutability),
+                value,
+            } => {
+                let mutability = *mutability;
+                let type_id = self.try_resolve_expression_to_type(*value)?;
+                Type::Mutable {
+                    mutability,
+                    target: type_id,
+                }
+            }
             // reference
             Expression::Reference { mutability, right } => {
                 let mutability = mutability.clone();

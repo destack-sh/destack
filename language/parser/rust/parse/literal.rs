@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use dyst_ast::{Keyword, Path, StringId, TemplateLiteral};
+use dyst_ast::{Keyword, Mutability, Path, StringId, TemplateLiteral};
 use std::str::FromStr;
 
 use crate::parse::prelude::*;
@@ -497,15 +497,39 @@ impl<'a> Parser<'a> {
 
             let start = self.mark();
             let argument_id = {
+                // readonly
+                let is_readonly = if self.peek_keyword(Keyword::Readonly).is_ok()
+                    && self.peek_next_token(TokenType::Identifier).is_ok()
+                {
+                    self.bump(); // eat readonly
+                    true
+                } else {
+                    false
+                };
+
                 // nocheckin: struct literal function shorthand && type function shorthand
+
                 // named argument
                 if self.peek_token(TokenType::Identifier).is_ok()
                     && self.peek_next_token(TokenType::Colon).is_ok()
                 {
+                    // name
                     let name = self.eat_identifier()?;
                     self.bump(); // eat colon
+                    // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+                    let value = if is_readonly {
+                        self.tree.insert(
+                            Expression::Type {
+                                mutability: Some(Mutability::Immutable),
+                                value,
+                            },
+                            self.tree.spans.get(value),
+                        )
+                    } else {
+                        value
+                    };
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
                 }
@@ -514,14 +538,27 @@ impl<'a> Parser<'a> {
                     && self.peek_next_token(TokenType::Maybe).is_ok()
                     && self.peek_next_next_token(TokenType::Colon).is_ok()
                 {
+                    // name
                     let name = self.eat_identifier()?;
                     self.bump(); // eat maybe
                     self.bump(); // eat colon
+                    // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
                     let value = self
                         .tree
                         .insert(Expression::Maybe(value), self.tree.spans.get(value));
+                    let value = if is_readonly {
+                        self.tree.insert(
+                            Expression::Type {
+                                mutability: Some(Mutability::Immutable),
+                                value,
+                            },
+                            self.tree.spans.get(value),
+                        )
+                    } else {
+                        value
+                    };
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
                 }
@@ -704,7 +741,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::TemplateLiteral;
+    use dyst_ast::{Mutability, TemplateLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -962,6 +999,7 @@ mod tests {
         ));
     }
 
+    /// Parse a struct literal body containing both named and positional arguments.
     #[test]
     fn test_parse_struct_literal_body() {
         let mut test = TestParser::new("{ x: 1, y } ");
@@ -969,14 +1007,64 @@ mod tests {
 
         let arguments = parser.eat_struct_literal_body().unwrap();
         assert_eq!(arguments.len(), 2);
-        assert!(matches!(
-            parser.tree.get(arguments[0]),
-            Argument::Named { .. }
-        ));
-        assert!(matches!(
-            parser.tree.get(arguments[1]),
-            Argument::NamedShorthand { .. }
-        ));
+
+        // x: 1
+        assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+        // y
+        assert_node!(parser.tree, arguments[1], Argument::NamedShorthand { name } => {
+            assert_string!(parser, *name, "y");
+        });
+    }
+
+    /// Parse a struct literal body with readonly/type-like fields and shorthands.
+    #[test]
+    fn test_parse_struct_literal_body_like_type() {
+        let mut test = TestParser::new(
+            "{ 
+    readonly a?: T // readonly T?
+    b
+    c?: T // T?  
+    readonly d: T // readonly T
+} ",
+        );
+        let mut parser = test.prepare();
+
+        let arguments = parser.eat_struct_literal_body().unwrap();
+        assert_eq!(arguments.len(), 4);
+
+        // readonly a?: T
+        assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
+                assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
+                    assert_expr_path!(parser, parser.tree.get(*inner), "T");
+                });
+            });
+        });
+
+        // b (shorthand)
+        assert_node!(parser.tree, arguments[1], Argument::NamedShorthand { name } => {
+            assert_string!(parser, *name, "b");
+        });
+
+        // c?: T
+        assert_node!(parser.tree, arguments[2], Argument::Named { name, value } => {
+            assert_string!(parser, *name, "c");
+            assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
+                assert_expr_path!(parser, parser.tree.get(*inner), "T");
+            });
+        });
+
+        // readonly d: T
+        assert_node!(parser.tree, arguments[3], Argument::Named { name, value } => {
+            assert_string!(parser, *name, "d");
+            assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
+                assert_expr_path!(parser, parser.tree.get(*value), "T");
+            });
+        });
     }
 
     #[test]
@@ -988,14 +1076,16 @@ mod tests {
         let first = parser.eat_tuple_literal_element().unwrap();
         let elements = parser.eat_tuple_literal_body(Some(first)).unwrap();
         assert_eq!(elements.len(), 2);
-        assert!(matches!(
-            parser.tree.get(elements[0]),
-            Argument::Named { .. }
-        ));
-        assert!(matches!(
-            parser.tree.get(elements[1]),
-            Argument::Positional { .. }
-        ));
+
+        // a: 1
+        assert_node!(parser.tree, elements[0], Argument::Named { name, value } => {
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+        // 2 (positional argument)
+        assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
     }
 
     #[test]
@@ -1005,14 +1095,18 @@ mod tests {
 
         let elements = parser.eat_array_literal().unwrap();
         assert_eq!(elements.len(), 2);
-        assert!(matches!(
-            parser.tree.get(elements[0]),
+        // 1
+        assert_node!(
+            parser.tree,
+            elements[0],
             Expression::ScalarLiteral(ScalarLiteral::Integer(1))
-        ));
-        assert!(matches!(
-            parser.tree.get(elements[1]),
+        );
+        // 2
+        assert_node!(
+            parser.tree,
+            elements[1],
             Expression::ScalarLiteral(ScalarLiteral::Integer(2))
-        ));
+        );
     }
 
     #[test]
