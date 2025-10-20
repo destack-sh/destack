@@ -588,6 +588,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_with_clause(f, with)?;
                 }
 
+                // where
                 if let Some(where_clauses) = &where_clauses
                     && !where_clauses.is_empty()
                 {
@@ -649,7 +650,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 visibility,
                 static_parameters: static_arguments,
                 target_type,
-                super_type,
+                super_types,
                 with_clauses: with,
                 where_clauses,
                 expressions,
@@ -691,9 +692,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // target type
                 write!(f, [space(), target_type])?;
 
-                // super type
-                if let Some(super_type) = super_type {
-                    write!(f, [token(":"), space(), super_type])?;
+                // super types
+                if let Some(super_types) = &super_types
+                    && !super_types.is_empty()
+                {
+                    format_super_types(f, super_types)?;
                 }
 
                 // with

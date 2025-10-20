@@ -502,7 +502,7 @@ impl<'a> Compiler<'a> {
                 visibility,
                 static_parameters,
                 target_type,
-                super_type,
+                super_types,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -516,9 +516,14 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let target_type = self.lower_expression_to_type(source_id, ast, *target_type);
-                let super_type = super_type
-                    .as_ref()
-                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
+                let super_types = super_types.as_ref().map(|super_types| {
+                    super_types
+                        .iter()
+                        .map(|super_type| {
+                            self.lower_expression_to_type(source_id, ast, *super_type)
+                        })
+                        .collect()
+                });
                 let with_clauses = with_clauses.as_ref().map(|clauses| {
                     clauses
                         .iter()
@@ -541,7 +546,7 @@ impl<'a> Compiler<'a> {
                         visibility,
                         static_parameters,
                         target_type,
-                        super_type,
+                        super_types,
                         with_clauses,
                         where_clauses,
                         definitions,

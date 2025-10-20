@@ -94,6 +94,8 @@ fn to_infix_operator(
     }
 }
 
+// TODO #Incomplete: support special lenient forms for declare/new/throw/..?
+
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
     #[inline]

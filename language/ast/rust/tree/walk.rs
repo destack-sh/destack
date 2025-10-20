@@ -766,7 +766,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visibility: _,
             static_parameters,
             target_type,
-            super_type,
+            super_types,
             with_clauses,
             where_clauses,
             expressions,
@@ -779,9 +779,11 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             let target_type_expr = tree.get(*target_type);
             visitor.visit_expression(tree, *target_type, target_type_expr);
-            if let Some(super_type) = super_type {
-                let super_type_expr = tree.get(*super_type);
-                visitor.visit_expression(tree, *super_type, super_type_expr);
+            if let Some(super_types) = super_types {
+                for super_type in super_types {
+                    let super_type_expr = tree.get(*super_type);
+                    visitor.visit_expression(tree, *super_type, super_type_expr);
+                }
             }
             if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {

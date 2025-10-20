@@ -221,7 +221,6 @@ pub enum Definition {
     },
 
     /// An Implement defines the implementation of a concrete type, optionally for some specific super types.
-    /// // nocheckin: multiple super types for Implement definitions
     /// There may be multiple Impls for the same type, and even impls for different modules.
     /// (To add a module's implementation to your own just use the corresponding module.)
     ///
@@ -248,7 +247,7 @@ pub enum Definition {
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
-        super_type: Option<NodeId<Expression>>,
+        super_types: Option<Vec<NodeId<Expression>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,

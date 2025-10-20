@@ -1630,7 +1630,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 visibility,
                 static_parameters: _,
                 target_type: _,
-                super_type: _,
+                super_types: _,
                 with_clauses: _,
                 where_clauses: _,
                 definitions: _,
