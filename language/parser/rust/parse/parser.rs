@@ -544,6 +544,32 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eat a token in a list of tokens.
+    #[inline]
+    pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {
+        let current = self.eat()?;
+        if token_types.contains(&current.token.ty) {
+            Ok(current.token.ty)
+        } else {
+            Err(ParserError::unexpected(current.span))
+        }
+    }
+
+    /// Eat a token in a list of tokens maybe.
+    #[inline]
+    pub fn eat_token_in_maybe(
+        &mut self,
+        token_types: &[TokenType],
+    ) -> ParserResult<Option<TokenType>> {
+        let token = *self.peek()?;
+        if token_types.contains(&token.token.ty) {
+            self.bump();
+            Ok(Some(token.token.ty))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Attempt a function with recovery.
     pub fn with_recovery<T>(
         &mut self,

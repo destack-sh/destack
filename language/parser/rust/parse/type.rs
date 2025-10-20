@@ -1,4 +1,6 @@
-use dyst_ast::{ExportMode, FloatType, Keyword, Mutability, Path, ScopedMutability, Visibility};
+use dyst_ast::{
+    BinaryOperator, ExportMode, FloatType, Keyword, Mutability, Path, ScopedMutability, Visibility,
+};
 use dyst_container::smallvec;
 
 use crate::{
@@ -155,10 +157,11 @@ impl<'a> Parser<'a> {
     /// type T = int32
     /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
-    /// type 1 | 2 |3
+    ///
+    /// type 1 | 2 | 3
     /// readonly T
     /// ```
-    pub fn eat_type_alias_or_expression(
+    pub fn eat_type(
         &mut self,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -190,13 +193,43 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::Assign).is_ok() {
                 // =
                 self.eat_token(TokenType::Assign)?;
-                let value =
+                self.eat_newlines_maybe()?;
+
+                // support leading elementwise operators
+                // (ignore leading | or &)
+                let leading_binary_operator = match self
+                    .eat_token_in_maybe(&[TokenType::ElementwiseOr, TokenType::ElementwiseAnd])?
+                {
+                    Some(TokenType::ElementwiseOr) => Some(BinaryOperator::ElementwiseOr),
+                    Some(TokenType::ElementwiseAnd) => Some(BinaryOperator::ElementwiseAnd),
+                    _ => None,
+                };
+
+                // value
+                let value_id =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+
+                // check if it's the same elementwise operator
+                if let Some(leading_binary_operator) = leading_binary_operator {
+                    let value = self.tree.get(value_id);
+                    match value {
+                        Expression::Binary { operator, .. }
+                            if *operator == leading_binary_operator =>
+                        {
+                            // all good
+                        }
+                        _ => {
+                            return Err(ParserError::unexpected(self.get_span_from(start)));
+                        }
+                    }
+                }
+
+                // type
                 let expression = Expression::Type {
                     mutability,
                     name: Some(alias),
                     static_parameters,
-                    value,
+                    value: value_id,
                     visibility,
                     export,
                 };
