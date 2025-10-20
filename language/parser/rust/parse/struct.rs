@@ -258,6 +258,7 @@ struct Foo<T: Numeric>: Boz {
     public let x: int32 = 4
 
     a: T
+    b?: T
     private b: int32 = 4
 
     private function myFunc() { // nested declaration
@@ -294,7 +295,7 @@ struct Foo<T: Numeric>: Boz {
                 assert_path!(parser, *path, "Boz");
             });
 
-            assert_eq!(fields.len(), 2);
+            assert_eq!(fields.len(), 3);
             // a: T
             assert_node!(parser.tree, fields[0], VariantField { mutability: None, visibility: None, name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "a");
@@ -303,8 +304,18 @@ struct Foo<T: Numeric>: Boz {
                     assert_path!(parser, *path, "T");
                 });
             });
+            // b?: T
+            assert_node!(parser.tree, fields[1], VariantField { mutability: None, visibility: None, name, ty, default } => {
+                assert_string!(parser, name.unwrap(), "b");
+                assert!(default.is_none());
+                assert_node!(parser.tree, *ty, Expression::Maybe(expression_id) => {
+                    assert_node!(parser.tree, *expression_id, Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "T");
+                    });
+                });
+            });
             // private b: int32 = 4
-            assert_node!(parser.tree, fields[1], VariantField { mutability: None, visibility: Some(Visibility::Private), name, ty, default } => {
+            assert_node!(parser.tree, fields[2], VariantField { mutability: None, visibility: Some(Visibility::Private), name, ty, default } => {
                 assert_string!(parser, name.unwrap(), "b");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 assert!(default.is_some());

@@ -8,20 +8,11 @@ use crate::parse::prelude::*;
 
 use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
 
-static VARIANT_FIELD_MODIFIERS: [Keyword; 4] = [
+pub(crate) static VARIANT_FIELD_MODIFIERS: [Keyword; 4] = [
     Keyword::Readonly,
     Keyword::Public,
     Keyword::Protected,
     Keyword::Private,
-];
-
-static VARIANT_FIELD_START_TOKENS: [TokenType; 6] = [
-    TokenType::Colon,
-    TokenType::Assign,
-    TokenType::Newline,
-    TokenType::Comma,
-    TokenType::Semicolon,
-    TokenType::CloseBrace,
 ];
 
 impl<'a> Parser<'a> {
@@ -52,7 +43,7 @@ impl<'a> Parser<'a> {
     /// May be preceded by any number of field modifiers.
     pub(crate) fn peek_variant_field(&self) -> ParserResult<()> {
         let mut pos = self.pos() as usize;
-        // eat modifiers
+        // skip modifiers
         while let Some(token) = self.tokens.get(pos) {
             let keyword = Keyword::from_str(self.get_span_str(token.span));
             if let Ok(keyword) = keyword
@@ -63,20 +54,23 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        // followed by identifier + field start
-        let next_token_ty = self.tokens.get(pos).map(|token| token.token.ty);
-        let next_next_token_ty = self.tokens.get(pos + 1).map(|token| token.token.ty);
-        if next_token_ty == Some(TokenType::Identifier)
-            && let Some(next_next_token_ty) = next_next_token_ty
-            && VARIANT_FIELD_START_TOKENS.contains(&next_next_token_ty)
-        {
-            Ok(())
-        } else {
-            Err(ParserError::expected(
-                self.tokens[pos].span,
-                TokenType::Identifier,
-            ))
+        // we're looking for something that looks like a variant field
+        if pos + 3 < self.tokens.len() {
+            let token_ty = self.tokens[pos].token.ty;
+            let next_token_ty = self.tokens[pos + 1].token.ty;
+            let next_next_token_ty = self.tokens[pos + 2].token.ty;
+            match (token_ty, next_token_ty, next_next_token_ty) {
+                (TokenType::Identifier, TokenType::Colon, _)
+                | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon) => {
+                    return Ok(());
+                }
+                _ => {}
+            }
         }
+        Err(ParserError::expected(
+            self.tokens[pos].span,
+            TokenType::Identifier,
+        ))
     }
 
     /// Eat a single variant field: `T`,`name: T`, or `name: T = <expr>` (including visibility).
@@ -88,6 +82,7 @@ impl<'a> Parser<'a> {
     /// name: T = <expr>
     /// public T
     /// readonly name: T
+    /// baz?: T // shorthand for baz: T?
     /// ```
     pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
@@ -106,19 +101,33 @@ impl<'a> Parser<'a> {
         };
 
         // name:
-        let name =
+        let (name, is_maybe) =
             if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
                 let name = self.eat_identifier()?;
-                self.eat_colon()?;
-                Some(name)
+                self.bump(); // eat colon
+                (Some(name), false)
+            } else if self.peek_identifier().is_ok()
+                && self.peek_next_token(TokenType::Maybe).is_ok()
+                && self.peek_next_next_token(TokenType::Colon).is_ok()
+            {
+                let name = self.eat_identifier()?;
+                self.bump(); // eat maybe
+                self.bump(); // eat colon
+                (Some(name), true)
             } else {
-                None
+                (None, false)
             };
 
         // type
         let ty = self
             .with_options(self.options.in_type(), |parser| parser.eat_expression())
             .for_node_type(NodeType::Definition)?;
+        let ty = if is_maybe {
+            self.tree
+                .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
+        } else {
+            ty
+        };
 
         // optional default value: `= <expr>`
         let default = if self.peek_token(TokenType::Assign).is_ok() {
@@ -141,7 +150,7 @@ impl<'a> Parser<'a> {
         Ok(field_id)
     }
 
-    /// Eat a struct body (without the header or `{` and `}`).
+    /// Eat a variant body (without the header or `{` and `}`).
     pub fn eat_variant_body_mixed(
         &mut self,
         allow_fields: bool,

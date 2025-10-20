@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 
-use dyst_ast::{Path, StringId, TemplateLiteral};
+use dyst_ast::{Keyword, Path, StringId, TemplateLiteral};
+use std::str::FromStr;
 
 use crate::parse::prelude::*;
+use crate::parse::variant::VARIANT_FIELD_MODIFIERS;
 use crate::{
     Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Parser, ParserError,
     ParserResult, ScalarLiteral, TokenSpan, TokenType,
@@ -443,23 +445,30 @@ impl<'a> Parser<'a> {
     /// The first element may also be after some newlines.
     pub fn peek_anonymous_struct_literal_body(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok() {
-            let mut current_pos = self.pos() + 1;
-            // skip any newlines
-            while let Some(token) = self.tokens.get(current_pos as usize)
-                && token.token.ty == TokenType::Newline
+            let mut pos = self.pos() + 1;
+            // skip any newlines or modifiers
+            while let Some(token) = self.tokens.get(pos as usize)
+                && (token.token.ty == TokenType::Newline
+                    || Keyword::from_str(self.get_token_str(*token))
+                        .map(|keyword| VARIANT_FIELD_MODIFIERS.contains(&keyword))
+                        .unwrap_or(false))
             {
-                current_pos += 1;
+                pos += 1;
             }
-            // we're looking for (identifier, colon) | (range, identifier) | (range wide, identifier)
-            let token_ty = self.tokens[current_pos as usize].token.ty;
-            let next_token_ty = self.tokens[current_pos as usize + 1].token.ty;
-            match (token_ty, next_token_ty) {
-                (TokenType::Identifier, TokenType::Colon)
-                | (TokenType::Range, TokenType::Identifier)
-                | (TokenType::RangeWide, TokenType::Identifier) => {
-                    return Ok(());
+            // we're looking for something that looks like a struct literal field
+            if pos + 3 < (self.tokens.len() as u32) {
+                let token_ty = self.tokens[pos as usize].token.ty;
+                let next_token_ty = self.tokens[pos as usize + 1].token.ty;
+                let next_next_token_ty = self.tokens[pos as usize + 2].token.ty;
+                match (token_ty, next_token_ty, next_next_token_ty) {
+                    (TokenType::Identifier, TokenType::Colon, _)
+                    | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)
+                    | (TokenType::Range, TokenType::Identifier, _)
+                    | (TokenType::RangeWide, TokenType::Identifier, _) => {
+                        return Ok(());
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
 
@@ -487,16 +496,32 @@ impl<'a> Parser<'a> {
             }
 
             let start = self.mark();
-            // named argument
             let argument_id = {
+                // nocheckin: struct literal function shorthand && type function shorthand
+                // named argument
                 if self.peek_token(TokenType::Identifier).is_ok()
-                    && (self.peek_next_token(TokenType::Colon).is_ok()
-                        || self.peek_next_token(TokenType::Assign).is_ok())
+                    && self.peek_next_token(TokenType::Colon).is_ok()
                 {
                     let name = self.eat_identifier()?;
-                    self.bump(); // eat colon or assign
+                    self.bump(); // eat colon
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+                    self.tree
+                        .insert(Argument::Named { name, value }, self.get_span_from(start))
+                }
+                // named maybe argument
+                else if self.peek_token(TokenType::Identifier).is_ok()
+                    && self.peek_next_token(TokenType::Maybe).is_ok()
+                    && self.peek_next_next_token(TokenType::Colon).is_ok()
+                {
+                    let name = self.eat_identifier()?;
+                    self.bump(); // eat maybe
+                    self.bump(); // eat colon
+                    let value =
+                        self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+                    let value = self
+                        .tree
+                        .insert(Expression::Maybe(value), self.tree.spans.get(value));
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
                 }

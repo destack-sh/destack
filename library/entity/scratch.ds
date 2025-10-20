@@ -357,7 +357,7 @@ export interface Props<Input = unknown, Output = Input> {
       value: unknown
     ) => Result<Output> | Promise<Result<Output>>;
     /** Inferred types associated with the schema. */
-    // readonly types?: Types<Input, Output> | undefined;
+    readonly types?: Types<Input, Output> | undefined;
 }
 
 console.log(`Listening on ${server.url}`);
