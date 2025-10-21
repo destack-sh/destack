@@ -283,14 +283,30 @@ impl<'a> Parser<'a> {
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
             else if token.token.ty == TokenType::OpenParenthesis {
-                // speculative start (need to backtrack for lambda)
-                let speculative_start = (self.mark(), self.tree.next_id());
-
-                self.bump(); // eat open paranthesis
-                self.eat_newlines_maybe()?;
-
-                let expression_id: NodeId<Expression> = {
-                    // if we immediately see a closing parenthesis, it's an empty tuple
+                let closing_pos = self
+                    .find_matching_pair(TokenType::OpenParenthesis, TokenType::CloseParenthesis)?;
+                let closing_pos = self.skip_newlines_after(closing_pos)?;
+                // tuple if the paranthesis is followed by an arrow (or colon)
+                if self
+                    .tokens
+                    .get(closing_pos as usize + 1)
+                    .map(|token| token.token.ty)
+                    .map(|ty| {
+                        ty == TokenType::Arrow
+                            || ty == TokenType::ArrowWide
+                            || !self.options.in_before_type && ty == TokenType::Colon
+                    })
+                    .unwrap_or(false)
+                {
+                    let lambda_id = self.eat_function(visibility, export, false, false)?;
+                    self.tree
+                        .insert(Expression::Definition(lambda_id), self.get_span_from(start))
+                }
+                // tuple or parenthesized expression
+                else {
+                    self.bump(); // eat open paranthesis
+                    self.eat_newlines_maybe()?;
+                    // empty tuple if we immediately see a closing parenthesis
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                         self.bump(); // eat closing parenthesis
                         self.tree.insert(
@@ -298,7 +314,7 @@ impl<'a> Parser<'a> {
                             self.get_span_from(start),
                         )
                     }
-                    // named tuple element, must be some tuple
+                    // tuple if we see a named element
                     else if self.peek_token(TokenType::Identifier).is_ok()
                         && self.peek_next_token(TokenType::Colon).is_ok()
                     {
@@ -342,20 +358,6 @@ impl<'a> Parser<'a> {
                             ),
                         }
                     }
-                };
-
-                // if followed by an arrow, backtrack and parse as a lambda
-                //  (also support colon for #Leniency)
-                if !self.options.in_match_case
-                    && (self.options.in_type || !self.options.in_before_block)
-                    && (self.peek_arrow().is_ok() || self.peek_colon().is_ok())
-                {
-                    self.restore(speculative_start.0, speculative_start.1);
-                    let lambda_id = self.eat_function(visibility, export, false, false)?;
-                    self.tree
-                        .insert(Expression::Definition(lambda_id), self.get_span_from(start))
-                } else {
-                    expression_id
                 }
             }
             //
@@ -861,8 +863,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Parameter, TypeLiteral,
-        WithClause,
+        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Parameter, PatternField,
+        TypeLiteral, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1250,6 +1252,7 @@ mod tests {
                 ..
             } => {
                 assert!(body.is_some());
+                assert_eq!(dynamic_parameters.len(), 1);
                 // (a)
                 assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                     assert_string!(parser, *name, "a");
@@ -1259,6 +1262,48 @@ mod tests {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
                     assert_expr_path!(parser, parser.tree.get(*left), "a");
                     assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+            });
+        });
+    }
+
+    /// Parse a lambda function value with a body and pattern parameters.
+    #[test]
+    fn test_parse_lambda_function_value_with_pattern_parameters() {
+        let mut test = TestParser::new("(_, { x, y }: T) => a");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function {
+                style: FunctionStyle::Lambda,
+                dynamic_parameters,
+                return_type: None,
+                body: Some(_),
+                ..
+            } => {
+                assert_eq!(dynamic_parameters.len(), 2);
+                // _
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Pattern { pattern, ty: None, .. } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                });
+                // { x, y }: T
+                assert_node!(parser.tree, dynamic_parameters[1], Parameter::Pattern { pattern, ty, .. } => {
+                    // { x, y }
+                    assert_node!(parser.tree, *pattern, Pattern::Struct { fields, .. } => {
+                        assert_eq!(fields.len(), 2);
+                        // x
+                        assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None } => {
+                            assert_string!(parser, *name, "x");
+                        });
+                        // y
+                        assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None } => {
+                            assert_string!(parser, *name, "y");
+                        });
+                    });
+                    // T
+                    assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "T");
+                    });
                 });
             });
         });
