@@ -130,19 +130,37 @@ mod tests {
     }
 
     #[test]
-    fn test_format_let_best_fitting() {
+    fn test_format_let_best_fitting_container() {
         let source = r"const shapes = [
-            TetrisPieceShape.I
-            TetrisPieceShape.J
-            TetrisPieceShape.L
-            TetrisPieceShape.O
-            TetrisPieceShape.S
-        ]";
+    TetrisPieceShape.I
+    TetrisPieceShape.J
+    TetrisPieceShape.L
+    TetrisPieceShape.O
+    TetrisPieceShape.S
+]";
         assert_format!(
             source,
             source,
             |p| p.eat_let(None, None),
-            DystFormatOptions::default_tab().with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_let_best_fitting_if_else() {
+        let source = r"const shapes = if self.nextPiece {
+    const nextShape = next.shape
+    self.nextPiece = TetrisPiece.new()
+    nextShape
+} else {
+    self.nextPiece = TetrisPiece.new()
+    TetrisGame.getRandomShape(random)
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_let(None, None),
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 }

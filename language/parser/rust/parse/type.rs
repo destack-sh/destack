@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
             let speculative_start = (self.mark(), self.tree.next_id());
-            let alias = self.eat_identifier()?;
+            let name = self.eat_identifier()?;
 
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
                 // type
                 let expression = Expression::LetType {
                     mutability,
-                    name: Some(alias),
+                    name,
                     static_parameters,
                     value: value_id,
                     visibility,
@@ -246,14 +246,7 @@ impl<'a> Parser<'a> {
         else {
             let value =
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-            let expression = Expression::LetType {
-                mutability,
-                name: None,
-                static_parameters: None,
-                value,
-                visibility,
-                export,
-            };
+            let expression = Expression::Type { mutability, value };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
     }
@@ -340,7 +333,7 @@ mod tests {
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
         assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, .. } => {
-            assert_string!(parser, name.unwrap(), "T");
+            assert_string!(parser, *name, "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
         });
@@ -353,7 +346,7 @@ mod tests {
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
         assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, static_parameters, .. } => {
-            assert_string!(parser, name.unwrap(), "T");
+            assert_string!(parser, *name, "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             assert_eq!(*visibility, None);
             assert!(static_parameters.is_some());
@@ -381,8 +374,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility: None, .. } => {
-            assert_eq!(*name, None);
+        assert_node!(parser.tree, expr_id, Expression::Type { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
@@ -401,7 +393,7 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // readonly T
-        assert_node!(parser.tree, expr_id, Expression::LetType { mutability, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Type { mutability, value, .. } => {
             assert_eq!(*mutability, Some(Mutability::Immutable));
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");

@@ -127,7 +127,7 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_mutability(*mutability));
-                let name = name.map(|name| self.intern_string(source_id, name));
+                let name = self.intern_string(source_id, *name);
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()

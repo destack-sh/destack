@@ -207,6 +207,8 @@ export const mutateSomething = mutation({
 	},
 }
 
+const userId = await ctx.db.insert("users", { name: "Michael Jordan" });
+
 export default app;
 
 export const addItem = mutation({

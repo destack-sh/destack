@@ -37,7 +37,7 @@ pub enum Expression {
     /// Type alias binding.
     LetType {
         mutability: Option<Mutability>,
-        name: Option<StringId>,
+        name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         visibility: Option<Visibility>,
         value: NodeId<Expression>,

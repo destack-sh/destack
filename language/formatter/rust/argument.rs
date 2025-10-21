@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
-use dyst_fir::format::FormatResult;
+use dyst_fir::format::{BestFittingMode, FormatResult};
 
 use crate::{
     Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
     Parameter,
 };
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::{best_fitting, format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -20,9 +20,38 @@ where
     end_token: &'static str,
     separator: &'static str,
     include_space: bool,
+    include_separator_if_one: bool,
+    force_expand: bool,
     elements: &'e Vec<NodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
+}
+
+#[allow(dead_code)]
+impl<'ast, 'e, T> ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeStore<T>,
+{
+    pub(crate) fn force_expand(&mut self) -> &mut Self {
+        self.force_expand = true;
+        self
+    }
+
+    pub(crate) fn with_force_expand(&mut self, force_expand: bool) -> &mut Self {
+        self.force_expand = force_expand;
+        self
+    }
+
+    pub(crate) fn include_space(&mut self) -> &mut Self {
+        self.include_space = true;
+        self
+    }
+
+    pub(crate) fn include_separator_if_one(&mut self) -> &mut Self {
+        self.include_separator_if_one = true;
+        self
+    }
 }
 
 impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
@@ -32,28 +61,41 @@ where
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        let body = &format_with(|f| {
+            // leading space
+            if self.include_space {
+                write!(f, [if_group_fits_on_line(&space())])?;
+            }
+
+            // elements
+            f.join_with(&format_args![
+                if_group_fits_on_line(&token(self.separator)),
+                soft_line_break_or_space()
+            ])
+            .entries(self.elements)
+            .finish()?;
+
+            // trailing space
+            if self.include_space && !self.elements.is_empty() {
+                write!(f, [if_group_fits_on_line(&space())])?;
+            }
+
+            // trailing separator
+            if self.include_separator_if_one && self.elements.len() == 1 {
+                write!(f, [token(self.separator)])?;
+            }
+
+            Ok(())
+        });
+
         write!(
             f,
             [group(&format_args![
+                // start token
                 token(self.start_token),
-                soft_block_indent(&format_with(|f| {
-                    if self.include_space {
-                        write!(f, [if_group_fits_on_line(&space())])?;
-                    }
-
-                    f.join_with(&format_args![
-                        if_group_fits_on_line(&token(self.separator)),
-                        soft_line_break_or_space()
-                    ])
-                    .entries(self.elements)
-                    .finish()?;
-
-                    if self.include_space && !self.elements.is_empty() {
-                        write!(f, [if_group_fits_on_line(&space())])?;
-                    }
-
-                    Ok(())
-                })),
+                // content
+                best_fitting![body, soft_block_indent(body)].with_mode(BestFittingMode::AllLines),
+                // end token
                 token(self.end_token)
             ]),]
         )?;
@@ -66,12 +108,10 @@ where
 ///  - beginning with `start_token`
 ///  - ending with `end_token`
 ///  - separated by `separator`
-// nocheckin: list_like flag to always include separator if just one element
 pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
-    include_space: bool,
     elements: &'e Vec<NodeId<T>>,
 ) -> ListLike<'ast, 'e, T>
 where
@@ -82,7 +122,9 @@ where
         start_token,
         end_token,
         separator,
-        include_space,
+        include_space: false,
+        include_separator_if_one: false,
+        force_expand: false,
         elements,
         _phantom: PhantomData,
     }
