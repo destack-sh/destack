@@ -461,7 +461,7 @@ impl<'a> Parser<'a> {
             if pos + 3 >= self.tokens.len() {
                 return Err(ParserError::unexpected(self.peek()?.span));
             }
-            
+
             // struct literal field (name: type, name?: type, name = <expr>)
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;

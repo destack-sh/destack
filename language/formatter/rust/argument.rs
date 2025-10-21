@@ -151,7 +151,11 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                     write!(f, [token(" = "), default])?;
                 }
             }
-            Parameter::Pattern { pattern, ty, default } => {
+            Parameter::Pattern {
+                pattern,
+                ty,
+                default,
+            } => {
                 write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
