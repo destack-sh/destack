@@ -139,9 +139,16 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_parameters_body(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
-        while self.peek_identifier().is_ok()
+        while
+        // named
+        self.peek_token(TokenType::Identifier).is_ok()
+            // range
             || self.peek_token(TokenType::Range).is_ok()
             || self.peek_token(TokenType::RangeWide).is_ok()
+            // pattern
+            || self.peek_token(TokenType::OpenBrace).is_ok()
+            || self.peek_token(TokenType::OpenParenthesis).is_ok()
+            || self.peek_token(TokenType::Wildcard).is_ok()
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);

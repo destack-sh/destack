@@ -161,4 +161,46 @@ impl<'a> Parser<'a> {
             ))
         }
     }
+
+    /// Find closing pair for a pair of tokens.
+    #[inline]
+    pub fn find_matching_pair(
+        &self,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> ParserResult<u32> {
+        let mut depth = 0;
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos) {
+            // open: +1
+            if token.token.ty == open_token {
+                depth += 1;
+            }
+            // close: -1
+            else if token.token.ty == close_token {
+                depth -= 1;
+            }
+            // found: return position
+            if depth == 0 {
+                return Ok(pos as u32);
+            }
+            pos += 1;
+        }
+        Err(ParserError::expected(
+            self.peek().unwrap_or(&self.eof_token).span,
+            open_token,
+        ))
+    }
+
+    /// Skip any newlines at and after a position.
+    #[inline]
+    pub fn skip_newlines_after(&mut self, pos: u32) -> ParserResult<u32> {
+        let mut pos = pos as usize;
+        while let Some(token) = self.tokens.get(pos + 1)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+        Ok(pos as u32)
+    }
 }
