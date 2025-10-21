@@ -292,7 +292,7 @@ while (step < maxSteps) {
   step++;
 }
 
-// async function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
+// function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
 //   await ctx.db.insert("changes", { type });
 // }
 
@@ -323,13 +323,13 @@ const result = streamText({
 					.string()
 					.describe('The location to get the weather for'),
 			}),
-			// execute: async ({ location }) => {
-			// 	const temperature = Math.round(Math.random() * (90 - 32) + 32);
-			// 	return {
-			// 		location,
-			// 		temperature,
-			// 	};
-			// },
+			execute: ({ location }) => {
+				const temperature = Math.round(Math.random() * (90 - 32) + 32);
+				return {
+					location,
+					temperature,
+				};
+			},
 		}),
 	},
 });

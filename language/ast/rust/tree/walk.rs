@@ -1039,7 +1039,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::NamedShorthand { name: _ } => {
             // no child nodes to visit
         }
-        Argument::ImplicitFunction { name: _, value } => {
+        Argument::NamedFunction { name: _, value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }

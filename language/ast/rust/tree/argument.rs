@@ -64,7 +64,7 @@ pub enum Argument {
     /// Named shorthand argument (only in certain contexts like struct literals).
     NamedShorthand { name: StringId },
     /// Named shorthand function argument (only in certain contexts like struct literals).
-    ImplicitFunction {
+    NamedFunction {
         name: StringId,
         value: NodeId<Expression>,
     },
@@ -72,6 +72,11 @@ pub enum Argument {
     Positional { value: NodeId<Expression> },
     /// Positional spread argument.
     Spread { value: NodeId<Expression> },
+    /// Dynamic argument.
+    Dynamic {
+        key: NodeId<Expression>,
+        value: NodeId<Expression>,
+    },
 }
 
 impl Node for Argument {
