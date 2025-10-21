@@ -83,7 +83,7 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::ImplicitFunction { name, value } => {
+            ast::Argument::NamedFunction { name, value } => {
                 let name = self.intern_string(source_id, *name);
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(

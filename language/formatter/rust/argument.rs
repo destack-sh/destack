@@ -198,7 +198,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             Argument::NamedShorthand { name } => {
                 write!(f, [name])?;
             }
-            Argument::ImplicitFunction { name, value } => {
+            Argument::NamedFunction { name, value } => {
                 write!(f, [name, token(":"), space(), value])?;
             }
             Argument::Positional { value } => {

@@ -532,7 +532,7 @@ impl<'a> Parser<'a> {
                     value
                 };
                 return Ok(Some(self.tree.insert(
-                    Argument::ImplicitFunction { name, value },
+                    Argument::NamedFunction { name, value },
                     self.get_span_from(start),
                 )));
             }
@@ -682,7 +682,7 @@ impl<'a> Parser<'a> {
                         value
                     };
                     self.tree.insert(
-                        Argument::ImplicitFunction { name, value },
+                        Argument::NamedFunction { name, value },
                         self.get_span_from(start),
                     )
                 }
@@ -1193,7 +1193,7 @@ mod tests {
         });
 
         // e<T>()
-        assert_node!(parser.tree, arguments[4], Argument::ImplicitFunction { name, value } => {
+        assert_node!(parser.tree, arguments[4], Argument::NamedFunction { name, value } => {
             assert_string!(parser, *name, "e");
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { name: None, static_parameters, .. } => {
@@ -1206,7 +1206,7 @@ mod tests {
         });
 
         // f?(): T
-        assert_node!(parser.tree, arguments[5], Argument::ImplicitFunction { name, value } => {
+        assert_node!(parser.tree, arguments[5], Argument::NamedFunction { name, value } => {
             assert_string!(parser, *name, "f");
             assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
                 assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
@@ -1232,7 +1232,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 1);
             // fetch
-            assert_node!(parser.tree, fields[0], Argument::ImplicitFunction { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
                 assert_string!(parser, *name, "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
@@ -1257,14 +1257,14 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 2);
             // foo
-            assert_node!(parser.tree, fields[0], Argument::ImplicitFunction { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
                 assert_string!(parser, *name, "foo");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
                 });
             });
             // foo?(): T
-            assert_node!(parser.tree, fields[1], Argument::ImplicitFunction { name, value } => {
+            assert_node!(parser.tree, fields[1], Argument::NamedFunction { name, value } => {
                 assert_string!(parser, *name, "foo");
                 assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
                     assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
