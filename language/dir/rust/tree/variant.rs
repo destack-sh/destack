@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, Mutability, StringId, Type};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type};
 
 /// A VariantField is a field of a variant.
 #[derive(Debug, Clone, PartialEq)]
