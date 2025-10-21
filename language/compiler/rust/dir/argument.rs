@@ -14,12 +14,30 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Parameter> {
         let parameter = ast.get(parameter_id);
         match parameter {
-            ast::Parameter::Scalar { name, ty, default } => {
+            ast::Parameter::Named { name, ty, default } => {
                 let name = self.intern_string(source_id, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 self.tree.insert_from_ast(
-                    Parameter::Scalar { name, ty, default },
+                    Parameter::Named { name, ty, default },
+                    source_id,
+                    parameter_id,
+                )
+            }
+            ast::Parameter::Pattern {
+                pattern,
+                ty,
+                default,
+            } => {
+                let pattern = self.lower_pattern(source_id, ast, *pattern);
+                let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
+                self.tree.insert_from_ast(
+                    Parameter::Pattern {
+                        pattern,
+                        ty,
+                        default,
+                    },
                     source_id,
                     parameter_id,
                 )

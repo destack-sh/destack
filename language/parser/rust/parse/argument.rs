@@ -1,4 +1,4 @@
-use dyst_ast::{Expression, Keyword, ScalarLiteral};
+use dyst_ast::{Expression, Keyword, Pattern, ScalarLiteral, StringId};
 
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
@@ -13,6 +13,9 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// Validate: bool = false
     /// baz: @someMacro(T)
+    /// _
+    /// { x }
+    /// { x }: MyType = Foo
     /// ...T
     /// ...args: int32[]
     /// ```
@@ -20,6 +23,7 @@ impl<'a> Parser<'a> {
     pub fn eat_parameter(&mut self) -> ParserResult<NodeId<Parameter>> {
         let start = self.mark();
 
+        // variadic
         let is_variadic = if self.peek_token(TokenType::Range).is_ok()
             || self.peek_token(TokenType::RangeWide).is_ok()
         {
@@ -29,48 +33,98 @@ impl<'a> Parser<'a> {
             false
         };
 
-        // name
-        let name = self.eat_identifier()?;
+        // pattern/name
+        let (pattern, name): (Option<NodeId<Pattern>>, Option<StringId>) = {
+            // pattern
+            if !is_variadic
+                && self
+                    .peek_token_in(&[
+                        TokenType::OpenBrace,
+                        TokenType::OpenParenthesis,
+                        TokenType::Wildcard,
+                    ])
+                    .is_ok()
+            {
+                let pattern = self
+                    .with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
+                (Some(pattern), None)
+            }
+            // name
+            else {
+                let name = self.eat_identifier()?;
+                (None, Some(name))
+            }
+        };
 
         // : type (or keyword for #Leniency)
-        let ty = if self.peek_colon().is_ok()
-            || (self.options.in_static
-                && (self.peek_keyword(Keyword::Extends).is_ok()
-                    || self.peek_keyword(Keyword::Implements).is_ok()))
-        {
-            self.bump(); // eat colon or keyword
-            let ty = self
-                .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                .for_node_type(NodeType::Parameter)?;
-            Some(ty)
-        } else {
-            None
+        let ty = {
+            if self.peek_colon().is_ok()
+                || (self.options.in_static
+                    && (self.peek_keyword(Keyword::Extends).is_ok()
+                        || self.peek_keyword(Keyword::Implements).is_ok()))
+            {
+                self.bump(); // eat colon or keyword
+                let ty = self
+                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
+                    .for_node_type(NodeType::Parameter)?;
+                Some(ty)
+            } else {
+                None
+            }
         };
 
         // = value
-        let parameter = if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
+        let parameter = {
             // has default value
-            self.bump(); // eat assign
-            let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
-            Parameter::Scalar {
-                name,
-                ty,
-                default: Some(value),
+            if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
+                // named with default
+                if let Some(name) = name {
+                    Parameter::Named {
+                        name,
+                        ty,
+                        default: Some(value),
+                    }
+                }
+                // pattern with default
+                else {
+                    Parameter::Pattern {
+                        pattern: pattern.expect("peeked"),
+                        ty,
+                        default: Some(value),
+                    }
+                }
             }
-        }
-        // variadic parameter (cannot have a default value)
-        else if is_variadic {
-            Parameter::Variadic { name, ty }
-        }
-        // named parameter (without a default value)
-        else {
-            Parameter::Scalar {
-                name,
-                ty,
-                default: None,
+            // variadic parameter (cannot have a default value)
+            else if is_variadic {
+                Parameter::Variadic {
+                    name: name.expect("peeked"),
+                    ty,
+                }
+            }
+            // no default value
+            else {
+                // named without default
+                if let Some(name) = name {
+                    Parameter::Named {
+                        name,
+                        ty,
+                        default: None,
+                    }
+                }
+                // pattern without default
+                else {
+                    Parameter::Pattern {
+                        pattern: pattern.expect("peeked"),
+                        ty,
+                        default: None,
+                    }
+                }
             }
         };
 
+        // parameter
         let parameter_id = self.tree.insert(parameter, self.get_span_from(start));
         Ok(parameter_id)
     }
@@ -344,6 +398,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::{Pattern, PatternField};
+
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_node,
@@ -356,7 +412,7 @@ mod tests {
         let mut test = TestParser::new("T");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty, default } => {
             assert_string!(parser, *name, "T");
             assert!(ty.is_none());
             assert!(default.is_none());
@@ -369,7 +425,7 @@ mod tests {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty, default } => {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType {
                 width: Some(32),
@@ -385,10 +441,30 @@ mod tests {
         let mut test = TestParser::new("validate: boolean = false");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
-        assert_node!(parser.tree, parameter_id, Parameter::Scalar { name, ty, default } => {
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty, default } => {
             assert_string!(parser, *name, "validate");
             assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
             assert!(default.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_with_pattern_and_default() {
+        // { x }: T = false
+        let mut test = TestParser::new("{ x }: boolean = false");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, ty: Some(ty), default: Some(default) } => {
+            // { x }
+            assert_node!(parser.tree, *pattern, Pattern::Struct { ty: None, fields } => {
+                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None } => {
+                    assert_string!(parser, *name, "x");
+                });
+            });
+            // boolean
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
+            // = false
+            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
         });
     }
 

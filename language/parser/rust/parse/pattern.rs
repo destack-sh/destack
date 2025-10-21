@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // tuple (without path prefix, no struct tuples)
+            // tuple (without type, no struct tuples)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.insert(pattern, self.get_span_from(start))
             }
-            // struct (without path prefix)
+            // struct (without type)
             else if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
                 self.eat_newlines_maybe()?;

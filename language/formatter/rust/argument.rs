@@ -139,9 +139,20 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Parameter::Scalar { name, ty, default } => {
+            Parameter::Named { name, ty, default } => {
                 // name
                 write!(f, [name])?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(": "), ty])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [token(" = "), default])?;
+                }
+            }
+            Parameter::Pattern { pattern, ty, default } => {
+                write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
                     write!(f, [token(": "), ty])?;
