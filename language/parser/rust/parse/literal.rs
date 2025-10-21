@@ -458,12 +458,15 @@ impl<'a> Parser<'a> {
             {
                 pos += 1;
             }
-            if pos + 3 < self.tokens.len() {
-                // struct literal field (name: type, name?: type, name = <expr>)
-                let token_ty = self.tokens[pos].token.ty;
-                let next_token_ty = self.tokens[pos + 1].token.ty;
-                let next_next_token_ty = self.tokens[pos + 2].token.ty;
-                match (token_ty, next_token_ty, next_next_token_ty) {
+            if pos + 3 >= self.tokens.len() {
+                return Err(ParserError::unexpected(self.peek()?.span));
+            }
+            
+            // struct literal field (name: type, name?: type, name = <expr>)
+            let token_ty = self.tokens[pos].token.ty;
+            let next_token_ty = self.tokens[pos + 1].token.ty;
+            let next_next_token_ty = self.tokens[pos + 2].token.ty;
+            match (token_ty, next_token_ty, next_next_token_ty) {
                     // name:
                     (TokenType::Identifier, TokenType::Colon, _)
                     // name?:
@@ -479,61 +482,59 @@ impl<'a> Parser<'a> {
                     _ => {}
                 }
 
-                // function shorthand
-                if token_ty == TokenType::Identifier
-                    && (next_token_ty == TokenType::OpenParenthesis
-                        || next_token_ty == TokenType::Maybe
-                            && next_next_token_ty == TokenType::OpenParenthesis
-                        || next_token_ty == TokenType::LessThan
-                        || next_token_ty == TokenType::Maybe
-                            && next_next_token_ty == TokenType::LessThan)
-                {
-                    // speculatively parse function definition
-                    // (since we can't just count bracket pairs here)
-                    let speculative_start = (self.mark(), self.tree.next_id());
-                    self.eat_token(TokenType::OpenBrace).expect("peeked");
-                    self.eat_newlines_maybe().expect("peeked");
-                    let start = self.mark();
-                    debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
-                    let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    let expect_body = !self.options.in_type;
-                    match self.eat_function(None, None, is_maybe, expect_body) {
-                        Ok(function_id) => {
-                            // name
-                            let name = self
-                                .tree
-                                .get(function_id)
-                                .name()
-                                .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
-                            // value
-                            let value = self.tree.insert(
-                                Expression::Definition(function_id),
-                                self.get_span_from(start),
-                            );
-                            // clear function name
-                            match self.tree.get_mut(function_id) {
-                                Definition::Function { name, .. } => {
-                                    *name = None;
-                                }
-                                _ => panic!("expected function for"),
-                            };
-                            // maybe
-                            let value = if is_maybe {
-                                self.tree
-                                    .insert(Expression::Maybe(value), self.tree.spans.get(value))
-                            } else {
-                                value
-                            };
-                            return Ok(Some(self.tree.insert(
-                                Argument::ImplicitFunction { name, value },
-                                self.get_span_from(start),
-                            )));
-                        }
-                        Err(_) => {
-                            self.restore(speculative_start.0, speculative_start.1);
-                        }
+            // function shorthand
+            if token_ty == TokenType::Identifier
+                && (next_token_ty == TokenType::OpenParenthesis
+                    || next_token_ty == TokenType::Maybe
+                        && next_next_token_ty == TokenType::OpenParenthesis
+                    || next_token_ty == TokenType::LessThan
+                    || next_token_ty == TokenType::Maybe
+                        && next_next_token_ty == TokenType::LessThan)
+            {
+                // speculatively parse function definition
+                // (since we can't just count bracket pairs here)
+                let speculative_start = (self.mark(), self.tree.next_id());
+                self.eat_token(TokenType::OpenBrace).expect("peeked");
+                self.eat_newlines_maybe().expect("peeked");
+
+                // function
+                let start = self.mark();
+                debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
+                let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
+                let expect_body = !self.options.in_type;
+                let Ok(function_id) = self.eat_function(None, None, is_maybe, expect_body) else {
+                    self.restore(speculative_start.0, speculative_start.1);
+                    return Err(ParserError::unexpected(self.peek()?.span));
+                };
+                // name
+                let name = self
+                    .tree
+                    .get(function_id)
+                    .name()
+                    .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
+                // value
+                let value = self.tree.insert(
+                    Expression::Definition(function_id),
+                    self.get_span_from(start),
+                );
+                // clear function name
+                match self.tree.get_mut(function_id) {
+                    Definition::Function { name, .. } => {
+                        *name = None;
                     }
-                }
+                    _ => panic!("expected function for"),
+                };
+                // maybe
+                let value = if is_maybe {
+                    self.tree
+                        .insert(Expression::Maybe(value), self.tree.spans.get(value))
+                } else {
+                    value
+                };
+                return Ok(Some(self.tree.insert(
+                    Argument::ImplicitFunction { name, value },
+                    self.get_span_from(start),
+                )));
             }
         }
 

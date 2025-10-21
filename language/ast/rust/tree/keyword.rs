@@ -156,6 +156,8 @@ pub enum Keyword {
     Return,
     /// Yield expression (reserved).
     Yield,
+    /// Goto expression (reserved).
+    Goto,
 
     // ------------------------------------------------------------
     // Errors
@@ -296,6 +298,7 @@ impl Keyword {
             Keyword::Defer => "defer",
             Keyword::Return => "return",
             Keyword::Yield => "yield",
+            Keyword::Goto => "goto",
 
             // errors
             Keyword::Try => "try",
@@ -396,6 +399,7 @@ impl FromStr for Keyword {
             "defer" => Ok(Keyword::Defer),
             "return" => Ok(Keyword::Return),
             "yield" => Ok(Keyword::Yield),
+            "goto" => Ok(Keyword::Goto),
 
             // errors
             "try" => Ok(Keyword::Try),

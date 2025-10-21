@@ -361,6 +361,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if let Some(visibility) = visibility {
                     write!(f, [visibility, space()])?;
                 }
+                
                 write!(
                     f,
                     [group(&format_with(|f| {
