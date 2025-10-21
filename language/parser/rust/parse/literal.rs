@@ -1198,7 +1198,7 @@ mod tests {
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { name: None, static_parameters, .. } => {
                     // T
-                    assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Scalar { name, .. } => {
+                    assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, .. } => {
                         assert_string!(parser, *name, "T");
                     });
                 });

@@ -219,6 +219,79 @@ export const addItem = mutation({
   },
 });
 
+import { Experimental_Agent as Agent } from 'ai';
+
+const agent = new Agent({
+  model: 'openai/gpt-4o',
+  tools: {
+    // your tools
+  },
+  prepareStep: function (x: { messages }) {
+    // Keep only recent messages to stay within context limits
+    if (messages.length > 20) {
+      return {
+        messages: [
+          messages[0], // Keep system message
+          ...messages.slice(-10), // Keep last 10 messages
+        ],
+      };
+    }
+    return {};
+  },
+});
+
+const result = await agent.generate({
+  prompt: '...',
+});
+
+const { text } = await generateText({
+    model: xai("grok-4"),
+    prompt: "What is love?"
+})
+
+{
+  prepareStep: (x:{
+  model, // Current model configuration
+  stepNumber, // Current step number (0-indexed)
+  steps, // All previous steps with their results
+  messages, // Messages to be sent to the model
+}) => {
+  // Access previous tool calls and results
+  const previousToolCalls = steps.flatMap(step => step.toolCalls);
+  const previousResults = steps.flatMap(step => step.toolResults);
+
+  // Make decisions based on execution history
+  if (previousToolCalls.some(call => call.toolName === 'dataAnalysis')) {
+    return {
+      toolChoice: { type: 'tool', toolName: 'reportGenerator' },
+    };
+  }
+
+  return {};
+}
+}
+
+let step = 0;
+const maxSteps = 10;
+
+while (step < maxSteps) {
+  const result = await generateText({
+    model: 'openai/gpt-4o',
+    messages,
+    tools: {
+      // your tools here
+    },
+  });
+
+  messages.push(...result.response.messages);
+
+  if (result.text) {
+    break; // Stop when model generates text
+  }
+
+  step++;
+}
+
 // async function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
 //   await ctx.db.insert("changes", { type });
 // }

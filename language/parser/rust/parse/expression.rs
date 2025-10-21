@@ -1221,7 +1221,7 @@ mod tests {
                 ..
             } => {
                 // (a: int32)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "a");
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 });
@@ -1251,7 +1251,7 @@ mod tests {
             } => {
                 assert!(body.is_some());
                 // (a)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty: None, .. } => {
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                     assert_string!(parser, *name, "a");
                 });
                 // a > 2
@@ -1280,7 +1280,7 @@ mod tests {
             } => {
                 assert_eq!(dynamic_parameters.len(), 1);
                 // x
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty: None, .. } => {
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                     assert_string!(parser, *name, "x");
                 });
                 // x

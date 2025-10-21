@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId};
+use crate::{Expression, Node, NodeId, NodeType, Pattern, StringId};
 
 /// A Parameter is a parameter to some construct.
 ///
@@ -10,14 +10,23 @@ use crate::{Expression, Node, NodeId, NodeType, StringId};
 /// y: (int32, boolean, Vector2)
 /// Validate: boolean = true
 /// z: int32 = 4
+/// _
+/// { x }
+/// { x }: MyType = Foo
 /// ..T
 /// ...x: int32[]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
-    /// Named parameter (like `T`, `x: int32` or `Validate: boolean = true`).
-    Scalar {
+    /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
+    Named {
         name: StringId,
+        ty: Option<NodeId<Expression>>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
+    Pattern {
+        pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
         default: Option<NodeId<Expression>>,
     },

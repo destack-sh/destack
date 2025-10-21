@@ -1645,7 +1645,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
         match param {
-            Parameter::Scalar {
+            Parameter::Named {
                 name,
                 ty: _,
                 default: _,
@@ -1653,6 +1653,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Parameter::Scalar", _id.id)
                     .field("name", name)
                     .end();
+            }
+            Parameter::Pattern {
+                pattern: _,
+                ty: _,
+                default: _,
+            } => {
+                self.node("Parameter::Pattern", _id.id).end();
             }
             Parameter::Variadic { name, ty: _ } => {
                 self.node("Parameter::Variadic", _id.id)

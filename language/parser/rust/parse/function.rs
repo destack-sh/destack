@@ -10,8 +10,6 @@ use crate::{
     Runtime, SelfParameter, Visibility,
 };
 
-// TODO #Incomplete: support function destructuring/pattern parameters? (_, { a: 1, .. }: T, ..)
-
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
     fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {
@@ -244,7 +242,7 @@ impl<'a> Parser<'a> {
             else {
                 let parameter_name = self.eat_identifier()?;
                 let parameter_id = self.tree.insert(
-                    Parameter::Scalar {
+                    Parameter::Named {
                         name: parameter_name,
                         ty: None,
                         default: None,
@@ -457,7 +455,7 @@ function b(
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 let param_type = ty.expect("expected type for parameter x");
                 assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
@@ -509,13 +507,13 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
             assert_eq!(static_parameters.len(), 2);
 
             // Validate: bool
-            assert_node!(parser.tree, static_parameters[0], Parameter::Scalar { name, ty, .. } => {
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "Validate");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
             });
 
             // Precision: uint8
-            assert_node!(parser.tree, static_parameters[1], Parameter::Scalar { name, ty, .. } => {
+            assert_node!(parser.tree, static_parameters[1], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "Precision");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                     assert_eq!(int_ty.width, Some(8));
@@ -525,7 +523,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
 
             // data: uint8[]
             assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, .. } => {
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "data");
             });
         });
@@ -547,7 +545,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
                 assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
                     assert_eq!(dynamic_parameters.len(), 1);
                     // str: string
-                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Scalar { name, ty, .. } => {
+                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                         assert_string!(parser, *name, "str");
                         assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                     });
