@@ -209,7 +209,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     if let Some(static_parameters) = &static_parameters
                         && !static_parameters.is_empty()
                     {
-                        write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
                     }
                 }
 
@@ -344,7 +344,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(static_parameters) = &static_parameters
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
                     write!(f, [space()])?;
                 } else if name.is_some() {
                     write!(f, [space()])?;
@@ -446,7 +446,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(static_parameters) = &static_parameters
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // super types
@@ -570,7 +570,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 if let Some(static_parameters) = &static_parameters
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // super types
@@ -774,7 +774,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     if let Some(static_parameters) = &static_parameters
                         && !static_parameters.is_empty()
                     {
-                        write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
+                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
                     }
                 }
 

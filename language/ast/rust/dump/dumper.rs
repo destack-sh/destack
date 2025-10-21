@@ -1162,7 +1162,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::LetType", _id.id)
                     .field_optional("mutability", mutability)
-                    .field_optional("name", name)
+                    .field("name", name)
                     .field_optional("visibility", visibility)
                     .field_optional("export", export)
                     .end();

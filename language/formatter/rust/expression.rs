@@ -1,6 +1,7 @@
 use dyst_ast::{Argument, Mutability, Path};
+use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::{best_fitting, format_args, write};
 
 use crate::argument::list_like;
 use crate::block::format_block;
@@ -361,7 +362,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if let Some(visibility) = visibility {
                     write!(f, [visibility, space()])?;
                 }
-                
+
                 write!(
                     f,
                     [group(&format_with(|f| {
@@ -382,20 +383,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         }
                         // value
                         if let Some(value) = value {
-                            write!(
-                                f,
-                                [
-                                    space(),
-                                    token("="),
-                                    soft_block_indent(&format_args![
-                                        soft_line_break_or_space(),
-                                        value
-                                    ])
-                                ]
-                            )
-                        } else {
-                            Ok(())
+                            write!(f, [space(), token("=")])?;
+                            let value_on_same_line = format_with(|f| write!(f, [space(), value]));
+                            let value_on_new_line = format_with(|f| {
+                                block_indent(&format_args![hard_line_break(), value]).format(f)
+                            });
+                            best_fitting![value_on_same_line, value_on_new_line]
+                                .with_mode(BestFittingMode::AllLines)
+                                .format(f)?;
                         }
+                        Ok(())
                     }))]
                 )?;
             }
@@ -409,31 +406,34 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 static_parameters,
                 value,
             } => {
-                // export
-                if let Some(export) = export {
-                    write!(f, [export, space()])?;
-                }
-                // visibility
-                if let Some(visibility) = visibility {
-                    write!(f, [visibility, space()])?;
-                }
-                // keyword
-                if *mutability == Some(Mutability::Immutable) {
-                    // for readonly type expression
-                    write!(f, [Keyword::Readonly])?;
-                } else {
-                    write!(f, [Keyword::Type])?;
-                }
-                // name
-                if let Some(name) = name {
-                    write!(f, [space(), name])?;
-                    if let Some(static_parameters) = static_parameters {
-                        write!(f, [list_like("<", ">", ",", false, static_parameters)])?;
-                    }
-                    write!(f, [space(), token("="), space(), value])?;
-                } else {
-                    write!(f, [space(), value])?;
-                }
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        // export
+                        if let Some(export) = export {
+                            write!(f, [export, space()])?;
+                        }
+                        // visibility
+                        if let Some(visibility) = visibility {
+                            write!(f, [visibility, space()])?;
+                        }
+                        // keyword
+                        if *mutability == Some(Mutability::Immutable) {
+                            // for readonly type expression
+                            write!(f, [Keyword::Readonly])?;
+                        } else {
+                            write!(f, [Keyword::Type])?;
+                        }
+                        // name
+                        write!(f, [space(), name])?;
+                        if let Some(static_parameters) = static_parameters {
+                            write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                        }
+                        write!(f, [space(), token("="), space(), value])?;
+
+                        Ok(())
+                    }))]
+                )?;
             }
 
             // let
@@ -648,7 +648,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // array literal
             Expression::ArrayLiteral { elements } => {
-                write!(f, [list_like("[", "]", ",", false, elements)])?;
+                write!(f, [list_like("[", "]", ",", elements)])?;
             }
 
             // tuple literal
@@ -656,7 +656,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if elements.len() == 1 {
                     write!(f, [token("("), elements[0], token(","), token(")")])?;
                 } else {
-                    write!(f, [list_like("(", ")", ",", false, elements)])?;
+                    write!(
+                        f,
+                        [list_like("(", ")", ",", elements).include_separator_if_one()]
+                    )?;
                 }
             }
 
@@ -665,7 +668,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if let Some(ty) = ty {
                     write!(f, [ty, space()])?;
                 }
-                write!(f, [list_like("{", "}", ",", true, fields)])?;
+                write!(
+                    f,
+                    [list_like("{", "}", ",", fields)
+                        .include_space()
+                        .include_separator_if_one()]
+                )?;
             }
 
             // tree literal
@@ -742,7 +750,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
                 write!(f, [receiver])?;
                 if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
-                    write!(f, [list_like("(", ")", ",", false, dynamic_arguments)])?;
+                    write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
                 }
             }
 
@@ -1005,15 +1013,16 @@ mod tests {
     #[test]
     fn test_format_expression_call_with_struct_literal() {
         let source = r#"Destack.serve({
-    fetch(req: Request) {
+    fetch: function (req: Request) {
         return Response("Success!");
-    },
+    }
+    run: true
 })"#;
         assert_format!(
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 }

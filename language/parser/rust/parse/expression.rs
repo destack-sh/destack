@@ -944,7 +944,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression_id, Expression::LetType { name, visibility, export, .. } => {
-            assert_string!(parser, name.unwrap(), "NonNullValue");
+            assert_string!(parser, *name, "NonNullValue");
             assert!(visibility.is_none());
             assert!(export.is_some());
         });
@@ -1951,7 +1951,7 @@ type Value =
         // type Value = | string | number | boolean
         assert_node!(parser.tree, expr_id, Expression::LetType { name, value, .. } => {
             // value
-            assert_string!(parser, name.unwrap(), "Value");
+            assert_string!(parser, *name, "Value");
             // | string | number | boolean
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);

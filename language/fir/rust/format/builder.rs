@@ -563,9 +563,6 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// Content that may get parenthesized if it exceeds the configured line width but only if the parenthesized
 /// layout doesn't exceed the line width too, in which case it falls back to the flat layout.
 ///
-/// This IR is identical to the following [`best_fitting`] layout but is implemented as custom IR for
-/// better performance.
-///
 /// The node breaks from left-to-right because it uses the unintended version as *expanded* layout, the same as the above showed best fitting example.
 #[inline]
 pub fn best_fit_parenthesize<Context>(
@@ -1066,7 +1063,6 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
 }
 
 /// The first variant is the most flat, and the last is the most expanded variant.
-/// See [`best_fitting!`] macro for a more in-detail documentation
 #[derive(Copy, Clone, Debug)]
 pub struct BestFitting<'a, Context> {
     variants: Arguments<'a, Context>,
