@@ -2,7 +2,7 @@
     "name": "destack-extension-vscode",
     "displayName": "Destack & Dyst",
     "description": "Destack & Dyst for VSCode (.ds, .dst, .dsb, .dsx)",
-    "version": "2025.10.20-2",
+    "version": "2025.10.21-0",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"
@@ -26,8 +26,8 @@
     "main": "./out/extension.js",
     "files": [
         "out/extension.js",
-        "ds-configuration.json",
-        "dst-configuration.json",
+        "language.json",
+        "language.tmLanguage",
         "package.json",
         "README.md",
         "LICENSE.txt"
@@ -72,7 +72,7 @@
                 "extensions": [
                     ".ds"
                 ],
-                "configuration": "./ds-configuration.json"
+                "configuration": "./language.json"
             },
             {
                 "id": "dst",
@@ -82,7 +82,7 @@
                 "extensions": [
                     ".dst"
                 ],
-                "configuration": "./dst-configuration.json"
+                "configuration": "./language.json"
             },
             {
                 "id": "dsb",
@@ -101,6 +101,18 @@
                 "extensions": [
                     ".dsx"
                 ]
+            }
+        ],
+        "grammars": [
+            {
+                "language": "dyst",
+                "scopeName": "source.ds",
+                "path": "./language.tmLanguage"
+            },
+            {
+                "language": "dst",
+                "scopeName": "source.ds",
+                "path": "./language.tmLanguage"
             }
         ]
     },

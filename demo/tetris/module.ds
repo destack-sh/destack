@@ -447,15 +447,16 @@ implement TetrisGame: New {
 
     /// Get a random piece shape.
     function getRandomShape(random: &Random) => TetrisPieceShape {
-        const shapes = [
-            TetrisPieceShape.I
-            TetrisPieceShape.J
-            TetrisPieceShape.L
-            TetrisPieceShape.O
-            TetrisPieceShape.S
-            TetrisPieceShape.T
-            TetrisPieceShape.Z
-        ]
+        const shapes =
+            [
+                TetrisPieceShape.I
+                TetrisPieceShape.J
+                TetrisPieceShape.L
+                TetrisPieceShape.O
+                TetrisPieceShape.S
+                TetrisPieceShape.T
+                TetrisPieceShape.Z
+            ]
         shapes[random.range(0, 7)]
     }
 }

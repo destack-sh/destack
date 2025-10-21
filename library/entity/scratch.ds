@@ -38,6 +38,14 @@ app.get('/', (c) => c.text('Hono!'))
 
 export default app
 
+export const createTask = mutation({
+  args: { text: v.string() },
+  handler: (ctx, args) => {
+    const newTaskId = await ctx.db.insert("tasks", { text: args.text });
+    return newTaskId;
+  },
+});
+
 export const aiAgent = actor({
 	// Persistent state that survives restarts: https://rivet.dev/docs/actors/state
 	state: {
@@ -126,6 +134,56 @@ export default function Chat() {
 	);
 }
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+ 
+export function AlertDialogPreview() {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline">
+          <Text>"Show Alert Dialog"</Text>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>"Are you absolutely sure?"</AlertDialogTitle>
+          <AlertDialogDescription>
+            "This action cannot be undone. This will permanently delete your account and remove your"
+            "data from our servers."
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            <Text>"Cancel"</Text>
+          </AlertDialogCancel>
+          <AlertDialogAction>
+            <Text>"Continue"</Text>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+export const mutateSomething = mutation({
+  args: { a: v.number(), b: v.number() },
+  handler: (ctx, args) => {
+    // Do something with `ctx`
+  },
+});
+
 {
 	title: 'Annotation',
 	key: 'annotation',
@@ -150,6 +208,18 @@ export default function Chat() {
 }
 
 export default app;
+
+export const addItem = mutation({
+  args: { text: v.string() },
+  handler: (ctx, args) => {
+    await ctx.db.insert("tasks", { text: args.text });
+    await trackChange(ctx, "addItem");
+  },
+});
+
+// async function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
+//   await ctx.db.insert("changes", { type });
+// }
 
 interface T<A> {
     readonly a?: string;
