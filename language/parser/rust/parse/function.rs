@@ -1,6 +1,6 @@
 //! Parse functions and closures.
 
-use dyst_ast::{NodeType, Parameter};
+use dyst_ast::{FunctionAccessor, FunctionCardinality, NodeType, Parameter};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
@@ -126,6 +126,10 @@ impl<'a> Parser<'a> {
     ///    ...
     /// }
     ///
+    /// // getter/setter style
+    /// get foo() => int32
+    /// set foo(value: int32)
+    ///
     /// function @comptime() {
     ///    ...
     /// }
@@ -156,6 +160,25 @@ impl<'a> Parser<'a> {
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
+        // async
+        let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
+            self.bump(); // eat async keyword
+            true
+        } else {
+            false
+        };
+
+        // accessor
+        let accessor = if self.peek_keyword(Keyword::Get).is_ok() {
+            self.bump(); // eat get keyword
+            Some(FunctionAccessor::Getter)
+        } else if self.peek_keyword(Keyword::Set).is_ok() {
+            self.bump(); // eat set keyword
+            Some(FunctionAccessor::Setter)
+        } else {
+            None
+        };
+
         // function style
         // regular `function` style
         let style = if self.peek_keyword(Keyword::Function).is_ok() {
@@ -178,6 +201,14 @@ impl<'a> Parser<'a> {
         // lambda style
         else {
             FunctionStyle::Lambda
+        };
+
+        // cardinality
+        let is_generator = if self.peek_token(TokenType::Multiply).is_ok() {
+            self.bump(); // eat *
+            true
+        } else {
+            false
         };
 
         // function style: runtime, name, static parameters
@@ -327,12 +358,32 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // cardinality
+        let cardinality = if is_async {
+            // asynchronous
+            if is_generator {
+                FunctionCardinality::AsyncGenerator
+            } else {
+                FunctionCardinality::AsyncScalar
+            }
+        } else {
+            // synchronous
+            if is_generator {
+                FunctionCardinality::Generator
+            } else {
+                FunctionCardinality::Scalar
+            }
+        };
+
+        // function
         let function_id = self.tree.insert(
             Definition::Function {
                 name,
                 visibility,
                 export,
                 runtime,
+                cardinality,
+                accessor,
                 style,
                 static_parameters,
                 self_parameter,
@@ -350,7 +401,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{FunctionStyle, Parameter};
+    use dyst_ast::{FunctionCardinality, FunctionStyle, Parameter};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -600,6 +651,28 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
                     assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_async_generator() {
+        let mut test = TestParser::new(
+            r#"
+async function* foo() => int32 { 
+    yield 1
+    yield 2
+    yield 3
+}"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
+        // async function* foo() => int32 { body }
+        assert_node!(parser.tree, function_id, Definition::Function { name, cardinality, .. } => {
+            // foo
+            assert_string!(parser, name.unwrap(), "foo");
+            assert_eq!(*cardinality, FunctionCardinality::AsyncGenerator);
         });
     }
 }

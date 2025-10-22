@@ -1,5 +1,8 @@
 use dyst_ast as ast;
-use dyst_dir::{Expression, FunctionStyle, NodeId, Path, PathBase, Runtime, Visibility};
+use dyst_dir::{
+    Expression, FunctionAccessor, FunctionCardinality, FunctionStyle, NodeId, Path, PathBase,
+    Runtime, Visibility,
+};
 use dyst_source::SourceId;
 
 use crate::Compiler;
@@ -30,6 +33,29 @@ impl<'a> Compiler<'a> {
         match style {
             ast::FunctionStyle::Function => FunctionStyle::Function,
             ast::FunctionStyle::Lambda => FunctionStyle::Lambda,
+        }
+    }
+
+    /// Lower function cardinality into a DIR function cardinality.
+    #[inline]
+    pub fn lower_function_cardinality(
+        &self,
+        cardinality: ast::FunctionCardinality,
+    ) -> FunctionCardinality {
+        match cardinality {
+            ast::FunctionCardinality::Scalar => FunctionCardinality::Scalar,
+            ast::FunctionCardinality::Generator => FunctionCardinality::Generator,
+            ast::FunctionCardinality::AsyncScalar => FunctionCardinality::AsyncScalar,
+            ast::FunctionCardinality::AsyncGenerator => FunctionCardinality::AsyncGenerator,
+        }
+    }
+
+    /// Lower function accessor into a DIR function accessor.
+    #[inline]
+    pub fn lower_function_accessor(&self, accessor: ast::FunctionAccessor) -> FunctionAccessor {
+        match accessor {
+            ast::FunctionAccessor::Getter => FunctionAccessor::Getter,
+            ast::FunctionAccessor::Setter => FunctionAccessor::Setter,
         }
     }
 

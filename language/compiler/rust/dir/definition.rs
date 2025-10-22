@@ -429,6 +429,8 @@ impl<'a> Compiler<'a> {
                 visibility,
                 export,
                 runtime,
+                cardinality,
+                accessor,
                 style,
                 self_parameter,
                 dynamic_parameters,
@@ -441,6 +443,8 @@ impl<'a> Compiler<'a> {
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let runtime = self.lower_runtime(*runtime);
+                let cardinality = self.lower_function_cardinality(*cardinality);
+                let accessor = accessor.map(|a| self.lower_function_accessor(a));
                 let style = self.lower_function_style(*style);
                 let export = export.map(|e| self.lower_export_mode(e));
                 let static_parameters = static_parameters.as_ref().map(|params| {
@@ -481,6 +485,8 @@ impl<'a> Compiler<'a> {
                         visibility,
                         export,
                         runtime,
+                        cardinality,
+                        accessor,
                         style,
                         static_parameters,
                         self_parameter,
