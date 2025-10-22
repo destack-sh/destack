@@ -56,6 +56,14 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // ? maybe
+        let is_maybe = if self.peek_token(TokenType::Maybe).is_ok() {
+            self.bump(); // eat maybe
+            true
+        } else {
+            false
+        };
+
         // : type (or keyword for #Leniency)
         let ty = {
             if self.peek_colon().is_ok()
@@ -72,6 +80,15 @@ impl<'a> Parser<'a> {
                 None
             }
         };
+        // wrap type in maybe if needed
+        let ty = ty.map(|ty| {
+            if is_maybe {
+                self.tree
+                    .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
+            } else {
+                ty
+            }
+        });
 
         // = value
         let parameter = {
@@ -236,6 +253,26 @@ impl<'a> Parser<'a> {
             let name = self.eat_name().for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Named { name, value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // named maybe argument
+        else if self.peek_name().is_ok()
+            && self.peek_next_token(TokenType::Maybe).is_ok()
+            && self.peek_next_next_token(TokenType::Colon).is_ok()
+        {
+            // name
+            let name = self.eat_name()?;
+            self.bump(); // eat maybe
+            self.bump(); // eat colon
+            // value
+            let value =
+                self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+            let value = self
+                .tree
+                .insert(Expression::Maybe(value), self.tree.spans.get(value));
             let argument_id = self
                 .tree
                 .insert(Argument::Named { name, value }, self.get_span_from(start));
@@ -480,6 +517,23 @@ mod tests {
                 is_signed: true
             })));
             assert!(default.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_with_maybe_type() {
+        // x?: int32
+        let mut test = TestParser::new("x?: int32");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty: Some(ty), default: None } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *ty, Expression::Maybe(expression_id) => {
+                assert_node!(parser.tree, *expression_id, Expression::TypeLiteral(TypeLiteral::Int(IntType {
+                    width: Some(32),
+                    is_signed: true
+                })));
+            });
         });
     }
 

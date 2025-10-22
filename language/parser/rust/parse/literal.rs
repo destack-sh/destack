@@ -559,7 +559,7 @@ impl<'a> Parser<'a> {
 
     /// Wrap an expression in a readonly maybe type (maybe).
     #[inline]
-    fn make_readonly_maybe(
+    pub(crate) fn make_readonly_maybe(
         &mut self,
         is_readonly: bool,
         expression_id: NodeId<Expression>,
@@ -576,7 +576,7 @@ impl<'a> Parser<'a> {
             expression_id
         }
     }
-
+    
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
     pub(crate) fn eat_struct_literal_body(
         &mut self,
@@ -618,7 +618,7 @@ impl<'a> Parser<'a> {
             let argument_id = {
                 // readonly
                 let is_readonly = if self.peek_keyword(Keyword::Readonly).is_ok()
-                    && self.peek_next_token(TokenType::Identifier).is_ok()
+                    && self.peek_next_name().is_ok()
                 {
                     self.bump(); // eat readonly
                     true

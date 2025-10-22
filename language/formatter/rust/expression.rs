@@ -718,12 +718,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if let Some(ty) = ty {
                     write!(f, [ty, space()])?;
                 }
-                write!(
-                    f,
-                    [list_like("{", "}", ",", fields)
-                        .include_space()
-                        .include_separator_if_one()]
-                )?;
+                write!(f, [list_like("{", "}", ",", fields).include_space()])?;
             }
 
             // tree literal
