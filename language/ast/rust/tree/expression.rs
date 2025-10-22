@@ -258,8 +258,10 @@ pub enum Expression {
     /// ```
     Try {
         runtime: Option<Runtime>,
-        try_block: NodeId<Expression>,
-        catch_block: Option<NodeId<Expression>>,
+        try_expression: NodeId<Expression>,
+        catch_expression: Option<NodeId<Expression>>,
+        // nocheckin: support finally expressions
+        // finally_expression: Option<NodeId<Expression>>,
     },
 
     /// A Match is match expression with case patterns.

@@ -1227,8 +1227,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Try {
                 runtime,
-                try_block: _,
-                catch_block: _,
+                try_expression: _,
+                catch_expression: _,
             } => {
                 self.node("Expression::Try", _id.id)
                     .field_optional("runtime", runtime)
