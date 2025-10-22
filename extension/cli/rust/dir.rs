@@ -16,6 +16,7 @@ pub const HELP: &str = r"Parse and compile source into DIR (implicit module).
     --package <path>   The package to compile (default: auto-detect)
     --standalone       Compile as standalone package (disable auto-detect)
     --verbose          Print verbose output
+    --silent           Don't print anything to the console (except errors)
     ";
 
 /// Parse source into an DIR and dump the module.
@@ -25,6 +26,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let package = ctx.option("package");
     let standalone = ctx.flag("standalone");
     let verbose = ctx.flag("verbose");
+    let silent = ctx.flag("silent");
 
     // load workspace
     let mut workspace: Workspace = {
@@ -114,14 +116,16 @@ pub fn run(ctx: CommandArguments) -> i32 {
     compiler.finalize();
 
     // dump the DIR
-    let dump_options = DumperOptions::default();
-    let mut dumper = compiler.dumper(dump_options);
-    dumper.visit_definition(
-        &compiler.tree,
-        definition_id,
-        compiler.tree.get(definition_id),
-    );
-    console::info(&dumper.finish());
+    if !silent {
+        let dump_options = DumperOptions::default();
+        let mut dumper = compiler.dumper(dump_options);
+        dumper.visit_definition(
+            &compiler.tree,
+            definition_id,
+            compiler.tree.get(definition_id),
+        );
+        console::info(&dumper.finish());
+    }
 
     // print diagnostics
     for diagnostic in &session.diagnostics {
