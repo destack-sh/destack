@@ -6,12 +6,6 @@ use crate::{
     ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator, Visibility,
 };
 
-// TODO #Incomplete: support arbitrary string literals as fields/arguments...?
-//  generalized [variable] for field names/arguments? e.g. `{ [variable]: 2 }`
-//  for fields/arguments: `{ "Content-Type": "application/json" }`
-//  also regex literals like `/^[a-z]+$/`
-//  and for literals like { [variable]: 2 }
-
 /// An Expression is a generic container for value-producing forms.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,

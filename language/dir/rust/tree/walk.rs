@@ -868,18 +868,37 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::VariantField, id.id);
     match variant_field {
         VariantField::Named {
+            visibility: _,
             mutability: _,
             name: _,
             ty,
             default,
         }
         | VariantField::Positional {
+            visibility: _,
             mutability: _,
             ty,
             default,
         } => {
             let ty_node = tree.get(*ty);
             visitor.visit_type(tree, *ty, ty_node);
+            if let Some(default) = default {
+                let default_expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expression);
+            }
+        }
+        VariantField::Dynamic {
+            visibility: _,
+            mutability: _,
+            name: _,
+            ty,
+            key,
+            default,
+        } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_type(tree, *ty, ty_node);
+            let key_node = tree.get(*key);
+            visitor.visit_type(tree, *key, key_node);
             if let Some(default) = default {
                 let default_expression = tree.get(*default);
                 visitor.visit_expression(tree, *default, default_expression);
@@ -1001,6 +1020,16 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
+        Argument::UnresolvedDynamic {
+            name: _,
+            key,
+            value,
+        } => {
+            let key_expression = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expression);
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
         Argument::Direct {
             name: _,
             slot,
@@ -1017,6 +1046,16 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
                     visitor.visit_variant_field(tree, *field, field_node);
                 }
             }
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+        Argument::Dynamic {
+            name: _,
+            key,
+            value,
+        } => {
+            let key_expression = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expression);
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

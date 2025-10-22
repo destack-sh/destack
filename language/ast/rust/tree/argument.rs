@@ -1,5 +1,25 @@
 use crate::{Expression, Node, NodeId, NodeType, Pattern, StringId};
 
+/// A Name is a regular or string identifier.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Name {
+    /// A regular identifier (regular `x` or `someThing`).
+    Identifier(StringId),
+    /// A string identifier (like `["Content-Type"]`, only in certain contexts).
+    String(StringId),
+}
+
+impl Name {
+    /// Get the string identifier.
+    #[inline]
+    pub fn string(&self) -> StringId {
+        match self {
+            Name::Identifier(id) => *id,
+            Name::String(id) => *id,
+        }
+    }
+}
+
 /// A Parameter is a parameter to some construct.
 ///
 /// Examples:
@@ -53,27 +73,32 @@ impl Node for Parameter {
 /// false
 /// ...args
 /// foo()
+/// ["Content-Type"]: "application/json"
+/// [x: string]: any
+/// [string]: woof
+/// [var] = "hello"
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Named argument.
+    /// Named argument (like `x: 1` or `y: foo()`).
     Named {
-        name: StringId,
+        name: Name,
         value: NodeId<Expression>,
     },
-    /// Named shorthand argument (only in certain contexts like struct literals).
+    /// Named shorthand argument (like `y`, only in certain contexts like struct literals).
     NamedShorthand { name: StringId },
-    /// Named shorthand function argument (only in certain contexts like struct literals).
+    /// Named shorthand function argument (like `foo()`, only in certain contexts like struct literals).
     NamedFunction {
         name: StringId,
         value: NodeId<Expression>,
     },
-    /// Positional argument.
+    /// Positional argument (like `1` or `foo()`).
     Positional { value: NodeId<Expression> },
-    /// Positional spread argument.
+    /// Positional spread argument (like `...args`).
     Spread { value: NodeId<Expression> },
-    /// Dynamic argument.
+    /// Dynamic argument (like `{ [variable]: 2 }`).
     Dynamic {
+        name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },

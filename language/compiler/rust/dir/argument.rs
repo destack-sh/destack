@@ -61,7 +61,7 @@ impl<'a> Compiler<'a> {
         let argument = ast.get(argument_id);
         match argument {
             ast::Argument::Named { name, value } => {
-                let name = self.intern_string(source_id, *name);
+                let name = self.intern_string(source_id, name.string());
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
                     Argument::UnresolvedNamed { name, value },
@@ -104,6 +104,16 @@ impl<'a> Compiler<'a> {
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
                     Argument::UnresolvedSpread { value },
+                    source_id,
+                    argument_id,
+                )
+            }
+            ast::Argument::Dynamic { name, key, value } => {
+                let name = name.map(|name| self.intern_string(source_id, name));
+                let key = self.lower_expression(source_id, ast, *key);
+                let value = self.lower_expression(source_id, ast, *value);
+                self.tree.insert_from_ast(
+                    Argument::UnresolvedDynamic { name, key, value },
                     source_id,
                     argument_id,
                 )

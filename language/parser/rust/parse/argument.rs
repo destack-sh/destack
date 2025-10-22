@@ -1,4 +1,4 @@
-use dyst_ast::{Expression, Keyword, Pattern, ScalarLiteral, StringId};
+use dyst_ast::{Expression, Keyword, Name, Pattern, ScalarLiteral, StringId};
 
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
@@ -223,15 +223,17 @@ impl<'a> Parser<'a> {
     /// y
     /// 2
     /// ...args
+    /// "Content-Type": "application/json"
+    /// [x: string]: any
+    /// [string]: woof
+    /// [var] = "hello"
     /// ```
     #[inline]
     pub fn eat_argument(&mut self) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
         // named argument
-        if self.peek_token(TokenType::Identifier).is_ok()
-            && (self.peek_next_token(TokenType::Colon).is_ok())
-        {
-            let name = self.eat_identifier().for_node_type(NodeType::Argument)?;
+        if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+            let name = self.eat_name().for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
@@ -248,6 +250,31 @@ impl<'a> Parser<'a> {
             let argument_id = self
                 .tree
                 .insert(Argument::Spread { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // dynamic argument
+        else if self.peek_token(TokenType::OpenBracket).is_ok() {
+            self.bump(); // eat open bracket
+            // name
+            let name = if self.peek_token(TokenType::Identifier).is_ok()
+                && self.peek_next_token(TokenType::Colon).is_ok()
+            {
+                let name = self.eat_identifier()?;
+                self.bump(); // eat colon
+                Some(name)
+            } else {
+                None
+            };
+            // key
+            let key = self.eat_expression().for_node_type(NodeType::Argument)?;
+            self.eat_token(TokenType::CloseBracket)?;
+            // value
+            self.eat_token(TokenType::Colon)?;
+            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let argument_id = self.tree.insert(
+                Argument::Dynamic { name, key, value },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // positional argument
@@ -303,9 +330,13 @@ impl<'a> Parser<'a> {
                 )
             };
 
-            let argument_id = self
-                .tree
-                .insert(Argument::Named { name, value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Named {
+                    name: Name::Identifier(name),
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
     }
@@ -405,7 +436,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Pattern, PatternField};
+    use dyst_ast::{Name, Pattern, PatternField};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -506,11 +537,28 @@ mod tests {
         let mut parser = test.prepare();
         let argument_id = parser.eat_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_named_string() {
+        // "Content-Type": "application/json"
+        let mut test = TestParser::new(r#""Content-Type": "application/json""#);
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::String(name), value } => {
+            // "Content-Type"
+            assert_string!(parser, *name, "Content-Type");
+            // "application/json"
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                assert_string!(parser, *string_id, "application/json");
+            });
         });
     }
 
@@ -538,6 +586,24 @@ mod tests {
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "args");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_dynamic() {
+        // [x: string]: any
+        let mut test = TestParser::new("[x: string]: any");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Dynamic { name, key, value } => {
+            // x
+            assert_string!(parser, name.unwrap(), "x");
+            // string
+            assert_node!(parser.tree, *key, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "string");
+            });
+            // any
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
         });
     }
 }

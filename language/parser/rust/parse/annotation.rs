@@ -709,6 +709,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Name;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
@@ -758,7 +760,7 @@ struct Test {}
                     });
                 });
                 // 1
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name, value } => {
+                assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
                     assert_string!(parser, *name, "length");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
@@ -1218,8 +1220,8 @@ struct Floof {
             assert_node!(parser.tree, *node, Definition::Struct { fields, .. } => {
                 // a: int32
                 assert_eq!(fields.len(), 1);
-                assert_node!(parser.tree, fields[0], VariantField { name, .. } => {
-                    assert_string!(parser, name.unwrap(), "a");
+                assert_node!(parser.tree, fields[0], VariantField::Named { name: Name::Identifier(name), .. } => {
+                    assert_string!(parser, *name, "a");
                     let annotations = parser.tree.get_annotations_for(fields[0].id);
                     assert_eq!(annotations.len(), 4);
 

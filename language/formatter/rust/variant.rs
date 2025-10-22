@@ -13,27 +13,78 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        // visibility
-        if let Some(visibility) = self.visibility {
-            write!(f, [visibility, space()])?;
-        }
-
-        // mutability
-        if self.mutability == Some(Mutability::Immutable) {
-            write!(f, [Keyword::Readonly, space()])?;
-        }
-
-        // name
-        if let Some(name) = self.name {
-            write!(f, [name, token(": ")])?;
-        }
-
-        // type
-        write!(f, [self.ty])?;
-
-        // default
-        if let Some(default) = self.default {
-            write!(f, [token(" = "), default])?;
+        match self {
+            VariantField::Named {
+                visibility,
+                mutability,
+                name,
+                ty,
+                default,
+            } => {
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+                // mutability
+                if *mutability == Some(Mutability::Immutable) {
+                    write!(f, [Keyword::Readonly, space()])?;
+                }
+                // name
+                write!(f, [name, token(": ")])?;
+                // type
+                write!(f, [ty])?;
+                // default
+                if let Some(default) = default {
+                    write!(f, [token(" = "), default])?;
+                }
+            }
+            VariantField::Positional {
+                visibility,
+                mutability,
+                ty,
+                default,
+            } => {
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+                // mutability
+                if *mutability == Some(Mutability::Immutable) {
+                    write!(f, [Keyword::Readonly, space()])?;
+                }
+                // type
+                write!(f, [ty])?;
+                // default
+                if let Some(default) = default {
+                    write!(f, [token(" = "), default])?;
+                }
+            }
+            VariantField::Dynamic {
+                visibility,
+                mutability,
+                name,
+                ty,
+                key,
+                default,
+            } => {
+                // visibility
+                if let Some(visibility) = visibility {
+                    write!(f, [visibility, space()])?;
+                }
+                // mutability
+                if *mutability == Some(Mutability::Immutable) {
+                    write!(f, [Keyword::Readonly, space()])?;
+                }
+                write!(f, [token("[")])?;
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [key, token("]"), token(":"), space(), ty])?;
+                // default
+                if let Some(default) = default {
+                    write!(f, [token(" = "), default])?;
+                }
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

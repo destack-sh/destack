@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Mutability;
+    use dyst_ast::{Mutability, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -169,20 +169,20 @@ interface Foo: Baz {
             });
 
             // value: int32
-            assert_node!(parser.tree, fields[0], VariantField { mutability, visibility, name, ty, default } => {
+            assert_node!(parser.tree, fields[0], VariantField::Named { mutability, visibility, name: Name::Identifier(name), ty, default, .. } => {
                 assert!(mutability.is_some());
                 assert_eq!(*mutability.as_ref().unwrap(), Mutability::Immutable);
                 assert!(visibility.is_none());
-                assert_string!(parser, name.unwrap(), "value");
+                assert_string!(parser, *name, "value");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // count: int32 = 4
-            assert_node!(parser.tree, fields[1], VariantField { mutability, visibility, name, ty, default } => {
+            assert_node!(parser.tree, fields[1], VariantField::Named { mutability, visibility, name: Name::Identifier(name), ty, default, .. } => {
                 assert!(mutability.is_none());
                 assert!(visibility.is_none());
-                assert_string!(parser, name.unwrap(), "count");
+                assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 let default_id = default.expect("expected default value");
                 assert_node!(parser.tree, default_id, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {

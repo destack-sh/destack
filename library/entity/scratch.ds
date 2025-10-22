@@ -519,6 +519,24 @@ export interface Props<Input = unknown, Output = Input> {
     readonly types?: Types<Input, Output> | undefined;
 }
 
+import { PGlite } from "@electric-sql/pglite"
+import { live } from "@electric-sql/pglite/live"
+import { PGliteProvider } from "@electric-sql/pglite-react"
+
+const db = await PGlite.create({
+  extensions: { live }
+})
+
+const App = () => {
+  // ...
+
+  return (
+    <PGliteProvider db={db}>
+      // ...
+    </PGliteProvider>
+  )
+}
+
 console.log(`Listening on ${server.url}`);
 
 `
@@ -606,3 +624,13 @@ const button = tv({
 <Pressable className={button({ color: 'primary', size: 'lg' })}>
 	<Text>Click me</Text>
 </Pressable>
+
+return (
+    <>
+        <nav>
+        <Logo />
+        <Search />
+        </nav>
+        <main>{children}</main>
+    </>
+)
