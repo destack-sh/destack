@@ -717,7 +717,7 @@ export function FunnelLineGraph({
                 data-attr="trend-line-graph-funnel"
                 type={GraphType.Line}
                 datasets={indexedSteps as unknown as GraphDataset[] }
-                // labels={indexedSteps?.[0]?.labels ?? ([] as string[])}
+                labels={indexedSteps?.[0]?.labels ?? ([] as string[])}
                 isInProgress={incompletenessOffsetFromEnd < 0}
                 inSharedMode={!!inSharedMode}
                 showPersonsModal={showPersonsModal}
@@ -727,19 +727,19 @@ export function FunnelLineGraph({
                     showHeader: false,
                     hideColorCol: true,
                     renderSeries: (_, datum) => {
-                        // if (!indexedSteps?.[0]?.days) {
-                        //     return 'Trend'
-                        // }
-                        // return (
-                        //     getFormattedDate(indexedSteps[0].days?.[datum.dataIndex], {
-                        //         interval,
-                        //         dateRange: insightData?.resolved_date_range,
-                        //         timezone: insightData?.timezone,
-                        //         weekStartDay,
-                        //     }) +
-                        //     ' ' +
-                        //     (insightData?.timezone ? shortTimeZone(insightData.timezone) : 'UTC')
-                        // )
+                        if (!indexedSteps?.[0]?.days) {
+                            return 'Trend'
+                        }
+                        return (
+                            getFormattedDate(indexedSteps[0].days?.[datum.dataIndex], {
+                                interval,
+                                dateRange: insightData?.resolved_date_range,
+                                timezone: insightData?.timezone,
+                                weekStartDay,
+                            }) +
+                            ' ' +
+                            (insightData?.timezone ? shortTimeZone(insightData.timezone) : 'UTC')
+                        )
                     },
                     renderCount: (count) => {
                         return `${count}%`
@@ -749,41 +749,41 @@ export function FunnelLineGraph({
                 labelGroupType={aggregationGroupTypeIndex ?? 'people'}
                 incompletenessOffsetFromEnd={incompletenessOffsetFromEnd}
                 onClick={
-                    // !showPersonsModal
-                    //     ? undefined
-                    //     : (payload) => {
-                    //           const { points, index } = payload
-                    //           const dataset = points.clickedPointNotLine
-                    //               ? points.pointsIntersectingClick[0].dataset
-                    //               : points.pointsIntersectingLine[0].dataset
-                    //           const day = dataset?.days?.[index] ?? ''
+                    !showPersonsModal
+                        ? undefined
+                        : (payload) => {
+                              const { points, index } = payload
+                              const dataset = points.clickedPointNotLine
+                                  ? points.pointsIntersectingClick[0].dataset
+                                  : points.pointsIntersectingLine[0].dataset
+                              const day = dataset?.days?.[index] ?? ''
 
-                    //           const title = (
-                    //               <>
-                    //                   {capitalizeFirstLetter(aggregationTargetLabel.plural)} converted on{' '}
-                    //                   <DateDisplay
-                    //                       interval={interval || 'day'}
-                    //                       resolvedDateRange={insightData?.resolved_date_range}
-                    //                       timezone={timezone}
-                    //                       weekStartDay={weekStartDay}
-                    //                       date={day?.toString() || ''}
-                    //                   />
-                    //               </>
-                    //           )
+                              const title = (
+                                  <>
+                                      {capitalizeFirstLetter(aggregationTargetLabel.plural)}
+                                      <DateDisplay
+                                          interval={interval || 'day'}
+                                          resolvedDateRange={insightData?.resolved_date_range}
+                                          timezone={timezone}
+                                          weekStartDay={weekStartDay}
+                                          date={day?.toString() || ''}
+                                      />
+                                  </>
+                              )
 
-                    //           const query: FunnelsActorsQuery = {
-                    //               kind: NodeKind.FunnelsActorsQuery,
-                    //               source: querySource,
-                    //               funnelTrendsDropOff: false,
-                    //               includeRecordings: true,
-                    //               funnelTrendsEntrancePeriodStart: dayjs(day).format('YYYY-MM-DD HH:mm:ss'),
-                    //           }
-                    //           openPersonsModal({
-                    //               title,
-                    //               query,
-                    //           })
-                    //       }
-                }
+                              const query: FunnelsActorsQuery = {
+                                  kind: NodeKind.FunnelsActorsQuery,
+                                  source: querySource,
+                                  funnelTrendsDropOff: false,
+                                  includeRecordings: true,
+                                  funnelTrendsEntrancePeriodStart: dayjs(day).format('YYYY-MM-DD HH:mm:ss'),
+                              }
+                              openPersonsModal({
+                                  title,
+                                  query,
+                              })
+                          }
+                    }
                 hideAnnotations={inSharedMode}
             />
         </LineGraphWrapper>
