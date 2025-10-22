@@ -548,8 +548,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // try
             Expression::Try {
                 runtime,
-                try_expression: r#try,
-                catch_expression: catch,
+                try_expression,
+                catch_pattern,
+                catch_expression,
+                finally_expression,
             } => {
                 // runtime
                 if let Some(runtime) = runtime
@@ -559,12 +561,20 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
 
                 // try <expression>
-                write!(f, [Keyword::Try, space(), r#try])?;
+                write!(f, [Keyword::Try, space(), try_expression])?;
 
                 // catch <expression>
-                if let Some(catch) = catch {
+                if let Some(catch) = catch_expression {
                     write!(f, [space(), Keyword::Catch, space()])?;
-                    format_match(f, *catch, false)?;
+                    if let Some(catch_pattern) = catch_pattern {
+                        write!(f, [catch_pattern, space()])?;
+                    }
+                    write!(f, [catch])?;
+                }
+
+                // finally <expression>
+                if let Some(finally) = finally_expression {
+                    write!(f, [space(), Keyword::Finally, space(), finally])?;
                 }
             }
 

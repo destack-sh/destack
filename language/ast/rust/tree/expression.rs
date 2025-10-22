@@ -233,7 +233,7 @@ pub enum Expression {
         body: NodeId<Block>,
     },
 
-    /// A Try is try/catch statement.
+    /// A Try is try/catch/finally statement.
     /// The try expression may be a single statement or a block of statements.
     /// Any error Result within the try expression aborts the try expression and:
     ///  1. If there is a catch, jumps to the catch pattern matching for handling.
@@ -247,21 +247,29 @@ pub enum Expression {
     ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
     ///     riskyOperationB(a)
     /// } // no catch needed if containing function has compatible Result type (Into suffices)
+    /// 
+    /// try {
+    ///     ...
+    /// } catch e {
+    ///     ... // regular catch
+    /// }
     ///
     /// try { // explicitly unwraps all Results inside
     ///     ...
-    /// } catch e { // match all errors
+    /// } catch match e { // match all errors
     ///     NumericError(x) => Error(@format("bad number: {x}"))
     ///     FormatError => Error(@format("bad format {e}"))
     ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
+    /// } finally {
+    ///     ...
     /// }
     /// ```
     Try {
         runtime: Option<Runtime>,
         try_expression: NodeId<Expression>,
+        catch_pattern: Option<NodeId<Pattern>>,
         catch_expression: Option<NodeId<Expression>>,
-        // nocheckin: support finally expressions
-        // finally_expression: Option<NodeId<Expression>>,
+        finally_expression: Option<NodeId<Expression>>,
     },
 
     /// A Match is match expression with case patterns.
