@@ -735,12 +735,24 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 left_expression_id = self.eat_index_postfix_explicit(left_expression_id)?;
             }
+            // index (explicit with `.[]`)
+            else if self.peek_token(TokenType::Dot).is_ok()
+                && self.peek_next_token(TokenType::OpenBracket).is_ok()
+            {
+                self.bump(); // eat .
+                left_expression_id = self.eat_index_postfix_explicit(left_expression_id)?;
+            }
             // call
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 left_expression_id = self.eat_call_postfix(left_expression_id, runtime)?;
             }
             // unwrap or ternary if
-            else if self.peek_token(TokenType::Maybe).is_ok() {
+            else if self.peek_token(TokenType::Maybe).is_ok()
+                || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok()
+            {
+                if self.peek_newline().is_ok() {
+                    self.bump(); // eat newline
+                }
                 self.bump(); // eat ?
                 // maybe
                 if self.peek_any_stop().is_ok()
@@ -758,6 +770,7 @@ impl<'a> Parser<'a> {
                     // then expression
                     let then_expression_id = self.eat_expression()?;
                     // :
+                    self.eat_newlines_maybe()?;
                     self.eat_colon()?;
                     // else expression
                     let else_expression_id = self.eat_expression()?;
@@ -1189,6 +1202,47 @@ mod tests {
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+
+    /// Parse a ternary if expression over multiple lines.
+    #[test]
+    fn test_parse_if_ternary_multiline() {
+        let mut test = TestParser::new("true\n\t? 1\n\t: 2");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+
+    /// Parse a mixed index postfix expression (should disambiguate ternary and index).
+    #[test]
+    fn test_parse_mixed_index_postfix() {
+        let mut test = TestParser::new("x?.[f]?.2");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // x?.[f]?.2
+        assert_node!(parser.tree, expr_id, Expression::Index { receiver: outer_receiver, index: outer_index } => {
+            assert_node!(parser.tree, outer_index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                assert_eq!(*value, 2);
+            });
+
+            assert_node!(parser.tree, *outer_receiver, Expression::Maybe(post_index_expression) => {
+                assert_node!(parser.tree, *post_index_expression, Expression::Index { receiver: inner_receiver, index: inner_index } => {
+                    assert_node!(parser.tree, inner_index.unwrap(), Expression::Path { path, static_arguments } => {
+                        assert!(static_arguments.is_none());
+                        assert_path!(parser, *path, "f");
+                    });
+
+                    assert_node!(parser.tree, *inner_receiver, Expression::Maybe(base_expression) => {
+                        assert_expr_path!(parser, parser.tree.get(*base_expression), "x");
+                    });
+                });
+            });
         });
     }
 
