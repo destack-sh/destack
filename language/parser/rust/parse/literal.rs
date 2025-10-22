@@ -466,17 +466,23 @@ impl<'a> Parser<'a> {
                 return Err(ParserError::unexpected(self.peek()?.span));
             }
 
-            // struct literal field (name: type, name?: type, name = <expr>)
+            // struct literal field
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;
             let next_next_token_ty = self.tokens[pos + 2].token.ty;
             match (token_ty, next_token_ty, next_next_token_ty) {
-                    // name:
+                    // identifier:
                     (TokenType::Identifier, TokenType::Colon, _)
-                    // name?:
+                    // identifier?:
                     | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)
-                    // name,
+                    // identifier,
                     | (TokenType::Identifier, TokenType::Comma, _)
+                    // string:
+                    | (TokenType::Literal, TokenType::Colon, _)
+                    // string?:
+                    | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
+                    // [
+                    | (TokenType::OpenBracket, _, _)
                     // ..T
                     | (TokenType::Range, TokenType::Identifier, _)
                     // ...T
@@ -1161,8 +1167,8 @@ mod tests {
     x: 1, 
     y,
     'Content-Type': 'application/json'
-    [var]: true
-} ",
+    [x]: true
+}",
         );
         let mut parser = test.prepare();
 
@@ -1185,10 +1191,10 @@ mod tests {
                 assert_string!(parser, *string_id, "application/json");
             });
         });
-        // [var]: true
+        // [x]: true
         assert_node!(parser.tree, arguments[3], Argument::Dynamic { name: None, key, value } => {
-            // var
-            assert_expr_path!(parser, parser.tree.get(*key), "var");
+            // x
+            assert_expr_path!(parser, parser.tree.get(*key), "x");
             // true
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         });

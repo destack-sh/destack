@@ -54,18 +54,25 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        // looks like a variant field (name: type, name?: type, name = <expr>)
+        // variant field
         if pos + 3 < self.tokens.len() {
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;
             let next_next_token_ty = self.tokens[pos + 2].token.ty;
             match (token_ty, next_token_ty, next_next_token_ty) {
-                // name:
+                // identifier:
                 (TokenType::Identifier, TokenType::Colon, _)
-                // name?:
+                // identifier?:
                 | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)
-                // name = 
-                | (TokenType::Identifier, TokenType::Assign, _) => {
+                // identifier = 
+                | (TokenType::Identifier, TokenType::Assign, _) 
+                // string:
+                | (TokenType::Literal, TokenType::Colon, _)
+                // string?:
+                | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
+                // [
+                | (TokenType::OpenBracket, _, _)
+                => {
                     return Ok(());
                 }
                 _ => {}
@@ -237,7 +244,7 @@ impl<'a> Parser<'a> {
             else if self.peek_any_stop().is_ok() {
                 self.eat_any_stop_with_newlines()?;
             }
-            // struct field
+            // variant field
             else if allow_fields && self.peek_variant_field().is_ok() {
                 let field = self
                     .eat_variant_field()
