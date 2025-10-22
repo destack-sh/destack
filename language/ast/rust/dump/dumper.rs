@@ -784,6 +784,20 @@ impl Dump for Runtime {
     }
 }
 
+/// Dump a FunctionCardinality as a string.
+impl Dump for FunctionCardinality {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a FunctionAccessor as a string.
+impl Dump for FunctionAccessor {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a IfStyle as a string.
 impl Dump for IfStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1529,6 +1543,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 visibility,
                 export,
                 runtime,
+                cardinality,
+                accessor,
                 style,
                 static_parameters: _,
                 self_parameter: _,
@@ -1543,6 +1559,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("visibility", visibility)
                     .field_optional("export", export)
                     .field("runtime", runtime)
+                    .field("cardinality", cardinality)
+                    .field_optional("accessor", accessor)
                     .field("style", style)
                     .end();
             }

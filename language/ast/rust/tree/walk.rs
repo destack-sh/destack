@@ -817,6 +817,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visibility: _,
             export: _,
             runtime: _,
+            cardinality: _,
+            accessor: _,
             style: _,
             static_parameters,
             self_parameter: _,

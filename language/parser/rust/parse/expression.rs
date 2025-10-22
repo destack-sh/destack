@@ -100,10 +100,6 @@ fn to_infix_operator(
 //  - new/delete
 //  - throw
 
-// nocheckin TODO #Incomplete support special function/lambda forms:
-//  - get/set/async/
-//  - function* and so on for generators (also * for lambdas and function shorthands)
-
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
     #[inline]
@@ -450,7 +446,11 @@ impl<'a> Parser<'a> {
                 )
             }
             // function
-            else if keyword == Some(Keyword::Function) {
+            else if keyword == Some(Keyword::Function)
+                || keyword == Some(Keyword::Async)
+                || keyword == Some(Keyword::Get)
+                || keyword == Some(Keyword::Set)
+            {
                 let function_id = self.eat_function(visibility, export, false, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),

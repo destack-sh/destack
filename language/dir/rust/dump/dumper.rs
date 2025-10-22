@@ -762,6 +762,20 @@ impl Dump for Runtime {
     }
 }
 
+/// Dump a FunctionCardinality as a string.
+impl Dump for FunctionCardinality {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a FunctionAccessor as a string.
+impl Dump for FunctionAccessor {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1607,6 +1621,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 export,
                 visibility,
                 runtime,
+                cardinality,
+                accessor,
                 style,
                 static_parameters: _,
                 self_parameter,
@@ -1619,6 +1635,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Function", id.id)
                     .field("runtime", runtime)
+                    .field("cardinality", cardinality)
+                    .field_optional("accessor", accessor)
                     .field("style", style)
                     .field_optional("name", name)
                     .field_optional("export", export)

@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantStyle};
 use crate::{
-    ExportMode, Expression, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
+    ExportMode, Expression, Keyword, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
     Visibility, WhereClause, WithClause,
 };
 
@@ -257,6 +257,7 @@ pub enum Definition {
     /// A Function is function or "lambda" declaration or definition.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
     /// In type contexts, lambda return evaluates to a type, otherwise it's a function definition.
+    /// Functions can have four cardinalities: async/sync, scalar/generator.
     ///
     /// Examples:
     /// ```
@@ -277,6 +278,10 @@ pub enum Definition {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     /// foo()
+    ///
+    /// // getter/setter style
+    /// get foo() => int32
+    /// set foo(value: int32)
     ///
     /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
@@ -319,6 +324,8 @@ pub enum Definition {
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
         runtime: Runtime,
+        cardinality: FunctionCardinality,
+        accessor: Option<FunctionAccessor>,
         style: FunctionStyle,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         self_parameter: Option<SelfParameter>,
@@ -345,6 +352,77 @@ impl Definition {
             Definition::Interface { name, .. } => *name,
             Definition::Implement { .. } => None,
             Definition::Function { name, .. } => *name,
+        }
+    }
+}
+
+/// The cardinality of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionCardinality {
+    /// Scalar, synchronous function.
+    Scalar,
+    /// Generator, asynchronous function.
+    Generator,
+    /// Asynchronous scalar function.
+    AsyncScalar,
+    /// Asynchronous generator function.
+    AsyncGenerator,
+}
+
+impl FunctionCardinality {
+    /// Whether the function is synchronous.
+    #[inline]
+    pub fn is_sync(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Scalar | FunctionCardinality::Generator
+        )
+    }
+
+    /// Whether the function is asynchronous.
+    #[inline]
+    pub fn is_async(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::AsyncScalar | FunctionCardinality::AsyncGenerator
+        )
+    }
+
+    /// Whether the function is a scalar.
+    #[inline]
+    pub fn is_scalar(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Scalar | FunctionCardinality::AsyncScalar
+        )
+    }
+
+    /// Whether the function is a generator.
+    #[inline]
+    pub fn is_generator(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Generator | FunctionCardinality::AsyncGenerator
+        )
+    }
+}
+
+/// The accessor type of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionAccessor {
+    /// A getter function.
+    Getter,
+    /// A setter function.
+    Setter,
+}
+
+impl FunctionAccessor {
+    /// Get the keyword for the function accessor.
+    #[inline]
+    pub fn to_keyword(&self) -> Keyword {
+        match self {
+            FunctionAccessor::Getter => Keyword::Get,
+            FunctionAccessor::Setter => Keyword::Set,
         }
     }
 }

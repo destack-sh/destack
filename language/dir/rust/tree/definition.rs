@@ -112,6 +112,8 @@ pub enum Definition {
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
         runtime: Runtime,
+        cardinality: FunctionCardinality,
+        accessor: Option<FunctionAccessor>,
         style: FunctionStyle,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         self_parameter: Option<SelfParameter>,
@@ -227,6 +229,66 @@ impl Definition {
 
 impl Node for Definition {
     const KIND: NodeType = NodeType::Definition;
+}
+
+/// The cardinality of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionCardinality {
+    /// Scalar, synchronous function.
+    Scalar,
+    /// Generator, asynchronous function.
+    Generator,
+    /// Asynchronous scalar function.
+    AsyncScalar,
+    /// Asynchronous generator function.
+    AsyncGenerator,
+}
+
+impl FunctionCardinality {
+    /// Whether the function is synchronous.
+    #[inline]
+    pub fn is_sync(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Scalar | FunctionCardinality::Generator
+        )
+    }
+
+    /// Whether the function is asynchronous.
+    #[inline]
+    pub fn is_async(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::AsyncScalar | FunctionCardinality::AsyncGenerator
+        )
+    }
+
+    /// Whether the function is a scalar.
+    #[inline]
+    pub fn is_scalar(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Scalar | FunctionCardinality::AsyncScalar
+        )
+    }
+
+    /// Whether the function is a generator.
+    #[inline]
+    pub fn is_generator(&self) -> bool {
+        matches!(
+            self,
+            FunctionCardinality::Generator | FunctionCardinality::AsyncGenerator
+        )
+    }
+}
+
+/// The accessor type of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionAccessor {
+    /// A getter function.
+    Getter,
+    /// A setter function.
+    Setter,
 }
 
 /// The "self" parameter for a function (also accepts `this` and `&`).

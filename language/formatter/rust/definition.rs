@@ -739,6 +739,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 visibility,
                 export,
                 runtime,
+                cardinality,
+                accessor,
                 style,
                 static_parameters,
                 self_parameter,
@@ -758,10 +760,32 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [visibility, space()])?;
                 }
 
-                if *style == FunctionStyle::Function {
-                    // keyword
-                    write!(f, [Keyword::Function, space()])?;
+                // cardinality
+                if cardinality.is_async() {
+                    write!(f, [Keyword::Async, space()])?;
+                }
 
+                // accessor
+                if let Some(accessor) = accessor {
+                    write!(f, [accessor.to_keyword(), space()])?;
+                }
+
+                // keyword
+                if *style == FunctionStyle::Function {
+                    // function keyword
+                    if cardinality.is_generator() {
+                        write!(f, [Keyword::Function, token("*"), space()])?;
+                    } else {
+                        write!(f, [Keyword::Function, space()])?;
+                    }
+                } else {
+                    // lambda (no keyword, maybe star)
+                    if cardinality.is_generator() {
+                        write!(f, [token("*"), space()])?;
+                    }
+                }
+
+                if *style == FunctionStyle::Function {
                     // name (with @)
                     if *runtime == Runtime::Static {
                         write!(f, [token("@")])?;
