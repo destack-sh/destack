@@ -96,10 +96,12 @@ fn to_infix_operator(
 
 // TODO #Incomplete: support special lenient forms 
 //  - declare/
-//  - get/set/async/
 //  - typeof
 //  - new/delete
 //  - throw
+
+// nocheckin TODO #Incomplete support special function/lambda forms:
+//  - get/set/async/
 //  - function* and so on for generators (also * for lambdas and function shorthands)
 
 impl<'a> Parser<'a> {

@@ -94,6 +94,22 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek a next string literal.
+    #[inline]
+    pub fn peek_next_string_literal(&self) -> ParserResult<&TokenSpan> {
+        let token = self.peek_next_token(TokenType::Literal)?;
+        if token.token.ty == TokenType::Literal
+            && token.token.literal
+                == Some(LiteralType::String {
+                    is_terminated: true,
+                })
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(token.span, TokenType::Literal))
+        }
+    }
+
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_name(&self) -> ParserResult<()> {
@@ -101,6 +117,18 @@ impl<'a> Parser<'a> {
             Ok(())
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Peek a next name (like `x` or `"Content-Type"`).
+    #[inline]
+    pub fn peek_next_name(&self) -> ParserResult<()> {
+        if self.peek_next_token(TokenType::Identifier).is_ok()
+            || self.peek_next_string_literal().is_ok()
+        {
+            Ok(())
+        } else {
+            Err(ParserError::unexpected(self.peek_next()?.span))
         }
     }
 
