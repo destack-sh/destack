@@ -716,7 +716,7 @@ export function FunnelLineGraph({
             <LineGraph
                 data-attr="trend-line-graph-funnel"
                 type={GraphType.Line}
-                datasets={indexedSteps as unknown as GraphDataset[] /* TODO: better typing */}
+                datasets={indexedSteps as unknown as GraphDataset[] }
                 // labels={indexedSteps?.[0]?.labels ?? ([] as string[])}
                 isInProgress={incompletenessOffsetFromEnd < 0}
                 inSharedMode={!!inSharedMode}

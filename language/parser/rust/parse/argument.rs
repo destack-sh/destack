@@ -39,8 +39,9 @@ impl<'a> Parser<'a> {
             if !is_variadic
                 && self
                     .peek_token_in(&[
-                        TokenType::OpenBrace,
                         TokenType::OpenParenthesis,
+                        TokenType::OpenBracket,
+                        TokenType::OpenBrace,
                         TokenType::Wildcard,
                     ])
                     .is_ok()
@@ -163,8 +164,9 @@ impl<'a> Parser<'a> {
             || self.peek_token(TokenType::Range).is_ok()
             || self.peek_token(TokenType::RangeWide).is_ok()
             // pattern
-            || self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
+            || self.peek_token(TokenType::OpenBracket).is_ok()
+            || self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Wildcard).is_ok()
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
@@ -488,7 +490,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_node,
-        assert_path, assert_string,
+        assert_name, assert_path, assert_string,
     };
 
     #[test]
@@ -551,16 +553,19 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_parameter_with_pattern_and_default() {
+    fn test_parse_parameter_with_pattern_and_defaults() {
         // { x }: T = false
-        let mut test = TestParser::new("{ x }: boolean = false");
+        let mut test = TestParser::new("{ x = 4 }: boolean = false");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, ty: Some(ty), default: Some(default) } => {
-            // { x }
+            // { x = 4 }
             assert_node!(parser.tree, *pattern, Pattern::Struct { ty: None, fields } => {
-                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None } => {
-                    assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: Some(default) } => {
+                    // x
+                    assert_name!(parser, *name, "x");
+                    // 4
+                    assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
                 });
             });
             // boolean

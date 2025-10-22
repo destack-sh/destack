@@ -180,6 +180,15 @@ macro_rules! assert_string {
     }};
 }
 
+/// Assert a `Name` directly against an expected string.
+#[macro_export]
+macro_rules! assert_name {
+    ($parser:expr, $name:expr, $expected:expr) => {{
+        let got = $parser.get_string($name.string());
+        assert_eq!(got, $expected, "expected name");
+    }};
+}
+
 /// Assert a `ScalarLiteral::String`.
 #[macro_export]
 macro_rules! assert_lit_string {

@@ -66,7 +66,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
                 let fields = self
-                    .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
+                    .with_options(self.options.nested(), |parser| {
+                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
+                    })
                     .for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Tuple { ty: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -77,7 +79,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open brace
                 self.eat_newlines_maybe()?;
                 let fields = self
-                    .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
+                    .with_options(self.options.nested(), |parser| {
+                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
+                    })
                     .for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Struct { ty: None, fields };
                 self.eat_token(TokenType::CloseBrace)?;
@@ -88,7 +92,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat open bracket
                 self.eat_newlines_maybe()?;
                 let fields = self
-                    .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)
+                    .with_options(self.options.nested(), |parser| {
+                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)
+                    })
                     .for_node_type(NodeType::Pattern)?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
@@ -274,12 +280,12 @@ impl<'a> Parser<'a> {
             let field_start = self.mark();
             let pattern_field = {
                 // named or named alias
-                if self.peek_identifier().is_ok() || self.peek_mutability().is_ok() {
+                if self.peek_name().is_ok() || self.peek_mutability().is_ok() {
                     // mutability
                     let mutability = self.eat_scoped_mutability_maybe()?;
 
                     // name
-                    let name = self.eat_identifier()?;
+                    let name = self.eat_name()?;
 
                     // alias or pattern
                     if self.peek_colon().is_ok() {
@@ -287,28 +293,52 @@ impl<'a> Parser<'a> {
                         // named alias
                         if self.peek_identifier().is_ok() {
                             let alias = self.eat_identifier().for_node_type(NodeType::Pattern)?;
+                            // default
+                            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                                self.bump(); // eat assign
+                                Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                            } else {
+                                None
+                            };
                             PatternField::NamedAlias {
+                                mutability,
                                 name,
                                 alias,
-                                mutability,
+                                default,
                             }
                         }
                         // named with pattern
                         else {
                             let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                            // default
+                            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                                self.bump(); // eat assign
+                                Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                            } else {
+                                None
+                            };
                             PatternField::Named {
+                                mutability,
                                 name,
                                 pattern: Some(pattern),
-                                mutability,
+                                default,
                             }
                         }
                     }
                     // named without pattern
                     else {
+                        // default
+                        let default = if self.peek_token(TokenType::Assign).is_ok() {
+                            self.bump(); // eat assign
+                            Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                        } else {
+                            None
+                        };
                         PatternField::Named {
+                            mutability,
                             name,
                             pattern: None,
-                            mutability,
+                            default,
                         }
                     }
                 }
@@ -341,8 +371,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Mutability, Pattern, PatternField, ScalarLiteral, assert_expr_path, assert_node,
-        assert_path, assert_string,
+        Mutability, Pattern, PatternField, ScalarLiteral, assert_expr_path, assert_name,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -423,8 +453,8 @@ mod tests {
             assert_eq!(fields.len(), 5);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+                assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
@@ -438,14 +468,14 @@ mod tests {
             });
 
             // var y
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }) } => {
-                assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }), default: None } => {
+                assert_name!(parser, *name, "y");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const z
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability }) } => {
-                assert_string!(parser, *name, "z");
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability }), default: None } => {
+                assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Immutable);
             });
 
@@ -499,8 +529,8 @@ mod tests {
             assert_eq!(fields.len(), 3);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+                assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
@@ -558,27 +588,27 @@ mod tests {
             assert_eq!(fields.len(), 5);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+                assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
             });
 
             // y
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None } => {
-                assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+                assert_name!(parser, *name, "y");
             });
 
             // var z
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }) } => {
-                assert_string!(parser, *name, "z");
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }), default: None } => {
+                assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const w: 4
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), mutability: Some(ScopedMutability::Unscoped { mutability }) } => {
-                assert_string!(parser, *name, "w");
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), mutability: Some(ScopedMutability::Unscoped { mutability }), default: None } => {
+                assert_name!(parser, *name, "w");
                 assert_eq!(*mutability, Mutability::Immutable);
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
@@ -606,16 +636,16 @@ mod tests {
             assert_eq!(fields.len(), 2);
 
             // x: 0
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
-                assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None, default: None } => {
+                assert_name!(parser, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
                 });
             });
 
             // y
-            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None } => {
-                assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, mutability: None, default: None } => {
+                assert_name!(parser, *name, "y");
             });
         });
     }

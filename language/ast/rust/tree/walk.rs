@@ -1216,21 +1216,30 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::PatternField, id.id);
     match pattern_field {
         PatternField::Named {
+            mutability: _,
             name: _,
             pattern,
-            mutability: _,
+            default,
         } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
             }
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
         }
         PatternField::NamedAlias {
+            mutability: _,
             name: _,
             alias: _,
-            mutability: _,
+            default,
         } => {
-            // no child nodes to visit
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
         }
         PatternField::Positional { pattern } => {
             let pattern_node = tree.get(*pattern);

@@ -141,32 +141,38 @@ impl<'a> Compiler<'a> {
                 mutability,
                 name,
                 pattern,
+                default,
             } => {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
-                let name = self.intern_string(source_id, *name);
+                let name = self.intern_string(source_id, name.string());
                 let pattern = pattern.map(|pattern| self.lower_pattern(source_id, ast, pattern));
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 PatternField::Named {
                     mutability,
                     name,
                     pattern,
+                    default,
                 }
             }
             ast::PatternField::NamedAlias {
                 mutability,
                 name,
                 alias,
+                default,
             } => {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
-                let name = self.intern_string(source_id, *name);
+                let name = self.intern_string(source_id, name.string());
                 let alias = self.intern_string(source_id, *alias);
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 PatternField::NamedAlias {
                     mutability,
                     name,
                     alias,
+                    default,
                 }
             }
             ast::PatternField::Positional {

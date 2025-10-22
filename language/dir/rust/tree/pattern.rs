@@ -56,12 +56,14 @@ pub enum PatternField {
         mutability: Option<ScopedMutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
+        default: Option<NodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y`).
     NamedAlias {
         mutability: Option<ScopedMutability>,
         name: StringId,
         alias: StringId,
+        default: Option<NodeId<Expression>>,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: NodeId<Pattern> },

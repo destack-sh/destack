@@ -195,7 +195,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
-        TypeLiteral, assert_node, assert_path, assert_string,
+        TypeLiteral, assert_name, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -314,11 +314,11 @@ const (x, y) = foo()
                 assert_eq!(fields.len(), 2);
                 // x
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
-                    assert_string!(parser, *name, "x");
+                    assert_name!(parser, *name, "x");
                 });
                 // y
                 assert_node!(parser.tree, fields[1], PatternField::Named { name, .. } => {
-                    assert_string!(parser, *name, "y");
+                    assert_name!(parser, *name, "y");
                 });
             });
 
