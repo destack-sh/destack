@@ -10,8 +10,6 @@ use crate::{
     Runtime, SelfParameter, Visibility,
 };
 
-// nocheckin: support return type annotation for lambdas (like `(): int32 => x`)
-
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
     fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {
@@ -98,9 +96,11 @@ impl<'a> Parser<'a> {
     /// // lambda style (type context)
     /// (a: int32) => int32
     /// (int32) => (boolean, int32)
+    /// (x): int32 => x
     ///
     /// // lambda style (value context)
     /// (a) => a > 2
+    /// (a): int32 => a > 2
     /// (a: int32) => {
     ///    print("Hello, world!")
     /// }
@@ -259,7 +259,18 @@ impl<'a> Parser<'a> {
         // return type info (including with/where)
         // only for functions or lambda types
         let (return_type, with_clauses, where_clauses) = {
-            if style == FunctionStyle::Function || self.options.in_type {
+            // lambda with explicit return type
+            if style == FunctionStyle::Lambda && self.peek_colon().is_ok() {
+                self.bump(); // eat colon
+                // return type
+                let return_type = self
+                    .with_options(self.options.nested_type_in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                (Some(return_type), None, None)
+            }
+            // regular function with return type or lambda type
+            else if style == FunctionStyle::Function || self.options.in_type {
                 // return type
                 let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
                     self.bump(); // eat arrow or colon
@@ -279,7 +290,9 @@ impl<'a> Parser<'a> {
                 let where_clauses = self.eat_where_maybe()?;
 
                 (return_type, with_clauses, where_clauses)
-            } else {
+            }
+            // nothing
+            else {
                 (None, None, None)
             }
         };
@@ -355,6 +368,32 @@ mod tests {
             assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                 assert_eq!(int_ty.width, Some(32));
                 assert!(int_ty.is_signed);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_lambda_with_explicit_return_type() {
+        let mut test = TestParser::new("(x): int32 => x");
+        let mut parser = test.prepare();
+
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
+        // (x): int32 => x
+        assert_node!(parser.tree, function_id, Definition::Function { name: None, style, dynamic_parameters, return_type, body: Some(body), .. } => {
+            assert_eq!(*style, FunctionStyle::Lambda);
+            // x
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                assert_string!(parser, *name, "x");
+            });
+            // int32
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
+            });
+            // x
+            assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "x");
             });
         });
     }

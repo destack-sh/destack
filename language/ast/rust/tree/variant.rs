@@ -68,7 +68,7 @@ pub enum VariantField {
     },
 }
 
-// nocheckin #Incomplete: getter/setter functions for Struct/Union/Interface/...Fields?
+// nocheckin TODO #Incomplete: getter/setter functions for Struct/Union/Interface/...Fields?
 //  (useful for SOA-style struct views?)
 //  (how does this interact with interfaces and unions?)
 //  (how does this relate with Entities?)

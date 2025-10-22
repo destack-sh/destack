@@ -263,9 +263,11 @@ pub enum Definition {
     /// // lambda style (type context)
     /// (a: int32) => int32
     /// (int32) => (boolean, int32)
+    /// (x): int32 => x
     ///
     /// // lambda style (value context)
     /// (a) => a > 2
+    /// (a): int32 => a > 2
     /// (a: int32) => {
     ///    print("Hello, world!")
     /// }
