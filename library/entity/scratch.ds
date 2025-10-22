@@ -10,9 +10,9 @@ export {
 	type StructuredObjectOptions,
 } from './lib/structured-object.ng';
 
-export type UseChatHelpers<UI_MESSAGE: UIMessage> {
+export type UseChatHelpers<UI_MESSAGE extends UIMessage> = {
 	// hey
-}
+};
 
 type T1 = Extract<string | number | (() => void), Function>;
 
@@ -22,28 +22,28 @@ interface Todo {
 }
 
 Bun.serve({
-  fetch(req: Request) {
-    return Response("Success!");
-  }
+	fetch(req: Request) {
+		return Response('Success!');
+	},
 });
 
 function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
 	return { ...todo, ...fieldsToUpdate };
 }
 
-import { Hono } from 'hono'
-const app = new Hono()
+import { Hono } from 'hono';
+const app = new Hono();
 
-app.get('/', (c) => c.text('Hono!'))
+app.get('/', (c) => c.text('Hono!'));
 
-export default app
+export default app;
 
 export const createTask = mutation({
-  args: { text: v.string() },
-  handler: (ctx, args) => {
-    const newTaskId = await ctx.db.insert("tasks", { text: args.text });
-    return newTaskId;
-  },
+	args: { text: v.string() },
+	handler: (ctx, args) => {
+		const newTaskId = await ctx.db.insert('tasks', { text: args.text });
+		return newTaskId;
+	},
 });
 
 export const aiAgent = actor({
@@ -117,7 +117,7 @@ export default function Chat() {
 			))}
 
 			<form
-				onSubmit={e => {
+				onSubmit={(e) => {
 					e.preventDefault();
 					sendMessage({ text: input });
 					setInput('');
@@ -127,7 +127,7 @@ export default function Chat() {
 					className="fixed dark:bg-zinc-900 bottom-0 w-full max-w-md p-2 mb-8 border border-zinc-300 dark:border-zinc-800 rounded shadow-xl"
 					value={input}
 					placeholder="Say something..."
-					onChange={e => setInput(e.currentTarget.value)}
+					onChange={(e) => setInput(e.currentTarget.value)}
 				/>
 			</form>
 		</div>
@@ -135,53 +135,53 @@ export default function Chat() {
 }
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
- 
+
 export function AlertDialogPreview() {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="outline">
-          <Text>"Show Alert Dialog"</Text>
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>"Are you absolutely sure?"</AlertDialogTitle>
-          <AlertDialogDescription>
-            "This action cannot be undone. This will permanently delete your account and remove your"
-            "data from our servers."
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>
-            <Text>"Cancel"</Text>
-          </AlertDialogCancel>
-          <AlertDialogAction>
-            <Text>"Continue"</Text>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+	return (
+		<AlertDialog>
+			<AlertDialogTrigger asChild>
+				<Button variant="outline">
+					<Text>"Show Alert Dialog"</Text>
+				</Button>
+			</AlertDialogTrigger>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>"Are you absolutely sure?"</AlertDialogTitle>
+					<AlertDialogDescription>
+						"This action cannot be undone. This will permanently delete your account and remove your"
+						"data from our servers."
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel>
+						<Text>"Cancel"</Text>
+					</AlertDialogCancel>
+					<AlertDialogAction>
+						<Text>"Continue"</Text>
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
 }
 
 export const mutateSomething = mutation({
-  args: { a: v.number(), b: v.number() },
-  handler: (ctx, args) => {
-    // Do something with `ctx`
-  },
+	args: { a: v.number(), b: v.number() },
+	handler: (ctx, args) => {
+		// Do something with `ctx`
+	},
 });
 
 {
@@ -191,11 +191,7 @@ export const mutateSomething = mutation({
 	render: function RenderAnnotation(annotation: AnnotationType): JSX.Element {
 		let renderedContent = <>{annotation.content ?? ''}</>;
 		if ((annotation.content || '').trim().length > 30) {
-			renderedContent = (
-				<Tooltip title={false}>
-					true
-				</Tooltip>
-			);
+			renderedContent = <Tooltip title={false}>true</Tooltip>;
 		}
 		return (
 			<div className="font-semibold">
@@ -207,89 +203,89 @@ export const mutateSomething = mutation({
 	},
 }
 
-const userId = await ctx.db.insert("users", { name: "Michael Jordan" });
+const userId = await ctx.db.insert('users', { name: 'Michael Jordan' });
 
 export default app;
 
 export const addItem = mutation({
-  args: { text: v.string() },
-  handler: (ctx, args) => {
-    await ctx.db.insert("tasks", { text: args.text });
-    await trackChange(ctx, "addItem");
-  },
+	args: { text: v.string() },
+	handler: (ctx, args) => {
+		await ctx.db.insert('tasks', { text: args.text });
+		await trackChange(ctx, 'addItem');
+	},
 });
 
 import { Experimental_Agent as Agent } from 'ai';
 
 const agent = new Agent({
-  model: 'openai/gpt-4o',
-  tools: {
-    // your tools
-  },
-  prepareStep: function (x: { messages }) {
-    // Keep only recent messages to stay within context limits
-    if (messages.length > 20) {
-      return {
-        messages: [
-          messages[0], // Keep system message
-          ...messages.slice(-10), // Keep last 10 messages
-        ],
-      };
-    }
-    return {};
-  },
+	model: 'openai/gpt-4o',
+	tools: {
+		// your tools
+	},
+	prepareStep: function (x: { messages }) {
+		// Keep only recent messages to stay within context limits
+		if (messages.length > 20) {
+			return {
+				messages: [
+					messages[0], // Keep system message
+					...messages.slice(-10), // Keep last 10 messages
+				],
+			};
+		}
+		return {};
+	},
 });
 
 const result = await agent.generate({
-  prompt: '...',
+	prompt: '...',
 });
 
 const { text } = await generateText({
-    model: xai("grok-4"),
-    prompt: "What is love?"
-})
+	model: xai('grok-4'),
+	prompt: 'What is love?',
+});
 
 {
-  prepareStep: (x:{
-  model, // Current model configuration
-  stepNumber, // Current step number (0-indexed)
-  steps, // All previous steps with their results
-  messages, // Messages to be sent to the model
-}) => {
-  // Access previous tool calls and results
-  const previousToolCalls = steps.flatMap(step => step.toolCalls);
-  const previousResults = steps.flatMap(step => step.toolResults);
+	prepareStep: (x: {
+		model;
+		stepNumber;
+		steps;
+		messages;
+	}) => {
+		// Access previous tool calls and results
+		const previousToolCalls = steps.flatMap((step) => step.toolCalls);
+		const previousResults = steps.flatMap((step) => step.toolResults);
 
-  // Make decisions based on execution history
-  if (previousToolCalls.some(call => call.toolName === 'dataAnalysis')) {
-    return {
-      toolChoice: { type: 'tool', toolName: 'reportGenerator' },
-    };
-  }
+		// Make decisions based on execution history
+		if (previousToolCalls.some((call) => call.toolName === 'dataAnalysis')) {
+			return {
+				toolChoice: { type: 'tool', toolName: 'reportGenerator' },
+			};
+		}
 
-  return {};
-}
+		return {};
+	};
 }
 
 let step = 0;
 const maxSteps = 10;
 
 while (step < maxSteps) {
-  const result = await generateText({
-    model: 'openai/gpt-4o',
-    messages,
-    tools: {
-      // your tools here
-    },
-  });
+	const result = await generateText({
+		model: 'openai/gpt-4o',
+		messages,
+		tools: {
+			// your tools here
+		},
+	});
 
-  messages.push(...result.response.messages);
+	messages.push(...result.response.messages);
 
-  if (result.text) {
-    break; // Stop when model generates text
-  }
+	if (result.text) {
+		break; // Stop when model generates text
+	}
 
-  step++;
+	step++;
 }
 
 // function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
@@ -297,14 +293,14 @@ while (step < maxSteps) {
 // }
 
 interface T<A> {
-    readonly a?: string;
-    b?(): void;
+	readonly a?: string;
+	b?(): void;
 }
 
 type T = {
-    a: string;
-    b?(): void;
-}
+	a: string;
+	b?(): void;
+};
 
 export function createPredicate(
 	condition: NoSubqueryCondition,
@@ -319,9 +315,7 @@ const result = streamText({
 		weather: tool({
 			description: 'Get the weather in a location (fahrenheit)',
 			inputSchema: z.object({
-				location: z
-					.string()
-					.describe('The location to get the weather for'),
+				location: z.string().describe('The location to get the weather for'),
 			}),
 			execute: ({ location }) => {
 				const temperature = Math.round(Math.random() * (90 - 32) + 32);
@@ -336,31 +330,31 @@ const result = streamText({
 
 const { messages } = useChat<MyUIMessage>();
 messages.map((message) => (
-    <>
-        {message.parts.map((part, index) => {
-            switch (part.type) {
-                case 'dynamic-tool':
-                    return (
-                        <div key={index}>
-                            <h4>Tool: {part.toolName}</h4>
-                            {part.state === 'input-streaming' && (
-                                <pre>{JSON.stringify(part.input, null, 2)}</pre>
-                            )}
-                            {part.state === 'output-available' && (
-                                <pre>{JSON.stringify(part.output, null, 2)}</pre>
-                            )}
-                            {part.state === 'output-error' && (
-                                <div>Error: {part.errorText}</div>
-                            )}
-                        </div>
-                    );
-            }
-        })}
-    </>
+	<>
+		{message.parts.map((part, index) => {
+			switch (part.type) {
+				case 'dynamic-tool':
+					return (
+						<div key={index}>
+							<h4>Tool: {part.toolName}</h4>
+							{part.state === 'input-streaming' && (
+								<pre>{JSON.stringify(part.input, null, 2)}</pre>
+							)}
+							{part.state === 'output-available' && (
+								<pre>{JSON.stringify(part.output, null, 2)}</pre>
+							)}
+							{part.state === 'output-error' && (
+								<div>Error: {part.errorText}</div>
+							)}
+						</div>
+					);
+			}
+		})}
+	</>
 ));
 
 <form
-	onSubmit={e => {
+	onSubmit={(e) => {
 		e.preventDefault();
 		if (input.trim()) {
 			sendMessage({ text: input });
@@ -370,14 +364,14 @@ messages.map((message) => (
 >
 	<input
 		value={input}
-		onChange={e => setInput(e.target.value)}
+		onChange={(e) => setInput(e.target.value)}
 		disabled={status !== 'ready'}
 		placeholder="Say something..."
 	/>
 	<button type="submit" disabled={status !== 'ready'}>
 		Submit
 	</button>
-</form>
+</form>;
 
 test('source-only', () => {
 	const { sources, delegate } = testBuilderDelegate();
@@ -392,14 +386,11 @@ test('source-only', () => {
 			},
 			delegate,
 			'query-id',
-		)
+		),
 	);
 });
 
-const renderCounterRegistry: Map<
-	string,
-	Set<{ count: number }>
-> = new Map();
+const renderCounterRegistry: Map<string, Set<{ count: number }>> = new Map();
 
 export function clearRenderCounterRegistry() {
 	// for (const counters of renderCounterRegistry.values()) {
@@ -431,14 +422,17 @@ function registerRenderCounter(name: string, val: { count: number }) {
 	counters.add(val);
 }
 
-const mockFilters: { search: string, page: number } = {
+const mockFilters: { search: string; page: number } = {
 	search: '',
 	page: 1,
 };
 
 ({
 	values: [teamLogic, ['currentTeam']],
-	actions: [teamLogic, ['updateCurrentTeam', 'loadCurrentTeamSuccess', 'updateCurrentTeamSuccess']],
+	actions: [
+		teamLogic,
+		['updateCurrentTeam', 'loadCurrentTeamSuccess', 'updateCurrentTeamSuccess'],
+	],
 });
 
 export type RateLimitResult = {
@@ -447,7 +441,9 @@ export type RateLimitResult = {
 	resetsIn: number;
 };
 
-function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
+function compute<Validate extends boolean, Precision extends number>(
+	data: Uint8Array,
+) {
 	// body
 }
 
@@ -462,7 +458,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
 		isEmpty={shouldShowEmptyState}
 		customHog={MicrophoneHog}
 	/>
-</div>
+</div>;
 
 export type NonNullValue = Exclude<Value, null | undefined>;
 type x = (lhs: string) => boolean;
@@ -499,43 +495,43 @@ users.push({ type: 'add', row: { id: 1, name: 'aaron', recruiterID: null } });
 
 const DAY_IN_MS = 86_400_000;
 
-const EMAIL_SUBJECT = "Daily campaign update";
+const EMAIL_SUBJECT = 'Daily campaign update';
 const EMAIL_BODY = [
-	"<p>Hi there,</p>",
-	"<p>This is your automated daily campaign email from RivetKit.</p>",
-	"<p>Have a great day!</p>",
-].join("");
+	'<p>Hi there,</p>',
+	'<p>This is your automated daily campaign email from RivetKit.</p>',
+	'<p>Have a great day!</p>',
+].join('');
 
 export interface Props<Input = unknown, Output = Input> {
-    /** The version number of the standard. */
-    readonly version: 1;
-    /** The vendor name of the schema library. */
-    readonly vendor: string;
-    /** Validates unknown input values. */
-    readonly validate: (
-      value: unknown
-    ) => Result<Output> | Promise<Result<Output>>;
-    /** Inferred types associated with the schema. */
-    readonly types?: Types<Input, Output> | undefined;
+	/** The version number of the standard. */
+	readonly version: 1;
+	/** The vendor name of the schema library. */
+	readonly vendor: string;
+	/** Validates unknown input values. */
+	readonly validate: (
+		value: unknown,
+	) => Result<Output> | Promise<Result<Output>>;
+	/** Inferred types associated with the schema. */
+	readonly types?: Types<Input, Output> | undefined;
 }
 
-import { PGlite } from "@electric-sql/pglite"
-import { live } from "@electric-sql/pglite/live"
-import { PGliteProvider } from "@electric-sql/pglite-react"
+import { PGlite } from '@electric-sql/pglite';
+import { live } from '@electric-sql/pglite/live';
+import { PGliteProvider } from '@electric-sql/pglite-react';
 
 const db = await PGlite.create({
-  extensions: { live }
-})
+	extensions: { live },
+});
 
 const App = () => {
-  // ...
+	// ...
 
-  return (
-    <PGliteProvider db={db}>
-      // ...
-    </PGliteProvider>
-  )
-}
+	return (
+		<PGliteProvider db={db}>
+			{/* ... */}
+		</PGliteProvider>
+	);
+};
 
 console.log(`Listening on ${server.url}`);
 
@@ -545,7 +541,7 @@ RAM: ${chalk.green('40%')}
 DISK: ${chalk.yellow('70%')}
 `;
 
-<LemonDivider className="my-0" />
+<LemonDivider className="my-0" />;
 
 <SceneSection
 	title="Variant keys"
@@ -623,94 +619,60 @@ const button = tv({
 
 <Pressable className={button({ color: 'primary', size: 'lg' })}>
 	<Text>Click me</Text>
-</Pressable>
+</Pressable>;
 
 return (
-    <>
-        <nav>
-        <Logo />
-        <Search />
-        </nav>
-        <main>{children}</main>
-    </>
-)
+	<>
+		<nav>
+			<Logo />
+			<Search />
+		</nav>
+		<main>{children}</main>
+	</>
+);
 
 export default function BlogPostPage({
-  params,
+	params,
 }: {
-  params: Promise<{ slug: string }>
+	params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params
-  const post = await getPost(slug)
- 
-  return (
-    <div>
-      <h1>{post.title}</h1>
-      <p>{post.content}</p>
-    </div>
-  )
+	const { slug } = await params;
+	const post = await getPost(slug);
+
+	return (
+		<div>
+			<h1>{post.title}</h1>
+			<p>{post.content}</p>
+		</div>
+	);
 }
 
-export function generateStaticParams() {
-  const posts = await fetch('https://.../posts').then((res) => res.json())
- 
-  return posts.map((post) => ({
-    slug: post.slug,
-  }))
+export async function generateStaticParams() {
+	const posts = await fetch('https://.../posts').then((res) => res.json());
+
+	return posts.map((post) => ({
+		slug: post.slug,
+	}));
 }
- 
-export default function Page({
-  params,
+
+export default async function Page({
+	params,
 }: {
-  params: Promise<{ slug: string }>
+	params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params
-  // ...
+	const { slug } = await params;
+	// ...
 }
 
 const { elementStream } = streamObject({
-  model: openai('gpt-4.1'),
-  output: 'array',
-  schema: z.object({
-    name: z.string(),
-    class: z
-      .string()
-      .describe('Character class, e.g. warrior, mage, or thief.'),
-    description: z.string(),
-  }),
-  prompt: 'Generate 3 hero descriptions for a fantasy role playing game.',
+	model: openai('gpt-4.1'),
+	output: 'array',
+	schema: z.object({
+		name: z.string(),
+		class: z.string().describe(
+			'Character class, e.g. warrior, mage, or thief.',
+		),
+		description: z.string(),
+	}),
+	prompt: 'Generate 3 hero descriptions for a fantasy role playing game.',
 });
-
-const result = await generateObject({
-  model: openai('gpt-5'),
-  schema: z.object({
-    recipe: z.object({
-      name: z.string(),
-      ingredients: z.array(
-        z.object({
-          name: z.string(),
-          amount: z.string(),
-        }),
-      ),
-      steps: z.array(z.string()),
-    }),
-  }),
-  prompt: 'Generate a lasagna recipe.',
-  providerOptions: {
-    openai: {
-      strictJsonSchema: true,
-      reasoningSummary: 'detailed',
-    } satisfies OpenAIResponsesProviderOptions,
-  },
-});
-
-const newToolCall = result.toolCalls.find(
-      newToolCall => newToolCall.toolName === toolCall.toolName,
-    );
-
-return newToolCall != null ? {
-    toolCallType: 'function',
-    toolCallId: toolCall.toolCallId,
-    toolName: toolCall.toolName,
-    input: JSON.stringify(newToolCall.input),
-}  : null;

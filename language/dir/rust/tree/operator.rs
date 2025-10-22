@@ -162,4 +162,6 @@ pub enum AssignOperator {
     AndAssign,
     /// `||=`
     OrAssign,
+    /// `??=`
+    CoalesceAssign,
 }

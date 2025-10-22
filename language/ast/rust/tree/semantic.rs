@@ -34,7 +34,7 @@ pub enum SemanticType {
 
 impl SemanticType {
     /// Map TokenType to *lexical* SemanticType.
-    pub fn from_token(source: &Source, token: TokenSpan) -> Self {
+    pub fn from_token(source: &Source, token: &TokenSpan) -> Self {
         match token.token.ty {
             // --------------------------------------------------
             // Structural
@@ -216,7 +216,8 @@ impl SemanticType {
             // Assignment Logical
             // --------------------------------------------------
             | TokenType::LogicalAndAssign
-            | TokenType::LogicalOrAssign => SemanticType::Operator,
+            | TokenType::LogicalOrAssign
+            | TokenType::CoalesceAssign => SemanticType::Operator,
         }
     }
 }
@@ -234,12 +235,11 @@ impl<'a> SemanticTokenIndex<'a> {
     /// Create a new SemanticTokenIndex from a list of tokens.
     /// Immediately walks tokens and initialies to lexical semantic types.
     pub fn from_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
-        // start with lexical types
+        // initialize with lexical types
         let mut semantic_types = vec![SemanticType::Keyword; tokens.len()];
         for (i, token) in tokens.iter().enumerate() {
-            semantic_types[i] = SemanticType::from_token(source, *token);
+            semantic_types[i] = SemanticType::from_token(source, token);
         }
-
         Self {
             tokens,
             semantic_types,

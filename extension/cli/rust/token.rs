@@ -1,6 +1,7 @@
 use destack_terminal::{CommandArguments, console, table};
-use dyst_ast::{TokenSpan, TokenType};
+use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
+use dyst_source::Source;
 
 use crate::source::read_source;
 
@@ -74,8 +75,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
         let slice = &source.content[start_offset..end_offset.min(source.len as usize)];
 
-        let kind_str = format_token(token.token.ty, use_color);
-        let lexeme_preview = truncate_tokeneme(slice, max_tokeneme_len, token.token.ty, use_color);
+        let kind_str = format_token(&source, &token, use_color);
+        let lexeme_preview = truncate_tokeneme(&source, &token, max_tokeneme_len, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {
@@ -143,12 +144,12 @@ pub fn run(ctx: CommandArguments) -> i32 {
     0
 }
 
-fn format_token(kind: TokenType, use_color: bool) -> String {
-    let base = format_token_kind(kind);
+fn format_token(source: &Source, token: &TokenSpan, use_color: bool) -> String {
+    let base = format_token_kind(token.token.ty);
     if !use_color {
         return base;
     }
-    let color = get_token_color(kind);
+    let color = get_token_color(source, token);
     console::color(&base, color)
 }
 
@@ -156,121 +157,51 @@ fn format_token_kind(kind: TokenType) -> String {
     format!("{kind:?}")
 }
 
-fn get_token_color(kind: TokenType) -> &'static str {
-    match kind {
-        // --------------------------------------------------
-        // Structural
-        // --------------------------------------------------
-        TokenType::Newline | TokenType::Whitespace | TokenType::End => "2",
-
-        // --------------------------------------------------
-        // Annotations
-        // --------------------------------------------------
-        TokenType::LineComment | TokenType::BlockComment => "2",
-        TokenType::DocLineComment | TokenType::DocBlockComment => "32",
-
-        // --------------------------------------------------
-        // Identifiers / Literals
-        // --------------------------------------------------
-        TokenType::Identifier => "36",
-        TokenType::InvalidIdentifier | TokenType::Unknown | TokenType::UnknownLiteralPrefix => "31",
-        TokenType::Literal
-        | TokenType::TemplateStringStart
-        | TokenType::TemplateStringMiddle
-        | TokenType::TemplateStringEnd
-        | TokenType::TemplateString => "35",
-
-        // --------------------------------------------------
-        // Symbols
-        // --------------------------------------------------
-        TokenType::Wildcard
-        | TokenType::Colon
-        | TokenType::Semicolon
-        | TokenType::Comma
-        | TokenType::Dot
-        | TokenType::Range
-        | TokenType::RangeWide => "37",
-
-        TokenType::Arrow
-        | TokenType::ArrowWide
-        | TokenType::At
-        | TokenType::Tag
-        | TokenType::Maybe
-        | TokenType::Coalesce
-        | TokenType::Dynamic
-        | TokenType::Not => "95",
-
-        TokenType::ElementwiseNot
-        | TokenType::ShiftLeft
-        | TokenType::SaturatingShiftLeft
-        | TokenType::ElementwiseAnd
-        | TokenType::ElementwiseXor
-        | TokenType::ElementwiseOr => "96",
-
-        TokenType::LogicalAnd | TokenType::LogicalOr => "94",
-
-        TokenType::GreaterThan
-        | TokenType::LessThan
-        | TokenType::GreaterThanOrEqual
-        | TokenType::LessThanOrEqual
-        | TokenType::Equal
-        | TokenType::EqualWide
-        | TokenType::NotEqual
-        | TokenType::NotEqualWide => "92",
-
-        TokenType::Assign
-        | TokenType::ElementwiseOrAssign
-        | TokenType::ElementwiseAndAssign
-        | TokenType::ElementwiseXorAssign
-        | TokenType::ShiftLeftAssign
-        | TokenType::SaturatingShiftLeftAssign
-        | TokenType::ShiftRightAssign
-        | TokenType::AddAssign
-        | TokenType::WrappingAddAssign
-        | TokenType::SaturatingAddAssign
-        | TokenType::SubtractAssign
-        | TokenType::WrappingSubtractAssign
-        | TokenType::SaturatingSubtractAssign
-        | TokenType::MultiplyAssign
-        | TokenType::WrappingMultiplyAssign
-        | TokenType::SaturatingMultiplyAssign
-        | TokenType::DivideAssign
-        | TokenType::RemainderAssign
-        | TokenType::LogicalAndAssign
-        | TokenType::LogicalOrAssign => "91",
-
-        // --------------------------------------------------
-        // Grouping
-        // --------------------------------------------------
-        TokenType::OpenParenthesis
-        | TokenType::CloseParenthesis
-        | TokenType::OpenBrace
-        | TokenType::CloseBrace
-        | TokenType::OpenBracket
-        | TokenType::CloseBracket => "33",
-
-        // --------------------------------------------------
-        // Operators
-        // --------------------------------------------------
-        TokenType::Multiply
-        | TokenType::WrappingMultiply
-        | TokenType::SaturatingMultiply
-        | TokenType::Divide
-        | TokenType::Remainder
-        | TokenType::Add
-        | TokenType::WrappingAdd
-        | TokenType::SaturatingAdd
-        | TokenType::Subtract
-        | TokenType::WrappingSubtract
-        | TokenType::SaturatingSubtract
-        | TokenType::Increment
-        | TokenType::Decrement => "93",
+/// Compute the appropriate ANSI color code for a token's semantic type.
+/// Use None for semantic types we do not wish to color.
+/// Pick visually distinct colors for each semantic class where possible.
+fn get_token_color(source: &Source, token: &TokenSpan) -> &'static str {
+    let semantic_type = SemanticType::from_token(source, token);
+    match semantic_type {
+        // whitespace and identifier get no color
+        SemanticType::Whitespace => "0",
+        SemanticType::Identifier => "0",
+        // blue for keywords
+        SemanticType::Keyword => "94",
+        // yellow for number literals
+        SemanticType::LiteralNumbery => "93",
+        // green for string literals
+        SemanticType::LiteralStringy => "92",
+        // cyan for parentheses
+        SemanticType::Parenthesis => "96",
+        // magenta for symbols
+        SemanticType::Symbol => "35",
+        // bright cyan for operators
+        SemanticType::Operator => "96",
+        // bright green for doc comments
+        SemanticType::Doc => "92",
+        // dim for comments
+        SemanticType::Comment => "2",
+        // bold magenta for modifiers
+        SemanticType::Modifier => "95;1",
+        // bright magenta for macros
+        SemanticType::Macro => "95",
+        // cyan for types
+        SemanticType::Type => "36",
+        // bright blue for functions
+        SemanticType::Function => "94;1",
+        // bright white for parameters
+        SemanticType::Parameter => "97",
+        // yellow for arguments
+        SemanticType::Argument => "93",
+        // dim cyan for variables
+        SemanticType::Variable => "36;2",
     }
 }
 
-fn truncate_tokeneme(s: &str, max_len: usize, token_type: TokenType, color: bool) -> String {
+fn truncate_tokeneme(source: &Source, token: &TokenSpan, max_len: usize, use_color: bool) -> String {
     let mut out = String::new();
-    for ch in s.chars() {
+    for ch in source.get_span_str(token.span).chars() {
         match ch {
             '\n' => out.push_str("\\n"),
             '\t' => out.push_str("\\t"),
@@ -292,12 +223,10 @@ fn truncate_tokeneme(s: &str, max_len: usize, token_type: TokenType, color: bool
         out
     };
 
-    if !color {
+    if !use_color {
         return visible;
     }
 
-    match token_type {
-        TokenType::Whitespace => console::color(&visible, "2"),
-        _ => console::color(&visible, get_token_color(token_type)),
-    }
+    let color = get_token_color(source, token);
+    console::color(&visible, color)
 }

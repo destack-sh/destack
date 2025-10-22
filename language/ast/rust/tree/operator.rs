@@ -423,9 +423,11 @@ pub enum AssignOperator {
 
     // assignment logical
     /// `&&=`
-    AndAssign = 102,
+    AndAssign = 103,
     /// `||=`
-    OrAssign = 101,
+    OrAssign = 102,
+    /// `??=`
+    CoalesceAssign = 101,
 }
 
 impl AssignOperator {
@@ -462,9 +464,9 @@ impl AssignOperator {
             | AssignOperator::ElementwiseOrAssign => OperatorPrecedence::AssignmentElementwise,
 
             // assignment logical
-            AssignOperator::AndAssign | AssignOperator::OrAssign => {
-                OperatorPrecedence::AssignmentLogical
-            }
+            AssignOperator::AndAssign
+            | AssignOperator::OrAssign
+            | AssignOperator::CoalesceAssign => OperatorPrecedence::AssignmentLogical,
         }
     }
 
@@ -509,6 +511,7 @@ impl AssignOperator {
             // logical
             TokenType::LogicalAndAssign => Some(AssignOperator::AndAssign),
             TokenType::LogicalOrAssign => Some(AssignOperator::OrAssign),
+            TokenType::CoalesceAssign => Some(AssignOperator::CoalesceAssign),
 
             _ => None,
         }
@@ -548,6 +551,7 @@ impl AssignOperator {
             // logical
             AssignOperator::AndAssign => TokenType::LogicalAndAssign,
             AssignOperator::OrAssign => TokenType::LogicalOrAssign,
+            AssignOperator::CoalesceAssign => TokenType::CoalesceAssign,
         }
     }
 }

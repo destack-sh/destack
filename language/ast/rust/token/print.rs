@@ -155,6 +155,7 @@ impl Token {
             // Logical assignment
             TokenType::LogicalAndAssign => "&&=".to_string(),
             TokenType::LogicalOrAssign => "||=".to_string(),
+            TokenType::CoalesceAssign => "??=".to_string(),
         }
     }
 }
