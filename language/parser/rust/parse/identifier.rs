@@ -115,7 +115,7 @@ impl<'a> Parser<'a> {
         else if self.peek_string_literal().is_ok() {
             let token = self.peek_string_literal()?;
             let token_str = self.get_token_str(*token);
-            let token_str = token_str.trim_start_matches('"').trim_end_matches('"');
+            let token_str = &token_str[1..token_str.len() - 1];
             let string_id = self.intern_string(token_str);
             self.bump();
             Ok(Name::String(string_id))

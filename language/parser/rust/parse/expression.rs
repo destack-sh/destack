@@ -863,7 +863,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, ExportMode, FunctionStyle, Name, ImportTarget, IntType, Parameter, PatternField, TypeLiteral, WithClause
+        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Name, Parameter,
+        PatternField, TypeLiteral, WithClause,
     };
 
     use crate::parse::tests::TestParser;
