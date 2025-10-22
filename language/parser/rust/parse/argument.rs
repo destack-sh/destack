@@ -252,8 +252,18 @@ impl<'a> Parser<'a> {
                 .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
-        // dynamic argument
-        else if self.peek_token(TokenType::OpenBracket).is_ok() {
+        // dynamic argument (has a colon after the closing bracket)
+        else if self.peek_token(TokenType::OpenBracket).is_ok()
+            && self
+                .find_matching_pair(TokenType::OpenBracket, TokenType::CloseBracket)
+                .map(|pos| {
+                    self.tokens
+                        .get(pos as usize + 1)
+                        .map(|token| token.token.ty == TokenType::Colon)
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false)
+        {
             self.bump(); // eat open bracket
             // name
             let name = if self.peek_token(TokenType::Identifier).is_ok()

@@ -168,7 +168,7 @@ pub enum Keyword {
     Catch,
     /// Throw expression (reserved).
     Throw,
-    /// Finally expression (reserved).
+    /// Finally expression.
     Finally,
 
     // ------------------------------------------------------------
@@ -178,6 +178,10 @@ pub enum Keyword {
     Async,
     /// Await expression (reserved).
     Await,
+    /// Getter function (reserved).
+    Get,
+    /// Setter function (reserved).
+    Set,
     /// Unsafe expression (reserved).
     Unsafe,
     /// Move expression (reserved).
@@ -204,6 +208,8 @@ impl Keyword {
                 | Keyword::Finally
                 | Keyword::Async
                 | Keyword::Await
+                | Keyword::Get
+                | Keyword::Set
                 | Keyword::Unsafe
                 | Keyword::Move
                 | Keyword::Dynamic
@@ -309,6 +315,8 @@ impl Keyword {
             // async & dispatch
             Keyword::Async => "async",
             Keyword::Await => "await",
+            Keyword::Get => "get",
+            Keyword::Set => "set",
             Keyword::Unsafe => "unsafe",
             Keyword::Move => "move",
             Keyword::Dynamic => "dynamic",
@@ -410,6 +418,8 @@ impl FromStr for Keyword {
             // async & dispatch
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),
+            "get" => Ok(Keyword::Get),
+            "set" => Ok(Keyword::Set),
             "unsafe" => Ok(Keyword::Unsafe),
             "move" => Ok(Keyword::Move),
             "dynamic" => Ok(Keyword::Dynamic),

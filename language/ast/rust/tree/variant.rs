@@ -68,17 +68,20 @@ pub enum VariantField {
     },
 }
 
-// nocheckin TODO #Incomplete: getter/setter functions for Struct/Union/Interface/...Fields?
-//  (useful for SOA-style struct views?)
-//  (how does this interact with interfaces and unions?)
-//  (how does this relate with Entities?)
-//  (how does this relate to $ dynamicness?)
-
 impl Node for VariantField {
     const KIND: NodeType = NodeType::VariantField;
 }
 
 impl VariantField {
+    /// Get the visibility of the field.
+    #[inline]
+    pub fn visibility(&self) -> Option<Visibility> {
+        match self {
+            VariantField::Named { visibility, .. } => *visibility,
+            VariantField::Positional { visibility, .. } => *visibility,
+            VariantField::Dynamic { visibility, .. } => *visibility,
+        }
+    }
     #[inline]
     pub fn mutability(&self) -> Option<Mutability> {
         match self {
