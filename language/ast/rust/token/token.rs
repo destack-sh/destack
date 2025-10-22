@@ -295,6 +295,8 @@ pub enum TokenType {
     LogicalAndAssign,
     /// `||=`
     LogicalOrAssign,
+    /// `??=`
+    CoalesceAssign,
 }
 
 impl Display for TokenType {
@@ -419,6 +421,7 @@ impl Display for TokenType {
             // assignment logical
             TokenType::LogicalAndAssign => write!(f, "&&="),
             TokenType::LogicalOrAssign => write!(f, "||="),
+            TokenType::CoalesceAssign => write!(f, "??="),
         }
     }
 }

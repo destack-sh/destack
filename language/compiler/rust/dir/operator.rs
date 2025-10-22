@@ -122,6 +122,7 @@ impl<'a> Compiler<'a> {
             // assignment logical
             ast::AssignOperator::AndAssign => AssignOperator::AndAssign,
             ast::AssignOperator::OrAssign => AssignOperator::OrAssign,
+            ast::AssignOperator::CoalesceAssign => AssignOperator::CoalesceAssign,
         };
 
         Some(assign_operator)

@@ -737,7 +737,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // parenthesized
             Expression::Parenthesized { expression } => {
-                write!(f, [token("("), expression, token(")")])?
+                let inner_expression = f.context().tree.get(*expression);
+                if let Expression::TreeLiteral { .. } = inner_expression {
+                    write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
+                } else {
+                    write!(f, [token("("), expression, token(")")])?;
+                }
             }
 
             // unary
@@ -948,6 +953,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
             // logical
             AssignOperator::AndAssign => "&&=",
             AssignOperator::OrAssign => "||=",
+            AssignOperator::CoalesceAssign => "??=",
         });
         write!(f, [token])
     }
@@ -1037,6 +1043,20 @@ mod tests {
         assert_format!(
             "<Entity a=1, b = 2 />",
             "<Entity a=1 b=2 />",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_tree_literal_parenthesized() {
+        assert_format!(
+            "(<Entity a=1, b = 2 />)",
+            "(
+    <Entity a=1 b=2>
+        <Entity a=1 b=2 />
+    </Entity>
+)",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

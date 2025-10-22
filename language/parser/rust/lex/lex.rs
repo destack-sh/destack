@@ -311,7 +311,15 @@ impl Lexer<'_> {
                 if self.peek() == '?' {
                     self.eat();
                     self.eat();
-                    (TokenType::Coalesce, None)
+                    // ??=
+                    if self.peek() == '=' {
+                        self.eat();
+                        (TokenType::CoalesceAssign, None)
+                    }
+                    // ??
+                    else {
+                        (TokenType::Coalesce, None)
+                    }
                 }
                 // ?
                 else {
