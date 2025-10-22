@@ -481,13 +481,19 @@ impl<'a> Parser<'a> {
                     | (TokenType::Literal, TokenType::Colon, _)
                     // string?:
                     | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
-                    // [
-                    | (TokenType::OpenBracket, _, _)
                     // ..T
                     | (TokenType::Range, TokenType::Identifier, _)
                     // ...T
                     | (TokenType::RangeWide, TokenType::Identifier, _) => {
                         return Ok(None);
+                    }
+                    // [
+                    | (TokenType::OpenBracket, _, _) => {
+                        // only if the closing bracket is followed by a colon
+                        if let Ok(closing_pos) = self.find_matching_pair(TokenType::OpenBracket, TokenType::CloseBracket)
+                            && let Some(token_after) = self.tokens.get(closing_pos as usize + 1) && token_after.token.ty == TokenType::Colon {
+                                return Ok(None);
+                            }
                     }
                     _ => {}
                 }

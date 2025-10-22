@@ -163,7 +163,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Find closing pair for a pair of tokens.
-    #[inline]
     pub fn find_matching_pair(
         &self,
         open_token: TokenType,
