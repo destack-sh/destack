@@ -11,10 +11,13 @@ use crate::source::read_source;
 
 pub const HELP: &str = r"Parse source into AST (implicit module).
 	--file <path>      Read input from file
-	--string <string>  Read input from provided string";
+	--string <string>  Read input from provided string
+    --silent           Don't print anything to the console (except errors)
+    ";
 
 /// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {
+    let silent = ctx.flag("silent");
     let mut session = Session::new();
 
     // read input source
@@ -43,12 +46,14 @@ pub fn run(ctx: CommandArguments) -> i32 {
     parser.finalize();
 
     // dump AST module to output
-    let dump_options = DumperOptions::default();
-    let mut dumper = parser.dumper(dump_options);
-    if let Some(definition_id) = definition_id {
-        dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
+    if !silent {
+        let dump_options = DumperOptions::default();
+        let mut dumper = parser.dumper(dump_options);
+        if let Some(definition_id) = definition_id {
+            dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
+        }
+        console::info(&dumper.finish());
     }
-    console::info(&dumper.finish());
 
     // print diagnostics
     for diagnostic in &session.diagnostics {
