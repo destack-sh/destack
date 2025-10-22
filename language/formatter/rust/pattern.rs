@@ -150,25 +150,33 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 mutability,
                 name,
                 pattern,
+                default,
             } => {
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
                 if let Some(pattern) = pattern {
-                    write!(f, [name, token(": "), pattern])?;
+                    write!(f, [name, token(":"), space(), pattern])?;
                 } else {
                     write!(f, [name])?;
+                }
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             PatternField::NamedAlias {
                 mutability,
                 name,
                 alias,
+                default,
             } => {
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
-                write!(f, [name, token(": "), alias])?;
+                write!(f, [name, token(":"), space(), alias])?;
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
             }
             PatternField::Positional { pattern } => write!(f, [pattern])?,
         }

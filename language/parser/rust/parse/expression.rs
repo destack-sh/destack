@@ -94,7 +94,7 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support special lenient forms 
+// TODO #Incomplete: support special lenient forms
 //  - declare/
 //  - typeof
 //  - new/delete
@@ -877,8 +877,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, BinaryOperator, Expression, ImportItem, Mutability, Pattern, Runtime,
-        ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_node, assert_path,
-        assert_string,
+        ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_name, assert_node,
+        assert_path, assert_string,
     };
 
     /// Parse `export { bar, baz } from foo` through the expression parser.
@@ -1299,12 +1299,12 @@ mod tests {
                     assert_node!(parser.tree, *pattern, Pattern::Struct { fields, .. } => {
                         assert_eq!(fields.len(), 2);
                         // x
-                        assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None } => {
-                            assert_string!(parser, *name, "x");
+                        assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                            assert_name!(parser, *name, "x");
                         });
                         // y
-                        assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None } => {
-                            assert_string!(parser, *name, "y");
+                        assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                            assert_name!(parser, *name, "y");
                         });
                     });
                     // T

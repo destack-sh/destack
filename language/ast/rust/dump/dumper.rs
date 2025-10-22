@@ -1856,9 +1856,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match field {
             PatternField::Named {
+                mutability,
                 name,
                 pattern: _,
-                mutability,
+                default: _,
             } => {
                 self.node("PatternField::Named", _id.id)
                     .field("name", name)
@@ -1866,9 +1867,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             PatternField::NamedAlias {
+                mutability,
                 name,
                 alias,
-                mutability,
+                default: _,
             } => {
                 self.node("PatternField::NamedAlias", _id.id)
                     .field("name", name)
