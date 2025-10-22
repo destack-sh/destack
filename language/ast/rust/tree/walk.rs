@@ -285,14 +285,24 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Try {
             runtime: _,
-            try_expression: r#try,
-            catch_expression: catch,
+            try_expression,
+            catch_pattern,
+            catch_expression,
+            finally_expression,
         } => {
-            let try_expr_node = tree.get(*r#try);
-            visitor.visit_expression(tree, *r#try, try_expr_node);
-            if let Some(catch_id) = catch {
+            let try_expr_node = tree.get(*try_expression);
+            visitor.visit_expression(tree, *try_expression, try_expr_node);
+            if let Some(catch_pattern_id) = catch_pattern {
+                let catch_pattern_node = tree.get(*catch_pattern_id);
+                visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+            }
+            if let Some(catch_id) = catch_expression {
                 let catch_expr = tree.get(*catch_id);
                 visitor.visit_expression(tree, *catch_id, catch_expr);
+            }
+            if let Some(finally_id) = finally_expression {
+                let finally_expr = tree.get(*finally_id);
+                visitor.visit_expression(tree, *finally_id, finally_expr);
             }
         }
 

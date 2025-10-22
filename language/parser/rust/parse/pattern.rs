@@ -156,7 +156,9 @@ impl<'a> Parser<'a> {
                     self.tree.insert(pattern, self.get_span_from(start))
                 }
                 // struct with path
-                else if self.peek_token(TokenType::OpenBrace).is_ok() {
+                else if !self.options.in_before_block
+                    && self.peek_token(TokenType::OpenBrace).is_ok()
+                {
                     self.bump(); // eat open brace
                     self.eat_newlines_maybe()?;
                     let fields = self
