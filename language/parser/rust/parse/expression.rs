@@ -100,7 +100,7 @@ fn to_infix_operator(
 //  - typeof
 //  - new/delete
 //  - throw
-//  - function* and so on for generators
+//  - function* and so on for generators (also * for lambdas and function shorthands)
 
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.

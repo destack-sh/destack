@@ -24,7 +24,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_try_block_with_catch() {
+    fn test_format_try_expression_with_catch() {
         assert_format!(
             "try { const X = risky() } catch err { Error(err) => err }",
             "try {\n\tconst X = risky()\n} catch err {\n\tError(err) => err\n}",

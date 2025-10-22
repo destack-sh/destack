@@ -1,4 +1,4 @@
-use dyst_ast::{Argument, Mutability, Path};
+use dyst_ast::{Argument, IfStyle, Mutability, Path};
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
@@ -458,8 +458,38 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [space(), value])?;
             }
 
-            // if
-            Expression::If { .. } => {
+            // if (ternary)
+            Expression::If {
+                style: IfStyle::Ternary,
+                condition,
+                then_expression,
+                else_expression,
+                ..
+            } => {
+                write!(
+                    f,
+                    [group(&format_args![
+                        condition,
+                        if_group_fits_on_line(&space()),
+                        soft_block_indent(&format_args![
+                            token("?"),
+                            space(),
+                            then_expression,
+                            soft_line_break(),
+                            if_group_fits_on_line(&space()),
+                            token(":"),
+                            space(),
+                            else_expression
+                        ]),
+                    ])]
+                )?;
+            }
+
+            // if (regular)
+            Expression::If {
+                style: IfStyle::Regular,
+                ..
+            } => {
                 write!(f, [group(&format_with(|f| format_if_chain(f, node_id)))])?;
             }
 
@@ -518,8 +548,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // try
             Expression::Try {
                 runtime,
-                try_block: r#try,
-                catch_block: catch,
+                try_expression: r#try,
+                catch_expression: catch,
             } => {
                 // runtime
                 if let Some(runtime) = runtime

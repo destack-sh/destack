@@ -667,3 +667,50 @@ export default function Page({
   const { slug } = await params
   // ...
 }
+
+const { elementStream } = streamObject({
+  model: openai('gpt-4.1'),
+  output: 'array',
+  schema: z.object({
+    name: z.string(),
+    class: z
+      .string()
+      .describe('Character class, e.g. warrior, mage, or thief.'),
+    description: z.string(),
+  }),
+  prompt: 'Generate 3 hero descriptions for a fantasy role playing game.',
+});
+
+const result = await generateObject({
+  model: openai('gpt-5'),
+  schema: z.object({
+    recipe: z.object({
+      name: z.string(),
+      ingredients: z.array(
+        z.object({
+          name: z.string(),
+          amount: z.string(),
+        }),
+      ),
+      steps: z.array(z.string()),
+    }),
+  }),
+  prompt: 'Generate a lasagna recipe.',
+  providerOptions: {
+    openai: {
+      strictJsonSchema: true,
+      reasoningSummary: 'detailed',
+    } satisfies OpenAIResponsesProviderOptions,
+  },
+});
+
+const newToolCall = result.toolCalls.find(
+      newToolCall => newToolCall.toolName === toolCall.toolName,
+    );
+
+return newToolCall != null ? {
+    toolCallType: 'function',
+    toolCallId: toolCall.toolCallId,
+    toolName: toolCall.toolName,
+    input: JSON.stringify(newToolCall.input),
+}  : null;

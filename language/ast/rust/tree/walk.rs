@@ -285,8 +285,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Try {
             runtime: _,
-            try_block: r#try,
-            catch_block: catch,
+            try_expression: r#try,
+            catch_expression: catch,
         } => {
             let try_expr_node = tree.get(*r#try);
             visitor.visit_expression(tree, *r#try, try_expr_node);
