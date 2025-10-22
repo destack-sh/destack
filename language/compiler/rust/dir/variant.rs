@@ -13,34 +13,70 @@ impl<'a> Compiler<'a> {
         ast: &ast::NodeTree,
         field_id: ast::NodeId<ast::VariantField>,
     ) -> NodeId<VariantField> {
-        let field = ast.get(field_id);
-        let mutability = field
-            .mutability
-            .as_ref()
-            .map(|mutability| self.lower_mutability(*mutability));
-        let name = field.name.map(|name| self.intern_string(source_id, name));
-        let ty = self.lower_expression_to_type(source_id, ast, field.ty);
-        let default = field
-            .default
-            .map(|default| self.lower_expression(source_id, ast, default));
-        let variant_field = {
-            if let Some(name) = name {
+        let field = match ast.get(field_id) {
+            ast::VariantField::Named {
+                visibility,
+                mutability,
+                name,
+                ty,
+                default,
+            } => {
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let name = self.intern_string(source_id, name.string());
+                let ty = self.lower_expression_to_type(source_id, ast, *ty);
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 VariantField::Named {
+                    visibility,
                     mutability,
                     name,
                     ty,
                     default,
                 }
-            } else {
+            }
+            ast::VariantField::Positional {
+                visibility,
+                mutability,
+                ty,
+                default,
+            } => {
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let ty = self.lower_expression_to_type(source_id, ast, *ty);
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 VariantField::Positional {
+                    visibility,
                     mutability,
                     ty,
                     default,
                 }
             }
+            ast::VariantField::Dynamic {
+                visibility,
+                mutability,
+                name,
+                ty,
+                key,
+                default,
+            } => {
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let name = name.map(|name| self.intern_string(source_id, name));
+                let ty = self.lower_expression_to_type(source_id, ast, *ty);
+                let key = self.lower_expression_to_type(source_id, ast, *key);
+                let default = default.map(|default| self.lower_expression(source_id, ast, default));
+                VariantField::Dynamic {
+                    visibility,
+                    mutability,
+                    name,
+                    ty,
+                    key,
+                    default,
+                }
+            }
         };
-        self.tree
-            .insert_from_ast(variant_field, source_id, field_id)
+
+        self.tree.insert_from_ast(field, source_id, field_id)
     }
 
     /// Lower an AST struct to a DIR variant.

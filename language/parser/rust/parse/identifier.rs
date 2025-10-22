@@ -1,6 +1,7 @@
 //! Parse identifiers.
 
 use crate::{Parser, ParserError, ParserResult, TokenSpan, TokenType};
+use dyst_ast::{LiteralType, Name};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {
@@ -75,5 +76,53 @@ impl<'a> Parser<'a> {
         }
         let string_id = self.intern_string(identifier);
         Ok(string_id)
+    }
+
+    /// Peek a string literal.
+    #[inline]
+    pub fn peek_string_literal(&self) -> ParserResult<&TokenSpan> {
+        let token = self.peek()?;
+        if token.token.ty == TokenType::Literal
+            && token.token.literal
+                == Some(LiteralType::String {
+                    is_terminated: true,
+                })
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(token.span, TokenType::Literal))
+        }
+    }
+
+    /// Peek a name (like `x` or `"Content-Type"`).
+    #[inline]
+    pub fn peek_name(&self) -> ParserResult<()> {
+        if self.peek_token(TokenType::Identifier).is_ok() || self.peek_string_literal().is_ok() {
+            Ok(())
+        } else {
+            Err(ParserError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Eat a name (like `x` or `"Content-Type"`).
+    #[inline]
+    pub fn eat_name(&mut self) -> ParserResult<Name> {
+        // regular identifier
+        if self.peek_token(TokenType::Identifier).is_ok() {
+            Ok(Name::Identifier(self.eat_identifier()?))
+        }
+        // string identifier
+        else if self.peek_string_literal().is_ok() {
+            let token = self.peek_string_literal()?;
+            let token_str = self.get_token_str(*token);
+            let token_str = token_str.trim_start_matches('"').trim_end_matches('"');
+            let string_id = self.intern_string(token_str);
+            self.bump();
+            Ok(Name::String(string_id))
+        }
+        // error
+        else {
+            Err(ParserError::unexpected(self.peek()?.span))
+        }
     }
 }

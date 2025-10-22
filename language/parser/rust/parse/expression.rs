@@ -863,8 +863,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Parameter, PatternField,
-        TypeLiteral, WithClause,
+        Definition, ExportMode, FunctionStyle, Name, ImportTarget, IntType, Parameter, PatternField, TypeLiteral, WithClause
     };
 
     use crate::parse::tests::TestParser;
@@ -1124,7 +1123,7 @@ mod tests {
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
@@ -1143,7 +1142,7 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, fields, .. } => {
                 assert_eq!(fields.len(), 2);
-                assert_node!(parser.tree, fields[0], Argument::Named { name, value } => {
+                assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
@@ -1162,7 +1161,7 @@ mod tests {
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
@@ -1359,7 +1358,7 @@ mod tests {
                 assert_node!(
                     parser.tree,
                     fields[0],
-                    Argument::Named { name, value } => {
+                    Argument::Named { name: Name::Identifier(name), value } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(
                             parser.tree,
@@ -1414,7 +1413,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     fields[0],
-                    Argument::Named { name, value } => {
+                    Argument::Named { name: Name::Identifier(name), value } => {
                         assert_string!(parser, *name, "vertices");
                         assert_node!(
                             parser.tree,

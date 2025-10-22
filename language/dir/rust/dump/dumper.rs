@@ -1782,23 +1782,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match variant_field {
             VariantField::Named {
+                visibility,
                 mutability,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Named", id.id)
+                    .field_optional("visibility", visibility)
                     .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
             }
             VariantField::Positional {
+                visibility,
                 mutability,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Positional", id.id)
+                    .field_optional("visibility", visibility)
                     .field_optional("mutability", mutability)
+                    .end();
+            }
+            VariantField::Dynamic {
+                visibility,
+                mutability,
+                name,
+                ty: _,
+                key: _,
+                default: _,
+            } => {
+                self.node("VariantField::Dynamic", id.id)
+                    .field_optional("visibility", visibility)
+                    .field_optional("mutability", mutability)
+                    .field_optional("name", name)
                     .end();
             }
         }
@@ -1922,6 +1940,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::UnresolvedSpread { value: _ } => {
                 self.node("Argument::UnresolvedSpread", id.id).end();
             }
+            Argument::UnresolvedDynamic {
+                name,
+                key: _,
+                value: _,
+            } => {
+                self.node("Argument::UnresolvedDynamic", id.id)
+                    .field_optional("name", name)
+                    .end();
+            }
             Argument::Direct {
                 name,
                 slot,
@@ -1935,6 +1962,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Spread { slot, value: _ } => {
                 self.node("Argument::Spread", id.id)
                     .field("slot", slot)
+                    .end();
+            }
+            Argument::Dynamic {
+                name,
+                key: _,
+                value: _,
+            } => {
+                self.node("Argument::Dynamic", id.id)
+                    .field_optional("name", name)
                     .end();
             }
         }

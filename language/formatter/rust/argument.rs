@@ -207,6 +207,13 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             Argument::Spread { value } => {
                 write!(f, [token(".."), value])?;
             }
+            Argument::Dynamic { name, key, value } => {
+                write!(f, [token("[")])?;
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [key, token("]"), token(":"), space(), value])?;
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

@@ -735,6 +735,20 @@ impl Dump for StringId {
     }
 }
 
+/// Dump an Identifier as a string.
+impl Dump for Name {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Name::Identifier(id) => id.dump(dumper),
+            Name::String(id) => {
+                dumper.write_char('[', Some(Color::White));
+                id.dump(dumper);
+                dumper.write_char(']', Some(Color::White));
+            }
+        }
+    }
+}
+
 /// Dump a Path as a string.
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1542,9 +1556,46 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<VariantField>,
         field: &VariantField,
     ) {
-        self.node("VariantField", _id.id)
-            .field("name", &field.name)
-            .end();
+        match field {
+            VariantField::Named {
+                visibility,
+                mutability,
+                name,
+                ty: _,
+                default: _,
+            } => {
+                self.node("VariantField::Named", _id.id)
+                    .field_optional("visibility", visibility)
+                    .field_optional("mutability", mutability)
+                    .field("name", name)
+                    .end();
+            }
+            VariantField::Positional {
+                visibility,
+                mutability,
+                ty: _,
+                default: _,
+            } => {
+                self.node("VariantField::Positional", _id.id)
+                    .field_optional("visibility", visibility)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
+            VariantField::Dynamic {
+                visibility,
+                mutability,
+                name,
+                ty: _,
+                key: _,
+                default: _,
+            } => {
+                self.node("VariantField::Dynamic", _id.id)
+                    .field_optional("visibility", visibility)
+                    .field_optional("mutability", mutability)
+                    .field_optional("name", name)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_variant_field(dumper, _tree, _id, field);
         });
@@ -1694,6 +1745,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Argument::Spread { value: _ } => {
                 self.node("Argument::Spread", _id.id).end();
+            }
+            Argument::Dynamic {
+                name,
+                key: _,
+                value: _,
+            } => {
+                self.node("Argument::Dynamic", _id.id)
+                    .field_optional("name", name)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

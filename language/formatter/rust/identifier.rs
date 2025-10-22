@@ -1,4 +1,5 @@
 use crate::{DystFormatContext, DystFormatter, Keyword};
+use dyst_ast::Name;
 use dyst_fir::format::text;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
@@ -9,6 +10,21 @@ impl<'ast> Format<DystFormatContext<'ast>> for StringId {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().get_string(*self).to_string();
         write!(f, [text(&string)])
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for Name {
+    #[inline]
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Name::Identifier(string) => {
+                string.format(f)?;
+            }
+            Name::String(string) => {
+                write!(f, [token("\""), string, token("\"")])?;
+            }
+        };
+        Ok(())
     }
 }
 

@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Path;
+    use dyst_ast::{Name, Path};
     use dyst_container::smallvec;
 
     use crate::parse::tests::TestParser;
@@ -194,7 +194,7 @@ mod tests {
             });
 
             // x: 2
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });

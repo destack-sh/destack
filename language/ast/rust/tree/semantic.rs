@@ -307,7 +307,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     ) {
         walk_variant_field(self, tree, id, variant_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
-        self.set_semantic_span(tree, variant_field.ty, SemanticType::Type);
+        self.set_semantic_span(tree, variant_field.ty(), SemanticType::Type);
     }
 
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {

@@ -87,6 +87,10 @@ impl<'a> Parser<'a> {
     /// public T
     /// readonly name: T
     /// baz?: T // shorthand for baz: T?
+    /// "Content-Type": string
+    /// [x: string]: any
+    /// [string]: woof
+    /// [T] = "hello"
     /// ```
     pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
@@ -102,20 +106,72 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // name
-        let (name, is_maybe) =
-            // name:
-            if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+        // dynamic field
+        if self.peek_token(TokenType::OpenBracket).is_ok() {
+            self.bump(); // eat open bracket
+
+            // name
+            let name = if self.peek_identifier().is_ok()
+                && self.peek_next_token(TokenType::Colon).is_ok()
+            {
                 let name = self.eat_identifier()?;
+                self.bump(); // eat colon
+                Some(name)
+            } else {
+                None
+            };
+
+            // key
+            let key = self
+                .eat_expression()
+                .for_node_type(NodeType::VariantField)?;
+
+            self.eat_token(TokenType::CloseBracket)?;
+
+            // type
+            self.eat_token(TokenType::Colon)?;
+            let ty = self
+                .with_options(self.options.in_type(), |parser| parser.eat_expression())
+                .for_node_type(NodeType::Definition)?;
+
+            // default
+            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                Some(self.eat_expression().for_node_type(NodeType::Definition)?)
+            } else {
+                None
+            };
+
+            // field
+            let field_id = self.tree.insert(
+                VariantField::Dynamic {
+                    visibility,
+                    mutability,
+                    name,
+                    ty,
+                    key,
+                    default,
+                },
+                self.get_span_from(start),
+            );
+            Ok(field_id)
+        }
+        // static field
+        else {
+            // name
+            let (name, is_maybe) =
+            // name:
+            if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+                let name = self.eat_name()?;
                 self.bump(); // eat colon
                 (Some(name), false)
             }
             // name?:
-            else if self.peek_identifier().is_ok()
+            else if self.peek_name().is_ok()
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self.peek_next_next_token(TokenType::Colon).is_ok()
             {
-                let name = self.eat_identifier()?;
+                let name = self.eat_name()?;
                 self.bump(); // eat maybe
                 self.bump(); // eat colon
                 (Some(name), true)
@@ -123,36 +179,45 @@ impl<'a> Parser<'a> {
                 (None, false)
             };
 
-        // type
-        let ty = self
-            .with_options(self.options.in_type(), |parser| parser.eat_expression())
-            .for_node_type(NodeType::Definition)?;
-        let ty = if is_maybe {
-            self.tree
-                .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
-        } else {
-            ty
-        };
+            // type
+            let ty = self
+                .with_options(self.options.in_type(), |parser| parser.eat_expression())
+                .for_node_type(NodeType::Definition)?;
+            let ty = if is_maybe {
+                self.tree
+                    .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
+            } else {
+                ty
+            };
 
-        // optional default value: `= <expr>`
-        let default = if self.peek_token(TokenType::Assign).is_ok() {
-            self.bump(); // eat assign
-            Some(self.eat_expression().for_node_type(NodeType::Definition)?)
-        } else {
-            None
-        };
+            // default
+            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                Some(self.eat_expression().for_node_type(NodeType::Definition)?)
+            } else {
+                None
+            };
 
-        let field_id = self.tree.insert(
-            VariantField {
-                mutability,
-                visibility,
-                name,
-                ty,
-                default,
-            },
-            self.get_span_from(start),
-        );
-        Ok(field_id)
+            // field
+            let field = if let Some(name) = name {
+                VariantField::Named {
+                    visibility,
+                    mutability,
+                    name,
+                    ty,
+                    default,
+                }
+            } else {
+                VariantField::Positional {
+                    visibility,
+                    mutability,
+                    ty,
+                    default,
+                }
+            };
+            let field_id = self.tree.insert(field, self.get_span_from(start));
+            Ok(field_id)
+        }
     }
 
     /// Eat a variant body (without the header or `{` and `}`).

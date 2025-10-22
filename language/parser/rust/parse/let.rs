@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Argument;
+    use dyst_ast::{Argument, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -427,7 +427,7 @@ const registry: Map<
                         assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
                             assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields, .. } => {
                                 assert_eq!(fields.len(), 1);
-                                assert_node!(parser.tree, fields[0], Argument::Named { name, ..} => {
+                                assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), ..} => {
                                     assert_string!(parser, *name, "count");
                                 });
                             });

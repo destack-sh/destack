@@ -232,6 +232,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Name;
+
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Definition, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral,
@@ -359,8 +361,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, fields[1], UnionField::Tuple { name, fields, value } => {
                 assert_string!(parser, *name, "C");
                 // boolean
-                assert_node!(parser.tree, fields[0], VariantField { name, ty, .. } => {
-                    assert!(name.is_none());
+                assert_node!(parser.tree, fields[0], VariantField::Positional { ty, .. } => {
                     assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
                 assert!(value.is_none());
@@ -371,14 +372,13 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_string!(parser, *name, "D");
 
                 // boolean
-                assert_node!(parser.tree, fields[0], VariantField { name, ty, .. } => {
-                    assert!(name.is_none());
+                assert_node!(parser.tree, fields[0], VariantField::Positional { ty, .. } => {
                     assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
 
                 // count: int32
-                assert_node!(parser.tree, fields[1], VariantField { name, ty, .. } => {
-                    assert_string!(parser, name.unwrap(), "count");
+                assert_node!(parser.tree, fields[1], VariantField::Named { name: Name::Identifier(name), ty, .. } => {
+                    assert_string!(parser, *name, "count");
                     assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                         assert_eq!(int_ty.width, Some(32));
                         assert!(int_ty.is_signed);
@@ -393,9 +393,9 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, fields[3], UnionField::Struct { name, fields, value: _ } => {
                 assert_string!(parser, *name, "E");
                 // x: int32
-                assert_node!(parser.tree, fields[0], VariantField { name, ty, .. } => {
+                assert_node!(parser.tree, fields[0], VariantField::Named { name: Name::Identifier(name), ty, .. } => {
                     // x
-                    assert_string!(parser, name.unwrap(), "x");
+                    assert_string!(parser, *name, "x");
                     // int32
                     assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
                         assert_eq!(int_ty.width, Some(32));
@@ -404,9 +404,9 @@ union(uint4, uint60) Foo<T>: Boz {
                 });
 
                 // y: T
-                assert_node!(parser.tree, fields[1], VariantField { name, ty, .. } => {
+                assert_node!(parser.tree, fields[1], VariantField::Named { name: Name::Identifier(name), ty, .. } => {
                     // y
-                    assert_string!(parser, name.unwrap(), "y");
+                    assert_string!(parser, *name, "y");
                     // T
                     assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");

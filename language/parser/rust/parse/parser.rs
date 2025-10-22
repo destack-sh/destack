@@ -437,6 +437,15 @@ impl<'a> Parser<'a> {
         self.pos += distance as usize;
     }
 
+    /// Peek a token at a position.
+    #[inline]
+    pub fn peek_token_ahead(&self, delta: u32, token_type: TokenType) -> ParserResult<&TokenSpan> {
+        self.tokens
+            .get(self.pos + (delta as usize))
+            .filter(|token| token.token.ty == token_type)
+            .ok_or(ParserError::unexpected(self.eof_token.span))
+    }
+
     /// Peek the next token.
     #[inline]
     pub fn peek_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {

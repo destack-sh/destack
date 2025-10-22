@@ -10,6 +10,8 @@ use crate::{
     Runtime, SelfParameter, Visibility,
 };
 
+// nocheckin: support return type annotation for lambdas (like `(): int32 => x`)
+
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
     fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {

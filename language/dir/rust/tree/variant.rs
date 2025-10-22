@@ -1,10 +1,12 @@
-use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type, Visibility};
 
 /// A VariantField is a field of a variant.
 #[derive(Debug, Clone, PartialEq)]
 pub enum VariantField {
-    /// Named field.
+    /// Named field ().
     Named {
+        /// The visibility of the field.
+        visibility: Option<Visibility>,
         /// The mutability of the field.
         mutability: Option<Mutability>,
         /// The name of the field.
@@ -16,10 +18,27 @@ pub enum VariantField {
     },
     /// Positional field.
     Positional {
+        /// The visibility of the field.
+        visibility: Option<Visibility>,
         /// The mutability of the field.
         mutability: Option<Mutability>,
         /// The type of the field.
         ty: NodeId<Type>,
+        /// The default value of the field.
+        default: Option<NodeId<Expression>>,
+    },
+    /// Dynamic field.
+    Dynamic {
+        /// The visibility of the field.
+        visibility: Option<Visibility>,
+        /// The mutability of the field.
+        mutability: Option<Mutability>,
+        /// The name of the field (if any).
+        name: Option<StringId>,
+        /// The type of the field.
+        ty: NodeId<Type>,
+        /// The key type of the field.
+        key: NodeId<Type>,
         /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
@@ -30,12 +49,43 @@ impl Node for VariantField {
 }
 
 impl VariantField {
+    /// Get the visibility of the field.
+    #[inline]
+    pub fn visibility(&self) -> Option<Visibility> {
+        match self {
+            VariantField::Named { visibility, .. } => *visibility,
+            VariantField::Positional { visibility, .. } => *visibility,
+            VariantField::Dynamic { visibility, .. } => *visibility,
+        }
+    }
+
+    /// Get the mutability of the field.
+    #[inline]
+    pub fn mutability(&self) -> Option<Mutability> {
+        match self {
+            VariantField::Named { mutability, .. } => *mutability,
+            VariantField::Positional { mutability, .. } => *mutability,
+            VariantField::Dynamic { mutability, .. } => *mutability,
+        }
+    }
+
     /// Get the name of the field.
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self {
             VariantField::Named { name, .. } => Some(*name),
             VariantField::Positional { .. } => None,
+            VariantField::Dynamic { name, .. } => *name,
+        }
+    }
+
+    /// Get the type of the field.
+    #[inline]
+    pub fn ty(&self) -> NodeId<Type> {
+        match self {
+            VariantField::Named { ty, .. } => *ty,
+            VariantField::Positional { ty, .. } => *ty,
+            VariantField::Dynamic { ty, .. } => *ty,
         }
     }
 
@@ -45,6 +95,7 @@ impl VariantField {
         match self {
             VariantField::Named { default, .. } => *default,
             VariantField::Positional { default, .. } => *default,
+            VariantField::Dynamic { default, .. } => *default,
         }
     }
 }

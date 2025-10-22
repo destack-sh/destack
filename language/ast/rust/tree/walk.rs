@@ -858,12 +858,51 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     field: &VariantField,
 ) {
     visitor.visit_any(tree, NodeType::VariantField, id.id);
-    let type_node = tree.get(field.ty);
-    visitor.visit_expression(tree, field.ty, type_node);
-
-    if let Some(default) = &field.default {
-        let expression = tree.get(*default);
-        visitor.visit_expression(tree, *default, expression);
+    match field {
+        VariantField::Named {
+            visibility: _,
+            mutability: _,
+            name: _,
+            ty,
+            default,
+        } => {
+            let type_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_node);
+            if let Some(default) = default {
+                let expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, expression);
+            }
+        }
+        VariantField::Positional {
+            visibility: _,
+            mutability: _,
+            ty,
+            default,
+        } => {
+            let type_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_node);
+            if let Some(default) = default {
+                let expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, expression);
+            }
+        }
+        VariantField::Dynamic {
+            visibility: _,
+            mutability: _,
+            name: _,
+            ty,
+            key,
+            default,
+        } => {
+            let type_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_node);
+            let key_node = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_node);
+            if let Some(default) = default {
+                let expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, expression);
+            }
+        }
     }
 }
 
@@ -1050,6 +1089,16 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Spread { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
+        }
+        Argument::Dynamic {
+            name: _,
+            key,
+            value,
+        } => {
+            let key_expr = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expr);
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
     }
 }
