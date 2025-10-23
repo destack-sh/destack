@@ -1,4 +1,4 @@
-use dyst_ast::{Argument, IfStyle, Mutability, Path};
+use dyst_ast::{Argument, IfStyle, PostfixPosition, Mutability, Path};
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
@@ -777,21 +777,26 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // member
-            Expression::Member { receiver, path } => write!(f, [receiver, token("."), path])?,
+            Expression::Member { left: receiver, path } => write!(f, [receiver, token("."), path])?,
 
             // index
-            Expression::Index { receiver, index } => {
+            Expression::Index { position, left: receiver, index } => {
+                write!(f, [receiver])?;
+                if *position == PostfixPosition::Indirect {
+                    write!(f, [token(".")])?;
+                }
                 if let Some(index) = index {
-                    write!(f, [receiver, token("["), index, token("]")])?;
+                    write!(f, [token("["), index, token("]")])?;
                 } else {
-                    write!(f, [receiver, token("[]")])?;
+                    write!(f, [token("[]")])?;
                 }
             }
 
             // call
             Expression::Call {
+                position,
                 runtime,
-                receiver,
+                left: receiver,
                 dynamic_arguments,
             } => {
                 let runtime = runtime.unwrap_or(Runtime::Dynamic);
@@ -799,16 +804,31 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [token("@")])?;
                 }
                 write!(f, [receiver])?;
+                if *position == PostfixPosition::Indirect {
+                    write!(f, [token(".")])?;
+                }
                 if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
                     write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
                 }
             }
 
             // maybe
-            Expression::Maybe(expr) => write!(f, [expr, token("?")])?,
+            Expression::Maybe { left, position } => {
+                left.format(f)?;
+                match position {
+                    PostfixPosition::Direct => write!(f, [token("?")])?,
+                    PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
+                }
+            }
 
             // must
-            Expression::Must(expr) => write!(f, [expr, token("!")])?,
+            Expression::Must { position, left } => {
+                write!(f, [left])?;
+                if *position == PostfixPosition::Indirect {
+                    write!(f, [token(".")])?;
+                }
+                write!(f, [token("!")])?;
+            }
 
             // binary
             Expression::Binary {
@@ -1018,6 +1038,26 @@ mod tests {
         assert_format!(
             "Foo { ..B }",
             "Foo { ..B }",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_if_ternary() {
+        assert_format!(
+            "true ? 1 : 2",
+            "true ? 1 : 2",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_index_call_mixed_postfix() {
+        assert_format!(
+            "x?.[f]?.[2]?.(a, b)",
+            "x?.[f]?.[2]?.(a, b)",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

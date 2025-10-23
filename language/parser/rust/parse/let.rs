@@ -287,8 +287,8 @@ var x: float64[3] = undefined
 
             // float64[3]
             let ty_id = ty.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, Expression::Index { receiver, index } => {
-                assert_node!(parser.tree, *receiver, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
+            assert_node!(parser.tree, ty_id, Expression::Index { position: _, left, index } => {
+                assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
                     assert_eq!(float_ty.width, Some(64));
                 });
                 assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
@@ -374,9 +374,9 @@ const x =
 
             // foo.parse()
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::Call { runtime, receiver, dynamic_arguments: _ } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, runtime, left, dynamic_arguments: _ } => {
                 assert_eq!(*runtime, None);
-                assert_node!(parser.tree, *receiver, Expression::Path { path, static_arguments: _ } => {
+                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
                     assert_path!(parser, *path, "foo.parse");
                 });
             });

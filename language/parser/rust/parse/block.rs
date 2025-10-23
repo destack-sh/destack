@@ -401,8 +401,8 @@ mod tests {
         let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
-            assert_node!(parser.tree, expression.unwrap(), Expression::Call { runtime: _, receiver, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
+            assert_node!(parser.tree, expression.unwrap(), Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
             assert!(catch.is_none());
@@ -430,8 +430,8 @@ mod tests {
         // await someFunction()
         assert_node!(parser.tree, await_id, Expression::Await { expression } => {
             // someFunction()
-            assert_node!(parser.tree, *expression, Expression::Call { runtime: _, receiver, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
+            assert_node!(parser.tree, *expression, Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });
@@ -445,8 +445,8 @@ mod tests {
         // yield someFunction()
         assert_node!(parser.tree, yield_id, Expression::Yield { value } => {
             // someFunction()
-            assert_node!(parser.tree, *value, Expression::Call { runtime: _, receiver, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*receiver), "someFunction");
+            assert_node!(parser.tree, *value, Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });

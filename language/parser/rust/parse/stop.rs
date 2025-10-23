@@ -107,6 +107,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek next any stop (comma, semicolon, or newline).
+    #[inline]
+    pub fn peek_next_any_stop(&self) -> ParserResult<&TokenSpan> {
+        if let Ok(token) = self.peek_next()
+            && (token.token.ty == TokenType::Newline
+                || token.token.ty == TokenType::Semicolon
+                || token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::End)
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(
+                self.peek_next().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
+            ))
+        }
+    }
+
     /// Eat any stop (comma, semicolon, or newline).
     /// Eats all following newlines.
     #[inline]
@@ -157,6 +175,23 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::CloseParenthesis,
+            ))
+        }
+    }
+
+    /// Peek next any close parenthesis (`)`, `]`, `}`)
+    #[inline]
+    pub fn peek_next_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+        if let Ok(token) = self.peek_next()
+            && (token.token.ty == TokenType::CloseParenthesis
+                || token.token.ty == TokenType::CloseBracket
+                || token.token.ty == TokenType::CloseBrace)
+        {
+            Ok(token)
+        } else {
+            Err(ParserError::expected(
+                self.peek_next().unwrap_or(&self.eof_token).span,
                 TokenType::CloseParenthesis,
             ))
         }

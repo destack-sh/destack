@@ -247,7 +247,7 @@ pub enum Expression {
     ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
     ///     riskyOperationB(a)
     /// } // no catch needed if containing function has compatible Result type (Into suffices)
-    /// 
+    ///
     /// try {
     ///     ...
     /// } catch e {
@@ -358,6 +358,7 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// yield someValue
+    /// yield* someIterator
     /// ```
     Yield { value: NodeId<Expression> },
 
@@ -526,7 +527,7 @@ pub enum Expression {
     /// foo.bar
     /// ```
     Member {
-        receiver: NodeId<Expression>,
+        left: NodeId<Expression>,
         path: Path,
     },
 
@@ -539,9 +540,9 @@ pub enum Expression {
     /// foo[1..3]
     /// foo["bar"]
     /// foo().result[0][variable+1]
-    /// foo.1 // for member access tuple
     Index {
-        receiver: NodeId<Expression>,
+        position: PostfixPosition,
+        left: NodeId<Expression>,
         index: Option<NodeId<Expression>>,
     },
 
@@ -560,16 +561,24 @@ pub enum Expression {
     /// MyUnion.Baz(2, 3)
     /// ```
     Call {
+        position: PostfixPosition,
         runtime: Option<Runtime>,
-        receiver: NodeId<Expression>,
+        left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
 
     /// Maybe unwrap an expression with `?` and propagate.
-    Maybe(NodeId<Expression>),
+    /// Supports chaining with `?.`.
+    Maybe {
+        position: PostfixPosition,
+        left: NodeId<Expression>,
+    },
 
     /// Force unwrap an expression with `!` and propagate.
-    Must(NodeId<Expression>),
+    Must {
+        position: PostfixPosition,
+        left: NodeId<Expression>,
+    },
 
     /// Binary operation.
     Binary {
@@ -619,6 +628,15 @@ impl Expression {
                 | Expression::Assign { .. }
         )
     }
+}
+
+/// The position of a postfix expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PostfixPosition {
+    // Regular postfix (just `x?`)
+    Direct,
+    // Dot postfix (like `x.?`)
+    Indirect,
 }
 
 /// The style of if expression.

@@ -866,6 +866,46 @@ export default function Page({
 	// ...
 }
 
+export default function Chat() {
+    const [input, setInput] = useState('');
+    const { messages, sendMessage } = useChat({
+        transport: new TextStreamChatTransport({ api: '/api/chat' }),
+    });
+
+    return (
+        <div className="flex flex-col w-full max-w-md py-24 mx-auto stretch">
+            {messages.map((message) => (
+                <div key={message.id} className="whitespace-pre-wrap">
+                    {message.role === 'user' ? 'User: ' : 'AI: '}
+                    {message.parts.map((part, idx) => {
+                        if (part.type === 'text') {
+                            return (
+                                <div key={`${message.id}-${idx}`}>{part.text}</div>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            ))}
+
+            <form
+                onSubmit={event => {
+                    event.preventDefault();
+                    sendMessage({ text: input });
+                    setInput('');
+                }}
+            >
+                <input
+                    className="fixed dark:bg-zinc-900 bottom-0 w-full max-w-md p-2 mb-8 border border-zinc-300 dark:border-zinc-800 rounded shadow-xl"
+                    value={input}
+                    placeholder="Say something..."
+                    onChange={event => setInput(event.currentTarget.value)}
+                />
+            </form>
+        </div>
+    );
+}
+
 const { elementStream } = streamObject({
 	model: openai('gpt-4.1'),
 	output: 'array',
@@ -877,4 +917,21 @@ const { elementStream } = streamObject({
 		description: z.string(),
 	}),
 	prompt: 'Generate 3 hero descriptions for a fantasy role playing game.',
+});
+
+const weatherTool = tool({
+    description: 'Get the weather for a given city',
+    inputSchema: z.object({ city: z.string() }),
+    onInputStart: ({ toolCallId }) => {
+        console.log('Tool input streaming started:', toolCallId);
+    },
+    onInputDelta: ({ inputTextDelta, toolCallId }) => {
+        console.log('Tool input delta:', inputTextDelta);
+    },
+    onInputAvailable: ({ input, toolCallId }) => {
+        console.log('Tool input ready:', input);
+    },
+    execute: async ({ city }) => {
+        return `Weather in ${city}: sunny, 72°F`;
+    },
 });

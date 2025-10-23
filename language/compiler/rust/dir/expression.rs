@@ -222,14 +222,18 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            ast::Expression::Member { receiver, path } => {
+            ast::Expression::Member {
+                left: receiver,
+                path,
+            } => {
                 let left = self.lower_expression(source_id, ast, *receiver);
                 let path = self.lower_path(source_id, ast, path);
                 Expression::Member { left, path }
             }
             ast::Expression::Call {
+                position: _,
                 runtime,
-                receiver,
+                left: receiver,
                 dynamic_arguments,
             } => {
                 let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
@@ -244,7 +248,11 @@ impl<'a> Compiler<'a> {
                     dynamic_arguments,
                 }
             }
-            ast::Expression::Index { receiver, index } => {
+            ast::Expression::Index {
+                position: _,
+                left: receiver,
+                index,
+            } => {
                 let receiver = self.lower_expression(source_id, ast, *receiver);
                 let index = index.map(|index| self.lower_expression(source_id, ast, index));
                 Expression::Index {
@@ -252,13 +260,13 @@ impl<'a> Compiler<'a> {
                     right: index,
                 }
             }
-            ast::Expression::Maybe(expr) => {
-                let expr = self.lower_expression(source_id, ast, *expr);
-                Expression::Maybe { left: expr }
+            ast::Expression::Maybe { position: _, left } => {
+                let left = self.lower_expression(source_id, ast, *left);
+                Expression::Maybe { left }
             }
-            ast::Expression::Must(expr) => {
-                let expr = self.lower_expression(source_id, ast, *expr);
-                Expression::Must { left: expr }
+            ast::Expression::Must { position: _, left } => {
+                let left = self.lower_expression(source_id, ast, *left);
+                Expression::Must { left }
             }
 
             ast::Expression::Path {
