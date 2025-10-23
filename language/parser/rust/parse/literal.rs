@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use dyst_ast::{Definition, Keyword, PostfixPosition, Mutability, Name, Path, StringId, TemplateLiteral};
+use dyst_ast::{
+    Definition, Keyword, Mutability, Name, Path, PostfixPosition, StringId, TemplateLiteral,
+};
 use std::str::FromStr;
 
 use crate::parse::prelude::*;
@@ -1493,6 +1495,43 @@ mod tests {
                         assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
                     });
                 })
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_fragment_with_spread_argument() {
+        let mut test = TestParser::new(
+            r"
+<A  
+    a={..a} // not a rest because {..a} is just a struct literal
+    {...b} // ...b
+    ...c
+/>",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements: _ } => {
+            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert_eq!(arguments.as_ref().unwrap().len(), 3);
+            // a={..a}
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "a");
+                assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields } => {
+                    assert_eq!(fields.len(), 1);
+                    assert_node!(parser.tree, fields[0], Argument::Spread { value } => {
+                        assert_expr_path!(parser, parser.tree.get(*value), "a");
+                    });
+                });
+            });
+            // {...b}
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { value } => {
+                assert_expr_path!(parser, parser.tree.get(*value), "b");
+            });
+            // ...c
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { value } => {
+                assert_expr_path!(parser, parser.tree.get(*value), "c");
             });
         });
     }

@@ -1077,7 +1077,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Pattern, id.id);
     match pattern {
-        Pattern::Wildcard | Pattern::Rest => {}
+        Pattern::Wildcard | Pattern::Rest { name: _ } => {}
         Pattern::Maybe(inner) => {
             let inner_pattern = tree.get(*inner);
             visitor.visit_pattern(tree, *inner, inner_pattern);
