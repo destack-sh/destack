@@ -84,7 +84,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                         token("("),
                         soft_block_indent(&format_with(|f| f
                             .join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
+                                &token(","),
                                 soft_line_break_or_space()
                             ])
                             .entries(fields)
@@ -99,7 +99,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     token("["),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
+                            &token(","),
                             soft_line_break_or_space()
                         ])
                         .entries(fields)
@@ -114,7 +114,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     token("{"),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
+                            &token(","),
                             soft_line_break_or_space()
                         ])
                         .entries(fields)

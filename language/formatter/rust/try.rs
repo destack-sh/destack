@@ -28,7 +28,7 @@ mod tests {
         let source = r"try {
     foo()
 } catch match e {
-    Error(err) => err 
+    Error(err) => err
 }";
         assert_format!(
             source,

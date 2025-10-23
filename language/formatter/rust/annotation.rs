@@ -330,7 +330,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
                     token("("),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
+                            &token(","),
                             soft_line_break_or_space()
                         ])
                         .entries(arguments)
@@ -359,7 +359,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
                     token("("),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
+                            &token(","),
                             soft_line_break_or_space()
                         ])
                         .entries(arguments)

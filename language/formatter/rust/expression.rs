@@ -1,4 +1,4 @@
-use dyst_ast::{Argument, IfStyle, PostfixPosition, Mutability, Path};
+use dyst_ast::{Argument, IfStyle, Mutability, Path, PostfixPosition, YieldCardinality};
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
@@ -309,12 +309,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(
                     f,
                     [best_fit_parenthesize(&format_with(|f| {
-                        f.join_with(&format_args![
-                            if_group_fits_on_line(&token(",")),
-                            soft_line_break_or_space()
-                        ])
-                        .entries(clauses)
-                        .finish()
+                        f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                            .entries(clauses)
+                            .finish()
                     }))]
                 )?;
 
@@ -629,8 +626,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // yield
-            Expression::Yield { value } => {
-                write!(f, [Keyword::Yield, space(), value])?;
+            Expression::Yield { cardinality, value } => {
+                write!(f, [Keyword::Yield])?;
+                if *cardinality == YieldCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+                write!(f, [space(), value])?;
             }
 
             // return
@@ -657,12 +658,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         [group(&format_args![
                             token("<"),
                             soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(static_arguments)
-                                .finish()
+                                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                                    .entries(static_arguments)
+                                    .finish()
                             })),
                             token(">")
                         ])]
@@ -703,12 +701,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // tuple literal
             Expression::TupleLiteral { elements } => {
-                if elements.len() == 1 {
-                    write!(f, [token("("), elements[0], token(","), token(")")])?;
+                if elements.is_empty() {
+                    write!(f, [token("()")])?;
                 } else {
                     write!(
                         f,
-                        [list_like("(", ")", ",", elements).include_separator_if_one()]
+                        [list_like("(", ")", ",", elements).force_trailing_separator()]
                     )?;
                 }
             }
@@ -777,10 +775,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // member
-            Expression::Member { left: receiver, path } => write!(f, [receiver, token("."), path])?,
+            Expression::Member {
+                left: receiver,
+                path,
+            } => write!(f, [receiver, token("."), path])?,
 
             // index
-            Expression::Index { position, left: receiver, index } => {
+            Expression::Index {
+                position,
+                left: receiver,
+                index,
+            } => {
                 write!(f, [receiver])?;
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
@@ -1085,13 +1090,14 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_parenthesized() {
-        assert_format!(
-            "(<Entity a=1, b = 2 />)",
-            "(
+        let source = r"(
     <Entity a=1 b=2>
         <Entity a=1 b=2 />
     </Entity>
-)",
+)";
+        assert_format!(
+            source,
+            source,
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

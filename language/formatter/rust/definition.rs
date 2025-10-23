@@ -24,12 +24,9 @@ pub(crate) fn format_super_types<'ast>(
         [group(&format_args![
             if_group_breaks(&token("(")),
             soft_block_indent(&format_with(|f| {
-                f.join_with(&format_args![
-                    if_group_fits_on_line(&token(",")),
-                    soft_line_break_or_space()
-                ])
-                .entries(super_types)
-                .finish()
+                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                    .entries(super_types)
+                    .finish()
             })),
             if_group_breaks(&token(")")),
         ])]
@@ -224,7 +221,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                                 token("("),
                                 soft_block_indent(&format_with(|f| f
                                     .join_with(&format_args![
-                                        if_group_fits_on_line(&token(",")),
+                                        &token(","),
                                         soft_line_break_or_space()
                                     ])
                                     .entries(tuple_fields)
@@ -677,12 +674,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         [group(&format_args![
                             token("<"),
                             soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(static_arguments)
-                                .finish()
+                                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                                    .entries(static_arguments)
+                                    .finish()
                             })),
                             token(">")
                         ])]
@@ -810,7 +804,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         soft_block_indent(&format_with(|f| {
                             // self parameter
                             let separator = format_with(|f| {
-                                if_group_fits_on_line(&token(",")).format(f)?;
+                                token(",").format(f)?;
                                 soft_line_break_or_space().format(f)
                             });
                             let mut join = f.join_with(&separator);

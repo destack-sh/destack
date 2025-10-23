@@ -20,7 +20,7 @@ where
     end_token: &'static str,
     separator: &'static str,
     include_space: bool,
-    include_separator_if_one: bool,
+    force_trailing_separator: bool,
     force_expand: bool,
     elements: &'e Vec<NodeId<T>>,
 
@@ -48,8 +48,8 @@ where
         self
     }
 
-    pub(crate) fn include_separator_if_one(&mut self) -> &mut Self {
-        self.include_separator_if_one = true;
+    pub(crate) fn force_trailing_separator(&mut self) -> &mut Self {
+        self.force_trailing_separator = true;
         self
     }
 }
@@ -69,20 +69,22 @@ where
 
             // elements
             f.join_with(&format_args![
-                if_group_fits_on_line(&token(self.separator)),
+                &token(self.separator),
                 soft_line_break_or_space()
             ])
             .entries(self.elements)
             .finish()?;
 
+            // trailing separator
+            if self.force_trailing_separator {
+                write!(f, [token(self.separator)])?;
+            } else {
+                write!(f, [if_group_breaks(&token(self.separator))])?;
+            }
+
             // trailing space
             if self.include_space && !self.elements.is_empty() {
                 write!(f, [if_group_fits_on_line(&space())])?;
-            }
-
-            // trailing separator
-            if self.include_separator_if_one && self.elements.len() == 1 {
-                write!(f, [token(self.separator)])?;
             }
 
             Ok(())
@@ -123,7 +125,7 @@ where
         end_token,
         separator,
         include_space: false,
-        include_separator_if_one: false,
+        force_trailing_separator: false,
         force_expand: false,
         elements,
         _phantom: PhantomData,
