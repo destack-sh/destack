@@ -146,11 +146,11 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [name])?;
                 // type
                 if let Some(ty) = ty {
-                    write!(f, [token(": "), ty])?;
+                    write!(f, [token(":"), space(), ty])?;
                 }
                 // default
                 if let Some(default) = default {
-                    write!(f, [token(" = "), default])?;
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             Parameter::Pattern {
@@ -161,11 +161,11 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
-                    write!(f, [token(": "), ty])?;
+                    write!(f, [token(":"), space(), ty])?;
                 }
                 // default
                 if let Some(default) = default {
-                    write!(f, [token(" = "), default])?;
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             Parameter::Variadic { name, ty } => {
@@ -174,7 +174,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [name])?;
                 // type
                 if let Some(ty) = ty {
-                    write!(f, [token(": "), ty])?;
+                    write!(f, [token(":"), space(), ty])?;
                 }
             }
         }

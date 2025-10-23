@@ -59,7 +59,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 
     // label
     if let Some(label) = &block.label {
-        write!(f, [label, token(": ")])?;
+        write!(f, [label, token(":"), space()])?;
     }
 
     // body
@@ -93,7 +93,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 
     // label
     if let Some(label) = &block.label {
-        write!(f, [label, token(": ")])?;
+        write!(f, [label, token(":"), space()])?;
     }
 
     // body

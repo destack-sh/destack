@@ -30,12 +30,12 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                     write!(f, [Keyword::Readonly, space()])?;
                 }
                 // name
-                write!(f, [name, token(": ")])?;
+                write!(f, [name, token(":"), space()])?;
                 // type
                 write!(f, [ty])?;
                 // default
                 if let Some(default) = default {
-                    write!(f, [token(" = "), default])?;
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             VariantField::Positional {
@@ -56,7 +56,7 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                 write!(f, [ty])?;
                 // default
                 if let Some(default) = default {
-                    write!(f, [token(" = "), default])?;
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
             VariantField::Dynamic {
@@ -82,7 +82,7 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                 write!(f, [key, token("]"), token(":"), space(), ty])?;
                 // default
                 if let Some(default) = default {
-                    write!(f, [token(" = "), default])?;
+                    write!(f, [space(), token("="), space(), default])?;
                 }
             }
         }

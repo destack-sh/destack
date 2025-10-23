@@ -40,7 +40,7 @@ impl<'ast> FormatNode<'ast, WithClause> for WithClause {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         if let Some(alias) = self.alias {
-            write!(f, [alias, token(": ")])?;
+            write!(f, [alias, token(":"), space()])?;
         }
         write!(f, [self.right])?;
 

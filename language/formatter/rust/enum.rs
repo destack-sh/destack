@@ -16,7 +16,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 
         // value
         if let Some(value) = self.value {
-            write!(f, [token(" = "), value])?;
+            write!(f, [space(), token("="), space(), value])?;
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

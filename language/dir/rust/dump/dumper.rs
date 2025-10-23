@@ -1099,6 +1099,9 @@ impl Dump for TypeLiteral {
             TypeLiteral::Undefined => {
                 dumper.object("TypeLiteral::Undefined").end();
             }
+            TypeLiteral::Unknown => {
+                dumper.object("TypeLiteral::Unknown").end();
+            }
             TypeLiteral::Void => {
                 dumper.object("TypeLiteral::Void").end();
             }

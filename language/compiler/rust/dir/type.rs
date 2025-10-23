@@ -39,6 +39,8 @@ impl<'a> Compiler<'a> {
         let ast_literal = match string {
             // undefined
             "undefined" => Some(ast::TypeLiteral::Undefined),
+            // unknown
+            "unknown" => Some(ast::TypeLiteral::Unknown),
             // void
             "void" => Some(ast::TypeLiteral::Void),
             // null

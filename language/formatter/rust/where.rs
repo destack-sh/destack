@@ -41,7 +41,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
 
         match self {
             WhereClause::Assertion { left, right } => {
-                write!(f, [*left, token(": "), *right])?;
+                write!(f, [*left, token(":"), space(), *right])?;
             }
             WhereClause::Guard { guard } => {
                 write!(f, [*guard])?;

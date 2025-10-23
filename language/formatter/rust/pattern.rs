@@ -26,7 +26,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for ScopedMutability {
                 write!(
                     f,
                     [format_with(|f| f
-                        .join_with(token(", "))
+                        .join_with(&format_args![&token(","), space()])
                         .entries(scopes)
                         .finish())]
                 )?;
@@ -69,7 +69,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
                 write!(f, [name])?;
                 if let Some(pattern) = pattern {
-                    write!(f, [token(": "), pattern])?;
+                    write!(f, [token(":"), space(), pattern])?;
                 }
             }
             Pattern::Expression { value } => write!(f, [value])?,
@@ -83,10 +83,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     [group(&format_args![
                         token("("),
                         soft_block_indent(&format_with(|f| f
-                            .join_with(&format_args![
-                                &token(","),
-                                soft_line_break_or_space()
-                            ])
+                            .join_with(&format_args![&token(","), soft_line_break_or_space()])
                             .entries(fields)
                             .finish())),
                         token(")"),
@@ -98,10 +95,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 [group(&format_args![
                     token("["),
                     soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            &token(","),
-                            soft_line_break_or_space()
-                        ])
+                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
                         .entries(fields)
                         .finish())),
                     token("]"),
@@ -113,10 +107,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                     ty,
                     token("{"),
                     soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            &token(","),
-                            soft_line_break_or_space()
-                        ])
+                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
                         .entries(fields)
                         .finish())),
                     token("}"),
@@ -125,7 +116,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Union { patterns } => write!(
                 f,
                 [format_with(|f| f
-                    .join_with(token(" | "))
+                    .join_with(&format_args![space(), token("|"), space()])
                     .entries(patterns)
                     .finish())]
             )?,

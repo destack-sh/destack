@@ -28,7 +28,7 @@ impl<'ast> FormatNode<'ast, ImportItem> for ImportItem {
         // name and alias
         write!(f, [self.name])?;
         if let Some(alias) = self.alias {
-            write!(f, [token(" as "), alias])?;
+            write!(f, [space(), Keyword::As, space(), alias])?;
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
@@ -55,12 +55,9 @@ pub(crate) fn format_import_binding<'ast>(
                 token("{"),
                 if_group_fits_on_line(&space()),
                 soft_block_indent(&format_with(|f| {
-                    f.join_with(&format_args![
-                        &token(","),
-                        soft_line_break_or_space()
-                    ])
-                    .entries(items)
-                    .finish()
+                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                        .entries(items)
+                        .finish()
                 })),
                 if_group_fits_on_line(&space()),
                 token("}")
