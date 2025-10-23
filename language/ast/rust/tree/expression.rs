@@ -360,7 +360,10 @@ pub enum Expression {
     /// yield someValue
     /// yield* someIterator
     /// ```
-    Yield { value: NodeId<Expression> },
+    Yield {
+        cardinality: YieldCardinality,
+        value: NodeId<Expression>,
+    },
 
     /// Return expression.
     ///
@@ -646,6 +649,16 @@ pub enum IfStyle {
     Regular,
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
     Ternary,
+}
+
+
+/// The cardinality of a yield expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum YieldCardinality {
+    /// Single value.
+    Scalar,
+    /// Generator.
+    Generator,
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

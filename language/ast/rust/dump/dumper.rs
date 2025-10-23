@@ -812,6 +812,13 @@ impl Dump for IfStyle {
     }
 }
 
+/// Dump a YieldCardinality as a string.
+impl Dump for YieldCardinality {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a FunctionStyle as a string.
 impl Dump for FunctionStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1285,8 +1292,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Await { expression: _ } => {
                 self.node("Expression::Await", _id.id).end();
             }
-            Expression::Yield { value: _ } => {
-                self.node("Expression::Yield", _id.id).end();
+            Expression::Yield { cardinality, value: _ } => {
+                self.node("Expression::Yield", _id.id)
+                    .field("cardinality", cardinality)
+                    .end();
             }
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();

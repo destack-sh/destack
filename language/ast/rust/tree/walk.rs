@@ -344,7 +344,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression, expression_node);
         }
 
-        Expression::Yield { value } => {
+        Expression::Yield { cardinality: _, value } => {
             let value_node = tree.get(*value);
             visitor.visit_expression(tree, *value, value_node);
         }

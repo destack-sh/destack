@@ -1,3 +1,5 @@
+use dyst_ast::YieldCardinality;
+
 use crate::parse::prelude::*;
 use crate::{
     Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
@@ -258,6 +260,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// yield someValue
+    /// yield* someIterator
     /// ```
     pub fn eat_yield(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -265,12 +268,23 @@ impl<'a> Parser<'a> {
         // keyword
         self.eat_keyword(Keyword::Yield)?;
 
+        // cardinality
+        let cardinality = if self.peek_token(TokenType::Multiply).is_ok() {
+            self.bump(); // eat *
+            YieldCardinality::Generator
+        } else {
+            YieldCardinality::Scalar
+        };
+
         // value
         let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
 
         // yield
         let yield_id = self.tree.insert(
-            Expression::Yield { value: value_id },
+            Expression::Yield {
+                cardinality,
+                value: value_id,
+            },
             self.get_span_from(start),
         );
         Ok(yield_id)
@@ -304,6 +318,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::YieldCardinality;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, ScalarLiteral, assert_expr_path, assert_node, assert_path, assert_string,
@@ -443,7 +459,23 @@ mod tests {
         let mut parser = test.prepare();
         let yield_id = parser.eat_yield().unwrap();
         // yield someFunction()
-        assert_node!(parser.tree, yield_id, Expression::Yield { value } => {
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            // someFunction()
+            assert_node!(parser.tree, *value, Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_yield_expression_generator() {
+        let mut test = TestParser::new("yield* someFunction()");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Generator);
             // someFunction()
             assert_node!(parser.tree, *value, Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
                 assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
