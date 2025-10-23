@@ -23,7 +23,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 if let Some(guard) = guard {
                     write!(f, [space(), Keyword::If, space(), *guard])?;
                 }
-                write!(f, [token(" => "), *body])?;
+                write!(f, [space(), token("=>"), space(), *body])?;
             }
             MatchCase::Block {
                 pattern,
@@ -35,7 +35,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 if let Some(guard) = guard {
                     write!(f, [space(), Keyword::If, space(), *guard])?;
                 }
-                write!(f, [token(" => "), *body])?;
+                write!(f, [space(), token("=>"), space(), *body])?;
             }
         }
 

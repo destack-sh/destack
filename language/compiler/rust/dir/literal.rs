@@ -135,6 +135,7 @@ impl<'a> Compiler<'a> {
             ast::TypeLiteral::Never => TypeLiteral::Never,
             ast::TypeLiteral::Infer => TypeLiteral::Infer,
             ast::TypeLiteral::Undefined => TypeLiteral::Undefined,
+            ast::TypeLiteral::Unknown => TypeLiteral::Unknown,
             ast::TypeLiteral::Void => TypeLiteral::Void,
             ast::TypeLiteral::Null => TypeLiteral::Null,
             ast::TypeLiteral::Boolean => TypeLiteral::Primitive(PrimitiveType::Boolean),

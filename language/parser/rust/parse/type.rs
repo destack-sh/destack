@@ -36,6 +36,8 @@ impl<'a> Parser<'a> {
         let literal = match next_str {
             // undefined
             "undefined" => Some(TypeLiteral::Undefined),
+            // unknown
+            "unknown" => Some(TypeLiteral::Unknown),
             // void
             "void" => Some(TypeLiteral::Void),
             // null

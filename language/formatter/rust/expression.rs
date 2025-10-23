@@ -386,7 +386,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         write!(f, [space(), pattern])?;
                         // type
                         if let Some(ty) = ty {
-                            write!(f, [token(": "), ty])?;
+                            write!(f, [token(":"), space(), ty])?;
                         }
                         // value
                         if let Some(value) = value {

@@ -949,3 +949,108 @@ function PostDeepComponent() {
 
     return <></>;
 }
+
+export function useFunnelTooltip(showPersonsModal: boolean): React.RefObject<HTMLDivElement> {
+    const { insightProps } = useValues(insightLogic)
+    const { breakdownFilter, querySource } = useValues(funnelDataLogic(insightProps))
+    const { isTooltipShown, currentTooltip, tooltipOrigin } = useValues(funnelTooltipLogic(insightProps))
+    const { aggregationLabel } = useValues(groupsModel)
+
+    const vizRef = useRef<HTMLDivElement>(null)
+    const { getTooltip } = useInsightTooltip()
+
+    useEffect(() => {
+        const svgRect = vizRef.current?.getBoundingClientRect()
+        const [tooltipRoot, tooltipEl] = getTooltip()
+        tooltipEl.style.opacity = isTooltipShown ? '1' : '0'
+        const tooltipRect = tooltipEl.getBoundingClientRect()
+        if (tooltipOrigin) {
+            tooltipRoot.render(
+                <>
+                    {currentTooltip && (
+                        <FunnelTooltip
+                            showPersonsModal={showPersonsModal}
+                            stepIndex={currentTooltip[0]}
+                            series={currentTooltip[1]}
+                            groupTypeLabel={aggregationLabel(querySource?.aggregation_group_type_index).plural}
+                            breakdownFilter={breakdownFilter}
+                        />
+                    )}
+                </>
+            )
+            // Put the tooltip to the bottom right of the cursor, but flip to left if tooltip doesn't fit
+            let xOffset: number
+            if (
+                svgRect &&
+                tooltipRect &&
+                tooltipOrigin[0] + tooltipOrigin[2] + tooltipRect.width + FUNNEL_TOOLTIP_OFFSET_PX >
+                    svgRect.x + svgRect.width
+            ) {
+                xOffset = -tooltipRect.width - FUNNEL_TOOLTIP_OFFSET_PX
+            } else {
+                xOffset = tooltipOrigin[2] + FUNNEL_TOOLTIP_OFFSET_PX
+            }
+            tooltipEl.style.left = `${window.pageXOffset + tooltipOrigin[0] + xOffset}px`
+            tooltipEl.style.top = `${window.pageYOffset + tooltipOrigin[1]}px`
+        } else {
+            tooltipEl.style.left = 'revert'
+            tooltipEl.style.top = 'revert'
+        }
+    }, [isTooltipShown, tooltipOrigin, currentTooltip]) // oxlint-disable-line react-hooks/exhaustive-deps
+
+    return vizRef
+}
+
+function Component() {
+    const router = useRouter()
+
+    useEffect(() => {
+        async function preloadRouteChunks() {
+            try {
+                const postsRoute = router.routesByPath['/posts']
+                await Promise.all([
+                    router.loadRouteChunk(router.routesByPath['/']),
+                    router.loadRouteChunk(postsRoute),
+                    router.loadRouteChunk(postsRoute.parentRoute),
+                ])
+            } catch (err) {
+                // failed to preload route chunk
+            }
+        }
+
+        preloadRouteChunks()
+    }, [router])
+
+    return <div />
+}
+
+
+<Menu
+    items={[
+        { to: '/posts' },
+        { to: '/posts/$postId', params: { postId: 'postId' } },
+    ]}
+/>
+
+export interface MenuProps<
+    TRouter extends RegisteredRouter = RegisteredRouter,
+    TItems extends ReadonlyArray<unknown> = ReadonlyArray<unknown>,
+> {
+    items: ValidateLinkOptionsArray<TRouter, TItems>
+}
+
+export function Menu<
+    TRouter extends RegisteredRouter = RegisteredRouter,
+    TItems extends ReadonlyArray<unknown>,
+>(props: MenuProps<TRouter, TItems>): React.ReactNode
+export function Menu(props: MenuProps): React.ReactNode {
+    return (
+        <ul>
+            {props.items.map((item) => (
+                <li>
+                    <Link {...item} />
+                </li>
+            ))}
+        </ul>
+    )
+}
