@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
-        self.eat_keyword(Keyword::Return)?;
+        self.eat_keyword_in(&[Keyword::Return, Keyword::Throw])?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
             let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
