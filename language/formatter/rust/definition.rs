@@ -15,6 +15,8 @@ pub(crate) fn format_super_types<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     super_types: &[NodeId<crate::Expression>],
 ) -> FormatResult<()> {
+    assert!(!super_types.is_empty());
+
     // colon separator
     write!(f, [token(":"), space()])?;
 
@@ -26,13 +28,14 @@ pub(crate) fn format_super_types<'ast>(
             soft_block_indent(&format_with(|f| {
                 f.join_with(&format_args![&token(","), soft_line_break_or_space()])
                     .entries(super_types)
-                    .finish()
+                    .finish()?;
+                // trailing comma
+                write!(f, [if_group_breaks(&token(","))])?;
+                Ok(())
             })),
             if_group_breaks(&token(")")),
         ])]
-    )?;
-
-    Ok(())
+    )
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
@@ -362,6 +365,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_with_clause(f, with)?;
                 }
 
+                // where
                 if let Some(where_clauses) = &where_clauses
                     && !where_clauses.is_empty()
                 {
