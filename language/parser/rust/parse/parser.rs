@@ -48,6 +48,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
     pub in_tree_literal: bool = false,
+    /// Whether we're parsing a ternary if expression.
+    /// Disallows some shorthand syntax like lambdas that looks like a ternary part.
+    pub in_ternary_condition: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
@@ -161,6 +164,15 @@ impl ParserOptions {
     /// Not in parenthesis.
     pub(crate) fn not_in_parenthesis(self) -> Self {
         Self {
+            in_parenthesis: false,
+            ..self
+        }
+    }
+
+    /// Set `in_ternary_condition=true`, `in_parenthesis=false`.
+    pub(crate) fn in_ternary_condition(self) -> Self {
+        Self {
+            in_ternary_condition: true,
             in_parenthesis: false,
             ..self
         }

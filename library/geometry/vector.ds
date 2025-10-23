@@ -82,16 +82,16 @@ implement Vector2 {
     /// Component-wise minimum.
     function min(self, other: Vector2) => Vector2 {
         Vector2 {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector2) => Vector2 {
         Vector2 {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
         }
     }
 
@@ -205,9 +205,9 @@ implement Vector3 {
     /// Returns the cross product of the two Vectors.
     function cross(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: self.y * other.z - self.z * other.y
-            y: self.z * other.x - self.x * other.z
-            z: self.x * other.y - self.y * other.x
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
         }
     }
 
@@ -240,27 +240,27 @@ implement Vector3 {
     /// Component-wise minimum.
     function min(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
-            z: if self.z < other.z { self.z } else { other.z }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
+            z: if self.z < other.z { self.z } else { other.z },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
-            z: if self.z > other.z { self.z } else { other.z }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
+            z: if self.z > other.z { self.z } else { other.z },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3, max: Vector3) => Vector3 {
         Vector3 {
-            x: clampScalar(self.x, min.x, max.x)
-            y: clampScalar(self.y, min.y, max.y)
-            z: clampScalar(self.z, min.z, max.z)
+            x: clampScalar(self.x, min.x, max.x),
+            y: clampScalar(self.y, min.y, max.y),
+            z: clampScalar(self.z, min.z, max.z),
         }
     }
 
@@ -406,30 +406,30 @@ implement Vector4 {
     /// Component-wise minimum.
     function min(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
-            z: if self.z < other.z { self.z } else { other.z }
-            w: if self.w < other.w { self.w } else { other.w }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
+            z: if self.z < other.z { self.z } else { other.z },
+            w: if self.w < other.w { self.w } else { other.w },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
-            z: if self.z > other.z { self.z } else { other.z }
-            w: if self.w > other.w { self.w } else { other.w }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
+            z: if self.z > other.z { self.z } else { other.z },
+            w: if self.w > other.w { self.w } else { other.w },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4, max: Vector4) => Vector4 {
         Vector4 {
-            x: clampScalar(self.x, min.x, max.x)
-            y: clampScalar(self.y, min.y, max.y)
-            z: clampScalar(self.z, min.z, max.z)
-            w: clampScalar(self.w, min.w, max.w)
+            x: clampScalar(self.x, min.x, max.x),
+            y: clampScalar(self.y, min.y, max.y),
+            z: clampScalar(self.z, min.z, max.z),
+            w: clampScalar(self.w, min.w, max.w),
         }
     }
 
@@ -463,10 +463,10 @@ implement Vector4: Add<float32> {
 implement Vector4: Add<Vector4> {
     function add(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: self.x + other.x
-            y: self.y + other.y
-            z: self.z + other.z
-            w: self.w + other.w
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+            w: self.w + other.w,
         }
     }
 }
@@ -480,10 +480,10 @@ implement Vector4: Subtract<float32> {
 implement Vector4: Subtract<Vector4> {
     function subtract(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: self.x - other.x
-            y: self.y - other.y
-            z: self.z - other.z
-            w: self.w - other.w
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+            w: self.w - other.w,
         }
     }
 }
@@ -497,10 +497,10 @@ implement Vector4: Multiply<float32> {
 implement Vector4: Multiply<Vector4> {
     function multiply(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: self.x * other.x
-            y: self.y * other.y
-            z: self.z * other.z
-            w: self.w * other.w
+            x: self.x * other.x,
+            y: self.y * other.y,
+            z: self.z * other.z,
+            w: self.w * other.w,
         }
     }
 }
@@ -576,16 +576,16 @@ implement Vector2i {
     /// Component-wise minimum.
     function min(self, other: Vector2i) => Vector2i {
         Vector2i {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector2i) => Vector2i {
         Vector2i {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
         }
     }
 
@@ -718,27 +718,27 @@ implement Vector3i {
     /// Component-wise minimum.
     function min(self, other: Vector3i) => Vector3i {
         Vector3i {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
-            z: if self.z < other.z { self.z } else { other.z }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
+            z: if self.z < other.z { self.z } else { other.z },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector3i) => Vector3i {
         Vector3i {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
-            z: if self.z > other.z { self.z } else { other.z }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
+            z: if self.z > other.z { self.z } else { other.z },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3i, max: Vector3i) => Vector3i {
         Vector3i {
-            x: clampScalar(self.x, min.x, max.x)
-            y: clampScalar(self.y, min.y, max.y)
-            z: clampScalar(self.z, min.z, max.z)
+            x: clampScalar(self.x, min.x, max.x),
+            y: clampScalar(self.y, min.y, max.y),
+            z: clampScalar(self.z, min.z, max.z),
         }
     }
 
@@ -881,30 +881,30 @@ implement Vector4i {
     /// Component-wise minimum.
     function min(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: if self.x < other.x { self.x } else { other.x }
-            y: if self.y < other.y { self.y } else { other.y }
-            z: if self.z < other.z { self.z } else { other.z }
-            w: if self.w < other.w { self.w } else { other.w }
+            x: if self.x < other.x { self.x } else { other.x },
+            y: if self.y < other.y { self.y } else { other.y },
+            z: if self.z < other.z { self.z } else { other.z },
+            w: if self.w < other.w { self.w } else { other.w },
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: if self.x > other.x { self.x } else { other.x }
-            y: if self.y > other.y { self.y } else { other.y }
-            z: if self.z > other.z { self.z } else { other.z }
-            w: if self.w > other.w { self.w } else { other.w }
+            x: if self.x > other.x { self.x } else { other.x },
+            y: if self.y > other.y { self.y } else { other.y },
+            z: if self.z > other.z { self.z } else { other.z },
+            w: if self.w > other.w { self.w } else { other.w },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4i, max: Vector4i) => Vector4i {
         Vector4i {
-            x: clampScalar(self.x, min.x, max.x)
-            y: clampScalar(self.y, min.y, max.y)
-            z: clampScalar(self.z, min.z, max.z)
-            w: clampScalar(self.w, min.w, max.w)
+            x: clampScalar(self.x, min.x, max.x),
+            y: clampScalar(self.y, min.y, max.y),
+            z: clampScalar(self.z, min.z, max.z),
+            w: clampScalar(self.w, min.w, max.w),
         }
     }
 
@@ -938,10 +938,10 @@ implement Vector4i: Add<int32> {
 implement Vector4i: Add<Vector4i> {
     function add(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: self.x + other.x
-            y: self.y + other.y
-            z: self.z + other.z
-            w: self.w + other.w
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+            w: self.w + other.w,
         }
     }
 }
@@ -955,10 +955,10 @@ implement Vector4i: Subtract<int32> {
 implement Vector4i: Subtract<Vector4i> {
     function subtract(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: self.x - other.x
-            y: self.y - other.y
-            z: self.z - other.z
-            w: self.w - other.w
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+            w: self.w - other.w,
         }
     }
 }
@@ -972,10 +972,10 @@ implement Vector4i: Multiply<int32> {
 implement Vector4i: Multiply<Vector4i> {
     function multiply(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: self.x * other.x
-            y: self.y * other.y
-            z: self.z * other.z
-            w: self.w * other.w
+            x: self.x * other.x,
+            y: self.y * other.y,
+            z: self.z * other.z,
+            w: self.w * other.w,
         }
     }
 }

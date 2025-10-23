@@ -1140,7 +1140,7 @@ mod tests {
     #[test]
     fn test_format_expression_ternary_tree_literal() {
         let source = r#"(funnelsFilter?.funnelVizType === FunnelVizType.Steps
-    ? [
+    ?   [
             <>
                 <span className="flex items-center text-secondary mr-1">
                     <Tooltip

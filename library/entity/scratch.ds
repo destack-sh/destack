@@ -1157,10 +1157,10 @@ export function FunnelCanvasLabel(): JSX.Element | null {
                       {funnelsFilter?.funnelVizType === FunnelVizType.TimeToConvert && <FunnelStepsPicker />}
                       <span className="text-secondary mr-1">":"</span>
                       {funnelsFilter?.funnelVizType === FunnelVizType.TimeToConvert ? (
-                          <span className="font-bold">{humanFriendlyDuration(conversionMetrics.averageTime)}</span>
+                          <span>{humanFriendlyDuration(conversionMetrics.averageTime)}</span>
                       ) : (
                           <Link
-                              className="font-bold"
+                              className
                               onClick={() => updateInsightFilter({ funnelVizType: FunnelVizType.TimeToConvert })}
                           >
                               {humanFriendlyDuration(conversionMetrics.averageTime)}

@@ -304,7 +304,9 @@ impl<'a> Parser<'a> {
                     .map(|ty| {
                         ty == TokenType::Arrow
                             || ty == TokenType::ArrowWide
-                            || !self.options.in_before_type && ty == TokenType::Colon
+                            || !self.options.in_before_type
+                                && !self.options.in_ternary_condition
+                                && ty == TokenType::Colon
                     })
                     .unwrap_or(false)
                 {
@@ -746,6 +748,7 @@ impl<'a> Parser<'a> {
             }
             // index (like `[]`)
             else if self.peek_token(TokenType::OpenBracket).is_ok()
+                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                 || self.peek_token(TokenType::Dot).is_ok()
                     && self.peek_next_token(TokenType::OpenBracket).is_ok()
             {
@@ -759,6 +762,7 @@ impl<'a> Parser<'a> {
             }
             // call (like `()`)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok()
+                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                 || self.peek_token(TokenType::Dot).is_ok()
                     && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
             {
@@ -817,7 +821,7 @@ impl<'a> Parser<'a> {
                     self.bump(); // eat ?
                     // then expression
                     let then_expression_id = self
-                        .with_options(self.options.not_in_parenthesis(), |parser| {
+                        .with_options(self.options.in_ternary_condition(), |parser| {
                             parser.eat_expression()
                         })?;
                     // :
@@ -1282,6 +1286,44 @@ mod tests {
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+
+    /// Parse a ternary if expression with parenthesis (disambiguate from call expression).
+    #[test]
+    fn test_parse_if_ternary_with_parenthesis() {
+        let mut test = TestParser::new("x ? () : ()");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "x");
+            });
+            assert_node!(parser.tree, *then_expression, Expression::TupleLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 0);
+            });
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::TupleLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 0);
+            });
+        });
+    }
+
+    /// Parse a ternary if expression with brackets (disambiguate from index).
+    #[test]
+    fn test_parse_if_ternary_with_brackets() {
+        let mut test = TestParser::new("x ? [] : []");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "x");
+            });
+            assert_node!(parser.tree, *then_expression, Expression::ArrayLiteral { elements } => {
+                assert_eq!(elements.len(), 0);
+            });
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ArrayLiteral { elements } => {
+                assert_eq!(elements.len(), 0);
+            });
         });
     }
 
