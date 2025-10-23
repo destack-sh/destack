@@ -25,8 +25,10 @@ use crate::{Expression, Name, Node, NodeId, NodeType, ScopedMutability};
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
-    /// Wildcard rest pattern (`..`).
-    Rest,
+    /// Wildcard rest pattern (`..` or `..rest`).
+    Rest {
+        name: Option<StringId>,
+    },
     /// Maybe pattern (like `T?`).
     Maybe(NodeId<Pattern>),
     /// Reference pattern (like `&x`).

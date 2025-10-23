@@ -44,7 +44,13 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::RangeWide).is_ok()
             {
                 self.bump(); // eat range
-                self.tree.insert(Pattern::Rest, self.get_span_from(start))
+                let name = if self.peek_identifier().is_ok() {
+                    Some(self.eat_identifier()?)
+                } else {
+                    None
+                };
+                self.tree
+                    .insert(Pattern::Rest { name }, self.get_span_from(start))
             }
             // pointer
             else if self.peek_token(TokenType::Multiply).is_ok()
@@ -390,7 +396,18 @@ mod tests {
         let mut test = TestParser::new("..");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Rest);
+        assert_node!(parser.tree, pattern_id, Pattern::Rest { name: None });
+    }
+
+    #[test]
+    fn test_parse_pattern_rest_with_name() {
+        // ..rest
+        let mut test = TestParser::new("..rest");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+        assert_node!(parser.tree, pattern_id, Pattern::Rest { name: Some(name) } => {
+            assert_string!(parser, *name, "rest");
+        });
     }
 
     #[test]
@@ -481,7 +498,7 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[4], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest);
+                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
             });
         });
     }
@@ -505,7 +522,7 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest);
+                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
             });
         });
     }
@@ -545,7 +562,7 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest);
+                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
             });
         });
     }
@@ -617,7 +634,7 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[4], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest);
+                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
             });
         });
     }
@@ -668,7 +685,7 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest);
+                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
             });
         });
     }

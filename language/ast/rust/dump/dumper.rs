@@ -1840,8 +1840,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", _id.id).end();
             }
-            Pattern::Rest => {
-                self.node("Pattern::Rest", _id.id).end();
+            Pattern::Rest { name } => {
+                self.node("Pattern::Rest", _id.id)
+                    .field_optional("name", name)
+                    .end();
             }
             Pattern::Maybe(_) => {
                 self.node("Pattern::Unwrap", _id.id).end();

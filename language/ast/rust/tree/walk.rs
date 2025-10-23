@@ -1139,7 +1139,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Wildcard => {
             // no child nodes to visit
         }
-        Pattern::Rest => {
+        Pattern::Rest { name: _ } => {
             // no child nodes to visit
         }
         Pattern::Maybe(unwrap) => {

@@ -47,7 +47,12 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
-            Pattern::Rest => write!(f, [token("..")])?,
+            Pattern::Rest { name } => {
+                write!(f, [token("..")])?;
+                if let Some(name) = name {
+                    write!(f, [name])?;
+                }
+            }
             Pattern::Maybe(unwrap) => write!(f, [unwrap, token("?")])?,
             Pattern::Reference {
                 right: target,

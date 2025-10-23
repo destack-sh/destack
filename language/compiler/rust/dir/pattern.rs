@@ -45,7 +45,9 @@ impl<'a> Compiler<'a> {
         let pattern = ast.get(pattern_id);
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
-            ast::Pattern::Rest => Pattern::Rest,
+            ast::Pattern::Rest { name } => Pattern::Rest {
+                name: name.map(|name| self.intern_string(source_id, name)),
+            },
             ast::Pattern::Maybe(pattern_id) => {
                 Pattern::Maybe(self.lower_pattern(source_id, ast, *pattern_id))
             }

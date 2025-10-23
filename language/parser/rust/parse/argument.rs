@@ -1,4 +1,4 @@
-use dyst_ast::{Expression, Keyword, PostfixPosition, Name, Pattern, ScalarLiteral, StringId};
+use dyst_ast::{Expression, Keyword, Name, Pattern, PostfixPosition, ScalarLiteral, StringId};
 
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
@@ -364,6 +364,22 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat range
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // nested spread argument (like {...b} in tree literals for #Leniency)
+        else if self.peek_token(TokenType::OpenBrace).is_ok()
+            && (self.peek_next_token(TokenType::Range).is_ok()
+                || self.peek_next_token(TokenType::RangeWide).is_ok())
+            && self.peek_next_next_token(TokenType::Identifier).is_ok()
+        {
+            self.bump(); // eat open brace
+            self.bump(); // eat range
+            let value =
+                self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+            self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self
                 .tree
                 .insert(Argument::Spread { value }, self.get_span_from(start));
