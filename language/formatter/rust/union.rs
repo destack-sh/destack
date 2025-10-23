@@ -1,8 +1,9 @@
 use dyst_fir::format::FormatResult;
 
+use crate::argument::list_like;
 use crate::{DystFormatter, FormatNode, NodeId, UnionField};
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, UnionField> for UnionField {
     fn format_node(
@@ -30,20 +31,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
                 if fields.is_empty() {
                     write!(f, [token("("), token(")")])?;
                 } else {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token("("),
-                            soft_block_indent(&format_with(|f| f
-                                .join_with(&format_args![
-                                    &if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(fields)
-                                .finish())),
-                            token(")")
-                        ])]
-                    )?;
+                    write!(f, [list_like("(", ")", ",", fields)])?;
                 }
                 // discriminator value
                 if let Some(value) = value {
@@ -60,20 +48,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
                 if fields.is_empty() {
                     write!(f, [token("{"), token("}")])?;
                 } else {
-                    write!(
-                        f,
-                        [
-                            token("{"),
-                            soft_block_indent(&format_with(|f| f
-                                .join_with(&format_args![
-                                    &if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(fields)
-                                .finish())),
-                            token("}")
-                        ]
-                    )?;
+                    write!(f, [list_like("{", "}", ",", fields)])?;
                 }
                 // discriminator value
                 if let Some(value) = value {
