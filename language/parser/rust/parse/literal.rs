@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use dyst_ast::{Definition, Keyword, Mutability, Name, Path, StringId, TemplateLiteral};
+use dyst_ast::{Definition, Keyword, PostfixPosition, Mutability, Name, Path, StringId, TemplateLiteral};
 use std::str::FromStr;
 
 use crate::parse::prelude::*;
@@ -542,8 +542,13 @@ impl<'a> Parser<'a> {
                 };
                 // maybe
                 let value = if is_maybe {
-                    self.tree
-                        .insert(Expression::Maybe(value), self.tree.spans.get(value))
+                    self.tree.insert(
+                        Expression::Maybe {
+                            left: value,
+                            position: PostfixPosition::Direct,
+                        },
+                        self.tree.spans.get(value),
+                    )
                 } else {
                     value
                 };
@@ -576,7 +581,7 @@ impl<'a> Parser<'a> {
             expression_id
         }
     }
-    
+
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
     pub(crate) fn eat_struct_literal_body(
         &mut self,
@@ -650,9 +655,13 @@ impl<'a> Parser<'a> {
                     // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
-                    let value = self
-                        .tree
-                        .insert(Expression::Maybe(value), self.tree.spans.get(value));
+                    let value = self.tree.insert(
+                        Expression::Maybe {
+                            left: value,
+                            position: PostfixPosition::Direct,
+                        },
+                        self.tree.spans.get(value),
+                    );
                     let value = self.make_readonly_maybe(is_readonly, value);
                     self.tree
                         .insert(Argument::Named { name, value }, self.get_span_from(start))
@@ -718,8 +727,13 @@ impl<'a> Parser<'a> {
                     };
                     // maybe
                     let value = if is_maybe {
-                        self.tree
-                            .insert(Expression::Maybe(value), self.tree.spans.get(value))
+                        self.tree.insert(
+                            Expression::Maybe {
+                                left: value,
+                                position: PostfixPosition::Direct,
+                            },
+                            self.tree.spans.get(value),
+                        )
                     } else {
                         value
                     };
@@ -1133,8 +1147,8 @@ mod tests {
                 assert_string!(parser, strings[1], " AND age > ");
                 // group.age()
                 assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Call { receiver, .. } => {
-                        assert_expr_path!(parser, parser.tree.get(*receiver), "group.age");
+                    assert_node!(parser.tree, *value, Expression::Call { left, .. } => {
+                        assert_expr_path!(parser, parser.tree.get(*left), "group.age");
                     });
                 });
                 // LIMIT 10
@@ -1228,8 +1242,8 @@ mod tests {
         assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "a");
             assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
-                assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
-                    assert_expr_path!(parser, parser.tree.get(*inner), "T");
+                assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
+                    assert_expr_path!(parser, parser.tree.get(*left), "T");
                 });
             });
         });
@@ -1242,8 +1256,8 @@ mod tests {
         // c?: T
         assert_node!(parser.tree, arguments[2], Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "c");
-            assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
-                assert_expr_path!(parser, parser.tree.get(*inner), "T");
+            assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "T");
             });
         });
 
@@ -1271,8 +1285,8 @@ mod tests {
         // f?(): T
         assert_node!(parser.tree, arguments[5], Argument::NamedFunction { name, value } => {
             assert_string!(parser, *name, "f");
-            assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
-                assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
+            assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
+                assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
                 });
             });
@@ -1329,8 +1343,8 @@ mod tests {
             // foo?(): T
             assert_node!(parser.tree, fields[1], Argument::NamedFunction { name, value } => {
                 assert_string!(parser, *name, "foo");
-                assert_node!(parser.tree, *value, Expression::Maybe(inner) => {
-                    assert_node!(parser.tree, *inner, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
+                    assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
                         assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
                     });
                 });

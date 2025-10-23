@@ -798,6 +798,13 @@ impl Dump for FunctionAccessor {
     }
 }
 
+/// Dump a MaybePosition as a string.
+impl Dump for PostfixPosition {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a IfStyle as a string.
 impl Dump for IfStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1359,31 +1366,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
-            Expression::Member { receiver: _, path } => {
+            Expression::Member { left: _, path } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)
                     .end();
             }
             Expression::Index {
-                receiver: _,
+                position,
+                left: _,
                 index: _,
             } => {
-                self.node("Expression::Index", _id.id).end();
+                self.node("Expression::Index", _id.id)
+                    .field("position", position)
+                    .end();
             }
             Expression::Call {
+                position,
                 runtime,
-                receiver: _,
+                left: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", _id.id)
+                    .field("position", position)
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::Maybe(_) => {
-                self.node("Expression::Maybe", _id.id).end();
+            Expression::Maybe { position, left: _ } => {
+                self.node("Expression::Maybe", _id.id)
+                    .field("position", position)
+                    .end();
             }
-            Expression::Must(_) => {
-                self.node("Expression::Must", _id.id).end();
+            Expression::Must { position, left: _ } => {
+                self.node("Expression::Must", _id.id)
+                    .field("position", position)
+                    .end();
             }
             Expression::Binary {
                 left: _,

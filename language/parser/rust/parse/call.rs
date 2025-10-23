@@ -2,7 +2,7 @@
 
 use crate::TokenType;
 
-use crate::{Expression, NodeId, Parser, ParserResult, Runtime};
+use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition, Runtime};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -15,9 +15,10 @@ impl<'a> Parser<'a> {
     /// ["bar"]
     /// [variable+1]
     /// ```
-    pub fn eat_index_postfix_explicit(
+    pub fn eat_index(
         &mut self,
         receiver_id: NodeId<Expression>,
+        position: PostfixPosition,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
@@ -29,7 +30,8 @@ impl<'a> Parser<'a> {
             self.bump(); // eat close bracket
             let index_id = self.tree.insert(
                 Expression::Index {
-                    receiver: receiver_id,
+                    position,
+                    left: receiver_id,
                     index: None,
                 },
                 self.get_span_from(start),
@@ -46,41 +48,9 @@ impl<'a> Parser<'a> {
         // index
         let index_id = self.tree.insert(
             Expression::Index {
-                receiver: receiver_id,
+                position,
+                left: receiver_id,
                 index: Some(index),
-            },
-            self.get_span_from(start),
-        );
-        Ok(index_id)
-    }
-
-    /// Eat an implicit tuple index (postfix, excluding the receiver, with `.`).
-    ///
-    /// Examples:
-    /// ```
-    /// .1
-    /// ```
-    pub fn eat_index_postfix_implicit(
-        &mut self,
-        receiver_id: NodeId<Expression>,
-    ) -> ParserResult<NodeId<Expression>> {
-        let start = self.mark();
-
-        // dot
-        self.eat_token(TokenType::Dot)?;
-
-        // literal
-        let literal_id = self.eat_scalar_literal()?;
-        let literal_id = self.tree.insert(
-            Expression::ScalarLiteral(literal_id),
-            self.get_span_from(start),
-        );
-
-        // index
-        let index_id = self.tree.insert(
-            Expression::Index {
-                receiver: receiver_id,
-                index: Some(literal_id),
             },
             self.get_span_from(start),
         );
@@ -97,9 +67,10 @@ impl<'a> Parser<'a> {
     /// <Validate: false>(1, 2, 3)
     /// (Vector2 {x: 1, y: 2}, (true, 3))
     /// ```
-    pub fn eat_call_postfix(
+    pub fn eat_call(
         &mut self,
         receiver_id: NodeId<Expression>,
+        position: PostfixPosition,
         runtime: Option<Runtime>,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -110,8 +81,9 @@ impl<'a> Parser<'a> {
         // call
         let call_id = self.tree.insert(
             Expression::Call {
+                position,
                 runtime,
-                receiver: receiver_id,
+                left: receiver_id,
                 dynamic_arguments,
             },
             self.get_span_from(start),
@@ -122,7 +94,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Name, Path};
+    use dyst_ast::{Name, Path, PostfixPosition};
     use dyst_container::smallvec;
 
     use crate::parse::tests::TestParser;
@@ -151,22 +123,10 @@ mod tests {
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
 
-        let index_id = parser.eat_index_postfix_explicit(recv).unwrap();
-        assert_node!(parser.tree, index_id, Expression::Index { receiver, index } => {
-            assert_eq!(*receiver, recv);
-            assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        });
-    }
-
-    #[test]
-    fn test_parse_index_postfix_implicit() {
-        // .1
-        let mut test = TestParser::new(".1");
-        let mut parser = test.prepare();
-        let recv = make_self_expression(&mut parser);
-        let index_id = parser.eat_index_postfix_implicit(recv).unwrap();
-        assert_node!(parser.tree, index_id, Expression::Index { receiver, index } => {
-            assert_eq!(*receiver, recv);
+        let index_id = parser.eat_index(recv, PostfixPosition::Direct).unwrap();
+        assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_eq!(*left, recv);
             assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
@@ -178,11 +138,12 @@ mod tests {
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let call_id = parser
-            .eat_call_postfix(recv, Some(Runtime::Dynamic))
+            .eat_call(recv, PostfixPosition::Direct, Some(Runtime::Dynamic))
             .unwrap();
 
-        assert_node!(parser.tree, call_id, Expression::Call { receiver, runtime, dynamic_arguments } => {
-            assert_eq!(*receiver, recv);
+        assert_node!(parser.tree, call_id, Expression::Call { position, left, runtime, dynamic_arguments } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_eq!(*left, recv);
             assert_eq!(*runtime, Some(Runtime::Dynamic));
 
             // (1, x: 2)

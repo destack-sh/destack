@@ -1,4 +1,4 @@
-use dyst_ast::{Expression, Keyword, Name, Pattern, ScalarLiteral, StringId};
+use dyst_ast::{Expression, Keyword, PostfixPosition, Name, Pattern, ScalarLiteral, StringId};
 
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
@@ -84,8 +84,13 @@ impl<'a> Parser<'a> {
         // wrap type in maybe if needed
         let ty = ty.map(|ty| {
             if is_maybe {
-                self.tree
-                    .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
+                self.tree.insert(
+                    Expression::Maybe {
+                        left: ty,
+                        position: PostfixPosition::Direct,
+                    },
+                    self.tree.spans.get(ty),
+                )
             } else {
                 ty
             }
@@ -272,9 +277,13 @@ impl<'a> Parser<'a> {
             // value
             let value =
                 self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
-            let value = self
-                .tree
-                .insert(Expression::Maybe(value), self.tree.spans.get(value));
+            let value = self.tree.insert(
+                Expression::Maybe {
+                    left: value,
+                    position: PostfixPosition::Direct,
+                },
+                self.tree.spans.get(value),
+            );
             let argument_id = self
                 .tree
                 .insert(Argument::Named { name, value }, self.get_span_from(start));
@@ -489,8 +498,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_node,
-        assert_name, assert_path, assert_string,
+        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_name,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -530,8 +539,8 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *ty, Expression::Maybe(expression_id) => {
-                assert_node!(parser.tree, *expression_id, Expression::TypeLiteral(TypeLiteral::Int(IntType {
+            assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
+                assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::Int(IntType {
                     width: Some(32),
                     is_signed: true
                 })));

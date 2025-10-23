@@ -1,6 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_ast::{ExportMode, IfStyle};
+use dyst_ast::{ExportMode, IfStyle, PostfixPosition};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -126,6 +126,13 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_assign_operator(&self) -> ParserResult<AssignOperator> {
         let token = self.peek()?;
+        AssignOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+    }
+
+    /// Peek next assign operator.
+    #[inline]
+    pub fn peek_next_assign_operator(&self) -> ParserResult<AssignOperator> {
+        let token = self.peek_next()?;
         AssignOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
@@ -638,8 +645,9 @@ impl<'a> Parser<'a> {
         {
             left_expression_id = self.tree.insert(
                 Expression::Call {
+                    position: PostfixPosition::Direct,
                     runtime,
-                    receiver: left_expression_id,
+                    left: left_expression_id,
                     dynamic_arguments: vec![],
                 },
                 self.get_span_from(start),
@@ -720,53 +728,83 @@ impl<'a> Parser<'a> {
                 let path_id = self.eat_path()?;
                 left_expression_id = self.tree.insert(
                     Expression::Member {
-                        receiver: left_expression_id,
+                        left: left_expression_id,
                         path: path_id,
                     },
                     self.get_span_from(start),
                 );
             }
-            // index (implicit with `.0`)
-            else if let Ok(distance) = self.peek_member(TokenType::Literal) {
-                self.bump_by(distance - 2); // eat only newlines
-                left_expression_id = self.eat_index_postfix_implicit(left_expression_id)?;
-            }
-            // index (explicit with `[]`)
-            else if self.peek_token(TokenType::OpenBracket).is_ok() {
-                left_expression_id = self.eat_index_postfix_explicit(left_expression_id)?;
-            }
-            // index (explicit with `.[]`)
-            else if self.peek_token(TokenType::Dot).is_ok()
-                && self.peek_next_token(TokenType::OpenBracket).is_ok()
+            // index (like `[]`)
+            else if self.peek_token(TokenType::OpenBracket).is_ok()
+                || self.peek_token(TokenType::Dot).is_ok()
+                    && self.peek_next_token(TokenType::OpenBracket).is_ok()
             {
-                self.bump(); // eat .
-                left_expression_id = self.eat_index_postfix_explicit(left_expression_id)?;
+                let position = if self.peek_token(TokenType::Dot).is_ok() {
+                    self.bump(); // eat .
+                    PostfixPosition::Indirect
+                } else {
+                    PostfixPosition::Direct
+                };
+                left_expression_id = self.eat_index(left_expression_id, position)?;
             }
-            // call
-            else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                left_expression_id = self.eat_call_postfix(left_expression_id, runtime)?;
+            // call (like `()`)
+            else if self.peek_token(TokenType::OpenParenthesis).is_ok()
+                || self.peek_token(TokenType::Dot).is_ok()
+                    && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+            {
+                let position = if self.peek_token(TokenType::Dot).is_ok() {
+                    self.bump(); // eat .
+                    PostfixPosition::Indirect
+                } else {
+                    PostfixPosition::Direct
+                };
+                left_expression_id = self.eat_call(left_expression_id, position, runtime)?;
             }
-            // unwrap or ternary if
+            // maybe or ternary if
+            // (like `x?`, `x.?`, `x?.` or `cond ? then : else`)
             else if self.peek_token(TokenType::Maybe).is_ok()
+                || self.peek_token(TokenType::Dot).is_ok()
+                    && self.peek_next_token(TokenType::Maybe).is_ok()
                 || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok()
+                || self.peek_newline().is_ok()
+                    && self.peek_next_token(TokenType::Dot).is_ok()
+                    && self.peek_next_next_token(TokenType::Maybe).is_ok()
             {
-                if self.peek_newline().is_ok() {
-                    self.bump(); // eat newline
-                }
-                self.bump(); // eat ?
-                // maybe
-                if self.peek_any_stop().is_ok()
-                    || self.peek_any_close_parenthesis().is_ok()
-                    || self.peek_token(TokenType::Dot).is_ok()
-                    || self.peek_assign_operator().is_ok()
+                self.eat_newlines_maybe()?; // eat newlines
+                // maybe (followed by a delimiter/stop)
+                if self.peek_token(TokenType::Maybe).is_ok()
+                    && (self.peek_next_any_stop().is_ok()
+                        || self.peek_next_any_close_parenthesis().is_ok()
+                        || self.peek_next_token(TokenType::Dot).is_ok()
+                        || self.peek_next_assign_operator().is_ok())
                 {
+                    self.bump(); // eat ?
+                    // (don't consume delimiter/stop)
                     left_expression_id = self.tree.insert(
-                        Expression::Maybe(left_expression_id),
+                        Expression::Maybe {
+                            left: left_expression_id,
+                            position: PostfixPosition::Direct,
+                        },
+                        self.get_span_from(start),
+                    );
+                }
+                // dot maybe
+                else if self.peek_token(TokenType::Dot).is_ok()
+                    && self.peek_next_token(TokenType::Maybe).is_ok()
+                {
+                    self.bump(); // eat .
+                    self.bump(); // eat ?
+                    left_expression_id = self.tree.insert(
+                        Expression::Maybe {
+                            left: left_expression_id,
+                            position: PostfixPosition::Indirect,
+                        },
                         self.get_span_from(start),
                     );
                 }
                 // ternary if (we already have the condition)
                 else {
+                    self.bump(); // eat ?
                     // then expression
                     let then_expression_id = self.eat_expression()?;
                     // :
@@ -785,11 +823,23 @@ impl<'a> Parser<'a> {
                     left_expression_id = self.tree.insert(expression, self.get_span_from(start));
                 }
             }
-            // force unwrap
-            else if self.peek_token(TokenType::Not).is_ok() {
+            // must
+            else if self.peek_token(TokenType::Not).is_ok()
+                || self.peek_token(TokenType::Dot).is_ok()
+                    && self.peek_next_token(TokenType::Not).is_ok()
+            {
+                let position = if self.peek_token(TokenType::Dot).is_ok() {
+                    self.bump(); // eat .
+                    PostfixPosition::Indirect
+                } else {
+                    PostfixPosition::Direct
+                };
                 self.bump(); // eat !
                 left_expression_id = self.tree.insert(
-                    Expression::Must(left_expression_id),
+                    Expression::Must {
+                        position,
+                        left: left_expression_id,
+                    },
                     self.get_span_from(start),
                 );
             }
@@ -884,7 +934,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Name, Parameter,
-        PatternField, TypeLiteral, WithClause,
+        PatternField, PostfixPosition, TypeLiteral, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1218,28 +1268,41 @@ mod tests {
         });
     }
 
-    /// Parse a mixed index postfix expression (should disambiguate ternary and index).
+    /// Parse a mixed index postfix expression (should disambiguate ternary and index/call).
     #[test]
-    fn test_parse_mixed_index_postfix() {
-        let mut test = TestParser::new("x?.[f]?.2");
+    fn test_parse_mixed_index_call_postfix() {
+        let mut test = TestParser::new("x?.[f]?.y?.().?");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
 
-        // x?.[f]?.2
-        assert_node!(parser.tree, expr_id, Expression::Index { receiver: outer_receiver, index: outer_index } => {
-            assert_node!(parser.tree, outer_index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
-                assert_eq!(*value, 2);
-            });
-
-            assert_node!(parser.tree, *outer_receiver, Expression::Maybe(post_index_expression) => {
-                assert_node!(parser.tree, *post_index_expression, Expression::Index { receiver: inner_receiver, index: inner_index } => {
-                    assert_node!(parser.tree, inner_index.unwrap(), Expression::Path { path, static_arguments } => {
-                        assert!(static_arguments.is_none());
-                        assert_path!(parser, *path, "f");
-                    });
-
-                    assert_node!(parser.tree, *inner_receiver, Expression::Maybe(base_expression) => {
-                        assert_expr_path!(parser, parser.tree.get(*base_expression), "x");
+        // x?.[f]?.2?.().?
+        // .?
+        assert_node!(parser.tree, expr_id, Expression::Maybe { left, position: PostfixPosition::Indirect } => {
+            // ()
+            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_eq!(dynamic_arguments.len(), 0);
+                // ?
+                assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+                    // .y
+                    assert_node!(parser.tree, *left, Expression::Member { left, path } => {
+                        // y
+                        assert_path!(parser, *path, "y");
+                        // ?
+                        assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
+                            // .[f]
+                            assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Indirect } => {
+                                // f
+                                assert_node!(parser.tree, index.unwrap(), Expression::Path { path, static_arguments } => {
+                                    assert!(static_arguments.is_none());
+                                    assert_path!(parser, *path, "f");
+                                });
+                                // ?
+                                assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
+                                    // x
+                                    assert_expr_path!(parser, parser.tree.get(*left), "x");
+                                });
+                            });
+                        });
                     });
                 });
             });
@@ -1573,12 +1636,12 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     *right,
-                    Expression::Call { runtime, receiver, .. } => {
+                    Expression::Call { runtime, left, .. } => {
                         assert_eq!(*runtime, None);
                         // self.foo
                         assert_node!(
                             parser.tree,
-                            *receiver,
+                            *left,
                             Expression::Path { path, .. } => {
                                 assert_path!(parser, *path, "self.foo");
                             }
@@ -1633,12 +1696,12 @@ const x =
                                 assert_node!(
                                     parser.tree,
                                     *left,
-                                    Expression::Call { runtime, receiver, .. } => {
+                                    Expression::Call { runtime, left, .. } => {
                                         assert_eq!(*runtime, None);
                                         // foo.parse
                                         assert_node!(
                                             parser.tree,
-                                            *receiver,
+                                            *left,
                                             Expression::Path { path, .. } => {
                                                 assert_path!(parser, *path, "foo.parse");
                                             }
@@ -1684,19 +1747,19 @@ self
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Call { receiver: baz_recv, .. } => {
+            Expression::Call { left: baz_recv, .. } => {
                 // self.foo()
                 assert_node!(
                     parser.tree,
                     *baz_recv,
-                    Expression::Member { receiver, path, .. } => {
+                    Expression::Member { left, path, .. } => {
                         assert_path!(parser, *path, "baz");
-                        assert_node!(parser.tree, *receiver, Expression::Call { receiver: foo_recv, .. } => {
+                        assert_node!(parser.tree, *left, Expression::Call { left: foo_recv, .. } => {
                             // self.foo
                             assert_node!(
                                 parser.tree,
                                 *foo_recv,
-                                Expression::Member { receiver: self_recv, path: foo_path, .. } => {
+                                Expression::Member { left: self_recv, path: foo_path, .. } => {
                                     // self
                                     assert_expr_path!(parser, parser.tree.get(*self_recv), "self");
                                     // foo
@@ -1983,10 +2046,10 @@ self
                 assert_node!(
                     parser.tree,
                     *left,
-                    Expression::Call { runtime, receiver, .. } => {
+                    Expression::Call { runtime, left, .. } => {
                         assert_eq!(*runtime, None);
                         // a
-                        assert_expr_path!(parser, parser.tree.get(*receiver), "a");
+                        assert_expr_path!(parser, parser.tree.get(*left), "a");
                     }
                 );
                 // @b() / c
@@ -1999,10 +2062,10 @@ self
                         assert_node!(
                             parser.tree,
                             *left,
-                            Expression::Call { runtime, receiver, .. } => {
+                            Expression::Call { runtime, left, .. } => {
                                 assert_eq!(*runtime, Some(Runtime::Static));
                                 // b
-                                assert_expr_path!(parser, parser.tree.get(*receiver), "b");
+                                assert_expr_path!(parser, parser.tree.get(*left), "b");
                             }
                         );
                         // c
@@ -2026,9 +2089,9 @@ self
             Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::Coalesce);
                 // y.sqrt()
-                assert_node!(parser.tree, *left, Expression::Call { receiver, .. } => {
+                assert_node!(parser.tree, *left, Expression::Call { left, .. } => {
                     // y.sqrt
-                    assert_expr_path!(parser, parser.tree.get(*receiver), "y.sqrt");
+                    assert_expr_path!(parser, parser.tree.get(*left), "y.sqrt");
                 });
                 // 0
                 assert_node!(

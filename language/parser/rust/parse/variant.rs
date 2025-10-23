@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{Expression, Keyword, Mutability};
+use dyst_ast::{Expression, Keyword, PostfixPosition, Mutability};
 use std::str::FromStr;
 
 use crate::TokenType;
@@ -191,8 +191,10 @@ impl<'a> Parser<'a> {
                 .with_options(self.options.in_type(), |parser| parser.eat_expression())
                 .for_node_type(NodeType::Definition)?;
             let ty = if is_maybe {
-                self.tree
-                    .insert(Expression::Maybe(ty), self.tree.spans.get(ty))
+                self.tree.insert(
+                    Expression::Maybe { left: ty, position: PostfixPosition::Direct },
+                    self.tree.spans.get(ty),
+                )
             } else {
                 ty
             };
@@ -277,7 +279,7 @@ impl<'a> Parser<'a> {
                     self.tree.spans.get(function_id),
                 );
                 let expression_id = self.tree.insert(
-                    Expression::Maybe(expression_id),
+                    Expression::Maybe { left: expression_id, position: PostfixPosition::Direct },
                     self.tree.spans.get(expression_id),
                 );
                 expressions.push(expression_id);

@@ -471,12 +471,19 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::Member { receiver, path: _ } => {
+        Expression::Member {
+            left: receiver,
+            path: _,
+        } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
         }
 
-        Expression::Index { receiver, index } => {
+        Expression::Index {
+            position: _,
+            left: receiver,
+            index,
+        } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
             if let Some(index_id) = index {
@@ -486,8 +493,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Call {
+            position: _,
             runtime: _,
-            receiver,
+            left: receiver,
             dynamic_arguments,
         } => {
             let receiver_expr = tree.get(*receiver);
@@ -498,14 +506,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Maybe(expr_id) => {
-            let expr = tree.get(*expr_id);
-            visitor.visit_expression(tree, *expr_id, expr);
+        Expression::Maybe { position: _, left } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
         }
 
-        Expression::Must(expr_id) => {
-            let expr = tree.get(*expr_id);
-            visitor.visit_expression(tree, *expr_id, expr);
+        Expression::Must { position: _, left } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
         }
 
         Expression::Binary {

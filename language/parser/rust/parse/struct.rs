@@ -253,11 +253,12 @@ struct Foo<T: Numeric>: Boz {
     ..Bar
     ..Baz
     
-    public let x: int32 = 4
+    public const x: int32 = 4
 
     a: T
     b?: T
-    private b: int32 = 4
+    c: T?
+    private d: int32 = 4
 
     private function myFunc() { // nested declaration
     }
@@ -293,7 +294,7 @@ struct Foo<T: Numeric>: Boz {
                 assert_path!(parser, *path, "Boz");
             });
 
-            assert_eq!(fields.len(), 3);
+            assert_eq!(fields.len(), 4);
             // a: T
             assert_node!(parser.tree, fields[0], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "a");
@@ -306,15 +307,25 @@ struct Foo<T: Numeric>: Boz {
             assert_node!(parser.tree, fields[1], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "b");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *ty, Expression::Maybe(expression_id) => {
-                    assert_node!(parser.tree, *expression_id, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
+                    assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
             });
-            // private b: int32 = 4
-            assert_node!(parser.tree, fields[2], VariantField::Named { mutability: None, visibility: Some(Visibility::Private), name: Name::Identifier(name), ty, default, .. } => {
-                assert_string!(parser, *name, "b");
+            // c: T?
+            assert_node!(parser.tree, fields[2], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, default, .. } => {
+                assert_string!(parser, *name, "c");
+                assert!(default.is_none());
+                assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
+                    assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "T");
+                    });
+                });
+            });
+            // private d: int32 = 4
+            assert_node!(parser.tree, fields[3], VariantField::Named { mutability: None, visibility: Some(Visibility::Private), name: Name::Identifier(name), ty, default, .. } => {
+                assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 assert!(default.is_some());
             });
