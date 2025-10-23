@@ -2,23 +2,24 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DeclarationKind;
 
     #[test]
     fn test_format_function_lambda_empty() {
         assert_format!("() => void", "() => void", |p| p
-            .eat_function(None, None, false, false));
+            .eat_function(DeclarationKind::Definition, None, None, false, false));
     }
 
     #[test]
     fn test_format_function_lambda_with_parameters() {
         assert_format!("(a: int32) => a > 2", "(a: int32) => a > 2", |p| p
-            .eat_function(None, None, false, false));
+            .eat_function(DeclarationKind::Definition, None, None, false, false));
     }
 
     #[test]
     fn test_format_function_simple() {
         assert_format!("function foo() {}", "function foo() { }", |p| p
-            .eat_function(None, None, false, false));
+            .eat_function(DeclarationKind::Definition, None, None, false, false));
     }
 
     #[test]
@@ -26,7 +27,7 @@ mod tests {
         assert_format!(
             "function bar(x: int32, y: boolean) {}",
             "function bar(x: int32, y: boolean) { }",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
@@ -35,7 +36,7 @@ mod tests {
         assert_format!(
             "function bar(x: int32, y: boolean, z: string) {}",
             "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
-            |p| p.eat_function(None, None, false, false),
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
     }
@@ -45,7 +46,7 @@ mod tests {
         assert_format!(
             "function baz() => int32 {}",
             "function baz() => int32 { }",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
@@ -54,7 +55,7 @@ mod tests {
         assert_format!(
             "function generic<T, U>() {}",
             "function generic<T, U>() { }",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
@@ -63,7 +64,7 @@ mod tests {
         assert_format!(
             "function mutate(&var(x, y) self) {}",
             "function mutate(&var(x, y) self) { }",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
@@ -72,7 +73,7 @@ mod tests {
         assert_format!(
             "function foo() with Time, Place, Something, Foo, Baz {}",
             "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
-            |p| p.eat_function(None, None, false, false),
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
     }
@@ -82,14 +83,14 @@ mod tests {
         assert_format!(
             "function external() => int32",
             "function external() => int32",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
     #[test]
     fn test_format_function_static_runtime() {
         assert_format!("function @comptime() {}", "function @comptime() { }", |p| p
-            .eat_function(None, None, false, false));
+            .eat_function(DeclarationKind::Definition, None, None, false, false));
     }
 
     #[test]
@@ -97,7 +98,7 @@ mod tests {
         assert_format!(
             "function foo() => int32 with Disk {}",
             "function foo() => int32 with Disk { }",
-            |p| p.eat_function(None, None, false, false)
+            |p| p.eat_function(DeclarationKind::Definition, None, None, false, false)
         );
     }
 
@@ -114,6 +115,6 @@ mod tests {
         moreMoreMoreStuff: baz(),
     }
 }";
-        assert_format!(source, source, |p| p.eat_function(None, None, false, false));
+        assert_format!(source, source, |p| p.eat_function(DeclarationKind::Definition, None, None, false, false));
     }
 }

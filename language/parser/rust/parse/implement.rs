@@ -1,4 +1,4 @@
-use dyst_ast::{ExportMode, Visibility};
+use dyst_ast::{DeclarationKind, ExportMode, Visibility};
 
 use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
@@ -25,6 +25,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_implement(
         &mut self,
+        kind: DeclarationKind,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
@@ -60,6 +61,7 @@ impl<'a> Parser<'a> {
         // implement
         let implement_id = self.tree.insert(
             Definition::Implement {
+                kind,
                 export,
                 visibility,
                 static_parameters,
@@ -77,7 +79,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Parameter;
+    use dyst_ast::{DeclarationKind, Parameter};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -96,8 +98,11 @@ implement Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(None, None).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        let implement_id = parser
+            .eat_implement(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { kind, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(super_types.is_none());
             assert!(expressions.is_empty());
@@ -121,8 +126,11 @@ implement Foo<int32> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(None, None).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        let implement_id = parser
+            .eat_implement(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { kind, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(super_types.is_none());
             assert!(expressions.is_empty());
@@ -156,8 +164,11 @@ implement Bar<int32>: Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(None, None).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        let implement_id = parser
+            .eat_implement(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { kind, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -196,8 +207,11 @@ implement<U> Bar<T>: Baz<T> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(None, None).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        let implement_id = parser
+            .eat_implement(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { kind, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -252,8 +266,11 @@ implement Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(None, None).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { with_clauses, where_clauses, expressions, target_type, .. } => {
+        let implement_id = parser
+            .eat_implement(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { kind, with_clauses, where_clauses, expressions, target_type, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
 
             // with Context

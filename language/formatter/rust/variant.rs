@@ -97,13 +97,14 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DeclarationKind;
 
     #[test]
     fn test_format_struct_empty() {
         assert_format!(
             "struct { }",
             "struct { }",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -113,7 +114,7 @@ mod tests {
         assert_format!(
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32\n\tb: boolean\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -123,7 +124,7 @@ mod tests {
         assert_format!(
             "struct { readonly a: int32, private b: boolean }",
             "struct {\n\treadonly a: int32\n\tprivate b: boolean\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -133,7 +134,7 @@ mod tests {
         assert_format!(
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -143,7 +144,7 @@ mod tests {
         assert_format!(
             "struct(uint64) Foo { a: int32 }",
             "struct(uint64) Foo {\n\ta: int32\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -153,7 +154,7 @@ mod tests {
         assert_format!(
             "struct Foo(int32, boolean) { }",
             "struct Foo(int32, boolean) { }",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -163,7 +164,7 @@ mod tests {
         assert_format!(
             "struct Foo(int32) { const X = 2 }",
             "struct Foo(int32) {\n\tconst X = 2\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -173,7 +174,7 @@ mod tests {
         assert_format!(
             "struct { a: int32 = 42, b: boolean }",
             "struct {\n\ta: int32 = 42\n\tb: boolean\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -185,7 +186,7 @@ mod tests {
             r"struct {
 	const X = 1
 }",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -195,7 +196,7 @@ mod tests {
         assert_format!(
             "struct { a: int32, const X = 1 }",
             "struct {\n\ta: int32\n\n\tconst X = 1\n}",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -205,7 +206,7 @@ mod tests {
         assert_format!(
             "struct Foo<T: Numeric>: Bar, Baz { }",
             "struct Foo<T: Numeric>: Bar, Baz { }",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }

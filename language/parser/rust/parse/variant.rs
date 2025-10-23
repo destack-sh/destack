@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{Expression, Keyword, PostfixPosition, Mutability};
+use dyst_ast::{DeclarationKind, Expression, Keyword, Mutability, PostfixPosition};
 use std::str::FromStr;
 
 use crate::TokenType;
@@ -259,7 +259,8 @@ impl<'a> Parser<'a> {
                     .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id = self.eat_function(None, None, false, false)?;
+                let function_id =
+                    self.eat_function(DeclarationKind::Definition, None, None, false, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
@@ -273,7 +274,8 @@ impl<'a> Parser<'a> {
                     .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id = self.eat_function(None, None, true, false)?;
+                let function_id =
+                    self.eat_function(DeclarationKind::Definition, None, None, true, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),

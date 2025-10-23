@@ -67,13 +67,14 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DeclarationKind;
 
     #[test]
     fn test_format_union_empty() {
         assert_format!(
             "union { }",
             "union { }",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -83,7 +84,7 @@ mod tests {
         assert_format!(
             "union { A, B }",
             "union {\n\tA\n\tB\n}",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -93,7 +94,7 @@ mod tests {
         assert_format!(
             "union { A = 1 }",
             "union {\n\tA = 1\n}",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -103,7 +104,7 @@ mod tests {
         assert_format!(
             "union(uint4, uint60) Foo { A }",
             "union(uint4, uint60) Foo {\n\tA\n}",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -113,7 +114,7 @@ mod tests {
         assert_format!(
             "union Foo: (Bar, Baz) { }",
             "union Foo: Bar, Baz { }",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -123,7 +124,7 @@ mod tests {
         assert_format!(
             "union Foo: BarWithLongName, BazWithEvenLongerName, QuxWithLongestName { }",
             "union Foo: (\n\tBarWithLongName,\n\tBazWithEvenLongerName,\n\tQuxWithLongestName,\n) { }",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab_with_line_width(40)
         );
     }
@@ -133,7 +134,7 @@ mod tests {
         assert_format!(
             "union Foo { const X = 1 }",
             "union Foo {\n\tconst X = 1\n}",
-            |p| p.eat_union(None, None),
+            |p| p.eat_union(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }

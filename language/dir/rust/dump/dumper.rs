@@ -745,6 +745,13 @@ impl Dump for Visibility {
     }
 }
 
+/// Dump a DeclarationKind as a string.
+impl Dump for DeclarationKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a ExportMode as a string.
 impl Dump for ExportMode {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1538,6 +1545,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Module {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1546,12 +1554,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Module", id.id)
+                    .field("kind", kind)
                     .field_optional("name", name)
                     .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Struct {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1563,12 +1573,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Struct", id.id)
+                    .field("kind", kind)
                     .field_optional("name", name)
                     .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Enum {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1580,12 +1592,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Enum", id.id)
+                    .field("kind", kind)
                     .field_optional("name", name)
                     .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Union {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1597,12 +1611,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Union", id.id)
+                    .field("kind", kind)
                     .field_optional("name", name)
                     .field_optional("visibility", visibility)
                     .field_optional("export", export)
                     .end();
             }
             Definition::Interface {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1614,12 +1630,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)
+                    .field("kind", kind)
                     .field_optional("name", name)
                     .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();
             }
             Definition::Function {
+                kind,
                 name,
                 export,
                 visibility,
@@ -1637,6 +1655,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
+                    .field("kind", kind)
                     .field("runtime", runtime)
                     .field("cardinality", cardinality)
                     .field_optional("accessor", accessor)
@@ -1648,6 +1667,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Implement {
+                kind,
                 export,
                 visibility,
                 static_parameters: _,
@@ -1658,6 +1678,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 definitions: _,
             } => {
                 self.node("Definition::Implement", id.id)
+                    .field("kind", kind)
                     .field_optional("export", export)
                     .field_optional("visibility", visibility)
                     .end();

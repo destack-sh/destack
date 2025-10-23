@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_file::glob;
-use dyst_ast::{ModuleFormat, TokenType};
+use dyst_ast::{DeclarationKind, ModuleFormat, TokenType};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{Source, SourceFormat, SourceId, Uri};
@@ -64,7 +64,13 @@ fn bench_parse(c: &mut Criterion) {
                 parser.mark(),
                 |parser| {
                     parser
-                        .eat_module_body(None, None, ModuleFormat::Source, None)
+                        .eat_module_body(
+                            DeclarationKind::Definition,
+                            None,
+                            None,
+                            ModuleFormat::Source,
+                            None,
+                        )
                         .map(Some)
                 },
                 None,

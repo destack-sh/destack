@@ -2,13 +2,14 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DeclarationKind;
 
     #[test]
     fn test_format_implement_empty() {
         assert_format!(
             "implement Foo {}",
             "implement Foo { }",
-            |p| p.eat_implement(None, None),
+            |p| p.eat_implement(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -18,7 +19,7 @@ mod tests {
         assert_format!(
             "implement Foo: Bar { const X = 1 }",
             "implement Foo: Bar {\n\tconst X = 1\n}",
-            |p| p.eat_implement(None, None),
+            |p| p.eat_implement(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }
@@ -28,7 +29,7 @@ mod tests {
         assert_format!(
             "implement<T> Foo<T> { }",
             "implement<T> Foo<T> { }",
-            |p| p.eat_implement(None, None),
+            |p| p.eat_implement(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }

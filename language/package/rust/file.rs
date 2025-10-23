@@ -1,4 +1,4 @@
-use dyst_ast::{Definition, ModuleFormat, NodeId, NodeParentIndex, NodeTree, TokenSpan, TokenType};
+use dyst_ast::{DeclarationKind, Definition, ModuleFormat, NodeId, NodeParentIndex, NodeTree, TokenSpan, TokenType};
 use dyst_fir::format;
 use dyst_formatter::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
@@ -90,7 +90,13 @@ impl SourceFile {
             parser.mark(),
             |parser| {
                 parser
-                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
+                    .eat_module_body(
+                        DeclarationKind::Definition,
+                        None,
+                        Some(module_name_id),
+                        ModuleFormat::Source,
+                        None,
+                    )
                     .map(Some)
             },
             None,
@@ -100,6 +106,7 @@ impl SourceFile {
         let root_definition_id = root_definition_id.unwrap_or_else(|| {
             parser.tree.insert(
                 Definition::Module {
+                    kind: DeclarationKind::Definition,
                     name: Some(module_name_id),
                     format: ModuleFormat::Source,
                     visibility: None,

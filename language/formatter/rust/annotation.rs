@@ -376,6 +376,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DeclarationKind;
 
     /// Tags should be preserved in order.
     #[test]
@@ -390,7 +391,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default()
         );
     }
@@ -439,7 +440,7 @@ mod tests {
         assert_format!(
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct(None, None),
+            |p| p.eat_struct(DeclarationKind::Definition, None, None),
             DystFormatOptions::default_tab()
         );
     }

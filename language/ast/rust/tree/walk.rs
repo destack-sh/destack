@@ -557,6 +557,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 
     match definition {
         Definition::Module {
+            kind: _,
             name: _,
             visibility: _,
             export: _,
@@ -583,6 +584,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
+            kind: _,
             name: _,
             visibility: _,
             style: _,
@@ -633,6 +635,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
+            kind: _,
             name: _,
             visibility: _,
             export: _,
@@ -682,6 +685,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Union {
+            kind: _,
             name: _,
             visibility: _,
             export: _,
@@ -736,6 +740,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
+            kind: _,
             name: _,
             visibility: _,
             export: _,
@@ -780,7 +785,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            export: _,
+            kind: _,
+                export: _,
             visibility: _,
             static_parameters,
             target_type,
@@ -821,6 +827,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
+            kind: _,
             name: _,
             visibility: _,
             export: _,

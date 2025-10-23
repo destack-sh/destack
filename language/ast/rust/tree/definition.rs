@@ -6,6 +6,15 @@ use crate::{
     Visibility, WhereClause, WithClause,
 };
 
+/// The kind of declaration.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DeclarationKind {
+    /// Declare without link.
+    Declaration,
+    /// Inline definition.
+    Definition,
+}
+
 /// Definition introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
@@ -19,6 +28,7 @@ pub enum Definition {
     /// }
     /// ```
     Module {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -73,6 +83,7 @@ pub enum Definition {
     /// }
     /// ```
     Struct {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -124,6 +135,7 @@ pub enum Definition {
     /// }
     /// ```
     Enum {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -164,6 +176,7 @@ pub enum Definition {
     /// }
     /// ```
     Union {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -210,6 +223,7 @@ pub enum Definition {
     /// }
     /// ```
     Interface {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
@@ -244,6 +258,7 @@ pub enum Definition {
     /// }
     /// ```
     Implement {
+        kind: DeclarationKind,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -320,6 +335,7 @@ pub enum Definition {
     /// }
     /// ```
     Function {
+        kind: DeclarationKind,
         name: Option<StringId>,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,

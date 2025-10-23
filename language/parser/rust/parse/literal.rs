@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    Definition, Keyword, Mutability, Name, Path, PostfixPosition, StringId, TemplateLiteral,
+    DeclarationKind, Definition, Keyword, Mutability, Name, Path, PostfixPosition, StringId,
+    TemplateLiteral,
 };
 use std::str::FromStr;
 
@@ -523,7 +524,15 @@ impl<'a> Parser<'a> {
                 debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
                 let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
                 let expect_body = !self.options.in_type;
-                let Ok(function_id) = self.eat_function(None, None, is_maybe, expect_body) else {
+                let Ok(function_id) = self
+                    .eat_function(
+                        DeclarationKind::Definition,
+                        None,
+                        None,
+                        is_maybe,
+                        expect_body,
+                    )
+                else {
                     self.restore(speculative_start.0, speculative_start.1);
                     return Err(ParserError::unexpected(self.peek()?.span));
                 };
@@ -714,7 +723,14 @@ impl<'a> Parser<'a> {
                 {
                     // function
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    let function_id = self.eat_function(None, None, is_maybe, false)?;
+                    let function_id = self
+                        .eat_function(
+                            DeclarationKind::Definition,
+                            None,
+                            None,
+                            is_maybe,
+                            false,
+                        )?;
                     // name
                     let name = self
                         .tree

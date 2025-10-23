@@ -446,6 +446,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *value, value_type);
         }
         Definition::Module {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -471,6 +472,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -512,6 +514,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -555,6 +558,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Union {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -598,6 +602,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -641,6 +646,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
+            kind: _,
             name: _,
             export: _,
             visibility: _,
@@ -693,6 +699,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
+            kind: _,
             export: _,
             visibility: _,
             static_parameters,

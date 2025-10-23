@@ -709,7 +709,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Name;
+    use dyst_ast::{DeclarationKind, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -1141,7 +1141,9 @@ function main() {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let function = parser.eat_function(None, None, false, false).unwrap();
+        let function = parser
+            .eat_function(DeclarationKind::Definition, None, None, false, false)
+            .unwrap();
         parser.finalize();
 
         // (annotation should be infix to innermost node, i.e. the block)
