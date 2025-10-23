@@ -1136,4 +1136,29 @@ mod tests {
             DystFormatOptions::default_with_line_width(40)
         );
     }
+
+    #[test]
+    fn test_format_expression_ternary_tree_literal() {
+        let source = r#"(funnelsFilter?.funnelVizType === FunnelVizType.Steps
+    ? [
+            <>
+                <span className="flex items-center text-secondary mr-1">
+                    <Tooltip
+                        title={`Overall conversion rate for all ${aggregationTargetLabel.plural} on the entire funnel.`}
+                    >
+                        <IconInfo className="mr-1 text-xl shrink-0" />
+                    </Tooltip>
+                    <span>"Total conversion rate:"</span>
+                </span>
+                <span className="l4">{percentage(conversionMetrics.totalRate, 2, true)}</span>
+            </>,
+        ]
+    : [])"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
 }
