@@ -98,7 +98,6 @@ fn to_infix_operator(
 //  - declare
 //  - typeof
 //  - new/delete
-//  - throw
 
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
@@ -535,7 +534,7 @@ impl<'a> Parser<'a> {
                 self.eat_yield()?
             }
             // return
-            else if keyword == Some(Keyword::Return) {
+            else if keyword == Some(Keyword::Return) || keyword == Some(Keyword::Throw) {
                 self.eat_return()?
             }
             //
