@@ -334,7 +334,9 @@ impl<'a> Parser<'a> {
                 }
                 // argument
                 else {
+                    self.eat_newlines_maybe()?;
                     let argument = self.eat_argument()?;
+                    self.eat_newlines_maybe()?;
                     arguments.push(argument);
                 }
             }
@@ -400,6 +402,7 @@ impl<'a> Parser<'a> {
         {
             let name = self.eat_identifier()?;
             self.eat_token(TokenType::Colon)?;
+            self.eat_newlines_maybe()?;
             let value = self.eat_expression()?;
             let argument_id = self.tree.insert(
                 Argument::Named {
@@ -638,6 +641,7 @@ impl<'a> Parser<'a> {
                     // name
                     let name = self.eat_name()?;
                     self.bump(); // eat colon
+                    self.eat_newlines_maybe()?;
                     // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
@@ -654,6 +658,7 @@ impl<'a> Parser<'a> {
                     let name = self.eat_name()?;
                     self.bump(); // eat maybe
                     self.bump(); // eat colon
+                    self.eat_newlines_maybe()?;
                     // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
@@ -686,6 +691,7 @@ impl<'a> Parser<'a> {
                     self.eat_token(TokenType::CloseBracket)?;
                     // value
                     self.eat_token(TokenType::Colon)?;
+                    self.eat_newlines_maybe()?;
                     let value = self.eat_expression().for_node_type(NodeType::Argument)?;
                     let value = self.make_readonly_maybe(is_readonly, value);
                     self.tree.insert(
