@@ -73,6 +73,7 @@ impl<'a> Parser<'a> {
                         || self.peek_keyword(Keyword::Implements).is_ok()))
             {
                 self.bump(); // eat colon or keyword
+                self.eat_newlines_maybe()?;
                 let ty = self
                     .with_options(self.options.in_type(), |parser| parser.eat_expression())
                     .for_node_type(NodeType::Parameter)?;
@@ -101,6 +102,7 @@ impl<'a> Parser<'a> {
             // has default value
             if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
+                self.eat_newlines_maybe()?;
                 let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
                 // named with default
                 if let Some(name) = name {
@@ -259,6 +261,7 @@ impl<'a> Parser<'a> {
         if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
             let name = self.eat_name().for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
+            self.eat_newlines_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
@@ -274,6 +277,7 @@ impl<'a> Parser<'a> {
             let name = self.eat_name()?;
             self.bump(); // eat maybe
             self.bump(); // eat colon
+            self.eat_newlines_maybe()?;
             // value
             let value =
                 self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
@@ -328,6 +332,7 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             // value
             self.eat_token(TokenType::Colon)?;
+            self.eat_newlines_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self.tree.insert(
                 Argument::Dynamic { name, key, value },
@@ -394,6 +399,7 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::Assign).is_ok()
             {
                 self.bump(); // eat colon or assign
+                self.eat_newlines_maybe()?;
                 self.eat_expression().for_node_type(NodeType::Argument)?
             }
             // implicit boolean true
@@ -625,16 +631,42 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_parameter_multiline() {
+        // x: int32
+        let mut test = TestParser::new("x:\n\tint32");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty: Some(ty), default: None } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType {
+                width: Some(32),
+                is_signed: true
+            })));
+        });
+    }
+
+    #[test]
     fn test_parse_argument_named() {
         // x: 1
         let mut test = TestParser::new("x: 1");
         let mut parser = test.prepare();
         let argument_id = parser.eat_argument().unwrap();
-
         assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");
             // 1
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_named_multiline() {
+        // x: 1
+        let mut test = TestParser::new("x:\n\t1");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+            assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
