@@ -1,0 +1,30 @@
+[package]
+name = "dyst_jsvm"
+description = "JavaScript Virtual Machine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_source = { workspace = true }
+dyst_ast = { workspace = true }
+dyst_fir = { workspace = true }
+dyst_dir = { workspace = true }
+dyst_mir = { workspace = true }
+dyst_session = { workspace = true }
+dyst_prelude = { workspace = true }
+dyst_diagnostic = { workspace = true }
+dyst_string = { workspace = true }
+dyst_memory = { workspace = true }
+
+destack_unicode = { workspace = true }
+
+[dev-dependencies]
+[lints]
+workspace = true

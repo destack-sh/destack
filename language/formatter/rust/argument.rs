@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
-use dyst_fir::format::{BestFittingMode, FormatResult};
+use dyst_fir::format::FormatResult;
 
 use crate::{
     Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
     Parameter,
 };
 use dyst_fir::prelude::*;
-use dyst_fir::{best_fitting, format_args, write};
+use dyst_fir::{format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -96,7 +96,7 @@ where
                 // start token
                 token(self.start_token),
                 // content
-                best_fitting![body, soft_block_indent(body)].with_mode(BestFittingMode::AllLines),
+                soft_block_indent(body),
                 // end token
                 token(self.end_token)
             ]),]
