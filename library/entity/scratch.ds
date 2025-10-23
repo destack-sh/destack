@@ -1001,6 +1001,50 @@ export function useFunnelTooltip(showPersonsModal: boolean): React.RefObject<HTM
     return vizRef
 }
 
+ws.on('todos:update', (changes) => {
+    todosCollection.utils.writeBatch(() => {
+        changes.forEach(change => {
+            switch (change.type) {
+                case 'insert':
+                    todosCollection.utils.writeInsert(change.data)
+                case 'update':
+                    todosCollection.utils.writeUpdate(change.data)
+                case 'delete':
+                    todosCollection.utils.writeDelete(change.id)
+            }
+        })
+    })
+})
+
+
+const todoCollection = createCollection({
+    onUpdate: updateMutationFn,
+})
+
+const Todos = () => {
+    // bind data using live queries
+    const { data: todos } = useLiveQuery((query) =>
+        query.from({ todo: todoCollection }).where(({ todo }) => todo.completed)
+    )
+
+    function complete(todo) {
+        // instantly applies optimistic state
+        todoCollection.update(todo.id, (draft) => {
+            draft.completed = true
+        })
+    }
+
+    return (
+        <ul>
+            {todos.map((todo) => (
+                <li key={todo.id} onClick={() => complete(todo)}>
+                    {todo.text}
+                </li>
+            ))}
+        </ul>
+    )
+}
+
 function Component() {
     const router = useRouter()
 

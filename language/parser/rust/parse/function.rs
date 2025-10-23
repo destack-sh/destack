@@ -298,6 +298,7 @@ impl<'a> Parser<'a> {
             // lambda with explicit return type
             if style == FunctionStyle::Lambda && self.peek_colon().is_ok() {
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 // return type
                 let return_type = self
                     .with_options(self.options.nested_type_in_before_block(), |parser| {
@@ -310,10 +311,12 @@ impl<'a> Parser<'a> {
                 // return type
                 let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
                     self.bump(); // eat arrow or colon
+                    self.eat_newlines_maybe()?;
                     let return_type = self
                         .with_options(self.options.nested_type_in_before_block(), |parser| {
                             parser.eat_expression()
                         })?;
+                    self.eat_newlines_maybe()?;
                     Some(return_type)
                 } else {
                     None
@@ -350,6 +353,7 @@ impl<'a> Parser<'a> {
             // lambda with body
             else if style == FunctionStyle::Lambda && !self.options.in_type {
                 self.eat_arrow()?;
+                self.eat_newlines_maybe()?;
                 Some(self.eat_expression()?)
             }
             // no body
@@ -410,20 +414,25 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_function_shorthand_style() {
-        let mut test = TestParser::new("foo() => int32 { body }");
+    fn test_parse_function_lambda_with_newlines() {
+        let mut test = TestParser::new("(x: number):\n\tnumber =>\n\tx");
         let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None, None, false, false).unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { name, style, dynamic_parameters, return_type,  .. } => {
-            assert_string!(parser, name.unwrap(), "foo");
-            assert_eq!(*style, FunctionStyle::Function);
-            // ()
-            assert_eq!(dynamic_parameters.len(), 0);
-            // int32
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
+        // (x: number): number => x
+        assert_node!(parser.tree, function_id, Definition::Function { name: None, style, dynamic_parameters, return_type, body: Some(body), .. } => {
+            assert_eq!(*style, FunctionStyle::Lambda);
+            // x: number
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+            });
+            // number
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+            // x
+            assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "x");
             });
         });
     }
@@ -450,6 +459,25 @@ mod tests {
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_shorthand_style() {
+        let mut test = TestParser::new("foo() => int32 { body }");
+        let mut parser = test.prepare();
+
+        let function_id = parser.eat_function(None, None, false, false).unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { name, style, dynamic_parameters, return_type,  .. } => {
+            assert_string!(parser, name.unwrap(), "foo");
+            assert_eq!(*style, FunctionStyle::Function);
+            // ()
+            assert_eq!(dynamic_parameters.len(), 0);
+            // int32
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                assert_eq!(int_ty.width, Some(32));
+                assert!(int_ty.is_signed);
             });
         });
     }
