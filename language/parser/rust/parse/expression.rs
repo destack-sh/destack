@@ -94,8 +94,8 @@ fn to_infix_operator(
     }
 }
 
-// TODO #Incomplete: support special lenient forms
-//  - declare/
+// nocheckin TODO #Incomplete: support special lenient forms
+//  - declare
 //  - typeof
 //  - new/delete
 //  - throw

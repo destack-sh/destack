@@ -16,11 +16,6 @@ export type UseChatHelpers<UI_MESSAGE extends UIMessage> = {
 
 type T1 = Extract<string | number | (() => void), Function>;
 
-interface Todo {
-	title: string;
-	description: string;
-}
-
 Bun.serve({
 	fetch(req: Request) {
 		return Response('Success!');
@@ -647,6 +642,14 @@ DISK: ${chalk.yellow('70%')}
 		}}
 	/>
 </SceneSection>;
+
+const a = (
+  <div>
+    {["foo", "bar"].map((i) => (
+      <span>{i / 2}</span>
+    ))}
+  </div>
+);
 
 export function FunnelHistogram(): JSX.Element | null {
     const { insightProps, isInDashboardContext } = useValues(insightLogic)

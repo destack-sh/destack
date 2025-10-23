@@ -1,5 +1,4 @@
 use dyst_ast::{Argument, IfStyle, Mutability, Path, PostfixPosition, YieldCardinality};
-use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 
@@ -395,9 +394,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                             let value_on_new_line = format_with(|f| {
                                 block_indent(&format_args![hard_line_break(), value]).format(f)
                             });
-                            best_fitting![value_on_same_line, value_on_new_line]
-                                .with_mode(BestFittingMode::AllLines)
-                                .format(f)?;
+                            best_fitting![value_on_same_line, value_on_new_line].format(f)?;
                         }
                         Ok(())
                     }))]

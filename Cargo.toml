@@ -8,9 +8,10 @@ members = [
 	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
+	"language/dvm",
 	"language/fir",
 	"language/formatter",
-	"language/machine",
+	"language/jsvm",
 	"language/mir",
 	"language/parser",
 	"language/package",
@@ -74,10 +75,11 @@ dyst_concurrency = { path = "language/concurrency" }
 dyst_container = { path = "language/container" }
 dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
+dyst_dvm = { path = "language/dvm" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
+dyst_jsvm = { path = "language/jsvm" }
 dyst_memory = { path = "language/memory" }
-dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
 dyst_package = { path = "language/package" }

@@ -1,5 +1,5 @@
 [package]
-name = "dyst_machine"
+name = "dyst_dvm"
 description = "Dyst Virtual Machine"
 version.workspace = true
 edition.workspace = true
