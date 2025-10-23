@@ -6,7 +6,7 @@ use crate::{
     Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
     Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
-use dyst_ast::{ExportMode, FunctionStyle, Visibility};
+use dyst_ast::{DeclarationKind, ExportMode, FunctionStyle, Visibility};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -70,6 +70,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         match self {
             // module
             Definition::Module {
+                kind,
                 name,
                 format,
                 visibility,
@@ -95,6 +96,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -160,6 +166,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // struct
             Definition::Struct {
+                kind,
                 name,
                 visibility,
                 export,
@@ -187,6 +194,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -306,6 +318,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // enum
             Definition::Enum {
+                kind,
                 name,
                 visibility,
                 export,
@@ -320,6 +333,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -414,6 +432,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // interface
             Definition::Interface {
+                kind,
                 name,
                 visibility,
                 export,
@@ -427,6 +446,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -522,6 +546,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // union
             Definition::Union {
+                kind,
                 name,
                 visibility,
                 export,
@@ -537,6 +562,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -647,6 +677,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
+                kind,
                 export,
                 visibility,
                 static_parameters: static_arguments,
@@ -659,6 +690,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
@@ -733,6 +769,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // function
             Definition::Function {
+                kind,
                 name,
                 visibility,
                 export,
@@ -751,6 +788,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // export
                 if let Some(export) = export {
                     write!(f, [export, space()])?;
+                }
+
+                // kind
+                if *kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility

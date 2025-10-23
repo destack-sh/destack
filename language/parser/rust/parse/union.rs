@@ -2,7 +2,7 @@
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, ExportMode, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    DeclarationKind, Definition, ExportMode, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     ParserResult, TokenType, UnionField, Visibility,
 };
 
@@ -40,6 +40,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_union(
         &mut self,
+        kind: DeclarationKind,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
@@ -95,6 +96,7 @@ impl<'a> Parser<'a> {
         // union
         let union_id = self.tree.insert(
             Definition::Union {
+                kind,
                 name,
                 visibility,
                 export,
@@ -232,7 +234,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Name;
+    use dyst_ast::{DeclarationKind, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -251,8 +253,11 @@ union { A, B }
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None, None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, fields, expressions, where_clauses, .. } => {
+        let union_id = parser
+            .eat_union(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { kind, name, tag_type, fields, expressions, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
@@ -283,8 +288,11 @@ union Foo: Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None, None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, super_types, fields, expressions, where_clauses, .. } => {
+        let union_id = parser
+            .eat_union(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { kind, name, super_types, fields, expressions, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
@@ -317,8 +325,11 @@ union(uint4, uint60) Foo<T>: Boz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None, None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+        let union_id = parser
+            .eat_union(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { kind, name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
 
@@ -437,8 +448,11 @@ union Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(None, None).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { with_clauses, where_clauses, fields: _, expressions, .. } => {
+        let union_id = parser
+            .eat_union(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { kind, with_clauses, where_clauses, fields: _, expressions, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
 
             // with Context

@@ -1,9 +1,20 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Definition, EmbeddedDefinition, NodeId};
+use dyst_dir::{DeclarationKind, Definition, EmbeddedDefinition, NodeId};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
+    /// Lower declaration kind to DIR declaration kind.
+    pub fn lower_declaration_kind(
+        &mut self,
+        kind: ast::DeclarationKind,
+    ) -> DeclarationKind {
+        match kind {
+            ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
+            ast::DeclarationKind::Definition => DeclarationKind::Definition,
+        }
+    }
+
     /// Lower expression to DIR definition (if it's maybe a definition).
     /// If the expression can't possibly evaluate to a definition, returns `None`.
     /// (Like for a scalar literal)
@@ -97,6 +108,7 @@ impl<'a> Compiler<'a> {
         match definition {
             // Module definition
             ast::Definition::Module {
+                kind,
                 name,
                 visibility,
                 export,
@@ -105,6 +117,7 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let export = export.map(|e| self.lower_export_mode(e));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
@@ -127,6 +140,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Module {
+                        kind,
                         name,
                         export,
                         visibility,
@@ -141,6 +155,7 @@ impl<'a> Compiler<'a> {
 
             // Struct definition
             ast::Definition::Struct {
+                kind,
                 name,
                 export,
                 visibility,
@@ -153,6 +168,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let export = export.map(|e| self.lower_export_mode(e));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
@@ -199,6 +215,7 @@ impl<'a> Compiler<'a> {
                 );
                 self.tree.insert_from_ast(
                     Definition::Struct {
+                        kind,
                         name,
                         visibility,
                         export,
@@ -216,6 +233,7 @@ impl<'a> Compiler<'a> {
 
             // Enum definition
             ast::Definition::Enum {
+                kind,
                 name,
                 visibility,
                 export,
@@ -227,6 +245,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let export = export.map(|e| self.lower_export_mode(e));
@@ -266,6 +285,7 @@ impl<'a> Compiler<'a> {
                     self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
                 self.tree.insert_from_ast(
                     Definition::Enum {
+                        kind,
                         name,
                         visibility,
                         export,
@@ -283,6 +303,7 @@ impl<'a> Compiler<'a> {
 
             // Union definition
             ast::Definition::Union {
+                kind,
                 name,
                 visibility,
                 export,
@@ -295,6 +316,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let export = export.map(|e| self.lower_export_mode(e));
@@ -343,6 +365,7 @@ impl<'a> Compiler<'a> {
                 );
                 self.tree.insert_from_ast(
                     Definition::Union {
+                        kind,
                         name,
                         visibility,
                         export,
@@ -360,6 +383,7 @@ impl<'a> Compiler<'a> {
 
             // Interface definition
             ast::Definition::Interface {
+                kind,
                 name,
                 visibility,
                 export,
@@ -370,6 +394,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let export = export.map(|e| self.lower_export_mode(e));
@@ -408,6 +433,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Interface {
+                        kind,
                         name,
                         visibility,
                         export,
@@ -425,6 +451,7 @@ impl<'a> Compiler<'a> {
 
             // Function definition
             ast::Definition::Function {
+                kind,
                 name,
                 visibility,
                 export,
@@ -440,6 +467,7 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 body,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let runtime = self.lower_runtime(*runtime);
@@ -481,6 +509,7 @@ impl<'a> Compiler<'a> {
                     .map(|body| self.lower_expression(source_id, ast, *body));
                 self.tree.insert_from_ast(
                     Definition::Function {
+                        kind,
                         name,
                         visibility,
                         export,
@@ -504,6 +533,7 @@ impl<'a> Compiler<'a> {
 
             // Implement definition
             ast::Definition::Implement {
+                kind,
                 export,
                 visibility,
                 static_parameters,
@@ -513,6 +543,7 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
+                let kind = self.lower_declaration_kind(*kind);
                 let export = export.map(|e| self.lower_export_mode(e));
                 let visibility = visibility.map(|v| self.lower_visibility(v));
                 let static_parameters = static_parameters.as_ref().map(|params| {
@@ -548,6 +579,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Implement {
+                        kind,
                         export,
                         visibility,
                         static_parameters,

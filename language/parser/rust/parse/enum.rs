@@ -6,7 +6,7 @@ use crate::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{
-    Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
+    DeclarationKind, Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
     ParserResult, Visibility,
 };
 
@@ -43,6 +43,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_enum(
         &mut self,
+        kind: DeclarationKind,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
@@ -94,6 +95,7 @@ impl<'a> Parser<'a> {
         let enum_id = self.tree.insert(
             Definition::Enum {
                 name,
+                kind,
                 visibility,
                 export,
                 tag_type,
@@ -182,6 +184,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::DeclarationKind;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Definition, EnumField, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral,
@@ -198,8 +202,11 @@ enum Foo: Day {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None, None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, super_types, fields, expressions, where_clauses, .. } => {
+        let enum_id = parser
+            .eat_enum(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { kind, name, super_types, fields, expressions, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
@@ -226,8 +233,11 @@ enum {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None, None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, expressions, where_clauses, .. } => {
+        let enum_id = parser
+            .eat_enum(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { kind, name, tag_type, fields, expressions, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
@@ -266,8 +276,11 @@ enum(uint8) Foo: Day {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None, None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, tag_type, fields, super_types, where_clauses, .. } => {
+        let enum_id = parser
+            .eat_enum(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { kind, name, tag_type, fields, super_types, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             // enum name
             assert_string!(parser, name.unwrap(), "Foo");
             assert!(where_clauses.is_none());
@@ -313,8 +326,11 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None, None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { name, static_parameters, fields, where_clauses, .. } => {
+        let enum_id = parser
+            .eat_enum(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { kind, name, static_parameters, fields, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             // Machine
             assert_string!(parser, name.unwrap(), "Machine");
             assert!(where_clauses.is_none());
@@ -348,8 +364,11 @@ enum Foo with Context where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(None, None).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { with_clauses, where_clauses, fields, .. } => {
+        let enum_id = parser
+            .eat_enum(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { kind, with_clauses, where_clauses, fields, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             // with Context
             let with_clauses = with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_clauses.len(), 1);

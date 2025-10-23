@@ -1,7 +1,7 @@
 //! AST parsing subcommand.
 
 use destack_terminal::{CommandArguments, console};
-use dyst_ast::{DumperOptions, ModuleFormat, NodeVisitor, TokenType};
+use dyst_ast::{DeclarationKind, DumperOptions, ModuleFormat, NodeVisitor, TokenType};
 use dyst_diagnostic::Severity;
 use dyst_parser::Parser;
 use dyst_session::Session;
@@ -37,7 +37,13 @@ pub fn run(ctx: CommandArguments) -> i32 {
         parser.mark(),
         |parser| {
             parser
-                .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
+                .eat_module_body(
+                    DeclarationKind::Definition,
+                    None,
+                    Some(module_name_id),
+                    ModuleFormat::Source,
+                    None,
+                )
                 .map(Some)
         },
         None,

@@ -1,6 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_ast::{ExportMode, IfStyle, PostfixPosition};
+use dyst_ast::{DeclarationKind, ExportMode, IfStyle, PostfixPosition};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -93,11 +93,6 @@ fn to_infix_operator(
         Err(ParserError::unexpected(token.span))
     }
 }
-
-// nocheckin TODO #Incomplete: support special lenient forms
-//  - declare
-//  - typeof
-//  - new/delete
 
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
@@ -249,6 +244,14 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // kind
+        let kind: DeclarationKind = if self.peek_keyword(Keyword::Declare).is_ok() {
+            self.bump(); // eat declare
+            DeclarationKind::Declaration
+        } else {
+            DeclarationKind::Definition
+        };
+
         // visibility
         let visibility: Option<Visibility> = match self.peek_visibility() {
             Ok(Some(visibility)) => {
@@ -285,7 +288,7 @@ impl<'a> Parser<'a> {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(visibility, export, false, false)?;
+                let lambda_id = self.eat_function(kind, visibility, export, false, false)?;
                 self.tree
                     .insert(Expression::Definition(lambda_id), self.get_span_from(start))
             }
@@ -309,7 +312,7 @@ impl<'a> Parser<'a> {
                     })
                     .unwrap_or(false)
                 {
-                    let lambda_id = self.eat_function(visibility, export, false, false)?;
+                    let lambda_id = self.eat_function(kind, visibility, export, false, false)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 }
@@ -415,31 +418,31 @@ impl<'a> Parser<'a> {
 
             // module
             else if keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace) {
-                let module_id = self.eat_module(visibility, export)?;
+                let module_id = self.eat_module(kind, visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
             // struct
             else if keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class) {
-                let struct_id = self.eat_struct(visibility, export)?;
+                let struct_id = self.eat_struct(kind, visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(visibility, export)?;
+                let enum_id = self.eat_enum(kind, visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(visibility, export)?;
+                let union_id = self.eat_union(kind, visibility, export)?;
                 self.tree
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // interface
             else if keyword == Some(Keyword::Interface) {
-                let interface_id = self.eat_interface(visibility, export)?;
+                let interface_id = self.eat_interface(kind, visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
                     self.get_span_from(start),
@@ -447,7 +450,7 @@ impl<'a> Parser<'a> {
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement(visibility, export)?;
+                let implement_id = self.eat_implement(kind, visibility, export)?;
                 self.tree.insert(
                     Expression::Definition(implement_id),
                     self.get_span_from(start),
@@ -459,7 +462,7 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Get)
                 || keyword == Some(Keyword::Set)
             {
-                let function_id = self.eat_function(visibility, export, false, false)?;
+                let function_id = self.eat_function(kind, visibility, export, false, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),

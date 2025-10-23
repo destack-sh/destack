@@ -3,7 +3,7 @@ use crate::parse::prelude::*;
 use dyst_source::StringId;
 
 use crate::{
-    BlockFormat, Definition, ExportMode, Keyword, ModuleFormat, NodeId, NodeType, Parser,
+    BlockFormat, DeclarationKind, Definition, ExportMode, Keyword, ModuleFormat, NodeId, NodeType, Parser,
     ParserResult, Visibility,
 };
 
@@ -11,6 +11,7 @@ impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
     pub fn eat_module(
         &mut self,
+        kind: DeclarationKind,
         visibility: Option<Visibility>,
         export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
@@ -44,6 +45,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::CloseBrace)
                     .for_node_type(NodeType::Definition)?;
                 Definition::Module {
+                    kind,
                     format: ModuleFormat::Inline,
                     name,
                     visibility,
@@ -56,6 +58,7 @@ impl<'a> Parser<'a> {
             // forward module
             else {
                 Definition::Module {
+                    kind,
                     format: ModuleFormat::Forward,
                     name,
                     visibility,
@@ -74,6 +77,7 @@ impl<'a> Parser<'a> {
     // Eat a module body (aka a module file, without `module` keyword or braces).
     pub fn eat_module_body(
         &mut self,
+        kind: DeclarationKind,
         visibility: Option<Visibility>,
         name: Option<StringId>,
         format: ModuleFormat,
@@ -92,6 +96,7 @@ impl<'a> Parser<'a> {
             .eat_block_body(BlockFormat::Implicit)
             .for_node_type(NodeType::Block)?;
         let module = Definition::Module {
+            kind,
             format,
             name,
             visibility,
@@ -107,6 +112,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::DeclarationKind;
+
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Definition, Expression, ModuleFormat, WhereClause, WithClause,
@@ -117,8 +124,11 @@ mod tests {
     fn test_parse_empty_module() {
         let mut test = TestParser::new("module { }");
         let mut parser = test.prepare();
-        let module_id = parser.eat_module(None, None).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { name, visibility, export, expressions, format, with_clauses, where_clauses } => {
+        let module_id = parser
+            .eat_module(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { kind, name, visibility, export, expressions, format, with_clauses, where_clauses } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert!(name.is_none());
             assert!(visibility.is_none());
             assert!(export.is_none());
@@ -133,8 +143,11 @@ mod tests {
     fn test_parse_forward_module() {
         let mut test = TestParser::new("module x;");
         let mut parser = test.prepare();
-        let module_id = parser.eat_module(None, None).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { name, visibility, export, expressions, format, with_clauses, where_clauses } => {
+        let module_id = parser
+            .eat_module(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { kind, name, visibility, export, expressions, format, with_clauses, where_clauses } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "x");
             assert!(visibility.is_none());
             assert!(export.is_none());
@@ -157,8 +170,11 @@ module Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         // module Foo with Context where Guard > Limit { }
-        let module_id = parser.eat_module(None, None).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { name, format, export, expressions, with_clauses, where_clauses, .. } => {
+        let module_id = parser
+            .eat_module(DeclarationKind::Definition, None, None)
+            .unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { kind, name, format, export, expressions, with_clauses, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(*format, ModuleFormat::Inline);
             assert!(export.is_none());
@@ -193,9 +209,12 @@ module Foo with Context where Guard > Limit {
     fn test_parse_forward_module_with_with_and_where() {
         let mut test = TestParser::new("module Foo with Context where Requirement: Interface;");
         let mut parser = test.prepare();
-        let module_id = parser.eat_module(None, None).unwrap();
+        let module_id = parser
+            .eat_module(DeclarationKind::Definition, None, None)
+            .unwrap();
 
-        assert_node!(parser.tree, module_id, Definition::Module { name, format, export, expressions, with_clauses, where_clauses, .. } => {
+        assert_node!(parser.tree, module_id, Definition::Module { kind, name, format, export, expressions, with_clauses, where_clauses, .. } => {
+            assert_eq!(*kind, DeclarationKind::Definition);
             assert_string!(parser, name.unwrap(), "Foo");
             assert_eq!(*format, ModuleFormat::Forward);
             assert!(export.is_none());

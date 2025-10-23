@@ -78,7 +78,7 @@ pub enum Keyword {
     Function,
     /// Implement a type.
     Implement,
-    /// Declare statement (reserved).
+    /// Declare definition.
     Declare,
     /// New expression (reserved).
     New,

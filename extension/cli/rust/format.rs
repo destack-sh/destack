@@ -5,7 +5,7 @@ use std::{env, fs};
 
 use destack_file::walk::{WalkOptions, walk};
 use destack_terminal::{CommandArguments, console};
-use dyst_ast::{ModuleFormat, NodeParentIndex, TokenType};
+use dyst_ast::{DeclarationKind, ModuleFormat, NodeParentIndex, TokenType};
 use dyst_diagnostic::Severity;
 use dyst_fir::format::{
     FormatError as FirFormatError, IndentStyle, LineEnding, PrintError as FirPrintError,
@@ -297,7 +297,13 @@ fn format_source(
             parser.mark(),
             |parser| {
                 parser
-                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Source, None)
+                    .eat_module_body(
+                        DeclarationKind::Definition,
+                        None,
+                        Some(module_name_id),
+                        ModuleFormat::Source,
+                        None,
+                    )
                     .map(Some)
             },
             None,

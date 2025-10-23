@@ -24,6 +24,15 @@ impl EmbeddedDefinition {
     }
 }
 
+/// The kind of declaration.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DeclarationKind {
+    /// Declare without link.
+    Declaration,
+    /// Inline definition.
+    Definition,
+}
+
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
@@ -51,6 +60,7 @@ pub enum Definition {
     },
     /// Module definition.
     Module {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -60,6 +70,7 @@ pub enum Definition {
     },
     /// Struct definition.
     Struct {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -72,6 +83,7 @@ pub enum Definition {
     },
     /// Enum definition.
     Enum {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -84,6 +96,7 @@ pub enum Definition {
     },
     /// Union definition.
     Union {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -96,6 +109,7 @@ pub enum Definition {
     },
     /// Interface definition.
     Interface {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -108,6 +122,7 @@ pub enum Definition {
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
+        kind: DeclarationKind,
         name: Option<StringId>,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
@@ -126,6 +141,7 @@ pub enum Definition {
     },
     /// Implement definition.
     Implement {
+        kind: DeclarationKind,
         export: Option<ExportMode>,
         visibility: Option<Visibility>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -138,6 +154,25 @@ pub enum Definition {
 }
 
 impl Definition {
+    /// Get the kind of the definition.
+    #[inline]
+    pub fn kind(&self) -> DeclarationKind {
+        match self {
+            Definition::Intrinsic { .. } => DeclarationKind::Declaration,
+            Definition::Import { .. } => DeclarationKind::Declaration,
+            Definition::Export { .. } => DeclarationKind::Declaration,
+            Definition::Let { .. } => DeclarationKind::Declaration,
+            Definition::Type { .. } => DeclarationKind::Declaration,
+            Definition::Module { kind, .. } => *kind,
+            Definition::Struct { kind, .. } => *kind,
+            Definition::Enum { kind, .. } => *kind,
+            Definition::Union { kind, .. } => *kind,
+            Definition::Interface { kind, .. } => *kind,
+            Definition::Function { kind, .. } => *kind,
+            Definition::Implement { kind, .. } => *kind,
+        }
+    }
+
     /// Get the name of the definition.
     #[inline]
     pub fn name(&self) -> Option<StringId> {
