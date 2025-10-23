@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
                 let closing_pos = self
                     .find_matching_pair(TokenType::OpenParenthesis, TokenType::CloseParenthesis)?;
                 let closing_pos = self.skip_newlines_after(closing_pos)?;
-                // tuple if the paranthesis is followed by an arrow (or colon)
+                // function if the paranthesis are followed by an arrow (or colon)
                 if self
                     .tokens
                     .get(closing_pos as usize + 1)
@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
-            // reference (`&` or `&var` or `&const`)
+            // reference (`&` or `&var` or `&T`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
                 let mutability = self.eat_scoped_mutability_maybe()?;
@@ -398,7 +398,7 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Reference { mutability, right };
                 self.tree.insert(expression, self.get_span_from(start))
             }
-            // dynamic (`$` or `$var` or `$const`)
+            // dynamic (`$` or `$T` or `$type`)
             else if self.peek_token(TokenType::Dynamic).is_ok() {
                 self.bump(); // eat $
                 let mutability = self.eat_scoped_mutability_maybe()?;
@@ -543,7 +543,10 @@ impl<'a> Parser<'a> {
             //
             // array
             else if token.token.ty == TokenType::OpenBracket {
-                let array_literal = self.eat_array_literal()?;
+                let array_literal = self
+                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                        parser.eat_array_literal()
+                    })?;
                 self.tree.insert(
                     Expression::ArrayLiteral {
                         elements: array_literal,
@@ -556,7 +559,9 @@ impl<'a> Parser<'a> {
                 && token.token.ty == TokenType::OpenBrace
                 && let Ok(first_argument) = self.peek_anonymous_struct_literal_body()
             {
-                let fields = self.eat_struct_literal_body(first_argument)?;
+                let fields = self.with_options(self.options.not_in_parenthesis(), |parser| {
+                    parser.eat_struct_literal_body(first_argument)
+                })?;
                 self.tree.insert(
                     Expression::StructLiteral { ty: None, fields },
                     self.get_span_from(start),
@@ -570,7 +575,9 @@ impl<'a> Parser<'a> {
             }
             // tree
             else if token.token.ty == TokenType::LessThan && self.peek_tree_literal().is_ok() {
-                self.eat_tree_literal()?
+                self.with_options(self.options.not_in_parenthesis(), |parser| {
+                    parser.eat_tree_literal()
+                })?
             }
             // template
             else if self.peek_template_literal().is_ok() {
@@ -603,9 +610,9 @@ impl<'a> Parser<'a> {
 
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
-                let speculative_start = self.mark();
-                let speculative_start_idx = self.tree.next_id();
                 let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                    let speculative_start = self.mark();
+                    let speculative_start_idx = self.tree.next_id();
                     match self.eat_static_arguments() {
                         Ok(static_arguments) => Some(static_arguments),
                         Err(_) => {
@@ -712,7 +719,10 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-                let right_expression_id = self.eat_expression()?;
+                let right_expression_id = self
+                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 left_expression_id = self.tree.insert(
                     Expression::RangeLiteral {
                         start: left_expression_id,
@@ -806,12 +816,19 @@ impl<'a> Parser<'a> {
                 else {
                     self.bump(); // eat ?
                     // then expression
-                    let then_expression_id = self.eat_expression()?;
+                    let then_expression_id = self
+                        .with_options(self.options.not_in_parenthesis(), |parser| {
+                            parser.eat_expression()
+                        })?;
                     // :
                     self.eat_newlines_maybe()?;
                     self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
                     // else expression
-                    let else_expression_id = self.eat_expression()?;
+                    let else_expression_id = self
+                        .with_options(self.options.not_in_parenthesis(), |parser| {
+                            parser.eat_expression()
+                        })?;
                     // ternary if
                     let expression = Expression::If {
                         runtime,

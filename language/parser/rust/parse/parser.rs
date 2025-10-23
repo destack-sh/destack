@@ -158,7 +158,15 @@ impl ParserOptions {
         }
     }
 
-    /// Reset.
+    /// Not in parenthesis.
+    pub(crate) fn not_in_parenthesis(self) -> Self {
+        Self {
+            in_parenthesis: false,
+            ..self
+        }
+    }
+
+    /// Reset everything.
     pub(crate) fn nested(self) -> Self {
         Self::default()
     }
