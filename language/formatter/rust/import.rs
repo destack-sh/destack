@@ -56,7 +56,7 @@ pub(crate) fn format_import_binding<'ast>(
                 if_group_fits_on_line(&space()),
                 soft_block_indent(&format_with(|f| {
                     f.join_with(&format_args![
-                        if_group_fits_on_line(&token(",")),
+                        &token(","),
                         soft_line_break_or_space()
                     ])
                     .entries(items)
@@ -153,10 +153,10 @@ mod tests {
     #[test]
     fn test_format_import_with_overflow() {
         let source = r#"import {
-    StructuredObject
-    StructuredObjectOptions
-    StructuredObjectOptions2
-    StructuredObjectOptions3
+    StructuredObject,
+    StructuredObjectOptions,
+    StructuredObjectOptions2,
+    StructuredObjectOptions3,
 } from lib"#;
         assert_format!(
             source,

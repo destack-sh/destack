@@ -36,7 +36,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
                             token("("),
                             soft_block_indent(&format_with(|f| f
                                 .join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
+                                    &if_group_fits_on_line(&token(",")),
                                     soft_line_break_or_space()
                                 ])
                                 .entries(fields)
@@ -66,7 +66,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
                             token("{"),
                             soft_block_indent(&format_with(|f| f
                                 .join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
+                                    &if_group_fits_on_line(&token(",")),
                                     soft_line_break_or_space()
                                 ])
                                 .entries(fields)
@@ -147,7 +147,7 @@ mod tests {
     fn test_format_union_with_super_types_breaks() {
         assert_format!(
             "union Foo: BarWithLongName, BazWithEvenLongerName, QuxWithLongestName { }",
-            "union Foo: (\n\tBarWithLongName\n\tBazWithEvenLongerName\n\tQuxWithLongestName\n) { }",
+            "union Foo: (\n\tBarWithLongName,\n\tBazWithEvenLongerName,\n\tQuxWithLongestName,\n) { }",
             |p| p.eat_union(None, None),
             DystFormatOptions::default_tab_with_line_width(40)
         );

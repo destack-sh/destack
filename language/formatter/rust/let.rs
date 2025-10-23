@@ -81,7 +81,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
                         token("("),
                         soft_block_indent(&format_with(|f| f
                             .join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
+                                &token(","),
                                 soft_line_break_or_space()
                             ])
                             .entries(scopes)
@@ -132,11 +132,11 @@ mod tests {
     #[test]
     fn test_format_let_best_fitting_container() {
         let source = r"const shapes = [
-    TetrisPieceShape.I
-    TetrisPieceShape.J
-    TetrisPieceShape.L
-    TetrisPieceShape.O
-    TetrisPieceShape.S
+    TetrisPieceShape.I,
+    TetrisPieceShape.J,
+    TetrisPieceShape.L,
+    TetrisPieceShape.O,
+    TetrisPieceShape.S,
 ]";
         assert_format!(
             source,

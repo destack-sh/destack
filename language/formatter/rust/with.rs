@@ -20,7 +20,7 @@ pub(crate) fn format_with_clause<'ast>(
         f,
         [best_fit_parenthesize(&format_with(|f| {
             f.join_with(&format_args![
-                if_group_fits_on_line(&token(",")),
+                &token(","),
                 soft_line_break_or_space()
             ])
             .entries(with)

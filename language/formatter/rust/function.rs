@@ -34,7 +34,7 @@ mod tests {
     fn test_format_function_with_parameters_overflow() {
         assert_format!(
             "function bar(x: int32, y: boolean, z: string) {}",
-            "function bar(\n\tx: int32\n\ty: boolean\n\tz: string\n) { }",
+            "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
             |p| p.eat_function(None, None, false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
@@ -71,7 +71,7 @@ mod tests {
     fn test_format_function_with_with_clause_overflow() {
         assert_format!(
             "function foo() with Time, Place, Something, Foo, Baz {}",
-            "function foo() with (\n\tTime\n\tPlace\n\tSomething\n\tFoo\n\tBaz\n) { }",
+            "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
             |p| p.eat_function(None, None, false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
@@ -105,13 +105,13 @@ mod tests {
     fn test_format_function_with_self() {
         let source = r"function init(capacity: int32) => Self {
     Self {
-        map: Map.new(capacity)
-        queue: Queue.new(capacity)
-        capacity: capacity
-        somethingElse: something
-        moreStuff: bar()
-        evenMoreStuff: foo()
-        moreMoreMoreStuff: baz()
+        map: Map.new(capacity),
+        queue: Queue.new(capacity),
+        capacity: capacity,
+        somethingElse: something,
+        moreStuff: bar(),
+        evenMoreStuff: foo(),
+        moreMoreMoreStuff: baz(),
     }
 }";
         assert_format!(source, source, |p| p.eat_function(None, None, false, false));
