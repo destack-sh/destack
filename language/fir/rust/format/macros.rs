@@ -81,7 +81,9 @@ macro_rules! best_fitting {
 mod tests {
     use dyst_source::SourceFormat;
 
-    use crate::format::{FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer};
+    use crate::format::{
+        BestFittingMode, FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer,
+    };
     use crate::prelude::*;
 
     struct TestFormat;
@@ -197,7 +199,7 @@ mod tests {
 
     /// Best fitting selects first variant that fits within line width.
     #[test]
-    fn test_best_fitting_basic() {
+    fn test_best_fitting_with_two_variants_in_first_line_mode() {
         let document = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions {
@@ -267,7 +269,7 @@ mod tests {
 
     /// Best fitting handles complex multi-variant scenarios.
     #[test]
-    fn test_best_fitting_complex() {
+    fn test_best_fitting_with_three_variants_in_first_line_mode() {
         let formatted = format!(
             SimpleFormatContext::empty_dyst(),
             [
@@ -376,6 +378,131 @@ mod tests {
             .print()
             .unwrap()
             .as_str()
+        );
+    }
+
+    /// Best fitting with mode all variants tries all options.
+    #[test]
+    fn test_best_fitting_with_three_variants_in_all_lines_mode() {
+        let document = format_with(|f| {
+            write!(
+                f,
+                [best_fitting![
+                    // Everything fits on a single line
+                    format_args!(
+                        group(&format_args![
+                            token("["),
+                            soft_block_indent(&format_args![
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                token("3"),
+                            ]),
+                            token("]")
+                        ]),
+                        space(),
+                        token("+"),
+                        space(),
+                        token("aVeryLongIdentifier")
+                    ),
+                    // Breaks after `[` and prints each elements on a single line
+                    // The group is necessary because the variant by default is printed in flat mode and a
+                    // hard line break indicates that the content doesn't fit.
+                    format_args!(
+                        token("["),
+                        group(&block_indent(&format_args![
+                            token("1,"),
+                            hard_line_break(),
+                            token("2,"),
+                            hard_line_break(),
+                            token("3")
+                        ]))
+                        .should_expand(true),
+                        token("]"),
+                        space(),
+                        token("+"),
+                        space(),
+                        token("aVeryLongIdentifier")
+                    ),
+                    // Adds parentheses and indents the body, breaks after the operator
+                    format_args!(
+                        token("("),
+                        block_indent(&format_args![
+                            token("["),
+                            block_indent(&format_args![
+                                token("1,"),
+                                hard_line_break(),
+                                token("2,"),
+                                hard_line_break(),
+                                token("3"),
+                            ]),
+                            token("]"),
+                            hard_line_break(),
+                            token("+"),
+                            space(),
+                            token("aVeryLongIdentifier")
+                        ]),
+                        token(")")
+                    )
+                ]
+                .with_mode(BestFittingMode::AllLines),]
+            )
+        });
+
+        // Takes the first variant if everything fits on a single line
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 40,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::empty(SourceFormat::Dyst)
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "[1, 2, 3] + aVeryLongIdentifier",
+            formatted.print().unwrap().as_str()
+        );
+
+        // It takes the second if the first variant doesn't fit on a single line. The second variant
+        // has some additional line breaks to make sure inner groups don't break
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 23,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::empty(SourceFormat::Dyst)
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "[\n\t1,\n\t2,\n\t3\n] + aVeryLongIdentifier",
+            formatted.print().unwrap().as_str()
+        );
+
+        // Prints the last option as last resort
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 22,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::empty(SourceFormat::Dyst)
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n\t+ aVeryLongIdentifier\n)",
+            formatted.print().unwrap().as_str()
         );
     }
 
