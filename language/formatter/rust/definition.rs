@@ -6,7 +6,7 @@ use crate::{
     Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
     Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
-use dyst_ast::{DeclarationKind, ExportMode, FunctionStyle, Visibility};
+use dyst_ast::{Asyncness, DeclarationKind, ExportMode, FunctionCardinality, FunctionStyle, Visibility};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -754,6 +754,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Function {
                 meta,
                 runtime,
+                asyncness,
                 cardinality,
                 accessor,
                 style,
@@ -780,8 +781,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [visibility, space()])?;
                 }
 
-                // cardinality
-                if cardinality.is_async() {
+                // asyncness
+                if *asyncness == Asyncness::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
@@ -793,14 +794,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // keyword
                 if *style == FunctionStyle::Function {
                     // function keyword
-                    if cardinality.is_generator() {
+                    if *cardinality == FunctionCardinality::Generator {
                         write!(f, [Keyword::Function, token("*"), space()])?;
                     } else {
                         write!(f, [Keyword::Function, space()])?;
                     }
                 } else {
                     // lambda (no keyword, maybe star)
-                    if cardinality.is_generator() {
+                    if *cardinality == FunctionCardinality::Generator {
                         write!(f, [token("*"), space()])?;
                     }
                 }

@@ -147,6 +147,15 @@ pub enum Runtime {
     Static,
 }
 
+/// The asyncness of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Asyncness {
+    /// Synchronous function.
+    Sync,
+    /// Asynchronous function.
+    Async,
+}
+
 /// A Mutability is the mutability of a binding (const or mutable).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Mutability {

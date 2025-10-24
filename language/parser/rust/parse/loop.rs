@@ -1,5 +1,7 @@
 //! Parse loops, for, while, etc.
 
+use dyst_ast::{Asyncness, TokenType};
+
 use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
@@ -21,20 +23,20 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Loop)?;
 
         // body
-        let block_id = self.eat_block()?;
+        let body_id = self.eat_block()?;
 
         // loop
         let loop_id = self.tree.insert(
             Expression::Loop {
                 runtime,
-                body: block_id,
+                body: body_id,
             },
             self.get_span_from(start),
         );
         Ok(loop_id)
     }
 
-    /// Eat a for loop (including keyword and header).
+    /// Eat a for each or for condition loop (including keyword and header).
     ///
     /// Examples:
     /// ```
@@ -52,6 +54,10 @@ impl<'a> Parser<'a> {
     ///     }
     ///     y = 2
     /// }
+    ///
+    /// for (var x = 0; x < 10; x++) {
+    ///     y = 2
+    /// }
     /// ```
     pub fn eat_for(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -59,33 +65,127 @@ impl<'a> Parser<'a> {
         // keyword
         self.eat_keyword(Keyword::For)?;
 
-        // pattern
-        let pattern_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_pattern()
-        })?;
+        // asyncness
+        let asyncness = if self.peek_keyword(Keyword::Await).is_ok() {
+            self.bump(); // eat await keyword
+            Asyncness::Async
+        } else {
+            Asyncness::Sync
+        };
 
-        // in (with of for #Leniency)
-        self.eat_keyword_in(&[Keyword::In, Keyword::Of])?;
+        let in_parenthesis = self.peek_token(TokenType::OpenParenthesis).is_ok();
+        // for condition loop
+        if asyncness == Asyncness::Sync
+            && in_parenthesis
+            && self
+                .find_in_matching_pair(
+                    TokenType::OpenParenthesis,
+                    TokenType::CloseParenthesis,
+                    TokenType::Semicolon,
+                )
+                .is_ok()
+        {
+            // open parenthesis
+            self.bump(); 
 
-        // iterator
-        let iterator_id = self.with_options(self.options.nested_in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
+            // initialization
+            let initialization_id = if self.peek_token(TokenType::Semicolon).is_ok() {
+                None
+            } else {
+                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+            };
+            self.eat_token(TokenType::Semicolon)?;
 
-        // body
-        let block_id = self.eat_block()?;
+            // condition
+            let condition_id = if self.peek_token(TokenType::Semicolon).is_ok() {
+                None
+            } else {
+                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+            };
+            self.eat_token(TokenType::Semicolon)?;
 
-        // for
-        let for_id = self.tree.insert(
-            Expression::For {
-                runtime,
-                pattern: pattern_id,
-                iterator: iterator_id,
-                body: block_id,
-            },
-            self.get_span_from(start),
-        );
-        Ok(for_id)
+            // increment
+            let increment_id = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                None
+            } else {
+                Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
+            };
+
+            // close parenthesis
+            self.eat_token(TokenType::CloseParenthesis)?;
+
+            // body
+            let body_id = self.eat_block()?;
+
+            // for
+            let for_id = self.tree.insert(
+                Expression::ForCondition {
+                    runtime,
+                    initialization: initialization_id,
+                    condition: condition_id,
+                    increment: increment_id,
+                    body: body_id,
+                },
+                self.get_span_from(start),
+            );
+            Ok(for_id)
+        }
+        // implicit for each loop
+        else if in_parenthesis {
+            // iterator
+            let iterator_id = self
+                .with_options(self.options.nested_in_before_block(), |parser| {
+                    parser.eat_expression()
+                })?;
+
+            // body
+            let body_id = self.eat_block()?;
+
+            // for
+            let for_id = self.tree.insert(
+                Expression::ForEach {
+                    runtime,
+                    asyncness,
+                    pattern: None,
+                    iterator: iterator_id,
+                    body: body_id,
+                },
+                self.get_span_from(start),
+            );
+            Ok(for_id)
+        }
+        // explicit pattern for loop
+        else {
+            // pattern
+            let pattern_id = self.with_options(self.options.in_before_block(), |parser| {
+                parser.eat_pattern()
+            })?;
+
+            // in (with of for #Leniency)
+            self.eat_keyword_in(&[Keyword::In, Keyword::Of])?;
+
+            // iterator
+            let iterator_id = self
+                .with_options(self.options.nested_in_before_block(), |parser| {
+                    parser.eat_expression()
+                })?;
+
+            // body
+            let body_id = self.eat_block()?;
+
+            // for
+            let for_id = self.tree.insert(
+                Expression::ForEach {
+                    runtime,
+                    asyncness,
+                    pattern: Some(pattern_id),
+                    iterator: iterator_id,
+                    body: body_id,
+                },
+                self.get_span_from(start),
+            );
+            Ok(for_id)
+        }
     }
 
     /// Eat a while loop (including keyword and header).
@@ -113,14 +213,14 @@ impl<'a> Parser<'a> {
         })?;
 
         // body
-        let block_id = self.eat_block()?;
+        let body_id = self.eat_block()?;
 
         // while
         let while_id = self.tree.insert(
             Expression::While {
                 runtime,
                 condition: condition_id,
-                body: block_id,
+                body: body_id,
             },
             self.get_span_from(start),
         );
@@ -130,7 +230,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::ScopedMutability;
+    use dyst_ast::{Asyncness, ScalarLiteral, ScopedMutability, UnaryOperator};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -169,13 +269,42 @@ for item in items {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
-        assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { pattern: Some(pattern), iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
             // in items
             assert_expr_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_async_in_parentheses() {
+        let mut test = TestParser::new(
+            r###"
+for await (item of items) {
+    x
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for(None).unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { asyncness, pattern: None, iterator, body: _, .. } => {
+            assert_eq!(*asyncness, Asyncness::Async);
+            // (item of items)
+            assert_node!(parser.tree, *iterator, Expression::Parenthesized { expression, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
+                    // item
+                    assert_expr_path!(parser, parser.tree.get(*left), "item");
+                    // of
+                    assert_eq!(*operator, BinaryOperator::Of);
+                    // items
+                    assert_expr_path!(parser, parser.tree.get(*right), "items");
+                });
+            });
         });
     }
 
@@ -192,7 +321,7 @@ for const item in items outer: {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
-        assert_node!(parser.tree, for_id, Expression::For { pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { pattern: Some(pattern), iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(ScopedMutability::Unscoped { mutability }), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
@@ -200,6 +329,64 @@ for const item in items outer: {
             });
             // in items
             assert_expr_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_condition_empty() {
+        let mut test = TestParser::new(
+            r###"
+for (;;) {}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for(None).unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForCondition { initialization, condition, increment, body: _, .. } => {
+            assert!(initialization.is_none());
+            assert!(condition.is_none());
+            assert!(increment.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_condition_with_initialization() {
+        let mut test = TestParser::new(
+            r###"
+for (var x = 0; x < 10; x++) {
+    x
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for(None).unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForCondition { initialization, condition, increment, body: _, .. } => {
+            // var x = 0
+            assert_node!(parser.tree, initialization.unwrap(), Expression::Let { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+                    assert_string!(parser, *name, "x");
+                });
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+            // x < 10
+            assert_node!(parser.tree, condition.unwrap(), Expression::Binary { left, operator, right } => {
+                // x
+                assert_expr_path!(parser, parser.tree.get(*left), "x");
+                // <
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                // 10
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
+            });
+            // x++
+            assert_node!(parser.tree, increment.unwrap(), Expression::Unary { operator, expression } => {
+                assert_eq!(*operator, UnaryOperator::PostIncrement);
+                assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                    assert_path!(parser, path, "x");
+                });
+            });
         });
     }
 

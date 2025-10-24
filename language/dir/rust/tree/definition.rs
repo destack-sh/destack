@@ -1,6 +1,6 @@
 use crate::{
-    ExportMode, Expression, Generics, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter,
-    Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility,
+    Asyncness, ExportMode, Expression, Generics, ImportItem, Intrinsic, Node, NodeId, NodeType,
+    Parameter, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -241,53 +241,13 @@ impl Node for Definition {
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionCardinality {
-    /// Scalar, synchronous function.
+    /// Scalar function.
     Scalar,
-    /// Generator, asynchronous function.
+    /// Generator function.
     Generator,
-    /// Asynchronous scalar function.
-    AsyncScalar,
-    /// Asynchronous generator function.
-    AsyncGenerator,
 }
 
-impl FunctionCardinality {
-    /// Whether the function is synchronous.
-    #[inline]
-    pub fn is_sync(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Scalar | FunctionCardinality::Generator
-        )
-    }
-
-    /// Whether the function is asynchronous.
-    #[inline]
-    pub fn is_async(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::AsyncScalar | FunctionCardinality::AsyncGenerator
-        )
-    }
-
-    /// Whether the function is a scalar.
-    #[inline]
-    pub fn is_scalar(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Scalar | FunctionCardinality::AsyncScalar
-        )
-    }
-
-    /// Whether the function is a generator.
-    #[inline]
-    pub fn is_generator(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Generator | FunctionCardinality::AsyncGenerator
-        )
-    }
-}
+impl FunctionCardinality {}
 
 /// The accessor type of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -319,6 +279,8 @@ pub enum FunctionStyle {
 pub struct FunctionSignature {
     /// The runtime of the function.
     pub runtime: Runtime,
+    /// The asyncness of the function.
+    pub asyncness: Asyncness,
     /// The cardinality of the function.
     pub cardinality: FunctionCardinality,
     /// The accessor of the function.

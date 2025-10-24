@@ -302,7 +302,7 @@ const agent = new Agent({
 	tools: {
 		// your tools
 	},
-	prepareStep: function (x: { messages }) {
+	prepareStep: ({ messages }) => {
 		// Keep only recent messages to stay within context limits
 		if (messages.length > 20) {
 			return {
@@ -315,6 +315,10 @@ const agent = new Agent({
 		return {};
 	},
 });
+
+for (var x = 0; x < 10; x++) {
+    console.log(x)
+}
 
 const result = await agent.generate({
 	prompt: '...',

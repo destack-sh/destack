@@ -1,4 +1,4 @@
-use dyst_ast::{Argument, IfStyle, Mutability, Path, PostfixPosition, YieldCardinality};
+use dyst_ast::{Argument, Asyncness, IfStyle, Mutability, Path, PostfixPosition, YieldCardinality};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 
@@ -500,11 +500,36 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [Keyword::While, space(), condition, space(), body])?;
             }
 
-            // for
-            Expression::For {
+            // for each
+            Expression::ForEach {
                 runtime,
+                asyncness,
                 pattern,
                 iterator,
+                body,
+            } => {
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
+                write!(f, [Keyword::For, space()])?;
+                if *asyncness == Asyncness::Async {
+                    write!(f, [Keyword::Await, space()])?;
+                }
+                if let Some(pattern) = pattern {
+                    write!(f, [pattern, space(), Keyword::In, space()])?;
+                }
+                write!(f, [iterator, space()])?;
+                write!(f, [body])?;
+            }
+
+            // for condition
+            Expression::ForCondition {
+                runtime,
+                initialization,
+                condition,
+                increment,
                 body,
             } => {
                 if let Some(runtime) = runtime
@@ -516,12 +541,15 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     f,
                     [
                         Keyword::For,
+                        token("("),
+                        initialization,
+                        token(";"),
                         space(),
-                        pattern,
+                        condition,
+                        token(";"),
                         space(),
-                        Keyword::In,
-                        space(),
-                        iterator,
+                        increment,
+                        token(")"),
                         space(),
                         body
                     ]

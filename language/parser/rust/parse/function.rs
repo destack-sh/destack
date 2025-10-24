@@ -1,6 +1,8 @@
 //! Parse functions and closures.
 
-use dyst_ast::{DefinitionMeta, FunctionAccessor, FunctionCardinality, NodeType, Parameter};
+use dyst_ast::{
+    Asyncness, DefinitionMeta, FunctionAccessor, FunctionCardinality, NodeType, Parameter,
+};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
@@ -362,28 +364,22 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // cardinality
-        let cardinality = if is_async {
-            // asynchronous
-            if is_generator {
-                FunctionCardinality::AsyncGenerator
-            } else {
-                FunctionCardinality::AsyncScalar
-            }
-        } else {
-            // synchronous
-            if is_generator {
-                FunctionCardinality::Generator
-            } else {
-                FunctionCardinality::Scalar
-            }
-        };
-
         // function
+        let asyncness = if is_async {
+            Asyncness::Async
+        } else {
+            Asyncness::Sync
+        };
+        let cardinality = if is_generator {
+            FunctionCardinality::Generator
+        } else {
+            FunctionCardinality::Scalar
+        };
         let function_id = self.tree.insert(
             Definition::Function {
                 meta,
                 runtime,
+                asyncness,
                 cardinality,
                 accessor,
                 style,
@@ -403,7 +399,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DefinitionMeta, FunctionCardinality, FunctionStyle, Parameter};
+    use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionStyle, Parameter};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -717,10 +713,11 @@ async function* foo() => int32 {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Definition::Function { meta, cardinality, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, asyncness, cardinality, .. } => {
             // foo
             assert_string!(parser, meta.name.unwrap().string(), "foo");
-            assert_eq!(*cardinality, FunctionCardinality::AsyncGenerator);
+            assert_eq!(*asyncness, Asyncness::Async);
+            assert_eq!(*cardinality, FunctionCardinality::Generator);
         });
     }
 }

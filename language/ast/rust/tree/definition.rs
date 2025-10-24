@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantStyle};
 use crate::{
-    ExportMode, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
+    Asyncness, ExportMode, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
@@ -345,6 +345,7 @@ pub enum Definition {
     Function {
         meta: DefinitionMeta,
         runtime: Runtime,
+        asyncness: Asyncness,
         cardinality: FunctionCardinality,
         accessor: Option<FunctionAccessor>,
         style: FunctionStyle,
@@ -387,53 +388,13 @@ impl Definition {
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionCardinality {
-    /// Scalar, synchronous function.
+    /// Scalar function.
     Scalar,
-    /// Generator, asynchronous function.
+    /// Generator function.
     Generator,
-    /// Asynchronous scalar function.
-    AsyncScalar,
-    /// Asynchronous generator function.
-    AsyncGenerator,
 }
 
-impl FunctionCardinality {
-    /// Whether the function is synchronous.
-    #[inline]
-    pub fn is_sync(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Scalar | FunctionCardinality::Generator
-        )
-    }
-
-    /// Whether the function is asynchronous.
-    #[inline]
-    pub fn is_async(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::AsyncScalar | FunctionCardinality::AsyncGenerator
-        )
-    }
-
-    /// Whether the function is a scalar.
-    #[inline]
-    pub fn is_scalar(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Scalar | FunctionCardinality::AsyncScalar
-        )
-    }
-
-    /// Whether the function is a generator.
-    #[inline]
-    pub fn is_generator(&self) -> bool {
-        matches!(
-            self,
-            FunctionCardinality::Generator | FunctionCardinality::AsyncGenerator
-        )
-    }
-}
+impl FunctionCardinality {}
 
 /// The accessor type of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
