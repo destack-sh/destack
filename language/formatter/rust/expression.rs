@@ -354,18 +354,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // let
             Expression::Let {
                 mutability,
-                visibility,
-                export,
+                meta,
                 pattern,
                 ty,
                 value,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -404,9 +403,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // type
             Expression::LetType {
                 mutability,
-                name,
-                export,
-                visibility,
+                meta,
                 static_parameters,
                 value,
             } => {
@@ -414,11 +411,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     f,
                     [group(&format_with(|f| {
                         // export
-                        if let Some(export) = export {
+                        if let Some(export) = meta.export {
                             write!(f, [export, space()])?;
                         }
                         // visibility
-                        if let Some(visibility) = visibility {
+                        if let Some(visibility) = meta.visibility {
                             write!(f, [visibility, space()])?;
                         }
                         // keyword
@@ -429,7 +426,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                             write!(f, [Keyword::Type])?;
                         }
                         // name
-                        write!(f, [space(), name])?;
+                        if let Some(name) = meta.name {
+                            write!(f, [space(), name])?;
+                        }
                         if let Some(static_parameters) = static_parameters {
                             write!(f, [list_like("<", ">", ",", static_parameters)])?;
                         }

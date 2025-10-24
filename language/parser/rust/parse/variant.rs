@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{DeclarationKind, Expression, Keyword, Mutability, PostfixPosition};
+use dyst_ast::{DefinitionMeta, Expression, Keyword, Mutability, PostfixPosition};
 use std::str::FromStr;
 
 use crate::TokenType;
@@ -260,7 +260,7 @@ impl<'a> Parser<'a> {
                     .is_ok()
             {
                 let function_id =
-                    self.eat_function(DeclarationKind::Definition, None, None, false, false)?;
+                    self.eat_function(DefinitionMeta::default(), false, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
@@ -275,7 +275,7 @@ impl<'a> Parser<'a> {
                     .is_ok()
             {
                 let function_id =
-                    self.eat_function(DeclarationKind::Definition, None, None, true, false)?;
+                    self.eat_function(DefinitionMeta::default(), true, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),

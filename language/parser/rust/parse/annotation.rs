@@ -709,7 +709,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, Name};
+    use dyst_ast::{DefinitionMeta, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -820,9 +820,9 @@ struct Test {}
 
         // function foo()
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-            assert_node!(parser.tree, *node, Definition::Function { name, body, .. } => {
+            assert_node!(parser.tree, *node, Definition::Function { meta, body, .. } => {
                 // foo
-                assert_string!(parser, name.unwrap(), "foo");
+                assert_string!(parser, meta.name.unwrap().string(), "foo");
                 assert!(body.is_some());
                 assert_node!(parser.tree, body.unwrap(), Expression::Block(block_id) => {
                     assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -1142,7 +1142,7 @@ function main() {
         parser.eat_newline().unwrap();
 
         let function = parser
-            .eat_function(DeclarationKind::Definition, None, None, false, false)
+            .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         parser.finalize();
 

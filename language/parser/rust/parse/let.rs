@@ -1,8 +1,8 @@
-use dyst_ast::ExportMode;
+use dyst_ast::DefinitionMeta;
 
 use crate::{Expression, ParserError, Path, TokenType};
 
-use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability, Visibility};
+use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability};
 
 impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
@@ -114,11 +114,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(
-        &mut self,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
-    ) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_let(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability
@@ -175,10 +171,9 @@ impl<'a> Parser<'a> {
         // let
         let let_id = self.tree.insert(
             Expression::Let {
+                meta,
                 pattern,
                 mutability,
-                visibility,
-                export,
                 ty,
                 value,
             },
@@ -194,8 +189,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
-        TypeLiteral, assert_name, assert_node, assert_path, assert_string,
+        DefinitionMeta, Expression, Mutability, Pattern, PatternField, ScalarLiteral,
+        ScopedMutability, TypeLiteral, assert_name, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -207,7 +202,7 @@ var(x, y) pos: Vector4
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         // var(x, y) pos: Vector2 = --
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value: _, .. } => {
@@ -242,7 +237,7 @@ const x: int32 = 1
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // x
@@ -274,7 +269,7 @@ var x: float64[3] = undefined
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty,  .. } => {
             // var (mutable)
@@ -306,7 +301,7 @@ const (x, y) = foo()
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
             // (x, y)
@@ -336,7 +331,7 @@ const (x, y) = foo()
         let mut test = TestParser::new("const x: int32");
         let mut parser = test.prepare();
 
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         // let x: int32
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
@@ -362,7 +357,7 @@ const x =
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(None, None).unwrap();
+        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
 
         // const x = foo.parse()
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, value, .. } => {

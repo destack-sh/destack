@@ -1,12 +1,11 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_ast::{DeclarationKind, ExportMode, IfStyle, PostfixPosition};
+use dyst_ast::{DeclarationKind, DefinitionMeta, ExportMode, IfStyle, PostfixPosition};
 
 use crate::parse::prelude::*;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, NodeType,
     Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
-    Visibility,
 };
 
 static DEFINITION_KEYWORDS: [Keyword; 15] = [
@@ -221,8 +220,10 @@ impl<'a> Parser<'a> {
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
+        let mut meta: DefinitionMeta = DefinitionMeta::default();
+
         // export
-        let export = if self.peek_keyword(Keyword::Export).is_ok() {
+        if self.peek_keyword(Keyword::Export).is_ok() {
             self.bump(); // eat export
             let mode = if self.peek_keyword(Keyword::Default).is_ok() {
                 self.bump(); // eat default
@@ -239,13 +240,11 @@ impl<'a> Parser<'a> {
                 return self.eat_export(mode);
             }
 
-            mode
-        } else {
-            None
-        };
+            meta.export = mode;
+        }
 
         // kind
-        let kind: DeclarationKind = if self.peek_keyword(Keyword::Declare).is_ok() {
+        meta.kind = if self.peek_keyword(Keyword::Declare).is_ok() {
             self.bump(); // eat declare
             DeclarationKind::Declaration
         } else {
@@ -253,7 +252,7 @@ impl<'a> Parser<'a> {
         };
 
         // visibility
-        let visibility: Option<Visibility> = match self.peek_visibility() {
+        meta.visibility = match self.peek_visibility() {
             Ok(Some(visibility)) => {
                 self.bump(); // eat visibility
                 Some(visibility)
@@ -288,7 +287,7 @@ impl<'a> Parser<'a> {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(kind, visibility, export, false, false)?;
+                let lambda_id = self.eat_function(meta, false, false)?;
                 self.tree
                     .insert(Expression::Definition(lambda_id), self.get_span_from(start))
             }
@@ -312,7 +311,7 @@ impl<'a> Parser<'a> {
                     })
                     .unwrap_or(false)
                 {
-                    let lambda_id = self.eat_function(kind, visibility, export, false, false)?;
+                    let lambda_id = self.eat_function(meta, false, false)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 }
@@ -418,31 +417,31 @@ impl<'a> Parser<'a> {
 
             // module
             else if keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace) {
-                let module_id = self.eat_module(kind, visibility, export)?;
+                let module_id = self.eat_module(meta)?;
                 self.tree
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
-            // struct
+            // struct (or class for #Leniency)
             else if keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class) {
-                let struct_id = self.eat_struct(kind, visibility, export)?;
+                let struct_id = self.eat_struct(meta)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(kind, visibility, export)?;
+                let enum_id = self.eat_enum(meta)?;
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(kind, visibility, export)?;
+                let union_id = self.eat_union(meta)?;
                 self.tree
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // interface
             else if keyword == Some(Keyword::Interface) {
-                let interface_id = self.eat_interface(kind, visibility, export)?;
+                let interface_id = self.eat_interface(meta)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
                     self.get_span_from(start),
@@ -450,7 +449,7 @@ impl<'a> Parser<'a> {
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement(kind, visibility, export)?;
+                let implement_id = self.eat_implement(meta)?;
                 self.tree.insert(
                     Expression::Definition(implement_id),
                     self.get_span_from(start),
@@ -462,7 +461,7 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Get)
                 || keyword == Some(Keyword::Set)
             {
-                let function_id = self.eat_function(kind, visibility, export, false, false)?;
+                let function_id = self.eat_function(meta, false, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),
@@ -486,11 +485,11 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                self.eat_let(visibility, export)?
+                self.eat_let(meta)?
             }
             // type
             else if keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly) {
-                self.eat_type(visibility, export)?
+                self.eat_type(meta)?
             }
             // if
             else if keyword == Some(Keyword::If) {
@@ -956,8 +955,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, ExportMode, FunctionStyle, ImportTarget, IntType, Name, Parameter,
-        PatternField, PostfixPosition, TypeLiteral, WithClause,
+        Definition, DefinitionMeta, ExportMode, FunctionStyle, ImportTarget, IntType, Name,
+        Parameter, PatternField, PostfixPosition, TypeLiteral, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1038,8 +1037,8 @@ mod tests {
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::LetType { name, visibility, export, .. } => {
-            assert_string!(parser, *name, "NonNullValue");
+        assert_node!(parser.tree, expression_id, Expression::LetType { meta: DefinitionMeta { name, visibility, export, .. }, .. } => {
+            assert_string!(parser, name.unwrap().string(), "NonNullValue");
             assert!(visibility.is_none());
             assert!(export.is_some());
         });
@@ -2179,9 +2178,9 @@ type Value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // type Value = | string | number | boolean
-        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { meta: DefinitionMeta { name, .. }, value, .. } => {
             // value
-            assert_string!(parser, *name, "Value");
+            assert_string!(parser, name.unwrap().string(), "Value");
             // | string | number | boolean
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);

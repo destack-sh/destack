@@ -329,10 +329,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
                 [group(&format_args![
                     token("("),
                     soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            &token(","),
-                            soft_line_break_or_space()
-                        ])
+                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
                         .entries(arguments)
                         .finish())),
                     token(")")
@@ -358,10 +355,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
                 [group(&format_args![
                     token("("),
                     soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![
-                            &token(","),
-                            soft_line_break_or_space()
-                        ])
+                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
                         .entries(arguments)
                         .finish())),
                     token(")")
@@ -376,11 +370,11 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DeclarationKind;
+    use dyst_ast::DefinitionMeta;
 
     /// Tags should be preserved in order.
     #[test]
-    fn test_format_tags_around_struct() {
+    fn test_format_tags_around_definition() {
         let source = r#"struct Entity {
     /// name
     #BeginGroup(17)
@@ -391,7 +385,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_struct(DeclarationKind::Definition, None, None),
+            |p| p.eat_struct(DefinitionMeta::default()),
             DystFormatOptions::default()
         );
     }
@@ -440,7 +434,7 @@ mod tests {
         assert_format!(
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct(DeclarationKind::Definition, None, None),
+            |p| p.eat_struct(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
     }

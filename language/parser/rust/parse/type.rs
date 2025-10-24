@@ -1,4 +1,4 @@
-use dyst_ast::{BinaryOperator, ExportMode, FloatType, Keyword, Mutability, Visibility};
+use dyst_ast::{BinaryOperator, DefinitionMeta, FloatType, Keyword, Mutability};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -160,11 +160,7 @@ impl<'a> Parser<'a> {
     /// type 1 | 2 | 3
     /// readonly T
     /// ```
-    pub fn eat_type(
-        &mut self,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
-    ) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_type(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly])?;
 
@@ -183,7 +179,7 @@ impl<'a> Parser<'a> {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
             let speculative_start = (self.mark(), self.tree.next_id());
-            let name = self.eat_identifier()?;
+            meta.name = self.eat_name_or_wildcard_maybe()?;
 
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;
@@ -226,11 +222,9 @@ impl<'a> Parser<'a> {
                 // type
                 let expression = Expression::LetType {
                     mutability,
-                    name,
+                    meta,
                     static_parameters,
                     value: value_id,
-                    visibility,
-                    export,
                 };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
@@ -334,10 +328,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, .. } => {
-            assert_string!(parser, *name, "T");
+        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, .. } => {
+            assert_string!(parser, meta.name.unwrap().string(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
-            assert_eq!(*visibility, None);
         });
     }
 
@@ -347,10 +340,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { name, value, visibility, static_parameters, .. } => {
-            assert_string!(parser, *name, "T");
+        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, static_parameters, .. } => {
+            assert_string!(parser, meta.name.unwrap().string(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
-            assert_eq!(*visibility, None);
             assert!(static_parameters.is_some());
             assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
         });

@@ -70,11 +70,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         match self {
             // module
             Definition::Module {
-                kind,
-                name,
+                meta,
                 format,
-                visibility,
-                export,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -94,23 +91,23 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
                 // keyword
                 write!(f, [Keyword::Module])?;
-                if let Some(name) = name {
+                if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -166,10 +163,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // struct
             Definition::Struct {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 style,
                 super_types,
                 representation_type,
@@ -192,17 +186,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 };
 
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -213,7 +207,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // name
-                if let Some(name) = name {
+                if let Some(name) = meta.name {
                     write!(f, [space()])?;
                     write!(f, [name])?;
 
@@ -318,10 +312,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // enum
             Definition::Enum {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 tag_type,
                 static_parameters,
                 super_types,
@@ -331,17 +322,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -354,7 +345,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space()])?;
                 }
                 // name
-                if let Some(name) = name {
+                if let Some(name) = meta.name {
                     write!(f, [name])?;
                 }
 
@@ -364,7 +355,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                     write!(f, [space()])?;
-                } else if name.is_some() {
+                } else if meta.name.is_some() {
                     write!(f, [space()])?;
                 }
 
@@ -432,10 +423,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // interface
             Definition::Interface {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 static_parameters,
                 super_types,
                 with_clauses: with,
@@ -444,17 +432,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -462,7 +450,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Interface])?;
 
                 // name
-                if let Some(name) = name {
+                if let Some(name) = meta.name {
                     write!(f, [space()])?;
                     write!(f, [name])?;
                 }
@@ -546,10 +534,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // union
             Definition::Union {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -560,17 +545,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -592,7 +577,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // name
-                if let Some(name) = name {
+                if let Some(name) = meta.name {
                     write!(f, [space()])?;
                     write!(f, [name])?;
                 }
@@ -677,9 +662,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
-                kind,
-                export,
-                visibility,
+                meta,
                 static_parameters: static_arguments,
                 target_type,
                 super_types,
@@ -688,17 +671,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -769,10 +752,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // function
             Definition::Function {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 runtime,
                 cardinality,
                 accessor,
@@ -786,17 +766,17 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 body,
             } => {
                 // export
-                if let Some(export) = export {
+                if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if *kind == DeclarationKind::Declaration {
+                if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
                 // visibility
-                if let Some(visibility) = visibility {
+                if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
                 }
 
@@ -830,7 +810,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     if *runtime == Runtime::Static {
                         write!(f, [token("@")])?;
                     }
-                    if let Some(name) = name {
+                    if let Some(name) = meta.name {
                         write!(f, [name])?;
                     }
 

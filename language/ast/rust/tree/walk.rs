@@ -192,8 +192,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Let {
             mutability: _,
-            visibility: _,
-            export: _,
+            meta: _,
             pattern,
             ty,
             value,
@@ -212,10 +211,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::LetType {
             mutability: _,
-            name: _,
+            meta: _,
             static_parameters,
-            visibility: _,
-            export: _,
             value,
         } => {
             if let Some(static_parameters) = static_parameters {
@@ -344,7 +341,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression, expression_node);
         }
 
-        Expression::Yield { cardinality: _, value } => {
+        Expression::Yield {
+            cardinality: _,
+            value,
+        } => {
             let value_node = tree.get(*value);
             visitor.visit_expression(tree, *value, value_node);
         }
@@ -557,10 +557,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 
     match definition {
         Definition::Module {
-            kind: _,
-            name: _,
-            visibility: _,
-            export: _,
+            meta: _,
             format: _,
             with_clauses,
             where_clauses,
@@ -584,11 +581,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
-            kind: _,
-            name: _,
-            visibility: _,
+            meta: _,
             style: _,
-            export: _,
             super_types,
             representation_type,
             static_parameters,
@@ -635,10 +629,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
-            kind: _,
-            name: _,
-            visibility: _,
-            export: _,
+            meta: _,
             tag_type,
             static_parameters,
             super_types,
@@ -685,10 +676,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Union {
-            kind: _,
-            name: _,
-            visibility: _,
-            export: _,
+            meta: _,
             tag_type,
             representation_type,
             static_parameters,
@@ -740,10 +728,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
-            kind: _,
-            name: _,
-            visibility: _,
-            export: _,
+            meta: _,
             super_types,
             static_parameters,
             with_clauses,
@@ -785,9 +770,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            kind: _,
-                export: _,
-            visibility: _,
+            meta: _,
             static_parameters,
             target_type,
             super_types,
@@ -827,10 +810,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
-            kind: _,
-            name: _,
-            visibility: _,
-            export: _,
+            meta: _,
             runtime: _,
             cardinality: _,
             accessor: _,

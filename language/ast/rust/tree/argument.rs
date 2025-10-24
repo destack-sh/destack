@@ -1,7 +1,7 @@
 use crate::{Expression, Node, NodeId, NodeType, Pattern, StringId};
 
 /// A Name is a regular or string identifier.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Name {
     /// A regular identifier (regular `x` or `someThing`).
     Identifier(StringId),
@@ -90,7 +90,7 @@ pub enum Argument {
     NamedShorthand { name: StringId },
     /// Named shorthand function argument (like `foo()`, only in certain contexts like struct literals).
     NamedFunction {
-        name: StringId,
+        name: Name,
         value: NodeId<Expression>,
     },
     /// Positional argument (like `1` or `foo()`).

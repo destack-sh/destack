@@ -80,10 +80,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
                     [group(&format_args![
                         token("("),
                         soft_block_indent(&format_with(|f| f
-                            .join_with(&format_args![
-                                &token(","),
-                                soft_line_break_or_space()
-                            ])
+                            .join_with(&format_args![&token(","), soft_line_break_or_space()])
                             .entries(scopes)
                             .finish())),
                         token(")"),
@@ -104,19 +101,21 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+    use dyst_ast::DefinitionMeta;
 
     #[test]
     fn test_format_let_with_scoped_mutability() {
         assert_format!(
             "var(x, y) pos: Vector4 = undefined",
             "var(x, y) pos: Vector4 = undefined",
-            |p| p.eat_let(None, None)
+            |p| p.eat_let(DefinitionMeta::default())
         );
     }
 
     #[test]
     fn test_format_let_with_value() {
-        assert_format!("const x = 1", "const x = 1", |p| p.eat_let(None, None));
+        assert_format!("const x = 1", "const x = 1", |p| p
+            .eat_let(DefinitionMeta::default()));
     }
 
     #[test]
@@ -124,7 +123,7 @@ mod tests {
         assert_format!(
             "const veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
             "const veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
-            |p| p.eat_let(None, None),
+            |p| p.eat_let(DefinitionMeta::default()),
             DystFormatOptions::default_tab().with_line_width(40)
         );
     }
@@ -141,7 +140,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(None, None),
+            |p| p.eat_let(DefinitionMeta::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }
@@ -159,7 +158,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(None, None),
+            |p| p.eat_let(DefinitionMeta::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }

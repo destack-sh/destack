@@ -1,14 +1,11 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::DeclarationKind;
+use dyst_ast::DefinitionMeta;
 
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{
-    Definition, ExportMode, Keyword, NodeId, NodeType, Parser, ParserResult, VariantStyle,
-    Visibility,
-};
+use crate::{Definition, Keyword, NodeId, NodeType, Parser, ParserResult, VariantStyle};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -51,15 +48,10 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(
-        &mut self,
-        kind: DeclarationKind,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
-    ) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_struct(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
-        // keyword
+        // keyword (accepts `class` for #Leniency)
         self.eat_keyword_in(&[Keyword::Struct, Keyword::Class])
             .for_node_type(NodeType::Definition)?;
 
@@ -74,7 +66,7 @@ impl<'a> Parser<'a> {
         };
 
         // optional name
-        let name = self.eat_identifier_or_wildcard_maybe()?;
+        meta.name = self.eat_name_or_wildcard_maybe()?;
 
         // style / tuple struct
         let (style, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -122,10 +114,7 @@ impl<'a> Parser<'a> {
 
         let struct_id = self.tree.insert(
             Definition::Struct {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 style,
                 super_types,
                 static_parameters,
@@ -144,7 +133,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, Mutability, Name, Visibility};
+    use dyst_ast::{DeclarationKind, DefinitionMeta, Mutability, Name, Visibility};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -165,12 +154,10 @@ struct { public x: int32, readonly y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
-        let struct_id = parser
-            .eat_struct(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { kind, name, static_parameters, fields, expressions, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_eq!(*name, None);
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert!(meta.name.is_none());
             assert_eq!(*static_parameters, None);
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
@@ -205,12 +192,10 @@ struct Foo: Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser
-            .eat_struct(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { kind, name, super_types, fields, expressions, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, super_types, fields, expressions, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -233,12 +218,10 @@ struct Foo(int32, public boolean) {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser
-            .eat_struct(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { kind, name, style, fields, expressions, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, style, fields, expressions, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert_eq!(*style, VariantStyle::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
@@ -281,12 +264,10 @@ struct Foo<T: Numeric>: Boz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser
-            .eat_struct(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { kind, name, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
 
             // T: Numeric
@@ -361,11 +342,9 @@ struct Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser
-            .eat_struct(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { kind, with_clauses, where_clauses, fields, expressions, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, with_clauses, where_clauses, fields, expressions, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(fields.is_empty());
             assert!(expressions.is_empty());
 
