@@ -2,10 +2,11 @@ use dyst_ast::Keyword;
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
+use crate::argument::list_like;
 use crate::{DystFormatContext, DystFormatter, FormatNode, ImportItem, ImportTarget, NodeId};
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::write;
 
 impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
     #[inline]
@@ -42,27 +43,14 @@ pub(crate) fn format_import_binding<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     target: Option<&ImportTarget>,
     alias: Option<StringId>,
-    items: Option<&[NodeId<ImportItem>]>,
+    items: Option<&Vec<NodeId<ImportItem>>>,
 ) -> FormatResult<()> {
     // items with maybe target
     if let Some(items) = items
         && !items.is_empty()
     {
         // items
-        write!(
-            f,
-            [group(&format_args![
-                token("{"),
-                if_group_fits_on_line(&space()),
-                soft_block_indent(&format_with(|f| {
-                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(items)
-                        .finish()
-                })),
-                if_group_fits_on_line(&space()),
-                token("}")
-            ]),]
-        )?;
+        write!(f, [list_like("{", "}", ",", items).include_space()])?;
         // target
         if let Some(target) = target {
             write!(f, [space(), Keyword::From, space(), target])?;

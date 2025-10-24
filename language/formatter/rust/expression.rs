@@ -331,7 +331,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     f,
                     Some(target),
                     alias.as_ref().copied(),
-                    items.as_ref().map(|items| items.as_slice()),
+                    items.as_ref(),
                 )?;
             }
 
@@ -347,7 +347,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     f,
                     target.as_ref(),
                     alias.as_ref().copied(),
-                    items.as_ref().map(|items| items.as_slice()),
+                    items.as_ref(),
                 )?;
             }
 
