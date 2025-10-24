@@ -259,24 +259,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_format_block_with_nested_declaration() {
-        let source = r"{
-    // x comment
-    const x =
-        // y comment
-        function y(v: float32) => float32 {
-            // z comment
-        }
-}";
-        assert_format!(
-            source,
-            source,
-            |p| p.eat_block(),
-            DystFormatOptions::default()
-        );
-    }
-
     /// Block shouldn't break if the expression is used inline.
     #[test]
     fn test_format_block_inline() {

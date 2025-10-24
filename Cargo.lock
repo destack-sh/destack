@@ -645,6 +645,7 @@ name = "dyst_formatter"
 version = "2025.10.24-0"
 dependencies = [
  "dyst_ast",
+ "dyst_container",
  "dyst_diagnostic",
  "dyst_fir",
  "dyst_parser",

@@ -6,7 +6,9 @@ use crate::{
     Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
     Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
-use dyst_ast::{Asyncness, DeclarationKind, ExportMode, FunctionCardinality, FunctionStyle, Visibility};
+use dyst_ast::{
+    Asyncness, DeclarationKind, ExportMode, FunctionCardinality, FunctionStyle, Visibility,
+};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -859,7 +861,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                             }
                             // dynamic parameters
                             join.entries(dynamic_parameters);
-                            join.finish()
+                            join.finish()?;
+
+                            // trailing comma
+                            write!(f, [if_group_breaks(&token(","))])?;
+
+                            Ok(())
                         })),
                         token(")")
                     ])]

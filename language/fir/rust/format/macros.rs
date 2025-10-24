@@ -73,7 +73,6 @@ macro_rules! format {
 #[macro_export]
 macro_rules! best_fitting {
     ($least_expanded:expr, $($tail:expr),+ $(,)?) => {
-        // OK because the macro syntax requires at least two variants.
         $crate::format::BestFitting::from_arguments_unchecked($crate::format_args!($least_expanded, $($tail),+))
     }
 }

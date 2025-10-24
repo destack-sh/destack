@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
-use dyst_fir::format::FormatResult;
+use dyst_fir::format::{BestFittingMode, FormatResult};
 
 use crate::{
     Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
     Parameter,
 };
 use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use dyst_fir::{best_fitting, format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,8 +38,8 @@ where
         self
     }
 
-    pub(crate) fn with_force_expand(&mut self, force_expand: bool) -> &mut Self {
-        self.force_expand = force_expand;
+    pub(crate) fn should_expand(&mut self, should_expand: bool) -> &mut Self {
+        self.force_expand = should_expand;
         self
     }
 
@@ -90,17 +90,31 @@ where
             Ok(())
         });
 
-        write!(
-            f,
-            [group(&format_args![
-                // start token
-                token(self.start_token),
-                // content
+        let format_inline = format_with(|f| {
+            group(&format_args![
+                &token(self.start_token),
+                body,
+                &token(self.end_token)
+            ])
+            .format(f)
+        });
+        let format_indented = format_with(|f| {
+            group(&format_args![
+                &token(self.start_token),
                 soft_block_indent(body),
-                // end token
-                token(self.end_token)
-            ]),]
-        )?;
+                &token(self.end_token)
+            ])
+            .should_expand(self.force_expand)
+            .format(f)
+        });
+
+        if self.force_expand {
+            format_indented.format(f)?;
+        } else {
+            best_fitting![format_inline, format_indented]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
 
         Ok(())
     }
