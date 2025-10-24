@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
                 // identifier?:
                 | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)
                 // identifier = 
-                | (TokenType::Identifier, TokenType::Assign, _) 
+                | (TokenType::Identifier, TokenType::Assign, _)
                 // string:
                 | (TokenType::Literal, TokenType::Colon, _)
                 // string?:
@@ -192,7 +192,10 @@ impl<'a> Parser<'a> {
                 .for_node_type(NodeType::Definition)?;
             let ty = if is_maybe {
                 self.tree.insert(
-                    Expression::Maybe { left: ty, position: PostfixPosition::Direct },
+                    Expression::Maybe {
+                        left: ty,
+                        position: PostfixPosition::Direct,
+                    },
                     self.tree.spans.get(ty),
                 )
             } else {
@@ -259,8 +262,7 @@ impl<'a> Parser<'a> {
                     .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id =
-                    self.eat_function(DefinitionMeta::default(), false, false)?;
+                let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
@@ -274,14 +276,16 @@ impl<'a> Parser<'a> {
                     .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id =
-                    self.eat_function(DefinitionMeta::default(), true, false)?;
+                let function_id = self.eat_function(DefinitionMeta::default(), true, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
                 let expression_id = self.tree.insert(
-                    Expression::Maybe { left: expression_id, position: PostfixPosition::Direct },
+                    Expression::Maybe {
+                        left: expression_id,
+                        position: PostfixPosition::Direct,
+                    },
                     self.tree.spans.get(expression_id),
                 );
                 expressions.push(expression_id);

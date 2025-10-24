@@ -1,6 +1,6 @@
 use crate::{
-    ExportMode, Expression, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime,
-    ScopedMutability, StringId, Type, Variant, VariantField, Visibility, WhereClause, WithClause,
+    ExportMode, Expression, Generics, ImportItem, Intrinsic, Node, NodeId, NodeType, Parameter,
+    Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -33,6 +33,19 @@ pub enum DeclarationKind {
     Definition,
 }
 
+/// The meta data for a definition.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct DefinitionMeta {
+    /// The kind of declaration.
+    pub kind: DeclarationKind = DeclarationKind::Definition,
+    /// The name of the definition.
+    pub name: Option<StringId> = None,
+    /// The visibility of the definition.
+    pub visibility: Option<Visibility> = None,
+    /// The export mode of the definition.
+    pub export: Option<ExportMode> = None,
+}
+
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
@@ -47,108 +60,67 @@ pub enum Definition {
     },
     /// Let definition.
     Let {
-        name: StringId,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
+        meta: DefinitionMeta,
+        value: NodeId<Expression>,
     },
     /// Type definition.
     Type {
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         value: NodeId<Type>,
     },
     /// Module definition.
     Module {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Struct definition.
     Struct {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variant: NodeId<Variant>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.
     Enum {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variants: Vec<NodeId<Variant>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Union definition.
     Union {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variants: Vec<NodeId<Variant>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Interface definition.
     Interface {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<VariantField>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        runtime: Runtime,
-        cardinality: FunctionCardinality,
-        accessor: Option<FunctionAccessor>,
-        style: FunctionStyle,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        self_parameter: Option<SelfParameter>,
-        dynamic_parameters: Vec<NodeId<Parameter>>,
-        return_type: Option<NodeId<Type>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
+        signature: FunctionSignature,
         definitions: Vec<NodeId<Definition>>,
         body: Option<NodeId<Expression>>,
     },
     /// Implement definition.
     Implement {
-        kind: DeclarationKind,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        meta: DefinitionMeta,
+        generics: Option<Generics>,
         target_type: NodeId<Type>,
         super_types: Option<Vec<NodeId<Type>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
         definitions: Vec<NodeId<Definition>>,
     },
 }
@@ -163,13 +135,13 @@ impl Definition {
             Definition::Export { .. } => DeclarationKind::Declaration,
             Definition::Let { .. } => DeclarationKind::Declaration,
             Definition::Type { .. } => DeclarationKind::Declaration,
-            Definition::Module { kind, .. } => *kind,
-            Definition::Struct { kind, .. } => *kind,
-            Definition::Enum { kind, .. } => *kind,
-            Definition::Union { kind, .. } => *kind,
-            Definition::Interface { kind, .. } => *kind,
-            Definition::Function { kind, .. } => *kind,
-            Definition::Implement { kind, .. } => *kind,
+            Definition::Module { meta, .. } => meta.kind,
+            Definition::Struct { meta, .. } => meta.kind,
+            Definition::Enum { meta, .. } => meta.kind,
+            Definition::Union { meta, .. } => meta.kind,
+            Definition::Interface { meta, .. } => meta.kind,
+            Definition::Function { meta, .. } => meta.kind,
+            Definition::Implement { meta, .. } => meta.kind,
         }
     }
 
@@ -180,15 +152,15 @@ impl Definition {
             Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
             Definition::Import { .. } => None,
             Definition::Export { .. } => None,
-            Definition::Let { name, .. } => Some(*name),
-            Definition::Type { name, .. } => *name,
-            Definition::Module { name, .. } => *name,
-            Definition::Struct { name, .. } => *name,
-            Definition::Enum { name, .. } => *name,
-            Definition::Union { name, .. } => *name,
-            Definition::Interface { name, .. } => *name,
-            Definition::Function { name, .. } => *name,
-            Definition::Implement { .. } => None,
+            Definition::Let { meta, .. } => meta.name,
+            Definition::Type { meta, .. } => meta.name,
+            Definition::Module { meta, .. } => meta.name,
+            Definition::Struct { meta, .. } => meta.name,
+            Definition::Enum { meta, .. } => meta.name,
+            Definition::Union { meta, .. } => meta.name,
+            Definition::Interface { meta, .. } => meta.name,
+            Definition::Function { meta, .. } => meta.name,
+            Definition::Implement { meta, .. } => meta.name,
         }
     }
 
@@ -199,15 +171,15 @@ impl Definition {
             Definition::Intrinsic { .. } => None,
             Definition::Import { .. } => None,
             Definition::Export { .. } => None,
-            Definition::Let { visibility, .. } => *visibility,
-            Definition::Type { visibility, .. } => *visibility,
-            Definition::Module { visibility, .. } => *visibility,
-            Definition::Struct { visibility, .. } => *visibility,
-            Definition::Enum { visibility, .. } => *visibility,
-            Definition::Union { visibility, .. } => *visibility,
-            Definition::Interface { visibility, .. } => *visibility,
-            Definition::Function { visibility, .. } => *visibility,
-            Definition::Implement { .. } => None,
+            Definition::Let { meta, .. } => meta.visibility,
+            Definition::Type { meta, .. } => meta.visibility,
+            Definition::Module { meta, .. } => meta.visibility,
+            Definition::Struct { meta, .. } => meta.visibility,
+            Definition::Enum { meta, .. } => meta.visibility,
+            Definition::Union { meta, .. } => meta.visibility,
+            Definition::Interface { meta, .. } => meta.visibility,
+            Definition::Function { meta, .. } => meta.visibility,
+            Definition::Implement { meta, .. } => meta.visibility,
         }
     }
 
@@ -340,4 +312,23 @@ pub enum FunctionStyle {
     Function,
     /// Lambda function with a return type.
     Lambda,
+}
+
+/// The signature of a function.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionSignature {
+    /// The runtime of the function.
+    pub runtime: Runtime,
+    /// The cardinality of the function.
+    pub cardinality: FunctionCardinality,
+    /// The accessor of the function.
+    pub accessor: Option<FunctionAccessor>,
+    /// The style of the function.
+    pub style: FunctionStyle,
+    /// The "self" parameter of the function.
+    pub self_parameter: Option<SelfParameter>,
+    /// The dynamic parameters of the function.
+    pub dynamic_parameters: Vec<NodeId<Parameter>>,
+    /// The return type of the function.
+    pub return_type: Option<NodeId<Type>>,
 }

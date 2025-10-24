@@ -73,8 +73,6 @@ pub fn run(ctx: CommandArguments) -> i32 {
             }
         }
 
-        let slice = &source.content[start_offset..end_offset.min(source.len as usize)];
-
         let kind_str = format_token(&source, &token, use_color);
         let lexeme_preview = truncate_tokeneme(&source, &token, max_tokeneme_len, use_color);
         let index_str = if use_color {
@@ -199,7 +197,12 @@ fn get_token_color(source: &Source, token: &TokenSpan) -> &'static str {
     }
 }
 
-fn truncate_tokeneme(source: &Source, token: &TokenSpan, max_len: usize, use_color: bool) -> String {
+fn truncate_tokeneme(
+    source: &Source,
+    token: &TokenSpan,
+    max_len: usize,
+    use_color: bool,
+) -> String {
     let mut out = String::new();
     for ch in source.get_span_str(token.span).chars() {
         match ch {

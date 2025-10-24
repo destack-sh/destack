@@ -122,51 +122,47 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Let {
+                meta: _,
                 mutability,
-                visibility,
-                export: _,
                 pattern,
                 ty,
                 value,
             } => {
                 let mutability = self.lower_scoped_mutability(source_id, ast, mutability);
-                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
                 let pattern = self.lower_pattern(source_id, ast, *pattern);
                 let ty = ty.map(|ty| self.lower_expression_to_type(source_id, ast, ty));
                 let value = value.map(|value| self.lower_expression(source_id, ast, value));
                 Expression::Let {
                     mutability,
-                    visibility,
                     pattern,
                     ty,
                     value,
                 }
             }
             ast::Expression::LetType {
+                meta,
                 mutability,
-                name,
                 static_parameters,
-                visibility,
-                export: _,
                 value,
             } => {
+                let name = self.intern_string(
+                    source_id,
+                    meta.name.expect("LetType must have a name").string(),
+                );
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_mutability(*mutability));
-                let name = self.intern_string(source_id, *name);
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
                         .map(|param| self.lower_parameter(source_id, ast, *param))
                         .collect()
                 });
-                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
                 let value = self.lower_expression(source_id, ast, *value);
                 Expression::LetType {
                     mutability,
                     name,
                     static_parameters,
-                    visibility,
                     value,
                 }
             }

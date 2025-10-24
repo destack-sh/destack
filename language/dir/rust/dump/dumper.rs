@@ -648,6 +648,13 @@ impl<T: Dump> Dump for Vec<T> {
     }
 }
 
+/// Dump a SmallVec<T, N> as a slice.
+impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        self.as_slice().dump(dumper)
+    }
+}
+
 /// Dump a bool as a string.
 impl Dump for bool {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -710,13 +717,6 @@ impl<T: Dump> Dump for &[T] {
             v.dump(dumper);
         }
         dumper.write_str("]", Some(Color::White));
-    }
-}
-
-/// Dump a SmallVec<T, N> as a slice.
-impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        self.as_slice().dump(dumper)
     }
 }
 
@@ -832,20 +832,6 @@ impl Dump for AssignOperator {
     }
 }
 
-/// Dump an EmbeddedDefinition as a string.
-impl Dump for EmbeddedDefinition {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            EmbeddedDefinition::Super { ty: _ } => {
-                dumper.object("EmbeddedDefinition::Super").end();
-            }
-            EmbeddedDefinition::Include { ty: _ } => {
-                dumper.object("EmbeddedDefinition::Include").end();
-            }
-        }
-    }
-}
-
 /// Dump an ArgumentSlot as a string.
 impl Dump for ArgumentSlot {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -867,6 +853,40 @@ impl Dump for SelfParameter {
             .object("SelfParameter")
             .field("mutability", &self.mutability)
             .field("is_reference", &self.is_reference)
+            .end();
+    }
+}
+
+/// Dump a DefinitionMeta as a structured object.
+impl Dump for DefinitionMeta {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("DefinitionMeta")
+            .field("kind", &self.kind)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
+            .field_optional("export", &self.export)
+            .end();
+    }
+}
+
+/// Dump a Generics as a structured object.
+impl Dump for Generics {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Generics").end();
+    }
+}
+
+/// Dump a FunctionSignature as a structured object.
+impl Dump for FunctionSignature {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("FunctionSignature")
+            .field("runtime", &self.runtime)
+            .field("cardinality", &self.cardinality)
+            .field_optional("accessor", &self.accessor)
+            .field("style", &self.style)
+            .field_optional("self_parameter", &self.self_parameter)
             .end();
     }
 }
@@ -1282,27 +1302,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Let {
                 mutability,
-                visibility,
                 pattern: _,
                 ty: _,
                 value: _,
             } => {
                 self.node("Expression::Let", id.id)
                     .field("mutability", mutability)
-                    .field_optional("visibility", visibility)
                     .end();
             }
             Expression::LetType {
                 mutability,
                 name,
                 static_parameters: _,
-                visibility,
                 value: _,
             } => {
                 self.node("Expression::Type", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
-                    .field_optional("visibility", visibility)
                     .end();
             }
             Expression::Type {
@@ -1521,166 +1537,102 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mode", mode)
                     .end();
             }
-            Definition::Let {
-                name,
-                export,
-                visibility,
-            } => {
+            Definition::Let { meta, value: _ } => {
                 self.node("Definition::Let", id.id)
-                    .field("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
                     .end();
             }
             Definition::Type {
-                name,
-                export,
-                visibility,
+                meta,
+                generics,
                 value: _,
             } => {
                 self.node("Definition::Type", id.id)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Module {
-                kind,
-                name,
-                export,
-                visibility,
-                with_clauses: _,
-                where_clauses: _,
+                meta,
+                generics,
                 definitions: _,
             } => {
                 self.node("Definition::Module", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Struct {
-                kind,
-                name,
-                export,
-                visibility,
-                static_parameters: _,
+                meta,
+                generics,
                 embedded_definitions: _,
                 variant: _,
-                with_clauses: _,
-                where_clauses: _,
                 definitions: _,
             } => {
                 self.node("Definition::Struct", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Enum {
-                kind,
-                name,
-                export,
-                visibility,
-                static_parameters: _,
+                meta,
+                generics,
                 embedded_definitions: _,
                 variants: _,
-                with_clauses: _,
-                where_clauses: _,
                 definitions: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Union {
-                kind,
-                name,
-                export,
-                visibility,
-                static_parameters: _,
+                meta,
+                generics,
                 embedded_definitions: _,
                 variants: _,
-                with_clauses: _,
-                where_clauses: _,
                 definitions: _,
             } => {
                 self.node("Definition::Union", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Interface {
-                kind,
-                name,
-                export,
-                visibility,
-                static_parameters: _,
+                meta,
+                generics,
                 embedded_definitions: _,
-                with_clauses: _,
-                where_clauses: _,
                 fields: _,
                 definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
             Definition::Function {
-                kind,
-                name,
-                export,
-                visibility,
-                runtime,
-                cardinality,
-                accessor,
-                style,
-                static_parameters: _,
-                self_parameter,
-                dynamic_parameters: _,
-                return_type: _,
-                with_clauses: _,
-                where_clauses: _,
+                meta,
+                generics,
+                signature,
                 definitions: _,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("kind", kind)
-                    .field("runtime", runtime)
-                    .field("cardinality", cardinality)
-                    .field_optional("accessor", accessor)
-                    .field("style", style)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
-                    .field_optional("self_parameter", self_parameter)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
+                    .field("signature", signature)
                     .end();
             }
             Definition::Implement {
-                kind,
-                export,
-                visibility,
-                static_parameters: _,
+                meta,
+                generics,
                 target_type: _,
                 super_types: _,
-                with_clauses: _,
-                where_clauses: _,
                 definitions: _,
             } => {
                 self.node("Definition::Implement", id.id)
-                    .field("kind", kind)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
+                    .field_optional("generics", generics)
                     .end();
             }
         }

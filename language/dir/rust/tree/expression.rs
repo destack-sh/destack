@@ -4,7 +4,7 @@ use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
     ImportItem, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter, Path,
     Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral,
-    UnaryOperator, Visibility,
+    UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +29,6 @@ pub enum Expression {
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: ScopedMutability,
-        visibility: Option<Visibility>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
@@ -39,7 +38,6 @@ pub enum Expression {
         mutability: Option<Mutability>,
         name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        visibility: Option<Visibility>,
         value: NodeId<Expression>,
     },
     /// Type expression.

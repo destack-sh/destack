@@ -1,5 +1,5 @@
 use dyst_ast::{
-    DeclarationKind, Definition, ModuleFormat, Name, NodeId, NodeParentIndex, NodeTree, TokenSpan,
+    Definition, DefinitionMeta, ModuleFormat, Name, NodeId, NodeParentIndex, NodeTree, TokenSpan,
     TokenType,
 };
 use dyst_fir::format;
