@@ -95,10 +95,9 @@ where
         let format_indented = format_with(|f| {
             group(&format_args![
                 &token(self.start_token),
-                soft_block_indent(body),
+                block_indent(body),
                 &token(self.end_token)
             ])
-            .should_expand(self.force_expand)
             .format(f)
         });
 
