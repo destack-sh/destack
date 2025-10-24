@@ -1,4 +1,4 @@
-use dyst_ast::Pattern;
+use dyst_ast::{Block, BlockFormat, Pattern};
 
 use crate::TokenType;
 
@@ -174,7 +174,43 @@ impl<'a> Parser<'a> {
             );
             Ok(match_case_id)
         }
-        // expression
+        // implicit case block
+        else if is_switch {
+            // eat expressions until we hit a break (inclusive) or case / default (exclusive)
+            self.eat_newlines_maybe()?;
+            let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+            while self.peek_keyword(Keyword::Case).is_err()
+                && self.peek_keyword(Keyword::Default).is_err()
+                && self.peek_token(TokenType::CloseBrace).is_err()
+            {
+                let expression_id = self.try_eat_expression(TokenType::Newline)?;
+                expressions.push(expression_id);
+                if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                if matches!(self.tree.get(expression_id), Expression::Break { .. }) {
+                    break;
+                }
+            }
+            let block_id = self.tree.insert(
+                Block {
+                    format: BlockFormat::Implicit,
+                    label: None,
+                    expressions,
+                },
+                self.get_span_from(start),
+            );
+            let match_case_id = self.tree.insert(
+                MatchCase::Block {
+                    pattern: pattern_id,
+                    body: block_id,
+                    guard,
+                },
+                self.get_span_from(start),
+            );
+            Ok(match_case_id)
+        }
+        // single expression
         else {
             let expression_id = self.try_eat_expression(TokenType::Newline)?;
             let match_case_id = self.tree.insert(
@@ -192,6 +228,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::Block;
+
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
@@ -351,9 +389,16 @@ match self {
             r###"
 switch (left.type) {
     case 'static':
-        return left.field;
+        left.field;
+        break;
+    case 'dynamic':
+        left.value;
+        something();
+        // implicitly break
     case 'literal':
-        return left.value;
+        left.value;
+        something();
+        // implicitly break
     default:
         return left.name;
   }
@@ -364,10 +409,10 @@ switch (left.type) {
 
         let switch_id = parser.eat_match(None).unwrap();
         assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, value: _, cases } => {
-            assert_eq!(cases.len(), 3);
+            assert_eq!(cases.len(), 4);
 
             // case 'static'
-            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body: _, guard } => {
+            assert_node!(parser.tree, cases[0], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // 'static'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -375,10 +420,29 @@ switch (left.type) {
                         assert_string!(parser, *literal, "static");
                     });
                 });
+                // body
+                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                    assert_eq!(expressions.len(), 2);
+                });
+            });
+
+            // case 'dynamic'
+            assert_node!(parser.tree, cases[1], MatchCase::Block { pattern, body, guard } => {
+                assert!(guard.is_none());
+                // 'dynamic'
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
+                        assert_string!(parser, *literal, "dynamic");
+                    });
+                });
+                // body
+                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                    assert_eq!(expressions.len(), 2);
+                });
             });
 
             // case 'literal'
-            assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body: _, guard } => {
+            assert_node!(parser.tree, cases[2], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // 'literal'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -386,12 +450,20 @@ switch (left.type) {
                         assert_string!(parser, *literal, "literal");
                     });
                 });
+                // body
+                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                    assert_eq!(expressions.len(), 2);
+                });
             });
 
             // case default
-            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body: _, guard } => {
+            assert_node!(parser.tree, cases[3], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                // body
+                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                    assert_eq!(expressions.len(), 1);
+                });
             });
         });
     }

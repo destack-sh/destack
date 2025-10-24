@@ -26,6 +26,31 @@ function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
 	return { ...todo, ...fieldsToUpdate };
 }
 
+export default function Counter() {
+    const count = useSignal<number>(0);
+    return (
+        <button onClick={() => { count.value += 1; }}>
+            `The count is ${count.value}`
+        </button>
+    );
+}
+
+const response = new Response(
+	(async function* () {
+		yield 'hello';
+		yield 'world';
+	})(),
+);
+
+function App() {
+    return <Rive
+        url="https://public.rive.app/community/runtime-files/2195-4346-avatar-pack-use-case.riv"
+        artboardName="Avatar 1"
+        stateMachineName="avatar"
+        style={{width: 400, height: 400}}
+    />;
+}
+
 import { Hono } from 'hono';
 const app = new Hono();
 
