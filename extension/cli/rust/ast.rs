@@ -28,19 +28,19 @@ pub fn run(ctx: CommandArguments) -> i32 {
             return 1;
         }
     };
-    let module_name = source.uri.last_segment().unwrap_or("<string>");
 
     // parse as implicit module
     let mut parser = Parser::prepare(&source, &mut session);
-    let module_name_id = parser.intern_string(module_name);
+    let module_name = source
+        .uri
+        .last_segment()
+        .map(|s| Name::Identifier(parser.intern_string(s)))
+        .unwrap_or(Name::String(parser.intern_string("<string>")));
     let definition_id = parser.with_recovery(
         parser.mark(),
         |parser| {
             parser
-                .eat_module_body(
-                    DefinitionMeta::new(Name::Identifier(module_name_id)),
-                    ModuleFormat::Inline,
-                )
+                .eat_module_body(DefinitionMeta::new(module_name), ModuleFormat::Inline)
                 .map(Some)
         },
         None,

@@ -1,4 +1,8 @@
-use dyst_ast::{Argument, Asyncness, IfStyle, Mutability, Path, PostfixPosition, YieldCardinality};
+use dyst_ast::{
+    Argument, Asyncness, IfStyle, Mutability, NodeTree, Path, PostfixPosition, YieldCardinality,
+};
+use dyst_container::SmallVec;
+use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 
@@ -191,6 +195,61 @@ pub(crate) fn format_match<'ast>(
     Ok(())
 }
 
+/// Whether an expression is "trivial" (prefers to be inline).
+fn is_trivial_expression(expression: &Expression) -> bool {
+    match expression {
+        Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
+        Expression::Path {
+            path,
+            static_arguments,
+        } => path.segments.len() <= 3 && static_arguments.is_none(),
+        _ => false,
+    }
+}
+
+/// Whether an argument is "trivial" (prefers to be inline).
+fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+    match argument {
+        Argument::Named { name: _, value } => is_trivial_expression(tree.get(*value)),
+        Argument::NamedShorthand { name: _ } => true,
+        Argument::Positional { value } => is_trivial_expression(tree.get(*value)),
+        Argument::Spread { value } => is_trivial_expression(tree.get(*value)),
+        _ => false,
+    }
+}
+
+/// Format a struct literal.
+#[inline]
+pub(crate) fn format_struct_literal<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    _expression_id: NodeId<Expression>,
+    ty: &Option<NodeId<Expression>>,
+    fields_ids: &Vec<NodeId<Argument>>,
+) -> FormatResult<()> {
+    if let Some(ty) = ty {
+        write!(f, [ty, space()])?;
+    }
+
+    let fields = fields_ids
+        .iter()
+        .map(|field| f.context().tree.get(*field))
+        .collect::<SmallVec<_, 3>>();
+
+    let is_trivial = fields.is_empty()
+        || fields.len() < 2
+            && fields
+                .iter()
+                .all(|field| is_trivial_argument(f.context().tree, field));
+
+    write!(
+        f,
+        [list_like("{", "}", ",", fields_ids)
+            .include_space()
+            .should_expand(!is_trivial)]
+    )?;
+    Ok(())
+}
+
 /// Format a tree literal.
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
@@ -327,12 +386,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 items,
             } => {
                 write!(f, [Keyword::Import, space()])?;
-                format_import_binding(
-                    f,
-                    Some(target),
-                    alias.as_ref().copied(),
-                    items.as_ref(),
-                )?;
+                format_import_binding(f, Some(target), alias.as_ref().copied(), items.as_ref())?;
             }
 
             // export
@@ -343,12 +397,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 items,
             } => {
                 write!(f, [mode, space()])?;
-                format_import_binding(
-                    f,
-                    target.as_ref(),
-                    alias.as_ref().copied(),
-                    items.as_ref(),
-                )?;
+                format_import_binding(f, target.as_ref(), alias.as_ref().copied(), items.as_ref())?;
             }
 
             // let
@@ -368,36 +417,46 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [visibility, space()])?;
                 }
 
-                write!(
-                    f,
-                    [group(&format_with(|f| {
-                        // const
-                        if mutability.is_immutable() {
-                            write!(f, [Keyword::Const])?;
-                        }
-                        // mutability
-                        write!(
-                            f,
-                            [FormatScopedMutability::implicit_const(mutability.clone())]
-                        )?;
-                        // pattern
-                        write!(f, [space(), pattern])?;
-                        // type
-                        if let Some(ty) = ty {
-                            write!(f, [token(":"), space(), ty])?;
-                        }
-                        // value
-                        if let Some(value) = value {
-                            write!(f, [space(), token("=")])?;
-                            let value_on_same_line = format_with(|f| write!(f, [space(), value]));
-                            let value_on_new_line = format_with(|f| {
-                                block_indent(&format_args![hard_line_break(), value]).format(f)
-                            });
-                            best_fitting![value_on_same_line, value_on_new_line].format(f)?;
-                        }
-                        Ok(())
-                    }))]
-                )?;
+                // header
+                let flat = format_with(|f| {
+                    // const
+                    if mutability.is_immutable() {
+                        write!(f, [Keyword::Const])?;
+                    }
+                    // mutability
+                    write!(
+                        f,
+                        [FormatScopedMutability::implicit_const(mutability.clone())]
+                    )?;
+                    // pattern
+                    write!(f, [space(), pattern])?;
+                    // type
+                    if let Some(ty) = ty {
+                        write!(f, [token(":"), space(), ty])?;
+                    }
+                    Ok(())
+                });
+
+                // = value on same line
+                let format_inline =
+                    format_with(|f| write!(f, [flat, space(), token("="), space(), value]));
+
+                // = value on new line
+                let format_on_new_line = format_with(|f| {
+                    group(&format_args![
+                        flat,
+                        space(),
+                        token("="),
+                        soft_line_break(),
+                        soft_block_indent(&format_args![value])
+                    ])
+                    .should_expand(true)
+                    .format(f)
+                });
+
+                best_fitting![format_inline, format_on_new_line]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
             }
 
             // type
@@ -432,7 +491,22 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         if let Some(static_parameters) = static_parameters {
                             write!(f, [list_like("<", ">", ",", static_parameters)])?;
                         }
-                        write!(f, [space(), token("="), space(), value])?;
+
+                        let value_inline =
+                            format_with(|f| write!(f, [space(), token("="), space(), value]));
+                        let value_on_new_line = format_with(|f| {
+                            block_indent(&format_args![
+                                hard_line_break(),
+                                space(),
+                                token("="),
+                                space(),
+                                value
+                            ])
+                            .format(f)
+                        });
+                        best_fitting![value_inline, value_on_new_line]
+                            .with_mode(BestFittingMode::AllLines)
+                            .format(f)?;
 
                         Ok(())
                     }))]
@@ -737,10 +811,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // struct literal
             Expression::StructLiteral { ty, fields } => {
-                if let Some(ty) = ty {
-                    write!(f, [ty, space()])?;
-                }
-                write!(f, [list_like("{", "}", ",", fields).include_space()])?;
+                format_struct_literal(f, node_id, ty, fields)?;
             }
 
             // tree literal

@@ -129,7 +129,24 @@ mod tests {
     }
 
     #[test]
-    fn test_format_let_best_fitting_container() {
+    fn test_format_let_multiline_tuple_literal() {
+        let source = r"const shapes = (
+    TetrisPieceShape.I,
+    TetrisPieceShape.J,
+    TetrisPieceShape.L,
+    TetrisPieceShape.O,
+    TetrisPieceShape.S,
+)";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_let(DefinitionMeta::default()),
+            DystFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_let_multiline_array_literal() {
         let source = r"const shapes = [
     TetrisPieceShape.I,
     TetrisPieceShape.J,
@@ -146,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_let_best_fitting_if_else() {
+    fn test_format_let_multiline_if_else() {
         let source = r"const shapes = if self.nextPiece {
     const nextShape = next.shape
     self.nextPiece = TetrisPiece.new()

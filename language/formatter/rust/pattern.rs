@@ -1,6 +1,7 @@
 use dyst_ast::ScopedMutability;
 use dyst_fir::format::FormatResult;
 
+use crate::argument::list_like;
 use crate::{
     DystFormatContext, DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField,
 };
@@ -85,39 +86,18 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
                 write!(
                     f,
-                    [group(&format_args![
-                        token("("),
-                        soft_block_indent(&format_with(|f| f
-                            .join_with(&format_args![&token(","), soft_line_break_or_space()])
-                            .entries(fields)
-                            .finish())),
-                        token(")"),
-                    ])]
+                    [list_like("(", ")", ",", fields).force_trailing_separator()]
                 )?
             }
-            Pattern::Slice { fields } => write!(
-                f,
-                [group(&format_args![
-                    token("["),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(fields)
-                        .finish())),
-                    token("]"),
-                ])]
-            )?,
-            Pattern::Struct { ty, fields } => write!(
-                f,
-                [group(&format_args![
-                    ty,
-                    token("{"),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(fields)
-                        .finish())),
-                    token("}"),
-                ])]
-            )?,
+            Pattern::Slice { fields } => {
+                write!(f, [list_like("[", "]", ",", fields)])?;
+            }
+            Pattern::Struct { ty, fields } => {
+                if let Some(ty) = ty {
+                    write!(f, [ty, space()])?;
+                }
+                write!(f, [list_like("{", "}", ",", fields).include_space()])?;
+            }
             Pattern::Union { patterns } => write!(
                 f,
                 [format_with(|f| f
