@@ -412,17 +412,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 ty,
                 value,
             } => {
-                // export
-                if let Some(export) = meta.export {
-                    write!(f, [export, space()])?;
-                }
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // header
-                let flat = format_with(|f| {
+                let header = format_with(|f| {
+                    // export
+                    if let Some(export) = meta.export {
+                        write!(f, [export, space()])?;
+                    }
+                    // visibility
+                    if let Some(visibility) = meta.visibility {
+                        write!(f, [visibility, space()])?;
+                    }
                     // const
                     if mutability.is_immutable() {
                         write!(f, [Keyword::Const])?;
@@ -441,24 +440,20 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
-                // = value on same line
                 let format_inline =
-                    format_with(|f| write!(f, [flat, space(), token("="), space(), value]));
-
-                // = value on new line
-                let format_on_new_line = format_with(|f| {
+                    format_with(|f| write!(f, [header, space(), token("="), space(), value]));
+                let format_multiline = format_with(|f| {
                     group(&format_args![
-                        flat,
+                        header,
                         space(),
                         token("="),
-                        soft_line_break(),
-                        soft_block_indent(&format_args![value])
+                        hard_line_break(),
+                        block_indent(&format_args![value])
                     ])
-                    .should_expand(true)
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_on_new_line]
+                best_fitting![format_inline, format_multiline]
                     .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
             }
@@ -470,51 +465,52 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 static_parameters,
                 value,
             } => {
-                write!(
-                    f,
-                    [group(&format_with(|f| {
-                        // export
-                        if let Some(export) = meta.export {
-                            write!(f, [export, space()])?;
-                        }
-                        // visibility
-                        if let Some(visibility) = meta.visibility {
-                            write!(f, [visibility, space()])?;
-                        }
-                        // keyword
-                        if *mutability == Some(Mutability::Immutable) {
-                            // for readonly type expression
-                            write!(f, [Keyword::Readonly])?;
-                        } else {
-                            write!(f, [Keyword::Type])?;
-                        }
-                        // name
-                        if let Some(name) = meta.name {
-                            write!(f, [space(), name])?;
-                        }
-                        if let Some(static_parameters) = static_parameters {
-                            write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                        }
+                let header = format_with(|f| {
+                    // export
+                    if let Some(export) = meta.export {
+                        write!(f, [export, space()])?;
+                    }
+                    // visibility
+                    if let Some(visibility) = meta.visibility {
+                        write!(f, [visibility, space()])?;
+                    }
+                    // keyword
+                    if *mutability == Some(Mutability::Immutable) {
+                        // for readonly type expression
+                        write!(f, [Keyword::Readonly])?;
+                    } else {
+                        write!(f, [Keyword::Type])?;
+                    }
+                    // name
+                    if let Some(name) = meta.name {
+                        write!(f, [space(), name])?;
+                    }
+                    // static parameters
+                    if let Some(static_parameters) = static_parameters {
+                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    }
+                    Ok(())
+                });
 
-                        let value_inline =
-                            format_with(|f| write!(f, [space(), token("="), space(), value]));
-                        let value_on_new_line = format_with(|f| {
-                            block_indent(&format_args![
-                                hard_line_break(),
-                                space(),
-                                token("="),
-                                space(),
-                                value
-                            ])
-                            .format(f)
-                        });
-                        best_fitting![value_inline, value_on_new_line]
-                            .with_mode(BestFittingMode::AllLines)
-                            .format(f)?;
+                let format_inline =
+                    format_with(|f| write!(f, [header, space(), token("="), space(), value]));
+                let format_multiline = format_with(|f| {
+                    group(&format_args![
+                        header,
+                        block_indent(&format_args![
+                            hard_line_break(),
+                            space(),
+                            token("="),
+                            space(),
+                            value
+                        ])
+                    ])
+                    .format(f)
+                });
 
-                        Ok(())
-                    }))]
-                )?;
+                best_fitting![format_inline, format_multiline]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
             }
 
             // let
