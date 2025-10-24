@@ -1,9 +1,11 @@
 //! Parse unions.
 
+use dyst_ast::DefinitionMeta;
+
 use crate::parse::prelude::*;
 use crate::{
-    DeclarationKind, Definition, ExportMode, Expression, Keyword, NodeId, NodeType, Parser, ParserError,
-    ParserResult, TokenType, UnionField, Visibility,
+    Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
+    TokenType, UnionField,
 };
 
 impl<'a> Parser<'a> {
@@ -38,12 +40,7 @@ impl<'a> Parser<'a> {
     /// // desugars to
     /// union { boolean(boolean) = boolean, int32(&int32) = &int32 }
     /// ```
-    pub fn eat_union(
-        &mut self,
-        kind: DeclarationKind,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
-    ) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_union(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -73,7 +70,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        let name = self.eat_identifier_or_wildcard_maybe()?;
+        meta.name = self.eat_name_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -96,10 +93,7 @@ impl<'a> Parser<'a> {
         // union
         let union_id = self.tree.insert(
             Definition::Union {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 static_parameters,
                 super_types,
                 tag_type: explicit_type,
@@ -234,7 +228,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, Name};
+    use dyst_ast::{DeclarationKind, DefinitionMeta, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -253,12 +247,10 @@ union { A, B }
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let union_id = parser
-            .eat_union(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { kind, name, tag_type, fields, expressions, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert!(name.is_none());
+        let union_id = parser.eat_union(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, fields, expressions, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert!(meta.name.is_none());
             assert!(tag_type.is_none());
             assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
@@ -289,11 +281,15 @@ union Foo: Bar {}
         parser.eat_newline().unwrap();
 
         let union_id = parser
-            .eat_union(DeclarationKind::Definition, None, None)
+            .eat_union(DefinitionMeta {
+                kind: DeclarationKind::Definition,
+                name: None,
+                ..DefinitionMeta::default()
+            })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { kind, name, super_types, fields, expressions, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        assert_node!(parser.tree, union_id, Definition::Union { meta, super_types, fields, expressions, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -326,11 +322,15 @@ union(uint4, uint60) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser
-            .eat_union(DeclarationKind::Definition, None, None)
+            .eat_union(DefinitionMeta {
+                kind: DeclarationKind::Definition,
+                name: None,
+                ..DefinitionMeta::default()
+            })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { kind, name, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
 
             // (uint4, uint60)
@@ -449,10 +449,14 @@ union Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         let union_id = parser
-            .eat_union(DeclarationKind::Definition, None, None)
+            .eat_union(DefinitionMeta {
+                kind: DeclarationKind::Definition,
+                name: None,
+                ..DefinitionMeta::default()
+            })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { kind, with_clauses, where_clauses, fields: _, expressions, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
+        assert_node!(parser.tree, union_id, Definition::Union { meta, with_clauses, where_clauses, fields: _, expressions, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
 
             // with Context

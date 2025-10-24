@@ -28,14 +28,14 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DeclarationKind;
+    use dyst_ast::DefinitionMeta;
 
     #[test]
     fn test_format_enum_empty() {
         assert_format!(
             "enum { }",
             "enum { }",
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default()
         );
     }
@@ -45,7 +45,7 @@ mod tests {
         assert_format!(
             "enum { A, B }",
             "enum {\n\tA\n\tB\n}",
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -55,7 +55,7 @@ mod tests {
         assert_format!(
             "enum(int4) { A = 1, B = 2, C, D = 4 }",
             "enum(int4) {\n\tA = 1\n\tB = 2\n\tC\n\tD = 4\n}",
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -65,7 +65,7 @@ mod tests {
         assert_format!(
             "enum { A }",
             "enum {\n\tA\n}",
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -77,7 +77,7 @@ mod tests {
 				const X = 1
 			}",
             "enum {\n\tconst X = 1\n}",
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -93,7 +93,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_enum(DeclarationKind::Definition, None, None),
+            |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default()
         );
     }

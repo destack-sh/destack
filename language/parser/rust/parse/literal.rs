@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    DeclarationKind, Definition, Keyword, Mutability, Name, Path, PostfixPosition, StringId,
+    Definition, DefinitionMeta, Keyword, Mutability, Name, Path, PostfixPosition, StringId,
     TemplateLiteral,
 };
 use std::str::FromStr;
@@ -524,14 +524,8 @@ impl<'a> Parser<'a> {
                 debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
                 let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
                 let expect_body = !self.options.in_type;
-                let Ok(function_id) = self
-                    .eat_function(
-                        DeclarationKind::Definition,
-                        None,
-                        None,
-                        is_maybe,
-                        expect_body,
-                    )
+                let Ok(function_id) =
+                    self.eat_function(DefinitionMeta::default(), is_maybe, expect_body)
                 else {
                     self.restore(speculative_start.0, speculative_start.1);
                     return Err(ParserError::unexpected(self.peek()?.span));
@@ -549,7 +543,10 @@ impl<'a> Parser<'a> {
                 );
                 // clear function name
                 match self.tree.get_mut(function_id) {
-                    Definition::Function { name, .. } => {
+                    Definition::Function {
+                        meta: DefinitionMeta { name, .. },
+                        ..
+                    } => {
                         *name = None;
                     }
                     _ => panic!("expected function for"),
@@ -724,13 +721,8 @@ impl<'a> Parser<'a> {
                     // function
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
                     let function_id = self
-                        .eat_function(
-                            DeclarationKind::Definition,
-                            None,
-                            None,
-                            is_maybe,
-                            false,
-                        )?;
+                        .eat_function(DefinitionMeta::default(), is_maybe, false)
+                        .for_node_type(NodeType::Expression)?;
                     // name
                     let name = self
                         .tree
@@ -744,7 +736,10 @@ impl<'a> Parser<'a> {
                     );
                     // clear function name
                     match self.tree.get_mut(function_id) {
-                        Definition::Function { name, .. } => {
+                        Definition::Function {
+                            meta: DefinitionMeta { name, .. },
+                            ..
+                        } => {
                             *name = None;
                         }
                         _ => panic!("expected function definition"),
@@ -945,7 +940,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, Mutability, Name, Parameter, TemplateLiteral};
+    use dyst_ast::{Definition, DefinitionMeta, Mutability, Name, Parameter, TemplateLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -1295,9 +1290,9 @@ mod tests {
 
         // e<T>()
         assert_node!(parser.tree, arguments[4], Argument::NamedFunction { name, value } => {
-            assert_string!(parser, *name, "e");
+            assert_string!(parser, name.string(), "e");
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                assert_node!(parser.tree, *function_id, Definition::Function { name: None, static_parameters, .. } => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, .. } => {
                     // T
                     assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, .. } => {
                         assert_string!(parser, *name, "T");
@@ -1308,10 +1303,10 @@ mod tests {
 
         // f?(): T
         assert_node!(parser.tree, arguments[5], Argument::NamedFunction { name, value } => {
-            assert_string!(parser, *name, "f");
+            assert_string!(parser, name.string(), "f");
             assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
                 assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
-                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
         });
@@ -1334,9 +1329,9 @@ mod tests {
             assert_eq!(fields.len(), 1);
             // fetch
             assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
-                assert_string!(parser, *name, "fetch");
+                assert_string!(parser, name.string(), "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
         });
@@ -1359,17 +1354,17 @@ mod tests {
             assert_eq!(fields.len(), 2);
             // foo
             assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
-                assert_string!(parser, *name, "foo");
+                assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                    assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
             // foo?(): T
             assert_node!(parser.tree, fields[1], Argument::NamedFunction { name, value } => {
-                assert_string!(parser, *name, "foo");
+                assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
-                        assert_node!(parser.tree, *function_id, Definition::Function { name: None, .. });
+                        assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                     });
                 });
             });

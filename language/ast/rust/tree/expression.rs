@@ -1,9 +1,9 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, ExportMode, ImportItem,
-    ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime,
-    ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator, Visibility,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta, ExportMode,
+    ImportItem, ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern,
+    Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator,
 };
 
 /// An Expression is a generic container for value-producing forms.
@@ -100,9 +100,8 @@ pub enum Expression {
     ///     ...
     /// }
     Let {
+        meta: DefinitionMeta,
         mutability: ScopedMutability,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
         value: Option<NodeId<Expression>>,
@@ -118,11 +117,9 @@ pub enum Expression {
     /// type T = { a: int32, b: boolean } | true
     /// ```
     LetType {
+        meta: DefinitionMeta,
         mutability: Option<Mutability>,
-        name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
         value: NodeId<Expression>,
     },
 
@@ -650,7 +647,6 @@ pub enum IfStyle {
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
     Ternary,
 }
-
 
 /// The cardinality of a yield expression.
 #[derive(Debug, Clone, Copy, PartialEq)]

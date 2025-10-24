@@ -875,6 +875,19 @@ impl Dump for Visibility {
     }
 }
 
+/// Dump a DefinitionMeta as a string.
+impl Dump for DefinitionMeta {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("DefinitionMeta")
+            .field("kind", &self.kind)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
+            .field_optional("export", &self.export)
+            .end();
+    }
+}
+
 /// Dump a BlockFormat as a string.
 impl Dump for BlockFormat {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1192,31 +1205,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Let {
                 mutability,
-                visibility,
-                export,
+                meta,
                 pattern: _,
                 ty: _,
                 value: _,
             } => {
                 self.node("Expression::Let", _id.id)
                     .field("mutability", mutability)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .end();
             }
             Expression::LetType {
                 mutability,
-                name,
+                meta,
                 static_parameters: _,
-                visibility,
-                export,
                 value: _,
             } => {
                 self.node("Expression::LetType", _id.id)
                     .field_optional("mutability", mutability)
-                    .field("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .end();
             }
             Expression::Type {
@@ -1302,7 +1309,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Await { expression: _ } => {
                 self.node("Expression::Await", _id.id).end();
             }
-            Expression::Yield { cardinality, value: _ } => {
+            Expression::Yield {
+                cardinality,
+                value: _,
+            } => {
                 self.node("Expression::Yield", _id.id)
                     .field("cardinality", cardinality)
                     .end();
@@ -1469,29 +1479,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Module {
-                kind,
-                name,
-                export,
-                visibility,
+                meta,
                 format,
                 expressions: _,
                 with_clauses: _,
                 where_clauses: _,
             } => {
                 self.node("Definition::Module", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .field("format", format)
                     .end();
             }
             Definition::Struct {
-                kind,
-                name,
-                visibility,
+                meta,
                 style,
-                export,
                 super_types: _,
                 representation_type: _,
                 static_parameters: _,
@@ -1501,18 +1502,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 expressions: _,
             } => {
                 self.node("Definition::Struct", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .field("style", style)
                     .end();
             }
             Definition::Enum {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 tag_type: _,
                 static_parameters: _,
                 super_types: _,
@@ -1522,17 +1517,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 expressions: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .end();
             }
             Definition::Union {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 tag_type: _,
                 representation_type: _,
                 static_parameters: _,
@@ -1543,17 +1532,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 expressions: _,
             } => {
                 self.node("Definition::Union", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .end();
             }
             Definition::Interface {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 super_types: _,
                 static_parameters: _,
                 with_clauses: _,
@@ -1562,16 +1545,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 expressions: _,
             } => {
                 self.node("Definition::Interface", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .end();
             }
             Definition::Implement {
-                kind,
-                export,
-                visibility,
+                meta,
                 static_parameters: _,
                 target_type: _,
                 super_types: _,
@@ -1580,16 +1558,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 expressions: _,
             } => {
                 self.node("Definition::Implement", id.id)
-                    .field("kind", kind)
-                    .field_optional("export", export)
-                    .field_optional("visibility", visibility)
+                    .field("meta", meta)
                     .end();
             }
             Definition::Function {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 runtime,
                 cardinality,
                 accessor,
@@ -1603,10 +1576,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("kind", kind)
-                    .field_optional("name", name)
-                    .field_optional("visibility", visibility)
-                    .field_optional("export", export)
+                    .field("meta", meta)
                     .field("runtime", runtime)
                     .field("cardinality", cardinality)
                     .field_optional("accessor", accessor)

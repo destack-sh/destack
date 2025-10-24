@@ -2,8 +2,8 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantStyle};
 use crate::{
-    ExportMode, Expression, Keyword, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability,
-    Visibility, WhereClause, WithClause,
+    ExportMode, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
+    ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -13,6 +13,31 @@ pub enum DeclarationKind {
     Declaration,
     /// Inline definition.
     Definition,
+}
+
+/// The meta data for a definition.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct DefinitionMeta {
+    /// The kind of declaration.
+    pub kind: DeclarationKind = DeclarationKind::Definition,
+    /// The name of the definition.
+    pub name: Option<Name> = None,
+    /// The visibility of the definition.
+    pub visibility: Option<Visibility> = None,
+    /// The export mode of the definition.
+    pub export: Option<ExportMode> = None,
+}
+
+impl DefinitionMeta {
+    /// Create a new definition meta with the given name.
+    pub fn new(name: Option<Name>) -> Self {
+        Self {
+            kind: DeclarationKind::Definition,
+            name,
+            visibility: None,
+            export: None,
+        }
+    }
 }
 
 /// Definition introduces a type or such into a scope.
@@ -28,10 +53,7 @@ pub enum Definition {
     /// }
     /// ```
     Module {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         format: ModuleFormat,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -83,10 +105,7 @@ pub enum Definition {
     /// }
     /// ```
     Struct {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         style: VariantStyle,
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
@@ -135,10 +154,7 @@ pub enum Definition {
     /// }
     /// ```
     Enum {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         tag_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         super_types: Option<Vec<NodeId<Expression>>>,
@@ -176,10 +192,7 @@ pub enum Definition {
     /// }
     /// ```
     Union {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         tag_type: Option<NodeId<Expression>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -223,10 +236,7 @@ pub enum Definition {
     /// }
     /// ```
     Interface {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         super_types: Option<Vec<NodeId<Expression>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -258,9 +268,7 @@ pub enum Definition {
     /// }
     /// ```
     Implement {
-        kind: DeclarationKind,
-        export: Option<ExportMode>,
-        visibility: Option<Visibility>,
+        meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
         super_types: Option<Vec<NodeId<Expression>>>,
@@ -335,10 +343,7 @@ pub enum Definition {
     /// }
     /// ```
     Function {
-        kind: DeclarationKind,
-        name: Option<StringId>,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
+        meta: DefinitionMeta,
         runtime: Runtime,
         cardinality: FunctionCardinality,
         accessor: Option<FunctionAccessor>,
@@ -358,17 +363,24 @@ impl Node for Definition {
 }
 
 impl Definition {
-    /// Get the name of the definition.
-    pub fn name(&self) -> Option<StringId> {
+    /// Get the meta data of the definition.
+    #[inline]
+    pub fn meta(&self) -> &DefinitionMeta {
         match self {
-            Definition::Module { name, .. } => *name,
-            Definition::Struct { name, .. } => *name,
-            Definition::Enum { name, .. } => *name,
-            Definition::Union { name, .. } => *name,
-            Definition::Interface { name, .. } => *name,
-            Definition::Implement { .. } => None,
-            Definition::Function { name, .. } => *name,
+            Definition::Module { meta, .. } => meta,
+            Definition::Struct { meta, .. } => meta,
+            Definition::Enum { meta, .. } => meta,
+            Definition::Union { meta, .. } => meta,
+            Definition::Interface { meta, .. } => meta,
+            Definition::Implement { meta, .. } => meta,
+            Definition::Function { meta, .. } => meta,
         }
+    }
+
+    /// Get the name of the definition.
+    #[inline]
+    pub fn name(&self) -> Option<Name> {
+        self.meta().name
     }
 }
 

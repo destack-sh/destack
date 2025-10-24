@@ -1,20 +1,14 @@
 use crate::TokenType;
 use crate::parse::prelude::*;
-use dyst_source::StringId;
 
 use crate::{
-    BlockFormat, DeclarationKind, Definition, ExportMode, Keyword, ModuleFormat, NodeId, NodeType, Parser,
-    ParserResult, Visibility,
+    BlockFormat, Definition, DefinitionMeta, Keyword, ModuleFormat, NodeId, NodeType, Parser,
+    ParserResult,
 };
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(
-        &mut self,
-        kind: DeclarationKind,
-        visibility: Option<Visibility>,
-        export: Option<ExportMode>,
-    ) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_module(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -22,11 +16,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // name
-        let name = if self.peek_identifier().is_ok() {
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
+        meta.name = self.eat_name_or_wildcard_maybe()?;
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;
@@ -45,11 +35,8 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::CloseBrace)
                     .for_node_type(NodeType::Definition)?;
                 Definition::Module {
-                    kind,
+                    meta,
                     format: ModuleFormat::Inline,
-                    name,
-                    visibility,
-                    export,
                     with_clauses,
                     where_clauses,
                     expressions,
@@ -58,11 +45,8 @@ impl<'a> Parser<'a> {
             // forward module
             else {
                 Definition::Module {
-                    kind,
+                    meta,
                     format: ModuleFormat::Forward,
-                    name,
-                    visibility,
-                    export,
                     with_clauses,
                     where_clauses,
                     expressions: Vec::new(),
@@ -77,11 +61,8 @@ impl<'a> Parser<'a> {
     // Eat a module body (aka a module file, without `module` keyword or braces).
     pub fn eat_module_body(
         &mut self,
-        kind: DeclarationKind,
-        visibility: Option<Visibility>,
-        name: Option<StringId>,
+        meta: DefinitionMeta,
         format: ModuleFormat,
-        export: Option<ExportMode>,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
@@ -96,11 +77,8 @@ impl<'a> Parser<'a> {
             .eat_block_body(BlockFormat::Implicit)
             .for_node_type(NodeType::Block)?;
         let module = Definition::Module {
-            kind,
+            meta,
             format,
-            name,
-            visibility,
-            export,
             with_clauses,
             where_clauses,
             expressions,
@@ -112,7 +90,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::DeclarationKind;
+    use dyst_ast::DefinitionMeta;
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -124,14 +102,12 @@ mod tests {
     fn test_parse_empty_module() {
         let mut test = TestParser::new("module { }");
         let mut parser = test.prepare();
-        let module_id = parser
-            .eat_module(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { kind, name, visibility, export, expressions, format, with_clauses, where_clauses } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert!(name.is_none());
-            assert!(visibility.is_none());
-            assert!(export.is_none());
+        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses } => {
+            assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
+            assert!(meta.name.is_none());
+            assert!(meta.visibility.is_none());
+            assert!(meta.export.is_none());
             assert_eq!(*format, ModuleFormat::Inline);
             assert!(expressions.is_empty());
             assert!(with_clauses.is_none());
@@ -143,14 +119,12 @@ mod tests {
     fn test_parse_forward_module() {
         let mut test = TestParser::new("module x;");
         let mut parser = test.prepare();
-        let module_id = parser
-            .eat_module(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { kind, name, visibility, export, expressions, format, with_clauses, where_clauses } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "x");
-            assert!(visibility.is_none());
-            assert!(export.is_none());
+        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses } => {
+            assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "x");
+            assert!(meta.visibility.is_none());
+            assert!(meta.export.is_none());
             assert_eq!(*format, ModuleFormat::Forward);
             assert!(expressions.is_empty());
             assert!(with_clauses.is_none());
@@ -170,14 +144,12 @@ module Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         // module Foo with Context where Guard > Limit { }
-        let module_id = parser
-            .eat_module(DeclarationKind::Definition, None, None)
-            .unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { kind, name, format, export, expressions, with_clauses, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, module_id, Definition::Module { meta, format, expressions, with_clauses, where_clauses, .. } => {
+            assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert_eq!(*format, ModuleFormat::Inline);
-            assert!(export.is_none());
+            assert!(meta.export.is_none());
             assert!(expressions.is_empty());
 
             let with_items = with_clauses.as_ref().expect("expected with clauses");
@@ -209,15 +181,13 @@ module Foo with Context where Guard > Limit {
     fn test_parse_forward_module_with_with_and_where() {
         let mut test = TestParser::new("module Foo with Context where Requirement: Interface;");
         let mut parser = test.prepare();
-        let module_id = parser
-            .eat_module(DeclarationKind::Definition, None, None)
-            .unwrap();
+        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
 
-        assert_node!(parser.tree, module_id, Definition::Module { kind, name, format, export, expressions, with_clauses, where_clauses, .. } => {
-            assert_eq!(*kind, DeclarationKind::Definition);
-            assert_string!(parser, name.unwrap(), "Foo");
+        assert_node!(parser.tree, module_id, Definition::Module { meta, format, expressions, with_clauses, where_clauses, .. } => {
+            assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert_eq!(*format, ModuleFormat::Forward);
-            assert!(export.is_none());
+            assert!(meta.export.is_none());
             assert!(expressions.is_empty());
             let with_items = with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
