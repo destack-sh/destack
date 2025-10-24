@@ -1,9 +1,9 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta, ExportMode,
-    ImportItem, ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern,
-    Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator,
+    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta,
+    ExportMode, ImportItem, ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path,
+    Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator,
 };
 
 /// An Expression is a generic container for value-producing forms.
@@ -192,7 +192,7 @@ pub enum Expression {
         body: NodeId<Block>,
     },
 
-    /// A For is a for loop over an iterator with a pattern.
+    /// A ForEach is a for loop over an iterator with a pattern.
     ///
     /// Examples:
     /// ```
@@ -207,10 +207,28 @@ pub enum Expression {
     ///     y = 2
     /// }
     /// ```
-    For {
+    ForEach {
         runtime: Option<Runtime>,
-        pattern: NodeId<Pattern>,
+        asyncness: Asyncness,
+        pattern: Option<NodeId<Pattern>>,
         iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
+
+    /// A ForCondition is a for loop with the traditional three-part (initialization, condition, increment).
+    ///
+    /// Examples:
+    /// ```
+    /// for (;;) {}
+    /// for (var x = 0; x < 10; x++) {
+    ///     y = 2
+    /// }
+    /// ```
+    ForCondition {
+        runtime: Option<Runtime>,
+        initialization: Option<NodeId<Expression>>,
+        condition: Option<NodeId<Expression>>,
+        increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
 

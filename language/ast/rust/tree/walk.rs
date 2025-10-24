@@ -261,16 +261,42 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
 
-        Expression::For {
+        Expression::ForEach {
             runtime: _,
+            asyncness: _,
             pattern,
             iterator,
             body,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+            }
             let iterator_expr = tree.get(*iterator);
             visitor.visit_expression(tree, *iterator, iterator_expr);
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
+        }
+
+        Expression::ForCondition {
+            runtime: _,
+            initialization,
+            condition,
+            increment,
+            body,
+        } => {
+            if let Some(initialization_id) = initialization {
+                let initialization_expr = tree.get(*initialization_id);
+                visitor.visit_expression(tree, *initialization_id, initialization_expr);
+            }
+            if let Some(condition_id) = condition {
+                let condition_expr = tree.get(*condition_id);
+                visitor.visit_expression(tree, *condition_id, condition_expr);
+            }
+            if let Some(increment_id) = increment {
+                let increment_expr = tree.get(*increment_id);
+                visitor.visit_expression(tree, *increment_id, increment_expr);
+            }
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
@@ -812,6 +838,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Function {
             meta: _,
             runtime: _,
+            asyncness: _,
             cardinality: _,
             accessor: _,
             style: _,

@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Expression, FunctionAccessor, FunctionCardinality, FunctionStyle, NodeId, Path, PathBase,
-    Runtime, Visibility,
+    Asyncness, Expression, FunctionAccessor, FunctionCardinality, FunctionStyle, NodeId, Path,
+    PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;
 
@@ -36,6 +36,15 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// Lower asyncness into a DIR asyncness.
+    #[inline]
+    pub fn lower_asyncness(&self, asyncness: ast::Asyncness) -> Asyncness {
+        match asyncness {
+            ast::Asyncness::Sync => Asyncness::Sync,
+            ast::Asyncness::Async => Asyncness::Async,
+        }
+    }
+
     /// Lower function cardinality into a DIR function cardinality.
     #[inline]
     pub fn lower_function_cardinality(
@@ -45,8 +54,6 @@ impl<'a> Compiler<'a> {
         match cardinality {
             ast::FunctionCardinality::Scalar => FunctionCardinality::Scalar,
             ast::FunctionCardinality::Generator => FunctionCardinality::Generator,
-            ast::FunctionCardinality::AsyncScalar => FunctionCardinality::AsyncScalar,
-            ast::FunctionCardinality::AsyncGenerator => FunctionCardinality::AsyncGenerator,
         }
     }
 

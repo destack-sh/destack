@@ -176,6 +176,7 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         runtime: ast::Runtime,
+        asyncness: ast::Asyncness,
         cardinality: ast::FunctionCardinality,
         accessor: Option<ast::FunctionAccessor>,
         style: ast::FunctionStyle,
@@ -184,6 +185,7 @@ impl<'a> Compiler<'a> {
         return_type: &Option<ast::NodeId<ast::Expression>>,
     ) -> FunctionSignature {
         let runtime = self.lower_runtime(runtime);
+        let asyncness = self.lower_asyncness(asyncness);
         let cardinality = self.lower_function_cardinality(cardinality);
         let accessor = accessor.map(|accessor| self.lower_function_accessor(accessor));
         let style = self.lower_function_style(style);
@@ -199,6 +201,7 @@ impl<'a> Compiler<'a> {
             .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
         FunctionSignature {
             runtime,
+            asyncness,
             cardinality,
             accessor,
             style,
@@ -463,6 +466,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Function {
                 meta,
                 runtime,
+                asyncness,
                 cardinality,
                 accessor,
                 style,
@@ -486,6 +490,7 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     *runtime,
+                    *asyncness,
                     *cardinality,
                     *accessor,
                     *style,

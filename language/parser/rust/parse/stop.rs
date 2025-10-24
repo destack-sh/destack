@@ -214,9 +214,43 @@ impl<'a> Parser<'a> {
             else if token.token.ty == close_token {
                 depth -= 1;
             }
-            // found: return position
+            // end: return position
             if depth == 0 {
                 return Ok(pos as u32);
+            }
+            pos += 1;
+        }
+        Err(ParserError::expected(
+            self.peek().unwrap_or(&self.eof_token).span,
+            open_token,
+        ))
+    }
+
+    /// Find a token *within* a matching pair of tokens.
+    pub fn find_in_matching_pair(
+        &self,
+        open_token: TokenType,
+        close_token: TokenType,
+        target_type: TokenType,
+    ) -> ParserResult<Option<u32>> {
+        let mut depth = 0;
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos) {
+            // open: +1
+            if token.token.ty == open_token {
+                depth += 1;
+            }
+            // close: -1
+            else if token.token.ty == close_token {
+                depth -= 1;
+            }
+            // token at depth 1 (immediately inside the matching pair)
+            else if depth == 1 && token.token.ty == target_type {
+                return Ok(Some(pos as u32));
+            }
+            // end: return position
+            if depth == 0 {
+                return Ok(None);
             }
             pos += 1;
         }

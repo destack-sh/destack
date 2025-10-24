@@ -793,6 +793,13 @@ impl Dump for Runtime {
     }
 }
 
+/// Dump an Asyncness as a string.
+impl Dump for Asyncness {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a FunctionCardinality as a string.
 impl Dump for FunctionCardinality {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1264,13 +1271,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("runtime", runtime)
                     .end();
             }
-            Expression::For {
+            Expression::ForEach {
                 runtime,
+                asyncness,
                 pattern: _,
                 iterator: _,
                 body: _,
             } => {
-                self.node("Expression::For", _id.id)
+                self.node("Expression::ForEach", _id.id)
+                    .field_optional("runtime", runtime)
+                    .field("asyncness", asyncness)
+                    .end();
+            }
+            Expression::ForCondition {
+                runtime,
+                initialization: _,
+                condition: _,
+                increment: _,
+                body: _,
+            } => {
+                self.node("Expression::ForCondition", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
@@ -1573,6 +1593,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 meta,
                 runtime,
+                asyncness,
                 cardinality,
                 accessor,
                 style,
@@ -1587,6 +1608,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
                     .field("runtime", runtime)
+                    .field("asyncness", asyncness)
                     .field("cardinality", cardinality)
                     .field_optional("accessor", accessor)
                     .field("style", style)
