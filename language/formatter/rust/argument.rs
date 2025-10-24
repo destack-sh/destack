@@ -78,7 +78,7 @@ where
             // trailing separator (always if forced, otherwise only if group breaks)
             if self.force_trailing_separator {
                 write!(f, [token(self.separator)])?;
-            } else {
+            } else if self.elements.len() > 1 {
                 write!(f, [if_group_breaks(&token(self.separator))])?;
             }
 
@@ -90,14 +90,8 @@ where
             Ok(())
         });
 
-        let format_inline = format_with(|f| {
-            group(&format_args![
-                &token(self.start_token),
-                body,
-                &token(self.end_token)
-            ])
-            .format(f)
-        });
+        let format_inline =
+            format_with(|f| write!(f, [&token(self.start_token), body, &token(self.end_token)]));
         let format_indented = format_with(|f| {
             group(&format_args![
                 &token(self.start_token),

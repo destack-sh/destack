@@ -1763,7 +1763,7 @@ mod tests {
             )
         });
 
-        // First variant fits
+        // Takes the first variant if everything fits on a single line
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions {
@@ -1781,12 +1781,31 @@ mod tests {
             formatted.print().unwrap().as_str()
         );
 
-        // Second variant fits
+        // It takes the second if the first variant doesn't fit on a single line. The second variant
+        // has some additional line breaks to make sure inner groups don't break
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
                     line_width: 23,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::empty(SourceFormat::Dyst)
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "([\n\t1,\n\t2,\n\t3\n]\n+ aVeryLongIdentifier)",
+            formatted.print().unwrap().as_str()
+        );
+
+        // Prints the last option as last resort
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 22,
                     ..SimpleFormatOptions::default()
                 },
                 Source::empty(SourceFormat::Dyst)
