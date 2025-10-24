@@ -384,7 +384,6 @@ impl<'a> Parser<'a> {
                 self.eat_item_stop_with_newlines()?;
                 continue;
             }
-
             // keep eating elements
             let element = self
                 .eat_tuple_literal_element()
