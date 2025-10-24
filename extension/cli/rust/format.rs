@@ -299,7 +299,7 @@ fn format_source(
                 parser
                     .eat_module_body(
                         DefinitionMeta::new(Name::Identifier(module_name_id)),
-                        ModuleFormat::Inline,
+                        ModuleFormat::Source,
                     )
                     .map(Some)
             },
