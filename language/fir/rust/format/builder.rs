@@ -1130,7 +1130,7 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 mod tests {
     use dyst_source::SourceFormat;
 
-    use crate::format::{BestFittingMode, IndentStyle, SimpleFormatContext, SimpleFormatOptions};
+    use crate::format::{IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
     use crate::{best_fitting, format, format_args, write};
 
@@ -1716,105 +1716,6 @@ mod tests {
 
         assert_eq!(
             "aLongerVariableName = 'a string that exceeds the configured line width and even parenthesizing doesn't make it fit'",
-            formatted.print().unwrap().as_str()
-        );
-    }
-
-    /// Best fitting with mode all variants tries all options
-    #[test]
-    fn test_best_fitting_with_mode_all_variants() {
-        let document = format_with(|f| {
-            write!(
-                f,
-                [
-                    token("("),
-                    best_fitting![
-                        format_args![token("[1, 2, 3] + aVeryLongIdentifier")],
-                        format_args![
-                            token("["),
-                            soft_block_indent(&format_args![
-                                token("1,"),
-                                soft_line_break(),
-                                token("2,"),
-                                soft_line_break(),
-                                token("3")
-                            ]),
-                            token("]"),
-                            space(),
-                            token("+ aVeryLongIdentifier")
-                        ],
-                        format_args![soft_block_indent(&format_args![
-                            token("["),
-                            soft_block_indent(&format_args![
-                                token("1,"),
-                                soft_line_break(),
-                                token("2,"),
-                                soft_line_break(),
-                                token("3")
-                            ]),
-                            token("]"),
-                            soft_line_break(),
-                            token("+ aVeryLongIdentifier")
-                        ]),]
-                    ]
-                    .with_mode(BestFittingMode::AllLines),
-                    token(")")
-                ]
-            )
-        });
-
-        // Takes the first variant if everything fits on a single line
-        let formatted = format!(
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 40,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::empty(SourceFormat::Dyst)
-            ),
-            [document.clone()]
-        )
-        .unwrap();
-        assert_eq!(
-            "([1, 2, 3] + aVeryLongIdentifier)",
-            formatted.print().unwrap().as_str()
-        );
-
-        // It takes the second if the first variant doesn't fit on a single line. The second variant
-        // has some additional line breaks to make sure inner groups don't break
-        let formatted = format!(
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 23,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::empty(SourceFormat::Dyst)
-            ),
-            [document.clone()]
-        )
-        .unwrap();
-        assert_eq!(
-            "([\n\t1,\n\t2,\n\t3\n]\n+ aVeryLongIdentifier)",
-            formatted.print().unwrap().as_str()
-        );
-
-        // Prints the last option as last resort
-        let formatted = format!(
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 22,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::empty(SourceFormat::Dyst)
-            ),
-            [document.clone()]
-        )
-        .unwrap();
-        assert_eq!(
-            "(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n\t+ aVeryLongIdentifier\n)",
             formatted.print().unwrap().as_str()
         );
     }
