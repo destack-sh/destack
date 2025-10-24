@@ -867,33 +867,28 @@ impl<'a> Parser<'a> {
             }
             // tuple
             // (if we have a delimiter following an expression inside parentheses)
-            else if self.options.in_parenthesis
-                && (self.peek_token(TokenType::Comma).is_ok()
-                    || self.peek_token(TokenType::Newline).is_ok())
-            {
-                let is_comma = self.peek_token(TokenType::Comma).is_ok();
-                self.bump(); // eat comma or newline
+            else if self.options.in_parenthesis && self.peek_token(TokenType::Comma).is_ok() {
+                self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
-
-                // only consider as tuple if there is more to come or there is a comma
-                if is_comma || self.peek_token(TokenType::CloseParenthesis).is_err() {
-                    // we already have the first element (the expression itself)
-                    let first_element_id = self.tree.insert(
-                        Argument::Positional {
-                            value: left_expression_id,
-                        },
-                        self.get_span_from(start),
-                    );
-                    // parse remaining elements
-                    let tuple_elements = self.eat_tuple_literal_body(Some(first_element_id))?;
-                    // build tuple literal
-                    left_expression_id = self.tree.insert(
-                        Expression::TupleLiteral {
-                            elements: tuple_elements,
-                        },
-                        self.get_span_from(start),
-                    );
-                }
+                // we already have the first element (the expression itself)
+                let first_element_id = self.tree.insert(
+                    Argument::Positional {
+                        value: left_expression_id,
+                    },
+                    self.get_span_from(start),
+                );
+                // parse remaining elements
+                let tuple_elements = self
+                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                        parser.eat_tuple_literal_body(Some(first_element_id))
+                    })?;
+                // build tuple literal
+                left_expression_id = self.tree.insert(
+                    Expression::TupleLiteral {
+                        elements: tuple_elements,
+                    },
+                    self.get_span_from(start),
+                );
             }
             // done
             else {
@@ -1190,6 +1185,38 @@ mod tests {
                 );
             }
         );
+    }
+
+    /// Parse a tuple literal over multiple lines.
+    #[test]
+    fn test_parse_tuple_literal_multiline() {
+        let mut test = TestParser::new(
+            r"
+const shapes = (
+    TetrisPieceShape.I,
+    TetrisPieceShape.J,
+    TetrisPieceShape.L,
+    TetrisPieceShape.O,
+    TetrisPieceShape.S,
+)",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
+            // shapes
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_string!(parser, *name, "shapes");
+            });
+            // (...)
+            assert_node!(parser.tree, value.unwrap(), Expression::TupleLiteral { elements, .. } => {
+                assert_eq!(elements.len(), 5);
+                // TetrisPieceShape.I
+                assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                    assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
+                });
+            });
+        });
     }
 
     /// Parse a range literal.
