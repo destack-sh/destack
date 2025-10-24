@@ -440,8 +440,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
-                let format_inline =
-                    format_with(|f| write!(f, [header, space(), token("="), space(), value]));
+                let format_inline = format_with(|f| {
+                    group(&format_args![header, space(), token("="), space(), value]).format(f)
+                });
                 let format_multiline = format_with(|f| {
                     group(&format_args![
                         header,
