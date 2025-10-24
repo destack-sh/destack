@@ -75,7 +75,7 @@ where
             .entries(self.elements)
             .finish()?;
 
-            // trailing separator
+            // trailing separator (always if forced, otherwise only if group breaks)
             if self.force_trailing_separator {
                 write!(f, [token(self.separator)])?;
             } else {
