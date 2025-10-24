@@ -195,8 +195,19 @@ pub(crate) fn format_match<'ast>(
     Ok(())
 }
 
-/// Whether an expression is "trivial" (prefers to be inline).
-fn is_trivial_expression(expression: &Expression) -> bool {
+/// Whether an expression is a "line start" expression (contains nested content but can begin on this line)
+pub fn is_line_start_expression(expression: &Expression) -> bool {
+    match expression {
+        Expression::TupleLiteral { .. }
+        | Expression::ArrayLiteral { .. }
+        | Expression::StructLiteral { .. }
+        | Expression::Call { .. } => true,
+        _ => false,
+    }
+}
+
+/// Whether an expression is "trivial" (prefers to be fully inline).
+pub fn is_trivial_expression(expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
         Expression::Path {
@@ -208,7 +219,7 @@ fn is_trivial_expression(expression: &Expression) -> bool {
 }
 
 /// Whether an argument is "trivial" (prefers to be inline).
-fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value } => is_trivial_expression(tree.get(*value)),
         Argument::NamedShorthand { name: _ } => true,
@@ -410,7 +421,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 meta,
                 pattern,
                 ty,
-                value,
+                value: value_id,
             } => {
                 // header
                 let header = format_with(|f| {
@@ -440,8 +451,20 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
+                let Some(value_id) = value_id else {
+                    write!(f, [header])?;
+                    return Ok(());
+                };
+
                 let format_inline = format_with(|f| {
-                    group(&format_args![header, space(), token("="), space(), value]).format(f)
+                    group(&format_args![
+                        header,
+                        space(),
+                        token("="),
+                        space(),
+                        value_id
+                    ])
+                    .format(f)
                 });
                 let format_multiline = format_with(|f| {
                     group(&format_args![
@@ -449,7 +472,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         space(),
                         token("="),
                         hard_line_break(),
-                        block_indent(&format_args![value])
+                        block_indent(&format_args![value_id])
                     ])
                     .format(f)
                 });
