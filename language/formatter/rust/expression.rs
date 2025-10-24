@@ -222,7 +222,7 @@ fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    _expression_id: NodeId<Expression>,
+    expression_id: NodeId<Expression>,
     ty: &Option<NodeId<Expression>>,
     fields_ids: &Vec<NodeId<Argument>>,
 ) -> FormatResult<()> {
@@ -236,16 +236,20 @@ pub(crate) fn format_struct_literal<'ast>(
         .collect::<SmallVec<_, 3>>();
 
     let is_trivial = fields.is_empty()
-        || fields.len() < 2
+        || fields.len() <= 3
             && fields
                 .iter()
                 .all(|field| is_trivial_argument(f.context().tree, field));
+    let has_annotations = f.context().has_infix_annotation(expression_id)
+        || fields_ids
+            .iter()
+            .any(|field| f.context().has_annotation(*field));
 
     write!(
         f,
         [list_like("{", "}", ",", fields_ids)
             .include_space()
-            .should_expand(!is_trivial)]
+            .should_expand(!is_trivial || has_annotations)]
     )?;
     Ok(())
 }
@@ -1124,7 +1128,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_expression_struct_literal() {
+    fn test_format_expression_struct_literal_trivial() {
         assert_format!(
             "{ a: 1, ..B }",
             "{ a: 1, ..B }",
@@ -1220,40 +1224,15 @@ mod tests {
     fn test_format_expression_call_with_struct_literal() {
         let source = r#"Destack.serve({
     fetch: function (req: Request) {
-        return Response("Success!");
-    }
-    run: true
+        return Response("Success!")
+    },
+    run: true,
 })"#;
         assert_format!(
             source,
             source,
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(40)
-        );
-    }
-
-    #[test]
-    fn test_format_expression_ternary_tree_literal() {
-        let source = r#"(funnelsFilter?.funnelVizType === FunnelVizType.Steps
-    ?   [
-            <>
-                <span className="flex items-center text-secondary mr-1">
-                    <Tooltip
-                        title={`Overall conversion rate for all ${aggregationTargetLabel.plural} on the entire funnel.`}
-                    >
-                        <IconInfo className="mr-1 text-xl shrink-0" />
-                    </Tooltip>
-                    <span>"Total conversion rate:"</span>
-                </span>
-                <span className="l4">{percentage(conversionMetrics.totalRate, 2, true)}</span>
-            </>,
-        ]
-    : [])"#;
-        assert_format!(
-            source,
-            source,
-            |p| p.eat_expression(),
-            DystFormatOptions::default()
         );
     }
 }

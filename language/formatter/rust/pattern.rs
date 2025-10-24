@@ -84,10 +84,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 if let Some(ty) = ty {
                     write!(f, [ty])?
                 }
-                write!(
-                    f,
-                    [list_like("(", ")", ",", fields).force_trailing_separator()]
-                )?
+                write!(f, [list_like("(", ")", ",", fields)])?
             }
             Pattern::Slice { fields } => {
                 write!(f, [list_like("[", "]", ",", fields)])?;
