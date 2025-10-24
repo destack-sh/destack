@@ -4,6 +4,8 @@ use std::borrow::Cow;
 
 use std::ops::Range;
 
+use dyst_container::SmallVec;
+
 use crate::*;
 
 /// The console colors.
@@ -647,6 +649,13 @@ impl<T: Dump> Dump for Option<T> {
 
 /// Dump a Vec<T> as a slice.
 impl<T: Dump> Dump for Vec<T> {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        self.as_slice().dump(dumper)
+    }
+}
+
+/// Dump a SmallVec<T, N> as a slice.
+impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         self.as_slice().dump(dumper)
     }

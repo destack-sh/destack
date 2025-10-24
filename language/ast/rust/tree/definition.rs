@@ -30,10 +30,10 @@ pub struct DefinitionMeta {
 
 impl DefinitionMeta {
     /// Create a new definition meta with the given name.
-    pub fn new(name: Option<Name>) -> Self {
+    pub fn new(name: Name) -> Self {
         Self {
             kind: DeclarationKind::Definition,
-            name,
+            name: Some(name),
             visibility: None,
             export: None,
         }

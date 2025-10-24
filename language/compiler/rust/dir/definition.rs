@@ -1,14 +1,14 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{DeclarationKind, Definition, EmbeddedDefinition, NodeId};
+use dyst_dir::{
+    DeclarationKind, Definition, DefinitionMeta as DirDefinitionMeta, EmbeddedDefinition,
+    FunctionSignature, Generics, NodeId,
+};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
     /// Lower declaration kind to DIR declaration kind.
-    pub fn lower_declaration_kind(
-        &mut self,
-        kind: ast::DeclarationKind,
-    ) -> DeclarationKind {
+    pub fn lower_declaration_kind(&mut self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {
             ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
             ast::DeclarationKind::Definition => DeclarationKind::Definition,
@@ -95,6 +95,119 @@ impl<'a> Compiler<'a> {
         embedded_definitions
     }
 
+    /// Lower AST definition meta into DIR definition meta.
+    pub fn lower_definition_meta(
+        &mut self,
+        source_id: SourceId,
+        meta: &ast::DefinitionMeta,
+    ) -> DirDefinitionMeta {
+        let kind = self.lower_declaration_kind(meta.kind);
+        let name = meta
+            .name
+            .map(|name| self.intern_string(source_id, name.string()));
+        let visibility = meta
+            .visibility
+            .map(|visibility| self.lower_visibility(visibility));
+        let export = meta.export.map(|export| self.lower_export_mode(export));
+        DirDefinitionMeta {
+            kind,
+            name,
+            visibility,
+            export,
+        }
+    }
+
+    /// Lower AST definition generics into DIR definition generics.
+    pub fn lower_generics(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        static_parameters: Option<&Vec<ast::NodeId<ast::Parameter>>>,
+        with_clauses: Option<&Vec<ast::NodeId<ast::WithClause>>>,
+        where_clauses: Option<&Vec<ast::NodeId<ast::WhereClause>>>,
+    ) -> Option<Generics> {
+        let static_parameters = static_parameters.and_then(|parameters| {
+            if parameters.is_empty() {
+                return None;
+            }
+            Some(
+                parameters
+                    .iter()
+                    .map(|parameter| self.lower_parameter(source_id, ast, *parameter))
+                    .collect(),
+            )
+        });
+        let with_clauses = with_clauses.and_then(|clauses| {
+            if clauses.is_empty() {
+                return None;
+            }
+            Some(
+                clauses
+                    .iter()
+                    .map(|clause| self.lower_with_clause(source_id, ast, *clause))
+                    .collect(),
+            )
+        });
+        let where_clauses = where_clauses.and_then(|clauses| {
+            if clauses.is_empty() {
+                return None;
+            }
+            Some(
+                clauses
+                    .iter()
+                    .map(|clause| self.lower_where_clause(source_id, ast, *clause))
+                    .collect(),
+            )
+        });
+        if static_parameters.is_none() && with_clauses.is_none() && where_clauses.is_none() {
+            return None;
+        }
+        Some(Generics {
+            static_parameters,
+            with_clauses,
+            where_clauses,
+        })
+    }
+
+    /// Lower function signature components into a DIR function signature.
+    #[allow(clippy::too_many_arguments)]
+    pub fn lower_function_signature(
+        &mut self,
+        source_id: SourceId,
+        ast: &ast::NodeTree,
+        runtime: ast::Runtime,
+        cardinality: ast::FunctionCardinality,
+        accessor: Option<ast::FunctionAccessor>,
+        style: ast::FunctionStyle,
+        self_parameter: &Option<ast::SelfParameter>,
+        dynamic_parameters: &[ast::NodeId<ast::Parameter>],
+        return_type: &Option<ast::NodeId<ast::Expression>>,
+    ) -> FunctionSignature {
+        let runtime = self.lower_runtime(runtime);
+        let cardinality = self.lower_function_cardinality(cardinality);
+        let accessor = accessor.map(|accessor| self.lower_function_accessor(accessor));
+        let style = self.lower_function_style(style);
+        let self_parameter = self_parameter
+            .as_ref()
+            .map(|self_parameter| self.lower_self_parameter(source_id, ast, self_parameter));
+        let dynamic_parameters = dynamic_parameters
+            .iter()
+            .map(|parameter| self.lower_parameter(source_id, ast, *parameter))
+            .collect();
+        let return_type = return_type
+            .as_ref()
+            .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
+        FunctionSignature {
+            runtime,
+            cardinality,
+            accessor,
+            style,
+            self_parameter,
+            dynamic_parameters,
+            return_type,
+        }
+    }
+
     /// Lower a definition to a DIR definition.
     /// Lower an AST definition to a DIR definition.
     /// Handles modules, structs, and enums.
@@ -108,44 +221,28 @@ impl<'a> Compiler<'a> {
         match definition {
             // Module definition
             ast::Definition::Module {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 format: _,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let export = export.map(|e| self.lower_export_mode(e));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                // lower all expressions to definitions, skipping non-definitions
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    None,
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let definitions = expressions
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Module {
-                        kind,
-                        name,
-                        export,
-                        visibility,
-                        with_clauses,
-                        where_clauses,
+                        meta,
+                        generics,
                         definitions,
                     },
                     source_id,
@@ -155,10 +252,7 @@ impl<'a> Compiler<'a> {
 
             // Struct definition
             ast::Definition::Struct {
-                kind,
-                name,
-                export,
-                visibility,
+                meta,
                 style,
                 super_types,
                 representation_type,
@@ -168,16 +262,14 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let export = export.map(|e| self.lower_export_mode(e));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let embedded_definitions = self.lower_embedded_definitions(
                     source_id,
                     ast,
@@ -185,45 +277,29 @@ impl<'a> Compiler<'a> {
                     super_types,
                     expressions,
                 );
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let definitions = expressions
-                    .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
-                    .collect();
                 let representation_type = representation_type
                     .as_ref()
                     .map(|repr| self.lower_expression_to_type(source_id, ast, *repr));
+                let struct_name = meta.name;
                 let variant = self.lower_struct_to_variant(
                     source_id,
                     ast,
                     definition_id,
-                    name,
+                    struct_name,
                     *style,
                     representation_type,
                     fields,
                 );
+                let definitions = expressions
+                    .iter()
+                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .collect();
                 self.tree.insert_from_ast(
                     Definition::Struct {
-                        kind,
-                        name,
-                        visibility,
-                        export,
-                        static_parameters,
+                        meta,
+                        generics,
                         embedded_definitions,
                         variant,
-                        with_clauses,
-                        where_clauses,
                         definitions,
                     },
                     source_id,
@@ -233,10 +309,7 @@ impl<'a> Compiler<'a> {
 
             // Enum definition
             ast::Definition::Enum {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 super_types,
                 static_parameters,
                 tag_type,
@@ -245,16 +318,14 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let export = export.map(|e| self.lower_export_mode(e));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let embedded_definitions = self.lower_embedded_definitions(
                     source_id,
                     ast,
@@ -262,38 +333,21 @@ impl<'a> Compiler<'a> {
                     super_types,
                     expressions,
                 );
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let definitions = expressions
-                    .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
-                    .collect();
                 let tag_type = tag_type
                     .as_ref()
                     .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
                 let variants =
                     self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
+                let definitions = expressions
+                    .iter()
+                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .collect();
                 self.tree.insert_from_ast(
                     Definition::Enum {
-                        kind,
-                        name,
-                        visibility,
-                        export,
-                        static_parameters,
+                        meta,
+                        generics,
                         embedded_definitions,
                         variants,
-                        with_clauses,
-                        where_clauses,
                         definitions,
                     },
                     source_id,
@@ -303,10 +357,7 @@ impl<'a> Compiler<'a> {
 
             // Union definition
             ast::Definition::Union {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 tag_type,
                 representation_type,
                 static_parameters,
@@ -316,16 +367,14 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let export = export.map(|e| self.lower_export_mode(e));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let embedded_definitions = self.lower_embedded_definitions(
                     source_id,
                     ast,
@@ -333,22 +382,6 @@ impl<'a> Compiler<'a> {
                     super_types,
                     expressions,
                 );
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let definitions = expressions
-                    .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
-                    .collect();
                 let tag_type = tag_type
                     .as_ref()
                     .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
@@ -363,17 +396,16 @@ impl<'a> Compiler<'a> {
                     tag_type,
                     fields,
                 );
+                let definitions = expressions
+                    .iter()
+                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .collect();
                 self.tree.insert_from_ast(
                     Definition::Union {
-                        kind,
-                        name,
-                        visibility,
-                        export,
-                        static_parameters,
+                        meta,
+                        generics,
                         embedded_definitions,
                         variants,
-                        with_clauses,
-                        where_clauses,
                         definitions,
                     },
                     source_id,
@@ -383,10 +415,7 @@ impl<'a> Compiler<'a> {
 
             // Interface definition
             ast::Definition::Interface {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 super_types,
                 static_parameters,
                 with_clauses,
@@ -394,16 +423,14 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let export = export.map(|e| self.lower_export_mode(e));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let embedded_definitions = self.lower_embedded_definitions(
                     source_id,
                     ast,
@@ -411,18 +438,6 @@ impl<'a> Compiler<'a> {
                     super_types,
                     expressions,
                 );
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_variant_field(source_id, ast, *field))
@@ -433,14 +448,9 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Interface {
-                        kind,
-                        name,
-                        visibility,
-                        export,
-                        static_parameters,
+                        meta,
+                        generics,
                         embedded_definitions,
-                        with_clauses,
-                        where_clauses,
                         fields,
                         definitions,
                     },
@@ -451,10 +461,7 @@ impl<'a> Compiler<'a> {
 
             // Function definition
             ast::Definition::Function {
-                kind,
-                name,
-                visibility,
-                export,
+                meta,
                 runtime,
                 cardinality,
                 accessor,
@@ -467,62 +474,34 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 body,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let name = name.map(|name| self.intern_string(source_id, name));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let runtime = self.lower_runtime(*runtime);
-                let cardinality = self.lower_function_cardinality(*cardinality);
-                let accessor = accessor.map(|a| self.lower_function_accessor(a));
-                let style = self.lower_function_style(*style);
-                let export = export.map(|e| self.lower_export_mode(e));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
-                let self_parameter = self_parameter
-                    .as_ref()
-                    .map(|param| self.lower_self_parameter(source_id, ast, param));
-                let dynamic_parameters = dynamic_parameters
-                    .iter()
-                    .map(|param| self.lower_parameter(source_id, ast, *param))
-                    .collect();
-                let return_type = return_type
-                    .as_ref()
-                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let definitions = vec![]; // not sure?
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
+                let signature = self.lower_function_signature(
+                    source_id,
+                    ast,
+                    *runtime,
+                    *cardinality,
+                    *accessor,
+                    *style,
+                    self_parameter,
+                    dynamic_parameters,
+                    return_type,
+                );
+                let definitions = Vec::new();
                 let body = body
                     .as_ref()
                     .map(|body| self.lower_expression(source_id, ast, *body));
                 self.tree.insert_from_ast(
                     Definition::Function {
-                        kind,
-                        name,
-                        visibility,
-                        export,
-                        runtime,
-                        cardinality,
-                        accessor,
-                        style,
-                        static_parameters,
-                        self_parameter,
-                        dynamic_parameters,
-                        return_type,
-                        with_clauses,
-                        where_clauses,
+                        meta,
+                        generics,
+                        signature,
                         definitions,
                         body,
                     },
@@ -533,9 +512,7 @@ impl<'a> Compiler<'a> {
 
             // Implement definition
             ast::Definition::Implement {
-                kind,
-                export,
-                visibility,
+                meta,
                 static_parameters,
                 target_type,
                 super_types,
@@ -543,15 +520,14 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
-                let kind = self.lower_declaration_kind(*kind);
-                let export = export.map(|e| self.lower_export_mode(e));
-                let visibility = visibility.map(|v| self.lower_visibility(v));
-                let static_parameters = static_parameters.as_ref().map(|params| {
-                    params
-                        .iter()
-                        .map(|param| self.lower_parameter(source_id, ast, *param))
-                        .collect()
-                });
+                let meta = self.lower_definition_meta(source_id, meta);
+                let generics = self.lower_generics(
+                    source_id,
+                    ast,
+                    static_parameters.as_ref(),
+                    with_clauses.as_ref(),
+                    where_clauses.as_ref(),
+                );
                 let target_type = self.lower_expression_to_type(source_id, ast, *target_type);
                 let super_types = super_types.as_ref().map(|super_types| {
                     super_types
@@ -561,32 +537,16 @@ impl<'a> Compiler<'a> {
                         })
                         .collect()
                 });
-                let with_clauses = with_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_with_clause(source_id, ast, *clause))
-                        .collect()
-                });
-                let where_clauses = where_clauses.as_ref().map(|clauses| {
-                    clauses
-                        .iter()
-                        .map(|clause| self.lower_where_clause(source_id, ast, *clause))
-                        .collect()
-                });
                 let definitions = expressions
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Implement {
-                        kind,
-                        export,
-                        visibility,
-                        static_parameters,
+                        meta,
+                        generics,
                         target_type,
                         super_types,
-                        with_clauses,
-                        where_clauses,
                         definitions,
                     },
                     source_id,

@@ -19,12 +19,9 @@ pub(crate) fn format_where_clause<'ast>(
     write!(
         f,
         [best_fit_parenthesize(&format_with(|f| {
-            f.join_with(&format_args![
-                &token(","),
-                soft_line_break_or_space()
-            ])
-            .entries(clauses)
-            .finish()
+            f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                .entries(clauses)
+                .finish()
         }))]
     )?;
 

@@ -1,6 +1,6 @@
 use crate::{
-    Definition, Expression, Mutability, Node, NodeId, NodeType, ScalarLiteral, ScopedMutability,
-    StringId,
+    Definition, Expression, Mutability, Node, NodeId, NodeType, Parameter, ScalarLiteral,
+    ScopedMutability, StringId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -135,6 +135,17 @@ impl Type {
             Type::UnresolvedExpression(_) | Type::UnresolvedSelf | Type::Error
         )
     }
+}
+
+/// The polymorphism of some type or definition.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Generics {
+    /// The static parameters of the definition.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+    /// The with clauses of the definition.
+    pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
+    /// The where clauses of the definition.
+    pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
 }
 
 /// An IntType represents arbitrary width integer with signedness.

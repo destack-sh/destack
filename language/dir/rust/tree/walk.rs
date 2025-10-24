@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, ImportItem, MatchCase,
-    NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, TemplateLiteral,
-    Type, Variant, VariantField, WhereClause, WithClause,
+    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, FunctionSignature, Generics,
+    ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, TemplateLiteral, Type, Variant, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -97,6 +97,44 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the Generics.
+fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, generics: &Generics) {
+    if let Some(static_parameters) = generics.static_parameters.as_ref() {
+        for parameter_id in static_parameters.iter() {
+            let parameter = tree.get(*parameter_id);
+            visitor.visit_parameter(tree, *parameter_id, parameter);
+        }
+    }
+    if let Some(with_clauses) = generics.with_clauses.as_ref() {
+        for clause_id in with_clauses.iter() {
+            let clause = tree.get(*clause_id);
+            visitor.visit_with_clause(tree, *clause_id, clause);
+        }
+    }
+    if let Some(where_clauses) = generics.where_clauses.as_ref() {
+        for clause_id in where_clauses.iter() {
+            let clause = tree.get(*clause_id);
+            visitor.visit_where_clause(tree, *clause_id, clause);
+        }
+    }
+}
+
+/// Walk the FunctionSignature.
+fn walk_function_signature<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    signature: &FunctionSignature,
+) {
+    for parameter_id in signature.dynamic_parameters.iter() {
+        let parameter = tree.get(*parameter_id);
+        visitor.visit_parameter(tree, *parameter_id, parameter);
+    }
+    if let Some(return_type) = signature.return_type {
+        let return_type_node = tree.get(return_type);
+        visitor.visit_type(tree, return_type, return_type_node);
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Groupings
 // ----------------------------------------------------------------------------
@@ -144,7 +182,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Let {
             mutability: _,
-            visibility: _,
             pattern: pattern_id,
             ty: ty_id,
             value: value_id,
@@ -164,7 +201,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
             static_parameters,
-            visibility: _,
             value,
         } => {
             if let Some(static_parameters) = static_parameters {
@@ -431,40 +467,28 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_import_item(tree, *item_id, item);
             }
         }
-        Definition::Let {
-            name: _,
-            export: _,
-            visibility: _,
-        } => {}
+        Definition::Let { meta: _, value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
         Definition::Type {
-            name: _,
-            export: _,
-            visibility: _,
+            meta: _,
+            generics,
             value,
         } => {
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
+            }
             let value_type = tree.get(*value);
             visitor.visit_type(tree, *value, value_type);
         }
         Definition::Module {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            with_clauses,
-            where_clauses,
+            meta: _,
+            generics,
             definitions,
         } => {
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             for definition_id in definitions {
                 let child_definition = tree.get(*definition_id);
@@ -472,22 +496,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            static_parameters,
+            meta: _,
+            generics,
             embedded_definitions,
             variant,
-            with_clauses,
-            where_clauses,
             definitions,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             for embedded_definition in embedded_definitions.iter() {
                 let ty_id = embedded_definition.ty();
@@ -496,40 +512,20 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             let variant_node = tree.get(*variant);
             visitor.visit_variant(tree, *variant, variant_node);
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
-            }
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, child_definition);
             }
         }
         Definition::Enum {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            static_parameters,
+            meta: _,
+            generics,
             embedded_definitions,
             variants,
-            with_clauses,
-            where_clauses,
             definitions,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             for embedded_definition in embedded_definitions.iter() {
                 let ty_id = embedded_definition.ty();
@@ -539,18 +535,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             for variant_id in variants.iter() {
                 let variant_node = tree.get(*variant_id);
                 visitor.visit_variant(tree, *variant_id, variant_node);
-            }
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
             }
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
@@ -558,22 +542,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Union {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            static_parameters,
+            meta: _,
+            generics,
             embedded_definitions,
             variants,
-            with_clauses,
-            where_clauses,
             definitions,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             for embedded_definition in embedded_definitions.iter() {
                 let ty_id = embedded_definition.ty();
@@ -584,57 +560,25 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let variant_node = tree.get(*variant_id);
                 visitor.visit_variant(tree, *variant_id, variant_node);
             }
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
-            }
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, child_definition);
             }
         }
         Definition::Interface {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            static_parameters,
+            meta: _,
+            generics,
             embedded_definitions,
-            with_clauses,
-            where_clauses,
             fields,
             definitions,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             for embedded_definition in embedded_definitions.iter() {
                 let ty_id = embedded_definition.ty();
                 let ty = tree.get(ty_id);
                 visitor.visit_type(tree, ty_id, ty);
-            }
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
             }
             for field_id in fields.iter() {
                 let field = tree.get(*field_id);
@@ -646,49 +590,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
-            kind: _,
-            name: _,
-            export: _,
-            visibility: _,
-            runtime: _,
-            cardinality: _,
-            accessor: _,
-            style: _,
-            static_parameters,
-            self_parameter: _,
-            dynamic_parameters,
-            return_type,
-            with_clauses,
-            where_clauses,
+            meta: _,
+            generics,
+            signature,
             definitions,
             body,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            for parameter_id in dynamic_parameters.iter() {
-                let parameter = tree.get(*parameter_id);
-                visitor.visit_parameter(tree, *parameter_id, parameter);
-            }
-            if let Some(return_type) = return_type {
-                let return_type_node = tree.get(*return_type);
-                visitor.visit_type(tree, *return_type, return_type_node);
-            }
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
-                }
-            }
+            walk_function_signature(visitor, tree, signature);
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, child_definition);
@@ -699,21 +610,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            kind: _,
-            export: _,
-            visibility: _,
-            static_parameters,
+            meta: _,
+            generics,
             target_type,
             super_types,
-            with_clauses,
-            where_clauses,
             definitions,
         } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters.iter() {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
             let target_type_expr = tree.get(*target_type);
             visitor.visit_type(tree, *target_type, target_type_expr);
@@ -721,18 +625,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 for super_type in super_types {
                     let super_type_expr = tree.get(*super_type);
                     visitor.visit_type(tree, *super_type, super_type_expr);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for clause_id in with_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_with_clause(tree, *clause_id, clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for clause_id in where_clauses.iter() {
-                    let clause = tree.get(*clause_id);
-                    visitor.visit_where_clause(tree, *clause_id, clause);
                 }
             }
             for definition_id in definitions.iter() {

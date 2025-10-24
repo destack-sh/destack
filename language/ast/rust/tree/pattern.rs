@@ -26,9 +26,7 @@ pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
     /// Wildcard rest pattern (`..` or `..rest`).
-    Rest {
-        name: Option<StringId>,
-    },
+    Rest { name: Option<StringId> },
     /// Maybe pattern (like `T?`).
     Maybe(NodeId<Pattern>),
     /// Reference pattern (like `&x`).
