@@ -390,6 +390,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 target,
                 alias,
                 items,
+                arguments,
             } => {
                 write!(f, [Keyword::Import, space()])?;
                 if *ty == DependencyType::Type {
@@ -401,6 +402,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     alias.as_ref().copied(),
                     items.as_ref(),
                 )?;
+                if let Some(arguments) = arguments {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            token("with"),
+                            space(),
+                            list_like("{", "}", ",", arguments).include_space()
+                        ]
+                    )?;
+                }
             }
 
             // export

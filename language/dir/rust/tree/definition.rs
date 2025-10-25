@@ -1,6 +1,5 @@
 use crate::{
-    Asyncness, ExportType, Expression, Generics, DependencyItem, Intrinsic, Node, NodeId, NodeType,
-    Parameter, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility,
+    Argument, Asyncness, DependencyItem, DependencyType, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -52,10 +51,15 @@ pub enum Definition {
     /// Intrinsic definition.
     Intrinsic { intrinsic: Intrinsic },
     /// Import definition.
-    Import { items: Vec<NodeId<DependencyItem>> },
+    Import {
+        ty: DependencyType,
+        items: Vec<NodeId<DependencyItem>>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+    },
     /// Export definition.
     Export {
         mode: ExportType,
+        ty: DependencyType,
         items: Vec<NodeId<DependencyItem>>,
     },
     /// Let definition.

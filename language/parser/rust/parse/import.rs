@@ -44,6 +44,19 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // arguments
+        let arguments = if self.peek_keyword(Keyword::With).is_ok() {
+            self.eat_keyword(Keyword::With)?;
+            self.eat_token(TokenType::OpenBrace)?;
+            let arguments = self.with_options(self.options.nested(), |parser| {
+                parser.eat_arguments_body(TokenType::CloseBrace)
+            })?;
+            self.eat_token(TokenType::CloseBrace)?;
+            Some(arguments)
+        } else {
+            None
+        };
+
         // import
         let import_id = self.tree.insert(
             Expression::Import {
@@ -51,6 +64,7 @@ impl<'a> Parser<'a> {
                 target,
                 alias,
                 items,
+                arguments,
             },
             self.get_span_from(start),
         );
@@ -234,7 +248,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of import items (like `{ a, b }` in `import foo.{a, b}`).
-    fn eat_dependency_items_block(&mut self, ty: Option<DependencyType>) -> ParserResult<Vec<NodeId<DependencyItem>>> {
+    fn eat_dependency_items_block(
+        &mut self,
+        ty: Option<DependencyType>,
+    ) -> ParserResult<Vec<NodeId<DependencyItem>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
 
@@ -302,7 +319,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DependencyTarget, DependencyType, ExportType};
+    use dyst_ast::{Argument, DependencyTarget, DependencyType, ExportType, ScalarLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{DependencyItem, Expression, assert_node, assert_path, assert_string};
@@ -315,7 +332,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             assert!(items.is_none());
@@ -330,7 +347,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import core.memory
-        assert_node!(parser.tree, expression_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             assert!(items.is_none());
@@ -339,17 +356,25 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_import_path() {
-        let mut test = TestParser::new("import dyst.geometry");
+    fn test_parse_import_path_with_arguments() {
+        let mut test = TestParser::new("import dyst.geometry with { bar: true }");
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        // import dyst.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        // import dyst.geometry with { bar: true }
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, arguments, .. } => {
+            // dyst.geometry
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "dyst.geometry");
+            // with { bar: true }
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+                assert_string!(parser, name.string(), "bar");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            });
         });
     }
 
@@ -360,7 +385,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import dyst as ds
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Type);
             assert_string!(parser, alias.unwrap(), "ds");
             assert!(items.is_none());
@@ -375,7 +400,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import ds.geometry.{Vector2, Vector3 as V3}
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
@@ -400,7 +425,7 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
@@ -426,7 +451,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Path(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             assert!(items.is_none());
@@ -441,7 +466,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * as geom from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Virtual(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert_string!(parser, alias.unwrap(), "geom");
             assert!(items.is_none());
@@ -463,7 +488,7 @@ import {
         parser.eat_newline().unwrap();
 
         let import_id = parser.eat_import().unwrap();
-        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Virtual(target), alias, items } => {
+        assert_node!(parser.tree, import_id, Expression::Import { ty, target: DependencyTarget::Virtual(target), alias, items, .. } => {
             assert_eq!(*ty, DependencyType::Value);
             assert!(alias.is_none());
             assert_string!(parser, *target, "./lib/object.ng");

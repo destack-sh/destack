@@ -20,10 +20,15 @@ pub enum Expression {
         body: Option<NodeId<Block>>,
     },
     /// Import dependency declaration (flattened for grouped items like `import foo.{bar, baz}`)
-    Import { items: Vec<NodeId<DependencyItem>> },
+    Import {
+        ty: DependencyType,
+        items: Vec<NodeId<DependencyItem>>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+    },
     /// Export dependency declaration (flattened for grouped items like `export { bar } from foo`)
     Export {
         mode: ExportType,
+        ty: DependencyType,
         items: Vec<NodeId<DependencyItem>>,
     },
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).

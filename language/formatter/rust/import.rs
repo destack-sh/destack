@@ -1,4 +1,4 @@
-use dyst_ast::Keyword;
+use dyst_ast::{DependencyType, Keyword};
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
