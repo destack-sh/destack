@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    Definition, DefinitionMeta, Keyword, Mutability, Name, Path, PostfixPosition, StringId,
-    TemplateLiteral,
+    Definition, DefinitionMeta, FunctionStyle, Keyword, Mutability, Name, Path, PostfixPosition,
+    StringId, TemplateLiteral,
 };
 use std::str::FromStr;
 
@@ -544,9 +544,11 @@ impl<'a> Parser<'a> {
                 match self.tree.get_mut(function_id) {
                     Definition::Function {
                         meta: DefinitionMeta { name, .. },
+                        style,
                         ..
                     } => {
                         *name = None;
+                        *style = FunctionStyle::Lambda;
                     }
                     _ => panic!("expected function for"),
                 };
@@ -563,7 +565,7 @@ impl<'a> Parser<'a> {
                     value
                 };
                 return Ok(Some(self.tree.insert(
-                    Argument::NamedFunction { name, value },
+                    Argument::Function { name, value },
                     self.get_span_from(start),
                 )));
             }
@@ -737,9 +739,11 @@ impl<'a> Parser<'a> {
                     match self.tree.get_mut(function_id) {
                         Definition::Function {
                             meta: DefinitionMeta { name, .. },
+                            style,
                             ..
                         } => {
                             *name = None;
+                            *style = FunctionStyle::Lambda;
                         }
                         _ => panic!("expected function definition"),
                     };
@@ -756,7 +760,7 @@ impl<'a> Parser<'a> {
                         value
                     };
                     self.tree.insert(
-                        Argument::NamedFunction { name, value },
+                        Argument::Function { name, value },
                         self.get_span_from(start),
                     )
                 }
@@ -774,7 +778,7 @@ impl<'a> Parser<'a> {
                 else {
                     let name = self.eat_identifier()?;
                     self.tree
-                        .insert(Argument::NamedShorthand { name }, self.get_span_from(start))
+                        .insert(Argument::Shorthand { name }, self.get_span_from(start))
                 }
             };
             arguments.push(argument_id);
@@ -1219,7 +1223,7 @@ mod tests {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
         // y
-        assert_node!(parser.tree, arguments[1], Argument::NamedShorthand { name } => {
+        assert_node!(parser.tree, arguments[1], Argument::Shorthand { name } => {
             assert_string!(parser, *name, "y");
         });
         // "Content-Type": "application/json"
@@ -1267,7 +1271,7 @@ mod tests {
         });
 
         // b (shorthand)
-        assert_node!(parser.tree, arguments[1], Argument::NamedShorthand { name } => {
+        assert_node!(parser.tree, arguments[1], Argument::Shorthand { name } => {
             assert_string!(parser, *name, "b");
         });
 
@@ -1288,7 +1292,7 @@ mod tests {
         });
 
         // e<T>()
-        assert_node!(parser.tree, arguments[4], Argument::NamedFunction { name, value } => {
+        assert_node!(parser.tree, arguments[4], Argument::Function { name, value } => {
             assert_string!(parser, name.string(), "e");
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, .. } => {
@@ -1301,7 +1305,7 @@ mod tests {
         });
 
         // f?(): T
-        assert_node!(parser.tree, arguments[5], Argument::NamedFunction { name, value } => {
+        assert_node!(parser.tree, arguments[5], Argument::Function { name, value } => {
             assert_string!(parser, name.string(), "f");
             assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
                 assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
@@ -1327,7 +1331,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 1);
             // fetch
-            assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { name, value } => {
                 assert_string!(parser, name.string(), "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
@@ -1352,14 +1356,14 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 2);
             // foo
-            assert_node!(parser.tree, fields[0], Argument::NamedFunction { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { name, value } => {
                 assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
             // foo?(): T
-            assert_node!(parser.tree, fields[1], Argument::NamedFunction { name, value } => {
+            assert_node!(parser.tree, fields[1], Argument::Function { name, value } => {
                 assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Definition(function_id) => {

@@ -1256,7 +1256,7 @@ const shapes = (
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
+            assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
                 assert_string!(parser, *name, "y");
             });
         });
@@ -1275,7 +1275,7 @@ const shapes = (
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
-                assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
+                assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
                     assert_string!(parser, *name, "y");
                 });
             });
@@ -1294,7 +1294,7 @@ const shapes = (
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::NamedShorthand { name } => {
+            assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
                 assert_string!(parser, *name, "y");
             });
         });
@@ -1594,7 +1594,7 @@ const shapes = (
                 assert_node!(
                     parser.tree,
                     fields[1],
-                    Argument::NamedShorthand { name } => {
+                    Argument::Shorthand { name } => {
                         assert_string!(parser, *name, "y");
                     }
                 );
@@ -1647,7 +1647,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     fields[1],
-                    Argument::NamedShorthand { name } => {
+                    Argument::Shorthand { name } => {
                         assert_string!(parser, *name, "y");
                     }
                 );

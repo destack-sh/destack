@@ -18,17 +18,17 @@ function clampScalar(v: float32, lo: float32, hi: float32) => float32 {
 
 implement Vector2 {
     /// The zero Vector2 (0, 0).
-    const Zero: Vector2 = Vector2 { x: 0.0, y: 0.0 }
+    const Zero = Vector2 { x: 0.0, y: 0.0 }
     /// The one Vector2 (1, 1).
-    const One: Vector2 = Vector2 { x: 1.0, y: 1.0 }
+    const One = Vector2 { x: 1.0, y: 1.0 }
     /// The unit x Vector2 (1, 0).
-    const UnitX: Vector2 = Vector2 { x: 1.0, y: 0.0 }
+    const UnitX = Vector2 { x: 1.0, y: 0.0 }
     /// The unit y Vector2 (0, 1).
-    const UnitY: Vector2 = Vector2 { x: 0.0, y: 1.0 }
+    const UnitY = Vector2 { x: 0.0, y: 1.0 }
     /// The negative unit x Vector2 (-1, 0).
-    const NegUnitX: Vector2 = Vector2 { x: -1.0, y: 0.0 }
+    const NegUnitX = Vector2 { x: -1.0, y: 0.0 }
     /// The negative unit y Vector2 (0, -1).
-    const NegUnitY: Vector2 = Vector2 { x: 0.0, y: -1.0 }
+    const NegUnitY = Vector2 { x: 0.0, y: -1.0 }
 
     /// Conexport struct a Vector2 with both components set to the same value.
     function splat(v: float32) => Vector2 {
@@ -161,21 +161,21 @@ export struct Vector3 {
 
 implement Vector3 {
     /// The zero Vector3 (0, 0, 0).
-    const Zero: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 0.0 }
+    const Zero = Vector3 { x: 0.0, y: 0.0, z: 0.0 }
     /// The one Vector3 (1, 1, 1).
-    const One: Vector3 = Vector3 { x: 1.0, y: 1.0, z: 1.0 }
+    const One = Vector3 { x: 1.0, y: 1.0, z: 1.0 }
     /// The unit x Vector3 (1, 0, 0).
-    const UnitX: Vector3 = Vector3 { x: 1.0, y: 0.0, z: 0.0 }
+    const UnitX = Vector3 { x: 1.0, y: 0.0, z: 0.0 }
     /// The unit y Vector3 (0, 1, 0).
-    const UnitY: Vector3 = Vector3 { x: 0.0, y: 1.0, z: 0.0 }
+    const UnitY = Vector3 { x: 0.0, y: 1.0, z: 0.0 }
     /// The unit z Vector3 (0, 0, 1).
-    const UnitZ: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 1.0 }
+    const UnitZ = Vector3 { x: 0.0, y: 0.0, z: 1.0 }
     /// The negative unit x Vector3 (-1, 0, 0).
-    const NegUnitX: Vector3 = Vector3 { x: -1.0, y: 0.0, z: 0.0 }
+    const NegUnitX = Vector3 { x: -1.0, y: 0.0, z: 0.0 }
     /// The negative unit y Vector3 (0, -1, 0).
-    const NegUnitY: Vector3 = Vector3 { x: 0.0, y: -1.0, z: 0.0 }
+    const NegUnitY = Vector3 { x: 0.0, y: -1.0, z: 0.0 }
     /// The negative unit z Vector3 (0, 0, -1).
-    const NegUnitZ: Vector3 = Vector3 { x: 0.0, y: 0.0, z: -1.0 }
+    const NegUnitZ = Vector3 { x: 0.0, y: 0.0, z: -1.0 }
 
     /// Conexport struct a Vector3 from x, y and z components.
     function new(x: float32, y: float32, z: float32) => Vector3 {
@@ -332,25 +332,25 @@ export struct Vector4 {
 
 implement Vector4 {
     /// The zero Vector4 (0, 0, 0, 0).
-    const Zero: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
+    const Zero = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
     /// The one Vector4 (1, 1, 1, 1).
-    const One: Vector4 = Vector4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
+    const One = Vector4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
     /// The unit x Vector4 (1, 0, 0, 0).
-    const UnitX: Vector4 = Vector4 { x: 1.0, y: 0.0, z: 0.0, w: 0.0 }
+    const UnitX = Vector4 { x: 1.0, y: 0.0, z: 0.0, w: 0.0 }
     /// The unit y Vector4 (0, 1, 0, 0).
-    const UnitY: Vector4 = Vector4 { x: 0.0, y: 1.0, z: 0.0, w: 0.0 }
+    const UnitY = Vector4 { x: 0.0, y: 1.0, z: 0.0, w: 0.0 }
     /// The unit z Vector4 (0, 0, 1, 0).
-    const UnitZ: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 0.0 }
+    const UnitZ = Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 0.0 }
     /// The unit w Vector4 (0, 0, 0, 1).
-    const UnitW: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    const UnitW = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
     /// The negative unit x Vector4 (-1, 0, 0, 0).
-    const NegUnitX: Vector4 = Vector4 { x: -1.0, y: 0.0, z: 0.0, w: 0.0 }
+    const NegUnitX = Vector4 { x: -1.0, y: 0.0, z: 0.0, w: 0.0 }
     /// The negative unit y Vector4 (0, -1, 0, 0).
-    const NegUnitY: Vector4 = Vector4 { x: 0.0, y: -1.0, z: 0.0, w: 0.0 }
+    const NegUnitY = Vector4 { x: 0.0, y: -1.0, z: 0.0, w: 0.0 }
     /// The negative unit z Vector4 (0, 0, -1, 0).
-    const NegUnitZ: Vector4 = Vector4 { x: 0.0, y: 0.0, z: -1.0, w: 0.0 }
+    const NegUnitZ = Vector4 { x: 0.0, y: 0.0, z: -1.0, w: 0.0 }
     /// The negative unit w Vector4 (0, 0, 0, -1).
-    const NegUnitW: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: -1.0 }
+    const NegUnitW = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: -1.0 }
 
     /// Conexport struct a Vector4 from x, y, z and w components.
     function new(x: float32, y: float32, z: float32, w: float32) => Vector4 {
@@ -519,17 +519,17 @@ export struct Vector2i {
 
 implement Vector2i {
     /// The zero Vector2i (0, 0).
-    const Zero: Vector2i = Vector2i { x: 0, y: 0 }
+    const Zero = Vector2i { x: 0, y: 0 }
     /// The one Vector2i (1, 1).
-    const One: Vector2i = Vector2i { x: 1, y: 1 }
+    const One = Vector2i { x: 1, y: 1 }
     /// The unit x Vector2i (1, 0).
-    const UnitX: Vector2i = Vector2i { x: 1, y: 0 }
+    const UnitX = Vector2i { x: 1, y: 0 }
     /// The unit y Vector2i (0, 1).
-    const UnitY: Vector2i = Vector2i { x: 0, y: 1 }
+    const UnitY = Vector2i { x: 0, y: 1 }
     /// The negative unit x Vector2i (-1, 0).
-    const NegUnitX: Vector2i = Vector2i { x: -1, y: 0 }
+    const NegUnitX = Vector2i { x: -1, y: 0 }
     /// The negative unit y Vector2i (0, -1).
-    const NegUnitY: Vector2i = Vector2i { x: 0, y: -1 }
+    const NegUnitY = Vector2i { x: 0, y: -1 }
 
     /// Conexport struct a Vector2i from x and y components.
     function new(x: int32, y: int32) => Vector2i {
@@ -656,21 +656,21 @@ export struct Vector3i {
 
 implement Vector3i {
     /// The zero Vector3i (0, 0, 0).
-    const Zero: Vector3i = Vector3i { x: 0, y: 0, z: 0 }
+    const Zero = Vector3i { x: 0, y: 0, z: 0 }
     /// The one Vector3i (1, 1, 1).
-    const One: Vector3i = Vector3i { x: 1, y: 1, z: 1 }
+    const One = Vector3i { x: 1, y: 1, z: 1 }
     /// The unit x Vector3i (1, 0, 0).
-    const UnitX: Vector3i = Vector3i { x: 1, y: 0, z: 0 }
+    const UnitX = Vector3i { x: 1, y: 0, z: 0 }
     /// The unit y Vector3i (0, 1, 0).
-    const UnitY: Vector3i = Vector3i { x: 0, y: 1, z: 0 }
+    const UnitY = Vector3i { x: 0, y: 1, z: 0 }
     /// The unit z Vector3i (0, 0, 1).
-    const UnitZ: Vector3i = Vector3i { x: 0, y: 0, z: 1 }
+    const UnitZ = Vector3i { x: 0, y: 0, z: 1 }
     /// The negative unit x Vector3i (-1, 0, 0).
-    const NegUnitX: Vector3i = Vector3i { x: -1, y: 0, z: 0 }
+    const NegUnitX = Vector3i { x: -1, y: 0, z: 0 }
     /// The negative unit y Vector3i (0, -1, 0).
-    const NegUnitY: Vector3i = Vector3i { x: 0, y: -1, z: 0 }
+    const NegUnitY = Vector3i { x: 0, y: -1, z: 0 }
     /// The negative unit z Vector3i (0, 0, -1).
-    const NegUnitZ: Vector3i = Vector3i { x: 0, y: 0, z: -1 }
+    const NegUnitZ = Vector3i { x: 0, y: 0, z: -1 }
 
     /// Conexport struct a Vector3i from x, y and z components.
     function new(x: int32, y: int32, z: int32) => Vector3i {
@@ -812,25 +812,25 @@ export struct Vector4i {
     w: int32
 
     /// The zero Vector4i (0, 0, 0, 0).
-    const Zero: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 }
+    const Zero = Vector4i { x: 0, y: 0, z: 0, w: 0 }
     /// The one Vector4i (1, 1, 1, 1).
-    const One: Vector4i = Vector4i { x: 1, y: 1, z: 1, w: 1 }
+    const One = Vector4i { x: 1, y: 1, z: 1, w: 1 }
     /// The unit x Vector4i (1, 0, 0, 0).
-    const UnitX: Vector4i = Vector4i { x: 1, y: 0, z: 0, w: 0 }
+    const UnitX = Vector4i { x: 1, y: 0, z: 0, w: 0 }
     /// The unit y Vector4i (0, 1, 0, 0).
-    const UnitY: Vector4i = Vector4i { x: 0, y: 1, z: 0, w: 0 }
+    const UnitY = Vector4i { x: 0, y: 1, z: 0, w: 0 }
     /// The unit z Vector4i (0, 0, 1, 0).
-    const UnitZ: Vector4i = Vector4i { x: 0, y: 0, z: 1, w: 0 }
+    const UnitZ = Vector4i { x: 0, y: 0, z: 1, w: 0 }
     /// The unit w Vector4i (0, 0, 0, 1).
-    const UnitW: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 1 }
+    const UnitW = Vector4i { x: 0, y: 0, z: 0, w: 1 }
     /// The negative unit x Vector4i (-1, 0, 0, 0).
-    const NegUnitX: Vector4i = Vector4i { x: -1, y: 0, z: 0, w: 0 }
+    const NegUnitX = Vector4i { x: -1, y: 0, z: 0, w: 0 }
     /// The negative unit y Vector4i (0, -1, 0, 0).
-    const NegUnitY: Vector4i = Vector4i { x: 0, y: -1, z: 0, w: 0 }
+    const NegUnitY = Vector4i { x: 0, y: -1, z: 0, w: 0 }
     /// The negative unit z Vector4i (0, 0, -1, 0).
-    const NegUnitZ: Vector4i = Vector4i { x: 0, y: 0, z: -1, w: 0 }
+    const NegUnitZ = Vector4i { x: 0, y: 0, z: -1, w: 0 }
     /// The negative unit w Vector4i (0, 0, 0, -1).
-    const NegUnitW: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: -1 }
+    const NegUnitW = Vector4i { x: 0, y: 0, z: 0, w: -1 }
 
     /// Conexport struct a Vector4i from x, y, z and w components.
     function new(x: int32, y: int32, z: int32, w: int32) => Vector4i {

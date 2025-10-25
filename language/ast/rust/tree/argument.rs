@@ -87,9 +87,9 @@ pub enum Argument {
         value: NodeId<Expression>,
     },
     /// Named shorthand argument (like `y`, only in certain contexts like struct literals).
-    NamedShorthand { name: StringId },
+    Shorthand { name: StringId },
     /// Named shorthand function argument (like `foo()`, only in certain contexts like struct literals).
-    NamedFunction {
+    Function {
         name: Name,
         value: NodeId<Expression>,
     },

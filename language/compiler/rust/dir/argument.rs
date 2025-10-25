@@ -69,7 +69,7 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::NamedShorthand { name } => {
+            ast::Argument::Shorthand { name } => {
                 let name = self.intern_string(source_id, *name);
                 let path = Path::UnresolvedAbsoluteString {
                     segments: smallvec![name],
@@ -83,7 +83,7 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::NamedFunction { name, value } => {
+            ast::Argument::Function { name, value } => {
                 let name = self.intern_string(source_id, name.string());
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(

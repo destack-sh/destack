@@ -32,10 +32,10 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
             Argument::Named { name, value } => {
                 write!(f, [name, token("="), value])?;
             }
-            Argument::NamedFunction { name, value } => {
+            Argument::Function { name, value } => {
                 write!(f, [name, token("="), value])?;
             }
-            Argument::NamedShorthand { name } => {
+            Argument::Shorthand { name } => {
                 write!(f, [name])?;
             }
             Argument::Positional { value } => {
@@ -212,7 +212,7 @@ pub fn is_trivial_expression(expression: &Expression) -> bool {
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value } => is_trivial_expression(tree.get(*value)),
-        Argument::NamedShorthand { name: _ } => true,
+        Argument::Shorthand { name: _ } => true,
         Argument::Positional { value } => is_trivial_expression(tree.get(*value)),
         Argument::Spread { value } => is_trivial_expression(tree.get(*value)),
         _ => false,
@@ -407,7 +407,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         f,
                         [
                             space(),
-                            token("with"),
+                            Keyword::With,
                             space(),
                             list_like("{", "}", ",", arguments).include_space()
                         ]

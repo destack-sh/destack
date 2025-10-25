@@ -213,40 +213,42 @@ impl<'a> Parser<'a> {
         };
 
         // function style: runtime, name, static parameters
-        let (runtime, name, static_parameters) = if style == FunctionStyle::Function {
-            // runtime
-            let runtime = if self.peek_token(TokenType::At).is_ok() {
-                self.eat_token(TokenType::At)?;
-                Runtime::Static
-            } else {
-                Runtime::Dynamic
-            };
+        let (runtime, name, static_parameters) = {
+            if style == FunctionStyle::Function {
+                // runtime
+                let runtime = if self.peek_token(TokenType::At).is_ok() {
+                    self.eat_token(TokenType::At)?;
+                    Runtime::Static
+                } else {
+                    Runtime::Dynamic
+                };
 
-            // name
-            let name = if self.peek_name().is_ok() {
-                Some(self.eat_name()?)
-            } else {
-                None
-            };
+                // name
+                let name = if self.peek_name().is_ok() {
+                    Some(self.eat_name()?)
+                } else {
+                    None
+                };
 
-            // maybe keyword after name (maybe)
-            if expect_maybe {
-                self.eat_token(TokenType::Maybe)?;
+                // maybe keyword after name (maybe)
+                if expect_maybe {
+                    self.eat_token(TokenType::Maybe)?;
+                }
+
+                // static parameters
+                let static_parameters = self
+                    .eat_static_parameters_maybe()
+                    .for_node_type(NodeType::Definition)?;
+
+                (runtime, name, static_parameters)
+            } else {
+                // static parameters
+                let static_parameters = self
+                    .eat_static_parameters_maybe()
+                    .for_node_type(NodeType::Definition)?;
+
+                (Runtime::Dynamic, None, static_parameters)
             }
-
-            // static parameters
-            let static_parameters = self
-                .eat_static_parameters_maybe()
-                .for_node_type(NodeType::Definition)?;
-
-            (runtime, name, static_parameters)
-        } else {
-            // static parameters
-            let static_parameters = self
-                .eat_static_parameters_maybe()
-                .for_node_type(NodeType::Definition)?;
-
-            (Runtime::Dynamic, None, static_parameters)
         };
         meta.name = name;
 

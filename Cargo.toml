@@ -11,7 +11,7 @@ members = [
 	"language/dvm",
 	"language/fir",
 	"language/formatter",
-	"language/jsvm",
+	"language/javascript",
 	"language/mir",
 	"language/parser",
 	"language/package",
@@ -78,7 +78,7 @@ dyst_dir = { path = "language/dir" }
 dyst_dvm = { path = "language/dvm" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
-dyst_jsvm = { path = "language/jsvm" }
+dyst_javascript = { path = "language/javascript" }
 dyst_memory = { path = "language/memory" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
