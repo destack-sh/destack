@@ -305,8 +305,36 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
+            // eat leading elementwise operator
+            if token.token.ty == TokenType::ElementwiseOr {
+                self.bump(); // eat elementwise operator
+                let leading_binary_operator = match token.token.ty {
+                    TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
+                    _ => unreachable!(),
+                };
+
+                // eat expression
+                let expression_id = self.eat_expression()?;
+
+                // check if it's the same elementwise operator
+                let expression = self.tree.get(expression_id);
+                match expression {
+                    Expression::Binary { operator, .. } if *operator == leading_binary_operator => {
+                        // all good, leading operator matches inner operator
+                    }
+                    _ => {
+                        return Err(ParserError::unexpected(self.get_span_from(start)));
+                    }
+                }
+
+                // expand span
+                self.tree.set_span(expression_id, self.get_span_from(start));
+
+                // forward the expression (no need to parse further here)
+                return Ok(expression_id);
+            }
             // shorthand lambda function value
-            if token.token.ty == TokenType::Identifier
+            else if token.token.ty == TokenType::Identifier
                 && !self.options.in_type
                 && !self.options.in_match_case
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
@@ -2261,9 +2289,9 @@ self
         });
     }
 
-    /// Parse a leading elementwise operator.
+    /// Parse a leading elementwise operator in a type expression.
     #[test]
-    fn test_parse_elementwise_leading_expression() {
+    fn test_parse_elementwise_leading_type_expression() {
         let mut test = TestParser::new(
             "
 type Value =
@@ -2292,6 +2320,39 @@ type Value =
                 });
                 // boolean
                 assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
+            });
+        });
+    }
+
+    /// Parse a leading elementwise operator in a value expression.
+    #[test]
+    fn test_parse_elementwise_leading_value_expression() {
+        let mut test = TestParser::new(
+            "
+const value =
+  | 1
+  | 2
+  | 3",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expr_id = parser.eat_expression().unwrap();
+        // const value = | 1 | 2 | 3
+        assert_node!(parser.tree, expr_id, Expression::Let { mutability, meta: DefinitionMeta { name: _, .. }, value, .. } => {
+            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            // | 1 | 2 | 3
+            assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                // 1 | 2
+                assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    // 1
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    // 2
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+                // 3
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
         });
     }

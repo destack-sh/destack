@@ -50,8 +50,17 @@ ws.on('todos:update', (changes) => {
 })
 
 <Menu
-    items={[
+    items=[[
         { to: '/posts' },
         { to: '/posts/$postId', params: { postId: 'postId' } },
-    ]}
+    ]]
 />
+
+interface X {
+    reason: 
+        | "URL"
+        | "DOM"
+        | "AnimationFrame"
+        | "Interval"
+        | "Listener"
+}

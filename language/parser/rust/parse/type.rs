@@ -1,4 +1,4 @@
-use dyst_ast::{BinaryOperator, DefinitionMeta, FloatType, Keyword, Mutability};
+use dyst_ast::{DefinitionMeta, FloatType, Keyword, Mutability};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -190,36 +190,9 @@ impl<'a> Parser<'a> {
                 // =
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;
-
-                // support leading elementwise operators
-                // (ignore leading | or &)
-                let leading_binary_operator = match self
-                    .eat_token_in_maybe(&[TokenType::ElementwiseOr, TokenType::ElementwiseAnd])?
-                {
-                    Some(TokenType::ElementwiseOr) => Some(BinaryOperator::ElementwiseOr),
-                    Some(TokenType::ElementwiseAnd) => Some(BinaryOperator::ElementwiseAnd),
-                    _ => None,
-                };
-
                 // value
                 let value_id =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-
-                // check if it's the same elementwise operator
-                if let Some(leading_binary_operator) = leading_binary_operator {
-                    let value = self.tree.get(value_id);
-                    match value {
-                        Expression::Binary { operator, .. }
-                            if *operator == leading_binary_operator =>
-                        {
-                            // all good, leading operator matches inner operator
-                        }
-                        _ => {
-                            return Err(ParserError::unexpected(self.get_span_from(start)));
-                        }
-                    }
-                }
-
                 // type
                 let expression = Expression::LetType {
                     mutability,
