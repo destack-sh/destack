@@ -18,4 +18,3 @@ export struct Tag {
     /// The designated Type for Values associated with self Tag. Any if unset.
     type: Type?
 }
-

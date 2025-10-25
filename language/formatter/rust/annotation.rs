@@ -450,7 +450,7 @@ mod tests {
         const A = 1
         // comment part 3
         // comment part 4
-    }
+    },
     // comment part 5
     // comment part 6
     b: {
@@ -459,7 +459,7 @@ mod tests {
         const B = 2
         // comment part 9
         // comment part 10
-    }
+    },
 }";
         assert_format!(
             source,
