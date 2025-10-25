@@ -232,7 +232,7 @@ impl<'a> Parser<'a> {
         open_token: TokenType,
         close_token: TokenType,
         target_type: TokenType,
-    ) -> ParserResult<Option<u32>> {
+    ) -> ParserResult<u32> {
         let mut depth = 0;
         let mut pos = self.pos() as usize;
         while let Some(token) = self.tokens.get(pos) {
@@ -246,11 +246,11 @@ impl<'a> Parser<'a> {
             }
             // token at depth 1 (immediately inside the matching pair)
             else if depth == 1 && token.token.ty == target_type {
-                return Ok(Some(pos as u32));
+                return Ok(pos as u32);
             }
             // end: return position
             if depth == 0 {
-                return Ok(None);
+                break;
             }
             pos += 1;
         }
