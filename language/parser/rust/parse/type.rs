@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
     /// : (Foo, Bar)
     /// ```
     pub fn eat_super_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
-        // accept both : and extends/implements keywords (for #Leniency)
+        // accept both : and extends/implements keywords (for #Compatibility)
         if self.peek_token(TokenType::Colon).is_ok()
             || self.peek_keyword(Keyword::Extends).is_ok()
             || self.peek_keyword(Keyword::Implements).is_ok()

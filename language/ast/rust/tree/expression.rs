@@ -1,9 +1,7 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta,
-    ExportMode, ImportItem, ImportTarget, Mutability, Node, NodeId, NodeType, Parameter, Path,
-    Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator,
+    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta, DependencyItem, DependencyTarget, DependencyType, ExportType, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator
 };
 
 /// An Expression is a generic container for value-producing forms.
@@ -53,9 +51,10 @@ pub enum Expression {
     /// import foo as baz
     /// ```
     Import {
-        target: ImportTarget,
+        ty: DependencyType,
+        target: DependencyTarget,
         alias: Option<StringId>,
-        items: Option<Vec<NodeId<ImportItem>>>,
+        items: Option<Vec<NodeId<DependencyItem>>>,
     },
 
     /// An Export is an explicit export declaration for dependency management.
@@ -74,10 +73,11 @@ pub enum Expression {
     /// export foo as baz
     /// ```
     Export {
-        mode: ExportMode,
-        target: Option<ImportTarget>,
+        mode: ExportType,
+        ty: DependencyType,
+        target: Option<DependencyTarget>,
         alias: Option<StringId>,
-        items: Option<Vec<NodeId<ImportItem>>>,
+        items: Option<Vec<NodeId<DependencyItem>>>,
     },
 
     /// Let or var binding for constant or mutable variables.

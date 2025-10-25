@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
             false
         };
 
-        // : type (or keyword for #Leniency)
+        // : type (or keyword for #Compatibility)
         let ty = {
             if self.peek_colon().is_ok()
                 || (self.options.in_static
@@ -374,7 +374,7 @@ impl<'a> Parser<'a> {
                 .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
-        // nested spread argument (like {...b} in tree literals for #Leniency)
+        // nested spread argument (like {...b} in tree literals for #Compatibility)
         else if self.peek_token(TokenType::OpenBrace).is_ok()
             && (self.peek_next_token(TokenType::Range).is_ok()
                 || self.peek_next_token(TokenType::RangeWide).is_ok())

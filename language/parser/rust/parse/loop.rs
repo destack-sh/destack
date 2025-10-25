@@ -161,7 +161,7 @@ impl<'a> Parser<'a> {
                 parser.eat_pattern()
             })?;
 
-            // in (with of for #Leniency)
+            // in (with of for #Compatibility)
             self.eat_keyword_in(&[Keyword::In, Keyword::Of])?;
 
             // iterator

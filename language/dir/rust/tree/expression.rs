@@ -1,9 +1,9 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, Destination, ExportMode,
-    ImportItem, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter, Path,
-    Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral,
+    Argument, AssignOperator, BinaryOperator, Block, Definition, DependencyItem, DependencyType,
+    Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter,
+    Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral,
     UnaryOperator,
 };
 
@@ -20,11 +20,11 @@ pub enum Expression {
         body: Option<NodeId<Block>>,
     },
     /// Import dependency declaration (flattened for grouped items like `import foo.{bar, baz}`)
-    Import { items: Vec<NodeId<ImportItem>> },
+    Import { items: Vec<NodeId<DependencyItem>> },
     /// Export dependency declaration (flattened for grouped items like `export { bar } from foo`)
     Export {
-        mode: ExportMode,
-        items: Vec<NodeId<ImportItem>>,
+        mode: ExportType,
+        items: Vec<NodeId<DependencyItem>>,
     },
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {

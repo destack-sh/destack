@@ -95,14 +95,16 @@ impl<'a> Compiler<'a> {
                 Expression::With { clauses, body }
             }
             ast::Expression::Import {
+                ty,
                 target,
                 alias,
                 items,
             } => {
-                let items = self.lower_import_binding(
+                let items = self.lower_dependency_binding(
                     source_id,
                     ast,
                     expression_id,
+                    *ty,
                     Some(target),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
@@ -111,14 +113,16 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Export {
                 mode,
+                ty,
                 target,
                 alias,
                 items,
             } => {
-                let items = self.lower_import_binding(
+                let items = self.lower_dependency_binding(
                     source_id,
                     ast,
                     expression_id,
+                    *ty,
                     target.as_ref(),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),

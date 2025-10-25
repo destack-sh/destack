@@ -870,8 +870,8 @@ impl Dump for ScopedMutability {
     }
 }
 
-/// Dump an ExportMode as a string.
-impl Dump for ExportMode {
+/// Dump an ExportType as a string.
+impl Dump for ExportType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -946,15 +946,25 @@ impl Dump for DocStyle {
     }
 }
 
-/// Dump an ImportTarget as a string.
-impl Dump for ImportTarget {
+/// Dump a DependencyType as a string.
+impl Dump for DependencyType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump an DependencyTarget as a string.
+impl Dump for DependencyTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            ImportTarget::Path(path) => {
-                dumper.object("ImportTarget::Path").value(path).end();
+            DependencyTarget::Path(path) => {
+                dumper.object("DependencyTarget::Path").value(path).end();
             }
-            ImportTarget::Virtual(string) => {
-                dumper.object("ImportTarget::Virtual").value(string).end();
+            DependencyTarget::Virtual(string) => {
+                dumper
+                    .object("DependencyTarget::Virtual")
+                    .value(string)
+                    .end();
             }
         }
     }
@@ -1198,23 +1208,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::With", _id.id).end();
             }
             Expression::Import {
+                ty,
                 target,
                 alias,
                 items: _,
             } => {
-                self.node("Expression::Use", _id.id)
+                self.node("Expression::Import", _id.id)
+                    .field("ty", ty)
                     .field("target", target)
                     .field_optional("alias", alias)
                     .end();
             }
             Expression::Export {
                 mode,
+                ty,
                 target,
                 alias,
                 items: _,
             } => {
                 self.node("Expression::Export", _id.id)
                     .field("mode", mode)
+                    .field("ty", ty)
                     .field_optional("target", target)
                     .field_optional("alias", alias)
                     .end();
@@ -1750,7 +1764,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_import_item(&mut self, _tree: &NodeTree, _id: NodeId<ImportItem>, item: &ImportItem) {
+    fn visit_import_item(
+        &mut self,
+        _tree: &NodeTree,
+        _id: NodeId<DependencyItem>,
+        item: &DependencyItem,
+    ) {
         self.node("UseItem", _id.id)
             .field("name", &item.name)
             .field_optional("alias", &item.alias)

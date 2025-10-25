@@ -4,23 +4,32 @@ use crate::{Node, NodeType, Path};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExportMode {
+pub enum ExportType {
     // Export as regular item (export foo)
     Item,
     // Export as default item (export default foo)
     Default,
 }
 
-/// A ImportTarget is the target to import from.
+/// A DependencyTarget is the target to import from.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ImportTarget {
+pub enum DependencyTarget {
     // Regular Path target as an identifier/path (like `foo` or `foo.bar`)
     Path(Path),
     // Virtual string target as a literal string (like `"foo"` or `"foo/bar"`)
     Virtual(StringId),
 }
 
-/// A ImportItem is an item to import from a target in a import clause.
+/// The type of a dependency item.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DependencyType {
+    /// Type dependency (`import type foo` or `export type foo`).
+    Type,
+    /// Value dependency (`import foo` or `export foo`).
+    Value,
+}
+
+/// A DependencyItem is an item to import from a target in a import clause.
 ///
 /// Examples:
 /// ```
@@ -28,13 +37,15 @@ pub enum ImportTarget {
 /// qux as quux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImportItem {
+pub struct DependencyItem {
+    /// The type of the item.
+    pub ty: DependencyType,
     /// The source of the item (like `foo` in `foo as bar`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar`)
     pub alias: Option<StringId>,
 }
 
-impl Node for ImportItem {
-    const KIND: NodeType = NodeType::ImportItem;
+impl Node for DependencyItem {
+    const KIND: NodeType = NodeType::DependencyItem;
 }

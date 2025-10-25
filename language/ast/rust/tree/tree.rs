@@ -6,7 +6,7 @@ use dyst_source::{SourceId, Span};
 use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, Doc,
-    EnumField, Expression, ImportItem, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter,
+    EnumField, Expression, DependencyItem, MatchCase, Node, NodeId, NodeSpanIndex, NodeType, Parameter,
     Pattern, PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
 };
 
@@ -38,7 +38,7 @@ pub struct NodeTree {
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) import_items: NodeArena<ImportItem>,
+    pub(crate) import_items: NodeArena<DependencyItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
@@ -250,7 +250,7 @@ impl NodeTree {
             // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            NodeType::ImportItem => self.import_items.deallocate(local_ids),
+            NodeType::DependencyItem => self.import_items.deallocate(local_ids),
             // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
             NodeType::Argument => self.arguments.deallocate(local_ids),
@@ -396,7 +396,7 @@ impl_node_tree_stores! {
     // context
     WithClause => with_clauses,
     WhereClause => where_clauses,
-    ImportItem => import_items,
+    DependencyItem => import_items,
     // bindings
     Parameter => parameters,
     Argument => arguments,

@@ -752,12 +752,12 @@ impl Dump for DeclarationKind {
     }
 }
 
-/// Dump a ExportMode as a string.
-impl Dump for ExportMode {
+/// Dump a ExportType as a string.
+impl Dump for ExportType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            ExportMode::Item => dumper.write_str("ExportMode::Item", Some(Color::Yellow)),
-            ExportMode::Default => dumper.write_str("ExportMode::Default", Some(Color::Yellow)),
+            ExportType::Item => dumper.write_str("ExportType::Item", Some(Color::Yellow)),
+            ExportType::Default => dumper.write_str("ExportType::Default", Some(Color::Yellow)),
         }
     }
 }
@@ -999,15 +999,25 @@ impl Dump for Intrinsic {
     }
 }
 
-/// Dump an ImportTarget as a string.
-impl Dump for ImportTarget {
+/// Dump a DependencyType as a string.
+impl Dump for DependencyType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump an DependencyTarget as a string.
+impl Dump for DependencyTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            ImportTarget::Path(path) => {
-                dumper.object("ImportTarget::Path").value(path).end();
+            DependencyTarget::Path(path) => {
+                dumper.object("DependencyTarget::Path").value(path).end();
             }
-            ImportTarget::Virtual(string) => {
-                dumper.object("ImportTarget::Virtual").value(string).end();
+            DependencyTarget::Virtual(string) => {
+                dumper
+                    .object("DependencyTarget::Virtual")
+                    .value(string)
+                    .end();
             }
         }
     }
@@ -1861,22 +1871,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_import_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<ImportItem>,
-        import_item: &ImportItem,
+        id: NodeId<DependencyItem>,
+        import_item: &DependencyItem,
     ) {
         match import_item {
-            ImportItem::Glob { target, alias } => {
-                self.node("ImportItem::Glob", id.id)
+            DependencyItem::Glob { ty, target, alias } => {
+                self.node("DependencyItem::Glob", id.id)
+                    .field("ty", ty)
                     .field("target", target)
                     .field_optional("alias", alias)
                     .end();
             }
-            ImportItem::Scalar {
+            DependencyItem::Scalar {
+                ty,
                 target,
                 name,
                 alias,
             } => {
-                self.node("ImportItem::Scalar", id.id)
+                self.node("DependencyItem::Scalar", id.id)
+                    .field("ty", ty)
                     .field_optional("target", target)
                     .field("name", name)
                     .field_optional("alias", alias)

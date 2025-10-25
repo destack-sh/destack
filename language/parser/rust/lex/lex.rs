@@ -689,7 +689,7 @@ impl Lexer<'_> {
                 }
             }
 
-            // character literal (with fallback to string literal for #Leniency)
+            // character literal (with fallback to string literal for #Compatibility)
             '\'' => match self.eat_single_quoted_string() {
                 SingleQuotedLiteral::Character { is_terminated } => {
                     let kind = LiteralType::Character { is_terminated };

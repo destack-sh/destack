@@ -7,7 +7,7 @@ use crate::{
     Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asyncness, DeclarationKind, ExportMode, FunctionCardinality, FunctionStyle, Visibility,
+    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionStyle, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -51,11 +51,11 @@ impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for ExportMode {
+impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ExportMode::Item => write!(f, [Keyword::Export])?,
-            ExportMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
+            ExportType::Item => write!(f, [Keyword::Export])?,
+            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
         };
         Ok(())
     }
