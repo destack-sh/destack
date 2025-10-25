@@ -10,10 +10,6 @@ export {
 	type StructuredObjectOptions,
 } from './lib/structured-object.ng';
 
-export type UseChatHelpers<UI_MESSAGE extends UIMessage> = {
-	// hey
-};
-
 type T1 = Extract<string | number | (() => void), Function>;
 
 Bun.serve({
@@ -477,11 +473,11 @@ test('source-only', () => {
 const renderCounterRegistry: Map<string, Set<{ count: number }>> = new Map();
 
 export function clearRenderCounterRegistry() {
-	// for (const counters of renderCounterRegistry.values()) {
-	// 	counters.forEach(counter => {
-	// 		counter.count = 0;
-	// 	});
-	// }
+	for (const counters of renderCounterRegistry.values()) {
+		counters.forEach(counter => {
+			counter.count = 0;
+		});
+	}
 }
 
 const ast = await parseAsync(text, {
@@ -642,7 +638,7 @@ DISK: ${chalk.yellow('70%')}
 		isDraftExperiment={isDraftExperiment}
 		onVariantChange={(index, field, value) => {
 			const currentVariants = [...variants];
-			// currentVariants[index] = { ...currentVariants[index], [field]: value }
+			currentVariants[index] = { ...currentVariants[index], [field]: value }
 			setFeatureFlag({
 				...featureFlag,
 				filters: {

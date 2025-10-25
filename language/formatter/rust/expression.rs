@@ -197,7 +197,7 @@ pub(crate) fn format_match<'ast>(
 }
 
 /// Whether an expression is "trivial" (prefers to be fully inline).
-pub fn is_trivial_expression(expression: &Expression) -> bool {
+pub fn is_trivial_expression(_tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
         Expression::Path {
@@ -208,13 +208,33 @@ pub fn is_trivial_expression(expression: &Expression) -> bool {
     }
 }
 
+/// Whether an expression is "complex" (prefers to be multiline).
+pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
+    match expression {
+        Expression::StructLiteral { ty, fields, .. } => ty.is_some() || fields.len() > 1,
+        Expression::TreeLiteral { .. } => true,
+        _ => false,
+    }
+}
+
 /// Whether an argument is "trivial" (prefers to be inline).
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { name: _, value } => is_trivial_expression(tree.get(*value)),
+        Argument::Named { name: _, value } => is_trivial_expression(tree, tree.get(*value)),
         Argument::Shorthand { name: _ } => true,
-        Argument::Positional { value } => is_trivial_expression(tree.get(*value)),
-        Argument::Spread { value } => is_trivial_expression(tree.get(*value)),
+        Argument::Positional { value } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Spread { value } => is_trivial_expression(tree, tree.get(*value)),
+        _ => false,
+    }
+}
+
+/// Whether an argument is "complex" (prefers to be multiline).
+pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
+    match argument {
+        Argument::Named { name: _, value } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Shorthand { name: _ } => false,
+        Argument::Positional { value } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Spread { value } => is_complex_expression(tree, tree.get(*value)),
         _ => false,
     }
 }
@@ -245,12 +265,14 @@ pub(crate) fn format_struct_literal<'ast>(
         || fields_ids
             .iter()
             .any(|field| f.context().has_annotation(*field));
+    let keep_newline =
+        f.context().has_newline(f.context().get_span(expression_id)) && fields.len() > 1;
 
     write!(
         f,
         [list_like("{", "}", ",", fields_ids)
             .include_space()
-            .should_expand(!is_trivial || has_annotations)]
+            .should_expand(!is_trivial || has_annotations || keep_newline)]
     )?;
     Ok(())
 }
@@ -351,6 +373,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        let tree = f.context().tree;
 
         match self {
             // definition
@@ -804,12 +828,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // scalar literal
             Expression::ScalarLiteral(node) => {
-                format_scalar_literal(node, f.context().tree.get_span(node_id), f)?;
+                format_scalar_literal(node, tree.get_span(node_id), f)?;
             }
 
             // template literal
             Expression::TemplateLiteral(node) => {
-                format_template_literal(node, f.context().tree.get_span(node_id), f)?;
+                format_template_literal(node, tree.get_span(node_id), f)?;
             }
 
             // type literal
@@ -829,18 +853,47 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // array literal
-            Expression::ArrayLiteral { elements } => {
-                write!(f, [list_like("[", "]", ",", elements)])?;
+            Expression::ArrayLiteral {
+                elements: elements_ids,
+            } => {
+                let span = f.context().get_span(node_id);
+                let elements = elements_ids
+                    .iter()
+                    .map(|id| tree.get(*id))
+                    .collect::<SmallVec<_, 3>>();
+                let should_expand = elements.len() > 1
+                    && elements
+                        .iter()
+                        .any(|element| is_complex_expression(tree, element))
+                    || f.context().has_newline(span) && elements.len() > 1;
+                write!(
+                    f,
+                    [list_like("[", "]", ",", elements_ids).should_expand(should_expand)]
+                )?;
             }
 
             // tuple literal
-            Expression::TupleLiteral { elements } => {
-                if elements.is_empty() {
+            Expression::TupleLiteral {
+                elements: elements_ids,
+            } => {
+                if elements_ids.is_empty() {
                     write!(f, [token("()")])?;
                 } else {
+                    let span = f.context().get_span(node_id);
+                    let elements = elements_ids
+                        .iter()
+                        .map(|id| tree.get(*id))
+                        .collect::<SmallVec<_, 3>>();
+                    let should_expand = elements.len() > 1
+                        && elements
+                            .iter()
+                            .any(|element| is_complex_argument(tree, element))
+                        || f.context().has_newline(span) && elements.len() > 1;
                     write!(
                         f,
-                        [list_like("(", ")", ",", elements).force_trailing_separator()]
+                        [list_like("(", ")", ",", elements_ids)
+                            .force_trailing_separator()
+                            .should_expand(should_expand)]
                     )?;
                 }
             }
@@ -861,7 +914,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // parenthesized
             Expression::Parenthesized { expression } => {
-                let inner_expression = f.context().tree.get(*expression);
+                let inner_expression = tree.get(*expression);
                 if let Expression::TreeLiteral { .. } = inner_expression {
                     write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
                 } else {
@@ -1259,6 +1312,25 @@ mod tests {
         return Response("Success!")
     },
     run: true,
+})"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DystFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_expression_let_call() {
+        let source = r#"const ast = await parseAsync(text, {
+    sourceFileName: "file",
+    parserOpts: {
+        plugins: ["typescript", "jsx"],
+    },
+    sourceType: "module",
+    configFile: false,
+    babelrc: false,
 })"#;
         assert_format!(
             source,
