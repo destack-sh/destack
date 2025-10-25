@@ -1247,13 +1247,13 @@ mod tests {
     fn test_parse_struct_literal_body_like_type() {
         let mut test = TestParser::new(
             "{ 
-    readonly a?: T // readonly T?
-    b
-    c?: T // T?  
-    readonly d: T // readonly T
-    e<T>()
-    f?(): T
-} ",
+    readonly a?: T, // readonly T?
+    b,
+    c?: T, // T?  
+    readonly d: T, // readonly T
+    e<T>(),
+    f?(): T,
+}",
         );
         let mut parser = test.prepare();
 
