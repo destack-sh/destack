@@ -67,6 +67,12 @@ pub enum TypeLiteral {
 /// A TypeUnaryOperator is a type unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeUnaryOperator {
+    /// Not `!T`.
+    Not,
+    /// Maybe 'T?'.
+    Maybe,
+    /// Must 'T!'.
+    Must,
     /// `type`
     Type,
     /// `readonly`
@@ -104,26 +110,31 @@ pub enum Type {
     ///  (same with all statically parameterized instantiations like Functions etc.?)
     Definition(NodeId<Definition>),
 
-    /// Not `!T`.
-    Not(NodeId<Type>),
-    /// Maybe 'T?'.
-    Maybe(NodeId<Type>),
-    /// Must 'T!'.
-    Must(NodeId<Type>),
+    /// Type unary operator.
+    Unary {
+        operator: TypeUnaryOperator,
+        right: NodeId<Type>,
+    },
     /// Mutable or immutable type `T`.
     Mutable {
         mutability: Mutability,
-        target: NodeId<Type>,
+        right: NodeId<Type>,
     },
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
         mutability: Option<ScopedMutability>,
-        target: NodeId<Type>,
+        right: NodeId<Type>,
     },
     /// Dynamic type `$T` (any subtype or Into<T>).
     Dynamic {
         mutability: Option<ScopedMutability>,
-        target: NodeId<Type>,
+        right: NodeId<Type>,
+    },
+    /// Type binary operator.
+    Binary {
+        left: NodeId<Type>,
+        operator: TypeBinaryOperator,
+        right: NodeId<Type>,
     },
 
     /// Range type `T..T` (or `T..=T` for inclusive range).

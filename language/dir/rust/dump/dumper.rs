@@ -1699,18 +1699,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Type::Definition", id.id).end();
             }
 
-            Type::Not(_) => {
-                self.node("Type::Not", id.id).end();
-            }
-            Type::Maybe(_) => {
-                self.node("Type::Maybe", id.id).end();
-            }
-            Type::Must(_) => {
-                self.node("Type::Must", id.id).end();
+            Type::Unary { operator, right: _ } => {
+                self.node("Type::Unary", id.id)
+                    .field("operator", operator)
+                    .end();
             }
             Type::Mutable {
                 mutability,
-                target: _,
+                right: _,
             } => {
                 self.node("Type::Mutable", id.id)
                     .field("mutability", mutability)
@@ -1718,7 +1714,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Type::Reference {
                 mutability,
-                target: _,
+                right: _,
             } => {
                 self.node("Type::Reference", id.id)
                     .field_optional("mutability", mutability)
@@ -1726,10 +1722,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Type::Dynamic {
                 mutability,
-                target: _,
+                right: _,
             } => {
                 self.node("Type::Dynamic", id.id)
                     .field_optional("mutability", mutability)
+                    .end();
+            }
+            Type::Binary {
+                left: _,
+                operator,
+                right: _,
+            } => {
+                self.node("Type::Binary", id.id)
+                    .field("operator", operator)
                     .end();
             }
 

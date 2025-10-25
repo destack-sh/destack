@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, NodeId, Type, TypeLiteral, UnaryOperator};
+use dyst_dir::{Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator};
 
 use crate::{Compiler, ResolveResult};
 
@@ -40,7 +40,6 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an Expression into a Type (in-place).
-    // nocheckin: type unary operators in DIR Type? (also move not, maybe, must into DIR type operator?)
     fn resolve_expression_to_type(
         &mut self,
         expression_id: NodeId<Expression>,
@@ -59,17 +58,26 @@ impl<'a> Compiler<'a> {
                 expression,
             } => {
                 let type_id = self.try_resolve_expression_to_type(*expression)?;
-                Type::Not(type_id)
+                Type::Unary {
+                    operator: TypeUnaryOperator::Not,
+                    right: type_id,
+                }
             }
             // maybe
             Expression::Maybe { left } => {
                 let type_id = self.try_resolve_expression_to_type(*left)?;
-                Type::Maybe(type_id)
+                Type::Unary {
+                    operator: TypeUnaryOperator::Maybe,
+                    right: type_id,
+                }
             }
             // must
             Expression::Must { left } => {
                 let type_id = self.try_resolve_expression_to_type(*left)?;
-                Type::Must(type_id)
+                Type::Unary {
+                    operator: TypeUnaryOperator::Must,
+                    right: type_id,
+                }
             }
             // reference
             Expression::Reference { mutability, right } => {
@@ -77,7 +85,7 @@ impl<'a> Compiler<'a> {
                 let type_id = self.try_resolve_expression_to_type(*right)?;
                 Type::Reference {
                     mutability,
-                    target: type_id,
+                    right: type_id,
                 }
             }
             // dynamic
@@ -86,7 +94,21 @@ impl<'a> Compiler<'a> {
                 let type_id = self.try_resolve_expression_to_type(*right)?;
                 Type::Dynamic {
                     mutability,
-                    target: type_id,
+                    right: type_id,
+                }
+            }
+            // binary
+            &Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_id = self.try_resolve_expression_to_type(left)?;
+                let right_id = self.try_resolve_expression_to_type(right)?;
+                Type::Binary {
+                    left: left_id,
+                    operator,
+                    right: right_id,
                 }
             }
 
