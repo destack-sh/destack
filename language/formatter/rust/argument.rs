@@ -98,6 +98,7 @@ where
                 block_indent(body),
                 &token(self.end_token)
             ])
+            .should_expand(self.force_expand)
             .format(f)
         });
 
