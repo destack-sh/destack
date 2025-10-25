@@ -2,7 +2,7 @@ use dyst_ast::TokenType;
 
 use crate::{Keyword, Parser, ParserError, ParserResult, Visibility};
 
-// NOTE: we support parsing `#name` as alias for `private name` for #Leniency
+// NOTE: we support parsing `#name` as alias for `private name` for #Compatibility
 // (only works in compatibility mode since #name is pre-parsed as a tag)
 
 impl<'a> Parser<'a> {

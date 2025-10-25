@@ -3,28 +3,35 @@ use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
 use crate::argument::list_like;
-use crate::{DystFormatContext, DystFormatter, FormatNode, ImportItem, ImportTarget, NodeId};
+use crate::{
+    DependencyItem, DependencyTarget, DystFormatContext, DystFormatter, FormatNode, NodeId,
+};
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-impl<'ast> Format<DystFormatContext<'ast>> for ImportTarget {
+impl<'ast> Format<DystFormatContext<'ast>> for DependencyTarget {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ImportTarget::Path(path) => write!(f, [path]),
-            ImportTarget::Virtual(string) => write!(f, [token("\""), string, token("\"")]),
+            DependencyTarget::Path(path) => write!(f, [path]),
+            DependencyTarget::Virtual(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }
 
-impl<'ast> FormatNode<'ast, ImportItem> for ImportItem {
+impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
-        node_id: NodeId<ImportItem>,
+        node_id: NodeId<DependencyItem>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        // type
+        if self.ty == DependencyType::Type {
+            write!(f, [Keyword::Type, space()])?;
+        }
 
         // name and alias
         write!(f, [self.name])?;
@@ -39,11 +46,11 @@ impl<'ast> FormatNode<'ast, ImportItem> for ImportItem {
 }
 
 /// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
-pub(crate) fn format_import_binding<'ast>(
+pub(crate) fn format_dependency_binding<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    target: Option<&ImportTarget>,
+    target: Option<&DependencyTarget>,
     alias: Option<StringId>,
-    items: Option<&Vec<NodeId<ImportItem>>>,
+    items: Option<&Vec<NodeId<DependencyItem>>>,
 ) -> FormatResult<()> {
     // items with maybe target
     if let Some(items) = items

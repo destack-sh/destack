@@ -1,7 +1,7 @@
 use crate::{Argument, NodeId, Path, StringId};
 
 /// A ScalarLiteral is literal scalar value node.
-/// NOTE: for #Leniency we parse multi-character `'aa'` as regular string literals.
+/// NOTE: for #Compatibility we parse multi-character `'aa'` as regular string literals.
 ///
 /// Examples:
 /// ```

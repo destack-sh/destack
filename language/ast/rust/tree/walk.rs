@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    DependencyItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
     PatternField, Tag, TemplateLiteral, UnionField, VariantField, WhereClause, WithClause,
 };
 
@@ -54,7 +54,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let where_clause = tree.where_clauses.get(local_idx);
             walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
         }
-        NodeType::ImportItem => {
+        NodeType::DependencyItem => {
             let import_item = tree.import_items.get(local_idx);
             walk_import_item(visitor, tree, NodeId::new(node_id), import_item);
         }
@@ -164,6 +164,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
+            ty: _,
             target: _,
             alias: _,
             items,
@@ -178,6 +179,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Export {
             mode: _,
+            ty: _,
             target: _,
             alias: _,
             items,
@@ -1041,10 +1043,10 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 pub fn walk_import_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     _tree: &NodeTree,
-    id: NodeId<ImportItem>,
-    _import_item: &ImportItem,
+    id: NodeId<DependencyItem>,
+    _import_item: &DependencyItem,
 ) {
-    visitor.visit_any(_tree, NodeType::ImportItem, id.id);
+    visitor.visit_any(_tree, NodeType::DependencyItem, id.id);
     // UseItem has no child nodes to visit (only StringId fields)
 }
 

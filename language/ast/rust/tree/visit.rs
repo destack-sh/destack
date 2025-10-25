@@ -2,7 +2,7 @@
 
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    ImportItem, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Tag,
+    DependencyItem, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Tag,
     UnionField, VariantField, WhereClause, WithClause, walk_annotation, walk_argument, walk_blank,
     walk_block, walk_comment, walk_decorator, walk_definition, walk_doc, walk_enum_field,
     walk_expression, walk_import_item, walk_match_case, walk_parameter, walk_pattern,
@@ -103,8 +103,8 @@ pub trait NodeVisitor {
     fn visit_import_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<ImportItem>,
-        import_item: &ImportItem,
+        id: NodeId<DependencyItem>,
+        import_item: &DependencyItem,
     ) {
         walk_import_item(self, tree, id, import_item);
     }
@@ -282,10 +282,10 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_import_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<ImportItem>,
-        import_item: &ImportItem,
+        id: NodeId<DependencyItem>,
+        import_item: &DependencyItem,
     ) {
-        self.visit_any(tree, NodeType::ImportItem, id.id);
+        self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
     // ------------------------------------------------------------

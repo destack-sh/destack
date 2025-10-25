@@ -1,5 +1,6 @@
 use dyst_ast::{
-    Argument, Asyncness, IfStyle, Mutability, NodeTree, Path, PostfixPosition, YieldCardinality,
+    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
+    YieldCardinality,
 };
 use dyst_container::SmallVec;
 use dyst_fir::format::BestFittingMode;
@@ -8,7 +9,7 @@ use dyst_fir::{best_fitting, format_args, write};
 
 use crate::argument::list_like;
 use crate::block::format_block;
-use crate::import::format_import_binding;
+use crate::import::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
@@ -193,17 +194,6 @@ pub(crate) fn format_match<'ast>(
     write!(f, [hard_line_break(), token("}")])?;
 
     Ok(())
-}
-
-/// Whether an expression is a "line start" expression (contains nested content but can begin on this line)
-pub fn is_line_start_expression(expression: &Expression) -> bool {
-    match expression {
-        Expression::TupleLiteral { .. }
-        | Expression::ArrayLiteral { .. }
-        | Expression::StructLiteral { .. }
-        | Expression::Call { .. } => true,
-        _ => false,
-    }
 }
 
 /// Whether an expression is "trivial" (prefers to be fully inline).
@@ -396,23 +386,41 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // import
             Expression::Import {
+                ty,
                 target,
                 alias,
                 items,
             } => {
                 write!(f, [Keyword::Import, space()])?;
-                format_import_binding(f, Some(target), alias.as_ref().copied(), items.as_ref())?;
+                if *ty == DependencyType::Type {
+                    write!(f, [Keyword::Type, space()])?;
+                }
+                format_dependency_binding(
+                    f,
+                    Some(target),
+                    alias.as_ref().copied(),
+                    items.as_ref(),
+                )?;
             }
 
             // export
             Expression::Export {
                 mode,
+                ty,
                 target,
                 alias,
                 items,
             } => {
                 write!(f, [mode, space()])?;
-                format_import_binding(f, target.as_ref(), alias.as_ref().copied(), items.as_ref())?;
+                if *ty == DependencyType::Type {
+                    write!(f, [Keyword::Type, space()])?;
+                }
+                format_dependency_binding(
+                    f,
+                    target.as_ref(),
+                    alias.as_ref().copied(),
+                    items.as_ref(),
+                )?;
             }
 
             // let

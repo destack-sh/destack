@@ -6,7 +6,7 @@ use crate::parse::prelude::*;
 use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult, Runtime};
 
 impl<'a> Parser<'a> {
-    /// Eat a match statement. Tolerates switch-style syntax for #Leniency.
+    /// Eat a match statement. Tolerates switch-style syntax for #Compatibility.
     ///
     /// Examples:
     /// ```
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         // keyword
-        // (accept switch for #Leniency)
+        // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let is_switch = keyword == Keyword::Switch;
 
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         let (pattern_id, guard) = {
-            // switch-style for #Leniency
+            // switch-style for #Compatibility
             if is_switch {
                 // default case
                 if self.peek_keyword(Keyword::Default).is_ok() {
@@ -382,7 +382,7 @@ match self {
         });
     }
 
-    /// Parse a switch-case statement for #Leniency.
+    /// Parse a switch-case statement for #Compatibility.
     #[test]
     fn test_parse_match_from_switch_case() {
         let mut test = TestParser::new(

@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantStyle};
 use crate::{
-    Asyncness, ExportMode, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
+    Asyncness, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
@@ -25,7 +25,7 @@ pub struct DefinitionMeta {
     /// The visibility of the definition.
     pub visibility: Option<Visibility> = None,
     /// The export mode of the definition.
-    pub export: Option<ExportMode> = None,
+    pub export: Option<ExportType> = None,
 }
 
 impl DefinitionMeta {

@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, ImportItem, MatchCase, NodeId, NodeTree,
+    Annotation, Argument, Block, Definition, Expression, DependencyItem, MatchCase, NodeId, NodeTree,
     NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
     WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_expression,
     walk_import_item, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type,
@@ -100,8 +100,8 @@ pub trait NodeVisitor {
     fn visit_import_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<ImportItem>,
-        import_item: &ImportItem,
+        id: NodeId<DependencyItem>,
+        import_item: &DependencyItem,
     ) {
         walk_import_item(self, tree, id, import_item);
     }
@@ -262,10 +262,10 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_import_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<ImportItem>,
-        _import_item: &ImportItem,
+        id: NodeId<DependencyItem>,
+        _import_item: &DependencyItem,
     ) {
-        self.visit_any(tree, NodeType::ImportItem, id.id);
+        self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
     // ------------------------------------------------------------

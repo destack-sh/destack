@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
-        // keyword (accepts `class` for #Leniency)
+        // keyword (accepts `class` for #Compatibility)
         self.eat_keyword_in(&[Keyword::Struct, Keyword::Class])
             .for_node_type(NodeType::Definition)?;
 

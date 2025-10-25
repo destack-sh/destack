@@ -1,5 +1,5 @@
 use crate::{
-    Asyncness, ExportMode, Expression, Generics, ImportItem, Intrinsic, Node, NodeId, NodeType,
+    Asyncness, ExportType, Expression, Generics, DependencyItem, Intrinsic, Node, NodeId, NodeType,
     Parameter, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility,
 };
 
@@ -43,7 +43,7 @@ pub struct DefinitionMeta {
     /// The visibility of the definition.
     pub visibility: Option<Visibility> = None,
     /// The export mode of the definition.
-    pub export: Option<ExportMode> = None,
+    pub export: Option<ExportType> = None,
 }
 
 /// Definition introduces a type or function into its scope.
@@ -52,11 +52,11 @@ pub enum Definition {
     /// Intrinsic definition.
     Intrinsic { intrinsic: Intrinsic },
     /// Import definition.
-    Import { items: Vec<NodeId<ImportItem>> },
+    Import { items: Vec<NodeId<DependencyItem>> },
     /// Export definition.
     Export {
-        mode: ExportMode,
-        items: Vec<NodeId<ImportItem>>,
+        mode: ExportType,
+        items: Vec<NodeId<DependencyItem>>,
     },
     /// Let definition.
     Let {

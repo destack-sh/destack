@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, ArgumentSlot, Block, Definition, Expression, FunctionSignature, Generics,
-    ImportItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    DependencyItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
     PatternField, TemplateLiteral, Type, Variant, VariantField, WhereClause, WithClause,
 };
 
@@ -57,7 +57,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let with_clause = tree.with_clauses.get(local_idx);
             walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
         }
-        NodeType::ImportItem => {
+        NodeType::DependencyItem => {
             let import_item = tree.import_items.get(local_idx);
             walk_import_item(visitor, tree, NodeId::new(node_id), import_item);
         }
@@ -848,10 +848,10 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
 pub fn walk_import_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<ImportItem>,
-    _import_item: &ImportItem,
+    id: NodeId<DependencyItem>,
+    _import_item: &DependencyItem,
 ) {
-    visitor.visit_any(tree, NodeType::ImportItem, id.id);
+    visitor.visit_any(tree, NodeType::DependencyItem, id.id);
 }
 
 // ----------------------------------------------------------------------------

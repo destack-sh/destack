@@ -1,43 +1,63 @@
 use dyst_ast as ast;
-use dyst_dir::{ExportMode, ImportItem, ImportTarget as DirImportTarget, NodeId};
+use dyst_dir::{
+    DependencyItem, DependencyTarget as DirDependencyTarget, DependencyType, ExportType, NodeId,
+};
 use dyst_source::SourceId;
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Lower an export mode to a DIR export mode.
-    pub fn lower_export_mode(&mut self, export_mode: ast::ExportMode) -> ExportMode {
+    pub fn lower_export_mode(&mut self, export_mode: ast::ExportType) -> ExportType {
         match export_mode {
-            ast::ExportMode::Item => ExportMode::Item,
-            ast::ExportMode::Default => ExportMode::Default,
+            ast::ExportType::Item => ExportType::Item,
+            ast::ExportType::Default => ExportType::Default,
+        }
+    }
+
+    /// Lower a dependency type into a DIR dependency type.
+    fn lower_dependency_type(
+        &mut self,
+        _source_id: SourceId,
+        _ast: &ast::NodeTree,
+        dependency_type: ast::DependencyType,
+    ) -> DependencyType {
+        match dependency_type {
+            ast::DependencyType::Type => DependencyType::Type,
+            ast::DependencyType::Value => DependencyType::Value,
         }
     }
 
     /// Lower an import-like binding into DIR import items.
     /// Expressions with grouped items are flattened into scalar import items.
-    pub fn lower_import_binding(
+    pub fn lower_dependency_binding(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
         origin_id: ast::NodeId<ast::Expression>,
-        target: Option<&ast::ImportTarget>,
+        ty: ast::DependencyType,
+        target: Option<&ast::DependencyTarget>,
         alias: Option<dyst_source::StringId>,
-        items: Option<&[ast::NodeId<ast::ImportItem>]>,
-    ) -> Vec<NodeId<ImportItem>> {
-        let lowered_target = target.map(|target| self.lower_import_target(source_id, ast, target));
-        let lowered_alias = alias.map(|alias| self.lower_string_id(source_id, alias));
+        items: Option<&[ast::NodeId<ast::DependencyItem>]>,
+    ) -> Vec<NodeId<DependencyItem>> {
+        let ty = self.lower_dependency_type(source_id, ast, ty);
+        let target = target.map(|target| self.lower_dependency_target(source_id, ast, target));
+        let alias = alias.map(|alias| self.lower_string_id(source_id, alias));
 
         if let Some(items) = items {
             return items
                 .iter()
                 .map(|item| {
                     let import_item = ast.get(*item);
+                    let ty = self.lower_dependency_type(source_id, ast, import_item.ty);
                     let name = self.lower_string_id(source_id, import_item.name);
                     let alias = import_item
                         .alias
                         .map(|alias| self.lower_string_id(source_id, alias));
-                    let import_item = ImportItem::Scalar {
-                        target: lowered_target.clone(),
+                    let import_item = DependencyItem::Scalar {
+                        ty,
+                        target: target.clone(),
                         name,
                         alias,
                     };
@@ -46,35 +66,34 @@ impl<'a> Compiler<'a> {
                 .collect();
         }
 
-        if let Some(target) = lowered_target {
-            let import_item = ImportItem::Glob {
-                target,
-                alias: lowered_alias,
-            };
+        if let Some(target) = target {
+            let import_item = DependencyItem::Glob { ty, target, alias };
             vec![self.tree.insert_from_ast(import_item, source_id, origin_id)]
         } else {
             Vec::new()
         }
     }
 
-    fn lower_import_target(
+    /// Lower a dependency target into a DIR dependency target.
+    fn lower_dependency_target(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        target: &ast::ImportTarget,
-    ) -> DirImportTarget {
+        target: &ast::DependencyTarget,
+    ) -> DirDependencyTarget {
         match target {
-            ast::ImportTarget::Path(path) => {
+            ast::DependencyTarget::Path(path) => {
                 let path = self.lower_path(source_id, ast, path);
-                DirImportTarget::Path(path)
+                DirDependencyTarget::Path(path)
             }
-            ast::ImportTarget::Virtual(string_id) => {
+            ast::DependencyTarget::Virtual(string_id) => {
                 let string_id = self.lower_string_id(source_id, *string_id);
-                DirImportTarget::Virtual(string_id)
+                DirDependencyTarget::Virtual(string_id)
             }
         }
     }
 
+    /// Lower a string id into a DIR string id.
     fn lower_string_id(
         &mut self,
         source_id: SourceId,

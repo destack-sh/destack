@@ -61,7 +61,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.10.24-0"
+version = "2025.10.25-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
