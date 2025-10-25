@@ -1,6 +1,5 @@
 use dyst_ast::{
-    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
-    YieldCardinality,
+    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, YieldCardinality
 };
 use dyst_container::SmallVec;
 use dyst_fir::format::BestFittingMode;
@@ -580,18 +579,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     .format(f)?;
             }
 
-            // let
-            Expression::Type { mutability, value } => {
-                // mutability
-                if *mutability == Some(Mutability::Immutable) {
-                    write!(f, [Keyword::Readonly])?;
-                } else {
-                    write!(f, [Keyword::Type])?;
-                }
-                // value
-                write!(f, [space(), value])?;
-            }
-
             // if (ternary)
             Expression::If {
                 style: IfStyle::Ternary,
@@ -941,6 +928,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             }
 
+            // type unary
+            Expression::TypeUnary { operator, right } => {
+                write!(f, [operator, space(), right])?;
+            }
+
             // reference
             Expression::Reference { mutability, right } => {
                 write!(f, [token("&")])?;
@@ -1039,6 +1031,19 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [operator, space(), right])?;
             }
 
+            // type binary
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, [left])?;
+                if !f.context().has_postfix_annotation(*left) {
+                    write!(f, [space()])?;
+                }
+                write!(f, [operator, space(), right])?;
+            }
+
             // assign
             Expression::Assign {
                 left,
@@ -1075,9 +1080,19 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Spread => token(".."),
-            UnaryOperator::Typeof => token("typeof"),
-            UnaryOperator::Keyof => token("keyof"),
-            UnaryOperator::Infer => token("infer"),
+        };
+        write!(f, [token])
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            TypeUnaryOperator::Type => token("type"),
+            TypeUnaryOperator::Readonly => token("readonly"),
+            TypeUnaryOperator::Typeof => token("typeof"),
+            TypeUnaryOperator::Keyof => token("keyof"),
+            TypeUnaryOperator::Infer => token("infer"),
         };
         write!(f, [token])
     }
@@ -1119,16 +1134,26 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::GreaterThan => token(">"),
             BinaryOperator::GreaterThanOrEqual => token(">="),
 
-            // logical
+            // boolean
             BinaryOperator::And => token("&&"),
             BinaryOperator::Or => token("||"),
             BinaryOperator::Coalesce => token("??"),
-            BinaryOperator::Cast => token("as"),
+
+            // container
             BinaryOperator::In => token("in"),
             BinaryOperator::Of => token("of"),
-            BinaryOperator::Is => token("is"),
-            BinaryOperator::Instanceof => token("instanceof"),
-            BinaryOperator::Satisfies => token("satisfies"),
+        };
+        write!(f, [token])
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            TypeBinaryOperator::Cast => token("as"),
+            TypeBinaryOperator::Is => token("is"),
+            TypeBinaryOperator::Instanceof => token("instanceof"),
+            TypeBinaryOperator::Satisfies => token("satisfies"),
         };
         write!(f, [token])
     }
@@ -1164,7 +1189,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
             AssignOperator::ElementwiseOrAssign => "|=",
             AssignOperator::ElementwiseXorAssign => "^=",
 
-            // logical
+            // boolean
             AssignOperator::AndAssign => "&&=",
             AssignOperator::OrAssign => "||=",
             AssignOperator::CoalesceAssign => "??=",

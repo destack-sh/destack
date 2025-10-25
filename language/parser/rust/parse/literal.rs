@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    Definition, DefinitionMeta, FunctionStyle, Keyword, Mutability, Name, Path, PostfixPosition,
-    StringId, TemplateLiteral,
+    Definition, DefinitionMeta, FunctionStyle, Keyword, Name, Path, PostfixPosition, StringId,
+    TemplateLiteral, TypeUnaryOperator,
 };
 use std::str::FromStr;
 
@@ -583,9 +583,9 @@ impl<'a> Parser<'a> {
     ) -> NodeId<Expression> {
         if is_readonly {
             self.tree.insert(
-                Expression::Type {
-                    mutability: Some(Mutability::Immutable),
-                    value: expression_id,
+                Expression::TypeUnary {
+                    operator: TypeUnaryOperator::Readonly,
+                    right: expression_id,
                 },
                 self.tree.spans.get(expression_id),
             )
@@ -943,7 +943,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, DefinitionMeta, Mutability, Name, Parameter, TemplateLiteral};
+    use dyst_ast::{
+        Definition, DefinitionMeta, Name, Parameter, TemplateLiteral, TypeUnaryOperator,
+    };
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -971,7 +973,7 @@ mod tests {
         );
     }
 
-    /// Parse scientific notation and decimal floats.
+    /// Parse scientific notation and decimal floats.2
     #[test]
     fn test_parse_float_literal() {
         let mut test = TestParser::new("10e37 1.0");
@@ -1263,8 +1265,9 @@ mod tests {
         // readonly a?: T
         assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
-                assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
+            assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                assert_eq!(*operator, TypeUnaryOperator::Readonly);
+                assert_node!(parser.tree, *right, Expression::Maybe { left, position: _ } => {
                     assert_expr_path!(parser, parser.tree.get(*left), "T");
                 });
             });
@@ -1286,8 +1289,9 @@ mod tests {
         // readonly d: T
         assert_node!(parser.tree, arguments[3], Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "d");
-            assert_node!(parser.tree, *value, Expression::Type { mutability: Some(Mutability::Immutable), value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "T");
+            assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                assert_eq!(*operator, TypeUnaryOperator::Readonly);
+                assert_expr_path!(parser, parser.tree.get(*right), "T");
             });
         });
 

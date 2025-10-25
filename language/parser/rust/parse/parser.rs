@@ -128,6 +128,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `left_precedence=precedence`, `in_type=true`.
+    pub(crate) fn type_in_left_precedence(self, precedence: u16) -> Self {
+        Self {
+            left_precedence: Some(precedence),
+            in_type: true,
+            ..self
+        }
+    }
+
     /// Reset, set `in_static=true`.
     pub(crate) fn nested_in_static(self) -> Self {
         Self {

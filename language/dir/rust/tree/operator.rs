@@ -22,13 +22,8 @@ pub enum UnaryOperator {
     Dereference,
     /// `..`
     Spread,
-    /// `typeof`
-    Typeof,
-    /// `keyof`
-    Keyof,
-    /// `infer`
-    Infer,
 }
+
 
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
@@ -90,7 +85,7 @@ pub enum BinaryOperator {
     /// `>=`
     GreaterThanOrEqual,
 
-    // logical
+    // boolean
     /// `&&`
     And,
     /// `||`
@@ -98,20 +93,13 @@ pub enum BinaryOperator {
     /// `??`
     Coalesce,
 
-    // type
-    /// `as`
-    Cast,
+    // container
     /// `in`
     In,
     /// `of`
     Of,
-    /// `is`
-    Is,
-    /// `instanceof`
-    Instanceof,
-    /// `satisfies`
-    Satisfies,
 }
+
 
 /// An AssignOperator is an assignment type.
 /// Relative order matches precedence. Also see OperatorPrecedence.
@@ -163,7 +151,7 @@ pub enum AssignOperator {
     /// `|=`
     ElementwiseOrAssign,
 
-    // assignment logical
+    // assignment boolean
     /// `&&=`
     AndAssign,
     /// `||=`

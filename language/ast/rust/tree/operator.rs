@@ -6,13 +6,15 @@ use crate::TokenType;
 /// ```
 /// x() x[] x{} x? x! x++ x--          // postfix
 /// !x -x -%x ~x *x &x ..x ++x --x     // prefix
+/// type readonly typeof keyof infer   // type unary operator
 /// * / % *% *|                        // multiplication
 /// + - +% -% +| -|                    // addition
 /// << >> <<|                          // shift
 /// & ^ |                              // elementwise
 /// == != < > <= >=                    // comparison
-/// && || ??                           // logical
-/// as in of is instanceof satisfies   // type
+/// && || ??                           // boolean
+/// in of                              // container
+/// as in is instanceof satisfies      // type binary operator
 /// =                                  // assignment
 /// *= /= %= **= *%= *|=               // assignment multiplication
 /// += -= +%= -%= +|= -|=              // assignment addition
@@ -24,49 +26,97 @@ use crate::TokenType;
 pub enum OperatorPrecedence {
     /// Unary postfix operators.
     /// `x() x[] x{} x? x! x++ x--`
-    Postfix = 1500,
+    Postfix = 2000,
     /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x ..x ++x --x`
-    Prefix = 1400,
+    Prefix = 1900,
+    /// Type unary operators.
+    /// `type readonly typeof keyof infer`
+    TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
-    Multiplication = 1300,
+    Multiplication = 1700,
     /// Addition-related binary operators.
     /// `+ - +% -% +| -|`
-    Addition = 1200,
+    Addition = 1600,
     /// Shift-related binary operators.
     /// `<< >> <<|`
-    Shift = 1100,
+    Shift = 1500,
     /// Elementwise-related binary operators.
     /// `& ^ |`
-    Elementwise = 1000,
+    Elementwise = 1400,
     /// Comparison-related binary operators.
     /// `== != < > <= >=`
-    Comparison = 900,
-    /// Logical-related binary operators.
+    Comparison = 1300,
+    /// Boolean-logical binary operators.
     /// `&& ||`
-    Logical = 800,
-    /// Type-related binary operators.
-    /// `as in of is`
-    Type = 700,
+    Boolean = 1200,
+    /// Container operators.
+    /// `in` `of`
+    Container = 1100,
+    /// Type binary operators.
+    /// `as in is instanceof satisfies`
+    TypeBinary = 1000,
     /// Assignment-related binary operators.
     /// `=`
-    Assignment = 600,
+    Assignment = 900,
     /// Assignment multiplication-related binary operators.
     /// `*= /= %= **= *%= *|=`
-    AssignmentMultiplication = 500,
+    AssignmentMultiplication = 800,
     /// Assignment addition-related binary operators.
     /// `+= -= +%= -%= +|= -|=`
-    AssignmentAddition = 400,
+    AssignmentAddition = 700,
     /// Assignment shift-related binary operators.
     /// `<<= >>= <<|=`
-    AssignmentShift = 300,
+    AssignmentShift = 600,
     /// Assignment elementwise-related binary operators.
     /// `&= ^= |=`
-    AssignmentElementwise = 200,
+    AssignmentElementwise = 500,
     /// Assignment logical-related binary operators.
     /// `&&= ||= ??=`
-    AssignmentLogical = 100,
+    AssignmentBoolean = 400,
+}
+
+/// A TypeUnaryOperator is a type unary operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TypeUnaryOperator {
+    /// `type`
+    Type,
+    /// `readonly`
+    Readonly,
+    /// `typeof`
+    Typeof,
+    /// `keyof`
+    Keyof,
+    /// `infer`
+    Infer,
+}
+
+impl TypeUnaryOperator {
+    /// Get the precedence of the type unary operator.
+    #[inline]
+    pub fn precedence_group(&self) -> OperatorPrecedence {
+        OperatorPrecedence::TypeUnary
+    }
+
+    /// Get the precedence of the type unary operator.
+    #[inline]
+    pub fn precedence(self) -> u16 {
+        // just transmute the enum value to an u16
+        self as u16
+    }
+
+    /// Convert a TokenType to a TypeUnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
+        match token_str {
+            // NOTE: type and readonly are disambiguated separately (in eat_type)
+            "typeof" => Some(TypeUnaryOperator::Typeof),
+            "keyof" => Some(TypeUnaryOperator::Keyof),
+            "infer" => Some(TypeUnaryOperator::Infer),
+            _ => None,
+        }
+    }
 }
 
 /// A UnaryOperator is unary operator.
@@ -74,32 +124,25 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `++`
-    PostIncrement = 1599,
+    PostIncrement = 2010,
     /// `--`
-    PostDecrement = 1598,
+    PostDecrement = 2009,
     /// `++`
-    PreIncrement = 1499,
+    PreIncrement = 1908,
     /// `--`
-    PreDecrement = 1498,
+    PreDecrement = 1907,
     /// `!`
-    Not = 1497,
+    Not = 1906,
     /// `-`
-    Negate = 1496,
+    Negate = 1905,
     /// `-%`
-    WrappingNegate = 1495,
+    WrappingNegate = 1904,
     /// `~`
-    ElementwiseNot = 1494,
+    ElementwiseNot = 1903,
     /// `*`
-    Dereference = 1493,
+    Dereference = 1902,
     /// `..`
-    Spread = 1491,
-    // NOTE: type/readonly are separate expressions because they must be disambiguated from type aliases
-    /// `typeof`
-    Typeof = 1480,
-    /// `keyof`
-    Keyof = 1479,
-    /// `infer`
-    Infer = 1478,
+    Spread = 1901,
 }
 
 impl UnaryOperator {
@@ -127,17 +170,14 @@ impl UnaryOperator {
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
             | UnaryOperator::Dereference
-            | UnaryOperator::Spread
-            | UnaryOperator::Typeof
-            | UnaryOperator::Keyof
-            | UnaryOperator::Infer => true,
+            | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
         }
     }
 
     /// Convert a prefix token to a UnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_prefix_token(token_str: &str, token_type: TokenType) -> Option<UnaryOperator> {
+    pub fn from_prefix_token(token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
             TokenType::Increment => Some(UnaryOperator::PreIncrement),
             TokenType::Decrement => Some(UnaryOperator::PreDecrement),
@@ -148,19 +188,56 @@ impl UnaryOperator {
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             TokenType::Range => Some(UnaryOperator::Spread),
             TokenType::RangeWide => Some(UnaryOperator::Spread),
-            TokenType::Identifier if token_str == "typeof" => Some(UnaryOperator::Typeof),
-            TokenType::Identifier if token_str == "keyof" => Some(UnaryOperator::Keyof),
-            TokenType::Identifier if token_str == "infer" => Some(UnaryOperator::Infer),
             _ => None,
         }
     }
 
     /// Convert a postfix token to a UnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_postfix_token(_token_str: &str, token_type: TokenType) -> Option<UnaryOperator> {
+    pub fn from_postfix_token(token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
             TokenType::Increment => Some(UnaryOperator::PostIncrement),
             TokenType::Decrement => Some(UnaryOperator::PostDecrement),
+            _ => None,
+        }
+    }
+}
+
+/// A TypeBinaryOperator is a type binary operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TypeBinaryOperator {
+    /// `as`
+    Cast,
+    /// `is`
+    Is,
+    /// `instanceof`
+    Instanceof,
+    /// `satisfies`
+    Satisfies,
+}
+
+impl TypeBinaryOperator {
+    /// Get the precedence of the type binary operator.
+    #[inline]
+    pub fn precedence_group(&self) -> OperatorPrecedence {
+        OperatorPrecedence::TypeBinary
+    }
+
+    /// Get the precedence of the type binary operator.
+    #[inline]
+    pub fn precedence(self) -> u16 {
+        // just transmute the enum value to an u16
+        self as u16
+    }
+
+    /// Convert a TokenType to a TypeBinaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeBinaryOperator> {
+        match token_str {
+            "as" => Some(TypeBinaryOperator::Cast),
+            "is" => Some(TypeBinaryOperator::Is),
+            "instanceof" => Some(TypeBinaryOperator::Instanceof),
+            "satisfies" => Some(TypeBinaryOperator::Satisfies),
             _ => None,
         }
     }
@@ -172,81 +249,73 @@ impl UnaryOperator {
 pub enum BinaryOperator {
     // multiplication
     /// `*`
-    Multiply = 1305,
+    Multiply = 1704,
     /// `*%`
-    WrappingMultiply = 1304,
+    WrappingMultiply = 1703,
     /// `*|`
-    SaturatingMultiply = 1303,
+    SaturatingMultiply = 1702,
     /// `/`
-    Divide = 1302,
+    Divide = 1701,
     /// `%`
-    Remainder = 1301,
+    Remainder = 1700,
 
     // addition
     /// `+`
-    Add = 1206,
+    Add = 1605,
     /// `+%`
-    WrappingAdd = 1205,
+    WrappingAdd = 1604,
     /// `+|`
-    SaturatingAdd = 1204,
+    SaturatingAdd = 1603,
     /// `-`
-    Subtract = 1203,
+    Subtract = 1602,
     /// `-%`
-    WrappingSubtract = 1202,
+    WrappingSubtract = 1601,
     /// `-|`
-    SaturatingSubtract = 1201,
+    SaturatingSubtract = 1600,
 
     // shift
     /// `<<`
-    ShiftLeft = 1103,
+    ShiftLeft = 1502,
     /// `<<|`
-    SaturatingShiftLeft = 1102,
+    SaturatingShiftLeft = 1501,
     /// `>>`
-    ShiftRight = 1101,
+    ShiftRight = 1500,
 
     // elementwise
     /// `&`
-    ElementwiseAnd = 1003,
+    ElementwiseAnd = 1402,
     /// `^`
-    ElementwiseXor = 1002,
+    ElementwiseXor = 1401,
     /// `|`
-    ElementwiseOr = 1001,
+    ElementwiseOr = 1400,
 
     // comparison
     /// `==`
-    Equal = 906,
+    Equal = 1305,
     /// `!=`
-    NotEqual = 905,
+    NotEqual = 1304,
     /// `<`
-    LessThan = 904,
+    LessThan = 1303,
     /// `<=`
-    LessThanOrEqual = 903,
+    LessThanOrEqual = 1302,
     /// `>`
-    GreaterThan = 902,
+    GreaterThan = 1301,
     /// `>=`
-    GreaterThanOrEqual = 901,
+    GreaterThanOrEqual = 1300,
 
-    // logical
+    // boolean
     /// `&&`
-    And = 803,
+    And = 1202,
     /// `||`
-    Or = 802,
+    Or = 1201,
     /// `??`
-    Coalesce = 801,
+    Coalesce = 1200,
 
-    // type
-    /// `as`
-    Cast = 706,
+    // container
     /// `in`
-    In = 705,
+    In = 1102,
     /// `of`
-    Of = 704,
-    /// `is`
-    Is = 703,
-    /// `instanceof`
-    Instanceof = 702,
-    /// `satisfies`
-    Satisfies = 701,
+    Of = 1101,
 }
 
 impl BinaryOperator {
@@ -288,17 +357,13 @@ impl BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => OperatorPrecedence::Comparison,
 
             // logical
-            BinaryOperator::And => OperatorPrecedence::Logical,
-            BinaryOperator::Or => OperatorPrecedence::Logical,
-            BinaryOperator::Coalesce => OperatorPrecedence::Logical,
+            BinaryOperator::And => OperatorPrecedence::Boolean,
+            BinaryOperator::Or => OperatorPrecedence::Boolean,
+            BinaryOperator::Coalesce => OperatorPrecedence::Boolean,
 
-            // type
-            BinaryOperator::Cast => OperatorPrecedence::Logical,
-            BinaryOperator::In => OperatorPrecedence::Logical,
-            BinaryOperator::Of => OperatorPrecedence::Logical,
-            BinaryOperator::Is => OperatorPrecedence::Logical,
-            BinaryOperator::Instanceof => OperatorPrecedence::Logical,
-            BinaryOperator::Satisfies => OperatorPrecedence::Logical,
+            // container
+            BinaryOperator::In => OperatorPrecedence::Container,
+            BinaryOperator::Of => OperatorPrecedence::Container,
         }
     }
 
@@ -351,13 +416,10 @@ impl BinaryOperator {
             TokenType::LogicalOr => Some(BinaryOperator::Or),
             TokenType::Coalesce => Some(BinaryOperator::Coalesce),
 
-            // type
-            TokenType::Identifier if token_str == "as" => Some(BinaryOperator::Cast),
+            // container
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
             TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
-            TokenType::Identifier if token_str == "is" => Some(BinaryOperator::Is),
-            TokenType::Identifier if token_str == "instanceof" => Some(BinaryOperator::Instanceof),
-            TokenType::Identifier if token_str == "satisfies" => Some(BinaryOperator::Satisfies),
+            
             _ => None,
         }
     }
@@ -466,7 +528,7 @@ impl AssignOperator {
             // assignment logical
             AssignOperator::AndAssign
             | AssignOperator::OrAssign
-            | AssignOperator::CoalesceAssign => OperatorPrecedence::AssignmentLogical,
+            | AssignOperator::CoalesceAssign => OperatorPrecedence::AssignmentBoolean,
         }
     }
 
@@ -561,6 +623,8 @@ impl AssignOperator {
 pub enum InfixOperator {
     /// A binary operator.
     Binary(BinaryOperator),
+    /// A type binary operator.
+    TypeBinary(TypeBinaryOperator),
     /// An assignment operator.
     Assign(AssignOperator),
 }
@@ -571,6 +635,9 @@ impl InfixOperator {
     pub fn precedence_group(&self) -> OperatorPrecedence {
         match self {
             InfixOperator::Binary(binary_operator) => binary_operator.precedence_group(),
+            InfixOperator::TypeBinary(type_binary_operator) => {
+                type_binary_operator.precedence_group()
+            }
             InfixOperator::Assign(assign_operator) => assign_operator.precedence_group(),
         }
     }
@@ -580,6 +647,7 @@ impl InfixOperator {
     pub fn precedence(self) -> u16 {
         match self {
             InfixOperator::Binary(binary_operator) => binary_operator.precedence(),
+            InfixOperator::TypeBinary(type_binary_operator) => type_binary_operator.precedence(),
             InfixOperator::Assign(assign_operator) => assign_operator.precedence(),
         }
     }

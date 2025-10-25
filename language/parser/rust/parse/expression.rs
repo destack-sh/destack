@@ -1,6 +1,9 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_ast::{DeclarationKind, DefinitionMeta, ExportType, IfStyle, PostfixPosition};
+use dyst_ast::{
+    DeclarationKind, DefinitionMeta, ExportType, IfStyle, PostfixPosition, TypeBinaryOperator,
+    TypeUnaryOperator,
+};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -78,6 +81,12 @@ fn to_infix_operator(
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
+    // regular type binary operator
+    else if let Some(type_binary_operator) =
+        TypeBinaryOperator::from_token(token_str, token.token.ty)
+    {
+        Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
+    }
     // regular assign operator
     // (not allowed in static, type, and tree contexts)
     else if !options.in_static
@@ -98,26 +107,31 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
-        let token_str = self.get_span_str(token.span);
-        UnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParserError::unexpected(token.span))
-    }
-
-    /// Peek a next unary prefix operator.
-    #[inline]
-    pub fn peek_next_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
-        let token = self.peek_next()?;
-        let token_str = self.get_span_str(token.span);
-        UnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a unary postfix operator.
     #[inline]
     pub fn peek_unary_postfix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
+        UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+    }
+
+    /// Peek a type unary operator.
+    #[inline]
+    pub fn peek_type_unary_operator(&self) -> ParserResult<TypeUnaryOperator> {
+        let token = self.peek()?;
         let token_str = self.get_span_str(token.span);
-        UnaryOperator::from_postfix_token(token_str, token.token.ty)
+        TypeUnaryOperator::from_token(token_str, token.token.ty)
+            .ok_or(ParserError::unexpected(token.span))
+    }
+
+    /// Peek a next type unary operator.
+    #[inline]
+    pub fn peek_next_type_unary_operator(&self) -> ParserResult<TypeUnaryOperator> {
+        let token = self.peek_next()?;
+        let token_str = self.get_span_str(token.span);
+        TypeUnaryOperator::from_token(token_str, token.token.ty)
             .ok_or(ParserError::unexpected(token.span))
     }
 
@@ -165,6 +179,11 @@ impl<'a> Parser<'a> {
             InfixOperator::Binary(binary_operator) => Expression::Binary {
                 left,
                 operator: binary_operator,
+                right,
+            },
+            InfixOperator::TypeBinary(type_binary_operator) => Expression::TypeBinary {
+                left,
+                operator: type_binary_operator,
                 right,
             },
             InfixOperator::Assign(assign_operator) => Expression::Assign {
@@ -396,6 +415,20 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Unary {
                     operator: unary_operator,
                     expression: right,
+                };
+                self.tree.insert(expression, self.get_span_from(start))
+            }
+            // type unary operations
+            else if let Ok(type_unary_operator) = self.peek_type_unary_operator() {
+                let right_precedence = type_unary_operator.precedence();
+                self.bump(); // eat type unary operator (always because right associative)
+                let right = self.with_options(
+                    self.options.type_in_left_precedence(right_precedence),
+                    |parser| parser.eat_expression(),
+                )?;
+                let expression = Expression::TypeUnary {
+                    operator: type_unary_operator,
+                    right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
@@ -957,7 +990,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Definition, DefinitionMeta, DependencyTarget, DependencyType, ExportType, FunctionStyle,
-        IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral, WithClause,
+        IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral, TypeUnaryOperator,
+        WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -2212,16 +2246,16 @@ self
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // keyof typeof infer Value
-        assert_node!(parser.tree, expr_id, Expression::Unary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             // keyof
-            assert_eq!(*operator, UnaryOperator::Keyof);
-            assert_node!(parser.tree, *expression, Expression::Unary { operator, expression } => {
+            assert_eq!(*operator, TypeUnaryOperator::Keyof);
+            assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
                 // typeof
-                assert_eq!(*operator, UnaryOperator::Typeof);
-                assert_node!(parser.tree, *expression, Expression::Unary { operator, expression } => {
+                assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
                     // infer
-                    assert_eq!(*operator, UnaryOperator::Infer);
-                    assert_expr_path!(parser, parser.tree.get(*expression), "Value");
+                    assert_eq!(*operator, TypeUnaryOperator::Infer);
+                    assert_expr_path!(parser, parser.tree.get(*right), "Value");
                 });
             });
         });

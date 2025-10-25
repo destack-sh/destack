@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{AssignOperator, UnaryOperator};
+use dyst_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
 
 impl<'a> Compiler<'a> {
     /// Lower a unary operator to a DIR unary operator.
@@ -16,9 +16,20 @@ impl<'a> Compiler<'a> {
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
-            ast::UnaryOperator::Typeof => UnaryOperator::Typeof,
-            ast::UnaryOperator::Keyof => UnaryOperator::Keyof,
-            ast::UnaryOperator::Infer => UnaryOperator::Infer,
+        }
+    }
+
+    /// Lower a type unary operator to a DIR type unary operator.
+    pub fn lower_type_unary_operator(
+        &self,
+        type_unary_operator: ast::TypeUnaryOperator,
+    ) -> TypeUnaryOperator {
+        match type_unary_operator {
+            ast::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
+            ast::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
+            ast::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
+            ast::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
+            ast::TypeUnaryOperator::Infer => TypeUnaryOperator::Infer,
         }
     }
 
@@ -68,13 +79,23 @@ impl<'a> Compiler<'a> {
             ast::BinaryOperator::Or => dyst_dir::BinaryOperator::Or,
             ast::BinaryOperator::Coalesce => dyst_dir::BinaryOperator::Coalesce,
 
-            // type
-            ast::BinaryOperator::Cast => dyst_dir::BinaryOperator::Cast,
+            // container
             ast::BinaryOperator::In => dyst_dir::BinaryOperator::In,
             ast::BinaryOperator::Of => dyst_dir::BinaryOperator::Of,
-            ast::BinaryOperator::Is => dyst_dir::BinaryOperator::Is,
-            ast::BinaryOperator::Instanceof => dyst_dir::BinaryOperator::Instanceof,
-            ast::BinaryOperator::Satisfies => dyst_dir::BinaryOperator::Satisfies,
+        }
+    }
+
+    /// Lower a type binary operator to a DIR type binary operator.
+    pub fn lower_type_binary_operator(
+        &self,
+        type_binary_operator: ast::TypeBinaryOperator,
+    ) -> TypeBinaryOperator {
+        match type_binary_operator {
+            ast::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
+            ast::TypeBinaryOperator::In => TypeBinaryOperator::In,
+            ast::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
+            ast::TypeBinaryOperator::Instanceof => TypeBinaryOperator::Instanceof,
+            ast::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,
         }
     }
 

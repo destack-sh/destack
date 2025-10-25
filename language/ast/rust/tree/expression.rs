@@ -1,7 +1,10 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta, DependencyItem, DependencyTarget, DependencyType, ExportType, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeLiteral, UnaryOperator
+    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta,
+    DependencyItem, DependencyTarget, DependencyType, ExportType, Mutability, Node, NodeId,
+    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 /// An Expression is a generic container for value-producing forms.
@@ -121,19 +124,6 @@ pub enum Expression {
         meta: DefinitionMeta,
         mutability: Option<Mutability>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        value: NodeId<Expression>,
-    },
-
-    /// Type expression to evaluate something as a type (with optional mutability modifier).
-    /// Usually, type context is implicit in type position, but sometimes we want it explicitly.
-    ///
-    /// Examples:
-    /// ```
-    /// type 1 | 2 |3
-    /// readonly T
-    /// ```
-    Type {
-        mutability: Option<Mutability>,
         value: NodeId<Expression>,
     },
 
@@ -520,6 +510,19 @@ pub enum Expression {
 
     /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
+
+    /// Type operation.
+    TypeUnary {
+        operator: TypeUnaryOperator,
+        right: NodeId<Expression>,
+    },
+
+    /// Type binary operation.
+    TypeBinary {
+        left: NodeId<Expression>,
+        operator: TypeBinaryOperator,
+        right: NodeId<Expression>,
+    },
 
     /// Unary operation.
     Unary {
