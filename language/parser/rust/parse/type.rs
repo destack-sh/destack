@@ -7,13 +7,13 @@ use crate::{
 
 impl<'a> Parser<'a> {
     /// Whether the token type can start an expression.
-    fn is_start_of_expression(&self, token_type: TokenType) -> bool {
+    fn is_start_of_expression(&self, token_str: &str, token_type: TokenType) -> bool {
         token_type == TokenType::OpenParenthesis
             || token_type == TokenType::Identifier
             || token_type == TokenType::Literal
             // (if we're before a block then { is a terminator, not the start of a block)
             || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
-            || UnaryOperator::from_prefix_token(token_type).is_some()
+            || UnaryOperator::from_prefix_token(token_str, token_type).is_some()
     }
 
     /// Whether the token string encodes a type literal with an explicit width.
@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
             || next_type == TokenType::Dynamic
             || next_type == TokenType::Wildcard)
             // if next token doesn't start a related expression
-            && (next_next_type.is_none() || !self.is_start_of_expression(next_next_type.unwrap()))
+            && (next_next_type.is_none() || !self.is_start_of_expression(self.get_span_str(next_next.unwrap().span), next_next_type.unwrap()))
         {
             return match next_type {
                 TokenType::Not => Ok(TypeLiteral::Never),

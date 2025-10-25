@@ -4,21 +4,21 @@ use crate::TokenType;
 ///
 /// Precedence:
 /// ```
-/// x() x[] x{} x? x! x++ x--       // postfix
-/// !x -x -%x ~x *x &x ..x ++x --x  // prefix
-/// * / % *% *|                     // multiplication
-/// + - +% -% +| -|                 // addition
-/// << >> <<|                       // shift
-/// & ^ |                           // elementwise
-/// == != < > <= >=                 // comparison
-/// && || ??                        // logical
-/// as in of is                     // type
-/// =                               // assignment
-/// *= /= %= **= *%= *|=            // assignment multiplication
-/// += -= +%= -%= +|= -|=           // assignment addition
-/// <<= >>= <<|=                    // assignment shift
-/// &= ^= |=                        // assignment elementwise
-/// &&= ||=                         // assignment logical
+/// x() x[] x{} x? x! x++ x--          // postfix
+/// !x -x -%x ~x *x &x ..x ++x --x     // prefix
+/// * / % *% *|                        // multiplication
+/// + - +% -% +| -|                    // addition
+/// << >> <<|                          // shift
+/// & ^ |                              // elementwise
+/// == != < > <= >=                    // comparison
+/// && || ??                           // logical
+/// as in of is instanceof satisfies   // type
+/// =                                  // assignment
+/// *= /= %= **= *%= *|=               // assignment multiplication
+/// += -= +%= -%= +|= -|=              // assignment addition
+/// <<= >>= <<|=                       // assignment shift
+/// &= ^= |=                           // assignment elementwise
+/// &&= ||=                            // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatorPrecedence {
@@ -65,7 +65,7 @@ pub enum OperatorPrecedence {
     /// `&= ^= |=`
     AssignmentElementwise = 200,
     /// Assignment logical-related binary operators.
-    /// `&&= ||=`
+    /// `&&= ||= ??=`
     AssignmentLogical = 100,
 }
 
@@ -93,6 +93,13 @@ pub enum UnaryOperator {
     Dereference = 1493,
     /// `..`
     Spread = 1491,
+    // NOTE: type/readonly are separate expressions because they must be disambiguated from type aliases
+    /// `typeof`
+    Typeof = 1480,
+    /// `keyof`
+    Keyof = 1479,
+    /// `infer`
+    Infer = 1478,
 }
 
 impl UnaryOperator {
@@ -120,14 +127,17 @@ impl UnaryOperator {
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
             | UnaryOperator::Dereference
-            | UnaryOperator::Spread => true,
+            | UnaryOperator::Spread
+            | UnaryOperator::Typeof
+            | UnaryOperator::Keyof
+            | UnaryOperator::Infer => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
         }
     }
 
     /// Convert a prefix token to a UnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_prefix_token(token_type: TokenType) -> Option<UnaryOperator> {
+    pub fn from_prefix_token(token_str: &str, token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
             TokenType::Increment => Some(UnaryOperator::PreIncrement),
             TokenType::Decrement => Some(UnaryOperator::PreDecrement),
@@ -138,34 +148,20 @@ impl UnaryOperator {
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             TokenType::Range => Some(UnaryOperator::Spread),
             TokenType::RangeWide => Some(UnaryOperator::Spread),
+            TokenType::Identifier if token_str == "typeof" => Some(UnaryOperator::Typeof),
+            TokenType::Identifier if token_str == "keyof" => Some(UnaryOperator::Keyof),
+            TokenType::Identifier if token_str == "infer" => Some(UnaryOperator::Infer),
             _ => None,
         }
     }
 
     /// Convert a postfix token to a UnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_postfix_token(token_type: TokenType) -> Option<UnaryOperator> {
+    pub fn from_postfix_token(_token_str: &str, token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
             TokenType::Increment => Some(UnaryOperator::PostIncrement),
             TokenType::Decrement => Some(UnaryOperator::PostDecrement),
             _ => None,
-        }
-    }
-
-    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
-    #[inline]
-    pub fn as_token(&self) -> TokenType {
-        match self {
-            UnaryOperator::PreIncrement => TokenType::Increment,
-            UnaryOperator::PreDecrement => TokenType::Decrement,
-            UnaryOperator::PostIncrement => TokenType::Increment,
-            UnaryOperator::PostDecrement => TokenType::Decrement,
-            UnaryOperator::Not => TokenType::Not,
-            UnaryOperator::Negate => TokenType::Subtract,
-            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
-            UnaryOperator::ElementwiseNot => TokenType::ElementwiseNot,
-            UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::Spread => TokenType::Range,
         }
     }
 }
@@ -295,6 +291,8 @@ impl BinaryOperator {
             BinaryOperator::And => OperatorPrecedence::Logical,
             BinaryOperator::Or => OperatorPrecedence::Logical,
             BinaryOperator::Coalesce => OperatorPrecedence::Logical,
+
+            // type
             BinaryOperator::Cast => OperatorPrecedence::Logical,
             BinaryOperator::In => OperatorPrecedence::Logical,
             BinaryOperator::Of => OperatorPrecedence::Logical,
@@ -352,6 +350,8 @@ impl BinaryOperator {
             TokenType::LogicalAnd => Some(BinaryOperator::And),
             TokenType::LogicalOr => Some(BinaryOperator::Or),
             TokenType::Coalesce => Some(BinaryOperator::Coalesce),
+
+            // type
             TokenType::Identifier if token_str == "as" => Some(BinaryOperator::Cast),
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
             TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),

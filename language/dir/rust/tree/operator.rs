@@ -22,6 +22,12 @@ pub enum UnaryOperator {
     Dereference,
     /// `..`
     Spread,
+    /// `typeof`
+    Typeof,
+    /// `keyof`
+    Keyof,
+    /// `infer`
+    Infer,
 }
 
 /// A BinaryOperator is an infix binary operator.

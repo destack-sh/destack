@@ -16,6 +16,9 @@ impl<'a> Compiler<'a> {
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
+            ast::UnaryOperator::Typeof => UnaryOperator::Typeof,
+            ast::UnaryOperator::Keyof => UnaryOperator::Keyof,
+            ast::UnaryOperator::Infer => UnaryOperator::Infer,
         }
     }
 

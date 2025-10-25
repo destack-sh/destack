@@ -108,7 +108,7 @@ export namespace JSC {
       /**
        * Console message type.
        */
-      type?:
+      typ?:
         | "log"
         | "dir"
         | "dirxml"
