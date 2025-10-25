@@ -471,33 +471,29 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
-                let Some(value_id) = value_id else {
+                let Some(value_expression_id) = value_id else {
                     write!(f, [header])?;
                     return Ok(());
                 };
 
                 let format_inline = format_with(|f| {
-                    group(&format_args![
-                        header,
-                        space(),
-                        token("="),
-                        space(),
-                        value_id
-                    ])
-                    .format(f)
+                    write!(
+                        f,
+                        [header, space(), token("="), space(), *value_expression_id]
+                    )?;
+                    Ok(())
                 });
-                let format_multiline = format_with(|f| {
+                let format_indented = format_with(|f| {
                     group(&format_args![
                         header,
                         space(),
                         token("="),
-                        hard_line_break(),
-                        block_indent(&format_args![value_id])
+                        block_indent(value_expression_id)
                     ])
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_multiline]
+                best_fitting![format_inline, format_indented]
                     .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
             }
@@ -538,21 +534,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
                 let format_inline =
                     format_with(|f| write!(f, [header, space(), token("="), space(), value]));
-                let format_multiline = format_with(|f| {
+                let format_indented = format_with(|f| {
                     group(&format_args![
                         header,
-                        block_indent(&format_args![
-                            hard_line_break(),
-                            space(),
-                            token("="),
-                            space(),
-                            value
-                        ])
+                        space(),
+                        token("="),
+                        block_indent(&value)
                     ])
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_multiline]
+                best_fitting![format_inline, format_indented]
                     .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
             }
