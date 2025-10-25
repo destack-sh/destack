@@ -1820,13 +1820,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Argument::NamedShorthand { name } => {
-                self.node("Argument::NamedShorthand", _id.id)
+            Argument::Shorthand { name } => {
+                self.node("Argument::Shorthand", _id.id)
                     .field("name", name)
                     .end();
             }
-            Argument::NamedFunction { name, value: _ } => {
-                self.node("Argument::NamedFunction", _id.id)
+            Argument::Function { name, value: _ } => {
+                self.node("Argument::Function", _id.id)
                     .field("name", name)
                     .end();
             }

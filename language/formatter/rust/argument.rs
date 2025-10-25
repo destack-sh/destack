@@ -204,10 +204,10 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             Argument::Named { name, value } => {
                 write!(f, [name, token(":"), space(), value])?;
             }
-            Argument::NamedShorthand { name } => {
+            Argument::Shorthand { name } => {
                 write!(f, [name])?;
             }
-            Argument::NamedFunction { name, value } => {
+            Argument::Function { name, value } => {
                 write!(f, [name, token(":"), space(), value])?;
             }
             Argument::Positional { value } => {
