@@ -3,8 +3,8 @@ use dyst_ast::StringId;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Block, Definition, DependencyItem, DependencyType,
     Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter,
-    Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeLiteral,
-    UnaryOperator,
+    Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -45,12 +45,18 @@ pub enum Expression {
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         value: NodeId<Expression>,
     },
-    /// Type expression.
-    Type {
-        mutability: Option<Mutability>,
-        value: NodeId<Expression>,
-    },
 
+    /// Type unary operation.
+    TypeUnary {
+        operator: TypeUnaryOperator,
+        expression: NodeId<Expression>,
+    },
+    /// Type binary operation.
+    TypeBinary {
+        left: NodeId<Expression>,
+        operator: TypeBinaryOperator,
+        right: NodeId<Expression>,
+    },
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
@@ -218,15 +224,16 @@ impl Expression {
             | Expression::Import { .. }
             | Expression::Export { .. }
             | Expression::Let { .. }
-            | Expression::Type { .. }
             | Expression::LetType { .. } => true,
 
             // operators
             Expression::Block { .. }
             | Expression::Unary { .. }
+            | Expression::TypeBinary { .. }
             | Expression::Reference { .. }
             | Expression::Dynamic { .. }
             | Expression::Binary { .. }
+            | Expression::TypeUnary { .. }
             | Expression::AssignDirect { .. }
             | Expression::AssignBinary { .. }
             | Expression::Member { .. }

@@ -40,6 +40,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an Expression into a Type (in-place).
+    // nocheckin: type unary operators in DIR Type? (also move not, maybe, must into DIR type operator?)
     fn resolve_expression_to_type(
         &mut self,
         expression_id: NodeId<Expression>,
@@ -69,18 +70,6 @@ impl<'a> Compiler<'a> {
             Expression::Must { left } => {
                 let type_id = self.try_resolve_expression_to_type(*left)?;
                 Type::Must(type_id)
-            }
-            // mutable
-            Expression::Type {
-                mutability: Some(mutability),
-                value,
-            } => {
-                let mutability = *mutability;
-                let type_id = self.try_resolve_expression_to_type(*value)?;
-                Type::Mutable {
-                    mutability,
-                    target: type_id,
-                }
             }
             // reference
             Expression::Reference { mutability, right } => {

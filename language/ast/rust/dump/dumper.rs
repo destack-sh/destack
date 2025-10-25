@@ -772,8 +772,22 @@ impl Dump for UnaryOperator {
     }
 }
 
+/// Dump a TypeUnaryOperator as a string.
+impl Dump for TypeUnaryOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a BinaryOperator as a string.
 impl Dump for BinaryOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a TypeBinaryOperator as a string.
+impl Dump for TypeBinaryOperator {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1257,14 +1271,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("meta", meta)
                     .end();
             }
-            Expression::Type {
-                mutability,
-                value: _,
-            } => {
-                self.node("Expression::Type", _id.id)
-                    .field_optional("mutability", mutability)
-                    .end();
-            }
             Expression::If {
                 runtime,
                 style,
@@ -1423,6 +1429,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::TypeUnary {
+                operator,
+                right: _,
+            } => {
+                self.node("Expression::TypeUnary", _id.id)
+                    .field("operator", operator)
+                    .end();
+            }
             Expression::Reference {
                 mutability,
                 right: _,
@@ -1480,6 +1494,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 right: _,
             } => {
                 self.node("Expression::Binary", _id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::TypeBinary {
+                left: _,
+                operator,
+                right: _,
+            } => {
+                self.node("Expression::TypeBinary", _id.id)
                     .field("operator", operator)
                     .end();
             }

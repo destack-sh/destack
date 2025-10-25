@@ -2,7 +2,7 @@ use dyst_ast::{BinaryOperator, DefinitionMeta, FloatType, Keyword, Mutability};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
-    UnaryOperator,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 impl<'a> Parser<'a> {
@@ -13,7 +13,8 @@ impl<'a> Parser<'a> {
             || token_type == TokenType::Literal
             // (if we're before a block then { is a terminator, not the start of a block)
             || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
-            || UnaryOperator::from_prefix_token(token_str, token_type).is_some()
+            || UnaryOperator::from_prefix_token( token_type).is_some()
+            || TypeUnaryOperator::from_token(token_str, token_type).is_some()
     }
 
     /// Whether the token string encodes a type literal with an explicit width.
@@ -232,17 +233,27 @@ impl<'a> Parser<'a> {
             else {
                 // re-parse from before the static parameters to get them as a arguments
                 self.restore(speculative_start.0, speculative_start.1);
-                let value =
+                let right =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-                let expression = Expression::Type { mutability, value };
+                let operator = if mutability == Some(Mutability::Immutable) {
+                    TypeUnaryOperator::Readonly
+                } else {
+                    TypeUnaryOperator::Type
+                };
+                let expression = Expression::TypeUnary { operator, right };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
         }
         // type expression
         else {
-            let value =
+            let right =
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-            let expression = Expression::Type { mutability, value };
+            let operator = if mutability == Some(Mutability::Immutable) {
+                TypeUnaryOperator::Readonly
+            } else {
+                TypeUnaryOperator::Type
+            };
+            let expression = Expression::TypeUnary { operator, right };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
     }
@@ -314,7 +325,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Mutability;
+    use dyst_ast::TypeUnaryOperator;
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -354,8 +365,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B>
-        assert_node!(parser.tree, expr_id, Expression::Type { mutability: None, value } => {
-            assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+            assert_eq!(*operator, TypeUnaryOperator::Type);
+            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "T");
                 assert_eq!(static_arguments.as_ref().unwrap().len(), 2);
             })
@@ -368,8 +380,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::Type { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+            assert_eq!(*operator, TypeUnaryOperator::Type);
+            assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
@@ -387,9 +400,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // readonly T
-        assert_node!(parser.tree, expr_id, Expression::Type { mutability, value, .. } => {
-            assert_eq!(*mutability, Some(Mutability::Immutable));
-            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+            assert_eq!(*operator, TypeUnaryOperator::Readonly);
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });

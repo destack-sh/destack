@@ -1,6 +1,6 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, Doc, EnumField, Expression,
-    DependencyItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc,
+    EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
     PatternField, Tag, TemplateLiteral, UnionField, VariantField, WhereClause, WithClause,
 };
 
@@ -230,14 +230,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *parameter_id, parameter);
                 }
             }
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-
-        Expression::Type {
-            mutability: _,
-            value,
-        } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
@@ -490,6 +482,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
+        Expression::TypeUnary { operator: _, right } => {
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+
         Expression::Reference {
             mutability: _,
             right,
@@ -552,6 +549,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Binary {
+            left,
+            operator: _,
+            right,
+        } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+
+        Expression::TypeBinary {
             left,
             operator: _,
             right,

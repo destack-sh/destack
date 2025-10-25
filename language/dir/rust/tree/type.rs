@@ -64,6 +64,36 @@ pub enum TypeLiteral {
     ScalarLiteral(ScalarLiteral),
 }
 
+/// A TypeUnaryOperator is a type unary operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TypeUnaryOperator {
+    /// `type`
+    Type,
+    /// `readonly`
+    Readonly,
+    /// `typeof`
+    Typeof,
+    /// `keyof`
+    Keyof,
+    /// `infer`
+    Infer,
+}
+
+/// A TypeBinaryOperator is a type binary operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TypeBinaryOperator {
+    /// `as`
+    Cast,
+    /// `in`
+    In,
+    /// `is`
+    Is,
+    /// `instanceof`
+    Instanceof,
+    /// `satisfies`
+    Satisfies,
+}
+
 /// An Type in the type system.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {

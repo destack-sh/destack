@@ -184,7 +184,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Expression::Export { mode: _, ty: _, items } => {
+        Expression::Export {
+            mode: _,
+            ty: _,
+            items,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_import_item(tree, *item_id, item);
@@ -222,13 +226,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Expression::Type {
-            mutability: _,
-            value,
-        } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
         Expression::Unary {
             operator: _,
             expression: right,
@@ -236,6 +233,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         | Expression::Reference {
             mutability: _,
             right,
+        }
+        | Expression::TypeUnary {
+            operator: _,
+            expression: right,
         } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
@@ -248,6 +249,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expression);
         }
         Expression::Binary {
+            left,
+            operator: _,
+            right,
+        }
+        | Expression::TypeBinary {
             left,
             operator: _,
             right,
