@@ -1,0 +1,57 @@
+ws.on('todos:update', (changes) => {
+    todosCollection.utils.writeBatch(() => {
+        changes.forEach(change => {
+            switch (change.type) {
+                case 'insert':
+                    todosCollection.utils.writeInsert(change.data)
+                case 'update':
+                    todosCollection.utils.writeUpdate(change.data)
+                case 'delete':
+                    todosCollection.utils.writeDelete(change.id)
+            }
+        })
+    })
+})
+
+
+Bun.serve({
+	fetch(req: Request) {
+		return Response('Success!');
+	},
+});
+
+function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
+	return { ...todo, ...fieldsToUpdate };
+}
+
+const ast = await parseAsync(text, {
+	sourceFileName: file,
+	parserOpts: {
+		plugins: ['typescript', 'jsx'],
+	},
+	sourceType: 'module',
+	configFile: false,
+	babelrc: false,
+});
+
+ws.on('todos:update', (changes) => {
+    todosCollection.utils.writeBatch(() => {
+        changes.forEach(change => {
+            switch (change.type) {
+                case 'insert':
+                    todosCollection.utils.writeInsert(change.data)
+                case 'update':
+                    todosCollection.utils.writeUpdate(change.data)
+                case 'delete':
+                    todosCollection.utils.writeDelete(change.id)
+            }
+        })
+    })
+})
+
+<Menu
+    items={[
+        { to: '/posts' },
+        { to: '/posts/$postId', params: { postId: 'postId' } },
+    ]}
+/>

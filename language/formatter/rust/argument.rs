@@ -78,7 +78,7 @@ where
             // trailing separator (always if forced, otherwise only if group breaks)
             if self.force_trailing_separator {
                 write!(f, [token(self.separator)])?;
-            } else if self.elements.len() > 1 {
+            } else {
                 write!(f, [if_group_breaks(&token(self.separator))])?;
             }
 
