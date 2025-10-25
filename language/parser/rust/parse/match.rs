@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
             );
             Ok(match_case_id)
         }
-        // implicit case block
+        // implicit case block/expression
         else if is_switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
@@ -192,22 +192,36 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            let block_id = self.tree.insert(
-                Block {
-                    format: BlockFormat::Implicit,
-                    label: None,
-                    expressions,
-                },
-                self.get_span_from(start),
-            );
-            let match_case_id = self.tree.insert(
-                MatchCase::Block {
-                    pattern: pattern_id,
-                    body: block_id,
-                    guard,
-                },
-                self.get_span_from(start),
-            );
+            // single expression case
+            let match_case_id = if expressions.len() == 1 {
+                self.tree.insert(
+                    MatchCase::Expression {
+                        pattern: pattern_id,
+                        body: expressions[0],
+                        guard,
+                    },
+                    self.get_span_from(start),
+                )
+            }
+            // multiple expression block
+            else {
+                let block_id = self.tree.insert(
+                    Block {
+                        format: BlockFormat::Implicit,
+                        label: None,
+                        expressions,
+                    },
+                    self.get_span_from(start),
+                );
+                self.tree.insert(
+                    MatchCase::Block {
+                        pattern: pattern_id,
+                        body: block_id,
+                        guard,
+                    },
+                    self.get_span_from(start),
+                )
+            };
             Ok(match_case_id)
         }
         // single expression
@@ -396,10 +410,10 @@ switch (left.type) {
         something();
         // implicitly break
     case 'literal':
-        left.value;
         something();
-        // implicitly break
+        // implicitly break, one statement (no block
     default:
+        something();
         return left.name;
   }
 "###,
@@ -411,7 +425,7 @@ switch (left.type) {
         assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, value: _, cases } => {
             assert_eq!(cases.len(), 4);
 
-            // case 'static'
+            // case 'static' (block)
             assert_node!(parser.tree, cases[0], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // 'static'
@@ -426,7 +440,7 @@ switch (left.type) {
                 });
             });
 
-            // case 'dynamic'
+            // case 'dynamic' (block)
             assert_node!(parser.tree, cases[1], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // 'dynamic'
@@ -441,8 +455,8 @@ switch (left.type) {
                 });
             });
 
-            // case 'literal'
-            assert_node!(parser.tree, cases[2], MatchCase::Block { pattern, body, guard } => {
+            // case 'literal' (expression)
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
                 // 'literal'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -450,19 +464,19 @@ switch (left.type) {
                         assert_string!(parser, *literal, "literal");
                     });
                 });
-                // body
-                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
-                    assert_eq!(expressions.len(), 2);
+                // body (one statement, no block)
+                assert_node!(parser.tree, *body, Expression::Call { left, .. } => {
+                    assert_expr_path!(parser, parser.tree.get(*left), "something");
                 });
             });
 
-            // case default
+            // case default (block)
             assert_node!(parser.tree, cases[3], MatchCase::Block { pattern, body, guard } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // body
                 assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
-                    assert_eq!(expressions.len(), 1);
+                    assert_eq!(expressions.len(), 2);
                 });
             });
         });

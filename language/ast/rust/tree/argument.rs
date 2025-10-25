@@ -61,6 +61,8 @@ impl Node for Parameter {
     const KIND: NodeType = NodeType::Parameter;
 }
 
+// nocheckin: support maybe & readonly on the Argument/VariantField directly
+
 /// An Argument is an argument to a function call.
 /// It may be named or positional. Named shorthands are only supported in struct-like literals.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).

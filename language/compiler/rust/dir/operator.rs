@@ -92,7 +92,6 @@ impl<'a> Compiler<'a> {
     ) -> TypeBinaryOperator {
         match type_binary_operator {
             ast::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
-            ast::TypeBinaryOperator::In => TypeBinaryOperator::In,
             ast::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
             ast::TypeBinaryOperator::Instanceof => TypeBinaryOperator::Instanceof,
             ast::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,
