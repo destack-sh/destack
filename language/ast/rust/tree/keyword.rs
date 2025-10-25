@@ -102,8 +102,12 @@ pub enum Keyword {
     Instanceof,
     /// Where assertion.
     Where,
-    /// Typeof expression (reserved).
+    /// Typeof expression.
     Typeof,
+    /// Keyof expression.
+    Keyof,
+    /// Infer expression.
+    Infer,
     /// Any expression (alias).
     Any,
     /// Never expression (alias).
@@ -278,6 +282,8 @@ impl Keyword {
             Keyword::Instanceof => "instanceof",
             Keyword::Where => "where",
             Keyword::Typeof => "typeof",
+            Keyword::Keyof => "keyof",
+            Keyword::Infer => "infer",
             Keyword::Any => "any",
             Keyword::Never => "never",
             Keyword::As => "as",
@@ -381,6 +387,8 @@ impl FromStr for Keyword {
             "instanceof" => Ok(Keyword::Instanceof),
             "where" => Ok(Keyword::Where),
             "typeof" => Ok(Keyword::Typeof),
+            "keyof" => Ok(Keyword::Keyof),
+            "infer" => Ok(Keyword::Infer),
             "any" => Ok(Keyword::Any),
             "never" => Ok(Keyword::Never),
             "as" => Ok(Keyword::As),

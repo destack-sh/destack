@@ -98,21 +98,27 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        let token_str = self.get_span_str(token.span);
+        UnaryOperator::from_prefix_token(token_str, token.token.ty)
+            .ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a next unary prefix operator.
     #[inline]
     pub fn peek_next_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek_next()?;
-        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        let token_str = self.get_span_str(token.span);
+        UnaryOperator::from_prefix_token(token_str, token.token.ty)
+            .ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek a unary postfix operator.
     #[inline]
     pub fn peek_unary_postfix_operator(&self) -> ParserResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        let token_str = self.get_span_str(token.span);
+        UnaryOperator::from_postfix_token(token_str, token.token.ty)
+            .ok_or(ParserError::unexpected(token.span))
     }
 
     /// Peek an assign operator.
@@ -2197,6 +2203,28 @@ self
                 );
             }
         );
+    }
+
+    /// Parse chained prefix keyof, typeof, and infer operations.
+    #[test]
+    fn test_parse_unary_prefix_keyof_typeof_infer() {
+        let mut test = TestParser::new("keyof typeof infer Value");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // keyof typeof infer Value
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, expression } => {
+            // keyof
+            assert_eq!(*operator, UnaryOperator::Keyof);
+            assert_node!(parser.tree, *expression, Expression::Unary { operator, expression } => {
+                // typeof
+                assert_eq!(*operator, UnaryOperator::Typeof);
+                assert_node!(parser.tree, *expression, Expression::Unary { operator, expression } => {
+                    // infer
+                    assert_eq!(*operator, UnaryOperator::Infer);
+                    assert_expr_path!(parser, parser.tree.get(*expression), "Value");
+                });
+            });
+        });
     }
 
     /// Parse a leading elementwise operator.

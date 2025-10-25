@@ -1075,6 +1075,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Spread => token(".."),
+            UnaryOperator::Typeof => token("typeof"),
+            UnaryOperator::Keyof => token("keyof"),
+            UnaryOperator::Infer => token("infer"),
         };
         write!(f, [token])
     }
