@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, Expression, FunctionSignature, Generics,
-    DependencyItem, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, TemplateLiteral, Type, Variant, VariantField, WhereClause, WithClause,
+    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, Expression,
+    FunctionSignature, Generics, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, TemplateLiteral, Type, Variant, VariantField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -168,13 +168,23 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_block(tree, *body_id, block);
             }
         }
-        Expression::Import { items } => {
+        Expression::Import {
+            ty: _,
+            items,
+            arguments,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_import_item(tree, *item_id, item);
             }
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
         }
-        Expression::Export { mode: _, items } => {
+        Expression::Export { mode: _, ty: _, items } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_import_item(tree, *item_id, item);
@@ -455,13 +465,27 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Intrinsic { intrinsic: _ } => {
             // nothing to do
         }
-        Definition::Import { items } => {
+        Definition::Import {
+            ty: _,
+            items,
+            arguments,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_import_item(tree, *item_id, item);
             }
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
         }
-        Definition::Export { mode: _, items } => {
+        Definition::Export {
+            mode: _,
+            ty: _,
+            items,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_import_item(tree, *item_id, item);

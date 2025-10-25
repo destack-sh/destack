@@ -48,13 +48,14 @@ pub enum Expression {
     /// import * as foo from foo // same as `import foo as foo`
     /// import { bar, baz } from foo
     /// import foo.{} // valid but linted
-    /// import foo as baz
+    /// import foo as baz with { bar: true } // arguments
     /// ```
     Import {
         ty: DependencyType,
         target: DependencyTarget,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
+        arguments: Option<Vec<NodeId<Argument>>>,
     },
 
     /// An Export is an explicit export declaration for dependency management.

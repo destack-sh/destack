@@ -1048,7 +1048,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items, arguments: None } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -1066,16 +1066,24 @@ mod tests {
 
     /// Parse `import * as baz from foo` through the expression parser.
     #[test]
-    fn test_parse_import_expression_star_alias() {
-        let mut test = TestParser::new("import * as baz from foo");
+    fn test_parse_import_expression_star_alias_with_arguments() {
+        let mut test = TestParser::new("import * as baz from foo with { bar: true }");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
-        // import * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items } => {
+        // import * as baz from foo with { bar: true }
+        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items, arguments } => {
+            // * as baz
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
             assert_path!(parser, *target, "foo");
+            // with { bar: true }
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+                assert_string!(parser, name.string(), "bar");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            });
         });
     }
 

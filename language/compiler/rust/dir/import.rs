@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a dependency type into a DIR dependency type.
-    fn lower_dependency_type(
+    pub fn lower_dependency_type(
         &mut self,
         _source_id: SourceId,
         _ast: &ast::NodeTree,

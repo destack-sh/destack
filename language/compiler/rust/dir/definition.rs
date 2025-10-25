@@ -34,6 +34,7 @@ impl<'a> Compiler<'a> {
                 target,
                 alias,
                 items,
+                arguments,
             } => {
                 let items = self.lower_dependency_binding(
                     source_id,
@@ -44,7 +45,18 @@ impl<'a> Compiler<'a> {
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
-                let definition = Definition::Import { items };
+                let arguments = arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .collect()
+                });
+                let ty = self.lower_dependency_type(source_id, ast, *ty);
+                let definition = Definition::Import {
+                    ty,
+                    items,
+                    arguments,
+                };
                 Some(
                     self.tree
                         .insert_from_ast(definition, source_id, expression_id),

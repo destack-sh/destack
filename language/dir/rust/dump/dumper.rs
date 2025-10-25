@@ -1302,12 +1302,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", id.id).end();
             }
-            Expression::Import { items: _ } => {
-                self.node("Expression::Use", id.id).end();
+            Expression::Import {
+                ty,
+                items: _,
+                arguments: _,
+            } => {
+                self.node("Expression::Import", id.id).field("ty", ty).end();
             }
-            Expression::Export { mode, items: _ } => {
+            Expression::Export { mode, ty, items: _ } => {
                 self.node("Expression::Export", id.id)
                     .field("mode", mode)
+                    .field("ty", ty)
                     .end();
             }
             Expression::Let {
@@ -1539,12 +1544,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("intrinsic", intrinsic)
                     .end();
             }
-            Definition::Import { items: _ } => {
-                self.node("Definition::Import", id.id).end();
+            Definition::Import {
+                ty,
+                items: _,
+                arguments: _,
+            } => {
+                self.node("Definition::Import", id.id).field("ty", ty).end();
             }
-            Definition::Export { mode, items: _ } => {
+            Definition::Export { mode, ty, items: _ } => {
                 self.node("Definition::Export", id.id)
                     .field("mode", mode)
+                    .field("ty", ty)
                     .end();
             }
             Definition::Let { meta, value: _ } => {

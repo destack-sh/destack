@@ -99,6 +99,7 @@ impl<'a> Compiler<'a> {
                 target,
                 alias,
                 items,
+                arguments,
             } => {
                 let items = self.lower_dependency_binding(
                     source_id,
@@ -109,7 +110,18 @@ impl<'a> Compiler<'a> {
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
-                Expression::Import { items }
+                let arguments = arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .collect()
+                });
+                let ty = self.lower_dependency_type(source_id, ast, *ty);
+                Expression::Import {
+                    ty,
+                    items,
+                    arguments,
+                }
             }
             ast::Expression::Export {
                 mode,
@@ -127,8 +139,10 @@ impl<'a> Compiler<'a> {
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
+                let ty = self.lower_dependency_type(source_id, ast, *ty);
                 Expression::Export {
                     mode: self.lower_export_mode(*mode),
+                    ty,
                     items,
                 }
             }

@@ -1212,6 +1212,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 alias,
                 items: _,
+                arguments: _,
             } => {
                 self.node("Expression::Import", _id.id)
                     .field("ty", ty)
