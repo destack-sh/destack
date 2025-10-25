@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
                 .is_ok()
         {
             // open parenthesis
-            self.bump(); 
+            self.bump();
 
             // initialization
             let initialization_id = if self.peek_token(TokenType::Semicolon).is_ok() {
@@ -276,6 +276,35 @@ for item in items {
             });
             // in items
             assert_expr_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_each_loop_in_parentheses() {
+        let mut test = TestParser::new(
+            r###"
+for (item in items) {
+    x
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for(None).unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { asyncness, pattern: None, iterator, body: _, .. } => {
+            assert_eq!(*asyncness, Asyncness::Sync);
+            // (item of items)
+            assert_node!(parser.tree, *iterator, Expression::Parenthesized { expression, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
+                    // item
+                    assert_expr_path!(parser, parser.tree.get(*left), "item");
+                    // of
+                    assert_eq!(*operator, BinaryOperator::In);
+                    // items
+                    assert_expr_path!(parser, parser.tree.get(*right), "items");
+                });
+            });
         });
     }
 

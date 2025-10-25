@@ -197,9 +197,16 @@ pub(crate) fn format_match<'ast>(
 }
 
 /// Whether an expression is "trivial" (prefers to be fully inline).
-pub fn is_trivial_expression(_tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
+        Expression::StructLiteral { ty, fields, .. } => {
+            ty.is_none()
+                && fields.len() <= 5
+                && fields
+                    .iter()
+                    .all(|field| is_trivial_argument(tree, tree.get(*field)))
+        }
         Expression::Path {
             path,
             static_arguments,
@@ -257,7 +264,7 @@ pub(crate) fn format_struct_literal<'ast>(
         .collect::<SmallVec<_, 3>>();
 
     let is_trivial = fields.is_empty()
-        || fields.len() <= 3
+        || fields.len() <= 5
             && fields
                 .iter()
                 .all(|field| is_trivial_argument(f.context().tree, field));
@@ -304,7 +311,7 @@ pub(crate) fn format_tree_literal<'ast>(
                         write!(
                             f,
                             [
-                                space(),
+                                if_group_fits_on_line(&space()),
                                 soft_block_indent(&format_with(|f| {
                                     f.join_with(&format_args![soft_line_break_or_space()])
                                         .entries(arguments.iter().map(|argument| {
@@ -319,7 +326,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     }
                     // /
                     if elements.is_none() {
-                        if path.is_some() {
+                        if path.is_some() && arguments.is_some() {
                             write!(f, [if_group_fits_on_line(&space())])?;
                         }
                         write!(f, [token("/")])?;
@@ -1289,7 +1296,7 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_nested() {
-        let tree_literal = r#"<A x=4 y=4>
+        let source = r#"<A x=4 y=4>
     <B x="hey">
         <C>
             <D />
@@ -1298,8 +1305,24 @@ mod tests {
     </B>
 </A>"#;
         assert_format!(
-            tree_literal,
-            tree_literal,
+            source,
+            source,
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_expression_tree_literal_with_array_of_struct_element() {
+        let source = r#"<Menu
+    items=[[
+        { to: "/posts" },
+        { to: "/posts/$postId", params: { postId: "postId" } },
+    ]]
+/>"#;
+        assert_format!(
+            source,
+            source,
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

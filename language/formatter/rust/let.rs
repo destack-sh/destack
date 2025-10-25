@@ -129,13 +129,12 @@ mod tests {
     }
 
     #[test]
-    fn test_format_let_multiline_tuple_literal() {
+    fn test_format_let_retain_multiline_tuple_literal() {
         let source = r"const shapes = (
     TetrisPieceShape.I,
     TetrisPieceShape.J,
     TetrisPieceShape.L,
     TetrisPieceShape.O,
-    TetrisPieceShape.S,
 )";
         assert_format!(
             source,
@@ -146,17 +145,46 @@ mod tests {
     }
 
     #[test]
-    fn test_format_let_multiline_array_literal() {
+    fn test_format_let_break_multiline_tuple_literal() {
+        assert_format!(
+            "const shapes = (TetrisPieceShape.I, TetrisPieceShape.J, TetrisPieceShape.L, TetrisPieceShape.O)",
+            r"const shapes = (
+    TetrisPieceShape.I,
+    TetrisPieceShape.J,
+    TetrisPieceShape.L,
+    TetrisPieceShape.O,
+)",
+            |p| p.eat_let(DefinitionMeta::default()),
+            DystFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_let_retain_multiline_array_literal() {
         let source = r"const shapes = [
     TetrisPieceShape.I,
     TetrisPieceShape.J,
     TetrisPieceShape.L,
     TetrisPieceShape.O,
-    TetrisPieceShape.S,
 ]";
         assert_format!(
             source,
             source,
+            |p| p.eat_let(DefinitionMeta::default()),
+            DystFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_let_break_multiline_array_literal() {
+        assert_format!(
+            r"const shapes = [TetrisPieceShape.I, TetrisPieceShape.J, TetrisPieceShape.L, TetrisPieceShape.O]",
+            r"const shapes = [
+                TetrisPieceShape.I,
+                TetrisPieceShape.J,
+                TetrisPieceShape.L,
+                TetrisPieceShape.O,
+            ]",
             |p| p.eat_let(DefinitionMeta::default()),
             DystFormatOptions::default_with_line_width(40)
         );
