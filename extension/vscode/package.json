@@ -1,7 +1,7 @@
 {
     "name": "destack-extension-vscode",
     "displayName": "Destack & Dyst",
-    "description": "Destack & Dyst for VSCode (.ds, .dst, .dsb, .dsx)",
+    "description": "Destack & Dyst for VSCode (.ds, .dst, .dsb)",
     "version": "2025.10.26-0",
     "license": "proprietary",
     "engines": {
@@ -91,15 +91,6 @@
                 ],
                 "extensions": [
                     ".dsb"
-                ]
-            },
-            {
-                "id": "dsx",
-                "aliases": [
-                    "Destack Executable Format"
-                ],
-                "extensions": [
-                    ".dsx"
                 ]
             }
         ],

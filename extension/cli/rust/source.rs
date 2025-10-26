@@ -78,7 +78,7 @@ pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<Semantic
             .then_with(|| lhs.span.end.cmp(&rhs.span.end))
     });
 
-    let mut index = SemanticTokenIndex::from_tokens(source, &all_tokens);
+    let mut index = SemanticTokenIndex::from_lexical_tokens(source, &all_tokens);
     for expression in expressions {
         index.visit_expression(&parser.tree, expression, parser.tree.get(expression));
     }
@@ -91,7 +91,7 @@ pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<Semantic
         }
         let slice = &source.content[token.span.start as usize..token.span.end as usize];
         spans.push(SemanticSpan {
-            semantic_type,
+            semantic_type: semantic_type.expect("semantic type from lexical tokens"),
             text: slice.to_string(),
         });
     }
