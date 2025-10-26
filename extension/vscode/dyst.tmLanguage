@@ -12,7 +12,7 @@
       <string>dst</string>
     </array>
     <key>uuid</key>
-    <string>93c58bac-0650-4acc-8c92-db4930a6ef24</string>
+    <string>A7030735-DF48-4BC9-8D7E-A915DA71A798</string>
     <key>patterns</key>
     <array>
       <dict>
@@ -59,7 +59,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#after-operator-block-as-object-literal</string>
+            <string>#after-operator-block-as-struct-literal</string>
           </dict>
           <dict>
             <key>include</key>
@@ -105,7 +105,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-declaration</string>
+            <string>#struct-declaration</string>
           </dict>
           <dict>
             <key>include</key>
@@ -334,7 +334,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-expression</string>
+            <string>#struct-expression</string>
           </dict>
           <dict>
             <key>include</key>
@@ -362,7 +362,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-literal</string>
+            <string>#struct-literal</string>
           </dict>
           <dict>
             <key>include</key>
@@ -378,7 +378,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#support-objects</string>
+            <string>#support-structs</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1046,7 +1046,7 @@
         <array>
           <dict>
             <key>name</key>
-            <string>meta.object-binding-pattern-variable.ds</string>
+            <string>meta.struct-binding-pattern-variable.ds</string>
             <key>begin</key>
             <string>(?&lt;!=|:|^of|[^\._$[:alnum:]]of|^in|[^\._$[:alnum:]]in)\s*(?=\{)</string>
             <key>end</key>
@@ -1055,7 +1055,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#object-binding-pattern</string>
+                <string>#struct-binding-pattern</string>
               </dict>
               <dict>
                 <key>include</key>
@@ -1098,7 +1098,7 @@
         <array>
           <dict>
             <key>name</key>
-            <string>meta.object-binding-pattern-variable.ds</string>
+            <string>meta.struct-binding-pattern-variable.ds</string>
             <key>begin</key>
             <string>(?&lt;!=|:|^of|[^\._$[:alnum:]]of|^in|[^\._$[:alnum:]]in)\s*(?=\{)</string>
             <key>end</key>
@@ -1107,7 +1107,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#object-binding-pattern-const</string>
+                <string>#struct-binding-pattern-const</string>
               </dict>
               <dict>
                 <key>include</key>
@@ -1144,7 +1144,7 @@
           </dict>
         </array>
       </dict>
-      <key>object-binding-element</key>
+      <key>struct-binding-element</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -1170,7 +1170,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#object-binding-element-propertyName</string>
+                <string>#struct-binding-element-propertyName</string>
               </dict>
               <dict>
                 <key>include</key>
@@ -1180,7 +1180,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-binding-pattern</string>
+            <string>#struct-binding-pattern</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1196,7 +1196,7 @@
           </dict>
         </array>
       </dict>
-      <key>object-binding-element-const</key>
+      <key>struct-binding-element-const</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -1222,7 +1222,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#object-binding-element-propertyName</string>
+                <string>#struct-binding-element-propertyName</string>
               </dict>
               <dict>
                 <key>include</key>
@@ -1232,7 +1232,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-binding-pattern-const</string>
+            <string>#struct-binding-pattern-const</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1248,7 +1248,7 @@
           </dict>
         </array>
       </dict>
-      <key>object-binding-element-propertyName</key>
+      <key>struct-binding-element-propertyName</key>
       <dict>
         <key>begin</key>
         <string>(?x)(?=((\b(?&lt;!\$)0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\b(?!\$))|(\b(?&lt;!\$)0(?:b|B)[01][01_]*(n)?\b(?!\$))|(\b(?&lt;!\$)0(?:o|O)?[0-7][0-7_]*(n)?\b(?!\$))|((?&lt;!\$)(?:
@@ -1287,7 +1287,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>variable.object.property.ds</string>
+            <string>variable.struct.property.ds</string>
             <key>match</key>
             <string>([_$[:alpha:]][_$[:alnum:]]*)</string>
           </dict>
@@ -1315,7 +1315,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-binding-pattern</string>
+            <string>#struct-binding-pattern</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1353,7 +1353,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-binding-pattern-const</string>
+            <string>#struct-binding-pattern-const</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1405,7 +1405,7 @@
           </dict>
         </dict>
       </dict>
-      <key>object-binding-pattern</key>
+      <key>struct-binding-pattern</key>
       <dict>
         <key>begin</key>
         <string>(?:(\.\.\.)\s*)?(\{)</string>
@@ -1419,7 +1419,7 @@
           <key>2</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>end</key>
@@ -1429,18 +1429,18 @@
           <key>0</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>patterns</key>
         <array>
           <dict>
             <key>include</key>
-            <string>#object-binding-element</string>
+            <string>#struct-binding-element</string>
           </dict>
         </array>
       </dict>
-      <key>object-binding-pattern-const</key>
+      <key>struct-binding-pattern-const</key>
       <dict>
         <key>begin</key>
         <string>(?:(\.\.\.)\s*)?(\{)</string>
@@ -1454,7 +1454,7 @@
           <key>2</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>end</key>
@@ -1464,14 +1464,14 @@
           <key>0</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>patterns</key>
         <array>
           <dict>
             <key>include</key>
-            <string>#object-binding-element-const</string>
+            <string>#struct-binding-element-const</string>
           </dict>
         </array>
       </dict>
@@ -1714,7 +1714,7 @@
         <array>
           <dict>
             <key>name</key>
-            <string>meta.parameter.object-binding-pattern.ds</string>
+            <string>meta.parameter.struct-binding-pattern.ds</string>
             <key>begin</key>
             <string>(?&lt;!=|:)\s*(?:(\.\.\.)\s*)?(\{)</string>
             <key>beginCaptures</key>
@@ -1727,7 +1727,7 @@
               <key>2</key>
               <dict>
                 <key>name</key>
-                <string>punctuation.definition.binding-pattern.object.ds</string>
+                <string>punctuation.definition.binding-pattern.struct.ds</string>
               </dict>
             </dict>
             <key>end</key>
@@ -1737,14 +1737,14 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>punctuation.definition.binding-pattern.object.ds</string>
+                <string>punctuation.definition.binding-pattern.struct.ds</string>
               </dict>
             </dict>
             <key>patterns</key>
             <array>
               <dict>
                 <key>include</key>
-                <string>#parameter-object-binding-element</string>
+                <string>#parameter-struct-binding-element</string>
               </dict>
             </array>
           </dict>
@@ -1790,7 +1790,7 @@
           </dict>
         </array>
       </dict>
-      <key>parameter-object-binding-element</key>
+      <key>parameter-struct-binding-element</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -1816,7 +1816,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#object-binding-element-propertyName</string>
+                <string>#struct-binding-element-propertyName</string>
               </dict>
               <dict>
                 <key>include</key>
@@ -1830,7 +1830,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#parameter-object-binding-pattern</string>
+            <string>#parameter-struct-binding-pattern</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1868,7 +1868,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#parameter-object-binding-pattern</string>
+            <string>#parameter-struct-binding-pattern</string>
           </dict>
           <dict>
             <key>include</key>
@@ -1902,7 +1902,7 @@
           </dict>
         </dict>
       </dict>
-      <key>parameter-object-binding-pattern</key>
+      <key>parameter-struct-binding-pattern</key>
       <dict>
         <key>begin</key>
         <string>(?:(\.\.\.)\s*)?(\{)</string>
@@ -1916,7 +1916,7 @@
           <key>2</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>end</key>
@@ -1926,14 +1926,14 @@
           <key>0</key>
           <dict>
             <key>name</key>
-            <string>punctuation.definition.binding-pattern.object.ds</string>
+            <string>punctuation.definition.binding-pattern.struct.ds</string>
           </dict>
         </dict>
         <key>patterns</key>
         <array>
           <dict>
             <key>include</key>
-            <string>#parameter-object-binding-element</string>
+            <string>#parameter-struct-binding-element</string>
           </dict>
         </array>
       </dict>
@@ -2133,7 +2133,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.definition.property.ds variable.object.property.ds</string>
+            <string>meta.definition.property.ds variable.struct.property.ds</string>
             <key>match</key>
             <string>\#?[_$[:alpha:]][_$[:alnum:]]*</string>
           </dict>
@@ -2508,7 +2508,7 @@
           </dict>
         </array>
       </dict>
-      <key>object-literal-method-declaration</key>
+      <key>struct-literal-method-declaration</key>
       <dict>
         <key>name</key>
         <string>meta.method.declaration.ds</string>
@@ -2950,10 +2950,10 @@
           </dict>
         </array>
       </dict>
-      <key>class-declaration</key>
+      <key>struct-declaration</key>
       <dict>
         <key>name</key>
-        <string>meta.class.ds</string>
+        <string>meta.struct.ds</string>
         <key>begin</key>
         <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(?:(\bexport)\s+)?(?:(\bdeclare)\s+)?\b(?:(abstract)\s+)?\b(class)\b(?=\s+|/[/*])</string>
         <key>beginCaptures</key>
@@ -2976,7 +2976,7 @@
           <key>4</key>
           <dict>
             <key>name</key>
-            <string>storage.type.class.ds</string>
+            <string>storage.type.struct.ds</string>
           </dict>
         </dict>
         <key>end</key>
@@ -2985,16 +2985,16 @@
         <array>
           <dict>
             <key>include</key>
-            <string>#class-declaration-or-expression-patterns</string>
+            <string>#struct-declaration-or-expression-patterns</string>
           </dict>
         </array>
       </dict>
-      <key>class-expression</key>
+      <key>struct-expression</key>
       <dict>
         <key>name</key>
-        <string>meta.class.ds</string>
+        <string>meta.struct.ds</string>
         <key>begin</key>
-        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(?:(abstract)\s+)?(class)\b(?=\s+|[&lt;{]|\/[\/*])</string>
+        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(?:(abstract)\s+)?((class)|(struct))\b(?=\s+|[&lt;{]|\/[\/*])</string>
         <key>beginCaptures</key>
         <dict>
           <key>1</key>
@@ -3005,7 +3005,7 @@
           <key>2</key>
           <dict>
             <key>name</key>
-            <string>storage.type.class.ds</string>
+            <string>storage.type.struct.ds</string>
           </dict>
         </dict>
         <key>end</key>
@@ -3014,11 +3014,11 @@
         <array>
           <dict>
             <key>include</key>
-            <string>#class-declaration-or-expression-patterns</string>
+            <string>#struct-declaration-or-expression-patterns</string>
           </dict>
         </array>
       </dict>
-      <key>class-declaration-or-expression-patterns</key>
+      <key>struct-declaration-or-expression-patterns</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -3028,7 +3028,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-or-interface-heritage</string>
+            <string>#struct-or-interface-heritage</string>
           </dict>
           <dict>
             <key>match</key>
@@ -3038,7 +3038,7 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>entity.name.type.class.ds</string>
+                <string>entity.name.type.struct.ds</string>
               </dict>
             </dict>
           </dict>
@@ -3048,7 +3048,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-or-interface-body</string>
+            <string>#struct-or-interface-body</string>
           </dict>
         </array>
       </dict>
@@ -3091,7 +3091,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-or-interface-heritage</string>
+            <string>#struct-or-interface-heritage</string>
           </dict>
           <dict>
             <key>match</key>
@@ -3111,11 +3111,11 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-or-interface-body</string>
+            <string>#struct-or-interface-body</string>
           </dict>
         </array>
       </dict>
-      <key>class-or-interface-heritage</key>
+      <key>struct-or-interface-heritage</key>
       <dict>
         <key>begin</key>
         <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(?:\b(extends|implements)\b)(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
@@ -3137,7 +3137,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#class-or-interface-heritage</string>
+            <string>#struct-or-interface-heritage</string>
           </dict>
           <dict>
             <key>include</key>
@@ -3187,7 +3187,7 @@
           </dict>
         </array>
       </dict>
-      <key>class-or-interface-body</key>
+      <key>struct-or-interface-body</key>
       <dict>
         <key>begin</key>
         <string>\{</string>
@@ -3223,7 +3223,7 @@
             <key>begin</key>
             <string>(?&lt;=:)\s*</string>
             <key>end</key>
-            <string>(?=\s|[;),}\]:\-\+]|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
+            <string>(?=\s|[;),}\]:\-\+]|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|struct|union|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
             <key>patterns</key>
             <array>
               <dict>
@@ -3270,7 +3270,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#after-operator-block-as-object-literal</string>
+            <string>#after-operator-block-as-struct-literal</string>
           </dict>
           <dict>
             <key>include</key>
@@ -3463,7 +3463,7 @@
           </dict>
         </dict>
         <key>end</key>
-        <string>(?&lt;=\})|(?=;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
+        <string>(?&lt;=\})|(?=;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|struct|union|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
         <key>patterns</key>
         <array>
           <dict>
@@ -3520,7 +3520,7 @@
           </dict>
         </dict>
         <key>end</key>
-        <string>(?=\}|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
+        <string>(?=\}|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|struct|union|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
         <key>patterns</key>
         <array>
           <dict>
@@ -3548,7 +3548,7 @@
               </dict>
             </dict>
             <key>end</key>
-            <string>(?=\}|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
+            <string>(?=\}|;|^\s*$|(?:^\s*(?:abstract|async|(?:\bawait\s+(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)\b)|break|case|catch|class|struct|union|const|continue|declare|do|else|enum|export|finally|function|for|goto|if|import|interface|let|module|namespace|switch|return|throw|try|type|(?:\busing(?=\s+(?!in\b|of\b(?!\s*(?:of\b|=)))[_$[:alpha:]])\b)|var|while)\b))</string>
             <key>patterns</key>
             <array>
               <dict>
@@ -3987,7 +3987,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object-literal.key.ds</string>
+            <string>meta.struct-literal.key.ds</string>
             <key>match</key>
             <string>(?:[_$[:alpha:]][_$[:alnum:]]*)\s*(?=(\/\*([^\*]|(\*[^\/]))*\*\/\s*)*:)</string>
           </dict>
@@ -4475,10 +4475,10 @@
           </dict>
         </array>
       </dict>
-      <key>after-operator-block-as-object-literal</key>
+      <key>after-operator-block-as-struct-literal</key>
       <dict>
         <key>name</key>
-        <string>meta.objectliteral.ds</string>
+        <string>meta.structliteral.ds</string>
         <key>begin</key>
         <string>(?&lt;!\+\+|--)(?&lt;=[:=(,\[?+!&gt;]|^await|[^\._$[:alnum:]]await|^return|[^\._$[:alnum:]]return|^yield|[^\._$[:alnum:]]yield|^throw|[^\._$[:alnum:]]throw|^in|[^\._$[:alnum:]]in|^of|[^\._$[:alnum:]]of|^typeof|[^\._$[:alnum:]]typeof|&amp;&amp;|\|\||\*)\s*(\{)</string>
         <key>beginCaptures</key>
@@ -4503,14 +4503,14 @@
         <array>
           <dict>
             <key>include</key>
-            <string>#object-member</string>
+            <string>#struct-member</string>
           </dict>
         </array>
       </dict>
-      <key>object-literal</key>
+      <key>struct-literal</key>
       <dict>
         <key>name</key>
-        <string>meta.objectliteral.ds</string>
+        <string>meta.structliteral.ds</string>
         <key>begin</key>
         <string>\{</string>
         <key>beginCaptures</key>
@@ -4535,11 +4535,11 @@
         <array>
           <dict>
             <key>include</key>
-            <string>#object-member</string>
+            <string>#struct-member</string>
           </dict>
         </array>
       </dict>
-      <key>object-member</key>
+      <key>struct-member</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -4549,11 +4549,11 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-literal-method-declaration</string>
+            <string>#struct-literal-method-declaration</string>
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds meta.object-literal.key.ds</string>
+            <string>meta.struct.member.ds meta.struct-literal.key.ds</string>
             <key>begin</key>
             <string>(?=\[)</string>
             <key>end</key>
@@ -4572,7 +4572,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds meta.object-literal.key.ds</string>
+            <string>meta.struct.member.ds meta.struct-literal.key.ds</string>
             <key>begin</key>
             <string>(?=[\'\"\`])</string>
             <key>end</key>
@@ -4591,7 +4591,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds meta.object-literal.key.ds</string>
+            <string>meta.struct.member.ds meta.struct-literal.key.ds</string>
             <key>begin</key>
             <string>(?x)(?=(\b(?&lt;!\$)0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\b(?!\$))|(\b(?&lt;!\$)0(?:b|B)[01][01_]*(n)?\b(?!\$))|(\b(?&lt;!\$)0(?:o|O)?[0-7][0-7_]*(n)?\b(?!\$))|((?&lt;!\$)(?:
   (?:\b[0-9][0-9_]*(\.)[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*(n)?\b)| # 1.1E+3
@@ -4634,7 +4634,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>match</key>
             <string>(?![_$[:alpha:]])([[:digit:]]+)\s*(?=(\/\*([^\*]|(\*[^\/]))*\*\/\s*)*:)</string>
             <key>captures</key>
@@ -4642,7 +4642,7 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>meta.object-literal.key.ds</string>
+                <string>meta.struct-literal.key.ds</string>
               </dict>
               <key>1</key>
               <dict>
@@ -4653,7 +4653,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>match</key>
             <string>(?x)(?:([_$[:alpha:]][_$[:alnum:]]*)\s*(?=(\/\*([^\*]|(\*[^\/]))*\*\/\s*)*:(\s*\/\*([^\*]|(\*[^\/]))*\*\/)*\s*(
   ((async\s+)?(
@@ -4689,7 +4689,7 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>meta.object-literal.key.ds</string>
+                <string>meta.struct-literal.key.ds</string>
               </dict>
               <key>1</key>
               <dict>
@@ -4700,7 +4700,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>match</key>
             <string>(?:[_$[:alpha:]][_$[:alnum:]]*)\s*(?=(\/\*([^\*]|(\*[^\/]))*\*\/\s*)*:)</string>
             <key>captures</key>
@@ -4708,13 +4708,13 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>meta.object-literal.key.ds</string>
+                <string>meta.struct-literal.key.ds</string>
               </dict>
             </dict>
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>begin</key>
             <string>\.\.\.</string>
             <key>beginCaptures</key>
@@ -4737,7 +4737,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>match</key>
             <string>([_$[:alpha:]][_$[:alnum:]]*)\s*(?=,|\}|$|\/\/|\/\*)</string>
             <key>captures</key>
@@ -4751,7 +4751,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>match</key>
             <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(as)\s+(const)(?=\s*([,}]|$))</string>
             <key>captures</key>
@@ -4770,7 +4770,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>begin</key>
             <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(?:(as)|(satisfies))\s+</string>
             <key>beginCaptures</key>
@@ -4798,7 +4798,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>begin</key>
             <string>(?=[_$[:alpha:]][_$[:alnum:]]*\s*=)</string>
             <key>end</key>
@@ -4813,7 +4813,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>meta.object.member.ds</string>
+            <string>meta.struct.member.ds</string>
             <key>begin</key>
             <string>:</string>
             <key>beginCaptures</key>
@@ -4821,7 +4821,7 @@
               <key>0</key>
               <dict>
                 <key>name</key>
-                <string>meta.object-literal.key.ds punctuation.separator.key-value.ds</string>
+                <string>meta.struct-literal.key.ds punctuation.separator.key-value.ds</string>
               </dict>
             </dict>
             <key>end</key>
@@ -5138,11 +5138,11 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#support-objects</string>
+            <string>#support-structs</string>
           </dict>
           <dict>
             <key>include</key>
-            <string>#object-identifiers</string>
+            <string>#struct-identifiers</string>
           </dict>
           <dict>
             <key>include</key>
@@ -6080,6 +6080,13 @@
         <key>match</key>
         <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))this\b(?!\$)</string>
       </dict>
+      <key>self-literal</key>
+      <dict>
+        <key>name</key>
+        <string>variable.language.self.ds</string>
+        <key>match</key>
+        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))self\b(?!\$)</string>
+      </dict>
       <key>super-literal</key>
       <dict>
         <key>name</key>
@@ -6093,6 +6100,13 @@
         <string>constant.language.undefined.ds</string>
         <key>match</key>
         <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))undefined(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
+      </dict>
+      <key>unknown-literal</key>
+      <dict>
+        <key>name</key>
+        <string>constant.language.unknown.ds</string>
+        <key>match</key>
+        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))unknown(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
       </dict>
       <key>numericConstant-literal</key>
       <dict>
@@ -6112,7 +6126,7 @@
           </dict>
         </array>
       </dict>
-      <key>support-objects</key>
+      <key>support-structs</key>
       <dict>
         <key>patterns</key>
         <array>
@@ -6124,7 +6138,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>support.class.builtin.ds</string>
+            <string>support.struct.builtin.ds</string>
             <key>match</key>
             <string>(?x)(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(Array|ArrayBuffer|Atomics|BigInt|BigInt64Array|BigUint64Array|Boolean|DataView|Date|Float32Array
   |Float64Array|Function|Generator|GeneratorFunction|Int8Array|Int16Array|Int32Array|Intl|Map|Number|Object|Proxy
@@ -6133,13 +6147,13 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>support.class.error.ds</string>
+            <string>support.struct.error.ds</string>
             <key>match</key>
             <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))((Eval|Internal|Range|Reference|Syntax|Type|URI)?Error)\b(?!\$)</string>
           </dict>
           <dict>
             <key>name</key>
-            <string>support.class.promise.ds</string>
+            <string>support.struct.promise.ds</string>
             <key>match</key>
             <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(Promise)\b(?!\$)</string>
           </dict>
@@ -6197,7 +6211,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>support.class.console.ds</string>
+                <string>support.struct.console.ds</string>
               </dict>
               <key>2</key>
               <dict>
@@ -6328,144 +6342,8 @@
             </dict>
           </dict>
           <dict>
-            <key>match</key>
-            <string>(?x) (?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.)) \b (?:
-  (document|event|navigator|performance|screen|window)
-  |
-  (AnalyserNode|ArrayBufferView|Attr|AudioBuffer|AudioBufferSourceNode|AudioContext|AudioDestinationNode|AudioListener
-  |AudioNode|AudioParam|BatteryManager|BeforeUnloadEvent|BiquadFilterNode|Blob|BufferSource|ByteString|CSS|CSSConditionRule
-  |CSSCounterStyleRule|CSSGroupingRule|CSSMatrix|CSSMediaRule|CSSPageRule|CSSPrimitiveValue|CSSRule|CSSRuleList|CSSStyleDeclaration
-  |CSSStyleRule|CSSStyleSheet|CSSSupportsRule|CSSValue|CSSValueList|CanvasGradient|CanvasImageSource|CanvasPattern
-  |CanvasRenderingContext2D|ChannelMergerNode|ChannelSplitterNode|CharacterData|ChromeWorker|CloseEvent|Comment|CompositionEvent
-  |Console|ConvolverNode|Coordinates|Credential|CredentialsContainer|Crypto|CryptoKey|CustomEvent|DOMError|DOMException
-  |DOMHighResTimeStamp|DOMImplementation|DOMString|DOMStringList|DOMStringMap|DOMTimeStamp|DOMTokenList|DataTransfer
-  |DataTransferItem|DataTransferItemList|DedicatedWorkerGlobalScope|DelayNode|DeviceProximityEvent|DirectoryEntry
-  |DirectoryEntrySync|DirectoryReader|DirectoryReaderSync|Document|DocumentFragment|DocumentTouch|DocumentType|DragEvent
-  |DynamicsCompressorNode|Element|Entry|EntrySync|ErrorEvent|Event|EventListener|EventSource|EventTarget|FederatedCredential
-  |FetchEvent|File|FileEntry|FileEntrySync|FileException|FileList|FileReader|FileReaderSync|FileSystem|FileSystemSync
-  |FontFace|FormData|GainNode|Gamepad|GamepadButton|GamepadEvent|Geolocation|GlobalEventHandlers|HTMLAnchorElement
-  |HTMLAreaElement|HTMLAudioElement|HTMLBRElement|HTMLBaseElement|HTMLBodyElement|HTMLButtonElement|HTMLCanvasElement
-  |HTMLCollection|HTMLContentElement|HTMLDListElement|HTMLDataElement|HTMLDataListElement|HTMLDialogElement|HTMLDivElement
-  |HTMLDocument|HTMLElement|HTMLEmbedElement|HTMLFieldSetElement|HTMLFontElement|HTMLFormControlsCollection|HTMLFormElement
-  |HTMLHRElement|HTMLHeadElement|HTMLHeadingElement|HTMLHtmlElement|HTMLIFrameElement|HTMLImageElement|HTMLInputElement
-  |HTMLKeygenElement|HTMLLIElement|HTMLLabelElement|HTMLLegendElement|HTMLLinkElement|HTMLMapElement|HTMLMediaElement
-  |HTMLMetaElement|HTMLMeterElement|HTMLModElement|HTMLOListElement|HTMLObjectElement|HTMLOptGroupElement|HTMLOptionElement
-  |HTMLOptionsCollection|HTMLOutputElement|HTMLParagraphElement|HTMLParamElement|HTMLPreElement|HTMLProgressElement
-  |HTMLQuoteElement|HTMLScriptElement|HTMLSelectElement|HTMLShadowElement|HTMLSourceElement|HTMLSpanElement|HTMLStyleElement
-  |HTMLTableCaptionElement|HTMLTableCellElement|HTMLTableColElement|HTMLTableDataCellElement|HTMLTableElement|HTMLTableHeaderCellElement
-  |HTMLTableRowElement|HTMLTableSectionElement|HTMLTextAreaElement|HTMLTimeElement|HTMLTitleElement|HTMLTrackElement
-  |HTMLUListElement|HTMLUnknownElement|HTMLVideoElement|HashChangeEvent|History|IDBCursor|IDBCursorWithValue|IDBDatabase
-  |IDBEnvironment|IDBFactory|IDBIndex|IDBKeyRange|IDBMutableFile|IDBObjectStore|IDBOpenDBRequest|IDBRequest|IDBTransaction
-  |IDBVersionChangeEvent|IIRFilterNode|IdentityManager|ImageBitmap|ImageBitmapFactories|ImageData|Index|InputDeviceCapabilities
-  |InputEvent|InstallEvent|InstallTrigger|KeyboardEvent|LinkStyle|LocalFileSystem|LocalFileSystemSync|Location|MIDIAccess
-  |MIDIConnectionEvent|MIDIInput|MIDIInputMap|MIDIOutputMap|MediaElementAudioSourceNode|MediaError|MediaKeyMessageEvent
-  |MediaKeySession|MediaKeyStatusMap|MediaKeySystemAccess|MediaKeySystemConfiguration|MediaKeys|MediaRecorder|MediaStream
-  |MediaStreamAudioDestinationNode|MediaStreamAudioSourceNode|MessageChannel|MessageEvent|MessagePort|MouseEvent
-  |MutationObserver|MutationRecord|NamedNodeMap|Navigator|NavigatorConcurrentHardware|NavigatorGeolocation|NavigatorID
-  |NavigatorLanguage|NavigatorOnLine|Node|NodeFilter|NodeIterator|NodeList|NonDocumentTypeChildNode|Notification
-  |OfflineAudioCompletionEvent|OfflineAudioContext|OscillatorNode|PageTransitionEvent|PannerNode|ParentNode|PasswordCredential
-  |Path2D|PaymentAddress|PaymentRequest|PaymentResponse|Performance|PerformanceEntry|PerformanceFrameTiming|PerformanceMark
-  |PerformanceMeasure|PerformanceNavigation|PerformanceNavigationTiming|PerformanceObserver|PerformanceObserverEntryList
-  |PerformanceResourceTiming|PerformanceTiming|PeriodicSyncEvent|PeriodicWave|Plugin|Point|PointerEvent|PopStateEvent
-  |PortCollection|Position|PositionError|PositionOptions|PresentationConnectionClosedEvent|PresentationConnectionList
-  |PresentationReceiver|ProcessingInstruction|ProgressEvent|PromiseRejectionEvent|PushEvent|PushRegistrationManager
-  |RTCCertificate|RTCConfiguration|RTCPeerConnection|RTCSessionDescriptionCallback|RTCStatsReport|RadioNodeList|RandomSource
-  |Range|ReadableByteStream|RenderingContext|SVGAElement|SVGAngle|SVGAnimateColorElement|SVGAnimateElement|SVGAnimateMotionElement
-  |SVGAnimateTransformElement|SVGAnimatedAngle|SVGAnimatedBoolean|SVGAnimatedEnumeration|SVGAnimatedInteger|SVGAnimatedLength
-  |SVGAnimatedLengthList|SVGAnimatedNumber|SVGAnimatedNumberList|SVGAnimatedPoints|SVGAnimatedPreserveAspectRatio
-  |SVGAnimatedRect|SVGAnimatedString|SVGAnimatedTransformList|SVGAnimationElement|SVGCircleElement|SVGClipPathElement
-  |SVGCursorElement|SVGDefsElement|SVGDescElement|SVGElement|SVGEllipseElement|SVGEvent|SVGFilterElement|SVGFontElement
-  |SVGFontFaceElement|SVGFontFaceFormatElement|SVGFontFaceNameElement|SVGFontFaceSrcElement|SVGFontFaceUriElement
-  |SVGForeignObjectElement|SVGGElement|SVGGlyphElement|SVGGradientElement|SVGHKernElement|SVGImageElement|SVGLength
-  |SVGLengthList|SVGLineElement|SVGLinearGradientElement|SVGMPathElement|SVGMaskElement|SVGMatrix|SVGMissingGlyphElement
-  |SVGNumber|SVGNumberList|SVGPathElement|SVGPatternElement|SVGPoint|SVGPolygonElement|SVGPolylineElement|SVGPreserveAspectRatio
-  |SVGRadialGradientElement|SVGRect|SVGRectElement|SVGSVGElement|SVGScriptElement|SVGSetElement|SVGStopElement|SVGStringList
-  |SVGStylable|SVGStyleElement|SVGSwitchElement|SVGSymbolElement|SVGTRefElement|SVGTSpanElement|SVGTests|SVGTextElement
-  |SVGTextPositioningElement|SVGTitleElement|SVGTransform|SVGTransformList|SVGTransformable|SVGUseElement|SVGVKernElement
-  |SVGViewElement|ServiceWorker|ServiceWorkerContainer|ServiceWorkerGlobalScope|ServiceWorkerRegistration|ServiceWorkerState
-  |ShadowRoot|SharedWorker|SharedWorkerGlobalScope|SourceBufferList|StereoPannerNode|Storage|StorageEvent|StyleSheet
-  |StyleSheetList|SubtleCrypto|SyncEvent|Text|TextMetrics|TimeEvent|TimeRanges|Touch|TouchEvent|TouchList|Transferable
-  |TreeWalker|UIEvent|USVString|VRDisplayCapabilities|ValidityState|WaveShaperNode|WebGL|WebGLActiveInfo|WebGLBuffer
-  |WebGLContextEvent|WebGLFramebuffer|WebGLProgram|WebGLRenderbuffer|WebGLRenderingContext|WebGLShader|WebGLShaderPrecisionFormat
-  |WebGLTexture|WebGLTimerQueryEXT|WebGLTransformFeedback|WebGLUniformLocation|WebGLVertexArrayObject|WebGLVertexArrayObjectOES
-  |WebSocket|WebSockets|WebVTT|WheelEvent|Window|WindowBase64|WindowEventHandlers|WindowTimers|Worker|WorkerGlobalScope
-  |WorkerLocation|WorkerNavigator|XMLHttpRequest|XMLHttpRequestEventTarget|XMLSerializer|XPathExpression|XPathResult
-  |XSLTProcessor))\b(?!\$)</string>
-            <key>captures</key>
-            <dict>
-              <key>1</key>
-              <dict>
-                <key>name</key>
-                <string>support.variable.dom.ds</string>
-              </dict>
-              <key>2</key>
-              <dict>
-                <key>name</key>
-                <string>support.class.dom.ds</string>
-              </dict>
-            </dict>
-          </dict>
-          <dict>
-            <key>match</key>
-            <string>(?x) (?:(\.)|(\?\.(?!\s*[[:digit:]]))) \s* (?:
-  (ATTRIBUTE_NODE|CDATA_SECTION_NODE|COMMENT_NODE|DOCUMENT_FRAGMENT_NODE|DOCUMENT_NODE|DOCUMENT_TYPE_NODE
-  |DOMSTRING_SIZE_ERR|ELEMENT_NODE|ENTITY_NODE|ENTITY_REFERENCE_NODE|HIERARCHY_REQUEST_ERR|INDEX_SIZE_ERR
-  |INUSE_ATTRIBUTE_ERR|INVALID_CHARACTER_ERR|NO_DATA_ALLOWED_ERR|NO_MODIFICATION_ALLOWED_ERR|NOT_FOUND_ERR
-  |NOT_SUPPORTED_ERR|NOTATION_NODE|PROCESSING_INSTRUCTION_NODE|TEXT_NODE|WRONG_DOCUMENT_ERR)
-  |
-  (_content|[xyz]|abbr|above|accept|acceptCharset|accessKey|action|align|[av]Link(?:color)?|all|alt|anchors|appCodeName
-  |appCore|applets|appMinorVersion|appName|appVersion|archive|areas|arguments|attributes|availHeight|availLeft|availTop
-  |availWidth|axis|background|backgroundColor|backgroundImage|below|bgColor|body|border|borderBottomWidth|borderColor
-  |borderLeftWidth|borderRightWidth|borderStyle|borderTopWidth|borderWidth|bottom|bufferDepth|callee|caller|caption
-  |cellPadding|cells|cellSpacing|ch|characterSet|charset|checked|childNodes|chOff|cite|classes|className|clear
-  |clientInformation|clip|clipBoardData|closed|code|codeBase|codeType|color|colorDepth|cols|colSpan|compact|complete
-  |components|content|controllers|cookie|cookieEnabled|cords|cpuClass|crypto|current|data|dateTime|declare|defaultCharset
-  |defaultChecked|defaultSelected|defaultStatus|defaultValue|defaultView|defer|description|dialogArguments|dialogHeight
-  |dialogLeft|dialogTop|dialogWidth|dir|directories|disabled|display|docmain|doctype|documentElement|elements|embeds
-  |enabledPlugin|encoding|enctype|entities|event|expando|external|face|fgColor|filename|firstChild|fontFamily|fontSize
-  |fontWeight|form|formName|forms|frame|frameBorder|frameElement|frames|hasFocus|hash|headers|height|history|host
-  |hostname|href|hreflang|hspace|htmlFor|httpEquiv|id|ids|ignoreCase|images|implementation|index|innerHeight|innerWidth
-  |input|isMap|label|lang|language|lastChild|lastIndex|lastMatch|lastModified|lastParen|layer[sXY]|left|leftContext
-  |lineHeight|link|linkColor|links|listStyleType|localName|location|locationbar|longDesc|lowsrc|lowSrc|marginBottom
-  |marginHeight|marginLeft|marginRight|marginTop|marginWidth|maxLength|media|menubar|method|mimeTypes|multiline|multiple
-  |name|nameProp|namespaces|namespaceURI|next|nextSibling|nodeName|nodeType|nodeValue|noHref|noResize|noShade|notationName
-  |notations|noWrap|object|offscreenBuffering|onLine|onreadystatechange|opener|opsProfile|options|oscpu|outerHeight
-  |outerWidth|ownerDocument|paddingBottom|paddingLeft|paddingRight|paddingTop|page[XY]|page[XY]Offset|parent|parentLayer
-  |parentNode|parentWindow|pathname|personalbar|pixelDepth|pkcs11|platform|plugins|port|prefix|previous|previousDibling
-  |product|productSub|profile|profileend|prompt|prompter|protocol|publicId|readOnly|readyState|referrer|rel|responseText
-  |responseXML|rev|right|rightContext|rowIndex|rows|rowSpan|rules|scheme|scope|screen[XY]|screenLeft|screenTop|scripts
-  |scrollbars|scrolling|sectionRowIndex|security|securityPolicy|selected|selectedIndex|selection|self|shape|siblingAbove
-  |siblingBelow|size|source|specified|standby|start|status|statusbar|statusText|style|styleSheets|suffixes|summary
-  |systemId|systemLanguage|tagName|tags|target|tBodies|text|textAlign|textDecoration|textIndent|textTransform|tFoot|tHead
-  |title|toolbar|top|type|undefined|uniqueID|updateInterval|URL|URLUnencoded|useMap|userAgent|userLanguage|userProfile
-  |vAlign|value|valueType|vendor|vendorSub|version|visibility|vspace|whiteSpace|width|X[MS]LDocument|zIndex))\b(?!\$|\s*(&lt;\s*(((const\s+)?[_$[:alpha:]])|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=&lt;&gt;]|=[^&lt;]|\&lt;\s*(((const\s+)?[_$[:alpha:]])|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=&lt;&gt;]|=[^&lt;]|\&lt;\s*(((const\s+)?[_$[:alpha:]])|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=&lt;&gt;]|=[^&lt;])*\&gt;)*\&gt;)*&gt;\s*)?\()</string>
-            <key>captures</key>
-            <dict>
-              <key>1</key>
-              <dict>
-                <key>name</key>
-                <string>punctuation.accessor.ds</string>
-              </dict>
-              <key>2</key>
-              <dict>
-                <key>name</key>
-                <string>punctuation.accessor.optional.ds</string>
-              </dict>
-              <key>3</key>
-              <dict>
-                <key>name</key>
-                <string>support.constant.dom.ds</string>
-              </dict>
-              <key>4</key>
-              <dict>
-                <key>name</key>
-                <string>support.variable.property.dom.ds</string>
-              </dict>
-            </dict>
-          </dict>
-          <dict>
             <key>name</key>
-            <string>support.class.node.ds</string>
+            <string>support.struct.node.ds</string>
             <key>match</key>
             <string>(?x)(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(Buffer|EventEmitter|Server|Pipe|Socket|REPLServer|ReadStream|WriteStream|Stream
   |Inflate|Deflate|InflateRaw|DeflateRaw|GZip|GUnzip|Unzip|Zip)\b(?!\$)</string>
@@ -6482,7 +6360,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>support.variable.object.process.ds</string>
+                <string>support.variable.struct.process.ds</string>
               </dict>
               <key>2</key>
               <dict>
@@ -6514,12 +6392,12 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>support.type.object.module.ds</string>
+                <string>support.type.struct.module.ds</string>
               </dict>
               <key>2</key>
               <dict>
                 <key>name</key>
-                <string>support.type.object.module.ds</string>
+                <string>support.type.struct.module.ds</string>
               </dict>
               <key>3</key>
               <dict>
@@ -6534,13 +6412,13 @@
               <key>5</key>
               <dict>
                 <key>name</key>
-                <string>support.type.object.module.ds</string>
+                <string>support.type.struct.module.ds</string>
               </dict>
             </dict>
           </dict>
           <dict>
             <key>name</key>
-            <string>support.variable.object.node.ds</string>
+            <string>support.variable.struct.node.ds</string>
             <key>match</key>
             <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(global|GLOBAL|root|__dirname|__filename)\b(?!\$)</string>
           </dict>
@@ -6665,7 +6543,7 @@
         <array>
           <dict>
             <key>include</key>
-            <string>#object-identifiers</string>
+            <string>#struct-identifiers</string>
           </dict>
           <dict>
             <key>match</key>
@@ -6775,13 +6653,13 @@
           </dict>
         </array>
       </dict>
-      <key>object-identifiers</key>
+      <key>struct-identifiers</key>
       <dict>
         <key>patterns</key>
         <array>
           <dict>
             <key>name</key>
-            <string>support.class.ds</string>
+            <string>support.struct.ds</string>
             <key>match</key>
             <string>([_$[:alpha:]][_$[:alnum:]]*)(?=\s*\??\.\s*prototype\b(?!\$))</string>
           </dict>
@@ -6806,12 +6684,12 @@
               <key>3</key>
               <dict>
                 <key>name</key>
-                <string>variable.other.constant.object.property.ds</string>
+                <string>variable.other.constant.struct.property.ds</string>
               </dict>
               <key>4</key>
               <dict>
                 <key>name</key>
-                <string>variable.other.object.property.ds</string>
+                <string>variable.other.struct.property.ds</string>
               </dict>
             </dict>
           </dict>
@@ -6826,12 +6704,12 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>variable.other.constant.object.ds</string>
+                <string>variable.other.constant.struct.ds</string>
               </dict>
               <key>2</key>
               <dict>
                 <key>name</key>
-                <string>variable.other.object.ds</string>
+                <string>variable.other.struct.ds</string>
               </dict>
             </dict>
           </dict>
@@ -6987,7 +6865,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#type-object</string>
+                <string>#type-struct</string>
               </dict>
             </array>
           </dict>
@@ -7062,7 +6940,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#type-object</string>
+                <string>#type-struct</string>
               </dict>
             </array>
           </dict>
@@ -7220,7 +7098,7 @@
           </dict>
           <dict>
             <key>include</key>
-            <string>#type-object</string>
+            <string>#type-struct</string>
           </dict>
           <dict>
             <key>include</key>
@@ -7265,14 +7143,14 @@
         <key>name</key>
         <string>support.type.primitive.ds</string>
         <key>match</key>
-        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(string|number|bigint|boolean|symbol|any|void|never|unknown)(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
+        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))((?:u?int\d+)|(?:[iu]\d+)|string|number|bigint|boolean|symbol|any|void|never|unknown)(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
       </dict>
       <key>type-builtin-literals</key>
       <dict>
         <key>name</key>
         <string>support.type.builtin.ds</string>
         <key>match</key>
-        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(this|true|false|undefined|null|object)(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
+        <string>(?&lt;![_$[:alnum:]])(?:(?&lt;=\.\.\.)|(?&lt;!\.))(this|self|true|false|undefined|unknown|any|never|null)(?![_$[:alnum:]])(?:(?=\.\.\.)|(?!\.))</string>
       </dict>
       <key>type-tuple</key>
       <dict>
@@ -7338,10 +7216,10 @@
           </dict>
         </array>
       </dict>
-      <key>type-object</key>
+      <key>type-struct</key>
       <dict>
         <key>name</key>
-        <string>meta.object.type.ds</string>
+        <string>meta.struct.type.ds</string>
         <key>begin</key>
         <string>\{</string>
         <key>beginCaptures</key>
@@ -7756,7 +7634,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#type-object</string>
+                <string>#type-struct</string>
               </dict>
             </array>
           </dict>
@@ -7799,7 +7677,7 @@
             <array>
               <dict>
                 <key>include</key>
-                <string>#type-object</string>
+                <string>#type-struct</string>
               </dict>
             </array>
           </dict>
@@ -8979,7 +8857,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9013,7 +8891,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9054,7 +8932,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9090,7 +8968,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9170,7 +9048,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9215,7 +9093,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9254,7 +9132,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9276,7 +9154,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9317,7 +9195,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9339,7 +9217,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9371,7 +9249,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9466,7 +9344,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9504,7 +9382,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9528,7 +9406,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9570,7 +9448,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9586,7 +9464,7 @@
           </dict>
           <dict>
             <key>name</key>
-            <string>storage.type.class.jsdoc</string>
+            <string>storage.type.struct.jsdoc</string>
             <key>match</key>
             <string>(?x) (@) (?:abstract|access|alias|api|arg|argument|async|attribute|augments|author|beta|borrows|bubbles |callback|chainable|class|classdesc|code|config|const|constant|constructor|constructs|copyright |default|defaultvalue|define|deprecated|desc|description|dict|emits|enum|event|example|exception |exports?|extends|extension(?:_?for)?|external|externs|file|fileoverview|final|fires|for|func |function|generator|global|hideconstructor|host|ignore|implements|implicitCast|inherit[Dd]oc |inner|instance|interface|internal|kind|lends|license|listens|main|member|memberof!?|method |mixes|mixins?|modifies|module|name|namespace|noalias|nocollapse|nocompile|nosideeffects |override|overview|package|param|polymer(?:Behavior)?|preserve|private|prop|property|protected |public|read[Oo]nly|record|require[ds]|returns?|see|since|static|struct|submodule|summary |suppress|template|this|throws|todo|tutorial|type|typedef|unrestricted|uses|var|variation |version|virtual|writeOnce|yields?) \b</string>
             <key>captures</key>
@@ -9610,7 +9488,7 @@
               <key>1</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>2</key>
               <dict>
@@ -9691,7 +9569,7 @@
               <key>2</key>
               <dict>
                 <key>name</key>
-                <string>storage.type.class.jsdoc</string>
+                <string>storage.type.struct.jsdoc</string>
               </dict>
               <key>3</key>
               <dict>
@@ -9863,7 +9741,7 @@
           <key>5</key>
           <dict>
             <key>name</key>
-            <string>support.class.component.ds</string>
+            <string>support.struct.component.ds</string>
           </dict>
           <key>6</key>
           <dict>
@@ -9896,7 +9774,7 @@
           <key>5</key>
           <dict>
             <key>name</key>
-            <string>support.class.component.ds</string>
+            <string>support.struct.component.ds</string>
           </dict>
           <key>6</key>
           <dict>
@@ -9969,7 +9847,7 @@
           <key>6</key>
           <dict>
             <key>name</key>
-            <string>support.class.component.ds</string>
+            <string>support.struct.component.ds</string>
           </dict>
           <key>7</key>
           <dict>
@@ -10007,7 +9885,7 @@
               <key>5</key>
               <dict>
                 <key>name</key>
-                <string>support.class.component.ds</string>
+                <string>support.struct.component.ds</string>
               </dict>
             </dict>
             <key>end</key>
