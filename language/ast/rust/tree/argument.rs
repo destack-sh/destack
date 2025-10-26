@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, Pattern, StringId};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, Pattern, StringId, Visibility};
 
 /// A Name is a regular or string identifier.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,7 +61,16 @@ impl Node for Parameter {
     const KIND: NodeType = NodeType::Parameter;
 }
 
-// nocheckin: support maybe & readonly on the Argument/VariantField directly
+// nocheckin: support maybe & readonly on the Argument/VariantField directly?
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantFieldMeta {
+    /// The mutability of the field.
+    pub mutability: Option<Mutability>,
+    /// The visibility of the field.
+    pub visibility: Option<Visibility>,
+    /// Whether the field is maybe (like `T?`).
+    pub is_maybe: bool,
+}
 
 /// An Argument is an argument to a function call.
 /// It may be named or positional. Named shorthands are only supported in struct-like literals.

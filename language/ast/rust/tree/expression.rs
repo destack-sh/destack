@@ -344,6 +344,7 @@ pub enum Expression {
     /// ```/// Defer expression until scope exit..
     Defer {
         expression: Option<NodeId<Expression>>,
+        // nocheckin: remove defer catch
         catch: Option<NodeId<Expression>>,
     },
 
