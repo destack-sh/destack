@@ -1,7 +1,7 @@
 import destack
 
 /// An Entity Epoch.
-export struct Epoch: uint64 {
+export struct Epoch {
     const Zero = Epoch(0)
 }
 

@@ -1,10 +1,9 @@
 use std::str::FromStr;
 
 use crate::{
-    Argument, Definition, EnumField, Expression, Keyword, LiteralType, Node, NodeId, NodeTree,
-    NodeVisitor, Parameter, PatternField, ScalarLiteral, TokenSpan, TokenType, UnionField,
-    VariantField, walk_argument, walk_definition, walk_enum_field, walk_expression, walk_parameter,
-    walk_pattern_field, walk_union_field, walk_variant_field,
+    Expression, Keyword, LiteralType, Node, NodeId, NodeTree, NodeVisitor, Parameter,
+    ScalarLiteral, TokenSpan, TokenType, UnionField, walk_expression, walk_parameter,
+    walk_union_field,
 };
 use dyst_source::Source;
 
@@ -228,21 +227,30 @@ pub struct SemanticTokenIndex<'a> {
     /// The tokens to index.
     pub tokens: &'a Vec<TokenSpan>,
     /// The semantic types for the tokens (same length as tokens).
-    pub semantic_types: Vec<SemanticType>,
+    /// Some tokens may not have a semantic type.
+    pub semantic_types: Vec<Option<SemanticType>>,
 }
 
 impl<'a> SemanticTokenIndex<'a> {
     /// Create a new SemanticTokenIndex from a list of tokens.
     /// Immediately walks tokens and initialies to lexical semantic types.
-    pub fn from_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
+    pub fn from_lexical_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
         // initialize with lexical types
-        let mut semantic_types = vec![SemanticType::Keyword; tokens.len()];
+        let mut semantic_types = vec![None; tokens.len()];
         for (i, token) in tokens.iter().enumerate() {
-            semantic_types[i] = SemanticType::from_token(source, token);
+            semantic_types[i] = Some(SemanticType::from_token(source, token));
         }
         Self {
             tokens,
             semantic_types,
+        }
+    }
+
+    /// Create a new SemanticTokenIndex from a list of tokens.
+    pub fn from_empty_tokens(_source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
+        Self {
+            tokens,
+            semantic_types: vec![None; tokens.len()],
         }
     }
 
@@ -256,7 +264,7 @@ impl<'a> SemanticTokenIndex<'a> {
         let span = tree.get_span(id);
         for (i, token) in self.tokens.iter().enumerate() {
             if token.span.contains(span.start) || span.contains(span.end) {
-                self.semantic_types[i] = semantic_type;
+                self.semantic_types[i] = Some(semantic_type);
             }
         }
     }
@@ -289,31 +297,6 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     // ------------------------------------------------------------
     // Types
     // ------------------------------------------------------------
-
-    fn visit_definition(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Definition>,
-        definition: &Definition,
-    ) {
-        walk_definition(self, tree, id, definition);
-    }
-
-    fn visit_variant_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<VariantField>,
-        variant_field: &VariantField,
-    ) {
-        walk_variant_field(self, tree, id, variant_field);
-        self.set_semantic_span(tree, id, SemanticType::Variable);
-        self.set_semantic_span(tree, variant_field.ty(), SemanticType::Type);
-    }
-
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
-        walk_enum_field(self, tree, id, enum_field);
-        self.set_semantic_span(tree, id, SemanticType::Variable);
-    }
 
     fn visit_union_field(
         &mut self,
@@ -359,22 +342,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
         }
     }
 
-    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
-        walk_argument(self, tree, id, argument);
-        self.set_semantic_span(tree, id, SemanticType::Argument);
-    }
-
     // ------------------------------------------------------------
     // Matching
     // ------------------------------------------------------------
-
-    fn visit_pattern_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<PatternField>,
-        pattern_field: &PatternField,
-    ) {
-        walk_pattern_field(self, tree, id, pattern_field);
-        self.set_semantic_span(tree, id, SemanticType::Variable);
-    }
 }

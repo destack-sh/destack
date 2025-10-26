@@ -60,7 +60,8 @@ pub fn collect_semantic_tokens(
     }
 
     // build semantic type mapping from AST if available
-    let mut semantic_index = SemanticTokenIndex::from_tokens(source, tokens);
+    // NOTE: use empty base tokens for LSP since we already have textmate grammar
+    let mut semantic_index = SemanticTokenIndex::from_empty_tokens(source, tokens);
     let definition = tree.get(root_definition_id);
     semantic_index.visit_definition(tree, root_definition_id, definition);
 
@@ -74,25 +75,13 @@ pub fn collect_semantic_tokens(
         None
     };
 
-    encode_semantic_tokens(source, tokens, &semantic_index.semantic_types, byte_span)
-}
-
-/// Encode tokens into LSP semantic token format.
-fn encode_semantic_tokens(
-    source: &Source,
-    tokens: &[TokenSpan],
-    semantic_types: &[SemanticType],
-    byte_span: Option<(u32, u32)>,
-) -> Option<Vec<lsp::SemanticToken>> {
-    debug_assert_eq!(tokens.len(), semantic_types.len());
-
+    // encode tokens into LSP semantic token format
     let mut encoded: Vec<lsp::SemanticToken> = Vec::new();
     let mut previous_line = 0u32;
     let mut previous_column = 0u32;
     let mut is_first = true;
-
-    for (token, semantic) in tokens.iter().zip(semantic_types.iter()) {
-        let mapped_type = match get_semantic_type_index(*semantic) {
+    for (token, semantic) in tokens.iter().zip(semantic_index.semantic_types.iter()) {
+        let mapped_type = match semantic.and_then(get_semantic_type_index) {
             Some(index) => index,
             None => continue,
         };
