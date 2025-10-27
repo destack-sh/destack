@@ -13,7 +13,6 @@ ws.on('todos:update', (changes) => {
     })
 })
 
-
 Bun.serve({
 	fetch(req: Request) {
 		return Response('Success!');
