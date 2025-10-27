@@ -54,14 +54,18 @@ pub fn collect_semantic_tokens(
     tree: &NodeTree,
     root_definition_id: NodeId<Definition>,
     range: Option<&lsp::Range>,
+    use_lexical: bool,
 ) -> Option<Vec<lsp::SemanticToken>> {
     if tokens.is_empty() {
         return Some(Vec::new());
     }
 
     // build semantic type mapping from AST if available
-    // NOTE: use empty base tokens for LSP since we already have textmate grammar
-    let mut semantic_index = SemanticTokenIndex::from_empty_tokens(source, tokens);
+    let mut semantic_index = if use_lexical {
+        SemanticTokenIndex::from_lexical_tokens(source, tokens)
+    } else {
+        SemanticTokenIndex::from_empty_tokens(source, tokens)
+    };
     let definition = tree.get(root_definition_id);
     semantic_index.visit_definition(tree, root_definition_id, definition);
 
@@ -167,7 +171,7 @@ impl DestackLanguageServer {
                 ast,
                 root_definition_id: module_id,
                 ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None, true),
             _ => None,
         }
     }
@@ -187,7 +191,7 @@ impl DestackLanguageServer {
                 ast,
                 root_definition_id: module_id,
                 ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range)),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range), true),
             _ => None,
         }
     }

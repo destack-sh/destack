@@ -255,11 +255,13 @@ impl FunctionCardinality {}
 
 /// The accessor type of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionAccessor {
-    /// A getter function.
+pub enum FunctionKind {
+    /// Getter function.
     Getter,
-    /// A setter function.
+    /// Setter function.
     Setter,
+    /// Constructor function (alias).
+    Constructor,
 }
 
 /// The "self" parameter for a function (also accepts `this` and `&`).
@@ -287,8 +289,8 @@ pub struct FunctionSignature {
     pub asyncness: Asyncness,
     /// The cardinality of the function.
     pub cardinality: FunctionCardinality,
-    /// The accessor of the function.
-    pub accessor: Option<FunctionAccessor>,
+    /// The special intent of the function.
+    pub kind: Option<FunctionKind>,
     /// The style of the function.
     pub style: FunctionStyle,
     /// The "self" parameter of the function.

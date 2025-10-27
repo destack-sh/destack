@@ -1,8 +1,6 @@
 //! Parse functions and closures.
 
-use dyst_ast::{
-    Asyncness, DefinitionMeta, FunctionAccessor, FunctionCardinality, NodeType, Parameter,
-};
+use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
@@ -169,39 +167,49 @@ impl<'a> Parser<'a> {
             false
         };
 
-        // accessor
-        let accessor = if self.peek_keyword(Keyword::Get).is_ok() {
-            self.bump(); // eat get keyword
-            Some(FunctionAccessor::Getter)
-        } else if self.peek_keyword(Keyword::Set).is_ok() {
-            self.bump(); // eat set keyword
-            Some(FunctionAccessor::Setter)
-        } else {
-            None
+        // kind
+        let kind = {
+            if self.peek_keyword(Keyword::Get).is_ok() {
+                self.bump(); // eat get keyword
+                Some(FunctionKind::Getter)
+            } else if self.peek_keyword(Keyword::Set).is_ok() {
+                self.bump(); // eat set keyword
+                Some(FunctionKind::Setter)
+            } else if self.peek_keyword(Keyword::Constructor).is_ok() {
+                self.bump(); // eat constructor keyword
+                Some(FunctionKind::Constructor)
+            } else {
+                None
+            }
         };
 
         // function style
         // regular `function` style
-        let style = if self.peek_keyword(Keyword::Function).is_ok() {
-            self.bump(); // eat function keyword
-            FunctionStyle::Function
-        }
-        // shorthand `name()` style
-        else if self.peek_token(TokenType::Identifier).is_ok()
-            && (!expect_maybe
-                && self
-                    .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
-                    .is_ok()
-                || expect_maybe
+        let style = {
+            if self.peek_keyword(Keyword::Function).is_ok() {
+                self.bump(); // eat function keyword
+                FunctionStyle::Function
+            }
+            // shorthand `name()` style
+            else if self.peek_token(TokenType::Identifier).is_ok()
+                && (!expect_maybe
                     && self
-                        .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
-                        .is_ok())
-        {
-            FunctionStyle::Function
-        }
-        // lambda style
-        else {
-            FunctionStyle::Lambda
+                        .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                        .is_ok()
+                    || expect_maybe
+                        && self
+                            .peek_next_next_token_in(&[
+                                TokenType::LessThan,
+                                TokenType::OpenParenthesis,
+                            ])
+                            .is_ok())
+            {
+                FunctionStyle::Function
+            }
+            // lambda style
+            else {
+                FunctionStyle::Lambda
+            }
         };
 
         // cardinality
@@ -300,8 +308,10 @@ impl<'a> Parser<'a> {
         // only for functions or lambda types
         let (return_type, with_clauses, where_clauses) = {
             // lambda with explicit return type
-            if style == FunctionStyle::Lambda && self.peek_colon().is_ok() {
-                self.bump(); // eat colon
+            if style == FunctionStyle::Lambda
+                && (self.peek_colon().is_ok() || self.options.in_type && self.peek_arrow().is_ok())
+            {
+                self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
                 // return type
                 let return_type = self
@@ -383,7 +393,7 @@ impl<'a> Parser<'a> {
                 runtime,
                 asyncness,
                 cardinality,
-                accessor,
+                kind,
                 style,
                 static_parameters,
                 self_parameter,

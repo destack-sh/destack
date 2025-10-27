@@ -776,8 +776,8 @@ impl Dump for FunctionCardinality {
     }
 }
 
-/// Dump a FunctionAccessor as a string.
-impl Dump for FunctionAccessor {
+/// Dump a FunctionKind as a string.
+impl Dump for FunctionKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -898,7 +898,7 @@ impl Dump for FunctionSignature {
             .object("FunctionSignature")
             .field("runtime", &self.runtime)
             .field("cardinality", &self.cardinality)
-            .field_optional("accessor", &self.accessor)
+            .field_optional("kind", &self.kind)
             .field("style", &self.style)
             .field_optional("self_parameter", &self.self_parameter)
             .end();

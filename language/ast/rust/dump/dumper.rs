@@ -821,8 +821,8 @@ impl Dump for FunctionCardinality {
     }
 }
 
-/// Dump a FunctionAccessor as a string.
-impl Dump for FunctionAccessor {
+/// Dump a FunctionKind as a string.
+impl Dump for FunctionKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1633,7 +1633,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 runtime,
                 asyncness,
                 cardinality,
-                accessor,
+                kind,
                 style,
                 static_parameters: _,
                 self_parameter: _,
@@ -1648,7 +1648,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("runtime", runtime)
                     .field("asyncness", asyncness)
                     .field("cardinality", cardinality)
-                    .field_optional("accessor", accessor)
+                    .field_optional("kind", kind)
                     .field("style", style)
                     .end();
             }

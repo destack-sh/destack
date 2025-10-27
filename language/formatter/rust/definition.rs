@@ -758,7 +758,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 runtime,
                 asyncness,
                 cardinality,
-                accessor,
+                kind,
                 style,
                 static_parameters,
                 self_parameter,
@@ -788,9 +788,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
-                // accessor
-                if let Some(accessor) = accessor {
-                    write!(f, [accessor.to_keyword(), space()])?;
+                // kind
+                if let Some(kind) = kind {
+                    write!(f, [kind.to_keyword(), space()])?;
                 }
 
                 // keyword

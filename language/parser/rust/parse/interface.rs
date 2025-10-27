@@ -273,4 +273,46 @@ interface Baz<T> with T: Copy where Requirement: Interface {
             })
         });
     }
+
+    #[test]
+    fn test_parse_interface_with_implicit_functions() {
+        let mut test = TestParser::new(
+            r#"
+interface Client {
+    onconnect: (this: Client) => void;
+    onclose: (this: Client, error: Error) => void;
+}
+        "#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_string!(parser, meta.name.unwrap().string(), "Client");
+            assert_eq!(expressions.len(), 0);
+            assert_eq!(fields.len(), 2);
+            // onconnect: (this: Client) => void;
+            assert_node!(parser.tree, fields[0], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, .. } => {
+                assert_string!(parser, *name, "onconnect");
+                // (this: Client) => void;
+                assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
+                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, .. } => {
+                        assert_eq!(dynamic_parameters.len(), 1);
+                    });
+                });
+            });
+            // onclose: (this: Client, error: Error) => void;
+            assert_node!(parser.tree, fields[1], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, .. } => {
+                assert_string!(parser, *name, "onclose");
+                // (this: Client, error: Error) => void;
+                assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
+                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, .. } => {
+                        assert_eq!(dynamic_parameters.len(), 2);
+                    });
+                });
+            });
+        });
+    }
 }
