@@ -75,6 +75,10 @@ pub enum BinaryOperator {
     Equal,
     /// `!=`
     NotEqual,
+    /// `===`
+    EqualStrict,
+    /// `!==`
+    NotEqualStrict,
     /// `<`
     LessThan,
     /// `<=`

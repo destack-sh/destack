@@ -291,9 +291,13 @@ pub enum BinaryOperator {
 
     // comparison
     /// `==`
-    Equal = 1305,
+    Equal = 1307,
     /// `!=`
-    NotEqual = 1304,
+    NotEqual = 1306,
+    /// `===`
+    EqualStrict = 1305,
+    /// `!==`
+    NotEqualStrict = 1304,    
     /// `<`
     LessThan = 1303,
     /// `<=`
@@ -351,6 +355,8 @@ impl BinaryOperator {
             // comparison
             BinaryOperator::Equal => OperatorPrecedence::Comparison,
             BinaryOperator::NotEqual => OperatorPrecedence::Comparison,
+            BinaryOperator::EqualStrict => OperatorPrecedence::Comparison,
+            BinaryOperator::NotEqualStrict => OperatorPrecedence::Comparison,
             BinaryOperator::LessThan => OperatorPrecedence::Comparison,
             BinaryOperator::LessThanOrEqual => OperatorPrecedence::Comparison,
             BinaryOperator::GreaterThan => OperatorPrecedence::Comparison,
@@ -403,9 +409,9 @@ impl BinaryOperator {
 
             // comparison
             TokenType::Equal => Some(BinaryOperator::Equal),
-            TokenType::EqualWide => Some(BinaryOperator::Equal),
+            TokenType::EqualWide => Some(BinaryOperator::EqualStrict),
             TokenType::NotEqual => Some(BinaryOperator::NotEqual),
-            TokenType::NotEqualWide => Some(BinaryOperator::NotEqual),
+            TokenType::NotEqualWide => Some(BinaryOperator::NotEqualStrict),
             TokenType::LessThan => Some(BinaryOperator::LessThan),
             TokenType::LessThanOrEqual => Some(BinaryOperator::LessThanOrEqual),
             TokenType::GreaterThan => Some(BinaryOperator::GreaterThan),

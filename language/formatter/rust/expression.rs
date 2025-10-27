@@ -1147,6 +1147,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             // comparison
             BinaryOperator::Equal => token("=="),
             BinaryOperator::NotEqual => token("!="),
+            BinaryOperator::EqualStrict => token("==="),
+            BinaryOperator::NotEqualStrict => token("!=="),
             BinaryOperator::LessThan => token("<"),
             BinaryOperator::LessThanOrEqual => token("<="),
             BinaryOperator::GreaterThan => token(">"),
