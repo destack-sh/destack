@@ -860,7 +860,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                                         write!(f, [space()])?;
                                     }
                                     // self
-                                    write!(f, [Keyword::Self_])?;
+                                    write!(f, [self_parameter.keyword])?;
                                     // ty
                                     if let Some(ty) = self_parameter.ty {
                                         write!(f, [token(":"), space(), ty])?;

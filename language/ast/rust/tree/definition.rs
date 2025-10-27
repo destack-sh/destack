@@ -502,6 +502,8 @@ pub enum FunctionStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
+    /// The keyword for the self parameter.
+    pub keyword: Keyword,
     /// Whether the self parameter is mutable.
     pub mutability: ScopedMutability,
     /// Whether the self parameter is a pointer.
