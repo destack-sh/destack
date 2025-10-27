@@ -34,25 +34,23 @@ impl<'a> Parser<'a> {
 
     /// Eat the self parameter maybe.
     fn eat_self_parameter_maybe(&mut self) -> ParserResult<Option<SelfParameter>> {
-        let (mutability, is_reference) = {
+        let (keyword, mutability, is_reference) = {
             // var_ self
             if self.peek_keyword(Keyword::Var).is_ok()
                 || self.peek_keyword(Keyword::Mut).is_ok()
                 || self.peek_keyword(Keyword::Const).is_ok()
             {
                 let mutability = self.eat_scoped_mutability()?;
-                self.eat_self_keyword()?; // eat self
-                (mutability, false)
+                let keyword = self.eat_self_keyword()?; // eat self
+                (keyword, mutability, false)
             }
             // self
             else if self.peek_self_keyword().is_ok() {
-                self.bump(); // eat self
-                (
-                    ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    },
-                    false,
-                )
+                let keyword = self.eat_self_keyword()?; // eat self
+                let mutability = ScopedMutability::Unscoped {
+                    mutability: Mutability::Immutable,
+                };
+                (keyword, mutability, false)
             }
             // &var_ self
             else if (self.peek_token(TokenType::Multiply).is_ok()
@@ -63,21 +61,19 @@ impl<'a> Parser<'a> {
             {
                 self.bump(); // eat &
                 let mutability = self.eat_scoped_mutability()?;
-                self.eat_self_keyword()?; // eat self
-                (mutability, true)
+                let keyword = self.eat_self_keyword()?; // eat self
+                (keyword, mutability, true)
             }
             // &self
             else if self.peek_token(TokenType::Multiply).is_ok()
                 || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
                 self.bump(); // eat &
-                self.eat_self_keyword()?; // eat self
-                (
-                    ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    },
-                    true,
-                )
+                let keyword = self.eat_self_keyword()?; // eat self
+                let mutability = ScopedMutability::Unscoped {
+                    mutability: Mutability::Immutable,
+                };
+                (keyword, mutability, true)
             }
             // other
             else {
@@ -94,7 +90,9 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // self parameter
         Ok(Some(SelfParameter {
+            keyword,
             mutability,
             is_reference,
             ty,
@@ -444,7 +442,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter};
+    use dyst_ast::{
+        Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
+    };
 
     use crate::parse::tests::TestParser;
     use crate::{

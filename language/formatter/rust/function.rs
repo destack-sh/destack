@@ -114,6 +114,16 @@ mod tests {
             false
         ));
     }
+    
+    #[test]
+    fn test_format_function_with_this_parameter() {
+        let source = r"function foo(this: int32) => void";
+        assert_format!(source, source, |p| p.eat_function(
+            DefinitionMeta::default(),
+            false,
+            false
+        ));
+    }
 
     #[test]
     fn test_format_function_constructor() {
