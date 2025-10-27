@@ -80,9 +80,11 @@ pub enum Keyword {
     Implement,
     /// Declare definition.
     Declare,
-    /// New expression (reserved).
+    /// New expression.
     New,
-    /// Constructor (reserved).
+    /// Delete expression.
+    Delete,
+    /// Constructor.
     Constructor,
 
     // ------------------------------------------------------------
@@ -92,11 +94,11 @@ pub enum Keyword {
     Extends,
     /// Implements (alias).
     Implements,
-    /// Satisfies (reserved).
+    /// Satisfies.
     Satisfies,
-    /// Override (reserved).
+    /// Override.
     Override,
-    /// Declare a tuple (reserved).
+    /// Declare a tuple.
     Tuple,
     /// Instanceof test.
     Instanceof,
@@ -271,6 +273,7 @@ impl Keyword {
             Keyword::Implement => "implement",
             Keyword::Declare => "declare",
             Keyword::New => "new",
+            Keyword::Delete => "delete",
             Keyword::Constructor => "constructor",
 
             // typing
@@ -376,6 +379,7 @@ impl FromStr for Keyword {
             "implement" => Ok(Keyword::Implement),
             "declare" => Ok(Keyword::Declare),
             "new" => Ok(Keyword::New),
+            "delete" => Ok(Keyword::Delete),
             "constructor" => Ok(Keyword::Constructor),
 
             // typing

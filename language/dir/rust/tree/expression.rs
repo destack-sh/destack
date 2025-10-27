@@ -101,6 +101,14 @@ pub enum Expression {
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
+    /// New constructor call (for #Compatibility).
+    New {
+        left: NodeId<Path>,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+        dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+    /// Delete expression (for #Compatibility).
+    Delete { value: NodeId<Expression> },
     /// Index into an array or slice.
     Index {
         left: NodeId<Expression>,
@@ -182,6 +190,8 @@ pub enum Expression {
     Continue { destination: Option<Destination> },
     /// Defer expression.
     Defer { expression: NodeId<Expression> },
+    /// Throw expression (for #Compatibility).
+    Throw { value: Option<NodeId<Expression>> },
     /// Return expression.
     Return { value: Option<NodeId<Expression>> },
 
@@ -216,6 +226,7 @@ impl Expression {
             | Expression::Break { .. }
             | Expression::Continue { .. }
             | Expression::Defer { .. }
+            | Expression::Throw { .. }
             | Expression::Return { .. } => false,
 
             // definitions and declarations
@@ -240,7 +251,9 @@ impl Expression {
             | Expression::Call { .. }
             | Expression::Index { .. }
             | Expression::Maybe { .. }
-            | Expression::Must { .. } => false,
+            | Expression::Must { .. }
+            | Expression::New { .. }
+            | Expression::Delete { .. } => false,
 
             // error
             Expression::Error => false,

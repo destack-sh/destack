@@ -372,6 +372,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_node);
         }
 
+        Expression::Throw { value } => {
+            if let Some(value_id) = value {
+                let value_expr = tree.get(*value_id);
+                visitor.visit_expression(tree, *value_id, value_expr);
+            }
+        }
+
         Expression::Return { value } => {
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);
@@ -532,6 +539,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
+        }
+
+        Expression::New {
+            left: _,
+            static_arguments,
+            dynamic_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+            for argument_id in dynamic_arguments {
+                let argument = tree.get(*argument_id);
+                visitor.visit_argument(tree, *argument_id, argument);
+            }
+        }
+
+        Expression::Delete { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
 
         Expression::Maybe { position: _, left } => {

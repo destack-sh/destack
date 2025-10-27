@@ -536,9 +536,17 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Control flow
+            // Control flow(ish)
             // ------------------------------------------------------------
             //
+            // new
+            else if keyword == Some(Keyword::New) {
+                self.eat_new()?
+            }
+            // delete
+            else if keyword == Some(Keyword::Delete) {
+                self.eat_delete()?
+            }
             // with
             else if keyword == Some(Keyword::With) {
                 self.eat_with()?
@@ -602,8 +610,12 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Yield) {
                 self.eat_yield()?
             }
+            // throw
+            else if keyword == Some(Keyword::Throw) {
+                self.eat_throw()?
+            }
             // return
-            else if keyword == Some(Keyword::Return) || keyword == Some(Keyword::Throw) {
+            else if keyword == Some(Keyword::Return) {
                 self.eat_return()?
             }
             //
@@ -1814,6 +1826,30 @@ geom.Mesh<2, Dims: 4> {
                 );
             }
         );
+    }
+
+    /// Parse a new constructor call.
+    #[test]
+    fn test_parse_new_constructor_call() {
+        let mut test = TestParser::new("new Foo()");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            assert_path!(parser, *left, "Foo");
+            assert!(static_arguments.is_none());
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    /// Parse a delete expression.
+    #[test]
+    fn test_parse_delete_expression() {
+        let mut test = TestParser::new("delete foo.bar");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Delete { value } => {
+            assert_expr_path!(parser, parser.tree.get(*value), "foo.bar");
+        });
     }
 
     /// Parse a multi-line let with multi-line infix.

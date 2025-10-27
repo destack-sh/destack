@@ -271,6 +271,31 @@ impl<'a> Parser<'a> {
         Ok(yield_id)
     }
 
+    /// Eat a throw expression.
+    ///
+    /// Examples:
+    /// ```
+    /// throw someError
+    /// throw anyOldExpression()
+    /// ```
+    pub fn eat_throw(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+        self.eat_keyword(Keyword::Throw)?;
+        // value
+        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+            Some(value_id)
+        } else {
+            None
+        };
+        // throw
+        let throw_id = self.tree.insert(
+            Expression::Throw { value: value_id },
+            self.get_span_from(start),
+        );
+        Ok(throw_id)
+    }
+
     /// Eat a return expression.
     ///
     /// Examples:
@@ -280,7 +305,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
-        self.eat_keyword_in(&[Keyword::Return, Keyword::Throw])?;
+        self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
             let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
@@ -448,6 +473,27 @@ mod tests {
                 assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
+        });
+    }
+
+    #[test]
+    fn test_throw_expression_no_value() {
+        let mut test = TestParser::new("throw");
+        let mut parser = test.prepare();
+        let throw_id = parser.eat_throw().unwrap();
+        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
+            assert!(value.is_none());
+        });
+    }
+
+    #[test]
+    fn test_throw_expression_with_value() {
+        let mut test = TestParser::new("throw 17");
+        let mut parser = test.prepare();
+        let throw_id = parser.eat_throw().unwrap();
+        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
+            assert!(value.is_some());
+            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
         });
     }
 
