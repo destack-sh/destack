@@ -84,6 +84,7 @@ pub struct VariantFieldMeta {
 /// y
 /// false
 /// ...args
+/// ...args: int32[]
 /// foo()
 /// ["Content-Type"]: "application/json"
 /// [x: string]: any
@@ -106,8 +107,11 @@ pub enum Argument {
     },
     /// Positional argument (like `1` or `foo()`).
     Positional { value: NodeId<Expression> },
-    /// Positional spread argument (like `...args`).
-    Spread { value: NodeId<Expression> },
+    /// Spread argument (like `...args` or `...args: int32[]`).
+    Spread {
+        name: Option<StringId>,
+        value: NodeId<Expression>,
+    },
     /// Dynamic argument (like `{ [variable]: 2 }`).
     Dynamic {
         name: Option<StringId>,

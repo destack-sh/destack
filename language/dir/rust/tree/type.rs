@@ -143,14 +143,16 @@ pub enum Type {
         end: NodeId<Type>,
         is_inclusive: bool,
     },
-    /// Array type `T[N]`. Must have static length.
-    Array {
+    /// Sized array type `T[N]`.
+    ArraySized {
         element: NodeId<Type>,
         count: NodeId<Expression>,
     },
-    /// Slice type `T[]`. Unknown length (dynamically sized).
-    Slice { element: NodeId<Type> },
-    /// Tuple type.
+    /// Array slice type `T[]`. Dynamically sized.
+    ArraySlice { element: NodeId<Type> },
+    /// Array type `[T1, T2, ...]`. May be fixed or dynamically sized.
+    Array { elements: Vec<NodeId<Type>> },
+    /// Tuple type `(T1, T2, ...)`. Fixed size.
     Tuple(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),

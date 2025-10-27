@@ -41,8 +41,12 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
             Argument::Positional { value } => {
                 write!(f, [value])?;
             }
-            Argument::Spread { value } => {
-                write!(f, [token(".."), value])?;
+            Argument::Spread { name, value } => {
+                write!(f, [token("...")])?;
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [value])?;
             }
             Argument::Dynamic { name, key, value } => {
                 write!(f, [token("[")])?;
@@ -230,7 +234,7 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
         Argument::Named { name: _, value } => is_trivial_expression(tree, tree.get(*value)),
         Argument::Shorthand { name: _ } => true,
         Argument::Positional { value } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Spread { value } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Spread { name: _, value } => is_trivial_expression(tree, tree.get(*value)),
         _ => false,
     }
 }
@@ -241,7 +245,7 @@ pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
         Argument::Named { name: _, value } => is_complex_expression(tree, tree.get(*value)),
         Argument::Shorthand { name: _ } => false,
         Argument::Positional { value } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Spread { value } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Spread { name: _, value } => is_complex_expression(tree, tree.get(*value)),
         _ => false,
     }
 }
@@ -854,7 +858,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 let should_expand = elements.len() > 1
                     && elements
                         .iter()
-                        .any(|element| is_complex_expression(tree, element))
+                        .any(|element| is_complex_argument(tree, element))
                     || f.context().has_newline(span) && elements.len() > 1;
                 write!(
                     f,
@@ -1093,7 +1097,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::WrappingNegate => token("-%"),
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
-            UnaryOperator::Spread => token(".."),
+            UnaryOperator::Spread => token("..."),
         };
         write!(f, [token])
     }

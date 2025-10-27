@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    Definition, DefinitionMeta, FunctionStyle, Keyword, Name, Path, PostfixPosition, StringId,
+    Definition, DefinitionMeta, FunctionStyle, Keyword, Path, PostfixPosition, StringId,
     TemplateLiteral, TypeUnaryOperator,
 };
 use std::str::FromStr;
@@ -365,10 +365,27 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat the body of a tuple literal (excluding the surrounding parenthesis).
-    pub fn eat_tuple_literal_body(
+    /// Eat an array literal (including the surrounding brackets).
+    pub fn eat_array_literal(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
+        self.eat_token(TokenType::OpenBracket)?;
+        self.eat_newlines_maybe()?;
+        let elements = if self.peek_token(TokenType::CloseBracket).is_ok() {
+            vec![]
+        } else {
+            self.with_options(self.options.not_in_parenthesis(), |parser| {
+                parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
+            })?
+        };
+        self.eat_newlines_maybe()?;
+        self.eat_token(TokenType::CloseBracket)?;
+        Ok(elements)
+    }
+
+    /// Eat the body of a sequence literal (excluding the surrounding parenthesis).
+    pub fn eat_sequence_literal_body(
         &mut self,
         first_element: Option<NodeId<Argument>>,
+        close_token: TokenType,
     ) -> ParserResult<Vec<NodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
@@ -376,7 +393,7 @@ impl<'a> Parser<'a> {
         }
         loop {
             // stop at closing parenthesis
-            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            if self.peek_token(close_token).is_ok() {
                 break;
             }
             // consume any stop
@@ -385,68 +402,9 @@ impl<'a> Parser<'a> {
                 continue;
             }
             // keep eating elements
-            let element = self
-                .eat_tuple_literal_element()
-                .for_node_type(NodeType::Argument)?;
+            let element = self.eat_argument().for_node_type(NodeType::Argument)?;
             elements.push(element);
         }
-        Ok(elements)
-    }
-
-    /// Eat a single tuple literal element.
-    pub fn eat_tuple_literal_element(&mut self) -> ParserResult<NodeId<Argument>> {
-        let start = self.mark();
-        // named argument
-        if self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_ok()
-        {
-            let name = self.eat_identifier()?;
-            self.eat_token(TokenType::Colon)?;
-            self.eat_newlines_maybe()?;
-            let value = self.eat_expression()?;
-            let argument_id = self.tree.insert(
-                Argument::Named {
-                    name: Name::Identifier(name),
-                    value,
-                },
-                self.get_span_from(start),
-            );
-            Ok(argument_id)
-        }
-        // positional argument
-        else {
-            let value = self.eat_expression()?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Positional { value }, self.get_span_from(start));
-            Ok(argument_id)
-        }
-    }
-
-    /// Eat an array literal body and return its element expressions.
-    pub fn eat_array_literal(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
-        self.eat_token(TokenType::OpenBracket)
-            .for_node_type(NodeType::Expression)?;
-        self.eat_newlines_maybe()?;
-
-        let mut elements = Vec::new();
-        loop {
-            // stop at closing bracket
-            if self.peek_token(TokenType::CloseBracket).is_ok() {
-                break;
-            }
-            // consume any stop
-            else if self.peek_item_stop().is_ok() {
-                self.eat_item_stop_with_newlines()?;
-                continue;
-            }
-            // keep eating elements
-            let element = self.eat_expression().for_node_type(NodeType::Expression)?;
-            elements.push(element);
-        }
-
-        self.eat_token(TokenType::CloseBracket)
-            .for_node_type(NodeType::Expression)?;
         Ok(elements)
     }
 
@@ -769,10 +727,11 @@ impl<'a> Parser<'a> {
                     || self.peek_token(TokenType::RangeWide).is_ok()
                 {
                     self.bump(); // eat range
+                    let name = self.eat_argument_name_maybe()?;
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
                     self.tree
-                        .insert(Argument::Spread { value }, self.get_span_from(start))
+                        .insert(Argument::Spread { name, value }, self.get_span_from(start))
                 }
                 // shorthand argument
                 else {
@@ -949,8 +908,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Block, Expression, ScalarLiteral, TokenType, TypeLiteral, assert_expr_path,
-        assert_node, assert_path, assert_string,
+        Argument, Block, Expression, ScalarLiteral, TypeLiteral, assert_expr_path, assert_node,
+        assert_path, assert_string,
     };
 
     /// Parse integer literals in various formats.
@@ -1379,27 +1338,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_tuple_literal_body() {
-        let mut test = TestParser::new("(a: 1, 2)");
-        let mut parser = test.prepare();
-
-        parser.eat_token(TokenType::OpenParenthesis).unwrap();
-        let first = parser.eat_tuple_literal_element().unwrap();
-        let elements = parser.eat_tuple_literal_body(Some(first)).unwrap();
-        assert_eq!(elements.len(), 2);
-
-        // a: 1
-        assert_node!(parser.tree, elements[0], Argument::Named { name: Name::Identifier(name), value } => {
-            assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        });
-        // 2 (positional argument)
-        assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
-        });
-    }
-
-    #[test]
     fn test_parse_array_literal() {
         let mut test = TestParser::new("[1, 2]");
         let mut parser = test.prepare();
@@ -1410,13 +1348,17 @@ mod tests {
         assert_node!(
             parser.tree,
             elements[0],
-            Expression::ScalarLiteral(ScalarLiteral::Integer(1))
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            }
         );
         // 2
         assert_node!(
             parser.tree,
             elements[1],
-            Expression::ScalarLiteral(ScalarLiteral::Integer(2))
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            }
         );
     }
 
@@ -1544,17 +1486,17 @@ mod tests {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields } => {
                     assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], Argument::Spread { value } => {
+                    assert_node!(parser.tree, fields[0], Argument::Spread { name: None, value } => {
                         assert_expr_path!(parser, parser.tree.get(*value), "a");
                     });
                 });
             });
             // {...b}
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { name: None, value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "b");
             });
             // ...c
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { name: None, value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "c");
             });
         });

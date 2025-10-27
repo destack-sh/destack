@@ -465,7 +465,7 @@ pub enum Expression {
     /// ]
     /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
     /// ```
-    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    ArrayLiteral { elements: Vec<NodeId<Argument>> },
 
     /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
     /// For named tuple "literals", see Call.

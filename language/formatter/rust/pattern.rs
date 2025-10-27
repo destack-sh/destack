@@ -49,7 +49,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
             Pattern::Rest { name } => {
-                write!(f, [token("..")])?;
+                write!(f, [token("...")])?;
                 if let Some(name) = name {
                     write!(f, [name])?;
                 }

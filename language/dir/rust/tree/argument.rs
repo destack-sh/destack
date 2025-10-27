@@ -46,7 +46,10 @@ pub enum Argument {
     /// Unresolved positional argument.
     UnresolvedPositional { value: NodeId<Expression> },
     /// Unresolved positional spread argument.
-    UnresolvedSpread { value: NodeId<Expression> },
+    UnresolvedSpread {
+        name: Option<StringId>,
+        value: NodeId<Expression>,
+    },
     /// Unresolved dynamic argument.
     UnresolvedDynamic {
         name: Option<StringId>,
