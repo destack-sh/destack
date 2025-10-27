@@ -774,6 +774,14 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [space(), value])?;
             }
 
+            // throw
+            Expression::Throw { value } => {
+                write!(f, [token("throw")])?;
+                if let Some(value) = value {
+                    write!(f, [space(), value])?;
+                }
+            }
+
             // return
             Expression::Return { value } => {
                 write!(f, [token("return")])?;
@@ -986,6 +994,24 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
                     write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
                 }
+            }
+
+            // new
+            Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                write!(f, [token("new"), space(), left])?;
+                if let Some(static_arguments) = static_arguments {
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                }
+                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            }
+
+            // delete
+            Expression::Delete { value } => {
+                write!(f, [token("delete"), space(), value])?;
             }
 
             // maybe

@@ -19,7 +19,6 @@ pub enum Expression {
     /// Block of Statements.
     Block(NodeId<Block>),
 
-    // nocheckin: add new/throw/delete expressions
     /// A With is a with declaration for context management.
     /// With can declare the use of an item in a scope and refine type bounds.
     ///
@@ -367,6 +366,15 @@ pub enum Expression {
         value: NodeId<Expression>,
     },
 
+    /// Throw expression (for #Compatibility).
+    ///
+    /// Examples:
+    /// ```
+    /// throw someError
+    /// throw anyOldExpression()
+    /// ```
+    Throw { value: Option<NodeId<Expression>> },
+
     /// Return expression.
     ///
     /// Examples:
@@ -583,6 +591,35 @@ pub enum Expression {
         runtime: Option<Runtime>,
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+
+    /// New constructor call (for #Compatibility).
+    /// This is just a special form for calling the `New` interface.
+    ///
+    /// Examples:
+    /// ```
+    /// new Foo()
+    /// new Foo(1, 2, 3)
+    /// new Foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// new Foo.Baz(2, 3)
+    /// ```
+    New {
+        left: Path,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+        dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+
+    /// Delete expression (for #Compatibility).
+    /// This is just a special form for calling the `Delete` interface.
+    ///
+    /// Examples:
+    /// ```
+    /// delete foo
+    /// delete foo.bar
+    /// delete foo['result']
+    /// ```
+    Delete {
+        value: NodeId<Expression>,
     },
 
     /// Maybe unwrap an expression with `?` and propagate.

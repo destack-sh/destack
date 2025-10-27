@@ -1434,6 +1434,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("runtime", runtime)
                     .end();
             }
+            Expression::New {
+                left,
+                static_arguments: _,
+                dynamic_arguments: _,
+            } => {
+                self.node("Expression::New", id.id)
+                    .field("left", left)
+                    .end();
+            }
+            Expression::Delete { value: _ } => {
+                self.node("Expression::Delete", id.id).end();
+            }
+
             Expression::Index { left: _, right: _ } => {
                 self.node("Expression::Index", id.id).end();
             }
@@ -1538,6 +1551,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Defer { expression: _ } => {
                 self.node("Expression::Defer", id.id).end();
+            }
+            Expression::Throw { value: _ } => {
+                self.node("Expression::Throw", id.id).end();
             }
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", id.id).end();

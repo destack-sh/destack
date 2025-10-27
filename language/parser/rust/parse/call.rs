@@ -1,5 +1,7 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
+use dyst_ast::Keyword;
+
 use crate::TokenType;
 
 use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition, Runtime};
@@ -55,6 +57,64 @@ impl<'a> Parser<'a> {
             self.get_span_from(start),
         );
         Ok(index_id)
+    }
+
+    /// Eat a new constructor call (including the receiver).
+    ///
+    /// Examples:
+    /// ```
+    /// new
+    /// ```
+    pub fn eat_new(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::New)?;
+
+        // receiver
+        let left = self.eat_path()?;
+
+        // static arguments (may be empty)
+        let static_arguments = self.eat_static_arguments_maybe()?;
+
+        // dynamic arguments (may be empty)
+        let dynamic_arguments = self.eat_dynamic_arguments()?;
+
+        // call
+        let call_id = self.tree.insert(
+            Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            },
+            self.get_span_from(start),
+        );
+        Ok(call_id)
+    }
+
+    /// Eat a delete expression.
+    ///
+    /// Examples:
+    /// ```
+    /// delete
+    /// delete foo
+    /// delete foo.bar
+    /// delete foo['result']
+    /// ```
+    pub fn eat_delete(&mut self) -> ParserResult<NodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::Delete)?;
+
+        // value
+        let value = self.eat_expression()?;
+
+        // delete
+        let delete_id = self
+            .tree
+            .insert(Expression::Delete { value }, self.get_span_from(start));
+        Ok(delete_id)
     }
 
     /// Eat a call (postfix, excluding the receiver).

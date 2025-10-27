@@ -1371,6 +1371,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("cardinality", cardinality)
                     .end();
             }
+            Expression::Throw { value: _ } => {
+                self.node("Expression::Throw", _id.id).end();
+            }
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", _id.id).end();
             }
@@ -1478,6 +1481,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .field_optional("runtime", runtime)
                     .end();
+            }
+            Expression::New {
+                left,
+                static_arguments: _,
+                dynamic_arguments: _,
+            } => {
+                self.node("Expression::New", _id.id)
+                    .field("left", left)
+                    .end();
+            }
+            Expression::Delete { value: _ } => {
+                self.node("Expression::Delete", _id.id).end();
             }
             Expression::Maybe { position, left: _ } => {
                 self.node("Expression::Maybe", _id.id)
