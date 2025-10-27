@@ -754,13 +754,13 @@ struct Test {}
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 2);
                 // "MyGroup"
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                         assert_string!(parser, *string_id, "MyGroup");
                     });
                 });
                 // 1
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
+                assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                     assert_string!(parser, *name, "length");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });

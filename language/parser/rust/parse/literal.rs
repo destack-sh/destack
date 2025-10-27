@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    Definition, DefinitionMeta, FunctionStyle, Keyword, Path, PostfixPosition, StringId,
-    TemplateLiteral, TypeUnaryOperator,
+    BindingKind, BindingModifiers, Definition, DefinitionMeta, FunctionStyle, Keyword, Path,
+    StringId, TemplateLiteral,
 };
 use std::str::FromStr;
 
 use crate::parse::prelude::*;
-use crate::parse::variant::VARIANT_FIELD_MODIFIERS;
+use crate::parse::variant::BINDING_MODIFIERS;
 use crate::{
     Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Parser, ParserError,
     ParserResult, ScalarLiteral, TokenSpan, TokenType,
@@ -420,7 +420,7 @@ impl<'a> Parser<'a> {
             while let Some(token) = self.tokens.get(pos)
                 && (token.token.ty == TokenType::Newline
                     || Keyword::from_str(self.get_token_str(*token))
-                        .map(|keyword| VARIANT_FIELD_MODIFIERS.contains(&keyword))
+                        .map(|keyword| BINDING_MODIFIERS.contains(&keyword))
                         .unwrap_or(false))
             {
                 pos += 1;
@@ -511,45 +511,26 @@ impl<'a> Parser<'a> {
                     _ => panic!("expected function for"),
                 };
                 // maybe
-                let value = if is_maybe {
-                    self.tree.insert(
-                        Expression::Maybe {
-                            left: value,
-                            position: PostfixPosition::Direct,
-                        },
-                        self.tree.spans.get(value),
-                    )
+                let modifiers = if is_maybe {
+                    Some(BindingModifiers {
+                        kind: Some(BindingKind::Maybe),
+                        ..BindingModifiers::default()
+                    })
                 } else {
-                    value
+                    None
                 };
                 return Ok(Some(self.tree.insert(
-                    Argument::Function { name, value },
+                    Argument::Function {
+                        modifiers,
+                        name,
+                        value,
+                    },
                     self.get_span_from(start),
                 )));
             }
         }
 
         Err(ParserError::unexpected(self.peek()?.span))
-    }
-
-    /// Wrap an expression in a readonly maybe type (maybe).
-    #[inline]
-    pub(crate) fn make_readonly_maybe(
-        &mut self,
-        is_readonly: bool,
-        expression_id: NodeId<Expression>,
-    ) -> NodeId<Expression> {
-        if is_readonly {
-            self.tree.insert(
-                Expression::TypeUnary {
-                    operator: TypeUnaryOperator::Readonly,
-                    right: expression_id,
-                },
-                self.tree.spans.get(expression_id),
-            )
-        } else {
-            expression_id
-        }
     }
 
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
@@ -591,15 +572,8 @@ impl<'a> Parser<'a> {
             //   because we need to account for readonly/maybe/functions/...)
             let start = self.mark();
             let argument_id = {
-                // readonly
-                let is_readonly = if self.peek_keyword(Keyword::Readonly).is_ok()
-                    && self.peek_next_name().is_ok()
-                {
-                    self.bump(); // eat readonly
-                    true
-                } else {
-                    false
-                };
+                // modifiers
+                let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
                 // named argument
                 if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
@@ -610,9 +584,14 @@ impl<'a> Parser<'a> {
                     // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
-                    let value = self.make_readonly_maybe(is_readonly, value);
-                    self.tree
-                        .insert(Argument::Named { name, value }, self.get_span_from(start))
+                    self.tree.insert(
+                        Argument::Named {
+                            modifiers,
+                            name,
+                            value,
+                        },
+                        self.get_span_from(start),
+                    )
                 }
                 // named maybe argument
                 else if self.peek_name().is_ok()
@@ -621,22 +600,20 @@ impl<'a> Parser<'a> {
                 {
                     // name
                     let name = self.eat_name()?;
-                    self.bump(); // eat maybe
+                    let modifiers = self.eat_binding_modifiers_postfix(modifiers)?; // eat maybe
                     self.bump(); // eat colon
                     self.eat_newlines_maybe()?;
                     // value
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
-                    let value = self.tree.insert(
-                        Expression::Maybe {
-                            left: value,
-                            position: PostfixPosition::Direct,
+                    self.tree.insert(
+                        Argument::Named {
+                            modifiers,
+                            name,
+                            value,
                         },
-                        self.tree.spans.get(value),
-                    );
-                    let value = self.make_readonly_maybe(is_readonly, value);
-                    self.tree
-                        .insert(Argument::Named { name, value }, self.get_span_from(start))
+                        self.get_span_from(start),
+                    )
                 }
                 // dynamic argument
                 else if self.peek_token(TokenType::OpenBracket).is_ok() {
@@ -658,9 +635,13 @@ impl<'a> Parser<'a> {
                     self.eat_token(TokenType::Colon)?;
                     self.eat_newlines_maybe()?;
                     let value = self.eat_expression().for_node_type(NodeType::Argument)?;
-                    let value = self.make_readonly_maybe(is_readonly, value);
                     self.tree.insert(
-                        Argument::Dynamic { name, key, value },
+                        Argument::Dynamic {
+                            modifiers,
+                            name,
+                            key,
+                            value,
+                        },
                         self.get_span_from(start),
                     )
                 }
@@ -677,8 +658,13 @@ impl<'a> Parser<'a> {
                                 ])
                                 .is_ok())
                 {
-                    // function
+                    // postfix modifiers
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
+                    modifiers = match modifiers {
+                        Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
+                        None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
+                    };
+                    // function
                     let function_id = self
                         .eat_function(DefinitionMeta::default(), is_maybe, false)
                         .for_node_type(NodeType::Expression)?;
@@ -705,20 +691,12 @@ impl<'a> Parser<'a> {
                         }
                         _ => panic!("expected function definition"),
                     };
-                    // maybe
-                    let value = if is_maybe {
-                        self.tree.insert(
-                            Expression::Maybe {
-                                left: value,
-                                position: PostfixPosition::Direct,
-                            },
-                            self.tree.spans.get(value),
-                        )
-                    } else {
-                        value
-                    };
                     self.tree.insert(
-                        Argument::Function { name, value },
+                        Argument::Function {
+                            modifiers,
+                            name,
+                            value,
+                        },
                         self.get_span_from(start),
                     )
                 }
@@ -730,14 +708,22 @@ impl<'a> Parser<'a> {
                     let name = self.eat_argument_name_maybe()?;
                     let value =
                         self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
-                    self.tree
-                        .insert(Argument::Spread { name, value }, self.get_span_from(start))
+                    self.tree.insert(
+                        Argument::Spread {
+                            modifiers,
+                            name,
+                            value,
+                        },
+                        self.get_span_from(start),
+                    )
                 }
                 // shorthand argument
                 else {
                     let name = self.eat_identifier()?;
-                    self.tree
-                        .insert(Argument::Shorthand { name }, self.get_span_from(start))
+                    self.tree.insert(
+                        Argument::Shorthand { modifiers, name },
+                        self.get_span_from(start),
+                    )
                 }
             };
             arguments.push(argument_id);
@@ -903,7 +889,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, DefinitionMeta, Name, Parameter, TemplateLiteral, TypeUnaryOperator,
+        BindingKind, Definition, DefinitionMeta, Mutability, Name, Parameter, TemplateLiteral,
     };
 
     use crate::parse::tests::TestParser;
@@ -1058,7 +1044,7 @@ mod tests {
                 // hello
                 assert_string!(parser, strings[0], "hello ");
                 // name
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "name");
                 });
                 //
@@ -1078,7 +1064,7 @@ mod tests {
                 assert_string!(parser, strings[0], "");
                 assert_string!(parser, strings[1], "");
                 // stmt
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "stmt");
                 });
             }
@@ -1098,15 +1084,15 @@ mod tests {
                 assert_string!(parser, strings[2], "");
                 assert_string!(parser, strings[3], "");
                 // start
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "start");
                 });
                 // middle
-                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "middle");
                 });
                 // end
-                assert_node!(parser.tree, arguments[2], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[2], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "end");
                 });
             }
@@ -1123,13 +1109,13 @@ mod tests {
                 // SELECT * FROM users WHERE name =
                 assert_string!(parser, strings[0], "SELECT * FROM users WHERE name = ");
                 // name
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "name");
                 });
                 // AND age >
                 assert_string!(parser, strings[1], " AND age > ");
                 // group.age()
-                assert_node!(parser.tree, arguments[1], Argument::Positional { value } => {
+                assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
                     assert_node!(parser.tree, *value, Expression::Call { left, .. } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "group.age");
                     });
@@ -1179,23 +1165,23 @@ mod tests {
         assert_eq!(arguments.len(), 4);
 
         // x: 1
-        assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
         // y
-        assert_node!(parser.tree, arguments[1], Argument::Shorthand { name } => {
+        assert_node!(parser.tree, arguments[1], Argument::Shorthand { modifiers: _, name } => {
             assert_string!(parser, *name, "y");
         });
         // "Content-Type": "application/json"
-        assert_node!(parser.tree, arguments[2], Argument::Named { name: Name::String(name), value } => {
+        assert_node!(parser.tree, arguments[2], Argument::Named { modifiers: _, name: Name::String(name), value } => {
             assert_string!(parser, *name, "Content-Type");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                 assert_string!(parser, *string_id, "application/json");
             });
         });
         // [x]: true
-        assert_node!(parser.tree, arguments[3], Argument::Dynamic { name: None, key, value } => {
+        assert_node!(parser.tree, arguments[3], Argument::Dynamic { modifiers: _, name: None, key, value } => {
             // x
             assert_expr_path!(parser, parser.tree.get(*key), "x");
             // true
@@ -1222,40 +1208,34 @@ mod tests {
         assert_eq!(arguments.len(), 6);
 
         // readonly a?: T
-        assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: Some(modifiers), name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
-                assert_eq!(*operator, TypeUnaryOperator::Readonly);
-                assert_node!(parser.tree, *right, Expression::Maybe { left, position: _ } => {
-                    assert_expr_path!(parser, parser.tree.get(*left), "T");
-                });
-            });
+            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_expr_path!(parser, parser.tree.get(*value), "T");
         });
 
         // b (shorthand)
-        assert_node!(parser.tree, arguments[1], Argument::Shorthand { name } => {
+        assert_node!(parser.tree, arguments[1], Argument::Shorthand { modifiers: _, name } => {
             assert_string!(parser, *name, "b");
         });
 
         // c?: T
-        assert_node!(parser.tree, arguments[2], Argument::Named { name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, arguments[2], Argument::Named { modifiers: Some(modifiers), name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "c");
-            assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
-                assert_expr_path!(parser, parser.tree.get(*left), "T");
-            });
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_expr_path!(parser, parser.tree.get(*value), "T");
         });
 
         // readonly d: T
-        assert_node!(parser.tree, arguments[3], Argument::Named { name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, arguments[3], Argument::Named { modifiers: Some(modifiers), name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "d");
-            assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
-                assert_eq!(*operator, TypeUnaryOperator::Readonly);
-                assert_expr_path!(parser, parser.tree.get(*right), "T");
-            });
+            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+            assert_expr_path!(parser, parser.tree.get(*value), "T");
         });
 
         // e<T>()
-        assert_node!(parser.tree, arguments[4], Argument::Function { name, value } => {
+        assert_node!(parser.tree, arguments[4], Argument::Function { modifiers: _, name, value } => {
             assert_string!(parser, name.string(), "e");
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, .. } => {
@@ -1268,12 +1248,11 @@ mod tests {
         });
 
         // f?(): T
-        assert_node!(parser.tree, arguments[5], Argument::Function { name, value } => {
+        assert_node!(parser.tree, arguments[5], Argument::Function { modifiers: Some(modifiers), name, value } => {
             assert_string!(parser, name.string(), "f");
-            assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
-                assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
-                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
-                });
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
             });
         });
     }
@@ -1294,7 +1273,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 1);
             // fetch
-            assert_node!(parser.tree, fields[0], Argument::Function { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name, value } => {
                 assert_string!(parser, name.string(), "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
@@ -1319,19 +1298,18 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 2);
             // foo
-            assert_node!(parser.tree, fields[0], Argument::Function { name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name, value } => {
                 assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
             // foo?(): T
-            assert_node!(parser.tree, fields[1], Argument::Function { name, value } => {
+            assert_node!(parser.tree, fields[1], Argument::Function { modifiers: Some(modifiers), name, value } => {
                 assert_string!(parser, name.string(), "foo");
-                assert_node!(parser.tree, *value, Expression::Maybe { left, position: _ } => {
-                    assert_node!(parser.tree, *left, Expression::Definition(function_id) => {
-                        assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
-                    });
+                assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
         });
@@ -1348,7 +1326,7 @@ mod tests {
         assert_node!(
             parser.tree,
             elements[0],
-            Argument::Positional { value } => {
+            Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             }
         );
@@ -1356,7 +1334,7 @@ mod tests {
         assert_node!(
             parser.tree,
             elements[1],
-            Argument::Positional { value } => {
+            Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             }
         );
@@ -1387,22 +1365,22 @@ mod tests {
             assert_path!(parser, path.as_ref().unwrap(), "A");
             assert_eq!(arguments.as_ref().unwrap().len(), 4);
             // a=1
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
             // annoying-b=2
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "annoyingBee");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
             // c=3
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
             // flag
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[3], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[3], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "flag");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
@@ -1432,17 +1410,17 @@ mod tests {
             assert_path!(parser, path.as_ref().unwrap(), "Tooltip");
             assert_eq!(arguments.as_ref().unwrap().len(), 3);
             // title=true
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "title");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
             // flag
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "flag");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
             // something-else=false
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "somethingElse");
                 assert_node!(parser.tree, *value, Expression::Block(block_id) => {
                     assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -1454,7 +1432,7 @@ mod tests {
 
             assert!(elements.is_some());
             // {true}
-            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::Block(block_id) => {
                     assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                         assert_eq!(expressions.len(), 1);
@@ -1482,21 +1460,21 @@ mod tests {
             assert_path!(parser, path.as_ref().unwrap(), "A");
             assert_eq!(arguments.as_ref().unwrap().len(), 3);
             // a={..a}
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields } => {
                     assert_eq!(fields.len(), 1);
-                    assert_node!(parser.tree, fields[0], Argument::Spread { name: None, value } => {
+                    assert_node!(parser.tree, fields[0], Argument::Spread { modifiers: _, name: None, value } => {
                         assert_expr_path!(parser, parser.tree.get(*value), "a");
                     });
                 });
             });
             // {...b}
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { name: None, value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { modifiers: _, name: None, value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "b");
             });
             // ...c
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { name: None, value } => {
+            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { modifiers: _, name: None, value } => {
                 assert_expr_path!(parser, parser.tree.get(*value), "c");
             });
         });
@@ -1525,19 +1503,19 @@ mod tests {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             // <B>
-            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
                     assert_path!(parser, path.as_ref().unwrap(), "B");
                     assert!(arguments.is_none());
                     assert!(elements.is_some());
                     // <C>
-                    assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
                             assert_path!(parser, path.as_ref().unwrap(), "C");
                             assert!(arguments.is_none());
                             assert!(elements.is_some());
                             // <D/>
-                            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                                 assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
                                     assert_path!(parser, path.as_ref().unwrap(), "D");
                                     assert!(arguments.is_none());
@@ -1545,7 +1523,7 @@ mod tests {
                                 });
                             });
                             // 2
-                            assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Positional { value } => {
+                            assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
                                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                             });
                         });
@@ -1579,7 +1557,7 @@ mod tests {
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 1);
                 // className="font-semibold"
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                     // className
                     assert_string!(parser, *name, "className");
                     // font-semibold
@@ -1591,19 +1569,19 @@ mod tests {
                 assert!(elements.is_some());
                 assert_eq!(elements.as_ref().unwrap().len(), 2);
                 // <Link subtle to={urls.annotation(annotation.id)}>
-                assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                     assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
                         // Link
                         assert_path!(parser, path.as_ref().unwrap(), "Link");
                         assert!(arguments.is_some());
                         assert_eq!(arguments.as_ref().unwrap().len(), 2);
                         // subtle
-                        assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
+                        assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                             assert_string!(parser, *name, "subtle");
                             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
                         });
                         // to={1}
-                        assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
+                        assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                             assert_string!(parser, *name, "to");
                             assert_node!(parser.tree, *value, Expression::Block(block_id) => {
                                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -1616,7 +1594,7 @@ mod tests {
                         assert!(elements.is_some());
                         assert_eq!(elements.as_ref().unwrap().len(), 1);
                         // {2}
-                        assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                             assert_node!(parser.tree, *value, Expression::Block(block_id) => {
                                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                                     assert_eq!(expressions.len(), 1);
@@ -1627,7 +1605,7 @@ mod tests {
                     });
                 });
                 // header="Hello"
-                assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
+                assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                     assert_string!(parser, *name, "header");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                         assert_string!(parser, *string_id, "Hello");

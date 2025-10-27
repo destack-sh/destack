@@ -1,9 +1,56 @@
-use dyst_ast::{Keyword, Mutability};
+use dyst_ast::BindingModifiers;
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
+
+#[inline]
+pub(crate) fn format_binding_modifiers_prefix<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    modifiers: BindingModifiers,
+) -> FormatResult<()> {
+    if let Some(visibility) = modifiers.visibility {
+        write!(f, [visibility, space()])?;
+    }
+    if let Some(mutability) = modifiers.mutability {
+        write!(f, [mutability, space()])?;
+    }
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    modifiers: Option<BindingModifiers>,
+) -> FormatResult<()> {
+    if let Some(modifiers) = modifiers {
+        format_binding_modifiers_prefix(f, modifiers)?;
+    }
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn format_binding_modifiers_postfix<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    modifiers: BindingModifiers,
+) -> FormatResult<()> {
+    if let Some(visibility) = modifiers.visibility {
+        write!(f, [visibility, space()])?;
+    }
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    modifiers: Option<BindingModifiers>,
+) -> FormatResult<()> {
+    if let Some(modifiers) = modifiers {
+        format_binding_modifiers_postfix(f, modifiers)?;
+    }
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, VariantField> for VariantField {
     fn format_node(
@@ -15,22 +62,17 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
 
         match self {
             VariantField::Named {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty,
                 default,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    write!(f, [visibility, space()])?;
-                }
-                // mutability
-                if *mutability == Some(Mutability::Immutable) {
-                    write!(f, [Keyword::Readonly, space()])?;
-                }
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
                 write!(f, [name, token(":"), space()])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 write!(f, [ty])?;
                 // default
@@ -39,47 +81,38 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                 }
             }
             VariantField::Positional {
-                visibility,
-                mutability,
+                modifiers,
                 ty,
                 default,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    write!(f, [visibility, space()])?;
-                }
-                // mutability
-                if *mutability == Some(Mutability::Immutable) {
-                    write!(f, [Keyword::Readonly, space()])?;
-                }
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // type
                 write!(f, [ty])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
             VariantField::Dynamic {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty,
                 key,
                 default,
             } => {
-                // visibility
-                if let Some(visibility) = visibility {
-                    write!(f, [visibility, space()])?;
-                }
-                // mutability
-                if *mutability == Some(Mutability::Immutable) {
-                    write!(f, [Keyword::Readonly, space()])?;
-                }
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
                 write!(f, [token("[")])?;
                 if let Some(name) = name {
                     write!(f, [name, token(":"), space()])?;
                 }
                 write!(f, [key, token("]"), token(":"), space(), ty])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;

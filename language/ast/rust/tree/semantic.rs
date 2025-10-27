@@ -317,6 +317,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
         self.set_semantic_span(tree, id, SemanticType::Parameter);
         match parameter {
             Parameter::Named {
+                modifiers: _,
                 name: _,
                 ty,
                 default: _,
@@ -326,6 +327,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
                 }
             }
             Parameter::Pattern {
+                modifiers: _,
                 pattern: _,
                 ty,
                 default: _,
@@ -334,7 +336,11 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
                     self.set_semantic_span(tree, *ty, SemanticType::Type);
                 }
             }
-            Parameter::Variadic { name: _, ty } => {
+            Parameter::Variadic {
+                modifiers: _,
+                name: _,
+                ty,
+            } => {
                 if let Some(ty) = ty {
                     self.set_semantic_span(tree, *ty, SemanticType::Type);
                 }

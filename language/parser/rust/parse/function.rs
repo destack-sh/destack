@@ -316,6 +316,7 @@ impl<'a> Parser<'a> {
                 let parameter_name = self.eat_identifier()?;
                 let parameter_id = self.tree.insert(
                     Parameter::Named {
+                        modifiers: None,
                         name: parameter_name,
                         ty: None,
                         default: None,

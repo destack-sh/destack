@@ -15,59 +15,53 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<VariantField> {
         let field = match ast.get(field_id) {
             ast::VariantField::Named {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty,
                 default,
             } => {
-                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
                 let name = self.intern_string(source_id, name.string());
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 VariantField::Named {
-                    visibility,
-                    mutability,
+                    modifiers,
                     name,
                     ty,
                     default,
                 }
             }
             ast::VariantField::Positional {
-                visibility,
-                mutability,
+                modifiers,
                 ty,
                 default,
             } => {
-                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 VariantField::Positional {
-                    visibility,
-                    mutability,
+                    modifiers,
                     ty,
                     default,
                 }
             }
             ast::VariantField::Dynamic {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty,
                 key,
                 default,
             } => {
-                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
                 let name = name.map(|name| self.intern_string(source_id, name));
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let key = self.lower_expression_to_type(source_id, ast, *key);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
                 VariantField::Dynamic {
-                    visibility,
-                    mutability,
+                    modifiers,
                     name,
                     ty,
                     key,

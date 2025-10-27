@@ -12,6 +12,9 @@ use crate::block::format_block;
 use crate::import::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
+use crate::variant::{
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+};
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
     Keyword, NodeId, Runtime, UnaryOperator, empty_block_with_infix_annotations,
@@ -29,31 +32,84 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
 
         let argument = f.context().tree.get(self.argument_id);
         match argument {
-            Argument::Named { name, value } => {
-                write!(f, [name, token("="), value])?;
-            }
-            Argument::Function { name, value } => {
-                write!(f, [name, token("="), value])?;
-            }
-            Argument::Shorthand { name } => {
+            Argument::Named {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
                 write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token("="), space(), value])?;
             }
-            Argument::Positional { value } => {
+            Argument::Function {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token("="), space(), value])?;
+            }
+            Argument::Shorthand { modifiers, name } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            }
+            Argument::Positional { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // value
                 write!(f, [value])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Spread { name, value } => {
+            Argument::Spread {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
                 write!(f, [token("...")])?;
+                // name
                 if let Some(name) = name {
                     write!(f, [name, token(":"), space()])?;
                 }
                 write!(f, [value])?;
             }
-            Argument::Dynamic { name, key, value } => {
+            Argument::Dynamic {
+                modifiers,
+                name,
+                key,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
                 write!(f, [token("[")])?;
+                // name
                 if let Some(name) = name {
                     write!(f, [name, token(":"), space()])?;
                 }
-                write!(f, [key, token("]"), token(":"), space(), value])?;
+                write!(f, [key, token("]")])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
             }
         }
 
@@ -231,10 +287,10 @@ pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool 
 /// Whether an argument is "trivial" (prefers to be inline).
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { name: _, value } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Shorthand { name: _ } => true,
-        Argument::Positional { value } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Spread { name: _, value } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Named { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Shorthand { name: _, .. } => true,
+        Argument::Positional { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Spread { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
         _ => false,
     }
 }
@@ -242,10 +298,10 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
 /// Whether an argument is "complex" (prefers to be multiline).
 pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { name: _, value } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Shorthand { name: _ } => false,
-        Argument::Positional { value } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Spread { name: _, value } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Named { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Shorthand { name: _, .. } => false,
+        Argument::Positional { value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Spread { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
         _ => false,
     }
 }

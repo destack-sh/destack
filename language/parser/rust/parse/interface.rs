@@ -167,20 +167,16 @@ interface Foo: Baz {
                 assert_path!(parser, *path, "Baz");
             });
 
-            // value: int32
-            assert_node!(parser.tree, fields[0], VariantField::Named { mutability, visibility, name: Name::Identifier(name), ty, default, .. } => {
-                assert!(mutability.is_some());
-                assert_eq!(*mutability.as_ref().unwrap(), Mutability::Immutable);
-                assert!(visibility.is_none());
+            // readonly value: int32
+            assert_node!(parser.tree, fields[0], VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+                assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
                 assert_string!(parser, *name, "value");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // count: int32 = 4
-            assert_node!(parser.tree, fields[1], VariantField::Named { mutability, visibility, name: Name::Identifier(name), ty, default, .. } => {
-                assert!(mutability.is_none());
-                assert!(visibility.is_none());
+            assert_node!(parser.tree, fields[1], VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
                 let default_id = default.expect("expected default value");
@@ -294,7 +290,7 @@ interface Client {
             assert_eq!(expressions.len(), 0);
             assert_eq!(fields.len(), 2);
             // onconnect: (this: Client) => void;
-            assert_node!(parser.tree, fields[0], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, .. } => {
+            assert_node!(parser.tree, fields[0], VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, .. } => {
                 assert_string!(parser, *name, "onconnect");
                 // (this: Client) => void;
                 assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
@@ -304,7 +300,7 @@ interface Client {
                 });
             });
             // onclose: (this: Client, error: Error) => void;
-            assert_node!(parser.tree, fields[1], VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, .. } => {
+            assert_node!(parser.tree, fields[1], VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, .. } => {
                 assert_string!(parser, *name, "onclose");
                 // (this: Client, error: Error) => void;
                 assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {

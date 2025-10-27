@@ -790,6 +790,25 @@ impl Dump for StructStyle {
     }
 }
 
+/// Dump a BindingKind as a string.
+impl Dump for BindingKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a BindingModifiers as a string.
+impl Dump for BindingModifiers {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("BindingModifiers")
+            .field_optional("kind", &self.kind)
+            .field_optional("mutability", &self.mutability)
+            .field_optional("visibility", &self.visibility)
+            .end();
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1852,40 +1871,34 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match variant_field {
             VariantField::Named {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Named", id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
             VariantField::Positional {
-                visibility,
-                mutability,
+                modifiers,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Positional", id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field_optional("modifiers", modifiers)
                     .end();
             }
             VariantField::Dynamic {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty: _,
                 key: _,
                 default: _,
             } => {
                 self.node("VariantField::Dynamic", id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
@@ -1974,23 +1987,33 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         match parameter {
             Parameter::Named {
+                modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Scalar", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
             Parameter::Pattern {
+                modifiers,
                 pattern: _,
                 ty: _,
                 default: _,
             } => {
-                self.node("Parameter::Pattern", id.id).end();
+                self.node("Parameter::Pattern", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
-            Parameter::Variadic { name, ty: _ } => {
+            Parameter::Variadic {
+                modifiers,
+                name,
+                ty: _,
+            } => {
                 self.node("Parameter::Variadic", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
@@ -2002,49 +2025,75 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::UnresolvedNamed { name, value: _ } => {
+            Argument::UnresolvedNamed {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::UnresolvedNamed", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::UnresolvedPositional { value: _ } => {
-                self.node("Argument::UnresolvedPositional", id.id).end();
+            Argument::UnresolvedPositional {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Argument::UnresolvedPositional", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
-            Argument::UnresolvedSpread { name, value: _ } => {
+            Argument::UnresolvedSpread {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::UnresolvedSpread", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
             Argument::UnresolvedDynamic {
+                modifiers,
                 name,
                 key: _,
                 value: _,
             } => {
                 self.node("Argument::UnresolvedDynamic", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
             Argument::Direct {
+                modifiers,
                 name,
                 slot,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .field("slot", slot)
                     .end();
             }
-            Argument::Spread { slot, value: _ } => {
+            Argument::Spread {
+                modifiers,
+                slot,
+                value: _,
+            } => {
                 self.node("Argument::Spread", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("slot", slot)
                     .end();
             }
             Argument::Dynamic {
+                modifiers,
                 name,
                 key: _,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }

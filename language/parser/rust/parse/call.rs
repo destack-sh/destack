@@ -210,12 +210,12 @@ mod tests {
             assert_eq!(dynamic_arguments.len(), 2);
 
             // 1
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // x: 2
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });

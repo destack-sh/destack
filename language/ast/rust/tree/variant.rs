@@ -11,6 +11,52 @@ pub enum VariantKind {
     Struct,
 }
 
+/// The type of a binding (definite or maybe).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingKind {
+    /// Definite binding (like `x: int32`).
+    Must,
+    /// Maybe binding (like `T?`).
+    Maybe,
+}
+
+/// The modifiers of a field-like item.
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct BindingModifiers {
+    /// The kind of the binding.
+    pub kind: Option<BindingKind> = None,
+    /// The mutability of the field.
+    pub mutability: Option<Mutability> = None,
+    /// The visibility of the field.
+    pub visibility: Option<Visibility> = None,
+}
+
+impl BindingModifiers {
+    /// Create a new binding modifiers with the given kind.
+    pub fn with_kind(self, kind: BindingKind) -> Self {
+        Self {
+            kind: Some(kind),
+            ..self
+        }
+    }
+
+    /// Create a new binding modifiers with the given mutability.
+    pub fn with_mutability(self, mutability: Mutability) -> Self {
+        Self {
+            mutability: Some(mutability),
+            ..self
+        }
+    }
+
+    /// Create a new binding modifiers with the given visibility.
+    pub fn with_visibility(self, visibility: Visibility) -> Self {
+        Self {
+            visibility: Some(visibility),
+            ..self
+        }
+    }
+}
+
 /// A VariantField is a field declaration in some type.
 ///
 /// Examples:
@@ -29,10 +75,8 @@ pub enum VariantKind {
 pub enum VariantField {
     /// Named field.
     Named {
-        /// The visibility of the field.
-        visibility: Option<Visibility>,
-        /// The mutability of the field.
-        mutability: Option<Mutability>,
+        /// The modifiers of the field.
+        modifiers: Option<BindingModifiers>,
         /// The name of the field.
         name: Name,
         /// The type of the field.
@@ -42,10 +86,8 @@ pub enum VariantField {
     },
     /// Positional field.
     Positional {
-        /// The visibility of the field.
-        visibility: Option<Visibility>,
-        /// The mutability of the field.
-        mutability: Option<Mutability>,
+        /// The modifiers of the field.
+        modifiers: Option<BindingModifiers>,
         /// The type of the field.
         ty: NodeId<Expression>,
         /// The default value of the field.
@@ -53,10 +95,8 @@ pub enum VariantField {
     },
     /// Dynamic field.
     Dynamic {
-        /// The visibility of the field.
-        visibility: Option<Visibility>,
-        /// The mutability of the field.
-        mutability: Option<Mutability>,
+        /// The modifiers of the field.
+        modifiers: Option<BindingModifiers>,
         /// The name of the field (if any).
         name: Option<StringId>,
         /// The type of the field.
@@ -73,21 +113,13 @@ impl Node for VariantField {
 }
 
 impl VariantField {
-    /// Get the visibility of the field.
+    /// Get the modifiers of the field.
     #[inline]
-    pub fn visibility(&self) -> Option<Visibility> {
+    pub fn modifiers(&self) -> Option<BindingModifiers> {
         match self {
-            VariantField::Named { visibility, .. } => *visibility,
-            VariantField::Positional { visibility, .. } => *visibility,
-            VariantField::Dynamic { visibility, .. } => *visibility,
-        }
-    }
-    #[inline]
-    pub fn mutability(&self) -> Option<Mutability> {
-        match self {
-            VariantField::Named { mutability, .. } => *mutability,
-            VariantField::Positional { mutability, .. } => *mutability,
-            VariantField::Dynamic { mutability, .. } => *mutability,
+            VariantField::Named { modifiers, .. } => *modifiers,
+            VariantField::Positional { modifiers, .. } => *modifiers,
+            VariantField::Dynamic { modifiers, .. } => *modifiers,
         }
     }
 

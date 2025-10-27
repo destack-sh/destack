@@ -847,15 +847,13 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::VariantField, id.id);
     match variant_field {
         VariantField::Named {
-            visibility: _,
-            mutability: _,
+            modifiers: _,
             name: _,
             ty,
             default,
         }
         | VariantField::Positional {
-            visibility: _,
-            mutability: _,
+            modifiers: _,
             ty,
             default,
         } => {
@@ -867,8 +865,7 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
             }
         }
         VariantField::Dynamic {
-            visibility: _,
-            mutability: _,
+            modifiers: _,
             name: _,
             ty,
             key,
@@ -946,6 +943,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Parameter, id.id);
     match parameter {
         Parameter::Named {
+            modifiers: _,
             name: _,
             ty,
             default,
@@ -960,6 +958,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
             }
         }
         Parameter::Pattern {
+            modifiers: _,
             pattern,
             ty,
             default,
@@ -975,7 +974,11 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        Parameter::Variadic { name: _, ty } => {
+        Parameter::Variadic {
+            modifiers: _,
+            name: _,
+            ty,
+        } => {
             if let Some(ty) = ty {
                 let type_node = tree.get(*ty);
                 visitor.visit_type(tree, *ty, type_node);
@@ -993,13 +996,25 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::UnresolvedNamed { name: _, value }
-        | Argument::UnresolvedPositional { value }
-        | Argument::UnresolvedSpread { name: _, value } => {
+        Argument::UnresolvedNamed {
+            modifiers: _,
+            name: _,
+            value,
+        }
+        | Argument::UnresolvedPositional {
+            modifiers: _,
+            value,
+        }
+        | Argument::UnresolvedSpread {
+            modifiers: _,
+            name: _,
+            value,
+        } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::UnresolvedDynamic {
+            modifiers: _,
             name: _,
             key,
             value,
@@ -1010,11 +1025,16 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Direct {
+            modifiers: _,
             name: _,
             slot,
             value,
         }
-        | Argument::Spread { slot, value } => {
+        | Argument::Spread {
+            modifiers: _,
+            slot,
+            value,
+        } => {
             match slot {
                 ArgumentSlot::Parameter { parameter } => {
                     let parameter_node = tree.get(*parameter);
@@ -1029,6 +1049,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Dynamic {
+            modifiers: _,
             name: _,
             key,
             value,
