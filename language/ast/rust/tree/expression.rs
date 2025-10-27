@@ -339,15 +339,9 @@ pub enum Expression {
     /// defer :label {
     ///     someOtherFunction()
     /// }
-    ///
-    /// defer catch e {
-    ///     _ => someErrorHandler(e)
-    /// }
     /// ```/// Defer expression until scope exit..
     Defer {
         expression: Option<NodeId<Expression>>,
-        // nocheckin: remove defer catch
-        catch: Option<NodeId<Expression>>,
     },
 
     /// Await an expression.

@@ -177,10 +177,6 @@ impl<'a> Parser<'a> {
     /// defer label: {
     ///     someOtherFunction()
     /// }
-    ///
-    /// defer catch e {
-    ///     _ => someErrorHandler(e)
-    /// }
     /// ```
     pub fn eat_defer(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -193,10 +189,7 @@ impl<'a> Parser<'a> {
             self.bump(); // eat keyword
             let match_id = self.eat_match_body(None, false)?;
             let defer_id = self.tree.insert(
-                Expression::Defer {
-                    expression: None,
-                    catch: Some(match_id),
-                },
+                Expression::Defer { expression: None },
                 self.get_span_from(start),
             );
             Ok(defer_id)
@@ -210,7 +203,6 @@ impl<'a> Parser<'a> {
             let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: Some(block_id),
-                    catch: None,
                 },
                 self.get_span_from(start),
             );
@@ -222,7 +214,6 @@ impl<'a> Parser<'a> {
             let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: Some(expression_id),
-                    catch: None,
                 },
                 self.get_span_from(start),
             );
@@ -416,25 +407,12 @@ mod tests {
         let mut test = TestParser::new("defer someFunction()");
         let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
+        assert_node!(parser.tree, defer_id, Expression::Defer { expression } => {
             assert_node!(parser.tree, expression.unwrap(), Expression::Call { position: _, runtime: _, left, dynamic_arguments } => {
                 assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
             assert!(catch.is_none());
-        });
-    }
-
-    #[test]
-    fn test_defer_catch() {
-        let mut test = TestParser::new("defer catch e { _ => someErrorHandler(e) }");
-        let mut parser = test.prepare();
-        let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Expression::Defer { expression, catch } => {
-            assert_node!(parser.tree, catch.unwrap(), Expression::Match { value, .. } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "e");
-            });
-            assert!(expression.is_none());
         });
     }
 
