@@ -949,6 +949,7 @@ impl<'a> Parser<'a> {
                 // we already have the first element (the expression itself)
                 let first_element_id = self.tree.insert(
                     Argument::Positional {
+                        modifiers: None,
                         value: left_expression_id,
                     },
                     self.get_span_from(start),
@@ -1160,7 +1161,7 @@ mod tests {
             // with { bar: true }
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name, value } => {
                 assert_string!(parser, name.string(), "bar");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
@@ -1252,7 +1253,7 @@ mod tests {
                 assert_node!(
                     parser.tree,
                     elements[0],
-                    Argument::Positional { value } => {
+                    Argument::Positional { modifiers: _, value } => {
                         assert_node!(
                             parser.tree,
                             *value,
@@ -1264,7 +1265,7 @@ mod tests {
                 assert_node!(
                     parser.tree,
                     elements[1],
-                    Argument::Positional { value } => {
+                    Argument::Positional { modifiers: _, value } => {
                         assert_node!(
                             parser.tree,
                             *value,
@@ -1301,7 +1302,7 @@ const shapes = (
             assert_node!(parser.tree, value.unwrap(), Expression::TupleLiteral { elements, .. } => {
                 assert_eq!(elements.len(), 5);
                 // TetrisPieceShape.I
-                assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
                     assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
                 });
             });
@@ -1332,11 +1333,11 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
+            assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
                 assert_string!(parser, *name, "y");
             });
         });
@@ -1351,11 +1352,11 @@ const shapes = (
         assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, fields, .. } => {
                 assert_eq!(fields.len(), 2);
-                assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
+                assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
-                assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
+                assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
                     assert_string!(parser, *name, "y");
                 });
             });
@@ -1370,11 +1371,11 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
             assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::Shorthand { name } => {
+            assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
                 assert_string!(parser, *name, "y");
             });
         });
@@ -1659,7 +1660,7 @@ const shapes = (
                 assert_node!(
                     parser.tree,
                     fields[0],
-                    Argument::Named { name: Name::Identifier(name), value } => {
+                    Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(
                             parser.tree,
@@ -1674,7 +1675,7 @@ const shapes = (
                 assert_node!(
                     parser.tree,
                     fields[1],
-                    Argument::Shorthand { name } => {
+                    Argument::Shorthand { modifiers: _, name } => {
                         assert_string!(parser, *name, "y");
                     }
                 );
@@ -1714,7 +1715,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     fields[0],
-                    Argument::Named { name: Name::Identifier(name), value } => {
+                    Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
                         assert_string!(parser, *name, "vertices");
                         assert_node!(
                             parser.tree,
@@ -1727,7 +1728,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     fields[1],
-                    Argument::Shorthand { name } => {
+                    Argument::Shorthand { modifiers: _, name } => {
                         assert_string!(parser, *name, "y");
                     }
                 );
@@ -1752,12 +1753,12 @@ geom.Mesh<2, Dims: 4> {
                 assert_path!(parser, *path, "A");
                 assert!(static_arguments.is_some());
                 // B<C>
-                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
                         assert_path!(parser, *path, "B");
                         assert!(static_arguments.is_some());
                         // C
-                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                             assert_expr_path!(parser, parser.tree.get(*value), "C");
                         });
                     });

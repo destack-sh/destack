@@ -1,6 +1,8 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{DefinitionMeta, Expression, Keyword, Mutability, PostfixPosition};
+use dyst_ast::{
+    BindingKind, BindingModifiers, DefinitionMeta, Expression, Keyword, PostfixPosition,
+};
 use std::str::FromStr;
 
 use crate::TokenType;
@@ -8,7 +10,7 @@ use crate::parse::prelude::*;
 
 use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
 
-pub(crate) static VARIANT_FIELD_MODIFIERS: [Keyword; 4] = [
+pub(crate) static BINDING_MODIFIERS: [Keyword; 4] = [
     Keyword::Readonly,
     Keyword::Public,
     Keyword::Protected,
@@ -47,7 +49,7 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.tokens.get(pos) {
             let keyword = Keyword::from_str(self.get_span_str(token.span));
             if let Ok(keyword) = keyword
-                && VARIANT_FIELD_MODIFIERS.contains(&keyword)
+                && BINDING_MODIFIERS.contains(&keyword)
             {
                 pos += 1;
             } else {
@@ -102,16 +104,8 @@ impl<'a> Parser<'a> {
     pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
 
-        // visibility
-        let visibility = self.eat_visibility_maybe()?;
-
-        // mutability
-        let mutability = if self.peek_keyword(Keyword::Readonly).is_ok() {
-            self.bump(); // eat readonly
-            Some(Mutability::Immutable)
-        } else {
-            None
-        };
+        // modifiers
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
         // dynamic field
         if self.peek_token(TokenType::OpenBracket).is_ok() {
@@ -133,6 +127,7 @@ impl<'a> Parser<'a> {
                 .eat_expression()
                 .for_node_type(NodeType::VariantField)?;
 
+            // close bracket
             self.eat_token(TokenType::CloseBracket)?;
 
             // type
@@ -152,8 +147,7 @@ impl<'a> Parser<'a> {
             // field
             let field_id = self.tree.insert(
                 VariantField::Dynamic {
-                    visibility,
-                    mutability,
+                    modifiers,
                     name,
                     ty,
                     key,
@@ -187,21 +181,18 @@ impl<'a> Parser<'a> {
                 }
             };
 
+            // postfix modifiers
+            if is_maybe {
+                modifiers = match modifiers {
+                    Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
+                    None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
+                };
+            }
+
             // type
             let ty = self
                 .with_options(self.options.in_type(), |parser| parser.eat_expression())
                 .for_node_type(NodeType::Definition)?;
-            let ty = if is_maybe {
-                self.tree.insert(
-                    Expression::Maybe {
-                        left: ty,
-                        position: PostfixPosition::Direct,
-                    },
-                    self.tree.spans.get(ty),
-                )
-            } else {
-                ty
-            };
 
             // default
             let default = if self.peek_token(TokenType::Assign).is_ok() {
@@ -214,16 +205,14 @@ impl<'a> Parser<'a> {
             // field
             let field = if let Some(name) = name {
                 VariantField::Named {
-                    visibility,
-                    mutability,
+                    modifiers,
                     name,
                     ty,
                     default,
                 }
             } else {
                 VariantField::Positional {
-                    visibility,
-                    mutability,
+                    modifiers,
                     ty,
                     default,
                 }
@@ -319,7 +308,7 @@ mod tests {
         let mut parser = test.prepare();
 
         let variant_field = parser.eat_variant_field().unwrap();
-        assert_node!(parser.tree, variant_field, VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, default: None, .. } => {
+        assert_node!(parser.tree, variant_field, VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
             assert_string!(parser, *name, "onconnect");
             // (this: Client) => void;
             assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {

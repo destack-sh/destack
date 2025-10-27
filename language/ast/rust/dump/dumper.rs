@@ -939,6 +939,25 @@ impl Dump for VariantKind {
     }
 }
 
+/// Dump a BindingKind as a string.
+impl Dump for BindingKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a BindingModifiers as a string.
+impl Dump for BindingModifiers {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("BindingModifiers")
+            .field_optional("kind", &self.kind)
+            .field_optional("mutability", &self.mutability)
+            .field_optional("visibility", &self.visibility)
+            .end();
+    }
+}
+
 /// Dump a StructStyle as a string.
 impl Dump for StructStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1684,40 +1703,34 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match field {
             VariantField::Named {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Named", _id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
             VariantField::Positional {
-                visibility,
-                mutability,
+                modifiers,
                 ty: _,
                 default: _,
             } => {
                 self.node("VariantField::Positional", _id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field("modifiers", modifiers)
                     .end();
             }
             VariantField::Dynamic {
-                visibility,
-                mutability,
+                modifiers,
                 name,
                 ty: _,
                 key: _,
                 default: _,
             } => {
                 self.node("VariantField::Dynamic", _id.id)
-                    .field_optional("visibility", visibility)
-                    .field_optional("mutability", mutability)
+                    .field("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
@@ -1828,23 +1841,33 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
         match param {
             Parameter::Named {
+                modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Scalar", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
             Parameter::Pattern {
+                modifiers,
                 pattern: _,
                 ty: _,
                 default: _,
             } => {
-                self.node("Parameter::Pattern", _id.id).end();
+                self.node("Parameter::Pattern", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
-            Parameter::Variadic { name, ty: _ } => {
+            Parameter::Variadic {
+                modifiers,
+                name,
+                ty: _,
+            } => {
                 self.node("Parameter::Variadic", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
@@ -1856,35 +1879,58 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, _tree: &NodeTree, _id: NodeId<Argument>, arg: &Argument) {
         match arg {
-            Argument::Named { name, value: _ } => {
+            Argument::Named {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::Named", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Shorthand { name } => {
+            Argument::Shorthand { modifiers, name } => {
                 self.node("Argument::Shorthand", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Function { name, value: _ } => {
+            Argument::Function {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::Function", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Positional { value: _ } => {
-                self.node("Argument::Positional", _id.id).end();
+            Argument::Positional {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Argument::Positional", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
-            Argument::Spread { name, value: _ } => {
+            Argument::Spread {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::Spread", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
             Argument::Dynamic {
+                modifiers,
                 name,
                 key: _,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }

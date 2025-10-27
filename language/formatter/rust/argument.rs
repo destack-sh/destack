@@ -2,6 +2,9 @@ use std::marker::PhantomData;
 
 use dyst_fir::format::{BestFittingMode, FormatResult};
 
+use crate::variant::{
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+};
 use crate::{
     Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
     Parameter,
@@ -149,9 +152,18 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Parameter::Named { name, ty, default } => {
+            Parameter::Named {
+                modifiers,
+                name,
+                ty,
+                default,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
                 write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
                     write!(f, [token(":"), space(), ty])?;
@@ -162,10 +174,14 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 }
             }
             Parameter::Pattern {
+                modifiers,
                 pattern,
                 ty,
                 default,
             } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // pattern
                 write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
@@ -176,7 +192,14 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            Parameter::Variadic { name, ty } => {
+            Parameter::Variadic {
+                modifiers,
+                name,
+                ty,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
                 write!(f, [token("...")])?;
                 // name
                 write!(f, [name])?;
@@ -202,31 +225,86 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Argument::Named { name, value } => {
-                write!(f, [name, token(":"), space(), value])?;
-            }
-            Argument::Shorthand { name } => {
+            Argument::Named {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
                 write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
             }
-            Argument::Function { name, value } => {
-                write!(f, [name, token(":"), space(), value])?;
+            Argument::Shorthand { modifiers, name } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Positional { value } => {
+            Argument::Function {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
+            Argument::Positional { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // value
                 write!(f, [value])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Spread { name, value } => {
+            Argument::Spread {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
                 write!(f, [token("...")])?;
+                // name
                 if let Some(name) = name {
                     write!(f, [name, token(":"), space()])?;
                 }
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 write!(f, [value])?;
             }
-            Argument::Dynamic { name, key, value } => {
+            Argument::Dynamic {
+                modifiers,
+                name,
+                key,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
                 write!(f, [token("[")])?;
+                // name
                 if let Some(name) = name {
                     write!(f, [name, token(":"), space()])?;
                 }
-                write!(f, [key, token("]"), token(":"), space(), value])?;
+                write!(f, [key, token("]")])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
             }
         }
 
