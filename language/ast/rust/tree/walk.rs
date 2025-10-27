@@ -352,14 +352,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Continue { label: _ } => {}
 
-        Expression::Defer { expression, catch } => {
+        Expression::Defer { expression } => {
             if let Some(expr_id) = expression {
                 let expr = tree.get(*expr_id);
                 visitor.visit_expression(tree, *expr_id, expr);
-            }
-            if let Some(catch_id) = catch {
-                let catch_expr = tree.get(*catch_id);
-                visitor.visit_expression(tree, *catch_id, catch_expr);
             }
         }
 

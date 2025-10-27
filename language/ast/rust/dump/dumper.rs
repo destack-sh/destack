@@ -1350,10 +1350,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("label", label)
                     .end();
             }
-            Expression::Defer {
-                expression: _,
-                catch: _,
-            } => {
+            Expression::Defer { expression: _ } => {
                 self.node("Expression::Defer", _id.id).end();
             }
             Expression::Await { expression: _ } => {
@@ -1429,10 +1426,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeUnary {
-                operator,
-                right: _,
-            } => {
+            Expression::TypeUnary { operator, right: _ } => {
                 self.node("Expression::TypeUnary", _id.id)
                     .field("operator", operator)
                     .end();
