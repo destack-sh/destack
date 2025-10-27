@@ -809,6 +809,13 @@ impl Dump for BindingModifiers {
     }
 }
 
+/// Dump a Asynchrony as a string.
+impl Dump for Asynchrony {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1039,8 +1046,8 @@ impl Dump for Intrinsic {
     }
 }
 
-/// Dump a DependencyType as a string.
-impl Dump for DependencyType {
+/// Dump a DependencyKind as a string.
+impl Dump for DependencyKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1343,16 +1350,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::With", id.id).end();
             }
             Expression::Import {
-                ty,
+                kind,
                 items: _,
                 arguments: _,
             } => {
-                self.node("Expression::Import", id.id).field("ty", ty).end();
+                self.node("Expression::Import", id.id)
+                    .field("kind", kind)
+                    .end();
             }
-            Expression::Export { mode, ty, items: _ } => {
+            Expression::Export {
+                mode,
+                kind,
+                items: _,
+            } => {
                 self.node("Expression::Export", id.id)
                     .field("mode", mode)
-                    .field("ty", ty)
+                    .field("kind", kind)
                     .end();
             }
             Expression::Let {
@@ -1610,16 +1623,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Definition::Import {
-                ty,
+                kind,
+                asynchrony,
                 items: _,
                 arguments: _,
             } => {
-                self.node("Definition::Import", id.id).field("ty", ty).end();
+                self.node("Definition::Import", id.id)
+                    .field("kind", kind)
+                    .field("asynchrony", asynchrony)
+                    .end();
             }
-            Definition::Export { mode, ty, items: _ } => {
+            Definition::Export {
+                mode,
+                kind,
+                items: _,
+            } => {
                 self.node("Definition::Export", id.id)
                     .field("mode", mode)
-                    .field("ty", ty)
+                    .field("kind", kind)
                     .end();
             }
             Definition::Let { meta, value: _ } => {
@@ -1954,7 +1975,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
         import_item: &DependencyItem,
     ) {
         match import_item {
-            DependencyItem::Glob { ty, target, alias } => {
+            DependencyItem::Glob {
+                kind: ty,
+                target,
+                alias,
+            } => {
                 self.node("DependencyItem::Glob", id.id)
                     .field("ty", ty)
                     .field("target", target)
@@ -1962,7 +1987,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             DependencyItem::Scalar {
-                ty,
+                kind: ty,
                 target,
                 name,
                 alias,

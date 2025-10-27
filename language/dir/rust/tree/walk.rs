@@ -175,7 +175,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Import {
-            ty: _,
+            kind: _,
             items,
             arguments,
         } => {
@@ -192,7 +192,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Export {
             mode: _,
-            ty: _,
+            kind: _,
             items,
         } => {
             for item_id in items {
@@ -504,7 +504,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             // nothing to do
         }
         Definition::Import {
-            ty: _,
+            kind: _,
+            asynchrony: _,
             items,
             arguments,
         } => {
@@ -521,7 +522,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Export {
             mode: _,
-            ty: _,
+            kind: _,
             items,
         } => {
             for item_id in items {

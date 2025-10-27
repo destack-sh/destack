@@ -147,9 +147,9 @@ pub enum Runtime {
     Static,
 }
 
-/// The asyncness of a function.
+/// The asynchrony of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Asyncness {
+pub enum Asynchrony {
     /// Synchronous function.
     Sync,
     /// Asynchronous function.

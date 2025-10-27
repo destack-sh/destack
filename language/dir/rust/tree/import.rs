@@ -22,7 +22,7 @@ pub enum DependencyTarget {
 
 /// The type of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DependencyType {
+pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
     /// Value dependency (`import foo` or `export foo`).
@@ -34,13 +34,13 @@ pub enum DependencyType {
 pub enum DependencyItem {
     /// Import all items from a target (`import * from foo` or `export * from foo`).
     Glob {
-        ty: DependencyType,
+        kind: DependencyKind,
         target: DependencyTarget,
         alias: Option<StringId>,
     },
     /// Import a single item from a target (or current scope when target is None) (`import foo` or `export foo`).
     Scalar {
-        ty: DependencyType,
+        kind: DependencyKind,
         target: Option<DependencyTarget>,
         name: StringId,
         alias: Option<StringId>,

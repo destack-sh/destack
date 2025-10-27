@@ -1,5 +1,5 @@
 use crate::{
-    Argument, Asyncness, DependencyItem, DependencyType, ExportType, Expression, Generics,
+    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics,
     Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
     Variant, VariantField, Visibility,
 };
@@ -54,14 +54,15 @@ pub enum Definition {
     Intrinsic { intrinsic: Intrinsic },
     /// Import definition.
     Import {
-        ty: DependencyType,
+        kind: DependencyKind,
+        asynchrony: Asynchrony,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Export definition.
     Export {
         mode: ExportType,
-        ty: DependencyType,
+        kind: DependencyKind,
         items: Vec<NodeId<DependencyItem>>,
     },
     /// Let definition.
@@ -301,8 +302,8 @@ pub enum FunctionStyle {
 pub struct FunctionSignature {
     /// The runtime of the function.
     pub runtime: Runtime,
-    /// The asyncness of the function.
-    pub asyncness: Asyncness,
+    /// The asynchrony of the function.
+    pub asynchrony: Asynchrony,
     /// The cardinality of the function.
     pub cardinality: FunctionCardinality,
     /// The special intent of the function.

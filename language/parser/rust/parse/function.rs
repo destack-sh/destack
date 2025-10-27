@@ -1,6 +1,6 @@
 //! Parse functions and closures.
 
-use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter};
+use dyst_ast::{Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};
@@ -409,10 +409,10 @@ impl<'a> Parser<'a> {
         };
 
         // function
-        let asyncness = if is_async {
-            Asyncness::Async
+        let asynchrony = if is_async {
+            Asynchrony::Async
         } else {
-            Asyncness::Sync
+            Asynchrony::Sync
         };
         let cardinality = if is_generator {
             FunctionCardinality::Generator
@@ -423,7 +423,7 @@ impl<'a> Parser<'a> {
             Definition::Function {
                 meta,
                 runtime,
-                asyncness,
+                asynchrony,
                 cardinality,
                 kind,
                 style,
@@ -444,7 +444,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
+        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
     };
 
     use crate::parse::tests::TestParser;
@@ -759,10 +759,10 @@ async function* foo() => int32 {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Definition::Function { meta, asyncness, cardinality, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, asynchrony, cardinality, .. } => {
             // foo
             assert_string!(parser, meta.name.unwrap().string(), "foo");
-            assert_eq!(*asyncness, Asyncness::Async);
+            assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*cardinality, FunctionCardinality::Generator);
         });
     }

@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantKind};
 use crate::{
-    Asyncness, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
+    Asynchrony, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
@@ -346,7 +346,7 @@ pub enum Definition {
     Function {
         meta: DefinitionMeta,
         runtime: Runtime,
-        asyncness: Asyncness,
+        asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
         kind: Option<FunctionKind>,
         style: FunctionStyle,

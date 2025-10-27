@@ -1,6 +1,6 @@
 //! Parse loops, for, while, etc.
 
-use dyst_ast::{Asyncness, TokenType};
+use dyst_ast::{Asynchrony, TokenType};
 
 use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
@@ -65,17 +65,17 @@ impl<'a> Parser<'a> {
         // keyword
         self.eat_keyword(Keyword::For)?;
 
-        // asyncness
-        let asyncness = if self.peek_keyword(Keyword::Await).is_ok() {
+        // asynchrony
+        let asynchrony = if self.peek_keyword(Keyword::Await).is_ok() {
             self.bump(); // eat await keyword
-            Asyncness::Async
+            Asynchrony::Async
         } else {
-            Asyncness::Sync
+            Asynchrony::Sync
         };
 
         let in_parenthesis = self.peek_token(TokenType::OpenParenthesis).is_ok();
         // for condition loop
-        if asyncness == Asyncness::Sync
+        if asynchrony == Asynchrony::Sync
             && in_parenthesis
             && self
                 .find_in_matching_pair(
@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
             let for_id = self.tree.insert(
                 Expression::ForEach {
                     runtime,
-                    asyncness,
+                    asynchrony,
                     pattern: None,
                     iterator: iterator_id,
                     body: body_id,
@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
             let for_id = self.tree.insert(
                 Expression::ForEach {
                     runtime,
-                    asyncness,
+                    asynchrony,
                     pattern: Some(pattern_id),
                     iterator: iterator_id,
                     body: body_id,
@@ -230,7 +230,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Asyncness, ScalarLiteral, ScopedMutability, UnaryOperator};
+    use dyst_ast::{Asynchrony, ScalarLiteral, ScopedMutability, UnaryOperator};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -292,8 +292,8 @@ for (item in items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asyncness, pattern: None, iterator, body: _, .. } => {
-            assert_eq!(*asyncness, Asyncness::Sync);
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, pattern: None, iterator, body: _, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Sync);
             // (item of items)
             assert_node!(parser.tree, *iterator, Expression::Parenthesized { expression, .. } => {
                 assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {
@@ -321,8 +321,8 @@ for await (item of items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asyncness, pattern: None, iterator, body: _, .. } => {
-            assert_eq!(*asyncness, Asyncness::Async);
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, pattern: None, iterator, body: _, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Async);
             // (item of items)
             assert_node!(parser.tree, *iterator, Expression::Parenthesized { expression, .. } => {
                 assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right } => {

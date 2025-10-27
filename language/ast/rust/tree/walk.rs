@@ -164,7 +164,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
-            ty: _,
+            kind: _,
+            asynchrony: _,
             target: _,
             alias: _,
             items,
@@ -186,7 +187,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Export {
             mode: _,
-            ty: _,
+            kind: _,
             target: _,
             alias: _,
             items,
@@ -264,7 +265,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::ForEach {
             runtime: _,
-            asyncness: _,
+            asynchrony: _,
             pattern,
             iterator,
             body,
@@ -881,7 +882,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Function {
             meta: _,
             runtime: _,
-            asyncness: _,
+            asynchrony: _,
             cardinality: _,
             kind: _,
             style: _,

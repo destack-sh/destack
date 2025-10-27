@@ -22,7 +22,7 @@ pub enum DependencyTarget {
 
 /// The type of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DependencyType {
+pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
     /// Value dependency (`import foo` or `export foo`).
@@ -39,7 +39,7 @@ pub enum DependencyType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DependencyItem {
     /// The type of the item.
-    pub ty: DependencyType,
+    pub kind: DependencyKind,
     /// The source of the item (like `foo` in `foo as bar`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar`)
