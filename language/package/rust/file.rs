@@ -82,7 +82,7 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
-    pub(crate) fn parse(source: Source, session: &mut Session) -> Self {
+    pub fn parse(source: Source, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
 

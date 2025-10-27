@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asyncness, Expression, FunctionKind, FunctionCardinality, FunctionStyle, NodeId, Path,
+    Asyncness, Expression, FunctionCardinality, FunctionKind, FunctionStyle, NodeId, Path,
     PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;

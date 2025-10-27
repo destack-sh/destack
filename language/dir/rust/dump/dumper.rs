@@ -1614,6 +1614,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Struct {
                 meta,
+                style,
                 generics,
                 embedded_definitions: _,
                 variant: _,
@@ -1621,6 +1622,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
+                    .field("style", style)
                     .field_optional("generics", generics)
                     .end();
             }

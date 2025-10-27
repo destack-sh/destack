@@ -533,6 +533,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Struct {
             meta: _,
+            style: _,
             generics,
             embedded_definitions,
             variant,

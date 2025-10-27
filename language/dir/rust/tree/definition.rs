@@ -1,5 +1,7 @@
 use crate::{
-    Argument, Asyncness, DependencyItem, DependencyType, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility
+    Argument, Asyncness, DependencyItem, DependencyType, ExportType, Expression, Generics,
+    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
+    Variant, VariantField, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.

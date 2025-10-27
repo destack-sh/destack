@@ -1,5 +1,6 @@
 use dyst_ast::{
-    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, YieldCardinality
+    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
+    TypeBinaryOperator, TypeUnaryOperator, YieldCardinality,
 };
 use dyst_container::SmallVec;
 use dyst_fir::format::BestFittingMode;

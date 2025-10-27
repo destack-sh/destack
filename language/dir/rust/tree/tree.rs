@@ -6,7 +6,7 @@ use dyst_source::SourceId;
 
 use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, DependencyItem, MatchCase, Node, NodeId,
+    Annotation, Argument, Block, Definition, DependencyItem, Expression, MatchCase, Node, NodeId,
     NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
     WithClause,
 };
