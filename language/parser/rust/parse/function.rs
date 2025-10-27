@@ -34,56 +34,71 @@ impl<'a> Parser<'a> {
 
     /// Eat the self parameter maybe.
     fn eat_self_parameter_maybe(&mut self) -> ParserResult<Option<SelfParameter>> {
-        // var_ self
-        if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
-            let mutability = self.eat_scoped_mutability()?;
-            self.eat_self_keyword()?; // eat self
-            Ok(Some(SelfParameter {
-                mutability,
-                is_reference: false,
-            }))
-        }
-        // self
-        else if self.peek_self_keyword().is_ok() {
-            self.bump(); // eat self
-            Ok(Some(SelfParameter {
-                mutability: ScopedMutability::Unscoped {
-                    mutability: Mutability::Immutable,
-                },
-                is_reference: false,
-            }))
-        }
-        // &var_ self
-        else if (self.peek_token(TokenType::Multiply).is_ok()
-            || self.peek_token(TokenType::ElementwiseAnd).is_ok())
-            && (self.peek_next_keyword(Keyword::Var).is_ok()
-                || self.peek_next_keyword(Keyword::Mut).is_ok())
-        {
-            self.bump(); // eat &
-            let mutability = self.eat_scoped_mutability()?;
-            self.eat_self_keyword()?; // eat self
-            Ok(Some(SelfParameter {
-                mutability,
-                is_reference: true,
-            }))
-        }
-        // &self
-        else if self.peek_token(TokenType::Multiply).is_ok()
-            || self.peek_token(TokenType::ElementwiseAnd).is_ok()
-        {
-            self.bump(); // eat &
-            self.eat_self_keyword()?; // eat self
-            Ok(Some(SelfParameter {
-                mutability: ScopedMutability::Unscoped {
-                    mutability: Mutability::Immutable,
-                },
-                is_reference: true,
-            }))
-        }
-        // other
-        else {
-            Ok(None)
-        }
+        let (mutability, is_reference) = {
+            // var_ self
+            if self.peek_keyword(Keyword::Var).is_ok()
+                || self.peek_keyword(Keyword::Mut).is_ok()
+                || self.peek_keyword(Keyword::Const).is_ok()
+            {
+                let mutability = self.eat_scoped_mutability()?;
+                self.eat_self_keyword()?; // eat self
+                (mutability, false)
+            }
+            // self
+            else if self.peek_self_keyword().is_ok() {
+                self.bump(); // eat self
+                (
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    },
+                    false,
+                )
+            }
+            // &var_ self
+            else if (self.peek_token(TokenType::Multiply).is_ok()
+                || self.peek_token(TokenType::ElementwiseAnd).is_ok())
+                && (self.peek_next_keyword(Keyword::Var).is_ok()
+                    || self.peek_next_keyword(Keyword::Mut).is_ok()
+                    || self.peek_next_keyword(Keyword::Const).is_ok())
+            {
+                self.bump(); // eat &
+                let mutability = self.eat_scoped_mutability()?;
+                self.eat_self_keyword()?; // eat self
+                (mutability, true)
+            }
+            // &self
+            else if self.peek_token(TokenType::Multiply).is_ok()
+                || self.peek_token(TokenType::ElementwiseAnd).is_ok()
+            {
+                self.bump(); // eat &
+                self.eat_self_keyword()?; // eat self
+                (
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    },
+                    true,
+                )
+            }
+            // other
+            else {
+                return Ok(None);
+            }
+        };
+
+        // type
+        let ty = if self.peek_token(TokenType::Colon).is_ok() {
+            self.bump(); // eat colon
+            let ty = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+            Some(ty)
+        } else {
+            None
+        };
+
+        Ok(Some(SelfParameter {
+            mutability,
+            is_reference,
+            ty,
+        }))
     }
 
     /// Eat a function or "lambda" definition or declaration.
@@ -272,7 +287,7 @@ impl<'a> Parser<'a> {
 
                 // self parameter maybe
                 let self_parameter = self.eat_self_parameter_maybe()?;
-                // optional separator after self (comma or newline) before other parameters
+                // optional separator after self before other parameters
                 if self_parameter.is_some() && self.peek_item_stop().is_ok() {
                     self.eat_item_stop_with_newlines()?;
                 }
@@ -313,12 +328,20 @@ impl<'a> Parser<'a> {
             {
                 self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
+
                 // return type
                 let return_type = self
                     .with_options(self.options.nested_type_in_before_block(), |parser| {
                         parser.eat_expression()
                     })?;
-                (Some(return_type), None, None)
+
+                // with
+                let with_clauses = self.eat_with_header_maybe()?;
+
+                // where
+                let where_clauses = self.eat_where_maybe()?;
+
+                (Some(return_type), with_clauses, where_clauses)
             }
             // regular function with return type or lambda type
             else if style == FunctionStyle::Function || self.options.in_type {

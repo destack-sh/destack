@@ -752,23 +752,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // defer
-            Expression::Defer { expression, catch } => {
+            Expression::Defer { expression } => {
                 write!(f, [Keyword::Defer])?;
                 if let Some(expression) = expression {
                     write!(f, [space(), expression])?;
-                }
-                if let Some(catch) = catch {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::Catch,
-                            space(),
-                            token("{"),
-                            catch,
-                            token("}")
-                        ]
-                    )?;
                 }
             }
 

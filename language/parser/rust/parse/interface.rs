@@ -93,7 +93,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Definition, DefinitionMeta, Expression, IntType, ScalarLiteral, TypeLiteral, VariantField,
-        WhereClause, WithClause, assert_node, assert_path, assert_string,
+        WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -275,7 +275,7 @@ interface Baz<T> with T: Copy where Requirement: Interface {
     }
 
     #[test]
-    fn test_parse_interface_with_implicit_functions() {
+    fn test_parse_interface_with_implicit_self_functions() {
         let mut test = TestParser::new(
             r#"
 interface Client {
@@ -298,8 +298,8 @@ interface Client {
                 assert_string!(parser, *name, "onconnect");
                 // (this: Client) => void;
                 assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, .. } => {
-                        assert_eq!(dynamic_parameters.len(), 1);
+                    assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), .. } => {
+                        assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
                     });
                 });
             });
@@ -308,8 +308,9 @@ interface Client {
                 assert_string!(parser, *name, "onclose");
                 // (this: Client, error: Error) => void;
                 assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, .. } => {
-                        assert_eq!(dynamic_parameters.len(), 2);
+                    assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), dynamic_parameters, .. } => {
+                        assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
+                        assert_eq!(dynamic_parameters.len(), 1);
                     });
                 });
             });

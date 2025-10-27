@@ -106,7 +106,17 @@ mod tests {
     }
 
     #[test]
-    fn test_format_function_with_self() {
+    fn test_format_function_with_self_parameter() {
+        let source = r"function foo(self: int32) => void";
+        assert_format!(source, source, |p| p.eat_function(
+            DefinitionMeta::default(),
+            false,
+            false
+        ));
+    }
+
+    #[test]
+    fn test_format_function_with_self_return_type() {
         let source = r"function init(capacity: int32) => Self {
     Self {
         map: Map.new(capacity),

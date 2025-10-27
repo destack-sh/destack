@@ -856,7 +856,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                                         write!(f, [space()])?;
                                     }
                                     // self
-                                    write!(f, [Keyword::Self_])
+                                    write!(f, [Keyword::Self_])?;
+                                    // ty
+                                    if let Some(ty) = self_parameter.ty {
+                                        write!(f, [space(), token(":"), space(), ty])?;
+                                    }
+                                    Ok(())
                                 }));
                             }
                             // dynamic parameters
