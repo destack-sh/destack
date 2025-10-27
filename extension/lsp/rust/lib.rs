@@ -1,7 +1,5 @@
-//! Dyst Server library.
-//!
-//! Provides a synchronous stdio LSP server entrypoint and internal modules for
-//! document storage and semantic token computation.
+#![feature(default_field_values)]
+#![feature(if_let_guard)]
 
 pub mod diagnostic;
 pub mod language_server;

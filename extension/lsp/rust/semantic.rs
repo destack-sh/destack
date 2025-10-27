@@ -1,5 +1,3 @@
-//! Semantic token LSP.
-
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
@@ -7,10 +5,7 @@ use dyst_package::{FileContent, SourceFile};
 use dyst_source::{Source, Uri};
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::{
-    DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span,
-    token_length_utf16,
-};
+use crate::{DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span};
 
 /// All semantic token types supported by the LSP server.
 pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 23] = [
@@ -85,7 +80,7 @@ pub fn collect_semantic_tokens(
     let mut previous_column = 0u32;
     let mut is_first = true;
     for (token, semantic) in tokens.iter().zip(semantic_index.semantic_types.iter()) {
-        let mapped_type = match semantic.and_then(get_semantic_type_index) {
+        let token_type = match semantic.and_then(get_semantic_type_index) {
             Some(index) => index,
             None => continue,
         };
@@ -97,36 +92,120 @@ pub fn collect_semantic_tokens(
             continue;
         }
 
-        // convert byte span to UTF-16 position and length
-        let (line, column) = byte_to_utf16_position(source, token.span.start)?;
-        let length = token_length_utf16(source, token);
+        // split token into per-line UTF-16 segments
+        for (line, column, length) in line_segments_utf16(source, token.span.start, token.span.end)?
+        {
+            let delta_line = if is_first {
+                line
+            } else {
+                line.saturating_sub(previous_line)
+            };
+            let delta_start = if is_first || delta_line > 0 {
+                column
+            } else {
+                column.saturating_sub(previous_column)
+            };
 
-        // compute deltas for LSP encoding
-        let delta_line = if is_first {
-            line
-        } else {
-            line.saturating_sub(previous_line)
-        };
-        let delta_start = if is_first || delta_line > 0 {
-            column
-        } else {
-            column.saturating_sub(previous_column)
-        };
+            encoded.push(lsp::SemanticToken {
+                delta_line,
+                delta_start,
+                length,
+                token_type,
+                token_modifiers_bitset: 0,
+            });
 
-        encoded.push(lsp::SemanticToken {
-            delta_line,
-            delta_start,
-            length,
-            token_type: mapped_type,
-            token_modifiers_bitset: 0,
-        });
-
-        previous_line = line;
-        previous_column = column;
-        is_first = false;
+            previous_line = line;
+            previous_column = column;
+            is_first = false;
+        }
     }
 
     Some(encoded)
+}
+
+/// Split a byte span into per-line UTF-16 segments.
+#[inline]
+fn line_segments_utf16<'a>(
+    source: &'a Source,
+    start: u32,
+    end: u32,
+) -> Option<SpanSegmentsIter<'a>> {
+    if start > end || end > source.len {
+        return None;
+    }
+    Some(SpanSegmentsIter {
+        source,
+        next_byte: start,
+        end_byte: end,
+    })
+}
+
+/// An iterator over the per-line segments of a TokenSpan.
+#[derive(Debug, Clone, Copy)]
+struct SpanSegmentsIter<'a> {
+    source: &'a Source,
+    next_byte: u32,
+    end_byte: u32,
+}
+
+impl<'a> Iterator for SpanSegmentsIter<'a> {
+    type Item = (u32, u32, u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            // stop if we've reached or passed the end of the span
+            if self.next_byte >= self.end_byte {
+                return None;
+            }
+
+            // get the UTF-16 line and column for the current byte offset
+            let (line, column) = match byte_to_utf16_position(self.source, self.next_byte) {
+                Some(position) => position,
+                None => {
+                    self.next_byte = self.end_byte;
+                    return None;
+                }
+            };
+
+            // find next line break or end of span
+            let bytes = self.source.content.as_bytes();
+            let mut line_end = self.next_byte;
+            while line_end < self.end_byte {
+                let index = line_end as usize;
+                if index >= bytes.len() || matches!(bytes[index], b'\n' | b'\r') {
+                    break;
+                }
+                line_end += 1;
+            }
+
+            // skip empty segments
+            let segment_end = line_end.min(self.end_byte);
+            if segment_end == self.next_byte {
+                self.next_byte = self.next_byte.saturating_add(1);
+                continue;
+            }
+
+            // compute length in UTF-16 code units for this segment
+            let length = self.source.content[self.next_byte as usize..segment_end as usize]
+                .encode_utf16()
+                .count() as u32;
+
+            // advance past this line or segment
+            self.next_byte = if line_end < self.end_byte {
+                line_end + 1
+            } else {
+                segment_end
+            };
+
+            // skip zero-length segments
+            if length == 0 {
+                continue;
+            }
+
+            // yield the segment's (line, column, length)
+            return Some((line, column, length));
+        }
+    }
 }
 
 /// Get the index of a SemanticType in our token types array.
@@ -194,5 +273,41 @@ impl DestackLanguageServer {
             }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range), true),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dyst_parser::Lexer;
+    use dyst_session::Session;
+    use dyst_source::{Source, SourceFormat, SourceId};
+    use tower_lsp_server::lsp_types as lsp;
+
+    use super::*;
+
+    /// Parse the source content string and return collected semantic tokens.
+    #[allow(dead_code)]
+    fn get_semantic_tokens_for_content(
+        content: &str,
+        filter: impl Fn(&TokenSpan) -> bool,
+    ) -> Option<Vec<lsp::SemanticToken>> {
+        let mut session = Session::new();
+        let source = Source::from_string(
+            SourceId::new(0),
+            "<test>".to_string(),
+            Uri::from_string("<test>"),
+            SourceFormat::Dyst,
+            content.to_string(),
+        );
+        let (tokens, _) = Lexer::lex(source.id, &source.content);
+        let source_file = SourceFile::parse(source, &mut session);
+        collect_semantic_tokens(
+            &source_file.source,
+            &tokens.into_iter().filter(filter).collect(),
+            &source_file.ast,
+            source_file.root_definition_id,
+            None,
+            true,
+        )
     }
 }

@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, Expression, DependencyItem, MatchCase, NodeId, NodeTree,
-    NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
+    Annotation, Argument, Block, Definition, DependencyItem, Expression, MatchCase, NodeId,
+    NodeTree, NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
     WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_expression,
     walk_import_item, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type,
     walk_variant, walk_variant_field, walk_where_clause, walk_with_clause,

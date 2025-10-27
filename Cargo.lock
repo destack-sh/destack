@@ -406,6 +406,7 @@ dependencies = [
  "dyst_dir",
  "dyst_fir",
  "dyst_package",
+ "dyst_parser",
  "dyst_session",
  "dyst_source",
  "libc",

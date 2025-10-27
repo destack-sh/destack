@@ -62,7 +62,6 @@ export interface X {
         | "AnimationFrame"
         | "Interval"
         | "Listener",
-
 }
 
 interface Client {

@@ -20,7 +20,6 @@ pub enum Expression {
     Block(NodeId<Block>),
 
     // nocheckin: add new/throw/delete expressions
-
     /// A With is a with declaration for context management.
     /// With can declare the use of an item in a scope and refine type bounds.
     ///

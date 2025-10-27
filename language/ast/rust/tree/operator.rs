@@ -419,7 +419,7 @@ impl BinaryOperator {
             // container
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
             TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
-            
+
             _ => None,
         }
     }
