@@ -622,6 +622,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Struct {
             meta: _,
             style: _,
+            kind: _,
             super_types,
             representation_type,
             static_parameters,
@@ -869,11 +870,11 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *param_id, param);
                 }
             }
-            if let Some(self_parameter) = self_parameter {
-                if let Some(ty) = self_parameter.ty {
-                    let ty_expr = tree.get(ty);
-                    visitor.visit_expression(tree, ty, ty_expr);
-                }
+            if let Some(self_parameter) = self_parameter
+                && let Some(ty) = self_parameter.ty
+            {
+                let ty_expr = tree.get(ty);
+                visitor.visit_expression(tree, ty, ty_expr);
             }
             for param_id in dynamic_parameters {
                 let param = tree.get(*param_id);

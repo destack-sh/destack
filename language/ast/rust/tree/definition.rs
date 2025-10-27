@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::tree::variant::{VariantField, VariantStyle};
+use crate::tree::variant::{VariantField, VariantKind};
 use crate::{
     Asyncness, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
     ScopedMutability, Visibility, WhereClause, WithClause,
@@ -60,7 +60,7 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// A Struct is struct definition.
+    /// A Struct is struct or class definition.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like interfaces).
     /// Structs may also have super structs as semantic sugar for `use`-ing other structs.
@@ -106,7 +106,8 @@ pub enum Definition {
     /// ```
     Struct {
         meta: DefinitionMeta,
-        style: VariantStyle,
+        style: StructStyle,
+        kind: VariantKind,
         super_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -383,6 +384,15 @@ impl Definition {
     pub fn name(&self) -> Option<Name> {
         self.meta().name
     }
+}
+
+/// The style of a struct or class.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum StructStyle {
+    /// Struct.
+    Struct,
+    /// Class.
+    Class,
 }
 
 /// The cardinality of a function.

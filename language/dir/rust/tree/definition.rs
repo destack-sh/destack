@@ -79,9 +79,10 @@ pub enum Definition {
         generics: Option<Generics>,
         definitions: Vec<NodeId<Definition>>,
     },
-    /// Struct definition.
+    /// Struct or class definition.
     Struct {
         meta: DefinitionMeta,
+        style: StructStyle,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variant: NodeId<Variant>,
@@ -240,6 +241,15 @@ impl Definition {
 
 impl Node for Definition {
     const KIND: NodeType = NodeType::Definition;
+}
+
+/// The style of a struct or class.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum StructStyle {
+    /// Struct.
+    Struct,
+    /// Class.
+    Class,
 }
 
 /// The cardinality of a function.

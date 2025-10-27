@@ -93,9 +93,9 @@ export const aiAgent = actor({
 								.string()
 								.describe('The location to get the weather for'),
 						}),
-						// execute: async ({ location }) => {
-						// 	return await getWeather(location);
-						// },
+						execute: async ({ location }) => {
+							return await getWeather(location);
+						},
 					}),
 				},
 			});
