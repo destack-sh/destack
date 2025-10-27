@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asyncness, Expression, FunctionAccessor, FunctionCardinality, FunctionStyle, NodeId, Path,
+    Asyncness, Expression, FunctionKind, FunctionCardinality, FunctionStyle, NodeId, Path,
     PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;
@@ -57,12 +57,13 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function accessor into a DIR function accessor.
+    /// Lower function kind into a DIR function kind.
     #[inline]
-    pub fn lower_function_accessor(&self, accessor: ast::FunctionAccessor) -> FunctionAccessor {
-        match accessor {
-            ast::FunctionAccessor::Getter => FunctionAccessor::Getter,
-            ast::FunctionAccessor::Setter => FunctionAccessor::Setter,
+    pub fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
+        match kind {
+            ast::FunctionKind::Getter => FunctionKind::Getter,
+            ast::FunctionKind::Setter => FunctionKind::Setter,
+            ast::FunctionKind::Constructor => FunctionKind::Constructor,
         }
     }
 

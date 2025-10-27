@@ -166,24 +166,25 @@ impl<'a> Parser<'a> {
         // static field
         else {
             // name
-            let (name, is_maybe) =
-            // name:
-            if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
-                let name = self.eat_name()?;
-                self.bump(); // eat colon
-                (Some(name), false)
-            }
-            // name?:
-            else if self.peek_name().is_ok()
-                && self.peek_next_token(TokenType::Maybe).is_ok()
-                && self.peek_next_next_token(TokenType::Colon).is_ok()
-            {
-                let name = self.eat_name()?;
-                self.bump(); // eat maybe
-                self.bump(); // eat colon
-                (Some(name), true)
-            } else {
-                (None, false)
+            let (name, is_maybe) = {
+                // name:
+                if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+                    let name = self.eat_name()?;
+                    self.bump(); // eat colon
+                    (Some(name), false)
+                }
+                // name?:
+                else if self.peek_name().is_ok()
+                    && self.peek_next_token(TokenType::Maybe).is_ok()
+                    && self.peek_next_next_token(TokenType::Colon).is_ok()
+                {
+                    let name = self.eat_name()?;
+                    self.bump(); // eat maybe
+                    self.bump(); // eat colon
+                    (Some(name), true)
+                } else {
+                    (None, false)
+                }
             };
 
             // type
@@ -300,5 +301,41 @@ impl<'a> Parser<'a> {
         }
 
         Ok((fields, expressions))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dyst_ast::{Definition, Name, Parameter, TypeLiteral};
+
+    use crate::tests::TestParser;
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+
+    use super::*;
+
+    #[test]
+    fn test_parse_variant_field_with_implicit_function() {
+        let mut test = TestParser::new(r#"onconnect: (this: Client) => void"#);
+        let mut parser = test.prepare();
+
+        let variant_field = parser.eat_variant_field().unwrap();
+        assert_node!(parser.tree, variant_field, VariantField::Named { mutability: None, visibility: None, name: Name::Identifier(name), ty, default: None, .. } => {
+            assert_string!(parser, *name, "onconnect");
+            // (this: Client) => void;
+            assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
+                    assert_eq!(dynamic_parameters.len(), 1);
+                    // this: Client
+                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                        // this
+                        assert_string!(parser, *name, "this");
+                        // Client
+                        assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "Client");
+                    });
+                    // void
+                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
     }
 }

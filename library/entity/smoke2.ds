@@ -55,11 +55,26 @@ ws.on('todos:update', (changes) => {
     ]]
 />
 
-interface X {
+export interface X {
     reason: 
         | "URL"
         | "DOM"
         | "AnimationFrame"
         | "Interval"
-        | "Listener"
+        | "Listener",
+
+}
+
+interface Client {
+    /// Callback fired when the client connects to the Redis server
+    onconnect: ((self: Client) => void) | null;
+    /// Callback fired when the client disconnects from the Redis server
+    onclose: ((this: Client, error: Error) => void) | null;
+    /// Get TTL of hash fields in milliseconds (Redis 7.4+)
+    hpttl(
+      key: RedisClient.KeyLike,
+      fieldsKeyword: "FIELDS",
+      numfields: number,
+      ...fields: RedisClient.KeyLike[]
+    ): Promise<number[]>;
 }

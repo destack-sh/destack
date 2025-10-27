@@ -6,7 +6,7 @@ export struct Epoch {
 }
 
 /// The materialization level of an Entity.
-export enum(uint2) Materialization {
+export enum Materialization {
     Virtual
     Partial
     Full
@@ -15,7 +15,7 @@ export enum(uint2) Materialization {
 
 /// How an Entity should be treated for processing by the system.
 @flag
-export enum(uint4) ProcessFlag {
+export enum ProcessFlag {
     Default = 0
     Deleted
     Inactive
@@ -25,7 +25,7 @@ export enum(uint4) ProcessFlag {
 
 /// How an Entity can be extended.
 @flag
-export enum(uint4) ExtensionFlag {
+export enum ExtensionFlag {
     Default = 0
     Instantiable
     Extensible

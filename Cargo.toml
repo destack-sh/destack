@@ -160,8 +160,8 @@ module_inception = { level = "allow", priority = 1 }
 broken_intra_doc_links = "warn"
 
 [profile.dev]
-opt-level = 1
-debug = 1
+opt-level = 0
+debug = "full"
 debug-assertions = true
 overflow-checks = true
 incremental = true

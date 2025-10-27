@@ -347,7 +347,7 @@ pub enum Definition {
         runtime: Runtime,
         asyncness: Asyncness,
         cardinality: FunctionCardinality,
-        accessor: Option<FunctionAccessor>,
+        kind: Option<FunctionKind>,
         style: FunctionStyle,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         self_parameter: Option<SelfParameter>,
@@ -396,22 +396,25 @@ pub enum FunctionCardinality {
 
 impl FunctionCardinality {}
 
-/// The accessor type of a function.
+/// The kind of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionAccessor {
-    /// A getter function.
+pub enum FunctionKind {
+    /// Getter function.
     Getter,
-    /// A setter function.
+    /// Setter function.
     Setter,
+    /// Constructor function (alias).
+    Constructor,
 }
 
-impl FunctionAccessor {
+impl FunctionKind {
     /// Get the keyword for the function accessor.
     #[inline]
     pub fn to_keyword(&self) -> Keyword {
         match self {
-            FunctionAccessor::Getter => Keyword::Get,
-            FunctionAccessor::Setter => Keyword::Set,
+            FunctionKind::Getter => Keyword::Get,
+            FunctionKind::Setter => Keyword::Set,
+            FunctionKind::Constructor => Keyword::Constructor,
         }
     }
 }

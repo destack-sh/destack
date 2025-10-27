@@ -192,7 +192,7 @@ impl<'a> Compiler<'a> {
         runtime: ast::Runtime,
         asyncness: ast::Asyncness,
         cardinality: ast::FunctionCardinality,
-        accessor: Option<ast::FunctionAccessor>,
+        kind: Option<ast::FunctionKind>,
         style: ast::FunctionStyle,
         self_parameter: &Option<ast::SelfParameter>,
         dynamic_parameters: &[ast::NodeId<ast::Parameter>],
@@ -201,7 +201,7 @@ impl<'a> Compiler<'a> {
         let runtime = self.lower_runtime(runtime);
         let asyncness = self.lower_asyncness(asyncness);
         let cardinality = self.lower_function_cardinality(cardinality);
-        let accessor = accessor.map(|accessor| self.lower_function_accessor(accessor));
+        let kind = kind.map(|kind| self.lower_function_kind(kind));
         let style = self.lower_function_style(style);
         let self_parameter = self_parameter
             .as_ref()
@@ -217,7 +217,7 @@ impl<'a> Compiler<'a> {
             runtime,
             asyncness,
             cardinality,
-            accessor,
+            kind,
             style,
             self_parameter,
             dynamic_parameters,
@@ -482,7 +482,7 @@ impl<'a> Compiler<'a> {
                 runtime,
                 asyncness,
                 cardinality,
-                accessor,
+                kind,
                 style,
                 self_parameter,
                 dynamic_parameters,
@@ -506,7 +506,7 @@ impl<'a> Compiler<'a> {
                     *runtime,
                     *asyncness,
                     *cardinality,
-                    *accessor,
+                    *kind,
                     *style,
                     self_parameter,
                     dynamic_parameters,
