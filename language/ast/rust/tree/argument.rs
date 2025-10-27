@@ -61,7 +61,7 @@ impl Node for Parameter {
     const KIND: NodeType = NodeType::Parameter;
 }
 
-// nocheckin: support maybe & readonly on the Argument/VariantField directly?
+// nocheckin: support maybe & readonly on the Parameter/Argument/VariantField directly?
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantFieldMeta {
     /// The mutability of the field.

@@ -69,6 +69,8 @@ impl<'a> Compiler<'a> {
             // comparison
             ast::BinaryOperator::Equal => dyst_dir::BinaryOperator::Equal,
             ast::BinaryOperator::NotEqual => dyst_dir::BinaryOperator::NotEqual,
+            ast::BinaryOperator::EqualStrict => dyst_dir::BinaryOperator::EqualStrict,
+            ast::BinaryOperator::NotEqualStrict => dyst_dir::BinaryOperator::NotEqualStrict,
             ast::BinaryOperator::LessThan => dyst_dir::BinaryOperator::LessThan,
             ast::BinaryOperator::LessThanOrEqual => dyst_dir::BinaryOperator::LessThanOrEqual,
             ast::BinaryOperator::GreaterThan => dyst_dir::BinaryOperator::GreaterThan,
