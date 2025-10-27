@@ -116,6 +116,12 @@ mod tests {
     }
 
     #[test]
+    fn test_format_function_constructor() {
+        assert_format!("constructor(x: int32)", "constructor(x: int32)", |p| p
+            .eat_function(DefinitionMeta::default(), false, false));
+    }
+
+    #[test]
     fn test_format_function_with_self_return_type() {
         let source = r"function init(capacity: int32) => Self {
     Self {
