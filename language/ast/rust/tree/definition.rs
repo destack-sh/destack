@@ -506,4 +506,6 @@ pub struct SelfParameter {
     pub mutability: ScopedMutability,
     /// Whether the self parameter is a pointer.
     pub is_reference: bool,
+    /// The type of the self parameter.
+    pub ty: Option<NodeId<Expression>>,
 }

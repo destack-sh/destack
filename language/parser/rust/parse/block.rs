@@ -184,18 +184,8 @@ impl<'a> Parser<'a> {
         // keyword
         self.eat_keyword(Keyword::Defer)?;
 
-        // catch
-        if self.peek_keyword(Keyword::Catch).is_ok() {
-            self.bump(); // eat keyword
-            let match_id = self.eat_match_body(None, false)?;
-            let defer_id = self.tree.insert(
-                Expression::Defer { expression: None },
-                self.get_span_from(start),
-            );
-            Ok(defer_id)
-        }
         // block
-        else if self.peek_block().is_ok() {
+        if self.peek_block().is_ok() {
             let block_id = self.eat_block()?;
             let block_id = self
                 .tree
@@ -412,7 +402,6 @@ mod tests {
                 assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
-            assert!(catch.is_none());
         });
     }
 

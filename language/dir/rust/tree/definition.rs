@@ -267,8 +267,12 @@ pub enum FunctionKind {
 /// The "self" parameter for a function (also accepts `this` and `&`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
+    /// The mutability of the "self" parameter.
     pub mutability: ScopedMutability,
+    /// Whether the "self" parameter is a reference.
     pub is_reference: bool,
+    /// The type of the "self" parameter.
+    pub ty: Option<NodeId<Type>>,
 }
 
 /// The style of a function.

@@ -306,7 +306,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, Name, Parameter, TypeLiteral};
+    use dyst_ast::{Definition, Name, TypeLiteral};
 
     use crate::tests::TestParser;
     use crate::{assert_expr_path, assert_node, assert_path, assert_string};
@@ -314,7 +314,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_variant_field_with_implicit_function() {
+    fn test_parse_variant_field_with_implicit_self_function() {
         let mut test = TestParser::new(r#"onconnect: (this: Client) => void"#);
         let mut parser = test.prepare();
 
@@ -323,15 +323,8 @@ mod tests {
             assert_string!(parser, *name, "onconnect");
             // (this: Client) => void;
             assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
-                    assert_eq!(dynamic_parameters.len(), 1);
-                    // this: Client
-                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
-                        // this
-                        assert_string!(parser, *name, "this");
-                        // Client
-                        assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "Client");
-                    });
+                assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), return_type, .. } => {
+                    assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
                     // void
                     assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
                 });

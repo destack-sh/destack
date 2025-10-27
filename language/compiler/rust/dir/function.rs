@@ -12,9 +12,14 @@ impl<'a> Compiler<'a> {
         self_parameter: &ast::SelfParameter,
     ) -> SelfParameter {
         let mutability = self.lower_scoped_mutability(source_id, ast, &self_parameter.mutability);
+        let ty = self_parameter
+            .ty
+            .as_ref()
+            .map(|ty| self.lower_expression_to_type(source_id, ast, ty));
         SelfParameter {
             mutability,
             is_reference: self_parameter.is_reference,
+            ty,
         }
     }
 }
