@@ -297,7 +297,7 @@ pub enum BinaryOperator {
     /// `===`
     EqualStrict = 1305,
     /// `!==`
-    NotEqualStrict = 1304,    
+    NotEqualStrict = 1304,
     /// `<`
     LessThan = 1303,
     /// `<=`

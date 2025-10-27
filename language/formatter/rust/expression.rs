@@ -12,9 +12,6 @@ use crate::block::format_block;
 use crate::import::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
-use crate::variant::{
-    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
-};
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
     Keyword, NodeId, Runtime, UnaryOperator, empty_block_with_infix_annotations,
@@ -22,83 +19,66 @@ use crate::{
 
 /// Tree fragment argument (with `=` instead of `: `)
 #[derive(Debug, Clone, PartialEq)]
-struct TreeFragmentArgument {
+struct TreeLiteralArgument {
     argument_id: NodeId<Argument>,
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
+impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
 
         let argument = f.context().tree.get(self.argument_id);
         match argument {
             Argument::Named {
-                modifiers,
+                modifiers: _,
                 name,
                 value,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
                 write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                write!(f, [token("="), space(), value])?;
+                write!(f, [token("="), value])?;
             }
             Argument::Function {
-                modifiers,
+                modifiers: _,
                 name,
                 value,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
                 write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                write!(f, [token("="), space(), value])?;
+                write!(f, [token("="), value])?;
             }
-            Argument::Shorthand { modifiers, name } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            Argument::Shorthand { modifiers: _, name } => {
                 // name
                 write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Positional { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            Argument::Positional {
+                modifiers: _,
+                value,
+            } => {
                 // value
                 write!(f, [value])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
             Argument::Spread {
-                modifiers,
+                modifiers: _,
                 name,
                 value,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // keyword
                 write!(f, [token("...")])?;
                 // name
                 if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
+                    write!(f, [name, token("="), space()])?;
                 }
                 write!(f, [value])?;
             }
             Argument::Dynamic {
-                modifiers,
+                modifiers: _,
                 name,
                 key,
                 value,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // key
                 write!(f, [token("[")])?;
                 // name
@@ -106,10 +86,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeFragmentArgument {
                     write!(f, [name, token(":"), space()])?;
                 }
                 write!(f, [key, token("]")])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
-                write!(f, [token(":"), space(), value])?;
+                write!(f, [token("="), value])?;
             }
         }
 
@@ -375,7 +353,7 @@ pub(crate) fn format_tree_literal<'ast>(
                                 soft_block_indent(&format_with(|f| {
                                     f.join_with(&format_args![soft_line_break_or_space()])
                                         .entries(arguments.iter().map(|argument| {
-                                            TreeFragmentArgument {
+                                            TreeLiteralArgument {
                                                 argument_id: *argument,
                                             }
                                         }))
@@ -386,7 +364,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     }
                     // /
                     if elements.is_none() {
-                        if path.is_some() && arguments.is_some() {
+                        if path.is_some() {
                             write!(f, [if_group_fits_on_line(&space())])?;
                         }
                         write!(f, [token("/")])?;
@@ -1327,7 +1305,7 @@ mod tests {
     fn test_format_expression_struct_literal_trivial() {
         assert_format!(
             "{ a: 1, ..B }",
-            "{ a: 1, ..B }",
+            "{ a: 1, ...B }",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
@@ -1337,7 +1315,7 @@ mod tests {
     fn test_format_expression_struct_literal_spread() {
         assert_format!(
             "Foo { ..B }",
-            "Foo { ..B }",
+            "Foo { ...B }",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
