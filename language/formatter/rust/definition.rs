@@ -4,11 +4,10 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
     Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
-    Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
+    Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle,
-    Visibility,
+    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle, StructStyle, Visibility
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -168,6 +167,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Struct {
                 meta,
                 style,
+                kind,
                 super_types,
                 representation_type,
                 static_parameters,
@@ -177,12 +177,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // split tuple / struct fields
-                let tuple_fields: &[NodeId<VariantField>] = if *style == VariantStyle::Tuple {
+                let tuple_fields: &[NodeId<VariantField>] = if *kind == VariantKind::Tuple {
                     fields
                 } else {
                     &[]
                 };
-                let fields: &[NodeId<VariantField>] = if *style == VariantStyle::Struct {
+                let fields: &[NodeId<VariantField>] = if *kind == VariantKind::Struct {
                     fields
                 } else {
                     &[]
@@ -204,7 +204,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // keyword
-                write!(f, [Keyword::Struct])?;
+                match style {
+                    StructStyle::Struct => write!(f, [Keyword::Struct])?,
+                    StructStyle::Class => write!(f, [Keyword::Class])?,
+                }
                 if let Some(representation_type) = representation_type {
                     write!(f, [token("("), representation_type, token(")")])?;
                 }
@@ -223,7 +226,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // tuple
-                if *style == VariantStyle::Tuple {
+                if *kind == VariantKind::Tuple {
                     if tuple_fields.is_empty() {
                         write!(f, [token("("), token(")")])?;
                     } else {

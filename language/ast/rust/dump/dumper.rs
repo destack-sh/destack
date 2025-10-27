@@ -932,8 +932,15 @@ impl Dump for ModuleFormat {
     }
 }
 
-/// Dump a VariantStyle as a string.
-impl Dump for VariantStyle {
+/// Dump a VariantKind as a string.
+impl Dump for VariantKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a StructStyle as a string.
+impl Dump for StructStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1554,6 +1561,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Struct {
                 meta,
                 style,
+                kind,
                 super_types: _,
                 representation_type: _,
                 static_parameters: _,
@@ -1565,6 +1573,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
                     .field("style", style)
+                    .field("kind", kind)
                     .end();
             }
             Definition::Enum {

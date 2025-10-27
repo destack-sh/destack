@@ -783,6 +783,13 @@ impl Dump for FunctionKind {
     }
 }
 
+/// Dump a StructStyle as a string.
+impl Dump for StructStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {

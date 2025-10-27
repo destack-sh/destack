@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     DeclarationKind, Definition, DefinitionMeta as DirDefinitionMeta, EmbeddedDefinition,
-    FunctionSignature, Generics, NodeId,
+    FunctionSignature, Generics, NodeId, StructStyle,
 };
 use dyst_source::SourceId;
 
@@ -271,6 +271,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Struct {
                 meta,
                 style,
+                kind,
                 super_types,
                 representation_type,
                 static_parameters,
@@ -280,6 +281,10 @@ impl<'a> Compiler<'a> {
                 expressions,
             } => {
                 let meta = self.lower_definition_meta(source_id, meta);
+                let style = match style {
+                    ast::StructStyle::Struct => StructStyle::Struct,
+                    ast::StructStyle::Class => StructStyle::Class,
+                };
                 let generics = self.lower_generics(
                     source_id,
                     ast,
@@ -303,7 +308,7 @@ impl<'a> Compiler<'a> {
                     ast,
                     definition_id,
                     struct_name,
-                    *style,
+                    *kind,
                     representation_type,
                     fields,
                 );
@@ -314,6 +319,7 @@ impl<'a> Compiler<'a> {
                 self.tree.insert_from_ast(
                     Definition::Struct {
                         meta,
+                        style,
                         generics,
                         embedded_definitions,
                         variant,
