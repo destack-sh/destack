@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asyncness, Expression, FunctionCardinality, FunctionKind, FunctionStyle, NodeId, Path,
+    Asynchrony, Expression, FunctionCardinality, FunctionKind, FunctionStyle, NodeId, Path,
     PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;
@@ -36,12 +36,12 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower asyncness into a DIR asyncness.
+    /// Lower asynchrony into a DIR asynchrony.
     #[inline]
-    pub fn lower_asyncness(&self, asyncness: ast::Asyncness) -> Asyncness {
-        match asyncness {
-            ast::Asyncness::Sync => Asyncness::Sync,
-            ast::Asyncness::Async => Asyncness::Async,
+    pub fn lower_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
+        match asynchrony {
+            ast::Asynchrony::Sync => Asynchrony::Sync,
+            ast::Asynchrony::Async => Asynchrony::Async,
         }
     }
 
@@ -96,17 +96,19 @@ impl<'a> Compiler<'a> {
                 Expression::With { clauses, body }
             }
             ast::Expression::Import {
-                ty,
+                kind,
+                asynchrony,
                 target,
                 alias,
                 items,
                 arguments,
             } => {
+                let asynchrony = self.lower_asynchrony(*asynchrony);
                 let items = self.lower_dependency_binding(
                     source_id,
                     ast,
                     expression_id,
-                    *ty,
+                    *kind,
                     Some(target),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
@@ -117,16 +119,16 @@ impl<'a> Compiler<'a> {
                         .map(|argument| self.lower_argument(source_id, ast, *argument))
                         .collect()
                 });
-                let ty = self.lower_dependency_type(source_id, ast, *ty);
+                let kind = self.lower_dependency_type(source_id, ast, *kind);
                 Expression::Import {
-                    ty,
+                    kind,
                     items,
                     arguments,
                 }
             }
             ast::Expression::Export {
                 mode,
-                ty,
+                kind,
                 target,
                 alias,
                 items,
@@ -135,15 +137,15 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     expression_id,
-                    *ty,
+                    *kind,
                     target.as_ref(),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
-                let ty = self.lower_dependency_type(source_id, ast, *ty);
+                let kind = self.lower_dependency_type(source_id, ast, *kind);
                 Expression::Export {
                     mode: self.lower_export_mode(*mode),
-                    ty,
+                    kind,
                     items,
                 }
             }

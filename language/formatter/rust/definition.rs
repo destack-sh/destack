@@ -7,7 +7,7 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle,
+    Asynchrony, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle,
     StructStyle, Visibility,
 };
 use dyst_fir::format::FormatResult;
@@ -761,7 +761,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Function {
                 meta,
                 runtime,
-                asyncness,
+                asynchrony,
                 cardinality,
                 kind,
                 style,
@@ -788,8 +788,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [visibility, space()])?;
                 }
 
-                // asyncness
-                if *asyncness == Asyncness::Async {
+                // asynchrony
+                if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
 

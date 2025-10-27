@@ -1,4 +1,4 @@
-use dyst_ast::{DependencyType, Keyword};
+use dyst_ast::{DependencyKind, Keyword};
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
@@ -29,7 +29,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         // type
-        if self.ty == DependencyType::Type {
+        if self.kind == DependencyKind::Type {
             write!(f, [Keyword::Type, space()])?;
         }
 

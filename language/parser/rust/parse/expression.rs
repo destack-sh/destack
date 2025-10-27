@@ -552,7 +552,10 @@ impl<'a> Parser<'a> {
                 self.eat_with()?
             }
             // import
-            else if keyword == Some(Keyword::Import) {
+            else if keyword == Some(Keyword::Import)
+                || keyword == Some(Keyword::Async)
+                    && self.peek_next_keyword(Keyword::Import).is_ok()
+            {
                 self.eat_import()?
             }
             // let
@@ -603,7 +606,9 @@ impl<'a> Parser<'a> {
                 self.eat_defer()?
             }
             // await
-            else if keyword == Some(Keyword::Await) {
+            else if keyword == Some(Keyword::Await)
+                && self.peek_next_keyword(Keyword::Import).is_err()
+            {
                 self.eat_await()?
             }
             // yield
@@ -1030,7 +1035,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, DefinitionMeta, DependencyTarget, DependencyType, ExportType, FunctionStyle,
+        Definition, DefinitionMeta, DependencyKind, DependencyTarget, ExportType, FunctionStyle,
         IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral, TypeUnaryOperator,
         WithClause,
     };
@@ -1050,7 +1055,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, ty: DependencyType::Value, target: Some(DependencyTarget::Path(target)), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target: Some(DependencyTarget::Path(target)), alias, items } => {
             assert_eq!(*mode, ExportType::Item);
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
@@ -1074,9 +1079,9 @@ mod tests {
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, ty, target, alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind, target, alias, items } => {
             assert_eq!(*mode, ExportType::Item);
-            assert_eq!(*ty, DependencyType::Value);
+            assert_eq!(*kind, DependencyKind::Value);
             assert!(alias.is_none());
             assert!(target.is_none());
             let items = items.as_ref().expect("expected items");
@@ -1100,7 +1105,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // export * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, ty: DependencyType::Value, target: Some(DependencyTarget::Path(target)), alias, items } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target: Some(DependencyTarget::Path(target)), alias, items } => {
             assert_eq!(*mode, ExportType::Item);
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
@@ -1129,7 +1134,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items, arguments: None } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target: DependencyTarget::Path(target), alias, items, arguments: None, .. } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -1153,7 +1158,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import * as baz from foo with { bar: true }
-        assert_node!(parser.tree, expression_id, Expression::Import { ty: DependencyType::Value, target: DependencyTarget::Path(target), alias, items, arguments } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target: DependencyTarget::Path(target), alias, items, arguments, .. } => {
             // * as baz
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());

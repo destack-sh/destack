@@ -807,8 +807,8 @@ impl Dump for Runtime {
     }
 }
 
-/// Dump an Asyncness as a string.
-impl Dump for Asyncness {
+/// Dump an Asynchrony as a string.
+impl Dump for Asynchrony {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -986,8 +986,8 @@ impl Dump for DocStyle {
     }
 }
 
-/// Dump a DependencyType as a string.
-impl Dump for DependencyType {
+/// Dump a DependencyKind as a string.
+impl Dump for DependencyKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1248,28 +1248,30 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::With", _id.id).end();
             }
             Expression::Import {
-                ty,
+                kind,
+                asynchrony,
                 target,
                 alias,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", _id.id)
-                    .field("ty", ty)
+                    .field("kind", kind)
+                    .field("asynchrony", asynchrony)
                     .field("target", target)
                     .field_optional("alias", alias)
                     .end();
             }
             Expression::Export {
                 mode,
-                ty,
+                kind,
                 target,
                 alias,
                 items: _,
             } => {
                 self.node("Expression::Export", _id.id)
                     .field("mode", mode)
-                    .field("ty", ty)
+                    .field("kind", kind)
                     .field_optional("target", target)
                     .field_optional("alias", alias)
                     .end();
@@ -1320,14 +1322,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ForEach {
                 runtime,
-                asyncness,
+                asynchrony,
                 pattern: _,
                 iterator: _,
                 body: _,
             } => {
                 self.node("Expression::ForEach", _id.id)
                     .field_optional("runtime", runtime)
-                    .field("asyncness", asyncness)
+                    .field("asynchrony", asynchrony)
                     .end();
             }
             Expression::ForCondition {
@@ -1668,7 +1670,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 meta,
                 runtime,
-                asyncness,
+                asynchrony,
                 cardinality,
                 kind,
                 style,
@@ -1683,7 +1685,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
                     .field("runtime", runtime)
-                    .field("asyncness", asyncness)
+                    .field("asynchrony", asynchrony)
                     .field("cardinality", cardinality)
                     .field_optional("kind", kind)
                     .field("style", style)

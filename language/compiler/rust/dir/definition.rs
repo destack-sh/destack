@@ -30,17 +30,19 @@ impl<'a> Compiler<'a> {
                 Some(self.lower_definition(source_id, ast, *definition_id))
             }
             ast::Expression::Import {
-                ty,
+                kind,
+                asynchrony,
                 target,
                 alias,
                 items,
                 arguments,
             } => {
+                let asynchrony = self.lower_asynchrony(*asynchrony);
                 let items = self.lower_dependency_binding(
                     source_id,
                     ast,
                     expression_id,
-                    *ty,
+                    *kind,
                     Some(target),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
@@ -51,9 +53,10 @@ impl<'a> Compiler<'a> {
                         .map(|argument| self.lower_argument(source_id, ast, *argument))
                         .collect()
                 });
-                let ty = self.lower_dependency_type(source_id, ast, *ty);
+                let kind = self.lower_dependency_type(source_id, ast, *kind);
                 let definition = Definition::Import {
-                    ty,
+                    kind,
+                    asynchrony,
                     items,
                     arguments,
                 };
@@ -190,7 +193,7 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         runtime: ast::Runtime,
-        asyncness: ast::Asyncness,
+        asynchrony: ast::Asynchrony,
         cardinality: ast::FunctionCardinality,
         kind: Option<ast::FunctionKind>,
         style: ast::FunctionStyle,
@@ -199,7 +202,7 @@ impl<'a> Compiler<'a> {
         return_type: &Option<ast::NodeId<ast::Expression>>,
     ) -> FunctionSignature {
         let runtime = self.lower_runtime(runtime);
-        let asyncness = self.lower_asyncness(asyncness);
+        let asynchrony = self.lower_asynchrony(asynchrony);
         let cardinality = self.lower_function_cardinality(cardinality);
         let kind = kind.map(|kind| self.lower_function_kind(kind));
         let style = self.lower_function_style(style);
@@ -215,7 +218,7 @@ impl<'a> Compiler<'a> {
             .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
         FunctionSignature {
             runtime,
-            asyncness,
+            asynchrony,
             cardinality,
             kind,
             style,
@@ -486,7 +489,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Function {
                 meta,
                 runtime,
-                asyncness,
+                asynchrony,
                 cardinality,
                 kind,
                 style,
@@ -510,7 +513,7 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     *runtime,
-                    *asyncness,
+                    *asynchrony,
                     *cardinality,
                     *kind,
                     *style,

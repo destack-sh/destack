@@ -1,8 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asyncness, BinaryOperator, Block, Definition, DefinitionMeta,
-    DependencyItem, DependencyTarget, DependencyType, ExportType, Mutability, Node, NodeId,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
+    DependencyItem, DependencyTarget, DependencyKind, ExportType, Mutability, Node, NodeId,
     NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
@@ -52,9 +52,12 @@ pub enum Expression {
     /// import { bar, baz } from foo
     /// import foo.{} // valid but linted
     /// import foo as baz with { bar: true } // arguments
+    /// await import("foo")
+    /// await import("foo", arg1: 2, ...)
     /// ```
     Import {
-        ty: DependencyType,
+        kind: DependencyKind,
+        asynchrony: Asynchrony,
         target: DependencyTarget,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
@@ -78,7 +81,7 @@ pub enum Expression {
     /// ```
     Export {
         mode: ExportType,
-        ty: DependencyType,
+        kind: DependencyKind,
         target: Option<DependencyTarget>,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
@@ -200,7 +203,7 @@ pub enum Expression {
     /// ```
     ForEach {
         runtime: Option<Runtime>,
-        asyncness: Asyncness,
+        asynchrony: Asynchrony,
         pattern: Option<NodeId<Pattern>>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,

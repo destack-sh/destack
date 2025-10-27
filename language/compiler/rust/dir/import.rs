@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyItem, DependencyTarget as DirDependencyTarget, DependencyType, ExportType, NodeId,
+    DependencyItem, DependencyTarget as DirDependencyTarget, DependencyKind, ExportType, NodeId,
 };
 use dyst_source::SourceId;
 
@@ -21,11 +21,11 @@ impl<'a> Compiler<'a> {
         &mut self,
         _source_id: SourceId,
         _ast: &ast::NodeTree,
-        dependency_type: ast::DependencyType,
-    ) -> DependencyType {
+        dependency_type: ast::DependencyKind,
+    ) -> DependencyKind {
         match dependency_type {
-            ast::DependencyType::Type => DependencyType::Type,
-            ast::DependencyType::Value => DependencyType::Value,
+            ast::DependencyKind::Type => DependencyKind::Type,
+            ast::DependencyKind::Value => DependencyKind::Value,
         }
     }
 
@@ -36,7 +36,7 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         origin_id: ast::NodeId<ast::Expression>,
-        ty: ast::DependencyType,
+        ty: ast::DependencyKind,
         target: Option<&ast::DependencyTarget>,
         alias: Option<dyst_source::StringId>,
         items: Option<&[ast::NodeId<ast::DependencyItem>]>,
@@ -50,13 +50,13 @@ impl<'a> Compiler<'a> {
                 .iter()
                 .map(|item| {
                     let import_item = ast.get(*item);
-                    let ty = self.lower_dependency_type(source_id, ast, import_item.ty);
+                    let ty = self.lower_dependency_type(source_id, ast, import_item.kind);
                     let name = self.lower_string_id(source_id, import_item.name);
                     let alias = import_item
                         .alias
                         .map(|alias| self.lower_string_id(source_id, alias));
                     let import_item = DependencyItem::Scalar {
-                        ty,
+                        kind: ty,
                         target: target.clone(),
                         name,
                         alias,
@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
         }
 
         if let Some(target) = target {
-            let import_item = DependencyItem::Glob { ty, target, alias };
+            let import_item = DependencyItem::Glob { kind: ty, target, alias };
             vec![self.tree.insert_from_ast(import_item, source_id, origin_id)]
         } else {
             Vec::new()

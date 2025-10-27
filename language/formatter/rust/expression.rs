@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Argument, Asyncness, DependencyType, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
+    Argument, Asynchrony, DependencyKind, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
     TypeBinaryOperator, TypeUnaryOperator, YieldCardinality,
 };
 use dyst_container::SmallVec;
@@ -455,14 +455,18 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // import
             Expression::Import {
-                ty,
+                kind,
+                asynchrony,
                 target,
                 alias,
                 items,
                 arguments,
             } => {
+                if *asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Await, space()])?;
+                }
                 write!(f, [Keyword::Import, space()])?;
-                if *ty == DependencyType::Type {
+                if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_dependency_binding(
@@ -487,13 +491,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // export
             Expression::Export {
                 mode,
-                ty,
+                kind: ty,
                 target,
                 alias,
                 items,
             } => {
                 write!(f, [mode, space()])?;
-                if *ty == DependencyType::Type {
+                if *ty == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_dependency_binding(
@@ -670,7 +674,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // for each
             Expression::ForEach {
                 runtime,
-                asyncness,
+                asynchrony,
                 pattern,
                 iterator,
                 body,
@@ -681,7 +685,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [token("@")])?;
                 }
                 write!(f, [Keyword::For, space()])?;
-                if *asyncness == Asyncness::Async {
+                if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Await, space()])?;
                 }
                 if let Some(pattern) = pattern {
