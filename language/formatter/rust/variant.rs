@@ -1,4 +1,5 @@
-use dyst_ast::BindingModifiers;
+use dyst_ast::BindingKind;
+use dyst_ast::{BindingModifiers, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -13,8 +14,8 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;
     }
-    if let Some(mutability) = modifiers.mutability {
-        write!(f, [mutability, space()])?;
+    if modifiers.mutability == Some(Mutability::Immutable) {
+        write!(f, [Keyword::Readonly, space()])?;
     }
     Ok(())
 }
@@ -35,8 +36,8 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     modifiers: BindingModifiers,
 ) -> FormatResult<()> {
-    if let Some(visibility) = modifiers.visibility {
-        write!(f, [visibility, space()])?;
+    if modifiers.kind == Some(BindingKind::Maybe) {
+        write!(f, [token("?")])?;
     }
     Ok(())
 }

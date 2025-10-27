@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_rest() {
         // ..
-        let mut test = TestParser::new("..");
+        let mut test = TestParser::new("...");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest { name: None });
@@ -461,11 +461,11 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple() {
-        let mut test = TestParser::new("(x: 1, 2, var y, const z, ..)");
+        let mut test = TestParser::new("(x: 1, 2, var y, const z, ...)");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        // (x: 1, 2, var y, const z, ..)
+        // (x: 1, 2, var y, const z, ...)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
             assert_eq!(fields.len(), 5);
 
@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple_with_path() {
-        let mut test = TestParser::new("Result.Success(_, ..)");
+        let mut test = TestParser::new("Result.Success(_, ...)");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 

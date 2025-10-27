@@ -618,9 +618,7 @@ pub enum Expression {
     /// delete foo.bar
     /// delete foo['result']
     /// ```
-    Delete {
-        value: NodeId<Expression>,
-    },
+    Delete { value: NodeId<Expression> },
 
     /// Maybe unwrap an expression with `?` and propagate.
     /// Supports chaining with `?.`.
