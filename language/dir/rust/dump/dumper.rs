@@ -1772,14 +1772,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Type::Array {
+            Type::ArraySized {
                 element: _,
                 count: _,
             } => {
                 self.node("Type::Array", id.id).end();
             }
-            Type::Slice { element: _ } => {
+            Type::ArraySlice { element: _ } => {
                 self.node("Type::Slice", id.id).end();
+            }
+            Type::Array { elements: _ } => {
+                self.node("Type::Array", id.id).end();
             }
             Type::Tuple(_) => {
                 self.node("Type::Tuple", id.id).end();
@@ -2007,8 +2010,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::UnresolvedPositional { value: _ } => {
                 self.node("Argument::UnresolvedPositional", id.id).end();
             }
-            Argument::UnresolvedSpread { value: _ } => {
-                self.node("Argument::UnresolvedSpread", id.id).end();
+            Argument::UnresolvedSpread { name, value: _ } => {
+                self.node("Argument::UnresolvedSpread", id.id)
+                    .field_optional("name", name)
+                    .end();
             }
             Argument::UnresolvedDynamic {
                 name,

@@ -140,7 +140,7 @@ impl<'a> Compiler<'a> {
                 // array with static length
                 if let &Some(right) = right {
                     let left_id = self.try_resolve_expression_to_type(*left)?;
-                    Type::Array {
+                    Type::ArraySized {
                         element: left_id,
                         count: right,
                     }
@@ -148,7 +148,7 @@ impl<'a> Compiler<'a> {
                 // slice
                 else {
                     let left_id = self.try_resolve_expression_to_type(*left)?;
-                    Type::Slice { element: left_id }
+                    Type::ArraySlice { element: left_id }
                 }
             }
 

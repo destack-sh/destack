@@ -292,12 +292,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::New {
-            left,
+            left: _,
             static_arguments,
             dynamic_arguments,
         } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
             if let Some(static_arguments) = static_arguments {
                 for argument_id in static_arguments {
                     let argument = tree.get(*argument_id);
@@ -365,7 +363,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ArrayLiteral { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
-                visitor.visit_expression(tree, *element_id, element);
+                visitor.visit_argument(tree, *element_id, element);
             }
         }
         Expression::TupleLiteral { ty, elements } => {
@@ -756,15 +754,21 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let end_type = tree.get(*end);
             visitor.visit_type(tree, *end, end_type);
         }
-        Type::Array { element, count } => {
+        Type::ArraySized { element, count } => {
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
             let count_expression = tree.get(*count);
             visitor.visit_expression(tree, *count, count_expression);
         }
-        Type::Slice { element } => {
+        Type::ArraySlice { element } => {
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
+        }
+        Type::Array { elements } => {
+            for element_id in elements {
+                let element_type = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_type);
+            }
         }
         Type::Tuple(elements) | Type::Intersection(elements) => {
             for element_id in elements {
@@ -991,7 +995,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
     match argument {
         Argument::UnresolvedNamed { name: _, value }
         | Argument::UnresolvedPositional { value }
-        | Argument::UnresolvedSpread { value } => {
+        | Argument::UnresolvedSpread { name: _, value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
                         && self.peek_next_token(TokenType::Colon).is_ok()
                     {
                         let tuple_elements = self
-                            .eat_tuple_literal_body(None)
+                            .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
                             .for_node_type(NodeType::Expression)?;
                         self.eat_newlines_maybe()?;
                         self.eat_token(TokenType::CloseParenthesis)?;
@@ -625,14 +625,11 @@ impl<'a> Parser<'a> {
             //
             // array
             else if token.token.ty == TokenType::OpenBracket {
-                let array_literal = self
-                    .with_options(self.options.not_in_parenthesis(), |parser| {
-                        parser.eat_array_literal()
-                    })?;
+                let elements = self.with_options(self.options.not_in_parenthesis(), |parser| {
+                    parser.eat_array_literal()
+                })?;
                 self.tree.insert(
-                    Expression::ArrayLiteral {
-                        elements: array_literal,
-                    },
+                    Expression::ArrayLiteral { elements },
                     self.get_span_from(start),
                 )
             }
@@ -957,9 +954,12 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 );
                 // parse remaining elements
-                let tuple_elements = self
-                    .with_options(self.options.not_in_parenthesis(), |parser| {
-                        parser.eat_tuple_literal_body(Some(first_element_id))
+                let tuple_elements =
+                    self.with_options(self.options.not_in_parenthesis(), |parser| {
+                        parser.eat_sequence_literal_body(
+                            Some(first_element_id),
+                            TokenType::CloseParenthesis,
+                        )
                     })?;
                 // build tuple literal
                 left_expression_id = self.tree.insert(

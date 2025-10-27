@@ -238,6 +238,19 @@ impl<'a> Parser<'a> {
         Ok(parameters)
     }
 
+    /// Eat an argument name (like `name:` prefix) if it exists.
+    pub(crate) fn eat_argument_name_maybe(&mut self) -> ParserResult<Option<StringId>> {
+        if self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_ok()
+        {
+            let name = self.eat_identifier()?;
+            self.bump(); // eat colon
+            Ok(Some(name))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Eat an argument (e.g., `x: 1` or `y`).
     /// Does not support named shorthand arguments.
     ///
@@ -296,10 +309,11 @@ impl<'a> Parser<'a> {
             || self.peek_token(TokenType::RangeWide).is_ok()
         {
             self.bump(); // eat range
+            let name = self.eat_argument_name_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+                .insert(Argument::Spread { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // dynamic argument (has a colon after the closing bracket)
@@ -366,10 +380,11 @@ impl<'a> Parser<'a> {
             || self.peek_token(TokenType::RangeWide).is_ok()
         {
             self.bump(); // eat range
+            let name = self.eat_argument_name_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+                .insert(Argument::Spread { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // nested spread argument (like {...b} in tree literals for #Compatibility)
@@ -380,12 +395,13 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat open brace
             self.bump(); // eat range
+            let name = self.eat_argument_name_maybe()?;
             let value =
                 self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self
                 .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+                .insert(Argument::Spread { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // named argument
@@ -518,8 +534,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_name,
-        assert_node, assert_path, assert_string,
+        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_expr_path,
+        assert_name, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -705,11 +721,25 @@ mod tests {
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
         let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
+        assert_node!(parser.tree, argument_id, Argument::Spread { name: None, value } => {
             // ...args
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "args");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_spread_with_name() {
+        // ...args
+        let mut test = TestParser::new("...args: x");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Spread { name: Some(name), value } => {
+            // ...args
+            assert_string!(parser, *name, "args");
+            // x
+            assert_expr_path!(parser, parser.tree.get(*value), "x");
         });
     }
 
@@ -723,9 +753,7 @@ mod tests {
             // x
             assert_string!(parser, name.unwrap(), "x");
             // string
-            assert_node!(parser.tree, *key, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "string");
-            });
+            assert_expr_path!(parser, parser.tree.get(*key), "string");
             // any
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
         });

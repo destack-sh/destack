@@ -332,7 +332,7 @@ impl<'a> Compiler<'a> {
             ast::Expression::ArrayLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_expression(source_id, ast, *element))
+                    .map(|element| self.lower_argument(source_id, ast, *element))
                     .collect();
                 Expression::ArrayLiteral { elements }
             }

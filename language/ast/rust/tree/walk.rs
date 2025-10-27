@@ -429,9 +429,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::ArrayLiteral { elements } => {
-            for element_id in elements {
-                let element_expr = tree.get(*element_id);
-                visitor.visit_expression(tree, *element_id, element_expr);
+            for argument_id in elements {
+                let argument = tree.get(*argument_id);
+                visitor.visit_argument(tree, *argument_id, argument);
             }
         }
 
@@ -1169,7 +1169,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
-        Argument::Spread { value } => {
+        Argument::Spread { name: _, value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

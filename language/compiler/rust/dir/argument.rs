@@ -100,10 +100,11 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::Spread { value } => {
+            ast::Argument::Spread { name, value } => {
+                let name = name.map(|name| self.intern_string(source_id, name));
                 let value = self.lower_expression(source_id, ast, *value);
                 self.tree.insert_from_ast(
-                    Argument::UnresolvedSpread { value },
+                    Argument::UnresolvedSpread { name, value },
                     source_id,
                     argument_id,
                 )

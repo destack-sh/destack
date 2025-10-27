@@ -177,7 +177,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 }
             }
             Parameter::Variadic { name, ty } => {
-                write!(f, [token("..")])?;
+                write!(f, [token("...")])?;
                 // name
                 write!(f, [name])?;
                 // type
@@ -214,8 +214,12 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             Argument::Positional { value } => {
                 write!(f, [value])?;
             }
-            Argument::Spread { value } => {
-                write!(f, [token(".."), value])?;
+            Argument::Spread { name, value } => {
+                write!(f, [token("...")])?;
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [value])?;
             }
             Argument::Dynamic { name, key, value } => {
                 write!(f, [token("[")])?;

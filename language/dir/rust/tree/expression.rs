@@ -103,7 +103,7 @@ pub enum Expression {
     },
     /// New constructor call (for #Compatibility).
     New {
-        left: NodeId<Path>,
+        left: Path,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -138,7 +138,7 @@ pub enum Expression {
         is_inclusive: bool,
     },
     /// Array creation.
-    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    ArrayLiteral { elements: Vec<NodeId<Argument>> },
     /// Tuple creation.
     TupleLiteral {
         ty: Option<NodeId<Type>>,

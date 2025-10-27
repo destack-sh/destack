@@ -2960,7 +2960,7 @@ declare module "bun" {
      */
     zdiff(
       numkeys: number,
-      ...args: [...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"]
+      ...args: [prefix: string, ...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"]
     ): Promise<[string, number][]>;
 
     /**
