@@ -7,7 +7,8 @@ use crate::{
     Runtime, VariantField, VariantStyle, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionStyle, Visibility,
+    Asyncness, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle,
+    Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -790,11 +791,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // kind
                 if let Some(kind) = kind {
-                    write!(f, [kind.to_keyword(), space()])?;
+                    write!(f, [kind.to_keyword()])?;
+                    if meta.name.is_some() {
+                        write!(f, [space()])?;
+                    }
                 }
 
                 // keyword
-                if *style == FunctionStyle::Function {
+                if *style == FunctionStyle::Function && *kind != Some(FunctionKind::Constructor) {
                     // function keyword
                     if *cardinality == FunctionCardinality::Generator {
                         write!(f, [Keyword::Function, token("*"), space()])?;
@@ -859,7 +863,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                                     write!(f, [Keyword::Self_])?;
                                     // ty
                                     if let Some(ty) = self_parameter.ty {
-                                        write!(f, [space(), token(":"), space(), ty])?;
+                                        write!(f, [token(":"), space(), ty])?;
                                     }
                                     Ok(())
                                 }));

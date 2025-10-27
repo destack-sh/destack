@@ -125,11 +125,11 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
     tree: &NodeTree,
     signature: &FunctionSignature,
 ) {
-    if let Some(self_parameter) = &signature.self_parameter {
-        if let Some(ty) = &self_parameter.ty {
-            let ty_node = tree.get(*ty);
-            visitor.visit_type(tree, *ty, ty_node);
-        }
+    if let Some(self_parameter) = &signature.self_parameter
+        && let Some(ty) = &self_parameter.ty
+    {
+        let ty_node = tree.get(*ty);
+        visitor.visit_type(tree, *ty, ty_node);
     }
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);

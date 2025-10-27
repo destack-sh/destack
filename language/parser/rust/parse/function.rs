@@ -184,13 +184,19 @@ impl<'a> Parser<'a> {
 
         // kind
         let kind = {
-            if self.peek_keyword(Keyword::Get).is_ok() {
+            if self.peek_keyword(Keyword::Get).is_ok()
+                && self.peek_next_token(TokenType::Identifier).is_ok()
+            {
                 self.bump(); // eat get keyword
                 Some(FunctionKind::Getter)
-            } else if self.peek_keyword(Keyword::Set).is_ok() {
+            } else if self.peek_keyword(Keyword::Set).is_ok()
+                && self.peek_next_token(TokenType::Identifier).is_ok()
+            {
                 self.bump(); // eat set keyword
                 Some(FunctionKind::Setter)
-            } else if self.peek_keyword(Keyword::Constructor).is_ok() {
+            } else if self.peek_keyword(Keyword::Constructor).is_ok()
+                && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+            {
                 self.bump(); // eat constructor keyword
                 Some(FunctionKind::Constructor)
             } else {
@@ -199,9 +205,13 @@ impl<'a> Parser<'a> {
         };
 
         // function style
-        // regular `function` style
         let style = {
-            if self.peek_keyword(Keyword::Function).is_ok() {
+            // constructors are always functions
+            if kind == Some(FunctionKind::Constructor) {
+                FunctionStyle::Function
+            }
+            // regular `function` style
+            else if self.peek_keyword(Keyword::Function).is_ok() {
                 self.bump(); // eat function keyword
                 FunctionStyle::Function
             }
@@ -434,7 +444,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionStyle, Parameter};
+    use dyst_ast::{Asyncness, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -753,6 +763,23 @@ async function* foo() => int32 {
             assert_string!(parser, meta.name.unwrap().string(), "foo");
             assert_eq!(*asyncness, Asyncness::Async);
             assert_eq!(*cardinality, FunctionCardinality::Generator);
+        });
+    }
+
+    #[test]
+    fn test_parse_function_constructor() {
+        let mut test = TestParser::new("constructor(x: int32);");
+        let mut parser = test.prepare();
+
+        let function_id = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
+
+        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, body, .. } => {
+            assert!(meta.name.is_none());
+            assert_eq!(*kind, Some(FunctionKind::Constructor));
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert!(body.is_none());
         });
     }
 }
