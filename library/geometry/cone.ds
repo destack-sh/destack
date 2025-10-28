@@ -5,15 +5,15 @@ export struct Cone3D {
     radius: float32
     height: float32
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A ConeShape3D is a 3D shape that represents a cone.
 @entity
-export struct ConeShape3D: Shape3D {
+export struct ConeShape3D extends Shape3D {
     radius: float32
     height: float32
 
-    ..Cone3D
+    ...Cone3D
 }
 

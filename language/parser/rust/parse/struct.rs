@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo<T>: Baz { // Foo has a Baz
+    /// struct Foo<T> extends Baz { // Foo has a Baz
     ///     myField: int32
     ///     myOtherField: T
     ///
@@ -90,9 +90,14 @@ impl<'a> Parser<'a> {
             .eat_static_parameters_maybe()
             .for_node_type(NodeType::Definition)?;
 
-        // optional super types: : ...
-        let super_types = self
-            .eat_super_types_maybe()
+        // optional extends types
+        let extends_types = self
+            .eat_extends_types_maybe()
+            .for_node_type(NodeType::Definition)?;
+
+        // optional implements types
+        let implements_types = self
+            .eat_implements_types_maybe()
             .for_node_type(NodeType::Definition)?;
 
         // with
@@ -121,7 +126,8 @@ impl<'a> Parser<'a> {
                 meta,
                 style,
                 kind,
-                super_types,
+                extends_types,
+                implements_types,
                 static_parameters,
                 representation_type,
                 with_clauses,
@@ -191,24 +197,26 @@ struct { public x: int32, readonly y: boolean
     }
 
     #[test]
-    fn test_parse_struct_with_super_types() {
+    fn test_parse_struct_with_extends_types() {
         let mut test = TestParser::new(
             r###"
-struct Foo: Bar {}
+struct Foo extends Bar {}
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, super_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
 
-            let supers = super_types.as_ref().expect("expected super types");
+            assert!(implements_types.is_none());
+
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
@@ -255,7 +263,7 @@ struct Foo(int32, public boolean) {}
     fn test_parse_struct_with_struct_style() {
         let mut test = TestParser::new(
             r###"
-struct Foo<T: Numeric>: Boz {
+struct Foo<T: Numeric> extends Boz implements Quux {
     ..Bar
     ..Baz
     
@@ -275,7 +283,7 @@ struct Foo<T: Numeric>: Boz {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
@@ -293,13 +301,20 @@ struct Foo<T: Numeric>: Boz {
                     assert_path!(parser, *path, "Numeric");
                 });
             });
-            
+
             // Boz
-            assert!(super_types.is_some());
-            let super_types = super_types.as_ref().unwrap();
-            assert_eq!(super_types.len(), 1);
-            assert_node!(parser.tree, super_types[0], Expression::Path { path, .. } => {
+            assert!(extends_types.is_some());
+            let extends_types = extends_types.as_ref().unwrap();
+            assert_eq!(extends_types.len(), 1);
+            assert_node!(parser.tree, extends_types[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Boz");
+            });
+
+            assert!(implements_types.is_some());
+            let implements_types = implements_types.as_ref().unwrap();
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Quux");
             });
 
             assert_eq!(fields.len(), 4);

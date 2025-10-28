@@ -80,7 +80,7 @@ pub enum Definition {
     /// A Struct is struct or class definition.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like interfaces).
-    /// Structs may also have super structs as semantic sugar for `use`-ing other structs.
+    /// Structs may also extend other structs as semantic sugar for `use`-ing them.
     ///
     /// Examples:
     /// ```
@@ -108,7 +108,7 @@ pub enum Definition {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo<T>: Baz { // Foo has a Baz
+    /// struct Foo<T> extends Baz { // Foo has a Baz
     ///     myField: int32
     ///     myOtherField: T
     ///
@@ -123,7 +123,8 @@ pub enum Definition {
         meta: DefinitionMeta,
         style: StructStyle,
         kind: VariantKind,
-        super_types: Option<Vec<NodeId<Expression>>>,
+        extends_types: Option<Vec<NodeId<Expression>>>,
+        implements_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -134,8 +135,8 @@ pub enum Definition {
 
     /// An Enum is an enumeration definition.
     /// Like with structs, the ',' separator is optional if newline-delimited.
-    /// Like other types, enums can have super types - since "super" types are just
-    ///  sugar for `use`-ing other types and not implicit subtypes, this is fine and useful.
+    /// Like other types, enums can extend other enums (sugar for `use`-ing them) and
+    /// implement interfaces.
     ///
     /// Examples:
     /// ```
@@ -156,7 +157,7 @@ pub enum Definition {
     ///     Qux = 2
     /// }
     ///
-    /// enum ExtendedDay: Day { // ExtendedDay has Day as super
+    /// enum ExtendedDay extends Day { // ExtendedDay has Day as super
     ///     Surfday = 8
     /// }
     ///
@@ -171,7 +172,8 @@ pub enum Definition {
         meta: DefinitionMeta,
         tag_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        super_types: Option<Vec<NodeId<Expression>>>,
+        extends_types: Option<Vec<NodeId<Expression>>>,
+        implements_types: Option<Vec<NodeId<Expression>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<EnumField>>,
@@ -196,7 +198,7 @@ pub enum Definition {
     /// }
     ///
     /// // unions can be tagged with enums and include other types with use (like structs)
-    /// union(TetrisShapeType) TetrisShape { // TetrisShape has Entity as super
+    /// union(TetrisShapeType) TetrisShape { // TetrisShape extends Entity
     ///     ..TetrisGameObject
     ///
     ///     function myFunc() { // nested declaration
@@ -208,7 +210,8 @@ pub enum Definition {
         tag_type: Option<NodeId<Expression>>,
         representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        super_types: Option<Vec<NodeId<Expression>>>,
+        extends_types: Option<Vec<NodeId<Expression>>>,
+        implements_types: Option<Vec<NodeId<Expression>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         fields: Vec<NodeId<UnionField>>,
@@ -225,7 +228,7 @@ pub enum Definition {
     ///     ...
     /// }
     ///
-    /// interface Foo: Baz { // Foo extends Baz
+    /// interface Foo extends Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
     ///
@@ -247,7 +250,7 @@ pub enum Definition {
     /// ```
     Interface {
         meta: DefinitionMeta,
-        super_types: Option<Vec<NodeId<Expression>>>,
+        extends_types: Option<Vec<NodeId<Expression>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -269,7 +272,7 @@ pub enum Definition {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32>: Baz {
+    /// implement Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
@@ -281,7 +284,7 @@ pub enum Definition {
         meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
-        super_types: Option<Vec<NodeId<Expression>>>,
+        implements_types: Option<Vec<NodeId<Expression>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,

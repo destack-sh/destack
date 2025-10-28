@@ -18,19 +18,19 @@ export struct NotificationEvent {
 
 /// Notification sent.
 @event
-export struct NotificationSentEvent: NotificationEvent { }
+export struct NotificationSentEvent extends NotificationEvent { }
 /// Notification rescinded.
 @event
-export struct NotificationRescindedEvent: NotificationEvent { }
+export struct NotificationRescindedEvent extends NotificationEvent { }
 /// Notification read.
 @event
-export struct NotificationReadEvent: NotificationEvent { }
+export struct NotificationReadEvent extends NotificationEvent { }
 /// Notification dismissed.
 @event
-export struct NotificationDismissedEvent: NotificationEvent { }
+export struct NotificationDismissedEvent extends NotificationEvent { }
 /// Notification expired.
 @event
-export struct NotificationExpiredEvent: NotificationEvent { }
+export struct NotificationExpiredEvent extends NotificationEvent { }
 
 /// A Notification is a message about something.
 @entity

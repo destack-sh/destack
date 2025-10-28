@@ -110,20 +110,20 @@ mod tests {
     }
 
     #[test]
-    fn test_format_union_with_super_types() {
+    fn test_format_union_with_extends_and_implements() {
         assert_format!(
-            "union Foo: (Bar, Baz) { }",
-            "union Foo: Bar, Baz { }",
+            "union Foo extends (Bar, Baz) implements Qux { }",
+            "union Foo extends Bar, Baz implements Qux { }",
             |p| p.eat_union(DefinitionMeta::default()),
             DystFormatOptions::default()
         );
     }
 
     #[test]
-    fn test_format_union_with_super_types_breaks() {
+    fn test_format_union_with_extends_types_breaks() {
         assert_format!(
-            "union Foo: BarWithLongName, BazWithEvenLongerName, QuxWithLongestName { }",
-            "union Foo: (\n\tBarWithLongName,\n\tBazWithEvenLongerName,\n\tQuxWithLongestName,\n) { }",
+            "union Foo extends BarWithLongName, BazWithEvenLongerName, QuxWithLongestName { }",
+            "union Foo extends (\n\tBarWithLongName,\n\tBazWithEvenLongerName,\n\tQuxWithLongestName,\n) { }",
             |p| p.eat_union(DefinitionMeta::default()),
             DystFormatOptions::default_tab_with_line_width(40)
         );

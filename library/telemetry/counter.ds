@@ -2,7 +2,7 @@ import destack
 
 /// A Counter Metric.
 @entity
-export struct CounterMetric: Metric { }
+export struct CounterMetric extends Metric { }
 
 /// A Counter Measurement.
 @event
@@ -10,6 +10,6 @@ export struct CounterMeasurementEvent {
     /// The Counter metric definition.
     definition: Reference<CounterMetric>
 
-    ..MeasurementEvent
+    ...MeasurementEvent
 }
 

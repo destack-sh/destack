@@ -2,15 +2,15 @@ import destack
 
 /// Base focus event
 @event
-export struct FocusEvent: InputEvent { }
+export struct FocusEvent extends InputEvent { }
 
 /// Focus gained
 @event
-export struct FocusInEvent: FocusEvent { }
+export struct FocusInEvent extends FocusEvent { }
 
 /// Focus lost
 @event
-export struct FocusOutEvent: FocusEvent { }
+export struct FocusOutEvent extends FocusEvent { }
 
 // union FocusEvent {
 // @event

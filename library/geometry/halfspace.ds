@@ -5,13 +5,13 @@ export struct Halfspace2D {
     normal: Vector2
     distance: float32
 
-    ..Form2D
+    ...Form2D
 }
 
 /// A HalfspaceShape2D represents a half-space in 2D defined by a line.
 @entity
-export struct HalfspaceShape2D: Shape2D {
-    ..Halfspace2D
+export struct HalfspaceShape2D extends Shape2D {
+    ...Halfspace2D
 }
 
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
@@ -19,11 +19,11 @@ export struct Plane3D {
     normal: Vector3
     distance: float32
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A PlaneShape3D represents a half-space in 3D defined by a plane.
 @entity
-export struct PlaneShape3D: Shape3D {
-    ..Plane3D
+export struct PlaneShape3D extends Shape3D {
+    ...Plane3D
 }

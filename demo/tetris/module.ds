@@ -109,7 +109,7 @@ export struct TetrisGame {
     dropInterval: float32 = 1.0
 }
 
-implement TetrisGame: Context { }
+implement TetrisGame implements Context { }
 
 /// The shape of a Tetris piece.
 export enum TetrisPieceShape {
@@ -307,7 +307,7 @@ implement TetrisPiece {
     }
 }
 
-implement TetrisGame: New {
+implement TetrisGame implements New {
     /// Create a new Tetris game.
     function new(width: int32, height: int32) => TetrisGame {
         TetrisGame {
@@ -468,7 +468,7 @@ implement TetrisGame: New {
     }
 }
 
-implement TetrisGame: Tick {
+implement TetrisGame implements Tick {
     function tick() with Time, &Random {
         // spawn initial piece if needed
         if this.currentPiece == null {

@@ -13,7 +13,7 @@ export struct InviteEvent {
 
 /// Invite was sent.
 @event
-export struct InviteSentEvent: InviteEvent {
+export struct InviteSentEvent extends InviteEvent {
     /// The Role assigned by the Invite.
     role: Reference<Role>
     /// The type of the Role.
@@ -22,11 +22,11 @@ export struct InviteSentEvent: InviteEvent {
 
 /// Invite was rescinded.
 @event
-export struct InviteRescindedEvent: InviteEvent { }
+export struct InviteRescindedEvent extends InviteEvent { }
 
 /// Invite was accepted.
 @event
-export struct InviteAcceptedEvent: InviteEvent {
+export struct InviteAcceptedEvent extends InviteEvent {
     /// The Role accepted by the member.
     role: Reference<Role>
     /// The type of the Role.
@@ -35,7 +35,7 @@ export struct InviteAcceptedEvent: InviteEvent {
 
 /// Invite was rejected.
 @event
-export struct InviteRejectedEvent: InviteEvent { }
+export struct InviteRejectedEvent extends InviteEvent { }
 
 /// An Invite to a Joinable.
 @entity

@@ -18,9 +18,9 @@ export struct ReactionEvent {
 
 /// Reaction added.
 @event
-export struct ReactionAddedEvent: ReactionEvent { }
+export struct ReactionAddedEvent extends ReactionEvent { }
 
 /// Reaction removed.
 @event
-export struct ReactionRemovedEvent: ReactionEvent { }
+export struct ReactionRemovedEvent extends ReactionEvent { }
 

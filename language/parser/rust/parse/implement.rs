@@ -2,6 +2,7 @@ use dyst_ast::DefinitionMeta;
 
 use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
+// nocheckin: change `implement`` keyword?
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
     ///
@@ -15,11 +16,11 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32>: Baz {
+    /// implement Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T>: Baz {
+    /// implement<T> Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
@@ -34,12 +35,12 @@ impl<'a> Parser<'a> {
 
         // target type
         let target_type = self
-            .with_options(self.options.nested_type_in_before_block(), |parser| {
+            .with_options(self.options.nested_super_type_in_before_block(), |parser| {
                 parser.eat_expression()
             })?;
 
-        // super type
-        let super_types = self.eat_super_types_maybe()?;
+        // implements types
+        let implements_types = self.eat_implements_types_maybe()?;
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;
@@ -59,7 +60,7 @@ impl<'a> Parser<'a> {
                 meta,
                 static_parameters,
                 target_type,
-                super_types,
+                implements_types,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -92,10 +93,10 @@ implement Foo {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
-            assert!(super_types.is_none());
+            assert!(implements_types.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -118,10 +119,10 @@ implement Foo<int32> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
-            assert!(super_types.is_none());
+            assert!(implements_types.is_none());
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
@@ -143,10 +144,10 @@ implement Foo<int32> {
     }
 
     #[test]
-    fn test_parse_implement_with_super_type() {
+    fn test_parse_implement_with_implements_type() {
         let mut test = TestParser::new(
             r###"
-implement Bar<int32>: Baz {
+implement Bar<int32> implements Baz {
 }
 "###,
         );
@@ -154,7 +155,7 @@ implement Bar<int32>: Baz {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
@@ -175,9 +176,9 @@ implement Bar<int32>: Baz {
                 });
             });
 
-            // : Baz
-            assert_eq!(super_types.as_ref().unwrap().len(), 1);
-            assert_node!(parser.tree, super_types.as_ref().unwrap()[0], Expression::Path { path, .. } => {
+            let implements = implements_types.as_ref().expect("expected implements types");
+            assert_eq!(implements.len(), 1);
+            assert_node!(parser.tree, implements[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
         });
@@ -187,7 +188,7 @@ implement Bar<int32>: Baz {
     fn test_parse_implement_with_static_parameters() {
         let mut test = TestParser::new(
             r###"
-implement<U> Bar<T>: Baz<T> {
+implement<U> Bar<T> implements Baz<T> {
 }
 "###,
         );
@@ -195,7 +196,7 @@ implement<U> Bar<T>: Baz<T> {
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, super_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -224,8 +225,9 @@ implement<U> Bar<T>: Baz<T> {
             });
 
             // : Baz<T>
-            assert_eq!(super_types.as_ref().unwrap().len(), 1);
-            assert_node!(parser.tree, super_types.as_ref().unwrap()[0], Expression::Path { path, static_arguments } => {
+            let implements = implements_types.as_ref().expect("expected implements types");
+            assert_eq!(implements.len(), 1);
+            assert_node!(parser.tree, implements[0], Expression::Path { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>

@@ -73,8 +73,11 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
 
-        // optional super types: : ...
-        let super_types = self.eat_super_types_maybe()?;
+        // optional extends types
+        let extends_types = self.eat_extends_types_maybe()?;
+
+        // optional implements types
+        let implements_types = self.eat_implements_types_maybe()?;
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;
@@ -93,7 +96,8 @@ impl<'a> Parser<'a> {
             Definition::Union {
                 meta,
                 static_parameters,
-                super_types,
+                extends_types,
+                implements_types,
                 tag_type: explicit_type,
                 representation_type,
                 with_clauses,
@@ -269,10 +273,10 @@ union { A, B }
     }
 
     #[test]
-    fn test_parse_explicit_union_with_super_types() {
+    fn test_parse_explicit_union_with_extends_types() {
         let mut test = TestParser::new(
             r###"
-union Foo: Bar {}
+union Foo extends Bar {}
 "###,
         );
         let mut parser = test.prepare();
@@ -285,14 +289,16 @@ union Foo: Bar {}
                 ..DefinitionMeta::default()
             })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, super_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
 
-            let supers = super_types.as_ref().expect("expected super types");
+            assert!(implements_types.is_none());
+
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
@@ -304,7 +310,7 @@ union Foo: Bar {}
     fn test_parse_explicit_union_with_type_and_name() {
         let mut test = TestParser::new(
             r###"
-union(uint4, uint60) Foo<T>: Boz {
+union(uint4, uint60) Foo<T> extends Boz implements Shape {
     A
     C(boolean)
     D(boolean, count: int32) = 6
@@ -326,7 +332,7 @@ union(uint4, uint60) Foo<T>: Boz {
                 ..DefinitionMeta::default()
             })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, representation_type, static_parameters, fields, expressions, super_types, where_clauses, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, representation_type, static_parameters, fields, expressions, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
@@ -350,11 +356,18 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert!(ty.is_none());
             });
 
-            // : Boz
-            let supers = super_types.as_ref().expect("expected super types");
+            // extends Boz
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Boz");
+            });
+
+            // implements Shape
+            let implements = implements_types.as_ref().expect("expected implements types");
+            assert_eq!(implements.len(), 1);
+            assert_node!(parser.tree, implements[0], Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Shape");
             });
 
             assert_eq!(expressions.len(), 2);

@@ -37,9 +37,9 @@ export struct RigidBody2D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
-    ..Body2D
-    ..Kinematic2D
-    ..Mass2D
+    ...Body2D
+    ...Kinematic2D
+    ...Mass2D
 }
 
 /// Kinematic properties for a 3D rigid body
@@ -72,8 +72,8 @@ export struct RigidBody3D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
-    ..Body3D
-    ..Kinematic3D
-    ..Mass3D
+    ...Body3D
+    ...Kinematic3D
+    ...Mass3D
 }
 

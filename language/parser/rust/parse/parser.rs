@@ -19,6 +19,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a type.
     /// Type context eagerly evaluates some constructs to their type-ish variants.
     pub in_type: bool = false,
+    /// Whether we're inside a super type (clause)
+    /// Binary type operators are prohibited in super type clauses.
+    pub in_super_type: bool = false,
     /// Whether we're parsing inside a variant.
     /// Certain functions (like get/set/constructor) are only allowed inside variants.
     pub in_variant: bool = false,
@@ -53,6 +56,15 @@ impl ParserOptions {
     pub(crate) fn in_type(self) -> Self {
         Self {
             in_type: true,
+            ..self
+        }
+    }
+
+    /// Set `in_super_type=true`.
+    pub(crate) fn in_super_type(self) -> Self {
+        Self {
+            in_type: true,
+            in_super_type: true,
             ..self
         }
     }
@@ -160,6 +172,16 @@ impl ParserOptions {
     pub(crate) fn nested_type_in_before_block(self) -> Self {
         Self {
             in_type: true,
+            in_before_block: true,
+            ..Self::default()
+        }
+    }
+
+    /// Reset, set `in_type=true` and `in_super_type=true` and `in_before_block=true`.
+    pub(crate) fn nested_super_type_in_before_block(self) -> Self {
+        Self {
+            in_type: true,
+            in_super_type: true,
             in_before_block: true,
             ..Self::default()
         }

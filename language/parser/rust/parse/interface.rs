@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// interface Foo: Baz { // Foo extends Baz
+    /// interface Foo extends Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
     ///     
@@ -49,8 +49,8 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
 
-        // optional super types: : ...
-        let super_types = self.eat_super_types_maybe()?;
+        // optional extends types
+        let extends_types = self.eat_extends_types_maybe()?;
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
             Definition::Interface {
                 meta,
                 static_parameters,
-                super_types,
+                extends_types,
                 with_clauses,
                 where_clauses,
                 fields,
@@ -111,19 +111,19 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_interface_with_super_types() {
-        let mut test = TestParser::new("interface Foo: Bar {}");
+    fn test_parse_interface_with_extends_types() {
+        let mut test = TestParser::new("interface Foo extends Bar {}");
         let mut parser = test.prepare();
 
         let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, super_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { meta, extends_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_eq!(expressions.len(), 0);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
-            let supers = super_types.as_ref().expect("expected super types");
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
@@ -135,7 +135,7 @@ mod tests {
     fn test_parse_interface_with_members() {
         let mut test = TestParser::new(
             r###"
-interface Foo: Baz {
+interface Foo extends Baz {
     readonly value: int32
     count: int32 = 4
 
@@ -151,7 +151,7 @@ interface Foo: Baz {
         parser.eat_newline().unwrap();
 
         let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, super_types, where_clauses, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, extends_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert_eq!(fields.len(), 2);
@@ -159,7 +159,7 @@ interface Foo: Baz {
             assert!(where_clauses.is_none());
 
             // : Baz
-            let supers = super_types.as_ref().expect("expected super types");
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");

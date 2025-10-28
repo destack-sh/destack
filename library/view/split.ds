@@ -3,6 +3,6 @@ import destack
 /// A container that splits its children
 @entity
 export struct SplitView2D {
-    ..LayoutView2D
+    ...LayoutView2D
 }
 

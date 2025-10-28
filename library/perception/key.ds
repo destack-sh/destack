@@ -9,7 +9,7 @@ export enum KeyModifier {
 
 /// Keyboard base event
 @event
-export struct KeyEvent: InputEvent {
+export struct KeyEvent extends InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
     key: string
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
@@ -24,13 +24,13 @@ export struct KeyEvent: InputEvent {
 
 /// Key pressed down
 @event
-export struct KeyDownEvent: KeyEvent { }
+export struct KeyDownEvent extends KeyEvent { }
 
 /// Key released
 @event
-export struct KeyUpEvent: KeyEvent { }
+export struct KeyUpEvent extends KeyEvent { }
 
 /// Key pressed
 @event
-export struct KeyPressEvent: KeyEvent { }
+export struct KeyPressEvent extends KeyEvent { }
 

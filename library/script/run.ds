@@ -24,35 +24,35 @@ export struct RunEvent {
 
 /// A Run was started.
 @event
-export struct RunStartedEvent: RunEvent { }
+export struct RunStartedEvent extends RunEvent { }
 
 /// A Run pause was requested.
 @event
-export struct RunPauseRequestedEvent: RunEvent { }
+export struct RunPauseRequestedEvent extends RunEvent { }
 
 /// A Run was paused.
 @event
-export struct RunPausedEvent: RunEvent { }
+export struct RunPausedEvent extends RunEvent { }
 
 /// A Run resume was requested.
 @event
-export struct RunResumeRequestedEvent: RunEvent { }
+export struct RunResumeRequestedEvent extends RunEvent { }
 
 /// A Run was resumed.
 @event
-export struct RunResumedEvent: RunEvent { }
+export struct RunResumedEvent extends RunEvent { }
 
 /// A Run stop was requested.
 @event
-export struct RunStopRequestedEvent: RunEvent { }
+export struct RunStopRequestedEvent extends RunEvent { }
 
 /// A Run failed.
 @event
-export struct RunFailedEvent: RunEvent { }
+export struct RunFailedEvent extends RunEvent { }
 
 /// A Run completed.
 @event
-export struct RunCompletedEvent: RunEvent { }
+export struct RunCompletedEvent extends RunEvent { }
 
 /// Run of an Action.
 @entity

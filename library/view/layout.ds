@@ -26,6 +26,6 @@ export struct LayoutComponent2D {
 
 /// A 2D layout View defines how its children are laid out.
 @entity
-export struct LayoutView2D: View2D {
-    ..LayoutComponent2D
+export struct LayoutView2D extends View2D {
+    ...LayoutComponent2D
 }

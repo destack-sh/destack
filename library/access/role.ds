@@ -12,13 +12,13 @@ export struct RoleEvent {
 /// A Role was assigned.
 @event
 export struct RoleAssignedEvent {
-    ..RoleEvent
+    ...RoleEvent
 }
 
 /// A Role was unassigned.
 @event
 export struct RoleUnassignedEvent {
-    ..RoleEvent
+    ...RoleEvent
 }
 
 /// A Role for Actors to take.

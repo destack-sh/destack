@@ -18,19 +18,19 @@ export struct EntitlementEvent {
 
 /// Entitlement was requested.
 @event
-export struct EntitlementRequestedEvent: EntitlementEvent { }
+export struct EntitlementRequestedEvent extends EntitlementEvent { }
 
 /// Entitlement was granted.
 @event
-export struct EntitlementGrantedEvent: EntitlementEvent { }
+export struct EntitlementGrantedEvent extends EntitlementEvent { }
 
 /// Entitlement was revoked.
 @event
-export struct EntitlementRevokedEvent: EntitlementEvent { }
+export struct EntitlementRevokedEvent extends EntitlementEvent { }
 
 /// Entitlement has expired.
 @event
-export struct EntitlementExpiredEvent: EntitlementEvent { }
+export struct EntitlementExpiredEvent extends EntitlementEvent { }
 
 /// An Entitlement to some Entity.
 @entity

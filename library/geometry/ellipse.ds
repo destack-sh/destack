@@ -1,7 +1,7 @@
 import destack
 
 /// An Ellipse is centered at a point with radii along x and y and a rotation.
-export struct Ellipse2D: Form2D {
+export struct Ellipse2D extends Form2D {
     radiusX: float32
     radiusY: float32
     rotation: float32 = 0.0
@@ -9,12 +9,12 @@ export struct Ellipse2D: Form2D {
 
 /// A EllipseShape is a shape that represents a ellipse.
 @entity
-export struct EllipseShape2D: Shape2D {
-    ..Ellipse2D
+export struct EllipseShape2D extends Shape2D {
+    ...Ellipse2D
 }
 
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
-export struct Ellipsoid3D: Form3D {
+export struct Ellipsoid3D extends Form3D {
     radiusX: float32
     radiusY: float32
     radiusZ: float32
@@ -22,6 +22,6 @@ export struct Ellipsoid3D: Form3D {
 
 /// An EllipsoidShape3D is a shape that represents an ellipsoid in 3D.
 @entity
-export struct EllipsoidShape3D: Shape3D {
-    ..Ellipsoid3D
+export struct EllipsoidShape3D extends Shape3D {
+    ...Ellipsoid3D
 }

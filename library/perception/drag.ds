@@ -2,31 +2,31 @@ import destack
 
 /// Base drag event
 @event
-export struct DragEvent: InputEvent {
+export struct DragEvent extends InputEvent {
     position: Vector2
 }
 
 /// Drag starts
 @event
-export struct DragStartEvent: DragEvent { }
+export struct DragStartEvent extends DragEvent { }
 
 /// Drag ends
 @event
-export struct DragEndEvent: DragEvent { }
+export struct DragEndEvent extends DragEvent { }
 
 /// Drag over an element
 @event
-export struct DragOverEvent: DragEvent { }
+export struct DragOverEvent extends DragEvent { }
 
 /// Drag enters an element
 @event
-export struct DragEnterEvent: DragEvent { }
+export struct DragEnterEvent extends DragEvent { }
 
 /// Drag leaves an element
 @event
-export struct DragLeaveEvent: DragEvent { }
+export struct DragLeaveEvent extends DragEvent { }
 
 /// Drag dropped on an element
 @event
-export struct DropEvent: DragEvent { }
+export struct DropEvent extends DragEvent { }
 

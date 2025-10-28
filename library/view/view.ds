@@ -44,8 +44,8 @@ export struct Style2D {
 
 /// A View2D is a 2D export interface element.
 @entity
-export struct View2D: RigidBody2D {
-    ..Position2D
-    ..Sizing2D
-    ..Style2D
+export struct View2D extends RigidBody2D {
+    ...Position2D
+    ...Sizing2D
+    ...Style2D
 }

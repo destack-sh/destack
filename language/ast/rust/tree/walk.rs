@@ -646,7 +646,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             meta: _,
             style: _,
             kind: _,
-            super_types,
+            extends_types,
+            implements_types,
             representation_type,
             static_parameters,
             with_clauses,
@@ -654,10 +655,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             expressions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types {
-                    let expr = tree.get(*super_type_id);
-                    visitor.visit_expression(tree, *super_type_id, expr);
+            if let Some(ext_types) = extends_types {
+                for extends_type_id in ext_types {
+                    let expr = tree.get(*extends_type_id);
+                    visitor.visit_expression(tree, *extends_type_id, expr);
+                }
+            }
+            if let Some(impl_types) = implements_types {
+                for implements_type_id in impl_types {
+                    let expr = tree.get(*implements_type_id);
+                    visitor.visit_expression(tree, *implements_type_id, expr);
                 }
             }
             if let Some(representation_type) = representation_type {
@@ -695,7 +702,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             meta: _,
             tag_type,
             static_parameters,
-            super_types,
+            extends_types,
+            implements_types,
             with_clauses,
             where_clauses,
             fields,
@@ -711,10 +719,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *param_id, param);
                 }
             }
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types {
-                    let expr = tree.get(*super_type_id);
-                    visitor.visit_expression(tree, *super_type_id, expr);
+            if let Some(ext_types) = extends_types {
+                for extends_type_id in ext_types {
+                    let expr = tree.get(*extends_type_id);
+                    visitor.visit_expression(tree, *extends_type_id, expr);
+                }
+            }
+            if let Some(impl_types) = implements_types {
+                for implements_type_id in impl_types {
+                    let expr = tree.get(*implements_type_id);
+                    visitor.visit_expression(tree, *implements_type_id, expr);
                 }
             }
             if let Some(with_clauses) = with_clauses {
@@ -743,7 +757,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             tag_type,
             representation_type,
             static_parameters,
-            super_types,
+            extends_types,
+            implements_types,
             with_clauses: with,
             where_clauses,
             fields,
@@ -763,10 +778,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_parameter(tree, *param_id, param);
                 }
             }
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types {
-                    let expr = tree.get(*super_type_id);
-                    visitor.visit_expression(tree, *super_type_id, expr);
+            if let Some(ext_types) = extends_types {
+                for extends_type_id in ext_types {
+                    let expr = tree.get(*extends_type_id);
+                    visitor.visit_expression(tree, *extends_type_id, expr);
+                }
+            }
+            if let Some(impl_types) = implements_types {
+                for implements_type_id in impl_types {
+                    let expr = tree.get(*implements_type_id);
+                    visitor.visit_expression(tree, *implements_type_id, expr);
                 }
             }
             if let Some(with_clauses) = with {
@@ -792,17 +813,17 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Interface {
             meta: _,
-            super_types,
+            extends_types,
             static_parameters,
             with_clauses,
             where_clauses,
             fields,
             expressions,
         } => {
-            if let Some(super_types) = super_types {
-                for super_type_id in super_types {
-                    let expr = tree.get(*super_type_id);
-                    visitor.visit_expression(tree, *super_type_id, expr);
+            if let Some(extends_types) = extends_types {
+                for extends_type_id in extends_types {
+                    let expr = tree.get(*extends_type_id);
+                    visitor.visit_expression(tree, *extends_type_id, expr);
                 }
             }
             if let Some(static_parameters) = static_parameters {
@@ -836,7 +857,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             meta: _,
             static_parameters,
             target_type,
-            super_types,
+            implements_types,
             with_clauses,
             where_clauses,
             expressions,
@@ -849,10 +870,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             let target_type_expr = tree.get(*target_type);
             visitor.visit_expression(tree, *target_type, target_type_expr);
-            if let Some(super_types) = super_types {
-                for super_type in super_types {
-                    let super_type_expr = tree.get(*super_type);
-                    visitor.visit_expression(tree, *super_type, super_type_expr);
+            if let Some(impl_types) = implements_types {
+                for implements_type_id in impl_types {
+                    let implements_type_expr = tree.get(*implements_type_id);
+                    visitor.visit_expression(tree, *implements_type_id, implements_type_expr);
                 }
             }
             if let Some(with_clauses) = with_clauses {

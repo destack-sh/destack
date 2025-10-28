@@ -67,9 +67,14 @@ impl<'a> Parser<'a> {
             .eat_static_parameters_maybe()
             .for_node_type(NodeType::Definition)?;
 
-        // optional super types: : ...
-        let super_types = self
-            .eat_super_types_maybe()
+        // optional extends types
+        let extends_types = self
+            .eat_extends_types_maybe()
+            .for_node_type(NodeType::Definition)?;
+
+        // optional implements types
+        let implements_types = self
+            .eat_implements_types_maybe()
             .for_node_type(NodeType::Definition)?;
 
         // with
@@ -91,7 +96,8 @@ impl<'a> Parser<'a> {
                 meta,
                 tag_type,
                 static_parameters,
-                super_types,
+                extends_types,
+                implements_types,
                 with_clauses,
                 where_clauses,
                 fields,
@@ -186,24 +192,26 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_enum_with_super_types() {
+    fn test_parse_enum_with_extends_types() {
         let mut test = TestParser::new(
             r###"
-enum Foo: Day {}
+enum Foo extends Day {}
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, super_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(expressions.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
 
-            let supers = super_types.as_ref().expect("expected super types");
+            assert!(implements_types.is_none());
+
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Day");
@@ -251,7 +259,7 @@ enum {
     fn test_parse_enum_with_type_name_and_values() {
         let mut test = TestParser::new(
             r###"
-enum(uint8) Foo: Day {
+enum(uint8) Foo extends Day {
 
     Baz = 1
 
@@ -266,7 +274,7 @@ enum(uint8) Foo: Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, super_types, where_clauses, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             // enum name
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
@@ -275,12 +283,13 @@ enum(uint8) Foo: Day {
             // enum type
             assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(8), is_signed: false })));
 
-            // super: Day
-            let supers = super_types.as_ref().expect("expected super types");
+            // extends: Day
+            let supers = extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Day");
             });
+            assert!(implements_types.is_none());
 
             assert_eq!(fields.len(), 2);
 

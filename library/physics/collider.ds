@@ -6,7 +6,7 @@ export struct ColliderEvent { }
 
 /// Collision contact between two colliders
 @event
-export struct ColliderContactEvent: ColliderEvent {
+export struct ColliderContactEvent extends ColliderEvent {
     /// First collider
     colliderA: Reference<Collider2D>
     /// Second collider
@@ -16,12 +16,12 @@ export struct ColliderContactEvent: ColliderEvent {
 /// A Collider in 2D space
 @entity
 export struct Collider2D {
-    ..Entity2D
+    ...Entity2D
 }
 
 /// A Collider in 3D space
 @entity
 export struct Collider3D {
-    ..Entity3D
+    ...Entity3D
 }
 

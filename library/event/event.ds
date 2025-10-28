@@ -30,5 +30,5 @@ export struct Event {
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending
 
-    ..Identity
+    ...Identity
 }
