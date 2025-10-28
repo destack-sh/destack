@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
         if asynchrony == Asynchrony::Sync
             && in_parenthesis
             && self
-                .find_in_matching_pair(
+                .find_before_matching_close(
                     TokenType::OpenParenthesis,
                     TokenType::CloseParenthesis,
                     TokenType::Semicolon,

@@ -197,14 +197,54 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Find closing pair for a pair of tokens.
-    pub fn find_matching_pair(
+    /// Find a token.
+    pub fn find_token(&self, target_token: TokenType) -> ParserResult<u32> {
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos) {
+            if token.token.ty == target_token {
+                return Ok(pos as u32);
+            }
+            pos += 1;
+        }
+        Err(ParserError::unexpected(
+            self.peek().unwrap_or(&self.eof_token).span,
+        ))
+    }
+
+    /// Find an open and a matching close token.
+    pub fn find_open_and_matching_close(
         &self,
         open_token: TokenType,
         close_token: TokenType,
     ) -> ParserResult<u32> {
+        let open_pos = self.find_token(open_token)?;
+        let close_pos = self.find_matching_close(Some(open_pos), open_token, close_token)?;
+        Ok(close_pos)
+    }
+
+    /// Find closing pair for a pair of tokens.
+    pub fn find_matching_close(
+        &self,
+        pos: Option<u32>,
+        open_token: TokenType,
+        close_token: TokenType,
+    ) -> ParserResult<u32> {
         let mut depth = 0;
-        let mut pos = self.pos() as usize;
+        let mut pos = pos.unwrap_or(self.pos()) as usize;
+
+        // we should start at the open token
+        #[cfg(debug_assertions)]
+        let first_token = self
+            .tokens
+            .get(pos)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End);
+        debug_assert_eq!(
+            first_token, open_token,
+            "expected open token {open_token:?} but got {first_token:?}"
+        );
+
+        // seek until we find the matching close token
         while let Some(token) = self.tokens.get(pos) {
             // open: +1
             if token.token.ty == open_token {
@@ -227,7 +267,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Find a token *within* a matching pair of tokens.
-    pub fn find_in_matching_pair(
+    pub fn find_before_matching_close(
         &self,
         open_token: TokenType,
         close_token: TokenType,
