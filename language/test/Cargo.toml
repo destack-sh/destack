@@ -1,0 +1,18 @@
+[package]
+name = "dyst_test"
+description = "Dyst Test"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+
+[dev-dependencies]
+[lints]
+workspace = true

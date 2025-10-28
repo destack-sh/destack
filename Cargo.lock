@@ -318,19 +318,19 @@ dependencies = [
 
 [[package]]
 name = "destack_access"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_animation"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_audio"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_cli"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_file",
  "destack_lsp",
@@ -351,11 +351,11 @@ dependencies = [
 
 [[package]]
 name = "destack_cloud"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_entity"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_time",
  "destack_uuid",
@@ -363,23 +363,23 @@ dependencies = [
 
 [[package]]
 name = "destack_event"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_file"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_geometry"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_image"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_javascript"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_fir",
@@ -390,15 +390,15 @@ dependencies = [
 
 [[package]]
 name = "destack_json"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_locale"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_lsp"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_file",
  "dyst_ast",
@@ -418,23 +418,23 @@ dependencies = [
 
 [[package]]
 name = "destack_network"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_order"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_perception"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_physics"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_python"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_fir",
@@ -445,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "destack_rust"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_fir",
@@ -456,39 +456,39 @@ dependencies = [
 
 [[package]]
 name = "destack_scene"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_script"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_social"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_style"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_telemetry"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_terminal"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_test"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_text"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_time"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -496,22 +496,22 @@ dependencies = [
 
 [[package]]
 name = "destack_tokei"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_file",
 ]
 
 [[package]]
 name = "destack_unicode"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_universe"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_uuid"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -519,11 +519,11 @@ dependencies = [
 
 [[package]]
 name = "destack_video"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_view"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_vscode"
@@ -531,11 +531,11 @@ version = "2025.10.2-4"
 
 [[package]]
 name = "destack_web"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "destack_zed_extension"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "zed_extension_api",
 ]
@@ -553,7 +553,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_ast"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "criterion",
  "destack_file",
@@ -569,7 +569,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_compiler"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_container",
@@ -585,22 +585,22 @@ dependencies = [
 
 [[package]]
 name = "dyst_concurrency"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "dyst_container"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "dyst_diagnostic"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_source",
 ]
 
 [[package]]
 name = "dyst_dir"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_file",
  "destack_unicode",
@@ -616,7 +616,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_dvm"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
@@ -633,7 +633,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_fir"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_unicode",
  "dyst_diagnostic",
@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_formatter"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_container",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_javascript"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
@@ -673,11 +673,11 @@ dependencies = [
 
 [[package]]
 name = "dyst_memory"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "dyst_mir"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
@@ -690,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_package"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "destack_file",
  "dyst_ast",
@@ -704,7 +704,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_parser"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "criterion",
  "destack_file",
@@ -719,11 +719,11 @@ dependencies = [
 
 [[package]]
 name = "dyst_prelude"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "dyst_session"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 dependencies = [
  "dyst_diagnostic",
  "dyst_source",
@@ -731,11 +731,15 @@ dependencies = [
 
 [[package]]
 name = "dyst_source"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 
 [[package]]
 name = "dyst_string"
-version = "2025.10.27-0"
+version = "2025.10.28-0"
+
+[[package]]
+name = "dyst_test"
+version = "2025.10.28-0"
 
 [[package]]
 name = "either"
