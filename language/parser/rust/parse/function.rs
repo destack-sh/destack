@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
 
                 // return type
                 let return_type = self
-                    .with_options(self.options.nested_type_in_before_block(), |parser| {
+                    .with_options(self.options.nested_in_type(), |parser| {
                         parser.eat_expression()
                     })?;
 
@@ -783,6 +783,56 @@ async function* foo() => int32 {
             assert_eq!(*kind, Some(FunctionKind::Constructor));
             assert_eq!(dynamic_parameters.len(), 1);
             assert!(body.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_nested_lambda_type() {
+        let mut test = TestParser::new(
+            r#"
+function onResolve(
+    callback: (args) => {
+        path: string;
+        namespace?: string;
+    } | void,
+) => void;
+        "#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let function_id = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { meta, dynamic_parameters, return_type, .. } => {
+            assert_string!(parser, meta.name.unwrap().string(), "onResolve");
+            // callback: (args) => { .. } | void
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "callback");
+                assert_node!(parser.tree, ty.unwrap(), Expression::Definition(definition_id) => {
+                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
+                        assert_eq!(dynamic_parameters.len(), 1);
+                        // args
+                        assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                            assert_string!(parser, *name, "args");
+                        });
+                        // { .. } | void
+                        assert_node!(parser.tree, return_type.unwrap(), Expression::Binary { operator, left, right } => {
+                            // { .. }
+                            assert_node!(parser.tree, *left, Expression::StructLiteral { ty: None, fields } => {
+                                assert_eq!(fields.len(), 2);
+                            });
+                            // |
+                            assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                            // void
+                            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Void));
+                        });
+                    });
+                });
+            });
+            // void
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
         });
     }
 }
