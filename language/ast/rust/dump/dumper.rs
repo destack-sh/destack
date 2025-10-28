@@ -1214,6 +1214,12 @@ impl Dump for TypeLiteral {
             TypeLiteral::Self_ => {
                 dumper.object("TypeLiteral::Self").end();
             }
+            TypeLiteral::Symbol => {
+                dumper.object("TypeLiteral::Symbol").end();
+            }
+            TypeLiteral::UniqueSymbol => {
+                dumper.object("TypeLiteral::UniqueSymbol").end();
+            }
         }
     }
 }

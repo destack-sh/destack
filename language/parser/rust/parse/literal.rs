@@ -1131,22 +1131,30 @@ mod tests {
 
     #[test]
     fn test_parse_type_literal() {
-        let mut test = TestParser::new("int32 uint8 float bool");
+        let mut test = TestParser::new("int32 uint8 float bool symbol unique symbol");
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
         assert!(
-            matches!(parser.eat_type_literal().unwrap(), TypeLiteral::Int(int_ty) if int_ty.width == Some(32))
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(int_ty) if int_ty.width == Some(32))
         );
         assert!(
-            matches!(parser.eat_type_literal().unwrap(), TypeLiteral::Int(int_ty) if !int_ty.is_signed && int_ty.width == Some(8))
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(int_ty) if !int_ty.is_signed && int_ty.width == Some(8))
         );
         assert!(
-            matches!(parser.eat_type_literal().unwrap(), TypeLiteral::Float(float_ty) if float_ty.width.is_none())
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Float(float_ty) if float_ty.width.is_none())
         );
         assert!(matches!(
-            parser.eat_type_literal().unwrap(),
+            parser.eat_type_literal(None).unwrap(),
             TypeLiteral::Boolean
+        ));
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::Symbol
+        ));
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::UniqueSymbol
         ));
     }
 

@@ -1170,6 +1170,12 @@ impl Dump for PrimitiveType {
             PrimitiveType::Float(float_type) => {
                 dumper.object("TypeLiteral::Float").value(float_type).end();
             }
+            PrimitiveType::Symbol => {
+                dumper.object("TypeLiteral::Symbol").end();
+            }
+            PrimitiveType::UniqueSymbol => {
+                dumper.object("TypeLiteral::UniqueSymbol").end();
+            }
         }
     }
 }

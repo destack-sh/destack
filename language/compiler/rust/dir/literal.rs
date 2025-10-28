@@ -152,6 +152,8 @@ impl<'a> Compiler<'a> {
                 TypeLiteral::Composite(self.lower_composite_type(composite_type))
             }
             ast::TypeLiteral::Self_ => panic!("self type can't be lowerd"),
+            ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
+            ast::TypeLiteral::UniqueSymbol => TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
         }
     }
 }

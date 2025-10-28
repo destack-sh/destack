@@ -709,8 +709,8 @@ impl<'a> Parser<'a> {
             }
             // type
             // (type literals are contextual, most are only parsed inside type context to avoid shadowing)
-            else if self.peek_type_literal().is_ok() {
-                let type_literal = self.eat_type_literal()?;
+            else if let Ok(type_literal) = self.peek_type_literal() {
+                let type_literal = self.eat_type_literal(Some(type_literal))?;
                 self.tree.insert(
                     Expression::TypeLiteral(type_literal),
                     self.get_span_from(start),
