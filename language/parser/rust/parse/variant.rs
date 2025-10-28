@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
     /// [string]: woof
     /// [T] = "hello"
     /// ```
-    pub(crate) fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
+    fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
         let start = self.mark();
 
         // modifiers
@@ -306,7 +306,9 @@ impl<'a> Parser<'a> {
             else {
                 self.rewind(modifier_start);
                 let expression_id = self
-                    .try_eat_expression_as_statement()
+                    .with_options(self.options.nested_in_variant(), |parser| {
+                        parser.try_eat_expression(TokenType::Newline)
+                    })
                     .for_node_type(NodeType::Expression)?;
                 expressions.push(expression_id);
             }

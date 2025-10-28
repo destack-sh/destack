@@ -126,7 +126,9 @@ impl<'a> Parser<'a> {
             // eat expressions
             else {
                 let expression_id = self
-                    .try_eat_expression_as_statement()
+                    .with_options(self.options.nested_in_variant(), |parser| {
+                        parser.try_eat_expression(TokenType::Newline)
+                    })
                     .for_node_type(NodeType::Expression)?;
                 expressions.push(expression_id);
             }

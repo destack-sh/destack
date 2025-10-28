@@ -7,13 +7,7 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
-    /// Peek a block (test with and without label).
-    ///
-    /// Examples:
-    /// ```
-    /// { ... }
-    /// label: { ... }
-    /// ```
+    /// Peek a block (with and without label).
     #[inline]
     pub fn peek_block(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
@@ -25,6 +19,23 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::OpenBrace,
+            ))
+        }
+    }
+
+    /// Peek a next block (with and without label).
+    #[inline]
+    pub fn peek_next_block(&self) -> ParserResult<()> {
+        if self.peek_next_token(TokenType::OpenBrace).is_ok()
+            || self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_next_token(TokenType::Colon).is_ok()
+                && self.peek_next_next_next_token(TokenType::OpenBrace).is_ok()
+        {
+            Ok(())
+        } else {
+            Err(ParserError::expected(
+                self.peek_next().unwrap_or(&self.eof_token).span,
                 TokenType::OpenBrace,
             ))
         }
@@ -92,7 +103,9 @@ impl<'a> Parser<'a> {
             // eat expressions
             else {
                 let expression_id = self
-                    .try_eat_expression_as_statement()
+                    .with_options(self.options.nested(), |parser| {
+                        parser.try_eat_expression(TokenType::Newline)
+                    })
                     .for_node_type(NodeType::Expression)?;
                 expressions.push(expression_id);
             }
