@@ -143,6 +143,18 @@ fn test_lex_random_symbols() {
 }
 
 #[test]
+fn test_lex_ecmascript_identifiers_and_whitespace() {
+    assert_tokenize_eq_roundtrip!(
+        "$foo\u{00A0}$bar\u{2003}a\u{200C}b",
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::Whitespace, 2, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::Whitespace, 3, None),
+        Token::new(TokenType::Identifier, 5, None),
+    );
+}
+
+#[test]
 fn test_lex_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(
         "a==b != c <= d >= e < f > g",
