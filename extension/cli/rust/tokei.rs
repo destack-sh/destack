@@ -14,6 +14,10 @@ const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
         name: Some("Dyst"),
     },
     LanguageDeclaration {
+        extension: &["d.ds"],
+        name: Some("Dyst Declaration"),
+    },
+    LanguageDeclaration {
         extension: &["dst"],
         name: Some("Dyst Text"),
     },
@@ -115,7 +119,7 @@ pub fn app() -> CommandApp {
             Some(
                 "Run counter.
 				 --root <dir>
-				 --ext .ds,.rs,.py
+				 --ext .ds,.d.ds,.rs,.py
 				 --alias \"ds=Dyst,rs=Rust,py=Python\"
 				 --ignore \"<path1,path2,...>\""
                     .to_string(),

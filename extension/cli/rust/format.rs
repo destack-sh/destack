@@ -117,7 +117,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     run_for_all_files(&options, dry_run)
 }
 
-/// Format all .ds files in the current directory tree.
+/// Format all Dyst files in the current directory tree.
 fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
     // get current working directory
     let root = match env::current_dir() {
@@ -127,7 +127,7 @@ fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
             return 1;
         }
     };
-    let files = collect_ds_files(&root);
+    let files = collect_dyst_files(&root);
 
     // process each file and track overall success
     let mut exit_code = 0;
@@ -191,15 +191,15 @@ fn run_for_string(string: &str, options: &DystFormatOptions) -> i32 {
     }
 }
 
-/// Collect all .ds files under the given root using the shared glob walker.
-fn collect_ds_files(root: &Path) -> Vec<PathBuf> {
+/// Collect all .ds and .d.ds files under the given root using the shared glob walker.
+fn collect_dyst_files(root: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
     // configure walker to find .ds files while ignoring common directories
     let walk_options = WalkOptions {
         root: root.to_path_buf(),
         ignore: Some(DEFAULT_IGNORE_PATHS.iter().map(|s| s.to_string()).collect()),
-        glob: Some(vec!["**/*.ds".to_string()]),
+        glob: Some(vec!["**/*.ds".to_string(), "**/*.d.ds".to_string()]),
     };
 
     // collect all matching files

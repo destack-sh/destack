@@ -695,8 +695,7 @@ impl<'a> Parser<'a> {
                 )
             }
             // anonymous struct literal
-            else if !self.options.in_before_block
-                && token_type == TokenType::OpenBrace
+            else if token_type == TokenType::OpenBrace
                 && let Ok(first_argument) = self.peek_anonymous_struct_literal_body()
             {
                 let fields = self.with_options(self.options.not_in_parenthesis(), |parser| {

@@ -2,6 +2,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourceFormat {
     Dyst,
+    DystDeclaration,
     DystText,
     DystBinary,
     DystExecutable,
@@ -12,6 +13,7 @@ impl SourceFormat {
     pub fn from_extension(s: &str) -> Option<Self> {
         match s {
             "ds" => Some(SourceFormat::Dyst),
+            "d.ds" => Some(SourceFormat::DystDeclaration),
             "dst" => Some(SourceFormat::DystText),
             "dsb" => Some(SourceFormat::DystBinary),
             "dsx" => Some(SourceFormat::DystExecutable),
@@ -25,6 +27,7 @@ impl SourceFormat {
     pub fn extension(&self) -> &str {
         match self {
             SourceFormat::Dyst => "ds",
+            SourceFormat::DystDeclaration => "d.ds",
             SourceFormat::DystText => "dst",
             SourceFormat::DystBinary => "dsb",
             SourceFormat::DystExecutable => "dsx",
@@ -35,6 +38,7 @@ impl SourceFormat {
     pub fn glob(&self) -> &str {
         match self {
             SourceFormat::Dyst => "**/*.ds",
+            SourceFormat::DystDeclaration => "**/*.d.ds",
             SourceFormat::DystText => "**/*.dst",
             SourceFormat::DystBinary => "**/*.dsb",
             SourceFormat::DystExecutable => "**/*.dsx",
