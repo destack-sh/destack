@@ -2,7 +2,7 @@ import destack
 
 /// A Video File
 @entity
-export struct Video: File {
+export struct Video extends File {
     width: uint32
     height: uint32
     duration: Duration

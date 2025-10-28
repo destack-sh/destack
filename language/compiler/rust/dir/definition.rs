@@ -1,7 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationKind, DeclarationScope, Definition, DefinitionMeta as DirDefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics, NodeId, StructStyle
+    DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition,
+    FunctionSignature, Generics, NodeId, StructStyle,
 };
 use dyst_source::SourceId;
 
@@ -80,17 +81,25 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         _definition_id: ast::NodeId<ast::Definition>,
-        super_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
+        extends_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
+        implements_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
         expressions: &[ast::NodeId<ast::Expression>],
     ) -> Vec<EmbeddedDefinition> {
         let mut embedded_definitions: Vec<EmbeddedDefinition> = vec![];
-        // super types
-        if let Some(super_types) = super_types.as_ref() {
+        if let Some(extends_types) = extends_types.as_ref() {
             embedded_definitions.extend(
-                super_types
+                extends_types
                     .iter()
                     .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
-                    .map(|ty| EmbeddedDefinition::Super { ty }),
+                    .map(|ty| EmbeddedDefinition::Extends { ty }),
+            );
+        }
+        if let Some(implements_types) = implements_types.as_ref() {
+            embedded_definitions.extend(
+                implements_types
+                    .iter()
+                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
+                    .map(|ty| EmbeddedDefinition::Implements { ty }),
             );
         }
         // include types (from expressions)
@@ -116,7 +125,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         source_id: SourceId,
         meta: &ast::DefinitionMeta,
-    ) -> DirDefinitionMeta {
+    ) -> DefinitionMeta {
         let kind = self.lower_declaration_kind(meta.kind);
         let name = meta
             .name
@@ -125,7 +134,7 @@ impl<'a> Compiler<'a> {
             .visibility
             .map(|visibility| self.lower_visibility(visibility));
         let export = meta.export.map(|export| self.lower_export_mode(export));
-        DirDefinitionMeta {
+        DefinitionMeta {
             kind,
             name,
             visibility,
@@ -277,7 +286,8 @@ impl<'a> Compiler<'a> {
                 meta,
                 style,
                 kind,
-                super_types,
+                extends_types,
+                implements_types,
                 representation_type,
                 static_parameters,
                 with_clauses,
@@ -301,7 +311,8 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     definition_id,
-                    super_types,
+                    extends_types,
+                    implements_types,
                     expressions,
                 );
                 let representation_type = representation_type
@@ -338,7 +349,8 @@ impl<'a> Compiler<'a> {
             // Enum definition
             ast::Definition::Enum {
                 meta,
-                super_types,
+                extends_types,
+                implements_types,
                 static_parameters,
                 tag_type,
                 with_clauses,
@@ -358,7 +370,8 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     definition_id,
-                    super_types,
+                    extends_types,
+                    implements_types,
                     expressions,
                 );
                 let tag_type = tag_type
@@ -389,7 +402,8 @@ impl<'a> Compiler<'a> {
                 tag_type,
                 representation_type,
                 static_parameters,
-                super_types,
+                extends_types,
+                implements_types,
                 with_clauses,
                 where_clauses,
                 fields,
@@ -407,7 +421,8 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     definition_id,
-                    super_types,
+                    extends_types,
+                    implements_types,
                     expressions,
                 );
                 let tag_type = tag_type
@@ -444,7 +459,7 @@ impl<'a> Compiler<'a> {
             // Interface definition
             ast::Definition::Interface {
                 meta,
-                super_types,
+                extends_types,
                 static_parameters,
                 with_clauses,
                 where_clauses,
@@ -463,7 +478,8 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     definition_id,
-                    super_types,
+                    extends_types,
+                    &None,
                     expressions,
                 );
                 let fields = fields
@@ -547,7 +563,7 @@ impl<'a> Compiler<'a> {
                 meta,
                 static_parameters,
                 target_type,
-                super_types,
+                implements_types,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -561,11 +577,11 @@ impl<'a> Compiler<'a> {
                     where_clauses.as_ref(),
                 );
                 let target_type = self.lower_expression_to_type(source_id, ast, *target_type);
-                let super_types = super_types.as_ref().map(|super_types| {
-                    super_types
+                let implements_types = implements_types.as_ref().map(|implements_types| {
+                    implements_types
                         .iter()
-                        .map(|super_type| {
-                            self.lower_expression_to_type(source_id, ast, *super_type)
+                        .map(|implements_type| {
+                            self.lower_expression_to_type(source_id, ast, *implements_type)
                         })
                         .collect()
                 });
@@ -578,7 +594,7 @@ impl<'a> Compiler<'a> {
                         meta,
                         generics,
                         target_type,
-                        super_types,
+                        implements_types,
                         definitions,
                     },
                     source_id,

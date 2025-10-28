@@ -19,13 +19,13 @@ export struct MembershipJoinedEvent {
     /// The type of the Role.
     roleType: RoleType
 
-    ..MembershipEvent
+    ...MembershipEvent
 }
 
 /// Membership was left.
 @event
 export struct MembershipLeftEvent {
-    ..MembershipEvent
+    ...MembershipEvent
 }
 
 /// A Membership of an Actor in a Joinable.

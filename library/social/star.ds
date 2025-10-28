@@ -13,9 +13,9 @@ export struct StarEvent {
 
 /// Star added.
 @event
-export struct StarAddedEvent: StarEvent { }
+export struct StarAddedEvent extends StarEvent { }
 
 /// Star removed.
 @event
-export struct StarRemovedEvent: StarEvent { }
+export struct StarRemovedEvent extends StarEvent { }
 

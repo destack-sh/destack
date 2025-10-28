@@ -672,7 +672,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             meta: _,
             generics,
             target_type,
-            super_types,
+            implements_types,
             definitions,
         } => {
             if let Some(generics) = generics.as_ref() {
@@ -680,10 +680,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             let target_type_expr = tree.get(*target_type);
             visitor.visit_type(tree, *target_type, target_type_expr);
-            if let Some(super_types) = super_types {
-                for super_type in super_types {
-                    let super_type_expr = tree.get(*super_type);
-                    visitor.visit_type(tree, *super_type, super_type_expr);
+            if let Some(implements_types) = implements_types {
+                for implements_type in implements_types {
+                    let implements_type_expr = tree.get(*implements_type);
+                    visitor.visit_type(tree, *implements_type, implements_type_expr);
                 }
             }
             for definition_id in definitions.iter() {

@@ -7,14 +7,14 @@ export struct Capsule2D {
     centerBOffset: Vector2
     radius: float32
 
-    ..Form2D
+    ...Form2D
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
 @entity
 export struct CapsuleShape2D {
-    ..Shape2D
-    ..Capsule2D
+    ...Shape2D
+    ...Capsule2D
 }
 
 /// A Capsule3D is a segment with rounded ends in 3D with a common radius.
@@ -24,12 +24,12 @@ export struct Capsule3D {
     centerBOffset: Vector3
     radius: float32
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.
 @entity
 export struct CapsuleShape3D {
-    ..Shape3D
-    ..Capsule3D
+    ...Shape3D
+    ...Capsule3D
 }

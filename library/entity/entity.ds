@@ -85,5 +85,5 @@ export struct Entity {
     script: Reference<Script>?
 
     /// The identity of the `Entity`.
-    ..Identity
+    ...Identity
 }

@@ -14,12 +14,12 @@ export struct Mesh3D {
 
 /// A MeshShape2D represents a triangle mesh.
 @entity
-export struct MeshShape2D: Shape2D {
-    ..Mesh2D
+export struct MeshShape2D extends Shape2D {
+    ...Mesh2D
 }
 
 /// A MeshShape3D represents a triangle mesh.
 @entity
-export struct MeshShape3D: Shape3D {
-    ..Mesh3D
+export struct MeshShape3D extends Shape3D {
+    ...Mesh3D
 }

@@ -3,12 +3,12 @@ import destack
 /// A deformable body in 2D
 @entity
 export struct SoftBody2D {
-    ..Body2D
+    ...Body2D
 }
 
 /// A deformable body in 3D
 @entity
 export struct SoftBody3D {
-    ..Body3D
+    ...Body3D
 }
 

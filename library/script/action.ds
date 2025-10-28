@@ -18,6 +18,6 @@ export struct Action {
     /// The Action type.
     type: ActionType
 
-    ..Function
+    ...Function
 }
 

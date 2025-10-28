@@ -13,8 +13,8 @@ export struct FollowEvent {
 
 /// Follow added.
 @event
-export struct FollowAddedEvent: FollowEvent { }
+export struct FollowAddedEvent extends FollowEvent { }
 
 /// Follow removed.
 @event
-export struct FollowRemovedEvent: FollowEvent { }
+export struct FollowRemovedEvent extends FollowEvent { }

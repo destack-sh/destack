@@ -4,25 +4,25 @@ import destack
 export struct Circle2D {
     radius: float32
 
-    ..Shape3D
-    ..Sphere3D
+    ...Shape3D
+    ...Sphere3D
 }
 
 /// A CircleShape is a shape that represents a circle.
 @entity
-export struct CircleShape2D: Shape2D {
-    ..Circle2D
+export struct CircleShape2D extends Shape2D {
+    ...Circle2D
 }
 
 /// A Sphere is centered at a point with a radius.
 export struct Sphere3D {
     radius: float32
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A SphereShape3D is a shape that represents a sphere.
 @entity
-export struct SphereShape3D: Shape3D {
-    ..Sphere3D
+export struct SphereShape3D extends Shape3D {
+    ...Sphere3D
 }

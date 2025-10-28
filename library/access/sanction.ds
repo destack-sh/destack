@@ -18,25 +18,25 @@ export struct SanctionEvent {
 /// Sanction was requested.
 @event
 export struct SanctionRequestedEvent {
-    ..SanctionEvent
+    ...SanctionEvent
 }
 
 /// Sanction was granted.
 @event
 export struct SanctionGrantedEvent {
-    ..SanctionEvent
+    ...SanctionEvent
 }
 
 /// Sanction was revoked.
 @event
 export struct SanctionRevokedEvent {
-    ..SanctionEvent
+    ...SanctionEvent
 }
 
 /// Sanction has expired.
 @event
 export struct SanctionExpiredEvent {
-    ..SanctionEvent
+    ...SanctionEvent
 }
 
 /// A Sanction on some Actor.

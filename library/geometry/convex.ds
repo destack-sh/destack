@@ -2,14 +2,14 @@ import destack
 
 /// A ConvexShape2D represents a convex polygon.
 @entity
-export struct ConvexShape2D: Shape2D {
+export struct ConvexShape2D extends Shape2D {
     vertices: List<Vector2>
 }
 
 /// A ConvexShape3D represents a convex hull.
 @entity
-export struct ConvexShape3D: Shape3D {
+export struct ConvexShape3D extends Shape3D {
     vertices: List<Vector3>
 
-    ..ConvexShape2D
+    ...ConvexShape2D
 }

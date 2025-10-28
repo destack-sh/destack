@@ -1752,7 +1752,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 meta,
                 generics,
                 target_type: _,
-                super_types: _,
+                implements_types: _,
                 definitions: _,
             } => {
                 self.node("Definition::Implement", id.id)

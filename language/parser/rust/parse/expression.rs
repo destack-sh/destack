@@ -98,8 +98,10 @@ fn to_infix_operator(
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular type binary operator
-    else if let Some(type_binary_operator) =
-        TypeBinaryOperator::from_token(token_str, token.token.ty)
+    // (forbidden in super type clauses)
+    else if !options.in_super_type
+        && let Some(type_binary_operator) =
+            TypeBinaryOperator::from_token(token_str, token.token.ty)
     {
         Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
     }

@@ -5,11 +5,11 @@ export struct Cylinder3D {
     radius: float32
     height: float32
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A CylinderShape3D is a shape that represents a cylinder.
 @entity
-export struct CylinderShape3D: Shape3D {
-    ..Cylinder3D
+export struct CylinderShape3D extends Shape3D {
+    ...Cylinder3D
 }

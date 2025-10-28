@@ -8,8 +8,10 @@ use crate::{
 /// It is used to represent super types and include types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum EmbeddedDefinition {
-    /// Super type ("is a" relationship like `B` in `struct A: B`).
-    Super { ty: NodeId<Type> },
+    /// Extends type ("is a" relationship like `B` in `struct A extends B`).
+    Extends { ty: NodeId<Type> },
+    /// Implements type ("implements" relationship like `B` in `struct A implements B`).
+    Implements { ty: NodeId<Type> },
     /// Include type ("has a" relationship like `..B` in `struct A { ..B }`).
     Include { ty: NodeId<Type> },
 }
@@ -19,7 +21,8 @@ impl EmbeddedDefinition {
     #[inline]
     pub fn ty(&self) -> NodeId<Type> {
         match self {
-            EmbeddedDefinition::Super { ty } => *ty,
+            EmbeddedDefinition::Extends { ty } => *ty,
+            EmbeddedDefinition::Implements { ty } => *ty,
             EmbeddedDefinition::Include { ty } => *ty,
         }
     }
@@ -128,7 +131,7 @@ pub enum Definition {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         target_type: NodeId<Type>,
-        super_types: Option<Vec<NodeId<Type>>>,
+        implements_types: Option<Vec<NodeId<Type>>>,
         definitions: Vec<NodeId<Definition>>,
     },
 }

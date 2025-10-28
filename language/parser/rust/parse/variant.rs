@@ -1,7 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, DeclarationKind, DeclarationScope, DefinitionMeta, Expression, Keyword, PostfixPosition
+    BindingKind, BindingModifiers, DeclarationKind, DeclarationScope, DefinitionMeta, Expression,
+    Keyword, PostfixPosition,
 };
 
 use crate::TokenType;

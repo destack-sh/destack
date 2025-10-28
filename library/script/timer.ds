@@ -16,27 +16,27 @@ export struct TimerEvent {
 /// Timer started.
 @event
 export struct TimerStartedEvent {
-    ..TimerEvent
+    ...TimerEvent
 }
 /// Timer paused.
 @event
 export struct TimerPausedEvent {
-    ..TimerEvent
+    ...TimerEvent
 }
 /// Timer resumed.
 @event
 export struct TimerResumedEvent {
-    ..TimerEvent
+    ...TimerEvent
 }
 /// Timer completed.
 @event
 export struct TimerCompletedEvent {
-    ..TimerEvent
+    ...TimerEvent
 }
 /// Timer cancelled.
 @event
 export struct TimerCancelledEvent {
-    ..TimerEvent
+    ...TimerEvent
 }
 
 /// A Timer.

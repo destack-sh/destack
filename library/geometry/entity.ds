@@ -23,11 +23,11 @@ export struct Transform3D {
 /// An Entity2D is a 2D geometric Entity.
 @entity
 export struct Entity2D {
-    ..Transform2D
+    ...Transform2D
 }
 
 /// An Entity3D is a 3D geometric Entity.
 @entity
 export struct Entity3D {
-    ..Transform3D
+    ...Transform3D
 }

@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_container::smallvec;
 use dyst_dir::{
-    Argument, BindingKind, BindingModifiers, DeclarationScope, Expression, Mutability, NodeId, Parameter, Path,
+    Argument, BindingKind, BindingModifiers, Expression, Mutability, NodeId, Parameter, Path,
     Visibility,
 };
 use dyst_source::SourceId;

@@ -236,10 +236,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_struct_with_static_parameters_and_super_types() {
+    fn test_format_struct_with_static_parameters_and_inheritance() {
         assert_format!(
-            "struct Foo<T: Numeric>: Bar, Baz { }",
-            "struct Foo<T: Numeric>: Bar, Baz { }",
+            "struct Foo<T: Numeric> extends Bar implements Baz { }",
+            "struct Foo<T: Numeric> extends Bar implements Baz { }",
             |p| p.eat_struct(DefinitionMeta::default()),
             DystFormatOptions::default()
         );

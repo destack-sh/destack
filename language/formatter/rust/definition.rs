@@ -14,30 +14,31 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-pub(crate) fn format_super_types<'ast>(
+pub(crate) fn format_type_clause<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    super_types: &[NodeId<crate::Expression>],
+    keyword: Keyword,
+    types: &[NodeId<crate::Expression>],
 ) -> FormatResult<()> {
-    assert!(!super_types.is_empty());
+    assert!(!types.is_empty());
 
-    // colon separator
-    write!(f, [token(":"), space()])?;
-
-    // super types
     write!(
         f,
-        [group(&format_args![
-            if_group_breaks(&token("(")),
-            soft_block_indent(&format_with(|f| {
-                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                    .entries(super_types)
-                    .finish()?;
-                // trailing comma
-                write!(f, [if_group_breaks(&token(","))])?;
-                Ok(())
-            })),
-            if_group_breaks(&token(")")),
-        ])]
+        [
+            space(),
+            keyword,
+            space(),
+            group(&format_args![
+                if_group_breaks(&token("(")),
+                soft_block_indent(&format_with(|f| {
+                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                        .entries(types)
+                        .finish()?;
+                    write!(f, [if_group_breaks(&token(","))])?;
+                    Ok(())
+                })),
+                if_group_breaks(&token(")")),
+            ]),
+        ]
     )
 }
 
@@ -169,7 +170,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 meta,
                 style,
                 kind,
-                super_types,
+                extends_types,
+                implements_types,
                 representation_type,
                 static_parameters,
                 with_clauses,
@@ -248,11 +250,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // super types
-                if let Some(super_types) = &super_types
-                    && !super_types.is_empty()
+                if let Some(extends_types) = &extends_types
+                    && !extends_types.is_empty()
                 {
-                    format_super_types(f, super_types)?;
+                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                }
+                if let Some(implements_types) = &implements_types
+                    && !implements_types.is_empty()
+                {
+                    format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
@@ -322,7 +328,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 meta,
                 tag_type,
                 static_parameters,
-                super_types,
+                extends_types,
+                implements_types,
                 with_clauses: with,
                 where_clauses,
                 fields,
@@ -366,11 +373,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space()])?;
                 }
 
-                // super types
-                if let Some(super_types) = &super_types
-                    && !super_types.is_empty()
+                if let Some(extends_types) = &extends_types
+                    && !extends_types.is_empty()
                 {
-                    format_super_types(f, super_types)?;
+                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                }
+                if let Some(implements_types) = &implements_types
+                    && !implements_types.is_empty()
+                {
+                    format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
@@ -432,7 +443,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Interface {
                 meta,
                 static_parameters,
-                super_types,
+                extends_types,
                 with_clauses: with,
                 where_clauses,
                 fields,
@@ -469,11 +480,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
-                // super types
-                if let Some(super_types) = &super_types
-                    && !super_types.is_empty()
+                if let Some(extends_types) = &extends_types
+                    && !extends_types.is_empty()
                 {
-                    format_super_types(f, super_types)?;
+                    format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // with clauses
@@ -545,7 +555,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 tag_type,
                 representation_type,
                 static_parameters,
-                super_types,
+                extends_types,
+                implements_types,
                 with_clauses: with,
                 where_clauses,
                 fields,
@@ -596,11 +607,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
-                // super types
-                if let Some(super_types) = &super_types
-                    && !super_types.is_empty()
+                if let Some(extends_types) = &extends_types
+                    && !extends_types.is_empty()
                 {
-                    format_super_types(f, super_types)?;
+                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                }
+                if let Some(implements_types) = &implements_types
+                    && !implements_types.is_empty()
+                {
+                    format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
@@ -672,7 +687,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 meta,
                 static_parameters: static_arguments,
                 target_type,
-                super_types,
+                implements_types,
                 with_clauses: with,
                 where_clauses,
                 expressions,
@@ -716,11 +731,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // target type
                 write!(f, [space(), target_type])?;
 
-                // super types
-                if let Some(super_types) = &super_types
-                    && !super_types.is_empty()
+                if let Some(implements_types) = &implements_types
+                    && !implements_types.is_empty()
                 {
-                    format_super_types(f, super_types)?;
+                    format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with

@@ -5,13 +5,13 @@ export struct Path2D {
     points: List<Vector2>
     isClosed: boolean
 
-    ..Form2D
+    ...Form2D
 }
 
 /// A PathShape is a shape that represents a polyline of multiple points.
 @entity
-export struct PathShape2D: Shape2D {
-    ..Path2D
+export struct PathShape2D extends Shape2D {
+    ...Path2D
 }
 
 /// A Polyline3D is a polygonal chain in 3D space.
@@ -19,11 +19,11 @@ export struct Polyline3D {
     points: List<Vector3>
     isClosed: boolean
 
-    ..Form3D
+    ...Form3D
 }
 
 /// A PolylineShape3D represents a polygonal chain in 3D space.
 @entity
-export struct PolylineShape3D: Shape3D {
-    ..Polyline3D
+export struct PolylineShape3D extends Shape3D {
+    ...Polyline3D
 }

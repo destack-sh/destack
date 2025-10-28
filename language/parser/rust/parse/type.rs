@@ -256,52 +256,65 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat super types maybe. May be parenthesized.
-    /// Accepts both `:` and `extends` keywords.
-    ///
-    /// Examples:
-    /// ```
-    /// : Foo
-    /// : Foo, Bar
-    /// : (Foo, Bar)
-    /// ```
-    pub fn eat_super_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
-        // accept both : and extends/implements keywords (for #Compatibility)
-        if self.peek_token(TokenType::Colon).is_ok()
-            || self.peek_keyword(Keyword::Extends).is_ok()
-            || self.peek_keyword(Keyword::Implements).is_ok()
-        {
-            self.bump(); // eat colon or keyword
-            let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                self.bump(); // eat open parenthesis
-                self.eat_newlines_maybe()?;
-                true
-            } else {
-                false
-            };
-            let super_types = self.eat_super_types()?;
-            if is_parenthesized {
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-            }
-            return Ok(Some(super_types));
+    /// Eat extends types maybe.
+    pub fn eat_extends_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+        // check for extends keyword before calling underlying implementation
+        if self.peek_keyword(Keyword::Extends).is_ok() {
+            self.bump(); // eat extends
+            self.eat_super_type_body_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
-    /// Eat super types.
-    ///
-    /// Examples:
-    /// ```
-    /// Foo
-    /// Foo, Bar<X>
-    /// ```
-    fn eat_super_types(&mut self) -> ParserResult<Vec<NodeId<Expression>>> {
-        let mut super_types: Vec<NodeId<Expression>> = Vec::new();
+    /// Eat implements types maybe.
+    #[inline]
+    pub fn eat_implements_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+        // check for implements keyword before calling underlying implementation
+        if self.peek_keyword(Keyword::Implements).is_ok() {
+            self.bump(); // eat implements
+            self.eat_super_type_body_maybe(&[Keyword::With, Keyword::Where])
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Eat a super type clause maybe.
+    #[inline]
+    fn eat_super_type_body_maybe(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+        let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.bump();
+            self.eat_newlines_maybe()?;
+            true
+        } else {
+            false
+        };
+        let types = self.with_options(self.options.in_super_type(), |parser| {
+            parser.eat_super_type_body(terminators)
+        })?;
+        if is_parenthesized {
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
+        }
+        Ok(Some(types))
+    }
+
+    /// Eat a type clause body (without the leading keyword).
+    fn eat_super_type_body(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParserResult<Vec<NodeId<Expression>>> {
+        let mut types: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // eat until open brace or close parenthesis
             if self.peek_token(TokenType::OpenBrace).is_ok()
                 || self.peek_token(TokenType::CloseParenthesis).is_ok()
+                || terminators
+                    .iter()
+                    .any(|terminator| self.peek_keyword(*terminator).is_ok())
             {
                 break;
             }
@@ -311,13 +324,13 @@ impl<'a> Parser<'a> {
             }
             // keep eating super types
             else {
-                let super_type = self.with_options(self.options.in_before_block(), |parser| {
+                let ty = self.with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
-                super_types.push(super_type);
+                types.push(ty);
             }
         }
-        Ok(super_types)
+        Ok(types)
     }
 }
 
