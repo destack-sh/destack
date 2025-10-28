@@ -931,12 +931,20 @@ impl Dump for Generics {
     }
 }
 
+/// Dump a FunctionAbstraction as a string.
+impl Dump for FunctionAbstraction {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a FunctionSignature as a structured object.
 impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("FunctionSignature")
             .field("runtime", &self.runtime)
+            .field("abstraction", &self.abstraction)
             .field("cardinality", &self.cardinality)
             .field_optional("kind", &self.kind)
             .field("style", &self.style)

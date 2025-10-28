@@ -828,6 +828,13 @@ impl Dump for FunctionKind {
     }
 }
 
+/// Dump a FunctionAbstraction as a string.
+impl Dump for FunctionAbstraction {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a MaybePosition as a string.
 impl Dump for PostfixPosition {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -941,6 +948,13 @@ impl Dump for ModuleFormat {
 
 /// Dump a VariantKind as a string.
 impl Dump for VariantKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a DeclarationScope as a string.
+impl Dump for DeclarationScope {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1677,6 +1691,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Function {
                 meta,
                 runtime,
+                abstraction,
                 asynchrony,
                 cardinality,
                 kind,
@@ -1692,6 +1707,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
                     .field("runtime", runtime)
+                    .field("abstraction", abstraction)
                     .field("asynchrony", asynchrony)
                     .field("cardinality", cardinality)
                     .field_optional("kind", kind)

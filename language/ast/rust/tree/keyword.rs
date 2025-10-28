@@ -94,6 +94,8 @@ pub enum Keyword {
     Implements,
     /// Satisfies.
     Satisfies,
+    /// Abstract modifier.
+    Abstract,
     /// Override.
     Override,
     /// Declare a tuple.
@@ -265,6 +267,7 @@ impl Keyword {
             Keyword::Extends => "extends",
             Keyword::Implements => "implements",
             Keyword::Satisfies => "satisfies",
+            Keyword::Abstract => "abstract",
             Keyword::Override => "override",
             Keyword::Tuple => "tuple",
             Keyword::Instanceof => "instanceof",
@@ -366,6 +369,7 @@ impl FromStr for Keyword {
             "extends" => Ok(Keyword::Extends),
             "implements" => Ok(Keyword::Implements),
             "satisfies" => Ok(Keyword::Satisfies),
+            "abstract" => Ok(Keyword::Abstract),
             "override" => Ok(Keyword::Override),
             "tuple" => Ok(Keyword::Tuple),
             "instanceof" => Ok(Keyword::Instanceof),

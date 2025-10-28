@@ -1,7 +1,8 @@
 //! Parse functions and closures.
 
 use dyst_ast::{
-    Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter,
+    Asynchrony, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionKind, NodeType,
+    Parameter,
 };
 
 use crate::parse::prelude::*;
@@ -174,6 +175,22 @@ impl<'a> Parser<'a> {
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
+        // abstraction
+        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok() {
+            self.bump(); // eat abstract keyword
+            if self.peek_keyword(Keyword::Override).is_ok() {
+                self.bump(); // eat override keyword
+                FunctionAbstraction::AbstractOverride
+            } else {
+                FunctionAbstraction::Abstract
+            }
+        } else if self.peek_keyword(Keyword::Override).is_ok() {
+            self.bump(); // eat override keyword
+            FunctionAbstraction::ConcreteOverride
+        } else {
+            FunctionAbstraction::Concrete
+        };
+
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
             self.bump(); // eat async keyword
@@ -341,10 +358,9 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
 
                 // return type
-                let return_type = self
-                    .with_options(self.options.nested_in_type(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let return_type = self.with_options(self.options.nested_in_type(), |parser| {
+                    parser.eat_expression()
+                })?;
 
                 // with
                 let with_clauses = self.eat_with_header_maybe()?;
@@ -425,6 +441,7 @@ impl<'a> Parser<'a> {
             Definition::Function {
                 meta,
                 runtime,
+                abstraction,
                 asynchrony,
                 cardinality,
                 kind,
