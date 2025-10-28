@@ -102,6 +102,10 @@ pub enum TypeBinaryOperator {
     Instanceof,
     /// `satisfies`
     Satisfies,
+    /// `extends`
+    Extends,
+    /// `implements`
+    Implements,
 }
 
 /// An Type in the type system.

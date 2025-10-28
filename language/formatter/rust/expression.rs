@@ -1207,6 +1207,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
             TypeBinaryOperator::Is => token("is"),
             TypeBinaryOperator::Instanceof => token("instanceof"),
             TypeBinaryOperator::Satisfies => token("satisfies"),
+            TypeBinaryOperator::Extends => token("extends"),
+            TypeBinaryOperator::Implements => token("implements"),
         };
         write!(f, [token])
     }

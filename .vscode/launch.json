@@ -9,6 +9,18 @@
             "stopOnEntry": true
         },
         {
+            "name": "destack_tokei",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["run", "--bin", "destack_cli"],
+                "filter": { "kind": "bin", "name": "destack_cli" }
+            },
+            "args": ["tokei"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "destack_cli_ast",
             "type": "lldb",
             "request": "launch",
