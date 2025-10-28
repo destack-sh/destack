@@ -865,9 +865,10 @@ impl<'a> Parser<'a> {
                     && self.peek_next_next_token(TokenType::Maybe).is_ok()
             {
                 self.eat_newlines_maybe()?; // eat newlines
-                // maybe (followed by a delimiter/stop)
+                // maybe (followed by a delimiter/stop, but not preceded by a newline)
                 if self.peek_token(TokenType::Maybe).is_ok()
                     && (self.peek_next_any_stop().is_ok()
+                        && self.prev_token_type() != Some(TokenType::Newline)
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
                         || self.peek_next_assign_operator().is_ok())
@@ -899,6 +900,7 @@ impl<'a> Parser<'a> {
                 // ternary if (we already have the condition)
                 else {
                     self.bump(); // eat ?
+                    self.eat_newlines_maybe()?;
                     // then expression
                     let then_expression_id = self
                         .with_options(self.options.in_ternary_condition(), |parser| {
@@ -1407,6 +1409,31 @@ const shapes = (
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+
+    /// Parse a ternary if expression over multiple lines with comments.
+    #[test]
+    fn test_parse_if_ternary_multiline_with_comments() {
+        let mut test = TestParser::new(
+            r#"
+ cond
+    ? // comment
+      a
+    : // comment
+      b"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            // cond
+            assert_expr_path!(parser, parser.tree.get(*condition), "cond");
+            // a
+            assert_expr_path!(parser, parser.tree.get(*then_expression), "a");
+            // b
+            assert_expr_path!(parser, parser.tree.get(else_expression.unwrap()), "b");
         });
     }
 

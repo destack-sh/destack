@@ -408,6 +408,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Get the previous Token type.
+    #[inline]
+    pub fn prev_token_type(&self) -> Option<TokenType> {
+        self.prev().map(|token| token.token.ty)
+    }
+
     /// Peek the next Token or error.
     #[inline]
     pub fn peek(&self) -> ParserResult<&TokenSpan> {
