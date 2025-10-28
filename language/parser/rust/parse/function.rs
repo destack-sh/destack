@@ -1,6 +1,8 @@
 //! Parse functions and closures.
 
-use dyst_ast::{Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter};
+use dyst_ast::{
+    Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, NodeType, Parameter,
+};
 
 use crate::parse::prelude::*;
 use crate::{ScopedMutability, TokenType};

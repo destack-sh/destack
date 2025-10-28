@@ -14,8 +14,6 @@ impl<'a> Parser<'a> {
     /// ```
     /// struct {} // empty anonymous struct
     ///
-    /// struct _ {} // explicit anonymous struct (for disambiguation)
-    ///
     /// struct A() // unit struct (no fields)
     ///
     /// struct Number(int32) // tuple struct (1 field)
@@ -72,7 +70,7 @@ impl<'a> Parser<'a> {
         };
 
         // optional name
-        meta.name = self.eat_name_or_wildcard_maybe()?;
+        meta.name = self.eat_name_maybe()?;
 
         // style / tuple struct
         let (kind, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {

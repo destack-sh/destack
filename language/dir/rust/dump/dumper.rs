@@ -1984,7 +1984,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 alias,
             } => {
                 self.node("DependencyItem::Glob", id.id)
-                    .field("ty", ty)
+                    .field("type", ty)
                     .field("target", target)
                     .field_optional("alias", alias)
                     .end();
@@ -1996,7 +1996,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 alias,
             } => {
                 self.node("DependencyItem::Scalar", id.id)
-                    .field("ty", ty)
+                    .field("type", ty)
                     .field_optional("target", target)
                     .field("name", name)
                     .field_optional("alias", alias)

@@ -101,8 +101,7 @@ impl<'a> Parser<'a> {
             // string
             "string" | "str" => Ok(TypeLiteral::String),
             // number
-            "number" => Ok(TypeLiteral::Number),
-            
+            "number" => Ok(TypeLiteral::Number),            
             // int (followed by number or nothing)
             "int" => Ok(TypeLiteral::Int(IntType {
                 width: None,
@@ -206,7 +205,7 @@ impl<'a> Parser<'a> {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
             let speculative_start = (self.mark(), self.tree.next_id());
-            meta.name = self.eat_name_or_wildcard_maybe()?;
+            meta.name = self.eat_name_maybe()?;
 
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;

@@ -52,13 +52,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a name or a wildcard maybe.
+    /// Eat a name maybe.
     #[inline]
-    pub fn eat_name_or_wildcard_maybe(&mut self) -> ParserResult<Option<Name>> {
-        if self.peek_token(TokenType::Wildcard).is_ok() {
-            self.bump();
-            Ok(None)
-        } else if self.peek_name().is_ok() {
+    pub fn eat_name_maybe(&mut self) -> ParserResult<Option<Name>> {
+        if self.peek_name().is_ok() {
             Ok(Some(self.eat_name()?))
         } else {
             Ok(None)

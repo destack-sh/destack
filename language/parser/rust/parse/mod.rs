@@ -32,6 +32,7 @@ mod visibility;
 mod r#where;
 mod with;
 
+pub use expression::*;
 pub use prelude::*;
 
 #[cfg(test)]
