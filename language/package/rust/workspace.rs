@@ -265,7 +265,7 @@ impl Workspace {
         content: Vec<u8>,
     ) -> SourceId {
         match format {
-            SourceFormat::Dyst | SourceFormat::DystText => {
+            SourceFormat::Dyst | SourceFormat::DystDeclaration | SourceFormat::DystText => {
                 let content = String::from_utf8_lossy(&content).to_string();
                 self.upsert_text_file(uri, format, is_open, content)
             }

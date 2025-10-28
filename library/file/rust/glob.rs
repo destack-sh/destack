@@ -5,12 +5,11 @@ use std::path::PathBuf;
 use crate::walk::{WalkOptions, walk};
 
 /// Match a glob-style `pattern` against raw `text` bytes.
-///The matcher works over byte slices so callers can supply UTF-8 or filesystem-encoded data:
+/// The matcher works over byte slices so callers can supply UTF-8 or filesystem-encoded data:
 /// - `*` keeps its classic greedy semantics
 /// - `?` matches a single byte, and
 /// - `**/` segment optionally consumes a directory
-/// - separator so that `**/*.rs` matches files in the root directory as well as
-/// - nested subdirectories.
+/// - separator so that `**/*.rs` matches files in the root directory as well as nested subdirectories.
 pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx: usize) -> bool {
     let pattern_length = pattern.len();
     let text_length = text.len();
@@ -132,6 +131,8 @@ mod tests {
         assert!(matches(b"src/*/mod.rs", 0, b"src/foo/mod.rs", 0));
         assert!(matches(b"?ain.rs", 0, b"main.rs", 0));
         assert!(!matches(b"*.rs", 0, b"main.py", 0));
+        assert!(matches(b"**/*.d.ds", 0, b"src/foo/bar/declaration.d.ds", 0));
+        assert!(!matches(b"**/*.ds", 0, b"src/foo/bar/declarationd.d.ds", 0));
     }
 
     #[test]

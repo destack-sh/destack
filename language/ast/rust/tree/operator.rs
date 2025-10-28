@@ -203,6 +203,7 @@ impl UnaryOperator {
     }
 }
 
+// nocheckin: add extends/implements TypeBinaryOperator
 /// A TypeBinaryOperator is a type binary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {

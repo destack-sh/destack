@@ -10,7 +10,29 @@ use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
 use crate::PackageId;
 
+/// Generic source file (`ds`)
+pub const SOURCE_FILE_NAME: &str = "ds";
+/// Generic source file extension (`.ds`)
+pub const SOURCE_FILE_EXTENSION: &str = ".ds";
+
+/// Generic source declaration file (`d.ds`)
+pub const SOURCE_DECLARATION_FILE_NAME: &str = "d.ds";
+/// Generic source declaration file extension (`.d.ds`)
+pub const SOURCE_DECLARATION_FILE_EXTENSION: &str = ".d.ds";
+
+/// Generic data file (`dst`)
+pub const DATA_FILE_NAME: &str = "dst";
+/// Generic data file extension (`.dst`)
+pub const DATA_FILE_EXTENSION: &str = ".dst";
+
+/// Generic binary file (`dsb`)
+pub const BINARY_FILE_NAME: &str = "dsb";
+/// Generic binary file extension (`.dsb`)
+pub const BINARY_FILE_EXTENSION: &str = ".dsb";
+
+/// Package file (`.dst`)
 pub const PACKAGE_FILE_NAME: &str = "package.dst";
+/// Module file (`.ds`)
 pub const MODULE_FILE_NAME: &str = "module.ds";
 
 /// The special intent of a file.
@@ -18,6 +40,8 @@ pub const MODULE_FILE_NAME: &str = "module.ds";
 pub enum FileIntent {
     /// Generic source file (`.ds`)
     Source,
+    /// Generic source declaration file (`.d.ds`)
+    SourceDeclaration,
     /// Generic data file (`.dst`, `.dsb`, `.dsx`)
     Data,
     /// Package file (`package.dst`)
@@ -51,7 +75,7 @@ pub struct File {
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum FileContent {
-    /// The content of a (text) SourceFile (e.g., `.ds` or `.dst`)
+    /// The content of a (text) SourceFile (e.g., `.ds`, `.d.ds`, or `.dst`)
     Source(SourceFile),
     /// The content of a BinaryFile (e.g., `.dsb` or `.dsx`)
     Binary(BinaryFile),
@@ -187,10 +211,13 @@ impl File {
             SourceFormat::Dyst => {
                 if name.eq(MODULE_FILE_NAME) {
                     FileIntent::Module
+                } else if name.ends_with(SOURCE_DECLARATION_FILE_EXTENSION) {
+                    FileIntent::SourceDeclaration
                 } else {
                     FileIntent::Source
                 }
             }
+            SourceFormat::DystDeclaration => FileIntent::SourceDeclaration,
             SourceFormat::DystText => {
                 if name.eq(PACKAGE_FILE_NAME) {
                     FileIntent::Package

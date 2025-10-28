@@ -32,8 +32,9 @@ fn bench_lex(c: &mut Criterion) {
     let mut ds_str: String = String::with_capacity(total_capacity);
     for path in ds_files.iter() {
         assert!(
-            path.extension().is_some() && path.extension().unwrap() == "ds",
-            "path does not end with .ds: {path:?}"
+            path.extension().is_some()
+                && (path.extension().unwrap() == "ds" || path.extension().unwrap() == "d.ds"),
+            "path does not end with .ds or .d.ds: {path:?}"
         );
         let content = fs::read_to_string(path).unwrap_or_default();
         if !content.is_empty() {

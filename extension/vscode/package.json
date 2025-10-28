@@ -1,7 +1,7 @@
 {
     "name": "destack-vscode",
     "displayName": "Destack & Dyst",
-    "description": "Destack & Dyst for VSCode (.ds, .dst, .dsb)",
+    "description": "Destack & Dyst for VSCode (.ds, .d.ds, .dst, .dsb)",
     "version": "2025.10.28-1",
     "license": "proprietary",
     "engines": {
@@ -71,7 +71,8 @@
                     "ds"
                 ],
                 "extensions": [
-                    ".ds"
+                    ".ds",
+                    ".d.ds"
                 ],
                 "configuration": "./dyst.json"
             },
