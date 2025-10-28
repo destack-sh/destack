@@ -148,6 +148,14 @@ impl ParserOptions {
         }
     }
 
+    /// Reset, set `in_type=true`.
+    pub(crate) fn nested_in_type(self) -> Self {
+        Self {
+            in_type: true,
+            ..Self::default()
+        }
+    }
+
     /// Reset, set `in_type=true` and `in_before_block=true`.
     pub(crate) fn nested_type_in_before_block(self) -> Self {
         Self {

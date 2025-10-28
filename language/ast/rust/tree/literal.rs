@@ -175,6 +175,8 @@ impl FloatType {
     }
 }
 
+// nocheckin TODO #Incomplete: parse/disambiguate composite types (use wildcard again?)
+
 /// A CompositeType represents composite types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompositeType {

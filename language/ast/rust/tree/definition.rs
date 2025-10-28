@@ -6,7 +6,7 @@ use crate::{
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
-// nocheckin: support override for definitions/bindings (merge/reuse BindingModifiers in definition?)
+// nocheckin TODO #Incomplete: support override/static for definitions/bindings (BindingModifiers->definition?)
 
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
