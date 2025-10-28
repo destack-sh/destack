@@ -207,12 +207,21 @@ impl<'a> Compiler<'a> {
                     expression: right,
                 }
             }
-            ast::Expression::Reference { mutability, right } => {
+            ast::Expression::Reference {
+                mutability,
+                variance,
+                right,
+            } => {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(source_id, ast, mutability));
+                let variance = variance.map(|variance| self.lower_variance_bound(variance));
                 let right = self.lower_expression(source_id, ast, *right);
-                Expression::Reference { mutability, right }
+                Expression::Reference {
+                    mutability,
+                    variance,
+                    right,
+                }
             }
             ast::Expression::Binary {
                 left,

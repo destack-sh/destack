@@ -917,6 +917,13 @@ impl Dump for DefinitionMeta {
     }
 }
 
+/// Dump a VarianceBound as a string.
+impl Dump for VarianceBound {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Generics as a structured object.
 impl Dump for Generics {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1410,18 +1417,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Reference {
                 mutability,
+                variance,
                 right: _,
             } => {
                 self.node("Expression::Reference", id.id)
                     .field_optional("mutability", mutability)
-                    .end();
-            }
-            Expression::Dynamic {
-                mutability,
-                right: _,
-            } => {
-                self.node("Expression::Dynamic", id.id)
-                    .field_optional("mutability", mutability)
+                    .field_optional("variance", variance)
                     .end();
             }
             Expression::Binary {
@@ -1781,18 +1782,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Type::Reference {
                 mutability,
+                variance,
                 right: _,
             } => {
                 self.node("Type::Reference", id.id)
                     .field_optional("mutability", mutability)
-                    .end();
-            }
-            Type::Dynamic {
-                mutability,
-                right: _,
-            } => {
-                self.node("Type::Dynamic", id.id)
-                    .field_optional("mutability", mutability)
+                    .field_optional("variance", variance)
                     .end();
             }
             Type::Binary {

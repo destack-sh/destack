@@ -117,8 +117,6 @@ pub enum TokenType {
     Maybe,
     /// `??`
     Coalesce,
-    /// `$`
-    Dynamic,
     /// `!`
     Not,
 
@@ -339,7 +337,6 @@ impl Display for TokenType {
             TokenType::ElementwiseNot => write!(f, "~"),
             TokenType::Maybe => write!(f, "?"),
             TokenType::Coalesce => write!(f, "??"),
-            TokenType::Dynamic => write!(f, "$"),
             TokenType::Not => write!(f, "!"),
 
             // parentheses
