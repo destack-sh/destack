@@ -972,7 +972,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // reference
-            Expression::Reference { mutability, right } => {
+            Expression::Reference {
+                mutability,
+                variance,
+                right,
+            } => {
                 write!(f, [token("&")])?;
                 if let Some(mutability) = mutability {
                     write!(
@@ -980,17 +984,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         [FormatScopedMutability::implicit_const(mutability.clone())]
                     )?;
                 }
-                right.format(f)?;
-            }
-
-            // dynamic
-            Expression::Dynamic { mutability, right } => {
-                write!(f, [token("$")])?;
-                if let Some(mutability) = mutability {
-                    write!(
-                        f,
-                        [FormatScopedMutability::implicit_const(mutability.clone())]
-                    )?;
+                if let Some(variance) = variance {
+                    write!(f, [variance.to_keyword(), space()])?;
                 }
                 right.format(f)?;
             }

@@ -1,7 +1,10 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem, DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
+    DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
+    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,11 +66,7 @@ pub enum Expression {
     /// Reference operation (e.g., `&x`).
     Reference {
         mutability: Option<ScopedMutability>,
-        right: NodeId<Expression>,
-    },
-    /// Dynamic operation (e.g., `$x`).
-    Dynamic {
-        mutability: Option<ScopedMutability>,
+        variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
     /// Binary operation.
@@ -240,7 +239,6 @@ impl Expression {
             | Expression::Unary { .. }
             | Expression::TypeBinary { .. }
             | Expression::Reference { .. }
-            | Expression::Dynamic { .. }
             | Expression::Binary { .. }
             | Expression::TypeUnary { .. }
             | Expression::AssignDirect { .. }
@@ -263,7 +261,7 @@ impl Expression {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopSource {
     /// For loop.
-    ForThree,
+    ForTriplet,
     /// For loop.
     ForEach,
     /// While loop.

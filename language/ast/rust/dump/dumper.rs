@@ -835,6 +835,13 @@ impl Dump for PostfixPosition {
     }
 }
 
+/// Dump a VarianceBound as a string.
+impl Dump for VarianceBound {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a IfStyle as a string.
 impl Dump for IfStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1464,18 +1471,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Reference {
                 mutability,
+                variance,
                 right: _,
             } => {
                 self.node("Expression::Reference", _id.id)
                     .field_optional("mutability", mutability)
-                    .end();
-            }
-            Expression::Dynamic {
-                mutability,
-                right: _,
-            } => {
-                self.node("Expression::Dynamic", _id.id)
-                    .field_optional("mutability", mutability)
+                    .field_optional("variance", variance)
                     .end();
             }
             Expression::Member { left: _, path } => {

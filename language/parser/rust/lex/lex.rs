@@ -326,7 +326,6 @@ impl Lexer<'_> {
                     (TokenType::Maybe, None)
                 }
             }
-            '$' => (TokenType::Dynamic, None),
 
             // brackets
             '(' => {

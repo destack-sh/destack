@@ -1,6 +1,8 @@
-use dyst_dir::{Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator};
-
 use crate::{Compiler, ResolveResult};
+use dyst_ast as ast;
+use dyst_dir::{
+    Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+};
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
@@ -16,6 +18,14 @@ impl<'a> Compiler<'a> {
         *ty = evaluated_ty;
 
         Ok(())
+    }
+
+    /// Lower a VarianceBound to a TypeUnaryOperator.
+    pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
+        match bound {
+            ast::VarianceBound::Extends => VarianceBound::Extends,
+            ast::VarianceBound::Super => VarianceBound::Super,
+        }
     }
 
     /// Try to Resolve an Expression as a Type id.
@@ -80,20 +90,17 @@ impl<'a> Compiler<'a> {
                 }
             }
             // reference
-            Expression::Reference { mutability, right } => {
+            Expression::Reference {
+                mutability,
+                variance,
+                right,
+            } => {
                 let mutability = mutability.clone();
+                let variance = variance.clone();
                 let type_id = self.try_resolve_expression_to_type(*right)?;
                 Type::Reference {
                     mutability,
-                    right: type_id,
-                }
-            }
-            // dynamic
-            Expression::Dynamic { mutability, right } => {
-                let mutability = mutability.clone();
-                let type_id = self.try_resolve_expression_to_type(*right)?;
-                Type::Dynamic {
-                    mutability,
+                    variance,
                     right: type_id,
                 }
             }

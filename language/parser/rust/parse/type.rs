@@ -1,4 +1,4 @@
-use dyst_ast::{DefinitionMeta, FloatType, Keyword, Mutability};
+use dyst_ast::{DefinitionMeta, FloatType, Keyword, Mutability, VarianceBound};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -6,6 +6,19 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
+    /// Eat a variance modifier maybe.
+    pub fn eat_variance_modifier_maybe(&mut self) -> ParserResult<Option<VarianceBound>> {
+        if self.peek_keyword(Keyword::Extends).is_ok() {
+            self.bump(); // eat extends
+            Ok(Some(VarianceBound::Extends))
+        } else if self.peek_keyword(Keyword::Super).is_ok() {
+            self.bump(); // eat super
+            Ok(Some(VarianceBound::Super))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Whether the token type can start an expression.
     fn is_start_of_expression(&self, token_str: &str, token_type: TokenType) -> bool {
         token_type == TokenType::OpenParenthesis
@@ -62,16 +75,14 @@ impl<'a> Parser<'a> {
         let next_next = self.peek_next();
         let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
 
-        // !, $, _
+        // !, _
         if (next_type == TokenType::Not
-            || next_type == TokenType::Dynamic
             || next_type == TokenType::Wildcard)
             // if next token doesn't start a related expression
             && (next_next_type.is_none() || !self.is_start_of_expression(self.get_span_str(next_next.unwrap().span), next_next_type.unwrap()))
         {
             return match next_type {
                 TokenType::Not => Ok(TypeLiteral::Never),
-                TokenType::Dynamic => Ok(TypeLiteral::Any),
                 TokenType::Wildcard => Ok(TypeLiteral::Infer),
                 _ => unreachable!(),
             };

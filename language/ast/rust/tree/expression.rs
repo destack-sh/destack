@@ -2,9 +2,9 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
-    DependencyItem, DependencyTarget, DependencyKind, ExportType, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    DependencyItem, DependencyKind, DependencyTarget, ExportType, Keyword, Mutability, Node,
+    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
+    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 /// An Expression is a generic container for value-producing forms.
@@ -540,12 +540,7 @@ pub enum Expression {
     /// Reference operation.
     Reference {
         mutability: Option<ScopedMutability>,
-        right: NodeId<Expression>,
-    },
-
-    /// Dynamic operation.
-    Dynamic {
-        mutability: Option<ScopedMutability>,
+        variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
 
@@ -693,6 +688,25 @@ pub enum PostfixPosition {
     Direct,
     // Dot postfix (like `x.?`)
     Indirect,
+}
+
+/// A TypeBound is a type bound for a reference operation.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum VarianceBound {
+    /// Extends a type (such that X is a subtype of Y, i.e. X <: Y).
+    Extends,
+    /// Super a type (such that X is a supertype of Y, i.e. X >: Y).
+    Super,
+}
+
+impl VarianceBound {
+    #[inline]
+    pub fn to_keyword(&self) -> Keyword {
+        match self {
+            VarianceBound::Extends => Keyword::Extends,
+            VarianceBound::Super => Keyword::Super,
+        }
+    }
 }
 
 /// The style of if expression.

@@ -188,14 +188,6 @@ pub enum Keyword {
     Get,
     /// Setter function (reserved).
     Set,
-    /// Unsafe expression (reserved).
-    Unsafe,
-    /// Move expression (reserved).
-    Move,
-    /// Dynamic expression (reserved).
-    Dynamic,
-    /// Virtual expression (reserved).
-    Virtual,
 }
 
 impl Keyword {
@@ -216,10 +208,6 @@ impl Keyword {
                 | Keyword::Await
                 | Keyword::Get
                 | Keyword::Set
-                | Keyword::Unsafe
-                | Keyword::Move
-                | Keyword::Dynamic
-                | Keyword::Virtual
                 | Keyword::Do
                 | Keyword::While
                 | Keyword::For
@@ -326,10 +314,6 @@ impl Keyword {
             Keyword::Await => "await",
             Keyword::Get => "get",
             Keyword::Set => "set",
-            Keyword::Unsafe => "unsafe",
-            Keyword::Move => "move",
-            Keyword::Dynamic => "dynamic",
-            Keyword::Virtual => "virtual",
         }
     }
 }
@@ -432,10 +416,6 @@ impl FromStr for Keyword {
             "await" => Ok(Keyword::Await),
             "get" => Ok(Keyword::Get),
             "set" => Ok(Keyword::Set),
-            "unsafe" => Ok(Keyword::Unsafe),
-            "move" => Ok(Keyword::Move),
-            "dynamic" => Ok(Keyword::Dynamic),
-            "virtual" => Ok(Keyword::Virtual),
 
             _ => Err(()),
         }

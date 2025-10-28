@@ -123,11 +123,7 @@ pub enum Type {
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
         mutability: Option<ScopedMutability>,
-        right: NodeId<Type>,
-    },
-    /// Dynamic type `$T` (any subtype or Into<T>).
-    Dynamic {
-        mutability: Option<ScopedMutability>,
+        variance: Option<VarianceBound>,
         right: NodeId<Type>,
     },
     /// Type binary operator.
@@ -189,6 +185,15 @@ pub struct Generics {
     pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
     /// The where clauses of the definition.
     pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
+}
+
+/// A TypeBound is a type bound for a reference operation.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum VarianceBound {
+    /// Extends a type (such that X is a subtype of Y, i.e. X <: Y).
+    Extends,
+    /// Super a type (such that X is a supertype of Y, i.e. X >: Y).
+    Super,
 }
 
 /// An IntType represents arbitrary width integer with signedness.

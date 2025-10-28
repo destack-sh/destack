@@ -108,7 +108,6 @@ impl SemanticType {
             TokenType::ElementwiseNot => SemanticType::Operator,
             TokenType::Maybe => SemanticType::Operator,
             TokenType::Coalesce => SemanticType::Operator,
-            TokenType::Dynamic => SemanticType::Operator,
             TokenType::Not => SemanticType::Operator,
 
             // --------------------------------------------------

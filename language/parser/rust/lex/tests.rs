@@ -92,7 +92,7 @@ fn test_lex_valid_weird_unicode() {
 #[test]
 fn test_lex_random_symbols() {
     assert_tokenize_eq_roundtrip!(
-        "a..b => c->d x _ : ? $ ! @ ~",
+        "a..b => c->d x _ : ? ! @ ~",
         // a
         Token::new(TokenType::Identifier, 1, None),
         // ..
@@ -127,10 +127,6 @@ fn test_lex_random_symbols() {
         Token::new(TokenType::Whitespace, 1, None),
         // ?
         Token::new(TokenType::Maybe, 1, None),
-        // (space)
-        Token::new(TokenType::Whitespace, 1, None),
-        // $
-        Token::new(TokenType::Dynamic, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // !

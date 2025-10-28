@@ -464,16 +464,13 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
                 let mutability = self.eat_scoped_mutability_maybe()?;
+                let variance = self.eat_variance_modifier_maybe()?;
                 let right = self.eat_expression()?;
-                let expression = Expression::Reference { mutability, right };
-                self.tree.insert(expression, self.get_span_from(start))
-            }
-            // dynamic (`$` or `$T` or `$type`)
-            else if self.peek_token(TokenType::Dynamic).is_ok() {
-                self.bump(); // eat $
-                let mutability = self.eat_scoped_mutability_maybe()?;
-                let right = self.eat_expression()?;
-                let expression = Expression::Dynamic { mutability, right };
+                let expression = Expression::Reference {
+                    mutability,
+                    variance,
+                    right,
+                };
                 self.tree.insert(expression, self.get_span_from(start))
             }
             //
@@ -1037,7 +1034,7 @@ mod tests {
     use dyst_ast::{
         Definition, DefinitionMeta, DependencyKind, DependencyTarget, ExportType, FunctionStyle,
         IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral, TypeUnaryOperator,
-        WithClause,
+        VarianceBound, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1832,6 +1829,19 @@ geom.Mesh<2, Dims: 4> {
                 );
             }
         );
+    }
+
+    /// Parse a bound reference expression.
+    #[test]
+    fn test_parse_bound_reference_expression() {
+        let mut test = TestParser::new("&const super T");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Reference { mutability: Some(mutability), variance, right, .. } => {
+            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*variance, Some(VarianceBound::Super));
+            assert_expr_path!(parser, parser.tree.get(*right), "T");
+        });
     }
 
     /// Parse a new constructor call.
