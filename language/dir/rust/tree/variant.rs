@@ -1,4 +1,6 @@
-use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type, Visibility};
+use crate::{
+    DeclarationScope, Expression, Mutability, Node, NodeId, NodeType, StringId, Type, Visibility,
+};
 
 /// The type of a binding (definite or maybe).
 #[derive(Debug, Copy, Clone, PartialEq)]

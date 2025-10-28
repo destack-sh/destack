@@ -1,8 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationKind, Definition, DefinitionMeta as DirDefinitionMeta, EmbeddedDefinition,
-    FunctionSignature, Generics, NodeId, StructStyle,
+    DeclarationKind, DeclarationScope, Definition, DefinitionMeta as DirDefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics, NodeId, StructStyle
 };
 use dyst_source::SourceId;
 
@@ -193,6 +192,7 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         runtime: ast::Runtime,
+        abstraction: ast::FunctionAbstraction,
         asynchrony: ast::Asynchrony,
         cardinality: ast::FunctionCardinality,
         kind: Option<ast::FunctionKind>,
@@ -202,6 +202,7 @@ impl<'a> Compiler<'a> {
         return_type: &Option<ast::NodeId<ast::Expression>>,
     ) -> FunctionSignature {
         let runtime = self.lower_runtime(runtime);
+        let abstraction = self.lower_function_abstraction(abstraction);
         let asynchrony = self.lower_asynchrony(asynchrony);
         let cardinality = self.lower_function_cardinality(cardinality);
         let kind = kind.map(|kind| self.lower_function_kind(kind));
@@ -218,6 +219,7 @@ impl<'a> Compiler<'a> {
             .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
         FunctionSignature {
             runtime,
+            abstraction,
             asynchrony,
             cardinality,
             kind,
@@ -489,6 +491,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Function {
                 meta,
                 runtime,
+                abstraction,
                 asynchrony,
                 cardinality,
                 kind,
@@ -513,6 +516,7 @@ impl<'a> Compiler<'a> {
                     source_id,
                     ast,
                     *runtime,
+                    *abstraction,
                     *asynchrony,
                     *cardinality,
                     *kind,

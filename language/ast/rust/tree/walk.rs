@@ -874,6 +874,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Function {
             meta: _,
+            abstraction: _,
             runtime: _,
             asynchrony: _,
             cardinality: _,

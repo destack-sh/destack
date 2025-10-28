@@ -1,8 +1,8 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use dyst_ast::{
-    DeclarationKind, DefinitionMeta, ExportType, IfStyle, PostfixPosition, TypeBinaryOperator,
-    TypeUnaryOperator,
+    DeclarationKind, DeclarationScope, DefinitionMeta, ExportType, IfStyle, PostfixPosition,
+    TypeBinaryOperator, TypeUnaryOperator,
 };
 
 use crate::parse::prelude::*;
@@ -253,6 +253,12 @@ impl<'a> Parser<'a> {
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
+        //
+        // ------------------------------------------------------------
+        // Modifiers
+        // ------------------------------------------------------------
+        //
+
         let mut meta: DefinitionMeta = DefinitionMeta::default();
 
         // export
@@ -265,7 +271,7 @@ impl<'a> Parser<'a> {
                 Some(ExportType::Item)
             };
 
-            // just parse the export if followed by import items
+            // just parse the export if followed by dependency items
             let keyword = self.peek_any_keyword().ok();
             if (keyword.is_none() || !DEFINITION_KEYWORDS.contains(&keyword.unwrap()))
                 && self.peek_import_clause().is_ok()
@@ -293,6 +299,14 @@ impl<'a> Parser<'a> {
             _ => None,
         };
 
+        // scope
+        meta.scope = if self.peek_keyword(Keyword::Static).is_ok() {
+            self.bump(); // eat static
+            DeclarationScope::Static
+        } else {
+            DeclarationScope::Container
+        };
+
         // runtime
         let mut runtime = if self.peek_token(TokenType::At).is_ok() {
             self.bump(); // eat @
@@ -300,6 +314,12 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
+        //
+        // ------------------------------------------------------------
+        // Main expression
+        // ------------------------------------------------------------
+        //
 
         let mut left_expression_id: NodeId<Expression> = {
             let token = *self.peek()?;
@@ -555,6 +575,8 @@ impl<'a> Parser<'a> {
             // function
             else if (keyword == Some(Keyword::Function)
                 || keyword == Some(Keyword::Async)
+                || keyword == Some(Keyword::Abstract)
+                || keyword == Some(Keyword::Override)
                 || (self.options.in_variant
                     && (keyword == Some(Keyword::Get)
                         || keyword == Some(Keyword::Set)

@@ -7,8 +7,8 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, ExportType, FunctionCardinality, FunctionKind, FunctionStyle,
-    StructStyle, Visibility,
+    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionStyle, StructStyle, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -761,6 +761,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Function {
                 meta,
                 runtime,
+                abstraction,
                 asynchrony,
                 cardinality,
                 kind,
@@ -786,6 +787,25 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // visibility
                 if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
+                }
+
+                // abstraction / static
+                if *abstraction == FunctionAbstraction::Abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                    if meta.scope == DeclarationScope::Static {
+                        write!(f, [Keyword::Static, space()])?;
+                    }
+                } else if *abstraction == FunctionAbstraction::AbstractOverride {
+                    write!(f, [Keyword::Abstract, space()])?;
+                    if meta.scope == DeclarationScope::Static {
+                        write!(f, [Keyword::Static, space()])?;
+                    }
+                    write!(f, [Keyword::Override, space()])?;
+                } else if *abstraction == FunctionAbstraction::ConcreteOverride {
+                    write!(f, [Keyword::Override, space()])?;
+                    if meta.scope == DeclarationScope::Static {
+                        write!(f, [Keyword::Static, space()])?;
+                    }
                 }
 
                 // asynchrony

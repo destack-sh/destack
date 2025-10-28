@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asynchrony, Expression, FunctionCardinality, FunctionKind, FunctionStyle, NodeId, Path,
-    PathBase, Runtime, Visibility,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle,
+    NodeId, Path, PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;
 
@@ -64,6 +64,20 @@ impl<'a> Compiler<'a> {
             ast::FunctionKind::Getter => FunctionKind::Getter,
             ast::FunctionKind::Setter => FunctionKind::Setter,
             ast::FunctionKind::Constructor => FunctionKind::Constructor,
+        }
+    }
+
+    /// Lower function abstraction into a DIR function abstraction.
+    #[inline]
+    pub fn lower_function_abstraction(
+        &self,
+        abstraction: ast::FunctionAbstraction,
+    ) -> FunctionAbstraction {
+        match abstraction {
+            ast::FunctionAbstraction::Abstract => FunctionAbstraction::Abstract,
+            ast::FunctionAbstraction::AbstractOverride => FunctionAbstraction::AbstractOverride,
+            ast::FunctionAbstraction::ConcreteOverride => FunctionAbstraction::ConcreteOverride,
+            ast::FunctionAbstraction::Concrete => FunctionAbstraction::Concrete,
         }
     }
 

@@ -1,8 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, DeclarationKind, DefinitionMeta, Expression, Keyword,
-    PostfixPosition,
+    BindingKind, BindingModifiers, DeclarationKind, DeclarationScope, DefinitionMeta, Expression, Keyword, PostfixPosition
 };
 
 use crate::TokenType;
@@ -230,7 +229,7 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            // modifiers (speculative lookahead)
+            // modifiers (semi-speculative lookahead)
             let modifier_start = self.mark();
             let kind = if self.peek_keyword(Keyword::Declare).is_ok() {
                 self.bump();
@@ -243,6 +242,12 @@ impl<'a> Parser<'a> {
                 Some(visibility)
             } else {
                 None
+            };
+            let scope = if self.peek_keyword(Keyword::Static).is_ok() {
+                self.bump();
+                DeclarationScope::Static
+            } else {
+                DeclarationScope::Container
             };
             if self.peek_keyword(Keyword::Readonly).is_ok() {
                 self.bump();
@@ -264,6 +269,7 @@ impl<'a> Parser<'a> {
             {
                 let meta: DefinitionMeta = DefinitionMeta {
                     kind,
+                    scope,
                     name: None,
                     export: None,
                     visibility,
@@ -284,6 +290,7 @@ impl<'a> Parser<'a> {
             {
                 let meta: DefinitionMeta = DefinitionMeta {
                     kind,
+                    scope,
                     name: None,
                     export: None,
                     visibility,

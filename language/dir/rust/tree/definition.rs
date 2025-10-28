@@ -277,6 +277,19 @@ pub enum FunctionKind {
     Constructor,
 }
 
+/// The abstraction level of a definition.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionAbstraction {
+    /// Abstract definition.
+    Abstract,
+    /// Abstract override.
+    AbstractOverride,
+    /// Concrete override.
+    ConcreteOverride,
+    /// Concrete definition.
+    Concrete,
+}
+
 /// The "self" parameter for a function (also accepts `this` and `&`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
@@ -302,6 +315,8 @@ pub enum FunctionStyle {
 pub struct FunctionSignature {
     /// The runtime of the function.
     pub runtime: Runtime,
+    /// The abstraction level of the function.
+    pub abstraction: FunctionAbstraction,
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,
     /// The cardinality of the function.

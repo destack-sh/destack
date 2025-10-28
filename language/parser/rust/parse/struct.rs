@@ -259,14 +259,14 @@ struct Foo<T: Numeric>: Boz {
     ..Bar
     ..Baz
     
-    public const x: int32 = 4
+    public static const x: int32 = 4
 
     a: T
     b?: T
     c: T?
     private d: int32 = 4
 
-    private function myFunc() { // nested declaration
+    private static function myFunc() { // nested declaration
     }
 }
 "###,
@@ -293,6 +293,7 @@ struct Foo<T: Numeric>: Boz {
                     assert_path!(parser, *path, "Numeric");
                 });
             });
+            
             // Boz
             assert!(super_types.is_some());
             let super_types = super_types.as_ref().unwrap();

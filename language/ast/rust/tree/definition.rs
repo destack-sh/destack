@@ -6,8 +6,6 @@ use crate::{
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
-// nocheckin TODO #Incomplete: support override/static for definitions/bindings (BindingModifiers->definition?)
-
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
@@ -17,11 +15,22 @@ pub enum DeclarationKind {
     Definition,
 }
 
+/// The scope of a binding (dynamic or static).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DeclarationScope {
+    /// Container scope (whatever contains the declaration).
+    Container,
+    /// Static scope (static in relation to the container).
+    Static,
+}
+
 /// The meta data for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DefinitionMeta {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
+    /// The scope of the declaration.
+    pub scope: DeclarationScope = DeclarationScope::Container,
     /// The name of the definition.
     pub name: Option<Name> = None,
     /// The visibility of the definition.
@@ -35,10 +44,16 @@ impl DefinitionMeta {
     pub fn new(name: Name) -> Self {
         Self {
             kind: DeclarationKind::Definition,
+            scope: DeclarationScope::Container,
             name: Some(name),
             visibility: None,
             export: None,
         }
+    }
+
+    /// Create a new definition meta with the given name and scope.
+    pub fn with_scope(self, scope: DeclarationScope) -> Self {
+        Self { scope, ..self }
     }
 }
 
@@ -340,6 +355,7 @@ pub enum Definition {
     Function {
         meta: DefinitionMeta,
         runtime: Runtime,
+        abstraction: FunctionAbstraction,
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
         kind: Option<FunctionKind>,
@@ -409,6 +425,19 @@ pub enum FunctionKind {
     Setter,
     /// Constructor function (alias).
     Constructor,
+}
+
+/// The abstraction level of a definition.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionAbstraction {
+    /// Abstract definition.
+    Abstract,
+    /// Abstract override.
+    AbstractOverride,
+    /// Concrete override.
+    ConcreteOverride,
+    /// Concrete definition.
+    Concrete,
 }
 
 impl FunctionKind {
