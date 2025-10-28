@@ -74,6 +74,10 @@ impl<'a> Parser<'a> {
         let next_type = next.token.ty;
         let next_next = self.peek_next();
         let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
+        let next_next_str = next_next
+            .as_ref()
+            .map(|next| self.get_span_str(next.span))
+            .ok();
 
         // !, _
         if (next_type == TokenType::Not
@@ -98,15 +102,7 @@ impl<'a> Parser<'a> {
             "string" | "str" => Ok(TypeLiteral::String),
             // number
             "number" => Ok(TypeLiteral::Number),
-            // Self
-            "Self"
-                // if next token doesn't start a related expression
-                if next_next_type.is_none()
-                    || next_next_type.unwrap() != TokenType::OpenBrace
-                    || self.options.in_before_block =>
-            {
-                Ok(TypeLiteral::Self_)
-            }
+            
             // int (followed by number or nothing)
             "int" => Ok(TypeLiteral::Int(IntType {
                 width: None,
@@ -149,15 +145,34 @@ impl<'a> Parser<'a> {
             float_str if let Some(width) = self.is_type_with_width("f", float_str) => {
                 Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
             }
+            // symbol
+            "symbol" => Ok(TypeLiteral::Symbol),
+            // unique symbol
+            "unique" if next_next_str == Some("symbol") => Ok(TypeLiteral::UniqueSymbol),
+            // Self
+            "Self"
+                // if next token doesn't start a related expression
+                if next_next_type.is_none()
+                    || next_next_type.unwrap() != TokenType::OpenBrace
+                    || self.options.in_before_block =>
+            {
+                Ok(TypeLiteral::Self_)
+            }
             // composite type
             _ => Err(ParserError::unexpected(next.span)),
         }
     }
 
     /// Eat a type literal and return its value.
-    pub fn eat_type_literal(&mut self) -> ParserResult<TypeLiteral> {
-        let literal = self.peek_type_literal()?;
+    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParserResult<TypeLiteral> {
+        let literal = match literal {
+            Some(literal) => literal,
+            None => self.peek_type_literal()?,
+        };
         self.bump();
+        if let TypeLiteral::UniqueSymbol = literal {
+            self.bump(); // eat second token
+        }
         Ok(literal)
     }
 

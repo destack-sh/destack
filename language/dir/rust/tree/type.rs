@@ -18,6 +18,10 @@ pub enum PrimitiveType {
     Int(IntType),
     /// Float type.
     Float(FloatType),
+    /// Symbol type.
+    Symbol,
+    /// Unique symbol type.
+    UniqueSymbol,
 }
 
 /// A CompositeType represents composite types.

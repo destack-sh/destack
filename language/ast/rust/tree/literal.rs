@@ -1,8 +1,6 @@
 use crate::{Argument, NodeId, Path, StringId};
 
 /// A ScalarLiteral is literal scalar value node.
-/// NOTE: for #Compatibility we parse multi-character `'aa'` as regular string literals.
-/// nocheckin: support Symbols
 ///
 /// Examples:
 /// ```
@@ -88,6 +86,8 @@ pub enum TemplateLiteral {
 /// float64
 /// boolean
 /// Self
+/// symbol
+/// unique symbol
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeLiteral {
@@ -121,6 +121,10 @@ pub enum TypeLiteral {
     Composite(CompositeType),
     /// Self type.
     Self_,
+    /// Symbol type.
+    Symbol,
+    /// Unique symbol type.
+    UniqueSymbol,
 }
 
 /// An IntType represents arbitrary width integer with signedness.
