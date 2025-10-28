@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // name
-        meta.name = self.eat_name_or_wildcard_maybe()?;
+        meta.name = self.eat_name_maybe()?;
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;

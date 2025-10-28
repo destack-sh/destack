@@ -70,8 +70,6 @@ pub enum Keyword {
     Enum,
     /// Declare a Union.
     Union,
-    /// Declare a Trait (alias to interface).
-    Trait,
     /// Declare an Interface.
     Interface,
     /// Declare a Function.
@@ -255,7 +253,6 @@ impl Keyword {
             Keyword::Class => "class",
             Keyword::Enum => "enum",
             Keyword::Union => "union",
-            Keyword::Trait => "trait",
             Keyword::Interface => "interface",
             Keyword::Function => "function",
             Keyword::Implement => "implement",
@@ -357,7 +354,6 @@ impl FromStr for Keyword {
             "class" => Ok(Keyword::Class),
             "enum" => Ok(Keyword::Enum),
             "union" => Ok(Keyword::Union),
-            "trait" => Ok(Keyword::Trait),
             "interface" => Ok(Keyword::Interface),
             "function" => Ok(Keyword::Function),
             "implement" => Ok(Keyword::Implement),

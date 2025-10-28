@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        meta.name = self.eat_name_or_wildcard_maybe()?;
+        meta.name = self.eat_name_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = self

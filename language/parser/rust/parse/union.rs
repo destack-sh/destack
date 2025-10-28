@@ -18,8 +18,6 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// union _ {} // explicit anonymous union (for disambiguation)
-    ///
     /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
     ///     A
     ///     B { x: int32, y: T } = 4
@@ -70,7 +68,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        meta.name = self.eat_name_or_wildcard_maybe()?;
+        meta.name = self.eat_name_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;

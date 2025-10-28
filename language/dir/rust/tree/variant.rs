@@ -5,7 +5,7 @@ use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type, Visi
 pub enum BindingKind {
     /// Definite binding (like `x: int32`).
     Must,
-    /// Maybe binding (like `T?`).
+    /// Maybe binding (like `x?: int32` or just `T?`).
     Maybe,
 }
 

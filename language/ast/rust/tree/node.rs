@@ -84,7 +84,7 @@ impl Debug for NodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeIdAny")
             .field("id", &self.id)
-            .field("ty", &self.ty)
+            .field("type", &self.ty)
             .finish()
     }
 }

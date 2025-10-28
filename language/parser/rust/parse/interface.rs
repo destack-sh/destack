@@ -14,8 +14,6 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// interface _ {} // explicit anonymous interface (for disambiguation)
-    ///
     /// interface Foo: Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
@@ -42,11 +40,11 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword_in(&[Keyword::Interface, Keyword::Trait])
+        self.eat_keyword(Keyword::Interface)
             .for_node_type(NodeType::Definition)?;
 
         // optional name
-        meta.name = self.eat_name_or_wildcard_maybe()?;
+        meta.name = self.eat_name_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;

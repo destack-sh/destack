@@ -11,7 +11,7 @@ use crate::{
     Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
 };
 
-static DEFINITION_KEYWORDS: [Keyword; 15] = [
+pub static DEFINITION_KEYWORDS: [Keyword; 14] = [
     Keyword::Namespace,
     Keyword::Module,
     Keyword::Struct,
@@ -20,13 +20,29 @@ static DEFINITION_KEYWORDS: [Keyword; 15] = [
     Keyword::Union,
     Keyword::Function,
     Keyword::Interface,
-    Keyword::Trait,
     Keyword::Type,
     Keyword::Const,
     Keyword::Readonly,
     Keyword::Let,
     Keyword::Var,
     Keyword::Implement,
+];
+
+pub static DEFINITION_START_TOKENS: [TokenType; 4] = [
+    TokenType::Identifier,
+    TokenType::OpenParenthesis,
+    TokenType::OpenBrace,
+    TokenType::LessThan,
+];
+
+pub static PATTERN_START_TOKENS: [TokenType; 7] = [
+    TokenType::Identifier,
+    TokenType::Literal,
+    TokenType::ElementwiseAnd,
+    TokenType::OpenParenthesis,
+    TokenType::OpenBrace,
+    TokenType::OpenBracket,
+    TokenType::Wildcard,
 ];
 
 // can't use anything with `<` or `>` in static arguments
@@ -485,31 +501,41 @@ impl<'a> Parser<'a> {
             //
 
             // module
-            else if keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace) {
+            else if (keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace))
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let module_id = self.eat_module(meta)?;
                 self.tree
                     .insert(Expression::Definition(module_id), self.get_span_from(start))
             }
-            // struct (or class for #Compatibility)
-            else if keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class) {
+            // struct / class
+            else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let struct_id = self.eat_struct(meta)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
             // enum
-            else if keyword == Some(Keyword::Enum) {
+            else if keyword == Some(Keyword::Enum)
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let enum_id = self.eat_enum(meta)?;
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
             // union
-            else if keyword == Some(Keyword::Union) {
+            else if keyword == Some(Keyword::Union)
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let union_id = self.eat_union(meta)?;
                 self.tree
                     .insert(Expression::Definition(union_id), self.get_span_from(start))
             }
             // interface
-            else if keyword == Some(Keyword::Interface) {
+            else if keyword == Some(Keyword::Interface)
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let interface_id = self.eat_interface(meta)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
@@ -517,7 +543,9 @@ impl<'a> Parser<'a> {
                 )
             }
             // implement
-            else if keyword == Some(Keyword::Implement) {
+            else if keyword == Some(Keyword::Implement)
+                && DEFINITION_START_TOKENS.contains(&next_token_type)
+            {
                 let implement_id = self.eat_implement(meta)?;
                 self.tree.insert(
                     Expression::Definition(implement_id),
@@ -1121,6 +1149,44 @@ type = type * 2
             });
         });
         parser.eat_newline().unwrap();
+    }
+
+    /// Parse keywords as fields and identifiers.
+    #[test]
+    fn test_parse_keywords_as_fields_and_identifiers() {
+        let mut test = TestParser::new(
+            "{ 
+    // can be used as both fields and bindings
+    namespace: namespace,
+    module: module,
+    struct: struct,
+    class: class,
+    enum: enum,
+    union: union,
+    interface: interface,
+    type: type,
+    implement: implement,
+    function: function,
+    constructor: constructor,
+    // can only be used as fields
+    let: 0,
+    var: 0,
+    new: 0,
+    delete: 0,
+    switch: 0,
+    case: 0,
+    default: 0,
+    do: 0,
+    while: 0,
+    for: 0,
+    loop: 0,
+    break: 0,
+    continue: 0,
+    match: 0,
+}",
+        );
+        let mut parser = test.prepare();
+        let _ = parser.eat_expression().unwrap();
     }
 
     /// Parse `export { bar, baz } from foo` through the expression parser.

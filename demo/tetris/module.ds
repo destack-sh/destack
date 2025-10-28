@@ -45,7 +45,6 @@ export struct Board {
 }
 
 implement Board {
-
     /// Check if a position is valid on the board.
     function isValidPosition(pos: Position) => boolean {
         pos.x >= 0 && pos.x < this.width && pos.y >= 0 && pos.y < this.height

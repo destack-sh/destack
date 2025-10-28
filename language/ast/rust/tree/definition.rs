@@ -6,6 +6,8 @@ use crate::{
     ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
+// nocheckin: support override for definitions/bindings (merge/reuse BindingModifiers in definition?)
+
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
@@ -71,8 +73,6 @@ pub enum Definition {
     ///
     /// struct {} // empty anonymous struct
     ///
-    /// struct _ {} // explicit anonymous struct (for disambiguation)
-    ///
     /// struct A() // unit struct (no fields)
     ///
     /// struct Number(int32) // tuple struct (1 field)
@@ -127,8 +127,6 @@ pub enum Definition {
     /// // anonymous enum (for use as a value)
     /// enum { Success, Failure }
     ///
-    /// enum _ {} // explicit anonymous enum (for disambiguation)
-    ///
     /// enum Foo {
     ///     A // colon optional
     ///     B
@@ -175,8 +173,6 @@ pub enum Definition {
     ///     myOtherField: boolean
     /// }
     ///
-    /// union _ {} // explicit anonymous union (for disambiguation)
-    ///
     /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
     ///     A
     ///     B { x: int32, y: T } = 4
@@ -213,8 +209,6 @@ pub enum Definition {
     /// interface { // anonymous interface
     ///     ...
     /// }
-    ///
-    /// interface _ {} // explicit anonymous interface (for disambiguation)
     ///
     /// interface Foo: Baz { // Foo extends Baz
     ///     ..Bar

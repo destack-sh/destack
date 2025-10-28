@@ -10,7 +10,8 @@ use crate::parse::prelude::*;
 
 use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
 
-pub(crate) static BINDING_MODIFIERS: [Keyword; 4] = [
+pub(crate) static BINDING_MODIFIERS: [Keyword; 5] = [
+    Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
     Keyword::Protected,
