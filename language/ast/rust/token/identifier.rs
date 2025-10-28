@@ -2,38 +2,55 @@ use std::borrow::Cow;
 
 use destack_unicode::xid::UnicodeXID;
 
-/// Checks if `c` is considered a whitespace according to Unicode `Pattern_White_Space``.
+/// Checks if `c` is considered whitespace per EcmaScript `WhiteSpace` or `LineTerminator`.
 pub fn is_whitespace(c: char) -> bool {
     matches!(
         c,
-        // usual ASCII suspects
-        '\u{0009}'   // \t
-			| '\u{000A}' // \n
-			| '\u{000B}' // vertical tab
-			| '\u{000C}' // form feed
-			| '\u{000D}' // \r
-			| '\u{0020}' // space
-			// NEXT LINE from latin1
-			| '\u{0085}'
-			// bidi markers
-			| '\u{200E}' // LEFT-TO-RIGHT MARK
-			| '\u{200F}' // RIGHT-TO-LEFT MARK
-			// dedicated whitespace characters from Unicode
-			| '\u{2028}' // LINE SEPARATOR
-			| '\u{2029}' // PARAGRAPH SEPARATOR
+        // ascii controls
+        '\u{0009}' // horizontal tab
+            | '\u{000A}' // line feed
+            | '\u{000B}' // vertical tab
+            | '\u{000C}' // form feed
+            | '\u{000D}' // carriage return
+            | '\u{0020}' // space
+            // latin-1 additions
+            | '\u{0085}' // next line
+            | '\u{00A0}' // no-break space
+            // ogham + quads/spaces
+            | '\u{1680}' // ogham space mark
+            | '\u{2000}' // en quad
+            | '\u{2001}' // em quad
+            | '\u{2002}' // en space
+            | '\u{2003}' // em space
+            | '\u{2004}' // three-per-em space
+            | '\u{2005}' // four-per-em space
+            | '\u{2006}' // six-per-em space
+            | '\u{2007}' // figure space
+            | '\u{2008}' // punctuation space
+            | '\u{2009}' // thin space
+            | '\u{200A}' // hair space
+            | '\u{2028}' // line separator
+            | '\u{2029}' // paragraph separator
+            | '\u{202F}' // narrow no-break space
+            | '\u{205F}' // medium mathematical space
+            | '\u{3000}' // ideographic space
+            | '\u{FEFF}' // byte order mark
+            // bidi markers maintained for compatibility
+            | '\u{200E}' // left-to-right mark
+            | '\u{200F}' // right-to-left mark
     )
 }
 
 /// Checks if `c` is valid as a first character of an identifier.
 #[inline]
 pub fn is_identifier_start(c: char) -> bool {
-    c == '_' || UnicodeXID::is_xid_start(c)
+    c == '_' || c == '$' || UnicodeXID::is_xid_start(c)
 }
 
 /// Checks if `c` is valid as a non-first character of an identifier.
 #[inline]
 pub fn is_identifier_continue(c: char) -> bool {
-    UnicodeXID::is_xid_continue(c)
+    c == '$' || UnicodeXID::is_xid_continue(c)
 }
 
 /// Checks if the passed string is lexically an identifier.
@@ -46,6 +63,7 @@ pub fn is_identifier(string: &str) -> bool {
         false
     }
 }
+
 /// Converts a string into a valid identifier by replacing invalid characters.
 ///
 /// If the first character is not a valid identifier start, `replacement` is prepended.
@@ -143,6 +161,9 @@ mod tests {
         assert!(is_identifier("snake_case"));
         assert!(is_identifier("SCREAMING_SNAKE"));
         assert!(is_identifier("a1b2c3"));
+        assert!(is_identifier("$"));
+        assert!(is_identifier("$foo"));
+        assert!(is_identifier("foo\u{200C}bar"));
     }
 
     /// Invalid identifiers should be rejected correctly.
@@ -153,6 +174,7 @@ mod tests {
         assert!(!is_identifier("123abc"));
         assert!(!is_identifier("hello-world"));
         assert!(!is_identifier("hello world"));
+        assert!(!is_identifier("$ foo"));
     }
 
     /// Already valid identifiers should remain unchanged.
@@ -161,6 +183,8 @@ mod tests {
         assert_eq!(to_identifier("foo", '_'), "foo");
         assert_eq!(to_identifier("_bar", '_'), "_bar");
         assert_eq!(to_identifier("baz123", '_'), "baz123");
+        assert_eq!(to_identifier("$qux", '_'), "$qux");
+        assert_eq!(to_identifier("foo$bar", '_'), "foo$bar");
     }
     /// Invalid start characters should get replacement prepended.
     #[test]
@@ -198,6 +222,8 @@ mod tests {
         assert_eq!(clean_identifier("foo"), "foo");
         assert_eq!(clean_identifier("_bar"), "_bar");
         assert_eq!(clean_identifier("baz123"), "baz123");
+        assert_eq!(clean_identifier("$foo"), "$foo");
+        assert_eq!(clean_identifier("foo$bar"), "foo$bar");
     }
 
     /// Invalid characters should be cleaned out.
@@ -216,13 +242,31 @@ mod tests {
         assert_eq!(clean_identifier("9hello"), "hello");
         assert_eq!(clean_identifier("-world"), "world");
         assert_eq!(clean_identifier("*var T"), "varT");
+        assert_eq!(clean_identifier("$ foo"), "$foo");
     }
 
-    /// Empty or all-invalid input should return empty string.
+    /// Empty or all-invalid input should return empty string; otherwise keep the valid suffix.
     #[test]
     fn test_clean_identifier_empty_result() {
         assert_eq!(clean_identifier(""), "");
         assert_eq!(clean_identifier("123"), "");
-        assert_eq!(clean_identifier("@#$"), "");
+        assert_eq!(clean_identifier("@#"), "");
+        assert_eq!(clean_identifier("@#$"), "$");
+    }
+
+    /// EcmaScript whitespace characters should be recognized.
+    #[test]
+    fn test_is_whitespace_ecmascript() {
+        assert!(is_whitespace('\u{0020}'));
+        assert!(is_whitespace('\u{00A0}'));
+        assert!(is_whitespace('\u{1680}'));
+        assert!(is_whitespace('\u{2007}'));
+        assert!(is_whitespace('\u{2028}'));
+        assert!(is_whitespace('\u{202F}'));
+        assert!(is_whitespace('\u{205F}'));
+        assert!(is_whitespace('\u{3000}'));
+        assert!(is_whitespace('\u{FEFF}'));
+        assert!(!is_whitespace('$'));
+        assert!(!is_whitespace('a'));
     }
 }
