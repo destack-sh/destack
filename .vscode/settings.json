@@ -11,19 +11,11 @@
     "typescript.tsdk": "node_modules/typescript/lib",
     "css.lint.unknownAtRules": "ignore",
     "scss.lint.unknownAtRules": "ignore",
-    "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_cli",
+    "destack.server.command": "/Users/florian/symbol/destack/target/release/destack_cli",
     "destack.server.cwd": "/Users/florian/symbol/destack",
     "destack.server.args": ["lsp"],
     "rust-analyzer.cargo.features": [],
     "rust-analyzer.cargo.noDefaultFeatures": true,
-    "rust-analyzer.checkOnSave.extraArgs": [
-        "-p",
-        "destack_cli",
-        "-p",
-        "dyst_parser",
-        "-p",
-        "dyst_compiler"
-    ],
     "rust-analyzer.checkOnSave.allTargets": false,
     "editor.semanticHighlighting.enabled": true,
     "[dyst]": {

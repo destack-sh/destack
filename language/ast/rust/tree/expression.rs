@@ -50,6 +50,7 @@ pub enum Expression {
     /// import * from foo // same as `import foo`
     /// import * as foo from foo // same as `import foo as foo`
     /// import { bar, baz } from foo
+    /// import Default, { type Item } from `foo` // nocheckin: support this import style
     /// import foo.{} // valid but linted
     /// import foo as baz with { bar: true } // arguments
     /// await import("foo")

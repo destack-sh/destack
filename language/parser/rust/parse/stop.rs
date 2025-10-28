@@ -234,15 +234,17 @@ impl<'a> Parser<'a> {
 
         // we should start at the open token
         #[cfg(debug_assertions)]
-        let first_token = self
-            .tokens
-            .get(pos)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End);
-        debug_assert_eq!(
-            first_token, open_token,
-            "expected open token {open_token:?} but got {first_token:?}"
-        );
+        {
+            let first_token = self
+                .tokens
+                .get(pos)
+                .map(|token| token.token.ty)
+                .unwrap_or(TokenType::End);
+            debug_assert_eq!(
+                first_token, open_token,
+                "expected open token {open_token:?} but got {first_token:?}"
+            );
+        }
 
         // seek until we find the matching close token
         while let Some(token) = self.tokens.get(pos) {

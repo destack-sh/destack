@@ -465,8 +465,10 @@ impl<'a> Parser<'a> {
                     && !ignore_span.contains(&prev_token.span)
                 {
                     break Some(prev_token);
-                } else {
+                } else if prev_token_idx > 0 {
                     prev_token_idx -= 1;
+                } else {
+                    break None;
                 }
             }
         } else {
