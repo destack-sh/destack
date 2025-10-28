@@ -660,10 +660,12 @@ impl<'a> Parser<'a> {
                 {
                     // postfix modifiers
                     let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    modifiers = match modifiers {
-                        Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
-                        None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
-                    };
+                    if is_maybe {
+                        modifiers = match modifiers {
+                            Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
+                            None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
+                        };
+                    }
                     // function
                     let function_id = self
                         .eat_function(DefinitionMeta::default(), is_maybe, false)

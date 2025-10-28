@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 let fields = self
-                    .eat_variant_body()
+                    .eat_variant_body_fields()
                     .for_node_type(NodeType::UnionField)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 UnionField::Tuple {
@@ -195,7 +195,7 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
                 let fields = self
-                    .eat_variant_body()
+                    .eat_variant_body_fields()
                     .for_node_type(NodeType::UnionField)?;
                 self.eat_token(TokenType::CloseBrace)?;
                 UnionField::Struct {

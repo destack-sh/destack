@@ -524,6 +524,7 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Async)
                 || keyword == Some(Keyword::Get)
                 || keyword == Some(Keyword::Set)
+                || keyword == Some(Keyword::Constructor)
             {
                 let function_id = self.eat_function(meta, false, false)?;
                 self.tree.insert(

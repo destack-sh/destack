@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
         let (kind, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
             let tuple_fields = self
-                .eat_variant_body()
+                .eat_variant_body_fields()
                 .for_node_type(NodeType::Definition)?;
             self.eat_token(TokenType::CloseParenthesis)
                 .for_node_type(NodeType::Definition)?;
@@ -378,6 +378,28 @@ struct Foo with Context where Guard > Limit {
                     assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_struct_with_private_function_shorthand() {
+        let mut test = TestParser::new(
+            r###"
+struct Foo {
+    private enqueue<M extends F<"mutation">>() {
+        throw new Error("Not implemented");
+    }
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, fields, expressions, .. } => {
+            assert_eq!(meta.kind, DeclarationKind::Definition);
+            assert_eq!(fields.len(), 0);
+            assert_eq!(expressions.len(), 1);
         });
     }
 }
