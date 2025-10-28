@@ -53,7 +53,7 @@ impl<'a> Compiler<'a> {
                         .map(|argument| self.lower_argument(source_id, ast, *argument))
                         .collect()
                 });
-                let kind = self.lower_dependency_type(source_id, ast, *kind);
+                let kind = self.lower_dependency_kind(source_id, ast, *kind);
                 let definition = Definition::Import {
                     kind,
                     asynchrony,
