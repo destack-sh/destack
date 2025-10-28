@@ -122,6 +122,7 @@ impl<'a> Compiler<'a> {
                 let kind = self.lower_dependency_type(source_id, ast, *kind);
                 Expression::Import {
                     kind,
+                    asynchrony,
                     items,
                     arguments,
                 }

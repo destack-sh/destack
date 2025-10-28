@@ -1,10 +1,7 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Definition, DependencyItem, DependencyKind,
-    Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter,
-    Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem, DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,6 +19,7 @@ pub enum Expression {
     /// Import dependency declaration (flattened for grouped items like `import foo.{bar, baz}`)
     Import {
         kind: DependencyKind,
+        asynchrony: Asynchrony,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },

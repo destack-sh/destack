@@ -55,6 +55,16 @@ ws.on('todos:update', (changes) => {
     ]]
 />
 
+const MyApp = {
+    utils: {
+        clamp(x, min, max) { return Math.min(max, Math.max(min, x)); },
+        lerp(a, b, t) { return a + (b - a) * t; }
+    },
+    version: "1.0"
+};
+
+console.log(MyApp.utils.clamp(5, 0, 10));
+
 export interface X {
     reason: 
         | "URL"

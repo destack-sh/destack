@@ -1351,11 +1351,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Import {
                 kind,
+                asynchrony,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
                     .field("kind", kind)
+                    .field("asynchrony", asynchrony)
                     .end();
             }
             Expression::Export {

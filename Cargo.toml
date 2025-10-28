@@ -18,6 +18,7 @@ members = [
 	"language/prelude",
 	"language/source",
 	"language/string",
+	"language/test",
 	# library
 	"library/access",
 	"library/animation",
@@ -61,7 +62,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.10.27-0"
+version = "2025.10.28-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -87,6 +88,7 @@ dyst_prelude = { path = "language/prelude" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
 dyst_string = { path = "language/string" }
+dyst_test = { path = "language/test" }
 # library
 destack_access = { path = "library/access" }
 destack_animation = { path = "library/animation" }

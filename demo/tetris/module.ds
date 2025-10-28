@@ -36,56 +36,57 @@ export struct Board {
     width: int32 = 10
     height: int32 = 20
     cells: Cell[][]
-}
 
-implement Board {
     /// Create a new empty board.
     function new(width: int32, height: int32) => Board {
         const cells = Cell[width][height]
         Board { width, height, cells }
     }
+}
+
+implement Board {
 
     /// Check if a position is valid on the board.
-    function isValidPosition(self, pos: Position) => boolean {
-        pos.x >= 0 && pos.x < self.width && pos.y >= 0 && pos.y < self.height
+    function isValidPosition(pos: Position) => boolean {
+        pos.x >= 0 && pos.x < this.width && pos.y >= 0 && pos.y < this.height
     }
 
     /// Check if a cell is filled at the given position.
-    function isFilled(self, pos: Position) => boolean {
-        if !self.isValidPosition(pos) {
+    function isFilled(pos: Position) => boolean {
+        if !this.isValidPosition(pos) {
             return true
         }
-        self.cells[pos.y][pos.x].isFilled
+        this.cells[pos.y][pos.x].isFilled
     }
 
     /// Set a cell at the given position.
-    function setCell(&var self, pos: Position, color: Color) {
-        if self.isValidPosition(pos) {
-            self.cells[pos.y][pos.x] = Cell { isFilled: true, color }
+    function setCell(pos: Position, color: Color) {
+        if this.isValidPosition(pos) {
+            this.cells[pos.y][pos.x] = Cell { isFilled: true, color }
         }
     }
 
     /// Clear completed lines and return the number cleared.
-    function clearLines(&var self) => int32 {
+    function clearLines() => int32 {
         const linesCleared = 0
-        const y = self.height - 1
+        const y = this.height - 1
         while y >= 0 {
             const isComplete = true
-            for x in 0..self.width {
-                if !self.cells[y][x].isFilled {
+            for x in 0..this.width {
+                if !this.cells[y][x].isFilled {
                     isComplete = false
                     break
                 }
             }
             if isComplete {
                 // remove this line
-                self.cells.remove(y)
+                this.cells.remove(y)
                 // add new empty line at top
-                const newRow: List<Cell> = Cell[self.width]
-                for x in 0..self.width {
+                const newRow: List<Cell> = Cell[this.width]
+                for x in 0..this.width {
                     newRow.push(Cell { isFilled: false, color: null })
                 }
-                self.cells.append(0, newRow)
+                this.cells.append(0, newRow)
                 linesCleared += 1
             } else {
                 y -= 1
@@ -138,7 +139,7 @@ implement TetrisPiece {
 
     /// Get the color of the Tetris piece.
     function getColor(self) => Color {
-        match self.shape {
+        match this.shape {
             TetrisPieceShape.I => Color.Blue
             TetrisPieceShape.J => Color.Red
             TetrisPieceShape.L => Color.Orange
@@ -289,16 +290,19 @@ implement TetrisPiece {
     }
 
     /// Rotate the piece clockwise.
-    function rotate(&var self) {
-        self.rotation = self.rotation + 1 % 4
-        self.blocks = TetrisPiece.getBlocksForShape(self.shape, self.rotation)
+    function rotate(self) {
+        this.rotation = this.rotation + 1 % 4
+        this.blocks = TetrisPiece.getBlocksForShape(this.shape, this.rotation)
     }
 
     /// Get absolute positions of blocks given a base position.
     function getAbsolutePositions(self, basePos: Position) => Position[] {
         const positions = []
-        for block in self.blocks {
-            positions.push(Position { x: basePos.x + block.x, y: basePos.y + block.y })
+        for block in this.blocks {
+            positions.push(Position {
+                x: basePos.x + block.x,
+                y: basePos.y + block.y,
+            })
         }
         positions
     }
@@ -322,22 +326,22 @@ implement TetrisGame: New {
     }
 
     /// Spawn a new piece at the top of the board.
-    function spawnPiece(&var self, shape: TetrisPieceShape) {
+    function spawnPiece(shape: TetrisPieceShape) {
         const piece = TetrisPiece.new(shape)
-        self.currentPiece = piece
-        self.currentPosition = Position { x: 4, y: 0 }
+        this.currentPiece = piece
+        this.currentPosition = Position { x: 4, y: 0 }
         // check if game over
-        if self.collidesWith(self.currentPosition) {
-            self.state = GameState.GameOver
+        if this.collidesWith(this.currentPosition) {
+            this.state = GameState.GameOver
         }
     }
 
     /// Check if the current piece would collide at the given position.
-    function collidesWith(self, pos: Position) => boolean {
-        if const Some(piece) = self.currentPiece {
+    function collidesWith(pos: Position) => boolean {
+        if const Some(piece) = this.currentPiece {
             const absolutePositions = piece.getAbsolutePositions(pos)
             for blockPos in absolutePositions {
-                if self.board.isFilled(blockPos) {
+                if this.board.isFilled(blockPos) {
                     return true
                 }
             }
@@ -346,25 +350,30 @@ implement TetrisGame: New {
     }
 
     /// Try to move the current piece in the given direction.
-    function tryMove(&var self, dx: int32, dy: int32) => boolean {
-        const newPosition =
-            Position { x: self.currentPosition.x + dx, y: self.currentPosition.y + dy }
-        if !self.collidesWith(newPosition) {
-            self.currentPosition = newPosition
+    function tryMove(dx: int32, dy: int32) => boolean {
+        const newPosition = Position {
+            x: this.currentPosition.x + dx,
+            y: this.currentPosition.y + dy,
+        }
+        if !this.collidesWith(newPosition) {
+            this.currentPosition = newPosition
             return true
         }
         false
     }
 
     /// Try to rotate the current piece.
-    function tryRotate(&var self) => boolean {
-        if const Some(&var piece) = self.currentPiece {
-            const oldRotation = piece.rotation
-            piece.rotate()
-            if self.collidesWith(self.currentPosition) {
+    function tryRotate() => boolean {
+        if this.currentPiece != null {
+            const oldRotation = this.currentPiece.rotation
+            this.currentPiece.rotate()
+            if this.collidesWith(this.currentPosition) {
                 // rotation failed, revert
-                piece.rotation = oldRotation
-                piece.blocks = TetrisPiece.getBlocksForShape(piece.shape, oldRotation)
+                this.currentPiece.rotation = oldRotation
+                this.currentPiece.blocks = TetrisPiece.getBlocksForShape(
+                    this.currentPiece.shape,
+                    oldRotation,
+                )
                 false
             } else {
                 true
@@ -375,118 +384,113 @@ implement TetrisGame: New {
     }
 
     /// Lock the current piece to the board.
-    function lockPiece(&var self) {
-        if const Some(piece) = self.currentPiece {
-            const absolutePositions = piece.getAbsolutePositions(self.currentPosition)
+    function lockPiece() {
+        if const Some(piece) = this.currentPiece {
+            const absolutePositions = piece.getAbsolutePositions(this.currentPosition)
             const color = piece.getColor()
             for pos in absolutePositions {
-                self.board.setCell(pos, color)
+                this.board.setCell(pos, color)
             }
             // clear completed lines
-            const cleared = self.board.clearLines()
-            self.linesCleared += cleared
+            const cleared = this.board.clearLines()
+            this.linesCleared += cleared
             // update score based on lines cleared
             match cleared {
-                1 => self.score += 100 * self.level
-                2 => self.score += 300 * self.level
-                3 => self.score += 500 * self.level
-                4 => self.score += 800 * self.level
+                1 => this.score += 100 * this.level
+                2 => this.score += 300 * this.level
+                3 => this.score += 500 * this.level
+                4 => this.score += 800 * this.level
                 _ => { }
             }
             // update level every 10 lines
-            self.level = self.linesCleared / 10 + 1
-            self.dropInterval = 1.0 - self.level - 1 * 0.1
-            if self.dropInterval < 0.1 {
-                self.dropInterval = 0.1
+            this.level = this.linesCleared / 10 + 1
+            this.dropInterval = 1.0 - this.level - 1 * 0.1
+            if this.dropInterval < 0.1 {
+                this.dropInterval = 0.1
             }
-            self.currentPiece = null
+            this.currentPiece = null
         }
     }
 
     /// Handle input for moving left.
-    function moveLeft(&var self) {
-        if self.state == GameState.Playing {
-            self.tryMove(-1, 0)
+    function moveLeft() {
+        if this.state == GameState.Playing {
+            this.tryMove(-1, 0)
         }
     }
 
     /// Handle input for moving right.
-    function moveRight(&var self) {
-        if self.state == GameState.Playing {
-            self.tryMove(1, 0)
+    function moveRight() {
+        if this.state == GameState.Playing {
+            this.tryMove(1, 0)
         }
     }
 
     /// Handle input for soft drop.
-    function softDrop(&var self) {
-        if self.state == GameState.Playing {
-            if self.tryMove(0, 1) {
-                self.score += 1
+    function softDrop() {
+        if this.state == GameState.Playing {
+            if this.tryMove(0, 1) {
+                this.score += 1
             }
         }
     }
 
     /// Handle input for hard drop.
-    function hardDrop(&var self) {
-        if self.state == GameState.Playing {
+    function hardDrop() {
+        if this.state == GameState.Playing {
             const dropDistance = 0
-            while self.tryMove(0, 1) {
+            while this.tryMove(0, 1) {
                 dropDistance += 1
             }
-            self.score += dropDistance * 2
-            self.lockPiece()
+            this.score += dropDistance * 2
+            this.lockPiece()
         }
     }
 
     /// Handle input for rotation.
-    function rotatePiece(&var self) {
-        if self.state == GameState.Playing {
-            self.tryRotate()
+    function rotatePiece() {
+        if this.state == GameState.Playing {
+            this.tryRotate()
         }
     }
 
     /// Get a random piece shape.
     function getRandomShape(random: &Random) => TetrisPieceShape {
-        const shapes =
-            [
-                TetrisPieceShape.I,
-                TetrisPieceShape.J,
-                TetrisPieceShape.L,
-                TetrisPieceShape.O,
-                TetrisPieceShape.S,
-                TetrisPieceShape.T,
-                TetrisPieceShape.Z,
-            ]
+        const shapes = [
+            TetrisPieceShape.I,
+            TetrisPieceShape.J,
+            TetrisPieceShape.L,
+            TetrisPieceShape.O,
+            TetrisPieceShape.S,
+            TetrisPieceShape.T,
+            TetrisPieceShape.Z,
+        ]
         shapes[random.range(0, 7)]
     }
 }
 
 implement TetrisGame: Tick {
-    function tick(&var self) with Time, &Random {
+    function tick() with Time, &Random {
         // spawn initial piece if needed
-        if self.currentPiece == null {
-            const shape = if const Some(next) = self.nextPiece {
+        if this.currentPiece == null {
+            const shape = if const Some(next) = this.nextPiece {
                 const nextShape = next.shape
-                self.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
                 nextShape
             } else {
-                self.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
                 TetrisGame.getRandomShape(random)
             }
-            self.spawnPiece(shape)
+            this.spawnPiece(shape)
         }
         // handle automatic dropping
-        self.dropTimer += time.deltaTime
-        if self.dropTimer >= self.dropInterval {
-            self.dropTimer = 0.0
-            if !self.tryMove(0, 1) {
+        this.dropTimer += time.deltaTime
+        if this.dropTimer >= this.dropInterval {
+            this.dropTimer = 0.0
+            if !this.tryMove(0, 1) {
                 // piece can't move down, lock it
-                self.lockPiece()
+                this.lockPiece()
             }
         }
     }
-}
-
-implement TetrisGame: Draw {
-    function draw(self) { }
 }
