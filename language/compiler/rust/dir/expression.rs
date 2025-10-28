@@ -119,7 +119,7 @@ impl<'a> Compiler<'a> {
                         .map(|argument| self.lower_argument(source_id, ast, *argument))
                         .collect()
                 });
-                let kind = self.lower_dependency_type(source_id, ast, *kind);
+                let kind = self.lower_dependency_kind(source_id, ast, *kind);
                 Expression::Import {
                     kind,
                     asynchrony,
@@ -143,7 +143,7 @@ impl<'a> Compiler<'a> {
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
-                let kind = self.lower_dependency_type(source_id, ast, *kind);
+                let kind = self.lower_dependency_kind(source_id, ast, *kind);
                 Expression::Export {
                     mode: self.lower_export_mode(*mode),
                     kind,

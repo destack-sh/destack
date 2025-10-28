@@ -1,4 +1,3 @@
-//! Parse import and with declarations.
 use dyst_ast::{Asynchrony, DependencyKind, DependencyTarget, ExportType, ScalarLiteral};
 use dyst_source::StringId;
 
@@ -17,6 +16,7 @@ impl<'a> Parser<'a> {
     /// import foo.bar
     /// import foo.{bar, baz}
     /// import { bar, baz } from foo
+    /// import Default, { type Item } from `foo`
     /// import foo.{} // valid but linted
     /// import foo as baz
     /// await import("foo")
@@ -220,6 +220,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// { foo, bar }
     /// { foo, bar } from baz
+    /// Foo, { type Bar } from baz
     /// * as foo from baz
     /// foo
     /// foo as bar
@@ -270,6 +271,18 @@ impl<'a> Parser<'a> {
             self.eat_keyword(Keyword::From)?;
             let target = Some(self.eat_dependency_target()?);
             Ok((target, alias, None))
+        }
+        // `Foo, { ... } from bar`
+        else if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Comma).is_ok() {
+            // `Foo`
+            let alias = self.eat_identifier()?;
+            self.eat_token(TokenType::Comma)?;
+            // `{ ... }`
+            let items = self.eat_dependency_items_block(ty)?;
+            // `from`
+            self.eat_keyword(Keyword::From)?;
+            let target = Some(self.eat_dependency_target()?);
+            Ok((target, Some(alias), Some(items)))
         }
         // `foo` or `foo as bar` or `foo.{a, b}`
         else {
@@ -368,7 +381,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, Asynchrony, DependencyKind, DependencyTarget, ExportType, ScalarLiteral};
+    use dyst_ast::{
+        Argument, Asynchrony, DependencyKind, DependencyTarget, ExportType, ScalarLiteral,
+    };
 
     use crate::parse::tests::TestParser;
     use crate::{DependencyItem, Expression, assert_node, assert_path, assert_string};
@@ -569,7 +584,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_import_with_lenient_type() {
+    fn test_parse_import_with_type() {
         let mut test = TestParser::new(
             "
 import {
@@ -599,6 +614,29 @@ import {
                 assert_string!(parser, *name, "StructuredObjectOptions");
                 assert!(alias.is_none());
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_with_default_and_block() {
+        let mut test = TestParser::new("import Default, { type Item } from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            // Default
+            assert_string!(parser, alias.unwrap(), "Default");
+            // { type Item }
+            let items = items.as_ref().expect("expected items");
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
+                assert_eq!(*kind, DependencyKind::Type);
+                assert_string!(parser, *name, "Item");
+                assert!(alias.is_none());
+            });
+            // `foo`
+            assert_string!(parser, *target, "foo");
         });
     }
 

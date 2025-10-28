@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyItem, DependencyTarget as DirDependencyTarget, DependencyKind, ExportType, NodeId,
+    DependencyItem, DependencyKind, DependencyTarget as DirDependencyTarget, ExportType, NodeId,
 };
 use dyst_source::SourceId;
 
@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a dependency type into a DIR dependency type.
-    pub fn lower_dependency_type(
+    pub fn lower_dependency_kind(
         &mut self,
         _source_id: SourceId,
         _ast: &ast::NodeTree,
@@ -36,42 +36,50 @@ impl<'a> Compiler<'a> {
         source_id: SourceId,
         ast: &ast::NodeTree,
         origin_id: ast::NodeId<ast::Expression>,
-        ty: ast::DependencyKind,
+        kind: ast::DependencyKind,
         target: Option<&ast::DependencyTarget>,
         alias: Option<dyst_source::StringId>,
         items: Option<&[ast::NodeId<ast::DependencyItem>]>,
     ) -> Vec<NodeId<DependencyItem>> {
-        let ty = self.lower_dependency_type(source_id, ast, ty);
+        let kind = self.lower_dependency_kind(source_id, ast, kind);
         let target = target.map(|target| self.lower_dependency_target(source_id, ast, target));
         let alias = alias.map(|alias| self.lower_string_id(source_id, alias));
 
-        if let Some(items) = items {
-            return items
+        let mut items = if let Some(items) = items {
+            items
                 .iter()
                 .map(|item| {
                     let import_item = ast.get(*item);
-                    let ty = self.lower_dependency_type(source_id, ast, import_item.kind);
+                    let kind = self.lower_dependency_kind(source_id, ast, import_item.kind);
                     let name = self.lower_string_id(source_id, import_item.name);
                     let alias = import_item
                         .alias
                         .map(|alias| self.lower_string_id(source_id, alias));
                     let import_item = DependencyItem::Scalar {
-                        kind: ty,
+                        kind,
                         target: target.clone(),
                         name,
                         alias,
                     };
                     self.tree.insert_from_ast(import_item, source_id, origin_id)
                 })
-                .collect();
-        }
-
-        if let Some(target) = target {
-            let import_item = DependencyItem::Glob { kind: ty, target, alias };
-            vec![self.tree.insert_from_ast(import_item, source_id, origin_id)]
+                .collect()
         } else {
             Vec::new()
+        };
+
+        if let Some(target) = target
+            && (items.is_empty() || alias.is_some())
+        {
+            let import_item = DependencyItem::Glob {
+                kind,
+                target,
+                alias,
+            };
+            items.push(self.tree.insert_from_ast(import_item, source_id, origin_id));
         }
+
+        items
     }
 
     /// Lower a dependency target into a DIR dependency target.
