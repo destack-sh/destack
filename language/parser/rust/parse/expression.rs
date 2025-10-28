@@ -194,14 +194,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Try to eat an expression as a statement (return Expression::Error if error and recovery is possible).
-    #[inline]
-    pub fn try_eat_expression_as_statement(&mut self) -> ParserResult<NodeId<Expression>> {
-        self.with_options(self.options.in_statement(), |parser| {
-            parser.try_eat_expression(TokenType::Newline)
-        })
-    }
-
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
     pub fn try_eat_expression(&mut self, recover: TokenType) -> ParserResult<NodeId<Expression>> {
@@ -295,10 +287,20 @@ impl<'a> Parser<'a> {
 
         let mut left_expression_id: NodeId<Expression> = {
             let token = *self.peek()?;
-            let keyword = self.peek_any_keyword().ok();
             #[cfg(debug_assertions)]
             let _token_str = self.get_span_str(token.span);
-
+            let token_type = token.token.ty;
+            let keyword = self.peek_any_keyword().ok();
+            let next_token_type = self
+                .peek_next()
+                .ok()
+                .map(|token| token.token.ty)
+                .unwrap_or(TokenType::End);
+            let next_next_token_type = self
+                .peek_next_next()
+                .ok()
+                .map(|token| token.token.ty)
+                .unwrap_or(TokenType::End);
             //
             // ------------------------------------------------------------
             // Grouping
@@ -306,9 +308,9 @@ impl<'a> Parser<'a> {
             //
 
             // eat leading elementwise operator
-            if token.token.ty == TokenType::ElementwiseOr {
+            if token_type == TokenType::ElementwiseOr {
                 self.bump(); // eat elementwise operator
-                let leading_binary_operator = match token.token.ty {
+                let leading_binary_operator = match token_type {
                     TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
                     _ => unreachable!(),
                 };
@@ -334,7 +336,7 @@ impl<'a> Parser<'a> {
                 return Ok(expression_id);
             }
             // shorthand lambda function value
-            else if token.token.ty == TokenType::Identifier
+            else if token_type == TokenType::Identifier
                 && !self.options.in_type
                 && !self.options.in_match_case
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
@@ -346,7 +348,7 @@ impl<'a> Parser<'a> {
             }
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
-            else if token.token.ty == TokenType::OpenParenthesis {
+            else if token_type == TokenType::OpenParenthesis {
                 let closing_pos = self.find_matching_close(
                     None,
                     TokenType::OpenParenthesis,
@@ -523,11 +525,19 @@ impl<'a> Parser<'a> {
                 )
             }
             // function
-            else if keyword == Some(Keyword::Function)
+            else if (keyword == Some(Keyword::Function)
                 || keyword == Some(Keyword::Async)
-                || keyword == Some(Keyword::Get)
-                || keyword == Some(Keyword::Set)
-                || keyword == Some(Keyword::Constructor)
+                || (self.options.in_variant
+                    && (keyword == Some(Keyword::Get)
+                        || keyword == Some(Keyword::Set)
+                        || keyword == Some(Keyword::Constructor))))
+                && [
+                    TokenType::Identifier,
+                    TokenType::OpenParenthesis,
+                    TokenType::LessThan,
+                    TokenType::At,
+                ]
+                .contains(&next_token_type)
             {
                 let function_id = self.eat_function(meta, false, false)?;
                 self.tree.insert(
@@ -541,11 +551,11 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // new
-            else if keyword == Some(Keyword::New) {
+            else if keyword == Some(Keyword::New) && next_token_type == TokenType::Identifier {
                 self.eat_new()?
             }
             // delete
-            else if keyword == Some(Keyword::Delete) {
+            else if keyword == Some(Keyword::Delete) && next_token_type == TokenType::Identifier {
                 self.eat_delete()?
             }
             // with
@@ -554,8 +564,16 @@ impl<'a> Parser<'a> {
             }
             // import
             else if keyword == Some(Keyword::Import)
-                || keyword == Some(Keyword::Async)
+                && [
+                    TokenType::Multiply,
+                    TokenType::Identifier,
+                    TokenType::OpenBrace,
+                    TokenType::Literal,
+                ]
+                .contains(&next_token_type)
+                || (keyword == Some(Keyword::Await)
                     && self.peek_next_keyword(Keyword::Import).is_ok()
+                    && next_next_token_type == TokenType::OpenParenthesis)
             {
                 self.eat_import()?
             }
@@ -567,7 +585,16 @@ impl<'a> Parser<'a> {
                 self.eat_let(meta)?
             }
             // type
-            else if keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly) {
+            else if (keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly))
+                && ([
+                    TokenType::Identifier,
+                    TokenType::OpenBrace,
+                    TokenType::OpenParenthesis,
+                    TokenType::OpenBracket,
+                    TokenType::Literal,
+                ]
+                .contains(&next_token_type))
+            {
                 self.eat_type(meta)?
             }
             // if
@@ -583,14 +610,14 @@ impl<'a> Parser<'a> {
                 self.eat_for(runtime)?
             }
             // loop
-            else if keyword == Some(Keyword::Loop) {
+            else if keyword == Some(Keyword::Loop) && self.peek_next_block().is_ok() {
                 self.eat_loop(runtime)?
             }
             // try
             else if keyword == Some(Keyword::Try) {
                 self.eat_try(runtime)?
             }
-            // match
+            // match / switch
             else if keyword == Some(Keyword::Match) || keyword == Some(Keyword::Switch) {
                 self.eat_match(runtime)?
             }
@@ -630,7 +657,7 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // array
-            else if token.token.ty == TokenType::OpenBracket {
+            else if token_type == TokenType::OpenBracket {
                 let elements = self.with_options(self.options.not_in_parenthesis(), |parser| {
                     parser.eat_array_literal()
                 })?;
@@ -641,7 +668,7 @@ impl<'a> Parser<'a> {
             }
             // anonymous struct literal
             else if !self.options.in_before_block
-                && token.token.ty == TokenType::OpenBrace
+                && token_type == TokenType::OpenBrace
                 && let Ok(first_argument) = self.peek_anonymous_struct_literal_body()
             {
                 let fields = self.with_options(self.options.not_in_parenthesis(), |parser| {
@@ -659,7 +686,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // tree
-            else if token.token.ty == TokenType::LessThan && self.peek_tree_literal().is_ok() {
+            else if token_type == TokenType::LessThan && self.peek_tree_literal().is_ok() {
                 self.with_options(self.options.not_in_parenthesis(), |parser| {
                     parser.eat_tree_literal()
                 })?
@@ -690,7 +717,7 @@ impl<'a> Parser<'a> {
                 )
             }
             // alias / path
-            else if token.token.ty == TokenType::Identifier {
+            else if token_type == TokenType::Identifier {
                 let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
 
                 // speculatively unwrap postfix static parameterisation with `<`
@@ -1038,9 +1065,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Definition, DefinitionMeta, DependencyKind, DependencyTarget, ExportType, FunctionStyle,
-        IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral, TypeUnaryOperator,
-        VarianceBound, WithClause,
+        AssignOperator, Definition, DefinitionMeta, DependencyKind, DependencyTarget, ExportType,
+        FunctionStyle, IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral,
+        TypeUnaryOperator, VarianceBound, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1049,6 +1076,52 @@ mod tests {
         ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_name, assert_node,
         assert_path, assert_string,
     };
+
+    /// Disambiguate using import as a path.
+    #[test]
+    fn test_parse_import_as_path() {
+        let mut test = TestParser::new("import.meta.env");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_expr_path!(parser, parser.tree.get(expression_id), "import.meta.env");
+    }
+
+    /// Disambiguate using `type` as a variable.
+    #[test]
+    fn test_parse_type_as_variable() {
+        let mut test = TestParser::new(
+            r"
+let type = 1
+type = type * 2
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        // let type = 1
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Let { pattern, value: Some(value), .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_string!(parser, *name, "type");
+            });
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+        parser.eat_newline().unwrap();
+
+        // type = type * 2
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right, .. } => {
+            assert_expr_path!(parser, parser.tree.get(*left), "type");
+            assert_eq!(*operator, AssignOperator::Assign);
+            // type * 2
+            assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "type");
+                assert_eq!(*operator, BinaryOperator::Multiply);
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+        });
+        parser.eat_newline().unwrap();
+    }
 
     /// Parse `export { bar, baz } from foo` through the expression parser.
     #[test]

@@ -13,23 +13,15 @@ use dyst_session::Session;
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
-    // ------------------------------------------------------------
-    // Contextual
-    // (these usually stick inside nested contexts)
-    // ------------------------------------------------------------
-
     /// Whether we're parsing inside a static argument (`<...>`).
     /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
     /// Whether we're parsing inside a type.
     /// Type context eagerly evaluates some constructs to their type-ish variants.
     pub in_type: bool = false,
-
-    // ------------------------------------------------------------
-    // Structural
-    // (these usually reset inside nested contexts)
-    // ------------------------------------------------------------
-
+    /// Whether we're parsing inside a variant.
+    /// Certain functions (like get/set/constructor) are only allowed inside variants.
+    pub in_variant: bool = false,
     /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
     /// Disallows binding patterns in these cases to avoid ambiguity with type annotations.
     pub in_before_type: bool = false,
@@ -57,11 +49,6 @@ pub(crate) struct ParserOptions {
 }
 
 impl ParserOptions {
-    /// Adapt and reset options for a statement.
-    pub(crate) fn in_statement(self) -> Self {
-        Self::default()
-    }
-
     /// Set `in_type=true`.
     pub(crate) fn in_type(self) -> Self {
         Self {
@@ -134,6 +121,14 @@ impl ParserOptions {
             left_precedence: Some(precedence),
             in_type: true,
             ..self
+        }
+    }
+
+    /// Reset, set `in_variant=true`.
+    pub(crate) fn nested_in_variant(self) -> Self {
+        Self {
+            in_variant: true,
+            ..Self::default()
         }
     }
 
@@ -541,10 +536,6 @@ impl<'a> Parser<'a> {
     /// Peek the next next next token.
     #[inline]
     pub fn peek_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
-        debug_assert!(
-            is_semantic(token_type),
-            "peek_next_next_token requires semantic token type"
-        );
         let next = self.peek_next_next()?;
         if next.token.ty == token_type {
             Ok(next)
@@ -558,6 +549,17 @@ impl<'a> Parser<'a> {
     pub fn peek_next_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
         let next = self.peek_next_next()?;
         if token_types.contains(&next.token.ty) {
+            Ok(next)
+        } else {
+            Err(ParserError::unexpected(next.span))
+        }
+    }
+
+    /// Peek the next next next token.
+    #[inline]
+    pub fn peek_next_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+        let next = self.peek_next_next_next()?;
+        if next.token.ty == token_type {
             Ok(next)
         } else {
             Err(ParserError::unexpected(next.span))
