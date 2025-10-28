@@ -1,9 +1,9 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, DefinitionMeta, Expression, Keyword, PostfixPosition,
+    BindingKind, BindingModifiers, DeclarationKind, DefinitionMeta, Expression, Keyword,
+    PostfixPosition,
 };
-use std::str::FromStr;
 
 use crate::TokenType;
 use crate::parse::prelude::*;
@@ -18,45 +18,10 @@ pub(crate) static BINDING_MODIFIERS: [Keyword; 4] = [
 ];
 
 impl<'a> Parser<'a> {
-    /// Eat a variant body (without the parenthesis, without any expressions).
-    pub fn eat_variant_body(&mut self) -> ParserResult<Vec<NodeId<VariantField>>> {
-        let mut tuple_fields: Vec<NodeId<VariantField>> = Vec::new();
-        loop {
-            // stop at closing parenthesis
-            if self.peek_token(TokenType::CloseParenthesis).is_ok()
-                || self.peek_token(TokenType::CloseBrace).is_ok()
-            {
-                break;
-            }
-            // consume any stop
-            else if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
-            }
-            // keep eating tuple fields
-            else {
-                let field = self.eat_variant_field()?;
-                tuple_fields.push(field);
-            }
-        }
-        Ok(tuple_fields)
-    }
-
     /// Peek a variant field: `name: Type` with optional default `= <expr>`.
     /// May be preceded by any number of field modifiers.
     pub(crate) fn peek_variant_field(&self) -> ParserResult<()> {
-        let mut pos = self.pos() as usize;
-        // skip modifiers
-        while let Some(token) = self.tokens.get(pos) {
-            let keyword = Keyword::from_str(self.get_span_str(token.span));
-            if let Ok(keyword) = keyword
-                && BINDING_MODIFIERS.contains(&keyword)
-            {
-                pos += 1;
-            } else {
-                break;
-            }
-        }
-        // variant field
+        let pos = self.pos() as usize;
         if pos + 3 < self.tokens.len() {
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;
@@ -86,7 +51,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    /// Eat a single variant field: `T`,`name: T`, or `name: T = <expr>` (including visibility).
+    /// Eat a single variant field: `T`,`name: T`, or `name: T = <expr>` (including modifiers).
     ///
     /// Examples:
     /// ```
@@ -222,6 +187,29 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eat a variant body (without the parenthesis, without any expressions).
+    pub fn eat_variant_body_fields(&mut self) -> ParserResult<Vec<NodeId<VariantField>>> {
+        let mut tuple_fields: Vec<NodeId<VariantField>> = Vec::new();
+        loop {
+            // stop at closing parenthesis
+            if self.peek_token(TokenType::CloseParenthesis).is_ok()
+                || self.peek_token(TokenType::CloseBrace).is_ok()
+            {
+                break;
+            }
+            // consume any stop
+            else if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
+            }
+            // keep eating tuple fields
+            else {
+                let field = self.eat_variant_field()?;
+                tuple_fields.push(field);
+            }
+        }
+        Ok(tuple_fields)
+    }
+
     /// Eat a variant body (without the header or `{` and `}`).
     pub fn eat_variant_body_mixed(
         &mut self,
@@ -238,9 +226,30 @@ impl<'a> Parser<'a> {
             // consume any stop
             else if self.peek_any_stop().is_ok() {
                 self.eat_any_stop_with_newlines()?;
+                continue;
             }
+
+            // modifiers (speculative lookahead)
+            let modifier_start = self.mark();
+            let kind = if self.peek_keyword(Keyword::Declare).is_ok() {
+                self.bump();
+                DeclarationKind::Declaration
+            } else {
+                DeclarationKind::Definition
+            };
+            let visibility = if let Ok(Some(visibility)) = self.peek_visibility() {
+                self.bump();
+                Some(visibility)
+            } else {
+                None
+            };
+            if self.peek_keyword(Keyword::Readonly).is_ok() {
+                self.bump();
+            }
+
             // variant field
-            else if allow_fields && self.peek_variant_field().is_ok() {
+            if allow_fields && self.peek_variant_field().is_ok() {
+                self.rewind(modifier_start);
                 let field = self
                     .eat_variant_field()
                     .for_node_type(NodeType::VariantField)?;
@@ -252,7 +261,13 @@ impl<'a> Parser<'a> {
                     .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
+                let meta: DefinitionMeta = DefinitionMeta {
+                    kind,
+                    name: None,
+                    export: None,
+                    visibility,
+                };
+                let function_id = self.eat_function(meta, false, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
@@ -266,13 +281,20 @@ impl<'a> Parser<'a> {
                     .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                     .is_ok()
             {
-                let function_id = self.eat_function(DefinitionMeta::default(), true, false)?;
+                let meta: DefinitionMeta = DefinitionMeta {
+                    kind,
+                    name: None,
+                    export: None,
+                    visibility,
+                };
+                let function_id = self.eat_function(meta, true, false)?;
                 let expression_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
                 let expression_id = self.tree.insert(
                     Expression::Maybe {
+                        // TODO #Broken: function maybe shorthand in variants? field or expression?
                         left: expression_id,
                         position: PostfixPosition::Direct,
                     },
@@ -282,6 +304,7 @@ impl<'a> Parser<'a> {
             }
             // eat any other expressions
             else {
+                self.rewind(modifier_start);
                 let expression_id = self
                     .try_eat_expression_as_statement()
                     .for_node_type(NodeType::Expression)?;

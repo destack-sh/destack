@@ -354,6 +354,11 @@ impl<'a> Parser<'a> {
     }
 
     /// Rewind the position to the given mark and remove any nodes created since.
+    pub fn rewind(&mut self, mark: ParserMark) {
+        self.pos = mark.pos;
+    }
+
+    /// Rewind the position to the given mark and remove any nodes created since.
     pub fn restore(&mut self, mark: ParserMark, idx: u32) {
         self.pos = mark.pos;
         self.tree.reset_to(idx);
