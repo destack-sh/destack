@@ -1,5 +1,4 @@
-use dyst_ast::BindingKind;
-use dyst_ast::{BindingModifiers, Keyword, Mutability};
+use dyst_ast::{BindingKind, BindingModifiers, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -71,9 +70,10 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
-                write!(f, [name, token(":"), space()])?;
+                write!(f, [name])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                write!(f, [token(":"), space()])?;
                 // type
                 write!(f, [ty])?;
                 // default
@@ -206,8 +206,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
-            "struct { a: int32 = 42, b: boolean }",
-            "struct {\n\ta: int32 = 42\n\tb: boolean\n}",
+            "struct { a?: int32 = 42, b: boolean? }",
+            "struct {\n\ta?: int32 = 42\n\tb: boolean?\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );
