@@ -392,7 +392,7 @@ impl<'a> Parser<'a> {
         // dynamic argument (has a colon after the closing bracket)
         else if self.peek_token(TokenType::OpenBracket).is_ok()
             && self
-                .find_matching_pair(TokenType::OpenBracket, TokenType::CloseBracket)
+                .find_matching_close(None, TokenType::OpenBracket, TokenType::CloseBracket)
                 .map(|pos| {
                     self.tokens
                         .get(pos as usize + 1)

@@ -453,7 +453,7 @@ impl<'a> Parser<'a> {
                     // [
                     | (TokenType::OpenBracket, _, _) => {
                         // only if the closing bracket is followed by a colon
-                        if let Ok(closing_pos) = self.find_matching_pair(TokenType::OpenBracket, TokenType::CloseBracket)
+                        if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
                             && let Some(token_after) = self.tokens.get(closing_pos as usize + 1) && token_after.token.ty == TokenType::Colon {
                                 return Ok(None);
                             }
@@ -1312,6 +1312,33 @@ mod tests {
                 assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_struct_literal_body_with_dynamic_field() {
+        let mut test = TestParser::new(r#"{ [key: T]: (...args: Array<any>) => any }"#);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], Argument::Dynamic { modifiers: _, name, key, value } => {
+                // [key: a]
+                assert_string!(parser, name.unwrap(), "key");
+                assert_expr_path!(parser, parser.tree.get(*key), "T");
+                // (...args: Array<any>) => any
+                assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, dynamic_parameters, .. } => {
+                        // ...args: Array<any>
+                        assert_eq!(dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, dynamic_parameters[0], Parameter::Variadic { modifiers: _, name, ty, .. } => {
+                            assert_string!(parser, *name, "args");
+                            assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "Array");
+                        });
+                    });
                 });
             });
         });

@@ -347,8 +347,11 @@ impl<'a> Parser<'a> {
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
             else if token.token.ty == TokenType::OpenParenthesis {
-                let closing_pos = self
-                    .find_matching_pair(TokenType::OpenParenthesis, TokenType::CloseParenthesis)?;
+                let closing_pos = self.find_matching_close(
+                    None,
+                    TokenType::OpenParenthesis,
+                    TokenType::CloseParenthesis,
+                )?;
                 let closing_pos = self.skip_newlines_after(closing_pos)?;
                 // function if the paranthesis are followed by an arrow (or colon)
                 if self
