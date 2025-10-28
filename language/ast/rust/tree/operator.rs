@@ -55,7 +55,7 @@ pub enum OperatorPrecedence {
     /// `in` `of`
     Container = 1100,
     /// Type binary operators.
-    /// `as in is instanceof satisfies`
+    /// `as in is instanceof satisfies extends implements`
     TypeBinary = 1000,
     /// Assignment-related binary operators.
     /// `=`
@@ -203,7 +203,6 @@ impl UnaryOperator {
     }
 }
 
-// nocheckin: add extends/implements TypeBinaryOperator
 /// A TypeBinaryOperator is a type binary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {
@@ -215,6 +214,10 @@ pub enum TypeBinaryOperator {
     Instanceof,
     /// `satisfies`
     Satisfies,
+    /// `extends`
+    Extends,
+    /// `implements`
+    Implements,
 }
 
 impl TypeBinaryOperator {
@@ -239,6 +242,8 @@ impl TypeBinaryOperator {
             "is" => Some(TypeBinaryOperator::Is),
             "instanceof" => Some(TypeBinaryOperator::Instanceof),
             "satisfies" => Some(TypeBinaryOperator::Satisfies),
+            "extends" => Some(TypeBinaryOperator::Extends),
+            "implements" => Some(TypeBinaryOperator::Implements),
             _ => None,
         }
     }

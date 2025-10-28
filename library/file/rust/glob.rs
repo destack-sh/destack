@@ -38,14 +38,20 @@ pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx
             pattern_idx += 1;
             text_idx += 1;
         }
-        // handle '*'
-        else if pattern_idx < pattern_length && pattern[pattern_idx] == b'*' {
+        // '*' matches anything (except '.')
+        else if pattern_idx < pattern_length
+            && pattern[pattern_idx] == b'*'
+            && text[text_idx] != b'.'
+        {
             star_idx = Some(pattern_idx);
             match_idx = text_idx;
             pattern_idx += 1;
         }
         // backtrack to last '*' if needed
         else if let Some(si) = star_idx {
+            if match_idx >= text_length || text[match_idx] == b'.' {
+                return false;
+            }
             pattern_idx = si + 1;
             match_idx += 1;
             text_idx = match_idx;
