@@ -439,8 +439,11 @@ pub enum LiteralType {
         base: NumberBase,
         is_empty_exponent: bool,
     },
-    /// Character ('a', '\\', ''', ';')
-    Character { is_terminated: bool },
+    /// Character ('a', '\\', ''', ';') or HTML entity (`&nbsp;`)
+    Character {
+        is_terminated: bool,
+        is_html_entity: bool,
+    },
     /// Byte string (b'a', b'\\', b''', b';)
     Byte { is_terminated: bool },
     /// String ("abc", "abc")

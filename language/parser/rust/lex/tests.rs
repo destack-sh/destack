@@ -264,7 +264,8 @@ fn test_lex_characters() {
             TokenType::Literal,
             3,
             Some(LiteralType::Character {
-                is_terminated: true
+                is_terminated: true,
+                is_html_entity: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
@@ -272,7 +273,8 @@ fn test_lex_characters() {
             TokenType::Literal,
             3,
             Some(LiteralType::Character {
-                is_terminated: true
+                is_terminated: true,
+                is_html_entity: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
@@ -280,9 +282,61 @@ fn test_lex_characters() {
             TokenType::Literal,
             4,
             Some(LiteralType::Character {
-                is_terminated: true
+                is_terminated: true,
+                is_html_entity: false,
             })
         ),
+    );
+}
+
+#[test]
+fn test_lex_html_entities() {
+    assert_tokenize_eq_roundtrip!(
+        "&nbsp; &#160; &#xA0; &amp;",
+        Token::new(
+            TokenType::Literal,
+            6,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                is_html_entity: true,
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            6,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                is_html_entity: true,
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            6,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                is_html_entity: true,
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                is_html_entity: true,
+            })
+        ),
+    );
+}
+
+#[test]
+fn test_lex_html_entity_without_semicolon() {
+    assert_tokenize_eq_roundtrip!(
+        "&nbsp",
+        Token::new(TokenType::ElementwiseAnd, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
     );
 }
 
@@ -555,7 +609,8 @@ br###"raw"###
             TokenType::Literal,
             3,
             Some(LiteralType::Character {
-                is_terminated: true
+                is_terminated: true,
+                is_html_entity: false,
             })
         ),
         Token::new(TokenType::Newline, 1, None),
