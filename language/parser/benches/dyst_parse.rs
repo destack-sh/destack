@@ -3,7 +3,7 @@ use destack_file::glob;
 use dyst_ast::{DefinitionMeta, ModuleFormat, ModuleStyle, TokenType};
 use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{Source, SourceFormat, SourceId, Uri};
+use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -59,7 +59,8 @@ fn bench_parse(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("parse", "all"), &source, |b, source| {
         b.iter(|| {
-            let mut parser = Parser::prepare(source, &mut session);
+            let language = LanguageOptions::default();
+            let mut parser = Parser::prepare(source, language, &mut session);
             let module = parser.with_recovery(
                 parser.mark(),
                 |parser| {

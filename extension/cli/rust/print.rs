@@ -1,6 +1,6 @@
 use destack_terminal::{CommandArguments, console};
 
-use crate::source::{read_source, render_semantic_spans, semantic_spans_from_source};
+use crate::source::{get_semantic_spans_from_source, read_source, render_semantic_spans};
 
 pub const HELP: &str = r"Print Dyst source with semantic highlighting.
 	--file <path>      Read input from file
@@ -18,7 +18,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // parse semantic spans
-    let colored_output = match semantic_spans_from_source(&source) {
+    let colored_output = match get_semantic_spans_from_source(&source) {
         Ok(spans) => render_semantic_spans(&spans),
         Err(error) => {
             console::warn(&format!("semantic highlighting error: {error}"));

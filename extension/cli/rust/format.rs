@@ -12,12 +12,14 @@ use dyst_fir::format::{
     format as format_fir,
 };
 use dyst_fir::format_args;
-use dyst_formatter::{DystFormatContext, DystFormatOptions};
+use dyst_formatter::DystFormatContext;
 use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{AnnotateOptions, Color, Source, SourceFormat, SourceId, Uri, annotate_source};
+use dyst_source::{
+    AnnotateOptions, Color, LanguageOptions, Source, SourceFormat, SourceId, Uri, annotate_source,
+};
 
-use crate::source::{render_semantic_spans, semantic_spans_from_text};
+use crate::source::{get_semantic_spans_from_text, render_semantic_spans};
 
 pub const HELP: &str = r"Format Dyst source code.
 	--line-width <n>     Set maximum line width (default 100)
@@ -25,7 +27,6 @@ pub const HELP: &str = r"Format Dyst source code.
 	--indent-width <n>   Set spaces per indent (default 4)
 	--line-ending <e>    Choose line ending: lf, crlf, cr
 	--dry-run            Preview formatting without writing files
-    --format <f>         Choose format: ds, dst, dsb, dsx
 	<path>               Format the provided file (omit to format all .ds files)";
 
 const DEFAULT_IGNORE_PATHS: &[&str] = &[
@@ -87,7 +88,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let dry_run = ctx.flag("dry-run");
 
     // parse formatting options
-    let options = match parse_options(&ctx) {
+    let language = match parse_language_options(&ctx) {
         Ok(options) => options,
         Err(error) => {
             console::error(&format!("Option error: {error}"));
@@ -97,7 +98,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // handle inline string formatting first
     if let Some(body) = ctx.option("string") {
-        return run_for_string(body, &options);
+        return run_for_string(body, language);
     }
 
     // collect explicit file arguments from --file and positionals
@@ -111,14 +112,14 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // route to appropriate handler based on file arguments
     if !file_arguments.is_empty() {
-        return run_for_files(&file_arguments, &options, dry_run);
+        return run_for_files(&file_arguments, language, dry_run);
     }
 
-    run_for_all_files(&options, dry_run)
+    run_for_all_files(language, dry_run)
 }
 
 /// Format all Dyst files in the current directory tree.
-fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
+fn run_for_all_files(language: LanguageOptions, dry_run: bool) -> i32 {
     // get current working directory
     let root = match env::current_dir() {
         Ok(dir) => dir,
@@ -136,7 +137,7 @@ fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
             console::write_line(&canonical_display(path));
         }
 
-        let flags = format_file(path, options, dry_run, false);
+        let flags = format_file(path, language, dry_run, false);
         if !dry_run && flags.did_change {
             console::write_line(&canonical_display(path));
         }
@@ -149,12 +150,12 @@ fn run_for_all_files(options: &DystFormatOptions, dry_run: bool) -> i32 {
 }
 
 /// Format the provided list of files.
-fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) -> i32 {
+fn run_for_files(paths: &[PathBuf], language: LanguageOptions, dry_run: bool) -> i32 {
     let mut exit_code = 0;
 
     // process each file and track overall success
     for path in paths {
-        let flags = format_file(path, options, dry_run, true);
+        let flags = format_file(path, language, dry_run, true);
         if flags.did_error {
             exit_code = 1;
         }
@@ -163,18 +164,18 @@ fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) 
 }
 
 /// Format inline source provided via --string.
-fn run_for_string(string: &str, options: &DystFormatOptions) -> i32 {
+fn run_for_string(string: &str, language: LanguageOptions) -> i32 {
     // create source from string input
     let source = Source::from_string(
         SourceId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),
-        options.format,
+        SourceFormat::Dyst,
         string.to_string(),
     );
 
     // format and output result
-    match format_source(&source, options) {
+    match format_source(&source, language) {
         Ok(FormattedSource { formatted, session }) => {
             print_formatted_output("<formatted>", &formatted);
             print_diagnostics(&source, &session);
@@ -211,7 +212,7 @@ fn collect_dyst_files(root: &Path) -> Vec<PathBuf> {
 /// Format a single file, optionally writing it back to disk.
 fn format_file(
     path: &Path,
-    options: &DystFormatOptions,
+    options: LanguageOptions,
     dry_run: bool,
     emit_output: bool,
 ) -> FormattedFlags {
@@ -221,7 +222,7 @@ fn format_file(
         .extension()
         .and_then(|ext| ext.to_str())
         .and_then(SourceFormat::from_extension)
-        .unwrap_or(options.format);
+        .unwrap_or(SourceFormat::Dyst);
 
     // read original file content
     let original_text = match fs::read_to_string(&path_buf) {
@@ -284,14 +285,14 @@ fn format_file(
 /// Format the provided source into a string along with diagnostics.
 fn format_source(
     source: &Source,
-    options: &DystFormatOptions,
+    language: LanguageOptions,
 ) -> Result<FormattedSource, FormatSourceError> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
 
     // parse the source into an AST
     let (module_id, tokens, side_tokens, side_span, tree, strings) = {
-        let mut parser = Parser::prepare(source, &mut session);
+        let mut parser = Parser::prepare(source, language, &mut session);
         let module_name_id = parser.intern_string(module_name);
         let module_id = parser.with_recovery(
             parser.mark(),
@@ -329,7 +330,7 @@ fn format_source(
     // format the AST
     let parents = NodeParentIndex::from_tree(&tree);
     let context = DystFormatContext {
-        options: options.clone(),
+        options: language.into(),
         source,
         tree: &tree,
         tokens: &tokens,
@@ -354,7 +355,7 @@ fn format_source(
 
 /// Print formatted output with syntax highlighting if available.
 fn print_formatted_output(label: &str, formatted: &str) {
-    let colored_output = match semantic_spans_from_text(label, formatted) {
+    let colored_output = match get_semantic_spans_from_text(label, formatted) {
         Ok(spans) => render_semantic_spans(&spans),
         Err(error) => {
             console::warn(&format!("semantic highlighting error: {error}"));
@@ -412,8 +413,8 @@ fn canonical_display(path: &Path) -> String {
 }
 
 /// Parse command line options into DystFormatOptions.
-fn parse_options(ctx: &CommandArguments) -> Result<DystFormatOptions, String> {
-    let mut options = DystFormatOptions::default();
+fn parse_language_options(ctx: &CommandArguments) -> Result<LanguageOptions, String> {
+    let mut options = LanguageOptions::default();
 
     // --line-width
     if let Some(value) = ctx.option("line-width") {
@@ -452,15 +453,6 @@ fn parse_options(ctx: &CommandArguments) -> Result<DystFormatOptions, String> {
             other => return Err(format!("invalid line ending: {other}")),
         };
         options = options.with_line_ending(ending);
-    }
-
-    // --format
-    if let Some(value) = ctx.option("format") {
-        let format = match SourceFormat::from_extension(value) {
-            Some(format) => format,
-            None => return Err(format!("invalid format: {value}")),
-        };
-        options = options.with_format(format);
     }
 
     Ok(options)

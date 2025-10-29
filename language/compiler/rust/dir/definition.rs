@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition,
-    FunctionSignature, Generics, NodeId, ReferenceStyle,
+    DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics,
+    NodeId, ReferenceStyle,
 };
 use dyst_source::SourceId;
 

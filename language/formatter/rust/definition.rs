@@ -7,7 +7,8 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, Visibility
+    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;

@@ -1,6 +1,6 @@
 use destack_file::glob;
 use dyst_parser::Lexer;
-use dyst_source::SourceId;
+use dyst_source::{LanguageOptions, SourceId};
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pprof::criterion::{Output, PProfProfiler};
@@ -52,7 +52,8 @@ fn bench_lex(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let (tokens, _) = Lexer::lex(SourceId::new(0), input);
+            let language = LanguageOptions::default();
+            let (tokens, _) = Lexer::lex(SourceId::new(0), input, language);
             black_box(tokens);
         });
     });

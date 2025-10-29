@@ -2,20 +2,21 @@ use crate::{
     Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,
     NodeTreeStore, NodeType, TokenSpan, TokenType,
 };
-use dyst_fir::format::{
-    Format, FormatContext, FormatOptions, FormatResult, Formatter, IndentStyle, LineEnding,
-};
+use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceFormat, Span, StringId, StringPool};
+use dyst_source::{
+    FormattingOptions, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan,
+    Source, Span, StringId, StringPool,
+};
 
 pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
 /// Dyst format options (mostly for testing).
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DystFormatOptions {
-    /// The format of the source.
-    pub format: SourceFormat = SourceFormat::Dyst,
+    /// The compatibility mode.
+    pub compatibility: Option<LanguageCompatibility>,
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -24,6 +25,19 @@ pub struct DystFormatOptions {
     pub indent_width: u8 = 4,
     /// Maximum line length (best effort).
     pub line_width: u8 = 100,
+}
+
+impl From<LanguageOptions> for DystFormatOptions {
+    #[inline]
+    fn from(options: LanguageOptions) -> Self {
+        Self {
+            compatibility: options.compatibility,
+            line_ending: options.formatting.line_ending,
+            indent_style: options.formatting.indent_style,
+            indent_width: options.formatting.indent_width,
+            line_width: options.formatting.line_width,
+        }
+    }
 }
 
 impl DystFormatOptions {
@@ -50,12 +64,6 @@ impl DystFormatOptions {
             line_width,
             ..Self::default()
         }
-    }
-
-    /// Set the format.
-    pub fn with_format(mut self, format: SourceFormat) -> Self {
-        self.format = format;
-        self
     }
 
     /// Set the line ending.

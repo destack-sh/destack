@@ -7,7 +7,7 @@ use super::lexer::{EOF_CHAR, Lexer};
 use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenType};
 
 use destack_unicode::UnicodeEmoji;
-use dyst_source::{SourceId, Span};
+use dyst_source::{LanguageOptions, SourceId, Span};
 
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {
@@ -48,8 +48,12 @@ pub fn is_semantic(token_type: TokenType) -> bool {
 
 impl Lexer<'_> {
     /// Lex the input string into TokenSpans and the end-of-sequence Token.
-    pub fn lex(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
-        let mut lexer = Lexer::new(source_id, input);
+    pub fn lex(
+        source_id: SourceId,
+        input: &str,
+        language: LanguageOptions,
+    ) -> (Vec<TokenSpan>, TokenSpan) {
+        let mut lexer = Lexer::new(source_id, input, language);
         let eof_token = lexer.run();
         (lexer.tokens, eof_token)
     }

@@ -3,7 +3,7 @@ use dyst_package::{FileContent, Package, SourceFile, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
-use dyst_source::SourceId;
+use dyst_source::{LanguageOptions, SourceId};
 
 use crate::{AstNodeId, CompilerQueue};
 
@@ -34,6 +34,8 @@ pub struct Compiler<'s> {
     pub session: &'s Session,
     /// The package we're compiling.
     pub package: &'s Package,
+    /// The language options.
+    pub language: LanguageOptions,
 
     /// The node tree of the compiled DIR.
     pub tree: NodeTree,
@@ -50,12 +52,17 @@ pub struct Compiler<'s> {
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new compiler.
-    pub fn new(workspace: &'s Workspace, package: &'s Package, options: CompilerOptions) -> Self {
+    pub fn new(
+        workspace: &'s Workspace,
+        package: &'s Package,
+        language: LanguageOptions,
+        options: CompilerOptions,
+    ) -> Self {
         Self {
             workspace,
             session: &workspace.session,
             package,
-
+            language,
             tree: NodeTree::new(),
             strings: StringPool::new(),
             options,

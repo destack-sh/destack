@@ -4,7 +4,7 @@ use std::path::Path;
 use dyst_ast::{BlockFormat, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan, TokenType};
 use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{Source, SourceFormat, SourceId, Uri};
+use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
 use destack_terminal::{CommandArguments, console};
 
@@ -43,7 +43,7 @@ pub(crate) struct SemanticSpan {
 }
 
 /// Compute semantic spans for a given label and body.
-pub(crate) fn semantic_spans_from_text(
+pub(crate) fn get_semantic_spans_from_text(
     label: &str,
     text: &str,
 ) -> Result<Vec<SemanticSpan>, String> {
@@ -54,13 +54,14 @@ pub(crate) fn semantic_spans_from_text(
         SourceFormat::Dyst,
         text.to_string(),
     );
-    semantic_spans_from_source(&source)
+    get_semantic_spans_from_source(&source)
 }
 
 /// Compute semantic spans directly from a Source value.
-pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
+pub(crate) fn get_semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
     let mut session = Session::new();
-    let mut parser = Parser::prepare(source, &mut session);
+    let language = LanguageOptions::default();
+    let mut parser = Parser::prepare(source, language, &mut session);
     let expressions = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),

@@ -6,7 +6,7 @@ use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
 use dyst_package::{FileContent, SourceFile, Workspace};
 use dyst_session::Session;
-use dyst_source::{AnnotateOptions, Color, SourceFormat, Uri, annotate_source};
+use dyst_source::{AnnotateOptions, Color, LanguageOptions, SourceFormat, Uri, annotate_source};
 
 use crate::source::read_source;
 
@@ -107,7 +107,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let package = workspace
         .get_package_containing_source_id(source_id)
         .unwrap_or_else(|| panic!("package not found: {source_id:?} in {workspace:?}"));
-    let mut compiler = Compiler::new(&workspace, package, CompilerOptions::default());
+    let language = LanguageOptions::default();
+    let mut compiler = Compiler::new(&workspace, package, language, CompilerOptions::default());
     let dir_tree = workspace
         .get_ast_by_source_id(source_id)
         .unwrap_or_else(|| panic!("document ast not found: {source_id:?} in {workspace:?}"));

@@ -9,5 +9,6 @@ mod execute;
 mod mir;
 mod resolve;
 mod validate;
+mod wasm;
 
 pub use compile::*;
