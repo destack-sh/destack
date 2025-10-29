@@ -14,6 +14,7 @@ impl<'a> Parser<'a> {
         } else if self.peek_keyword(Keyword::Protected).is_ok() {
             Ok(Some(Visibility::Protected))
         } else if self.peek_keyword(Keyword::Private).is_ok()
+            // `#field` for #Compatibility
             || self.peek_token(TokenType::Tag).is_ok()
         {
             Ok(Some(Visibility::Private))

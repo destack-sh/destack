@@ -262,6 +262,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // nocheckin: handle semicolon properly? (empty statements, parse, format, ..)
+
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
