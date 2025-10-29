@@ -15,10 +15,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_extension_with_for() {
+    fn test_format_extension_with_implements() {
         assert_format!(
-            "extension Foo: Bar { const X = 1 }",
-            "extension Foo: Bar {\n\tconst X = 1\n}",
+            "extension Foo implements Bar { const X = 1 }",
+            "extension Foo implements Bar {\n\tconst X = 1\n}",
             |p| p.eat_extension(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );

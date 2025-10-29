@@ -107,8 +107,6 @@ export struct TetrisGame {
     dropInterval: float32 = 1.0
 }
 
-extension TetrisGame implements Context { }
-
 /// The shape of a Tetris piece.
 export enum TetrisPieceShape {
     I
@@ -382,9 +380,9 @@ extension TetrisGame implements New {
 
     /// Lock the current piece to the board.
     function lockPiece() {
-        if const Some(piece) = this.currentPiece {
-            const absolutePositions = piece.getAbsolutePositions(this.currentPosition)
-            const color = piece.getColor()
+        if this.currentPiece != null {
+            const absolutePositions = this.currentPiece.getAbsolutePositions(this.currentPosition)
+            const color = this.currentPiece.getColor()
             for pos in absolutePositions {
                 this.board.setCell(pos, color)
             }

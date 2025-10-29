@@ -270,6 +270,7 @@ impl<'a> Parser<'a> {
 
     // nocheckin #Broken: handle semicolon properly? (empty statements, parse, format, ..)
     // (to disambiguate expressions as values to expressions as statements)
+    // just add Expression::Statement and use that as the root node in blocks/definitions?
 
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {

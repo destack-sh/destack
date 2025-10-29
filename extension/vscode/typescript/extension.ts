@@ -16,8 +16,6 @@ let serverProc: ChildProcessWithoutNullStreams | undefined;
 
 const DEBUG = false;
 
-
-
 /**
  * Try to stop the server process gracefully, then force-kill if needed.
  */
