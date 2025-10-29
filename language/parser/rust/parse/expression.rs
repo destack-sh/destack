@@ -25,7 +25,7 @@ pub static DEFINITION_KEYWORDS: [Keyword; 14] = [
     Keyword::Readonly,
     Keyword::Let,
     Keyword::Var,
-    Keyword::Implement,
+    Keyword::Extension,
 ];
 
 pub static DEFINITION_START_TOKENS: [TokenType; 4] = [
@@ -576,13 +576,13 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // implement
-            else if keyword == Some(Keyword::Implement)
+            // extension
+            else if keyword == Some(Keyword::Extension)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let implement_id = self.eat_implement(meta)?;
+                let extension_id = self.eat_extension(meta)?;
                 self.tree.insert(
-                    Expression::Definition(implement_id),
+                    Expression::Definition(extension_id),
                     self.get_span_from(start),
                 )
             }

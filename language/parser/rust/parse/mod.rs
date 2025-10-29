@@ -8,7 +8,7 @@ mod expression;
 mod function;
 mod identifier;
 mod r#if;
-mod implement;
+mod extension;
 mod import;
 mod interface;
 mod keyword;

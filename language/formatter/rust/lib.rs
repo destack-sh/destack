@@ -11,7 +11,7 @@ pub mod expression;
 pub mod function;
 pub mod identifier;
 pub mod r#if;
-pub mod implement;
+pub mod extension;
 pub mod import;
 pub mod interface;
 pub mod r#let;

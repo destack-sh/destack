@@ -74,8 +74,8 @@ pub enum Keyword {
     Interface,
     /// Declare a Function.
     Function,
-    /// Implement a type.
-    Implement,
+    /// Extend a type.
+    Extension,
     /// Declare definition.
     Declare,
     /// New expression.
@@ -257,7 +257,7 @@ impl Keyword {
             Keyword::Union => "union",
             Keyword::Interface => "interface",
             Keyword::Function => "function",
-            Keyword::Implement => "implement",
+            Keyword::Extension => "extension",
             Keyword::Declare => "declare",
             Keyword::New => "new",
             Keyword::Delete => "delete",
@@ -359,7 +359,7 @@ impl FromStr for Keyword {
             "union" => Ok(Keyword::Union),
             "interface" => Ok(Keyword::Interface),
             "function" => Ok(Keyword::Function),
-            "implement" => Ok(Keyword::Implement),
+            "extension" => Ok(Keyword::Extension),
             "declare" => Ok(Keyword::Declare),
             "new" => Ok(Keyword::New),
             "delete" => Ok(Keyword::Delete),

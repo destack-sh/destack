@@ -126,8 +126,8 @@ pub enum Definition {
         definitions: Vec<NodeId<Definition>>,
         body: Option<NodeId<Expression>>,
     },
-    /// Implement definition.
-    Implement {
+    /// Extension definition.
+    Extension {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         target_type: NodeId<Type>,
@@ -152,7 +152,7 @@ impl Definition {
             Definition::Union { meta, .. } => meta.kind,
             Definition::Interface { meta, .. } => meta.kind,
             Definition::Function { meta, .. } => meta.kind,
-            Definition::Implement { meta, .. } => meta.kind,
+            Definition::Extension { meta, .. } => meta.kind,
         }
     }
 
@@ -171,7 +171,7 @@ impl Definition {
             Definition::Union { meta, .. } => meta.name,
             Definition::Interface { meta, .. } => meta.name,
             Definition::Function { meta, .. } => meta.name,
-            Definition::Implement { meta, .. } => meta.name,
+            Definition::Extension { meta, .. } => meta.name,
         }
     }
 
@@ -190,7 +190,7 @@ impl Definition {
             Definition::Union { meta, .. } => meta.visibility,
             Definition::Interface { meta, .. } => meta.visibility,
             Definition::Function { meta, .. } => meta.visibility,
-            Definition::Implement { meta, .. } => meta.visibility,
+            Definition::Extension { meta, .. } => meta.visibility,
         }
     }
 
@@ -221,7 +221,7 @@ impl Definition {
                 ..
             } => Some(embedded_definitions),
             Definition::Function { .. } => None,
-            Definition::Implement { .. } => None,
+            Definition::Extension { .. } => None,
         }
     }
 
@@ -240,7 +240,7 @@ impl Definition {
             Definition::Union { definitions, .. } => Some(definitions),
             Definition::Interface { definitions, .. } => Some(definitions),
             Definition::Function { definitions, .. } => Some(definitions),
-            Definition::Implement { definitions, .. } => Some(definitions),
+            Definition::Extension { definitions, .. } => Some(definitions),
         }
     }
 }

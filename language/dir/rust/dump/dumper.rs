@@ -1748,14 +1748,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("signature", signature)
                     .end();
             }
-            Definition::Implement {
+            Definition::Extension {
                 meta,
                 generics,
                 target_type: _,
                 implements_types: _,
                 definitions: _,
             } => {
-                self.node("Definition::Implement", id.id)
+                self.node("Definition::Extension", id.id)
                     .field("meta", meta)
                     .field_optional("generics", generics)
                     .end();

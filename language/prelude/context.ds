@@ -11,4 +11,4 @@ export struct DefaultContext {
     allocator: Allocator
 }
 
-implement Context { }
+extension Context { }

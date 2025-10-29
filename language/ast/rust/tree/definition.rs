@@ -136,7 +136,7 @@ pub enum Definition {
     /// An Enum is an enumeration definition.
     /// Like with structs, the ',' separator is optional if newline-delimited.
     /// Like other types, enums can extend other enums (sugar for `use`-ing them) and
-    /// implement interfaces.
+    /// extension interfaces.
     ///
     /// Examples:
     /// ```
@@ -258,29 +258,29 @@ pub enum Definition {
         expressions: Vec<NodeId<Expression>>,
     },
 
-    /// An Implement defines the implementation of a concrete type, optionally for some specific super types.
-    /// There may be multiple Impls for the same type, and even impls for different modules.
+    /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
+    /// There may be multiple Extensions for the same type, and even extensions for different modules.
     /// (To add a module's implementation to your own just use the corresponding module.)
     ///
     /// Examples:
     /// ```
-    /// implement Foo {
+    /// extension Foo {
     ///     ...
     /// }
     ///
-    /// implement Foo<int32> {
+    /// extension Foo<int32> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> implements Baz {
+    /// extension Bar<int32> extends Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T>: Baz {
+    /// extension<T> Bar<T> extends Baz {
     ///     ...
     /// }
     /// ```
-    Implement {
+    Extension {
         meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
@@ -387,7 +387,7 @@ impl Definition {
             Definition::Enum { meta, .. } => meta,
             Definition::Union { meta, .. } => meta,
             Definition::Interface { meta, .. } => meta,
-            Definition::Implement { meta, .. } => meta,
+            Definition::Extension { meta, .. } => meta,
             Definition::Function { meta, .. } => meta,
         }
     }

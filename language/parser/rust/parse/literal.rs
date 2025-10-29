@@ -576,7 +576,7 @@ impl<'a> Parser<'a> {
             }
 
             // NOTE: struct literal arguments are different from regular arguments
-            //  (so we re-implement some of the argument parsing logic here,
+            //  (so we re-extension some of the argument parsing logic here,
             //   because we need to account for readonly/maybe/functions/...)
             let start = self.mark();
             let argument_id = {
