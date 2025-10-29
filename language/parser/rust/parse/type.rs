@@ -1,4 +1,4 @@
-use dyst_ast::{DefinitionMeta, FloatType, Keyword, Mutability, VarianceBound};
+use dyst_ast::{DefinitionMeta, DefinitionType, FloatType, Keyword, Mutability, VarianceBound};
 
 use crate::{
     Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
@@ -39,7 +39,25 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a type literal.
+    /// Eat a composite / definition type literal.
+    pub fn eat_composite_type_literal(&mut self) -> ParserResult<TypeLiteral> {
+        let next = self.peek()?;
+        let next_str = self.get_span_str(next.span);
+        match next_str {
+            "type" => Ok(TypeLiteral::Composite(DefinitionType::Type)),
+            "module" => Ok(TypeLiteral::Composite(DefinitionType::Module)),
+            "struct" => Ok(TypeLiteral::Composite(DefinitionType::Struct)),
+            "class" => Ok(TypeLiteral::Composite(DefinitionType::Class)),
+            "enum" => Ok(TypeLiteral::Composite(DefinitionType::Enum)),
+            "union" => Ok(TypeLiteral::Composite(DefinitionType::Union)),
+            "interface" => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
+            "extension" => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
+            "function" => Ok(TypeLiteral::Composite(DefinitionType::Function)),
+            _ => Err(ParserError::unexpected(next.span)),
+        }
+    }
+
+    /// Peek a type literal (except composite types).
     /// Certain type literals are only parsed at the AST-level in static or type contexts.
     /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
     pub fn peek_type_literal(&self) -> ParserResult<TypeLiteral> {
@@ -164,7 +182,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a type literal and return its value.
+    /// Eat a type literal (except composite types).
     pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParserResult<TypeLiteral> {
         let literal = match literal {
             Some(literal) => literal,

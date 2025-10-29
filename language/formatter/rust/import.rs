@@ -54,7 +54,7 @@ pub(crate) fn format_dependency_binding<'ast>(
 ) -> FormatResult<()> {
     // items with maybe target
     if let Some(items) = items
-        && !items.is_empty()
+        && (!items.is_empty() || target.is_none() && alias.is_none())
     {
         // items
         write!(f, [list_like("{", "}", ",", items).include_space()])?;

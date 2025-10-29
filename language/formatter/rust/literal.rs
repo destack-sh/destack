@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, CompositeType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, NodeId,
+    Argument, DefinitionType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, NodeId,
     ScalarLiteral, TypeLiteral,
 };
 
@@ -191,17 +191,18 @@ impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
+impl<'ast> Format<DystFormatContext<'ast>> for DefinitionType {
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         match self {
-            CompositeType::Type => write!(f, [Keyword::Type]),
-            CompositeType::Struct => write!(f, [Keyword::Struct]),
-            CompositeType::Class => write!(f, [Keyword::Class]),
-            CompositeType::Enum => write!(f, [Keyword::Enum]),
-            CompositeType::Union => write!(f, [Keyword::Union]),
-            CompositeType::Tuple => write!(f, [Keyword::Tuple]),
-            CompositeType::Interface => write!(f, [Keyword::Interface]),
-            CompositeType::Function => write!(f, [Keyword::Function]),
+            DefinitionType::Type => write!(f, [Keyword::Type]),
+            DefinitionType::Module => write!(f, [Keyword::Module]),
+            DefinitionType::Struct => write!(f, [Keyword::Struct]),
+            DefinitionType::Class => write!(f, [Keyword::Class]),
+            DefinitionType::Enum => write!(f, [Keyword::Enum]),
+            DefinitionType::Union => write!(f, [Keyword::Union]),
+            DefinitionType::Interface => write!(f, [Keyword::Interface]),
+            DefinitionType::Extension => write!(f, [Keyword::Extension]),
+            DefinitionType::Function => write!(f, [Keyword::Function]),
         }
     }
 }

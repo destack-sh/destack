@@ -35,6 +35,17 @@ pub static DEFINITION_START_TOKENS: [TokenType; 4] = [
     TokenType::LessThan,
 ];
 
+pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
+    Keyword::Type,
+    Keyword::Struct,
+    Keyword::Class,
+    Keyword::Enum,
+    Keyword::Union,
+    Keyword::Tuple,
+    Keyword::Interface,
+    Keyword::Function,
+];
+
 pub static PATTERN_START_TOKENS: [TokenType; 7] = [
     TokenType::Identifier,
     TokenType::Literal,
@@ -534,6 +545,24 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
 
+            // composite type
+            else if let Some(keyword) = keyword
+                && COMPOSITE_TYPE_KEYWORDS.contains(&keyword)
+                && next_token_type != TokenType::Dot
+                && next_token_type != TokenType::OpenBracket
+                // composite type is eagerly closed before a block 
+                // (to allow stuff like `if x instanceof type { ... }` where type excludes the block)
+                && (!DEFINITION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
+                // type is only allowed in `(type)` parenthesis to disambiguate from expression form
+                // (other composites don't need this since they're always followed by `<`, `(`, or `{`))
+                && (keyword != Keyword::Type || self.prev_token_type() == TokenType::OpenParenthesis && next_token_type == TokenType::CloseParenthesis)
+            {
+                let type_literal = self.eat_composite_type_literal()?;
+                self.tree.insert(
+                    Expression::TypeLiteral(type_literal),
+                    self.get_span_from(start),
+                )
+            }
             // module
             else if (keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace))
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
@@ -720,7 +749,7 @@ impl<'a> Parser<'a> {
             // Literals / Aliases / Values
             // ------------------------------------------------------------
             //
-            // array
+            // array literal
             else if token_type == TokenType::OpenBracket {
                 let elements = self.with_options(self.options.not_in_parenthesis(), |parser| {
                     parser.eat_array_literal()
@@ -748,13 +777,13 @@ impl<'a> Parser<'a> {
                 self.tree
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
-            // tree
+            // tree literal
             else if token_type == TokenType::LessThan && self.peek_tree_literal().is_ok() {
                 self.with_options(self.options.not_in_parenthesis(), |parser| {
                     parser.eat_tree_literal()
                 })?
             }
-            // template
+            // template literal
             else if self.peek_template_literal().is_ok() {
                 let template_literal = self.eat_template_literal(None)?;
                 self.tree.insert(
@@ -762,7 +791,7 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // scalar
+            // scalar literal
             else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 self.tree.insert(
@@ -770,7 +799,7 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // type
+            // type literal
             // (type literals are contextual, most are only parsed inside type context to avoid shadowing)
             else if let Ok(type_literal) = self.peek_type_literal() {
                 let type_literal = self.eat_type_literal(Some(type_literal))?;
@@ -961,7 +990,7 @@ impl<'a> Parser<'a> {
                 // maybe (followed by a delimiter/stop, but not preceded by a newline)
                 if self.peek_token(TokenType::Maybe).is_ok()
                     && (self.peek_next_any_stop().is_ok()
-                        && self.prev_token_type() != Some(TokenType::Newline)
+                        && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
                         || self.peek_next_assign_operator().is_ok())
@@ -1224,7 +1253,7 @@ type = type * 2
         let _ = parser.eat_expression().unwrap();
     }
 
-    /// Parse `export { bar, baz } from foo` through the expression parser.
+    /// Parse `export { bar, baz } from foo`.
     #[test]
     fn test_parse_export_expression_with_items_block() {
         let mut test = TestParser::new("export { bar, baz } from foo");
@@ -1249,7 +1278,7 @@ type = type * 2
         });
     }
 
-    /// Parse `export { bar, baz }` through the expression parser.
+    /// Parse `export { bar, baz }`.
     #[test]
     fn test_parse_export_expression_items_without_target() {
         let mut test = TestParser::new("export { bar, baz }");
@@ -1274,7 +1303,7 @@ type = type * 2
         });
     }
 
-    /// Parse `export * as baz from foo` through the expression parser.
+    /// Parse `export * as baz from foo`.
     #[test]
     fn test_parse_export_expression_star_alias() {
         let mut test = TestParser::new("export * as baz from foo");
@@ -1303,7 +1332,7 @@ type = type * 2
         });
     }
 
-    /// Parse `import { bar, baz } from foo` through the expression parser.
+    /// Parse `import { bar, baz } from foo`.
     #[test]
     fn test_parse_import_expression_with_items_block() {
         let mut test = TestParser::new("import { bar, baz } from foo");
@@ -1327,7 +1356,7 @@ type = type * 2
         });
     }
 
-    /// Parse `import * as baz from foo` through the expression parser.
+    /// Parse `import * as baz from foo`.
     #[test]
     fn test_parse_import_expression_star_alias_with_arguments() {
         let mut test = TestParser::new("import * as baz from foo with { bar: true }");

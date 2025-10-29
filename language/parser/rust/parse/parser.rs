@@ -446,8 +446,10 @@ impl<'a> Parser<'a> {
 
     /// Get the previous Token type.
     #[inline]
-    pub fn prev_token_type(&self) -> Option<TokenType> {
-        self.prev().map(|token| token.token.ty)
+    pub fn prev_token_type(&self) -> TokenType {
+        self.prev()
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End)
     }
 
     /// Peek the next Token or error.

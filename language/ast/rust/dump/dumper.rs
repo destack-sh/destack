@@ -1056,33 +1056,36 @@ impl Dump for FloatType {
     }
 }
 
-/// Dump a CompositeType as a structured representation.
-impl Dump for CompositeType {
+/// Dump a DefinitionType as a structured representation.
+impl Dump for DefinitionType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            CompositeType::Type => {
-                dumper.object("CompositeType::Type").end();
+            DefinitionType::Type => {
+                dumper.object("DefinitionType::Type").end();
             }
-            CompositeType::Struct => {
-                dumper.object("CompositeType::Struct").end();
+            DefinitionType::Module => {
+                dumper.object("DefinitionType::Module").end();
             }
-            CompositeType::Class => {
-                dumper.object("CompositeType::Class").end();
+            DefinitionType::Struct => {
+                dumper.object("DefinitionType::Struct").end();
             }
-            CompositeType::Enum => {
-                dumper.object("CompositeType::Enum").end();
+            DefinitionType::Class => {
+                dumper.object("DefinitionType::Class").end();
             }
-            CompositeType::Union => {
-                dumper.object("CompositeType::Union").end();
+            DefinitionType::Enum => {
+                dumper.object("DefinitionType::Enum").end();
             }
-            CompositeType::Tuple => {
-                dumper.object("CompositeType::Tuple").end();
+            DefinitionType::Union => {
+                dumper.object("DefinitionType::Union").end();
             }
-            CompositeType::Interface => {
-                dumper.object("CompositeType::Trait").end();
+            DefinitionType::Interface => {
+                dumper.object("DefinitionType::Interface").end();
             }
-            CompositeType::Function => {
-                dumper.object("CompositeType::Function").end();
+            DefinitionType::Extension => {
+                dumper.object("DefinitionType::Extension").end();
+            }
+            DefinitionType::Function => {
+                dumper.object("DefinitionType::Function").end();
             }
         }
     }

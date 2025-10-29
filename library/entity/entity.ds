@@ -5,10 +5,6 @@ export struct Epoch {
     const Zero = Epoch(0)
 }
 
-if typeof x == (struct) {
-    // hey
-}
-
 /// The materialization level of an Entity.
 export enum Materialization {
     Virtual
