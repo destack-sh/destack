@@ -65,7 +65,11 @@ impl<'a> Parser<'a> {
             // finally
             let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
                 self.bump(); // eat keyword
-                Some(self.eat_expression()?)
+                let finally_expression = self
+                    .with_options(self.options.in_block_slot(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                Some(finally_expression)
             } else {
                 None
             };

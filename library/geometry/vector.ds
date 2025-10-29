@@ -6,7 +6,7 @@ export struct Vector2 {
     y: float32
 
     /// Conexport struct a Vector2 from x and y components.
-    function new(x: float32, y: float32) => Vector2 {
+    constructor(x: float32, y: float32) => Vector2 {
         Vector2 { x, y }
     }
 }
