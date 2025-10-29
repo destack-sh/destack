@@ -446,6 +446,7 @@ impl<'a> Parser<'a> {
             // skip any newlines or modifiers
             while let Some(token) = self.tokens.get(pos)
                 && (token.token.ty == TokenType::Newline
+                    || token.token.ty == TokenType::Tag // (tag is a visibility modifier for #Compatibility)
                     || Keyword::from_str(self.get_token_str(*token))
                         .map(|keyword| BINDING_MODIFIERS.contains(&keyword))
                         .unwrap_or(false))

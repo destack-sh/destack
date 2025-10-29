@@ -6,7 +6,7 @@ use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Forma
 use dyst_fir::print::PrintOptions;
 use dyst_session::Session;
 use dyst_source::{
-    FormattingOptions, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan,
+    IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan,
     Source, Span, StringId, StringPool,
 };
 

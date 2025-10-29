@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
         while let Ok(token) = self.peek() {
             // #
             // tags are line and block scoped
-            if token.token.ty == TokenType::Tag {
+            if token.token.ty == TokenType::Tag && self.language.compatibility.is_none() {
                 let _ = self.with_recovery(
                     self.mark(),
                     |parser| parser.eat_tag().map(Some),
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     /// #Foo
     /// #Foo(x: 1)
     /// ```
-    pub(crate) fn eat_tag(&mut self) -> ParserResult<NodeId<Tag>> {
+    fn eat_tag(&mut self) -> ParserResult<NodeId<Tag>> {
         let start = self.mark();
 
         // #
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
-    pub(crate) fn eat_decorator(&mut self) -> ParserResult<NodeId<Decorator>> {
+    fn eat_decorator(&mut self) -> ParserResult<NodeId<Decorator>> {
         let start = self.mark();
 
         // @
@@ -264,7 +264,7 @@ impl<'a> Parser<'a> {
 
             // find the annotation position
             let Some((position, target_node_id)) =
-                self.find_main_annotation_position(tokens, ignore_span, false, span)
+                self.find_main_annotation_target(tokens, ignore_span, false, span)
             else {
                 // error if no position found
                 let error = ParserError::unexpected_for(span, NodeType::Tag);
@@ -289,7 +289,7 @@ impl<'a> Parser<'a> {
 
             // find the annotation position
             let Some((position, target_node_id)) =
-                self.find_main_annotation_position(tokens, ignore_span, true, span)
+                self.find_main_annotation_target(tokens, ignore_span, true, span)
             else {
                 // error if no position found
                 let error = ParserError::unexpected_for(span, NodeType::Decorator);
@@ -309,7 +309,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn find_main_annotation_position(
+    fn find_main_annotation_target(
         &self,
         tokens: &[TokenSpan],
         ignore_span: &MultiSpan,
@@ -332,7 +332,7 @@ impl<'a> Parser<'a> {
             .collect::<Vec<_>>();
 
         // find annotation position
-        self.find_annotation_position(
+        self.find_annotation_target(
             token_idx as u32,
             tokens,
             &token_group,
@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Find the annotation position for a given token index and group.
-    fn find_annotation_position(
+    fn find_annotation_target(
         &self,
         token_idx: u32,
         tokens: &[TokenSpan],
@@ -521,7 +521,7 @@ impl<'a> Parser<'a> {
         // find the node to attach to
         let is_line_comment = start_token.token.ty == TokenType::LineComment
             || start_token.token.ty == TokenType::DocLineComment;
-        let Some((position, target_node_id)) = self.find_annotation_position(
+        let Some((position, target_node_id)) = self.find_annotation_target(
             token_idx,
             tokens,
             group,

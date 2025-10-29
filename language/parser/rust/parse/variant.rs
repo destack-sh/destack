@@ -233,25 +233,25 @@ impl<'a> Parser<'a> {
             // modifiers (semi-speculative lookahead)
             let modifier_start = self.mark();
             let kind = if self.peek_keyword(Keyword::Declare).is_ok() {
-                self.bump();
+                self.bump(); // eat declare
                 DeclarationKind::Declaration
             } else {
                 DeclarationKind::Definition
             };
             let visibility = if let Ok(Some(visibility)) = self.peek_visibility() {
-                self.bump();
+                self.bump(); // eat visibility
                 Some(visibility)
             } else {
                 None
             };
             let scope = if self.peek_keyword(Keyword::Static).is_ok() {
-                self.bump();
+                self.bump(); // eat static
                 DeclarationScope::Static
             } else {
                 DeclarationScope::Container
             };
             if self.peek_keyword(Keyword::Readonly).is_ok() {
-                self.bump();
+                self.bump(); // eat readonly
             }
 
             // variant field
@@ -329,7 +329,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, Name, TypeLiteral};
+    use dyst_ast::{Definition, Name, TypeLiteral, Visibility};
+    use dyst_source::{LanguageCompatibility, LanguageOptions};
 
     use crate::tests::TestParser;
     use crate::{assert_expr_path, assert_node, assert_path, assert_string};
@@ -352,6 +353,25 @@ mod tests {
                     assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_variant_field_with_es_visibility_modifier() {
+        let mut test = TestParser::new_with_options(
+            r#"#name: string"#,
+            LanguageOptions::default().with_compatibility(LanguageCompatibility::TypeScript),
+        );
+        let mut parser = test.prepare();
+
+        let variant_field = parser.eat_variant_field().unwrap();
+        assert_node!(parser.tree, variant_field, VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default: None, .. } => {
+            // #name means private for #Compatibility
+            assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
+            // name
+            assert_string!(parser, *name, "name");
+            // string
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
         });
     }
 }

@@ -12,7 +12,13 @@ pub(crate) struct TestParser {
 }
 
 impl TestParser {
+    /// Create a new TestParser with default options.
     pub(crate) fn new(input: &str) -> Self {
+        Self::new_with_options(input, LanguageOptions::default())
+    }
+
+    /// Create a new TestParser with custom options.
+    pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
         let source_id = SourceId::new(0);
         let source = Source::from_string(
             source_id,
@@ -24,7 +30,7 @@ impl TestParser {
         Self {
             source,
             session: Session::new(),
-            language: LanguageOptions::default(),
+            language: options,
         }
     }
 

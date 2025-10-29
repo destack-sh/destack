@@ -10,16 +10,41 @@ pub enum LanguageMode {
 /// The language compatibility mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageCompatibility {
+    /// The JavaScript compatibility mode (like `.js`).
+    JavaScript,
+    /// The JavaScript XML compatibility mode (like `.jsx`).
+    JavaScriptXml,
+    /// The TypeScript compatibility mode (like `.ts`).
     TypeScript,
-    TypeScriptReact,
+    /// The TypeScript XML compatibility mode (like `.tsx`).
+    TypeScriptXml,
 }
 
 impl LanguageCompatibility {
     /// Whether the language compatibility is TypeScript-related.
+    #[inline]
     pub fn is_typescript(&self) -> bool {
         matches!(
             self,
-            LanguageCompatibility::TypeScript | LanguageCompatibility::TypeScriptReact
+            LanguageCompatibility::TypeScript | LanguageCompatibility::TypeScriptXml
+        )
+    }
+
+    /// Whether the language compatibility is JavaScript-related.
+    #[inline]
+    pub fn is_javascript(&self) -> bool {
+        matches!(
+            self,
+            LanguageCompatibility::JavaScript | LanguageCompatibility::JavaScriptXml
+        )
+    }
+
+    /// Whether the language compatibility is XML-related.
+    #[inline]
+    pub fn is_xml(&self) -> bool {
+        matches!(
+            self,
+            LanguageCompatibility::JavaScriptXml | LanguageCompatibility::TypeScriptXml
         )
     }
 }
@@ -27,6 +52,7 @@ impl LanguageCompatibility {
 /// The language version.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum LanguageVersion {
+    /// The first version of the language.
     V1,
 }
 
@@ -44,6 +70,27 @@ pub struct LanguageOptions {
 }
 
 impl LanguageOptions {
+    /// Whether the language compatibility is XML-related.
+    #[inline]
+    pub fn is_compatible_with_xml(&self) -> bool {
+        self.compatibility
+            .is_some_and(|compatibility| compatibility.is_xml())
+    }
+
+    /// Whether the language compatibility is JavaScript-related.
+    #[inline]
+    pub fn is_compatible_with_javascript(&self) -> bool {
+        self.compatibility
+            .is_some_and(|compatibility| compatibility.is_javascript())
+    }
+
+    /// Whether the language compatibility is TypeScript-related.
+    #[inline]
+    pub fn is_compatible_with_typescript(&self) -> bool {
+        self.compatibility
+            .is_some_and(|compatibility| compatibility.is_typescript())
+    }
+
     /// Set the language version.
     pub fn with_version(mut self, version: LanguageVersion) -> Self {
         self.version = version;
