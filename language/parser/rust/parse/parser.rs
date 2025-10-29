@@ -2,7 +2,7 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
-use dyst_source::{MultiSpan, Source, SourceId, Span, StringId, StringPool};
+use dyst_source::{LanguageOptions, MultiSpan, Source, SourceId, Span, StringId, StringPool};
 
 use crate::{
     Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult,
@@ -257,6 +257,8 @@ pub struct Parser<'ast> {
     /// The string pool.
     pub strings: StringPool,
 
+    /// The language options.
+    pub language: LanguageOptions,
     /// The session.
     pub session: &'ast mut Session,
     /// The errors encountered so far (for deduplication).
@@ -272,25 +274,27 @@ impl Debug for Parser<'_> {
 impl<'a> Parser<'a> {
     /// Create a new parser from source and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
-    pub fn prepare(source: &'a Source, session: &'a mut Session) -> Self {
+    pub fn prepare(
+        source: &'a Source,
+        language: LanguageOptions,
+        session: &'a mut Session,
+    ) -> Self {
         // tokenize
-        let (all_tokens, eof_token) = Lexer::lex(source.id, &source.content);
+        let (all_tokens, eof_token) = Lexer::lex(source.id, &source.content, language);
         let (tokens, side_tokens) = all_tokens
             .iter()
             .partition(|token| is_semantic(token.token.ty));
 
         // make parser
         let mut parser = Self {
-            // source
             source,
             source_id: source.id,
-            // state
             tokens,
             side_tokens,
             pos: 0,
             options: ParserOptions::default(),
             is_finalized: false,
-            // result
+            language,
             tree: NodeTree::new(source.id),
             strings: StringPool::new(),
             session,

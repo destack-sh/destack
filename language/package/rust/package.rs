@@ -1,4 +1,4 @@
-use dyst_source::{SourceId, Uri};
+use dyst_source::{LanguageOptions, SourceId, Uri};
 
 use crate::Dependency;
 
@@ -23,6 +23,8 @@ pub struct Package {
     pub root_uri: Uri,
     /// The manifest of the package.
     pub manifest: SourceId,
+    /// The language options of the package.
+    pub language: LanguageOptions,
     /// The dependencies of the package.
     pub dependencies: Vec<Dependency>,
     /// The sources in the package.
@@ -31,12 +33,19 @@ pub struct Package {
 
 impl Package {
     /// Create an empty package.
-    pub fn new(id: PackageId, name: String, root: Uri, manifest: SourceId) -> Self {
+    pub fn new(
+        id: PackageId,
+        name: String,
+        root: Uri,
+        manifest: SourceId,
+        language: LanguageOptions,
+    ) -> Self {
         Self {
             id,
             name,
             root_uri: root,
             manifest,
+            language,
             dependencies: Vec::new(),
             sources: Vec::new(),
         }

@@ -1,5 +1,5 @@
 use dyst_session::Session;
-use dyst_source::{Source, SourceFormat, SourceId, Uri};
+use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
 use crate::Parser;
 
@@ -8,6 +8,7 @@ use crate::Parser;
 pub(crate) struct TestParser {
     pub source: Source,
     pub session: Session,
+    pub language: LanguageOptions,
 }
 
 impl TestParser {
@@ -23,12 +24,13 @@ impl TestParser {
         Self {
             source,
             session: Session::new(),
+            language: LanguageOptions::default(),
         }
     }
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser<'_> {
-        Parser::prepare(&self.source, &mut self.session)
+        Parser::prepare(&self.source, self.language, &mut self.session)
     }
 }
 
@@ -255,7 +257,7 @@ mod tests {
     use crate::TokenType;
     use destack_file::glob;
     use dyst_session::Session;
-    use dyst_source::{Source, SourceFormat, SourceId, Uri};
+    use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
     use crate::{BlockFormat, Parser};
 
@@ -276,6 +278,7 @@ mod tests {
 
         let mut sources: HashMap<SourceId, Source> = HashMap::new();
         let mut session = Session::new();
+        let language = LanguageOptions::default();
 
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
@@ -294,7 +297,8 @@ mod tests {
                 fs::read_to_string(ds_file).unwrap(),
             );
             sources.insert(source_id, source);
-            let mut parser = Parser::prepare(sources.get(&source_id).unwrap(), &mut session);
+            let mut parser =
+                Parser::prepare(sources.get(&source_id).unwrap(), language, &mut session);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),

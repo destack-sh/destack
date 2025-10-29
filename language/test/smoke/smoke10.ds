@@ -29,6 +29,7 @@ type CompileOptions = {
   file: string;
   options: PluginOptions | null;
 };
+
 export async function compile({
   text,
   file,

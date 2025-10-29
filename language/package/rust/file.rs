@@ -6,7 +6,7 @@ use dyst_fir::format;
 use dyst_formatter::{DystFormatContext, DystFormatOptions};
 use dyst_parser::Parser;
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
+use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
 use crate::PackageId;
 
@@ -106,12 +106,12 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
-    pub fn parse(source: Source, session: &mut Session) -> Self {
+    pub fn parse(source: Source, language: LanguageOptions, session: &mut Session) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
 
         // parse the file AST
-        let mut parser = Parser::prepare(&source, session);
+        let mut parser = Parser::prepare(&source, language, session);
         let module_name_id = parser.intern_string(module_name);
         let root_definition_id = parser.with_recovery(
             parser.mark(),
@@ -184,8 +184,12 @@ impl BinaryFile {
 
 impl FileContent {
     /// Build a file for the provided text source.
-    pub(crate) fn parse_text(source: Source, session: &mut Session) -> Self {
-        FileContent::Source(SourceFile::parse(source, session))
+    pub(crate) fn parse_text(
+        source: Source,
+        language: LanguageOptions,
+        session: &mut Session,
+    ) -> Self {
+        FileContent::Source(SourceFile::parse(source, language, session))
     }
 
     /// Build a file for the provided binary source.
@@ -205,10 +209,11 @@ impl File {
         format: SourceFormat,
         is_open: bool,
         content: String,
+        language: LanguageOptions,
         session: &mut Session,
     ) -> Self {
         let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
-        let content = FileContent::parse_text(source, session);
+        let content = FileContent::parse_text(source, language, session);
         let intent = match format {
             SourceFormat::Dyst => {
                 if name.eq(MODULE_FILE_NAME) {

@@ -280,7 +280,7 @@ impl DestackLanguageServer {
 mod tests {
     use dyst_parser::Lexer;
     use dyst_session::Session;
-    use dyst_source::{Source, SourceFormat, SourceId};
+    use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId};
     use tower_lsp_server::lsp_types as lsp;
 
     use super::*;
@@ -299,8 +299,9 @@ mod tests {
             SourceFormat::Dyst,
             content.to_string(),
         );
-        let (tokens, _) = Lexer::lex(source.id, &source.content);
-        let source_file = SourceFile::parse(source, &mut session);
+        let language = LanguageOptions::default();
+        let (tokens, _) = Lexer::lex(source.id, &source.content, language);
+        let source_file = SourceFile::parse(source, language, &mut session);
         collect_semantic_tokens(
             &source_file.source,
             &tokens.into_iter().filter(filter).collect(),

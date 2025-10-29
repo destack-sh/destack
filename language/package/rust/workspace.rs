@@ -5,7 +5,7 @@ use destack_file::glob::glob;
 use dyst_ast::NodeTree;
 use dyst_diagnostic::Diagnostic;
 use dyst_session::Session;
-use dyst_source::{SourceFormat, SourceId, Uri};
+use dyst_source::{LanguageOptions, SourceFormat, SourceId, Uri};
 
 use crate::{
     File, FileContent, FileIntent, PACKAGE_FILE_NAME, Package, PackageId, SourceFile,
@@ -64,6 +64,7 @@ impl Workspace {
             "<orphan>".to_string(),
             orphan_package_uri.clone(),
             SourceId::new(0),
+            LanguageOptions::default(),
         );
 
         // create workspace
@@ -283,7 +284,7 @@ impl Workspace {
         is_open: bool,
         content: String,
     ) -> SourceId {
-        // get id
+        // get package & id
         let source_id = self.get_or_create_source_id(uri);
         let package_id = self
             .get_package_containing_uri(uri)
@@ -294,13 +295,14 @@ impl Workspace {
             .get_mut(&package_id)
             .unwrap_or_else(|| panic!("package not found: {package_id:?}"));
         package.add_source(source_id);
+        let language = package.language;
 
         // reset diagnostics
         self.reset_diagnostics_for_source(source_id);
 
         // create file
         let name = uri.last_segment().unwrap_or("<file>").to_string();
-        let filoe = File::parse_text(
+        let file = File::parse_text(
             source_id,
             package_id,
             name,
@@ -308,9 +310,10 @@ impl Workspace {
             format,
             is_open,
             content,
+            language,
             &mut self.session,
         );
-        self.files_by_uri.insert(uri.clone(), filoe);
+        self.files_by_uri.insert(uri.clone(), file);
         self.files_by_id.insert(source_id, uri.clone());
 
         source_id
@@ -465,6 +468,7 @@ impl Workspace {
                     file.name.clone(),
                     uri,
                     file.id,
+                    LanguageOptions::default(),
                 );
                 self.packages_by_id.insert(package.id, package);
             }

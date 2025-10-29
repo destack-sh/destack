@@ -275,7 +275,10 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
                     }
                     write!(f, [token(" */")])?;
                 } else {
-                    write!(f, [token("/**"), space(), self.string, space(), token("*/")])?;
+                    write!(
+                        f,
+                        [token("/**"), space(), self.string, space(), token("*/")]
+                    )?;
                 }
             }
             DocStyle::Slash => {

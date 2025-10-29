@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, DefinitionType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword, NodeId,
-    ScalarLiteral, TypeLiteral,
+    Argument, DefinitionType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword,
+    NodeId, ScalarLiteral, TypeLiteral,
 };
 
 use dyst_ast::TemplateLiteral;

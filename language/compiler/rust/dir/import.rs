@@ -61,7 +61,8 @@ impl<'a> Compiler<'a> {
                         name,
                         alias,
                     };
-                    self.tree.insert_from_ast(dependency_item, source_id, origin_id)
+                    self.tree
+                        .insert_from_ast(dependency_item, source_id, origin_id)
                 })
                 .collect()
         } else {
@@ -76,7 +77,10 @@ impl<'a> Compiler<'a> {
                 target,
                 alias,
             };
-            items.push(self.tree.insert_from_ast(dependency_item, source_id, origin_id));
+            items.push(
+                self.tree
+                    .insert_from_ast(dependency_item, source_id, origin_id),
+            );
         }
 
         items

@@ -3,7 +3,7 @@ use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
 use dyst_session::Session;
-use dyst_source::{MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
+use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
 use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree};
 
@@ -37,7 +37,8 @@ impl TestFormatter {
 
         // parse
         let mut session = Session::new();
-        let mut parser = Parser::prepare(&source, &mut session);
+        let language = LanguageOptions::default();
+        let mut parser = Parser::prepare(&source, language, &mut session);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
 

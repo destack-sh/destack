@@ -17,5 +17,6 @@ dyst_ast = { workspace = true }
 dyst_prelude = { workspace = true }
 
 [dev-dependencies]
+
 [lints]
 workspace = true

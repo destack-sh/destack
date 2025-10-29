@@ -1,7 +1,7 @@
 use destack_terminal::{CommandArguments, console, table};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::Source;
+use dyst_source::{LanguageOptions, Source};
 
 use crate::source::read_source;
 
@@ -51,7 +51,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     } else {
         |_| true
     };
-    let (tokens, _) = Lexer::lex(source.id, &source.content);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(source.id, &source.content, language);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.ty))
