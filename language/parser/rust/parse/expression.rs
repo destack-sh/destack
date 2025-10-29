@@ -1157,9 +1157,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        AssignOperator, Definition, DefinitionMeta, DependencyKind, DependencyTarget, ExportType,
-        FunctionStyle, IntType, Name, Parameter, PatternField, PostfixPosition, TypeLiteral,
-        TypeUnaryOperator, VarianceBound, WithClause,
+        AssignOperator, Block, Definition, DefinitionMeta, DefinitionType, DependencyKind,
+        DependencyTarget, ExportType, FunctionStyle, IntType, Name, Parameter, PatternField,
+        PostfixPosition, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, VarianceBound,
+        WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1251,6 +1252,61 @@ type = type * 2
         );
         let mut parser = test.prepare();
         let _ = parser.eat_expression().unwrap();
+    }
+
+    /// Parse an if extends struct condition without consuming the block.
+    #[test]
+    fn test_parse_if_extends_struct_type_literal() {
+        let mut test = TestParser::new("if x extends struct {\n    body\n}");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert!(else_expression.is_none());
+            // x extends struct
+            assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "x");
+                assert_eq!(*operator, TypeBinaryOperator::Extends);
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DefinitionType::Struct)));
+            });
+            // { body }
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(expressions.len(), 1);
+                    assert_expr_path!(parser, parser.tree.get(expressions[0]), "body");
+                });
+            });
+        });
+    }
+
+    /// Parse an if instanceof class condition inside parentheses.
+    #[test]
+    fn test_parse_if_instanceof_class_type_literal() {
+        let mut test = TestParser::new("if (T instanceof class) {\n    value\n}");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert!(else_expression.is_none());
+            // (T instanceof class)
+            assert_node!(parser.tree, *condition, Expression::Parenthesized { expression } => {
+                // T instanceof class
+                assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
+                    assert_expr_path!(parser, parser.tree.get(*left), "T");
+                    assert_eq!(*operator, TypeBinaryOperator::Instanceof);
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DefinitionType::Class)));
+                });
+            });
+            // { value }
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(expressions.len(), 1);
+                    assert_expr_path!(parser, parser.tree.get(expressions[0]), "value");
+                });
+            });
+        });
     }
 
     /// Parse `export { bar, baz } from foo`.

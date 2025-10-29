@@ -53,6 +53,17 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Identifier)
     }
 
+    /// Eat any keyword.
+    pub fn eat_keyword_any(&mut self) -> ParserResult<Keyword> {
+        let current = *self.eat_token(TokenType::Identifier)?;
+        let current_str = self.get_token_str(current);
+        if let Ok(keyword) = Keyword::from_str(current_str) {
+            Ok(keyword)
+        } else {
+            Err(ParserError::expected(current.span, TokenType::Identifier))
+        }
+    }
+
     /// Eat one of a list of keywords.
     pub fn eat_keyword_in(&mut self, keywords: &[Keyword]) -> ParserResult<Keyword> {
         let keyword = self.peek_any_keyword()?;

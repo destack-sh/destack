@@ -41,19 +41,18 @@ impl<'a> Parser<'a> {
 
     /// Eat a composite / definition type literal.
     pub fn eat_composite_type_literal(&mut self) -> ParserResult<TypeLiteral> {
-        let next = self.peek()?;
-        let next_str = self.get_span_str(next.span);
-        match next_str {
-            "type" => Ok(TypeLiteral::Composite(DefinitionType::Type)),
-            "module" => Ok(TypeLiteral::Composite(DefinitionType::Module)),
-            "struct" => Ok(TypeLiteral::Composite(DefinitionType::Struct)),
-            "class" => Ok(TypeLiteral::Composite(DefinitionType::Class)),
-            "enum" => Ok(TypeLiteral::Composite(DefinitionType::Enum)),
-            "union" => Ok(TypeLiteral::Composite(DefinitionType::Union)),
-            "interface" => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
-            "extension" => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
-            "function" => Ok(TypeLiteral::Composite(DefinitionType::Function)),
-            _ => Err(ParserError::unexpected(next.span)),
+        let next = self.eat_keyword_any()?;
+        match next {
+            Keyword::Type => Ok(TypeLiteral::Composite(DefinitionType::Type)),
+            Keyword::Module => Ok(TypeLiteral::Composite(DefinitionType::Module)),
+            Keyword::Struct => Ok(TypeLiteral::Composite(DefinitionType::Struct)),
+            Keyword::Class => Ok(TypeLiteral::Composite(DefinitionType::Class)),
+            Keyword::Enum => Ok(TypeLiteral::Composite(DefinitionType::Enum)),
+            Keyword::Union => Ok(TypeLiteral::Composite(DefinitionType::Union)),
+            Keyword::Interface => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
+            Keyword::Extension => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
+            Keyword::Function => Ok(TypeLiteral::Composite(DefinitionType::Function)),
+            _ => Err(ParserError::unexpected(self.peek()?.span)),
         }
     }
 
