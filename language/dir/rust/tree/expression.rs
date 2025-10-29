@@ -261,7 +261,7 @@ impl Expression {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopSource {
     /// For loop.
-    ForTriplet,
+    ForCondition,
     /// For loop.
     ForEach,
     /// While loop.

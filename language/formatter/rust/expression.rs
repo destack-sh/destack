@@ -710,6 +710,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     f,
                     [
                         Keyword::For,
+                        space(),
                         token("("),
                         initialization,
                         token(";"),
