@@ -2,33 +2,32 @@ use dyst_ast::DefinitionMeta;
 
 use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
-// nocheckin: change `implement`` keyword?
 impl<'a> Parser<'a> {
-    /// Eat an implement (incl. `implement` keyword).
+    /// Eat an extension (incl. `extension` keyword).
     ///
     /// Examples:
     /// ```
-    /// implement Foo {
+    /// extension Foo {
     ///     ...
     /// }
     ///
-    /// implement Foo<int32> {
+    /// extension Foo<int32> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> implements Baz {
+    /// extension Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T> implements Baz {
+    /// extension<T> Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_extension(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Implement)?;
+        self.eat_keyword(Keyword::Extension)?;
 
         // static parameters
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -54,9 +53,9 @@ impl<'a> Parser<'a> {
         let expressions = self.eat_block_body(BlockFormat::Explicit)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        // implement
-        let implement_id = self.tree.insert(
-            Definition::Implement {
+        // extension
+        let extension_id = self.tree.insert(
+            Definition::Extension {
                 meta,
                 static_parameters,
                 target_type,
@@ -67,7 +66,7 @@ impl<'a> Parser<'a> {
             },
             self.get_span_from(start),
         );
-        Ok(implement_id)
+        Ok(extension_id)
     }
 }
 
@@ -82,18 +81,18 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_implement_simple() {
+    fn test_parse_extension_simple() {
         let mut test = TestParser::new(
             r###"
-implement Foo {
+extension Foo {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
@@ -108,18 +107,18 @@ implement Foo {
     }
 
     #[test]
-    fn test_parse_implement_with_static_arguments() {
+    fn test_parse_extension_with_static_arguments() {
         let mut test = TestParser::new(
             r###"
-implement Foo<int32> {
+extension Foo<int32> {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
@@ -144,18 +143,18 @@ implement Foo<int32> {
     }
 
     #[test]
-    fn test_parse_implement_with_implements_type() {
+    fn test_parse_extension_with_implements_type() {
         let mut test = TestParser::new(
             r###"
-implement Bar<int32> implements Baz {
+extension Bar<int32> implements Baz {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(expressions.is_empty());
@@ -185,23 +184,23 @@ implement Bar<int32> implements Baz {
     }
 
     #[test]
-    fn test_parse_implement_with_static_parameters() {
+    fn test_parse_extension_with_static_parameters() {
         let mut test = TestParser::new(
             r###"
-implement<U> Bar<T> implements Baz<T> {
+extension<U> Bar<T> implements Baz<T> {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
-            // implement<U>
+            // extension<U>
             let static_parameters = static_parameters.as_ref().expect("expected static parameters");
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers: None, name, ty, default } => {
@@ -243,18 +242,18 @@ implement<U> Bar<T> implements Baz<T> {
     }
 
     #[test]
-    fn test_parse_implement_with_with_and_where() {
+    fn test_parse_extension_with_with_and_where() {
         let mut test = TestParser::new(
             r###"
-implement Foo with Context where Guard > Limit {
+extension Foo with Context where Guard > Limit {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, with_clauses, where_clauses, expressions, target_type, .. } => {
+        let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, with_clauses, where_clauses, expressions, target_type, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(expressions.is_empty());
 

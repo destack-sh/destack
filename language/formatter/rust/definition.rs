@@ -683,7 +683,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // implement
-            Definition::Implement {
+            Definition::Extension {
                 meta,
                 static_parameters: static_arguments,
                 target_type,
@@ -708,7 +708,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // keyword
-                write!(f, [Keyword::Implement])?;
+                write!(f, [Keyword::Extension])?;
 
                 // static arguments
                 if let Some(static_arguments) = &static_arguments

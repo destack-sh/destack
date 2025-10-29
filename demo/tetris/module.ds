@@ -44,7 +44,7 @@ export struct Board {
     }
 }
 
-implement Board {
+extension Board {
     /// Check if a position is valid on the board.
     function isValidPosition(pos: Position) => boolean {
         pos.x >= 0 && pos.x < this.width && pos.y >= 0 && pos.y < this.height
@@ -109,7 +109,7 @@ export struct TetrisGame {
     dropInterval: float32 = 1.0
 }
 
-implement TetrisGame implements Context { }
+extension TetrisGame implements Context { }
 
 /// The shape of a Tetris piece.
 export enum TetrisPieceShape {
@@ -129,7 +129,7 @@ export struct TetrisPiece {
     blocks: Position[]
 }
 
-implement TetrisPiece {
+extension TetrisPiece {
     /// Create a new Tetris piece.
     function new(shape: TetrisPieceShape) => TetrisPiece {
         const blocks = TetrisPiece.getBlocksForShape(shape, 0)
@@ -307,7 +307,7 @@ implement TetrisPiece {
     }
 }
 
-implement TetrisGame implements New {
+extension TetrisGame implements New {
     /// Create a new Tetris game.
     function new(width: int32, height: int32) => TetrisGame {
         TetrisGame {
@@ -468,7 +468,7 @@ implement TetrisGame implements New {
     }
 }
 
-implement TetrisGame implements Tick {
+extension TetrisGame implements Tick {
     function tick() with Time, &Random {
         // spawn initial piece if needed
         if this.currentPiece == null {

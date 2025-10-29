@@ -559,7 +559,7 @@ impl<'a> Compiler<'a> {
             }
 
             // Implement definition
-            ast::Definition::Implement {
+            ast::Definition::Extension {
                 meta,
                 static_parameters,
                 target_type,
@@ -590,7 +590,7 @@ impl<'a> Compiler<'a> {
                     .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
-                    Definition::Implement {
+                    Definition::Extension {
                         meta,
                         generics,
                         target_type,

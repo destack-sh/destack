@@ -155,7 +155,7 @@ impl fmt::Display for ParserError {
     }
 }
 
-// Optional: implement std::error::Error so callers can use `source()` if they like.
+// Optional: extension std::error::Error so callers can use `source()` if they like.
 impl std::error::Error for ParserError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         if let Some(source) = &self.source {

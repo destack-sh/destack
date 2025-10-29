@@ -1678,7 +1678,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("meta", meta)
                     .end();
             }
-            Definition::Implement {
+            Definition::Extension {
                 meta,
                 static_parameters: _,
                 target_type: _,
@@ -1687,7 +1687,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 where_clauses: _,
                 expressions: _,
             } => {
-                self.node("Definition::Implement", id.id)
+                self.node("Definition::Extension", id.id)
                     .field("meta", meta)
                     .end();
             }

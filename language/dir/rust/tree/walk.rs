@@ -668,7 +668,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *body, body_expression);
             }
         }
-        Definition::Implement {
+        Definition::Extension {
             meta: _,
             generics,
             target_type,
