@@ -254,6 +254,7 @@ impl<'a> Compiler<'a> {
             ast::Definition::Module {
                 meta,
                 format: _,
+                style: _,
                 with_clauses,
                 where_clauses,
                 expressions,

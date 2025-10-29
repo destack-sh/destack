@@ -7,8 +7,7 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionStyle, ReferenceStyle, Visibility,
+    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, Visibility
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -76,6 +75,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Module {
                 meta,
                 format,
+                style,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -110,7 +110,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // keyword
-                write!(f, [Keyword::Module])?;
+                match style {
+                    ModuleStyle::Module => write!(f, [Keyword::Module])?,
+                    ModuleStyle::Namespace => write!(f, [Keyword::Namespace])?,
+                }
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
                 }

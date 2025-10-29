@@ -1152,6 +1152,9 @@ impl Dump for DefinitionType {
             DefinitionType::Interface => {
                 dumper.object("DefinitionType::Interface").end();
             }
+            DefinitionType::Extension => {
+                dumper.object("DefinitionType::Extension").end();
+            }
             DefinitionType::Function => {
                 dumper.object("DefinitionType::Function").end();
             }
