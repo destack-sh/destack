@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     pub fn eat_if(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
-        // NOTE: ternary is parsed in expression parser, not in eat_if
+        // NOTE: ternary if is parsed in expression parser, not in eat_if
 
         // keyword
         self.eat_keyword(Keyword::If)?;
@@ -45,14 +45,18 @@ impl<'a> Parser<'a> {
         })?;
 
         // then block
-        let then_expression_id = self.eat_expression()?;
+        let then_expression_id = self.with_options(self.options.in_block_slot(), |parser| {
+            parser.eat_expression()
+        })?;
         self.eat_newlines_maybe()?;
 
         // if / else if / else node
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
             self.bump(); // eat else
             self.eat_newlines_maybe()?;
-            let else_expr_id = self.eat_expression()?;
+            let else_expr_id = self.with_options(self.options.in_block_slot(), |parser| {
+                parser.eat_expression()
+            })?;
 
             Expression::If {
                 runtime,

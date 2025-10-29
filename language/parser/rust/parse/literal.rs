@@ -408,7 +408,7 @@ impl<'a> Parser<'a> {
         Ok(elements)
     }
 
-    /// Peek an anomymous non-empty struct literal (without prefix, like `{ x: 0, y }` or `{ ..a }`):
+    /// Peek an anomymous struct literal (like `{}`, `{ x: 0, y }` or `{ ..a }`):
     ///  - Accepts `{ func() { .. } }` (function shorthand)
     ///  - Accepts `{ x, y }` or  `{ x: x }`
     ///  - Forbids `{ x }` (in favor of blocks expressions)
@@ -416,6 +416,7 @@ impl<'a> Parser<'a> {
     pub fn peek_anonymous_struct_literal_body(&mut self) -> ParserResult<Option<NodeId<Argument>>> {
         if self.peek_token(TokenType::OpenBrace).is_ok() {
             let mut pos = (self.pos() + 1) as usize;
+
             // skip any newlines or modifiers
             while let Some(token) = self.tokens.get(pos)
                 && (token.token.ty == TokenType::Newline
@@ -425,16 +426,23 @@ impl<'a> Parser<'a> {
             {
                 pos += 1;
             }
-            if pos + 3 >= self.tokens.len() {
-                return Err(ParserError::unexpected(self.peek()?.span));
+
+            // empty struct literal (if not expecting a block)
+            if !self.options.in_before_block
+                && !self.options.in_block_slot
+                && self.tokens.get(pos).map(|token| token.token.ty) == Some(TokenType::CloseBrace)
+            {
+                return Ok(None);
             }
 
             // struct literal field
+            if pos + 3 >= self.tokens.len() {
+                return Err(ParserError::unexpected(self.peek()?.span));
+            }
             let token_ty = self.tokens[pos].token.ty;
             let next_token_ty = self.tokens[pos + 1].token.ty;
             let next_next_token_ty = self.tokens[pos + 2].token.ty;
             match (token_ty, next_token_ty, next_next_token_ty) {
-                    // identifier:
                     (TokenType::Identifier, TokenType::Colon, _)
                     // identifier?:
                     | (TokenType::Identifier, TokenType::Maybe, TokenType::Colon)

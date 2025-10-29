@@ -38,8 +38,11 @@ pub(crate) struct ParserOptions {
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// Disallows struct literals at the root level in these cases to avoid ambiguity with expr {}.
+    /// Disallows all struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub in_before_block: bool = false,
+    /// Whether we're parsing an expression that might be a block (like in if, match, for, while).
+    /// Disallows empty anonymous struct literals.
+    pub in_block_slot: bool = false,
     /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
     pub in_tree_literal: bool = false,
@@ -89,6 +92,14 @@ impl ParserOptions {
     pub(crate) fn in_before_block(self) -> Self {
         Self {
             in_before_block: true,
+            ..self
+        }
+    }
+
+    /// Set `in_block_slot=true`.
+    pub(crate) fn in_block_slot(self) -> Self {
+        Self {
+            in_block_slot: true,
             ..self
         }
     }

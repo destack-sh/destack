@@ -412,13 +412,19 @@ impl<'a> Parser<'a> {
             }
             // function with body
             if style == FunctionStyle::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                Some(self.eat_expression()?)
+                let body = self.with_options(self.options.in_block_slot(), |parser| {
+                    parser.eat_expression()
+                })?;
+                Some(body)
             }
             // lambda with body
             else if style == FunctionStyle::Lambda && !self.options.in_type {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                Some(self.eat_expression()?)
+                let body = self.with_options(self.options.in_block_slot(), |parser| {
+                    parser.eat_expression()
+                })?;
+                Some(body)
             }
             // no body
             else {

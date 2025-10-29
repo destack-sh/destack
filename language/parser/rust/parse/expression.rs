@@ -325,8 +325,6 @@ impl<'a> Parser<'a> {
 
         let mut left_expression_id: NodeId<Expression> = {
             let token = *self.peek()?;
-            #[cfg(debug_assertions)]
-            let _token_str = self.get_span_str(token.span);
             let token_type = token.token.ty;
             let keyword = self.peek_any_keyword().ok();
             let next_token_type = self
@@ -339,6 +337,20 @@ impl<'a> Parser<'a> {
                 .ok()
                 .map(|token| token.token.ty)
                 .unwrap_or(TokenType::End);
+
+            #[cfg(debug_assertions)]
+            let _token_str = self.get_span_str(token.span);
+            #[cfg(debug_assertions)]
+            let _next_token_str = self
+                .peek_next()
+                .ok()
+                .map(|token| self.get_span_str(token.span));
+            #[cfg(debug_assertions)]
+            let _next_next_token_str = self
+                .peek_next_next()
+                .ok()
+                .map(|token| self.get_span_str(token.span));
+
             //
             // ------------------------------------------------------------
             // Grouping
@@ -1636,6 +1648,25 @@ const shapes = (
             });
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ArrayLiteral { elements } => {
                 assert_eq!(elements.len(), 0);
+            });
+        });
+    }
+
+    /// Parse a ternary if with braces (disambiguate from block).
+    #[test]
+    fn test_parse_if_ternary_with_braces() {
+        let mut test = TestParser::new("x ? {} : {}");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "x");
+            });
+            assert_node!(parser.tree, *then_expression, Expression::StructLiteral { ty: None, fields, .. } => {
+                assert_eq!(fields.len(), 0);
+            });
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::StructLiteral { ty: None, fields, .. } => {
+                assert_eq!(fields.len(), 0);
             });
         });
     }
