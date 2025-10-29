@@ -58,8 +58,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
         }
         NodeType::DependencyItem => {
-            let import_item = tree.import_items.get(local_idx);
-            walk_import_item(visitor, tree, NodeId::new(node_id), import_item);
+            let dependency_item = tree.dependency_items.get(local_idx);
+            walk_dependency_item(visitor, tree, NodeId::new(node_id), dependency_item);
         }
         // --------------------------------------------------------------------
         // Bindings
@@ -182,7 +182,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_import_item(tree, *item_id, item);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
@@ -198,7 +198,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_import_item(tree, *item_id, item);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
         Expression::Let {
@@ -506,7 +506,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_import_item(tree, *item_id, item);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
@@ -522,7 +522,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
-                visitor.visit_import_item(tree, *item_id, item);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
         Definition::Let { meta: _, value } => {
@@ -912,12 +912,12 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     visitor.visit_expression(tree, with_clause.right, right_expression);
 }
 
-/// Walk the UseItem.
-pub fn walk_import_item<V: NodeVisitor + ?Sized>(
+/// Walk the DependencyItem.
+pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<DependencyItem>,
-    _import_item: &DependencyItem,
+    _dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
 }

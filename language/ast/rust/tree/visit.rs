@@ -5,7 +5,7 @@ use crate::{
     EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField,
     Tag, UnionField, VariantField, WhereClause, WithClause, walk_annotation, walk_argument,
     walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_doc,
-    walk_enum_field, walk_expression, walk_import_item, walk_match_case, walk_parameter,
+    walk_enum_field, walk_expression, walk_dependency_item, walk_match_case, walk_parameter,
     walk_pattern, walk_pattern_field, walk_tag, walk_union_field, walk_variant_field,
     walk_where_clause, walk_with_clause,
 };
@@ -99,14 +99,14 @@ pub trait NodeVisitor {
         walk_where_clause(self, tree, id, where_clause);
     }
 
-    /// Visit a UseItem.
-    fn visit_import_item(
+    /// Visit a DependencyItem.
+    fn visit_dependency_item(
         &mut self,
         tree: &NodeTree,
         id: NodeId<DependencyItem>,
-        import_item: &DependencyItem,
+        dependency_item: &DependencyItem,
     ) {
-        walk_import_item(self, tree, id, import_item);
+        walk_dependency_item(self, tree, id, dependency_item);
     }
 
     // ------------------------------------------------------------
@@ -279,11 +279,11 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::WithClause, id.id);
     }
 
-    fn visit_import_item(
+    fn visit_dependency_item(
         &mut self,
         tree: &NodeTree,
         id: NodeId<DependencyItem>,
-        import_item: &DependencyItem,
+        dependency_item: &DependencyItem,
     ) {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }

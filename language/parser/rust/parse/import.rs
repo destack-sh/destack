@@ -284,6 +284,13 @@ impl<'a> Parser<'a> {
             let target = Some(self.eat_dependency_target()?);
             Ok((target, Some(alias), Some(items)))
         }
+        // `foo from "foo"` or `foo from foo`
+        else if self.peek_identifier().is_ok() && self.peek_next_keyword(Keyword::From).is_ok() {
+            let alias = self.eat_identifier()?;
+            self.eat_keyword(Keyword::From)?;
+            let target = Some(self.eat_dependency_target()?);
+            Ok((target, Some(alias), None))
+        }
         // `foo` or `foo as bar` or `foo.{a, b}`
         else {
             // target
@@ -450,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_import_expression_via_expression_parser() {
+    fn test_parse_import_expression() {
         let mut test = TestParser::new("import core.memory");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
@@ -461,6 +468,21 @@ mod tests {
             assert!(alias.is_none());
             assert!(items.is_none());
             assert_path!(parser, *target, "core.memory");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_from_expression() {
+        let mut test = TestParser::new("import os from 'os'");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // import os from 'os'
+        assert_node!(parser.tree, expression_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_string!(parser, alias.unwrap(), "os");
+            assert!(items.is_none());
+            assert_string!(parser, *target, "os");
         });
     }
 
