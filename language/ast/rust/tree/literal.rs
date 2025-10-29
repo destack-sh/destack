@@ -122,7 +122,7 @@ pub enum TypeLiteral {
     /// Float type.
     Float(FloatType),
     /// Composite type.
-    Composite(CompositeType),
+    Composite(DefinitionType),
     /// Self type.
     Self_,
     /// Symbol type.
@@ -179,25 +179,25 @@ impl FloatType {
     }
 }
 
-// nocheckin TODO #Incomplete: parse/disambiguate composite types (use wildcard again?)
-
-/// A CompositeType represents composite types.
+/// A DefinitionType represents composite types.
 #[derive(Debug, Clone, PartialEq)]
-pub enum CompositeType {
-    /// Base type `type`.
+pub enum DefinitionType {
+    /// Root type `type`.
     Type,
-    /// Struct type `struct MyStruct { ... }`.
+    /// Module type.
+    Module,
+    /// Struct type.
     Struct,
-    /// Class type `class MyClass { ... }`.
+    /// Class type.
     Class,
-    /// Enum type `enum MyEnum { ... }`.
+    /// Enum type.
     Enum,
-    /// Union type `A | B | C`.
+    /// Union type.
     Union,
-    /// Tuple type `(T1, T2, ...)`.
-    Tuple,
-    /// Interface type `interface MyInterface { ... }`.
+    /// Interface type.
     Interface,
-    /// Function type `function (T1, T2, ...) => T`.
+    /// Extension type.
+    Extension,
+    /// Function type.
     Function,
 }

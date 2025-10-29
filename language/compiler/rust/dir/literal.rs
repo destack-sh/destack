@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{CompositeType, FloatType, IntType, PrimitiveType, ScalarLiteral, TypeLiteral};
+use dyst_dir::{DefinitionType, FloatType, IntType, PrimitiveType, ScalarLiteral, TypeLiteral};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {
@@ -117,15 +117,17 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a composite type to a DIR composite type.
-    pub fn lower_composite_type(&self, composite_type: &ast::CompositeType) -> CompositeType {
+    pub fn lower_definition_type(&self, composite_type: &ast::DefinitionType) -> DefinitionType {
         match composite_type {
-            ast::CompositeType::Type => CompositeType::Type,
-            ast::CompositeType::Struct => CompositeType::Struct,
-            ast::CompositeType::Enum => CompositeType::Enum,
-            ast::CompositeType::Union => CompositeType::Union,
-            ast::CompositeType::Tuple => CompositeType::Tuple,
-            ast::CompositeType::Interface => CompositeType::Interface,
-            ast::CompositeType::Function => CompositeType::Function,
+            ast::DefinitionType::Type => DefinitionType::Type,
+            ast::DefinitionType::Module => DefinitionType::Module,
+            ast::DefinitionType::Struct => DefinitionType::Struct,
+            ast::DefinitionType::Class => DefinitionType::Class,
+            ast::DefinitionType::Enum => DefinitionType::Enum,
+            ast::DefinitionType::Union => DefinitionType::Union,
+            ast::DefinitionType::Interface => DefinitionType::Interface,
+            ast::DefinitionType::Extension => DefinitionType::Extension,
+            ast::DefinitionType::Function => DefinitionType::Function,
         }
     }
 
@@ -151,7 +153,7 @@ impl<'a> Compiler<'a> {
                 TypeLiteral::Primitive(PrimitiveType::Float(self.lower_float_type(float_type)))
             }
             ast::TypeLiteral::Composite(composite_type) => {
-                TypeLiteral::Composite(self.lower_composite_type(composite_type))
+                TypeLiteral::Composite(self.lower_definition_type(composite_type))
             }
             ast::TypeLiteral::Self_ => panic!("self type can't be lowerd"),
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
