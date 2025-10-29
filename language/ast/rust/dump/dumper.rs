@@ -953,6 +953,13 @@ impl Dump for ModuleFormat {
     }
 }
 
+/// Dump a ModuleStyle as a string.
+impl Dump for ModuleStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a VariantKind as a string.
 impl Dump for VariantKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1630,6 +1637,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Module {
                 meta,
                 format,
+                style,
                 expressions: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -1637,6 +1645,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Module", id.id)
                     .field("meta", meta)
                     .field("format", format)
+                    .field("style", style)
                     .end();
             }
             Definition::Struct {

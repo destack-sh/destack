@@ -622,6 +622,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Module {
             meta: _,
             format: _,
+            style: _,
             with_clauses,
             where_clauses,
             expressions,

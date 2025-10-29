@@ -1,3 +1,5 @@
+use dyst_ast::ModuleStyle;
+
 use crate::TokenType;
 use crate::parse::prelude::*;
 
@@ -12,8 +14,14 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword_in(&[Keyword::Module, Keyword::Namespace])
+        let keyword = self
+            .eat_keyword_in(&[Keyword::Module, Keyword::Namespace])
             .for_node_type(NodeType::Definition)?;
+        let style = match keyword {
+            Keyword::Module => ModuleStyle::Module,
+            Keyword::Namespace => ModuleStyle::Namespace,
+            _ => unreachable!(),
+        };
 
         // name
         meta.name = self.eat_name_maybe()?;
@@ -37,6 +45,7 @@ impl<'a> Parser<'a> {
                 Definition::Module {
                     meta,
                     format: ModuleFormat::Inline,
+                    style,
                     with_clauses,
                     where_clauses,
                     expressions,
@@ -47,6 +56,7 @@ impl<'a> Parser<'a> {
                 Definition::Module {
                     meta,
                     format: ModuleFormat::Forward,
+                    style,
                     with_clauses,
                     where_clauses,
                     expressions: Vec::new(),
@@ -63,6 +73,7 @@ impl<'a> Parser<'a> {
         &mut self,
         meta: DefinitionMeta,
         format: ModuleFormat,
+        style: ModuleStyle,
     ) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
@@ -79,6 +90,7 @@ impl<'a> Parser<'a> {
         let module = Definition::Module {
             meta,
             format,
+            style,
             with_clauses,
             where_clauses,
             expressions,
@@ -103,7 +115,7 @@ mod tests {
         let mut test = TestParser::new("module { }");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses } => {
+        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert!(meta.visibility.is_none());
@@ -120,7 +132,7 @@ mod tests {
         let mut test = TestParser::new("module x;");
         let mut parser = test.prepare();
         let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses } => {
+        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "x");
             assert!(meta.visibility.is_none());

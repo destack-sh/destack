@@ -1,6 +1,6 @@
 use dyst_ast::{
-    Definition, DefinitionMeta, ModuleFormat, Name, NodeId, NodeParentIndex, NodeTree, TokenSpan,
-    TokenType,
+    Definition, DefinitionMeta, ModuleFormat, ModuleStyle, Name, NodeId, NodeParentIndex, NodeTree,
+    TokenSpan, TokenType,
 };
 use dyst_fir::format;
 use dyst_formatter::{DystFormatContext, DystFormatOptions};
@@ -120,6 +120,7 @@ impl SourceFile {
                     .eat_module_body(
                         DefinitionMeta::new(Name::Identifier(module_name_id)),
                         ModuleFormat::Source,
+                        ModuleStyle::Module,
                     )
                     .map(Some)
             },
@@ -132,6 +133,7 @@ impl SourceFile {
                 Definition::Module {
                     meta: DefinitionMeta::new(Name::Identifier(module_name_id)),
                     format: ModuleFormat::Source,
+                    style: ModuleStyle::Module,
                     with_clauses: None,
                     where_clauses: None,
                     expressions: Vec::new(),

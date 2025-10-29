@@ -72,6 +72,7 @@ pub enum Definition {
     Module {
         meta: DefinitionMeta,
         format: ModuleFormat,
+        style: ModuleStyle,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
@@ -455,7 +456,7 @@ impl FunctionKind {
     }
 }
 
-/// The style of a module.
+/// The format of a module.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ModuleFormat {
     /// Implicit module source (e.g., whole file).
@@ -464,6 +465,15 @@ pub enum ModuleFormat {
     Forward,
     /// Inline module with explicit braces (e.g., `module x { ... }`).
     Inline,
+}
+
+/// The style of a module.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ModuleStyle {
+    /// Regular module.
+    Module,
+    /// Namespace module.
+    Namespace,
 }
 
 /// A EnumField is a enum field declaration.
