@@ -333,6 +333,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Match {
             runtime: _,
+            style: _,
             value,
             cases,
         } => {

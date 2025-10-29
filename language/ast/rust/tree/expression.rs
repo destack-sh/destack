@@ -300,6 +300,7 @@ pub enum Expression {
     /// ```
     Match {
         runtime: Option<Runtime>,
+        style: MatchStyle,
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
     },
@@ -781,6 +782,15 @@ pub enum WhereClause {
 
 impl Node for WhereClause {
     const KIND: NodeType = NodeType::WhereClause;
+}
+
+/// The style of a match expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MatchStyle {
+    /// Regular match expression (like `match <expr> { ... }`).
+    Match,
+    /// Switch expression with cases (like `switch <expr> { ... }`).
+    Switch,
 }
 
 /// A MatchCase is a match case inside a Match expression.

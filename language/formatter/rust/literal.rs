@@ -196,6 +196,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
         match self {
             CompositeType::Type => write!(f, [Keyword::Type]),
             CompositeType::Struct => write!(f, [Keyword::Struct]),
+            CompositeType::Class => write!(f, [Keyword::Class]),
             CompositeType::Enum => write!(f, [Keyword::Enum]),
             CompositeType::Union => write!(f, [Keyword::Union]),
             CompositeType::Tuple => write!(f, [Keyword::Tuple]),

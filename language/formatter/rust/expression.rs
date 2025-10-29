@@ -191,6 +191,7 @@ pub(crate) fn format_match<'ast>(
     let match_node = f.context().tree.get(node_id);
     let Expression::Match {
         runtime,
+        style: _,
         value,
         cases,
     } = &match_node

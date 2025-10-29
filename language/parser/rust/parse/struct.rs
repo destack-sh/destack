@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{DefinitionMeta, StructStyle};
+use dyst_ast::{DefinitionMeta, ReferenceStyle};
 
 use crate::TokenType;
 use crate::parse::prelude::*;
@@ -54,8 +54,8 @@ impl<'a> Parser<'a> {
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
             .for_node_type(NodeType::Definition)?;
         let style = match keyword {
-            Keyword::Struct => StructStyle::Struct,
-            Keyword::Class => StructStyle::Class,
+            Keyword::Struct => ReferenceStyle::Struct,
+            Keyword::Class => ReferenceStyle::Class,
             _ => unreachable!(),
         };
 
@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, DeclarationKind, DefinitionMeta, Mutability, Name, StructStyle, Visibility,
+        BindingKind, DeclarationKind, DefinitionMeta, Mutability, Name, ReferenceStyle, Visibility,
     };
 
     use crate::parse::tests::TestParser;
@@ -238,7 +238,7 @@ struct Foo(int32, public boolean) {}
         assert_node!(parser.tree, struct_id, Definition::Struct { meta, style, kind, fields, expressions, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(*style, StructStyle::Struct);
+            assert_eq!(*style, ReferenceStyle::Struct);
             assert_eq!(*kind, VariantKind::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
