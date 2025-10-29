@@ -1169,6 +1169,9 @@ impl Dump for PrimitiveType {
             PrimitiveType::String => {
                 dumper.object("TypeLiteral::String").end();
             }
+            PrimitiveType::Bigint => {
+                dumper.object("TypeLiteral::Bigint").end();
+            }
             PrimitiveType::Number => {
                 dumper.object("TypeLiteral::Number").end();
             }
@@ -1254,6 +1257,12 @@ impl Dump for ScalarLiteral {
             ScalarLiteral::Integer(value) => {
                 dumper
                     .object("ScalarLiteral::Integer")
+                    .field("value", value)
+                    .end();
+            }
+            ScalarLiteral::Bigint(value) => {
+                dumper
+                    .object("ScalarLiteral::Bigint")
                     .field("value", value)
                     .end();
             }

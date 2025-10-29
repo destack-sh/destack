@@ -1100,6 +1100,12 @@ impl Dump for ScalarLiteral {
                     .value(&value.to_string().as_str())
                     .end();
             }
+            ScalarLiteral::Bigint(value) => {
+                dumper
+                    .object("ScalarLiteral::Bigint")
+                    .value(&value.to_string().as_str())
+                    .end();
+            }
             ScalarLiteral::Float(value) => {
                 dumper
                     .object("ScalarLiteral::Float")
@@ -1209,6 +1215,9 @@ impl Dump for TypeLiteral {
             }
             TypeLiteral::String => {
                 dumper.object("TypeLiteral::String").end();
+            }
+            TypeLiteral::Bigint => {
+                dumper.object("TypeLiteral::Bigint").end();
             }
             TypeLiteral::Number => {
                 dumper.object("TypeLiteral::Number").end();

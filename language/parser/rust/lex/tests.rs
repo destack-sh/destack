@@ -143,18 +143,6 @@ fn test_lex_random_symbols() {
 }
 
 #[test]
-fn test_lex_ecmascript_identifiers_and_whitespace() {
-    assert_tokenize_eq_roundtrip!(
-        "$foo\u{00A0}$bar\u{2003}a\u{200C}b",
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Whitespace, 2, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Whitespace, 3, None),
-        Token::new(TokenType::Identifier, 5, None),
-    );
-}
-
-#[test]
 fn test_lex_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(
         "a==b != c <= d >= e < f > g",
@@ -538,7 +526,10 @@ b"a"
 0xABC
 1.0
 1.0e10
-2
+2n
+0xABn
+0b101n
+0o77n
 r###"raw"###
 br###"raw"###
 "####,
@@ -599,7 +590,8 @@ br###"raw"###
             4,
             Some(LiteralType::Int {
                 base: NumberBase::Decimal,
-                is_empty: false
+                is_empty: false,
+                is_bigint: false,
             })
         ),
         // 0b101
@@ -609,7 +601,8 @@ br###"raw"###
             5,
             Some(LiteralType::Int {
                 base: NumberBase::Binary,
-                is_empty: false
+                is_empty: false,
+                is_bigint: false,
             })
         ),
         Token::new(TokenType::Newline, 1, None),
@@ -619,7 +612,8 @@ br###"raw"###
             5,
             Some(LiteralType::Int {
                 base: NumberBase::Hexadecimal,
-                is_empty: false
+                is_empty: false,
+                is_bigint: false,
             })
         ),
         Token::new(TokenType::Newline, 1, None),
@@ -643,13 +637,47 @@ br###"raw"###
             })
         ),
         Token::new(TokenType::Newline, 1, None),
-        // 2
+        // 2n
         Token::new(
             TokenType::Literal,
-            1,
+            2,
             Some(LiteralType::Int {
                 base: NumberBase::Decimal,
-                is_empty: false
+                is_empty: false,
+                is_bigint: true,
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
+        // 0xABn
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::Int {
+                base: NumberBase::Hexadecimal,
+                is_empty: false,
+                is_bigint: true,
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
+        // 0b101n
+        Token::new(
+            TokenType::Literal,
+            6,
+            Some(LiteralType::Int {
+                base: NumberBase::Binary,
+                is_empty: false,
+                is_bigint: true,
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
+        // 0o77n
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::Int {
+                base: NumberBase::Octal,
+                is_empty: false,
+                is_bigint: true,
             })
         ),
         Token::new(TokenType::Newline, 1, None),

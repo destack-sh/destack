@@ -803,6 +803,7 @@ impl Lexer<'_> {
                         return LiteralType::Int {
                             base,
                             is_empty: true,
+                            is_bigint: false,
                         };
                     }
                 }
@@ -815,6 +816,7 @@ impl Lexer<'_> {
                         return LiteralType::Int {
                             base,
                             is_empty: true,
+                            is_bigint: false,
                         };
                     }
                 }
@@ -827,6 +829,7 @@ impl Lexer<'_> {
                         return LiteralType::Int {
                             base,
                             is_empty: true,
+                            is_bigint: false,
                         };
                     }
                 }
@@ -844,6 +847,7 @@ impl Lexer<'_> {
                     return LiteralType::Int {
                         base,
                         is_empty: false,
+                        is_bigint: false,
                     };
                 }
             }
@@ -883,9 +887,18 @@ impl Lexer<'_> {
                     is_empty_exponent,
                 }
             }
+            'n' => {
+                self.eat();
+                LiteralType::Int {
+                    base,
+                    is_empty: false,
+                    is_bigint: true,
+                }
+            }
             _ => LiteralType::Int {
                 base,
                 is_empty: false,
+                is_bigint: false,
             },
         }
     }

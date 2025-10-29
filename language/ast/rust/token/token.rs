@@ -428,8 +428,8 @@ impl Display for TokenType {
 pub enum LiteralType {
     /// Boolean (true or false)
     Boolean { value: bool },
-    /// Integer (12, 0o100, 0x (is_empty), 0b120, 1.0)
-    Int { base: NumberBase, is_empty: bool },
+    /// Integer (12, 0o100, 0x (is_empty), 0b120, 1.0, 1n)
+    Int { base: NumberBase, is_empty: bool, is_bigint: bool },
     /// Float (1.0, 1e3)
     Float {
         base: NumberBase,

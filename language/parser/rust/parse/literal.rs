@@ -31,11 +31,15 @@ impl<'a> Parser<'a> {
     /// true
     /// false
     /// 1
+    /// 1n
     /// 1.0
     /// 0x1234
+    /// "Hello, world!"
+    /// 'a'
+    /// b'a'
+    /// b"abc
     /// /abc/
     /// /abc/g
-    /// "hello"
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
@@ -49,7 +53,11 @@ impl<'a> Parser<'a> {
             LiteralType::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
 
             // int literal
-            LiteralType::Int { base, is_empty } => {
+            LiteralType::Int {
+                base,
+                is_empty,
+                is_bigint,
+            } => {
                 if is_empty {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -59,29 +67,47 @@ impl<'a> Parser<'a> {
                 }
 
                 // strip underscores for parsing
-                let cleaned: Cow<'_, str> = if literal_str.contains('_') {
+                let content: Cow<'_, str> = if literal_str.contains('_') {
                     Cow::Owned(literal_str.replace('_', ""))
                 } else {
                     Cow::Borrowed(literal_str)
                 };
 
+                // strip bigint suffix
+                let content = if is_bigint {
+                    Cow::Borrowed(content.trim_end_matches("n"))
+                } else {
+                    content
+                };
+
                 // handle base-specific prefixes
                 let parsed = match base {
-                    NumberBase::Decimal => cleaned.parse::<i64>(),
-                    NumberBase::Binary => i64::from_str_radix(cleaned.trim_start_matches("0b"), 2),
-                    NumberBase::Octal => i64::from_str_radix(cleaned.trim_start_matches("0o"), 8),
+                    NumberBase::Decimal => content.parse::<i64>(),
+                    NumberBase::Binary => i64::from_str_radix(content.trim_start_matches("0b"), 2),
+                    NumberBase::Octal => i64::from_str_radix(content.trim_start_matches("0o"), 8),
                     NumberBase::Hexadecimal => {
-                        i64::from_str_radix(cleaned.trim_start_matches("0x"), 16)
+                        i64::from_str_radix(content.trim_start_matches("0x"), 16)
                     }
                 };
 
-                parsed.map(ScalarLiteral::Integer).map_err(|_| {
-                    ParserError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    )
-                })
+                // int
+                if is_bigint {
+                    parsed.map(ScalarLiteral::Bigint).map_err(|_| {
+                        ParserError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        )
+                    })
+                } else {
+                    parsed.map(ScalarLiteral::Integer).map_err(|_| {
+                        ParserError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        )
+                    })
+                }
             }
 
             // float literal
@@ -97,13 +123,13 @@ impl<'a> Parser<'a> {
                     ));
                 }
 
-                let cleaned: Cow<'_, str> = if literal_str.contains('_') {
+                let content: Cow<'_, str> = if literal_str.contains('_') {
                     Cow::Owned(literal_str.replace('_', ""))
                 } else {
                     Cow::Borrowed(literal_str)
                 };
 
-                cleaned
+                content
                     .parse::<f64>()
                     .map(ScalarLiteral::Float)
                     .map_err(|_| {
@@ -911,7 +937,7 @@ mod tests {
     /// Parse integer literals in various formats.
     #[test]
     fn test_parse_integer_literal() {
-        let mut test = TestParser::new("1 731 0x1234");
+        let mut test = TestParser::new("1 731 0x1234 2n");
         let mut parser = test.prepare();
 
         assert_eq!(
@@ -925,6 +951,10 @@ mod tests {
         assert_eq!(
             parser.eat_scalar_literal().unwrap(),
             ScalarLiteral::Integer(0x1234)
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Bigint(2)
         );
     }
 
