@@ -100,6 +100,8 @@ impl<'a> Parser<'a> {
             "character" | "char" => Ok(TypeLiteral::Character),
             // string
             "string" | "str" => Ok(TypeLiteral::String),
+            // bigint
+            "bigint" => Ok(TypeLiteral::Bigint),
             // number
             "number" => Ok(TypeLiteral::Number),            
             // int (followed by number or nothing)

@@ -15,6 +15,7 @@ impl<'a> Compiler<'a> {
             ast::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
             ast::ScalarLiteral::Byte(byte) => ScalarLiteral::Byte(*byte),
             ast::ScalarLiteral::Integer(integer) => ScalarLiteral::Integer(*integer),
+            ast::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Bigint(*bigint),
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
             ast::ScalarLiteral::Character(character) => ScalarLiteral::Character(*character),
             ast::ScalarLiteral::String(string) => {
@@ -141,6 +142,7 @@ impl<'a> Compiler<'a> {
             ast::TypeLiteral::Boolean => TypeLiteral::Primitive(PrimitiveType::Boolean),
             ast::TypeLiteral::Character => TypeLiteral::Primitive(PrimitiveType::Character),
             ast::TypeLiteral::String => TypeLiteral::Primitive(PrimitiveType::String),
+            ast::TypeLiteral::Bigint => TypeLiteral::Primitive(PrimitiveType::Bigint),
             ast::TypeLiteral::Number => TypeLiteral::Primitive(PrimitiveType::Number),
             ast::TypeLiteral::Int(int_type) => {
                 TypeLiteral::Primitive(PrimitiveType::Int(self.lower_int_type(int_type)))

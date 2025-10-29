@@ -22,7 +22,11 @@ pub(crate) fn format_scalar_literal<'ast>(
     match scalar {
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(_) => {
-            let normalized_str = normalize_int(span_str);
+            let normalized_str = normalize_int(span_str, false);
+            text(&normalized_str).format(f)?;
+        }
+        ScalarLiteral::Bigint(_) => {
+            let normalized_str = normalize_int(span_str, true);
             text(&normalized_str).format(f)?;
         }
         ScalarLiteral::Float(_) => {
@@ -143,6 +147,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Boolean => write!(f, [token("boolean")]),
             TypeLiteral::Character => write!(f, [token("char")]),
             TypeLiteral::String => write!(f, [token("string")]),
+            TypeLiteral::Bigint => write!(f, [token("bigint")]),
             TypeLiteral::Number => write!(f, [token("number")]),
             TypeLiteral::Int(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
@@ -203,7 +208,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for CompositeType {
 /// Normalize an integer string to canonical form.
 ///
 /// Lowercases prefixes (0b, 0o, 0x) and uppercases hex digits.
-fn normalize_int(input: &str) -> Cow<'_, str> {
+fn normalize_int(input: &str, _is_bigint: bool) -> Cow<'_, str> {
     // normalized string if input is not yet normalized
     // output must remain empty if input is already normalized
     let mut output = String::new();

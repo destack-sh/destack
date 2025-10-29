@@ -12,6 +12,8 @@ pub enum PrimitiveType {
     Character,
     /// String type (unsized).
     String,
+    /// Bigint type (unsized).
+    Bigint,
     /// "Number" type (alias).
     Number,
     /// Integer type.

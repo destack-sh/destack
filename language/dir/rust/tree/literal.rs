@@ -1,6 +1,6 @@
 use crate::{Argument, NodeId, Path, StringId};
 
-/// A ScalarLiteral is literal scalar value node.
+/// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
     /// Boolean value.
@@ -9,6 +9,8 @@ pub enum ScalarLiteral {
     Byte(u8),
     /// Integer value.
     Integer(i64),
+    /// Bigint value.
+    Bigint(i64),
     /// Float value.
     Float(f64),
     /// Character value.
@@ -24,7 +26,7 @@ pub enum ScalarLiteral {
     ByteString(Vec<u8>),
 }
 
-/// A TemplateLiteral is literal template value node.
+/// A TemplateLiteral is literal template value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemplateLiteral {
     /// Template string value.

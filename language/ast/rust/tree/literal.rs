@@ -1,21 +1,21 @@
 use crate::{Argument, NodeId, Path, StringId};
 
-/// A ScalarLiteral is literal scalar value node.
+/// A ScalarLiteral is literal scalar value.
 ///
 /// Examples:
 /// ```
 /// true
 /// false
 /// 1
+/// 1n
 /// 0x21
 /// 1.0
 /// "Hello, world!"
 /// 'a'
 /// b'a'
+/// b"abc"
 /// /abc/
 /// /abc/g
-/// b"abc"
-/// 0x1234
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
@@ -25,6 +25,8 @@ pub enum ScalarLiteral {
     Byte(u8),
     /// Integer value.
     Integer(i64),
+    /// Bigint value.
+    Bigint(i64),
     /// Float value.
     Float(f64),
     /// Character value.
@@ -40,7 +42,7 @@ pub enum ScalarLiteral {
     ByteString(Vec<u8>),
 }
 
-/// A TemplateLiteral is literal template value node.
+/// A TemplateLiteral is literal template value.
 /// For interpolated templates, the start and end string may be empty.
 ///  (If there is an immediate argument after the first ` or before the last `, respectively).
 ///
@@ -71,7 +73,7 @@ pub enum TemplateLiteral {
     },
 }
 
-/// A TypeLiteral is literal type node.
+/// A TypeLiteral is literal type.
 /// Some types are also their literal scalar values (like `null`).
 ///
 /// Examples:
@@ -111,6 +113,8 @@ pub enum TypeLiteral {
     Character,
     /// String type (unsized).
     String,
+    /// Bigint type (unsized).
+    Bigint,
     /// "Number" type (alias).
     Number,
     /// Integer type.
