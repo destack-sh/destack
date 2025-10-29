@@ -527,15 +527,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     if let Some(visibility) = meta.visibility {
                         write!(f, [visibility, space()])?;
                     }
-                    // const
+                    // keyword
                     if mutability.is_immutable() {
                         write!(f, [Keyword::Const])?;
+                    } else {
+                        write!(f, [Keyword::Let])?;
                     }
-                    // mutability
-                    write!(
-                        f,
-                        [FormatScopedMutability::implicit_const(mutability.clone())]
-                    )?;
                     // pattern
                     write!(f, [space(), pattern])?;
                     // type

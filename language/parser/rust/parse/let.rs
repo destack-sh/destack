@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
             } else if self.peek_keyword(Keyword::Const).is_ok()
                 || self.peek_keyword(Keyword::Readonly).is_ok()
             {
-                self.bump(); // eat const or let
+                self.bump(); // eat const or readonly
                 Mutability::Immutable
             } else {
                 // nothing means unscoped const

@@ -104,17 +104,8 @@ mod tests {
     use dyst_ast::DefinitionMeta;
 
     #[test]
-    fn test_format_let_with_scoped_mutability() {
-        assert_format!(
-            "var(x, y) pos: Vector4 = undefined",
-            "var(x, y) pos: Vector4 = undefined",
-            |p| p.eat_let(DefinitionMeta::default())
-        );
-    }
-
-    #[test]
     fn test_format_let_with_value() {
-        assert_format!("const x = 1", "const x = 1", |p| p
+        assert_format!("let x = 1", "let x = 1", |p| p
             .eat_let(DefinitionMeta::default()));
     }
 
