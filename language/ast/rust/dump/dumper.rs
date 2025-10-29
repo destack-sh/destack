@@ -856,6 +856,13 @@ impl Dump for IfStyle {
     }
 }
 
+/// Dump a MatchStyle as a string.
+impl Dump for MatchStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a YieldCardinality as a string.
 impl Dump for YieldCardinality {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -979,8 +986,8 @@ impl Dump for BindingModifiers {
     }
 }
 
-/// Dump a StructStyle as a string.
-impl Dump for StructStyle {
+/// Dump a ReferenceStyle as a string.
+impl Dump for ReferenceStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1058,6 +1065,9 @@ impl Dump for CompositeType {
             }
             CompositeType::Struct => {
                 dumper.object("CompositeType::Struct").end();
+            }
+            CompositeType::Class => {
+                dumper.object("CompositeType::Class").end();
             }
             CompositeType::Enum => {
                 dumper.object("CompositeType::Enum").end();
@@ -1397,11 +1407,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Match {
                 runtime,
+                style,
                 value: _,
                 cases: _,
             } => {
                 self.node("Expression::Match", _id.id)
                     .field_optional("runtime", runtime)
+                    .field("style", style)
                     .end();
             }
             Expression::Break { label, value: _ } => {

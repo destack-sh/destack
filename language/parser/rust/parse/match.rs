@@ -1,4 +1,4 @@
-use dyst_ast::{Block, BlockFormat, Pattern};
+use dyst_ast::{Block, BlockFormat, MatchStyle, Pattern};
 
 use crate::TokenType;
 
@@ -24,17 +24,21 @@ impl<'a> Parser<'a> {
         // keyword
         // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
-        let is_switch = keyword == Keyword::Switch;
+        let style = if keyword == Keyword::Switch {
+            MatchStyle::Switch
+        } else {
+            MatchStyle::Match
+        };
 
         // body
-        self.eat_match_body(runtime, is_switch)
+        self.eat_match_body(runtime, style)
     }
 
     /// Eat a match body (without the match keyword)
     pub fn eat_match_body(
         &mut self,
         runtime: Option<Runtime>,
-        is_switch: bool,
+        style: MatchStyle,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
@@ -45,13 +49,14 @@ impl<'a> Parser<'a> {
 
         // cases
         self.eat_token(TokenType::OpenBrace)?;
-        let cases_id = self.eat_match_cases(is_switch)?;
+        let cases_id = self.eat_match_cases(style)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // match
         let match_id = self.tree.insert(
             Expression::Match {
                 runtime,
+                style,
                 value: value_id,
                 cases: cases_id,
             },
@@ -71,7 +76,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub(crate) fn eat_match_cases(
         &mut self,
-        is_switch: bool,
+        style: MatchStyle,
     ) -> ParserResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
         loop {
@@ -86,7 +91,7 @@ impl<'a> Parser<'a> {
             // case
             else {
                 let case = self
-                    .eat_match_case(is_switch)
+                    .eat_match_case(style)
                     .for_node_type(NodeType::MatchCase)?;
                 cases.push(case);
             }
@@ -104,60 +109,62 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self, is_switch: bool) -> ParserResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self, style: MatchStyle) -> ParserResult<NodeId<MatchCase>> {
         let start = self.mark();
 
         let (pattern_id, guard) = {
-            // switch-style for #Compatibility
-            if is_switch {
-                // default case
-                if self.peek_keyword(Keyword::Default).is_ok() {
-                    self.bump();
-                    self.eat_colon()?;
-                    self.eat_newlines_maybe()?;
-                    let pattern_id = self
-                        .tree
-                        .insert(Pattern::Wildcard, self.get_span_from(start));
+            match style {
+                MatchStyle::Switch => {
+                    // default case
+                    if self.peek_keyword(Keyword::Default).is_ok() {
+                        self.bump();
+                        self.eat_colon()?;
+                        self.eat_newlines_maybe()?;
+                        let pattern_id = self
+                            .tree
+                            .insert(Pattern::Wildcard, self.get_span_from(start));
 
-                    (pattern_id, None)
+                        (pattern_id, None)
+                    }
+                    // regular case
+                    else {
+                        self.eat_keyword(Keyword::Case)?;
+                        let pattern_id = self.eat_pattern()?;
+                        self.eat_colon()?;
+                        self.eat_newlines_maybe()?;
+                        let guard = None;
+
+                        (pattern_id, guard)
+                    }
                 }
-                // regular case
-                else {
-                    self.eat_keyword(Keyword::Case)?;
-                    let pattern_id = self.eat_pattern()?;
-                    self.eat_colon()?;
-                    self.eat_newlines_maybe()?;
-                    let guard = None;
+                // match-style
+                MatchStyle::Match => {
+                    // pattern
+                    let pattern_id = self.with_options(self.options.in_match_case(), |parser| {
+                        parser.eat_pattern()
+                    })?;
+
+                    // guard
+                    let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                        self.eat_keyword(Keyword::If)?;
+                        let guard = self.with_options(
+                            ParserOptions {
+                                in_match_case: true,
+                                in_before_block: true,
+                                ..Default::default()
+                            },
+                            |parser| parser.try_eat_expression(TokenType::ArrowWide),
+                        )?;
+                        Some(guard)
+                    } else {
+                        None
+                    };
+
+                    // "arrow"
+                    self.eat_arrow()?;
 
                     (pattern_id, guard)
                 }
-            }
-            // match-style
-            else {
-                // pattern
-                let pattern_id =
-                    self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
-
-                // guard
-                let guard = if self.peek_keyword(Keyword::If).is_ok() {
-                    self.eat_keyword(Keyword::If)?;
-                    let guard = self.with_options(
-                        ParserOptions {
-                            in_match_case: true,
-                            in_before_block: true,
-                            ..Default::default()
-                        },
-                        |parser| parser.try_eat_expression(TokenType::ArrowWide),
-                    )?;
-                    Some(guard)
-                } else {
-                    None
-                };
-
-                // "arrow"
-                self.eat_arrow()?;
-
-                (pattern_id, guard)
             }
         };
 
@@ -175,7 +182,7 @@ impl<'a> Parser<'a> {
             Ok(match_case_id)
         }
         // implicit case block/expression
-        else if is_switch {
+        else if style == MatchStyle::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
             let mut expressions: Vec<NodeId<Expression>> = Vec::new();
@@ -242,7 +249,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::Block;
+    use dyst_ast::{Block, MatchStyle};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -267,7 +274,7 @@ match x {
 
         let match_id = parser.eat_match(None).unwrap();
 
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, style: MatchStyle::Match, value, cases } => {
             // value: path x
             assert_expr_path!(parser, parser.tree.get(*value), "x");
 
@@ -321,7 +328,7 @@ match x {
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match(None).unwrap();
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value: _, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, style: MatchStyle::Match, value: _, cases } => {
             assert_eq!(cases.len(), 1);
 
             // case: 2 if true => 20
@@ -358,7 +365,7 @@ match self {
         let match_id = parser.eat_match(None).unwrap();
 
         // match self { ... }
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, style: MatchStyle::Match, value, cases } => {
             // self
             assert_expr_path!(parser, parser.tree.get(*value), "self");
 
@@ -422,7 +429,7 @@ switch (left.type) {
         parser.eat_newline().unwrap();
 
         let switch_id = parser.eat_match(None).unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, value: _, cases } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, style: MatchStyle::Switch, value: _, cases } => {
             assert_eq!(cases.len(), 4);
 
             // case 'static' (block)

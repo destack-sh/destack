@@ -783,8 +783,8 @@ impl Dump for FunctionKind {
     }
 }
 
-/// Dump a StructStyle as a string.
-impl Dump for StructStyle {
+/// Dump a ReferenceStyle as a string.
+impl Dump for ReferenceStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1136,6 +1136,9 @@ impl Dump for CompositeType {
             }
             CompositeType::Struct => {
                 dumper.object("CompositeType::Struct").end();
+            }
+            CompositeType::Class => {
+                dumper.object("CompositeType::Class").end();
             }
             CompositeType::Enum => {
                 dumper.object("CompositeType::Enum").end();

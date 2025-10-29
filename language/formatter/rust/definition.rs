@@ -8,7 +8,7 @@ use crate::{
 };
 use dyst_ast::{
     Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionStyle, StructStyle, Visibility,
+    FunctionCardinality, FunctionKind, FunctionStyle, ReferenceStyle, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -208,8 +208,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // keyword
                 match style {
-                    StructStyle::Struct => write!(f, [Keyword::Struct])?,
-                    StructStyle::Class => write!(f, [Keyword::Class])?,
+                    ReferenceStyle::Struct => write!(f, [Keyword::Struct])?,
+                    ReferenceStyle::Class => write!(f, [Keyword::Class])?,
                 }
                 if let Some(representation_type) = representation_type {
                     write!(f, [token("("), representation_type, token(")")])?;

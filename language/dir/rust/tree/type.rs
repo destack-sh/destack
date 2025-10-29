@@ -33,6 +33,8 @@ pub enum CompositeType {
     Type,
     /// Struct type `struct MyStruct { ... }`.
     Struct,
+    /// Class type `class MyClass { ... }`.
+    Class,
     /// Enum type `enum MyEnum { ... }`.
     Enum,
     /// Union type `A | B | C`.

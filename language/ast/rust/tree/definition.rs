@@ -121,7 +121,7 @@ pub enum Definition {
     /// ```
     Struct {
         meta: DefinitionMeta,
-        style: StructStyle,
+        style: ReferenceStyle,
         kind: VariantKind,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
@@ -401,7 +401,7 @@ impl Definition {
 
 /// The style of a struct or class.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructStyle {
+pub enum ReferenceStyle {
     /// Struct.
     Struct,
     /// Class.
