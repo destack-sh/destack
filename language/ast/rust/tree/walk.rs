@@ -55,8 +55,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             walk_where_clause(visitor, tree, NodeId::new(node_id), where_clause);
         }
         NodeType::DependencyItem => {
-            let import_item = tree.import_items.get(local_idx);
-            walk_import_item(visitor, tree, NodeId::new(node_id), import_item);
+            let dependency_item = tree.dependency_items.get(local_idx);
+            walk_dependency_item(visitor, tree, NodeId::new(node_id), dependency_item);
         }
         // --------------------------------------------------------------------
         // Bindings
@@ -174,7 +174,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             if let Some(items) = items {
                 for item_id in items {
                     let item = tree.get(*item_id);
-                    visitor.visit_import_item(tree, *item_id, item);
+                    visitor.visit_dependency_item(tree, *item_id, item);
                 }
             }
             if let Some(arguments) = arguments {
@@ -195,7 +195,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             if let Some(items) = items {
                 for item_id in items {
                     let item = tree.get(*item_id);
-                    visitor.visit_import_item(tree, *item_id, item);
+                    visitor.visit_dependency_item(tree, *item_id, item);
                 }
             }
         }
@@ -1101,15 +1101,15 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the UseClause.
-/// Walk the UseItem.
-pub fn walk_import_item<V: NodeVisitor + ?Sized>(
+/// Walk the DependencyItem.
+pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     _tree: &NodeTree,
     id: NodeId<DependencyItem>,
-    _import_item: &DependencyItem,
+    _dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(_tree, NodeType::DependencyItem, id.id);
-    // UseItem has no child nodes to visit (only StringId fields)
+    // DependencyItem has no child nodes to visit (only StringId fields)
 }
 
 /// Walk the Parameter.

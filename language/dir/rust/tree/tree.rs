@@ -45,7 +45,7 @@ pub struct NodeTree {
     pub(crate) where_clauses: NodeArena<WhereClause>,
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
-    pub(crate) import_items: NodeArena<DependencyItem>,
+    pub(crate) dependency_items: NodeArena<DependencyItem>,
     // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
@@ -101,7 +101,7 @@ impl NodeTree {
             where_clauses: NodeArena::new(),
             // context
             with_clauses: NodeArena::new(),
-            import_items: NodeArena::new(),
+            dependency_items: NodeArena::new(),
             // bindings
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
@@ -326,7 +326,7 @@ impl_node_tree_stores! {
     WhereClause => where_clauses,
     // context
     WithClause => with_clauses,
-    DependencyItem => import_items,
+    DependencyItem => dependency_items,
     // bindings
     Parameter => parameters,
     Argument => arguments,

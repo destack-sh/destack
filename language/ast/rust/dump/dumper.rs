@@ -1880,18 +1880,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_import_item(
+    fn visit_dependency_item(
         &mut self,
         _tree: &NodeTree,
         _id: NodeId<DependencyItem>,
         item: &DependencyItem,
     ) {
-        self.node("UseItem", _id.id)
+        self.node("DependencyItem", _id.id)
             .field("name", &item.name)
             .field_optional("alias", &item.alias)
             .end();
         self.with_depth(|dumper| {
-            walk_import_item(dumper, _tree, _id, item);
+            walk_dependency_item(dumper, _tree, _id, item);
         });
     }
 

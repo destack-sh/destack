@@ -1994,13 +1994,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_import_item(
+    fn visit_dependency_item(
         &mut self,
         tree: &NodeTree,
         id: NodeId<DependencyItem>,
-        import_item: &DependencyItem,
+        dependency_item: &DependencyItem,
     ) {
-        match import_item {
+        match dependency_item {
             DependencyItem::Glob {
                 kind: ty,
                 target,
@@ -2027,7 +2027,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
         }
         self.with_depth(|dumper| {
-            walk_import_item(dumper, tree, id, import_item);
+            walk_dependency_item(dumper, tree, id, dependency_item);
         });
     }
 

@@ -49,19 +49,19 @@ impl<'a> Compiler<'a> {
             items
                 .iter()
                 .map(|item| {
-                    let import_item = ast.get(*item);
-                    let kind = self.lower_dependency_kind(source_id, ast, import_item.kind);
-                    let name = self.lower_string_id(source_id, import_item.name);
-                    let alias = import_item
+                    let dependency_item = ast.get(*item);
+                    let kind = self.lower_dependency_kind(source_id, ast, dependency_item.kind);
+                    let name = self.lower_string_id(source_id, dependency_item.name);
+                    let alias = dependency_item
                         .alias
                         .map(|alias| self.lower_string_id(source_id, alias));
-                    let import_item = DependencyItem::Scalar {
+                    let dependency_item = DependencyItem::Scalar {
                         kind,
                         target: target.clone(),
                         name,
                         alias,
                     };
-                    self.tree.insert_from_ast(import_item, source_id, origin_id)
+                    self.tree.insert_from_ast(dependency_item, source_id, origin_id)
                 })
                 .collect()
         } else {
@@ -71,12 +71,12 @@ impl<'a> Compiler<'a> {
         if let Some(target) = target
             && (items.is_empty() || alias.is_some())
         {
-            let import_item = DependencyItem::Glob {
+            let dependency_item = DependencyItem::Glob {
                 kind,
                 target,
                 alias,
             };
-            items.push(self.tree.insert_from_ast(import_item, source_id, origin_id));
+            items.push(self.tree.insert_from_ast(dependency_item, source_id, origin_id));
         }
 
         items
