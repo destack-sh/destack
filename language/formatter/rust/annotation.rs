@@ -263,19 +263,26 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
-            DocStyle::Star if !is_multi_line => {
-                // block doc comment with `/**` and `*/`
-                //  (unless multiline, we auto-convert to line comments)
-                write!(
-                    f,
-                    [token("/**"), space(), self.string, space(), token("*/")]
-                )?;
+            DocStyle::Star => {
+                if is_multi_line {
+                    write!(f, [token("/**"), hard_line_break()])?;
+                    for line in string.lines() {
+                        write!(f, [token(" *")])?;
+                        if !line.is_empty() {
+                            write!(f, [space(), text(line)])?;
+                        }
+                        write!(f, [hard_line_break()])?;
+                    }
+                    write!(f, [token(" */")])?;
+                } else {
+                    write!(f, [token("/**"), space(), self.string, space(), token("*/")])?;
+                }
             }
-            _ => {
-                // prefix every line with `///`
-                for (i, line) in string.lines().enumerate() {
+            DocStyle::Slash => {
+                let mut lines = string.lines().peekable();
+                while let Some(line) = lines.next() {
                     write!(f, [token("///"), space(), text(line)])?;
-                    if i < string.lines().count() - 1 {
+                    if lines.peek().is_some() {
                         write!(f, [hard_line_break()])?;
                     }
                 }
@@ -294,17 +301,26 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
-            CommentStyle::Star if !is_multi_line => {
-                // block comment with `/*` and `*/`
-                //  (unless multiline, we auto-convert to line comments)
-                write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
+            CommentStyle::Star => {
+                if is_multi_line {
+                    write!(f, [token("/*"), hard_line_break()])?;
+                    for line in string.lines() {
+                        write!(f, [token(" *")])?;
+                        if !line.is_empty() {
+                            write!(f, [space(), text(line)])?;
+                        }
+                        write!(f, [hard_line_break()])?;
+                    }
+                    write!(f, [token(" */")])?;
+                } else {
+                    write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
+                }
             }
-            _ => {
-                // prefix every line with `//`
-                let string = f.context().strings.get(self.string);
-                for (i, line) in string.lines().enumerate() {
+            CommentStyle::Slash => {
+                let mut lines = string.lines().peekable();
+                while let Some(line) = lines.next() {
                     write!(f, [token("//"), space(), text(line)])?;
-                    if i < string.lines().count() - 1 {
+                    if lines.peek().is_some() {
                         write!(f, [hard_line_break()])?;
                     }
                 }
@@ -480,9 +496,9 @@ mod tests {
         );
     }
 
-    /// Convert multiline block doc comments to doc line comments.
+    /// Keep multiline block doc comments as block comments.
     #[test]
-    fn test_format_multine_block_doc_comment_to_line_comment() {
+    fn test_format_multine_block_doc_comment_stays_block() {
         assert_format!(
             "{
     /** some multiline
@@ -491,9 +507,11 @@ mod tests {
     const X = 1 
 }",
             "{
-    /// some multiline
-    /// doc comment
-    /// over multiple lines
+    /**
+     * some multiline
+     * doc comment
+     * over multiple lines
+     */
     const X = 1
 }",
             |p| p.eat_block(),
@@ -501,9 +519,9 @@ mod tests {
         );
     }
 
-    /// Suffix multiline annotation should be pushed to the next line *and* converted to line comments.
+    /// Keep multiline postfix comments as block comments.
     #[test]
-    fn test_format_multine_block_comment_push_and_convert_to_line_comment() {
+    fn test_format_multine_block_comment_stays_block() {
         assert_format!(
             "{
     const X = 1 /* some comment
@@ -511,8 +529,10 @@ mod tests {
 }",
             "{
     const X = 1
-    // some comment
-    // over multiple lines yo
+    /*
+     * some comment
+     * over multiple lines yo
+     */
 }",
             |p| p.eat_block(),
             DystFormatOptions::default()
