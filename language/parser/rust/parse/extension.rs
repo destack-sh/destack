@@ -1,5 +1,6 @@
-use dyst_ast::DefinitionMeta;
+use dyst_ast::{DefinitionMeta, NodeType};
 
+use crate::parse::prelude::*;
 use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
 
 impl<'a> Parser<'a> {
@@ -48,7 +49,8 @@ impl<'a> Parser<'a> {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+            .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let expressions = self.eat_block_body(BlockFormat::Explicit)?;
         self.eat_token(TokenType::CloseBrace)?;

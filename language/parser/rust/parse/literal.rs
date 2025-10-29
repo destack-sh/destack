@@ -591,7 +591,7 @@ impl<'a> Parser<'a> {
     ) -> ParserResult<Vec<NodeId<Argument>>> {
         // (skip the opening sequence if we're given first argument from a speculative parse)
         if first_argument.is_none() {
-            self.eat_token(TokenType::OpenBrace)
+            self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
                 .for_node_type(NodeType::Expression)?;
             self.eat_newlines_maybe()?;
 

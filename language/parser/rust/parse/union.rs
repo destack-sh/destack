@@ -86,7 +86,8 @@ impl<'a> Parser<'a> {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        self.eat_token(TokenType::OpenBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+            .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let (fields, expressions) = self.eat_union_body()?;
         self.eat_token(TokenType::CloseBrace)?;
