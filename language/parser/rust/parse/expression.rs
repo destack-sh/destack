@@ -780,7 +780,10 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // tree literal
-            else if token_type == TokenType::LessThan && self.peek_tree_literal().is_ok() {
+            else if self.language.supports_tree()
+                && token_type == TokenType::LessThan
+                && self.peek_tree_literal().is_ok()
+            {
                 self.with_options(self.options.not_in_parenthesis(), |parser| {
                     parser.eat_tree_literal()
                 })?
@@ -989,9 +992,10 @@ impl<'a> Parser<'a> {
                     && self.peek_next_next_token(TokenType::Maybe).is_ok()
             {
                 self.eat_newlines_maybe()?; // eat newlines
-                // maybe (followed by a delimiter/stop, but not preceded by a newline)
+                // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
                 if self.peek_token(TokenType::Maybe).is_ok()
                     && (self.peek_next_any_stop().is_ok()
+                        && self.language.supports_standalone_maybe()
                         && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
