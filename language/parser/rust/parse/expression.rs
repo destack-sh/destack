@@ -11,7 +11,7 @@ use crate::{
     Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
 };
 
-pub static DEFINITION_KEYWORDS: [Keyword; 14] = [
+pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
     Keyword::Namespace,
     Keyword::Module,
     Keyword::Struct,
@@ -19,13 +19,19 @@ pub static DEFINITION_KEYWORDS: [Keyword; 14] = [
     Keyword::Enum,
     Keyword::Union,
     Keyword::Function,
+    Keyword::Extension,
     Keyword::Interface,
     Keyword::Type,
     Keyword::Const,
     Keyword::Readonly,
     Keyword::Let,
     Keyword::Var,
-    Keyword::Extension,
+    Keyword::Override,
+    Keyword::Readonly,
+    Keyword::Public,
+    Keyword::Protected,
+    Keyword::Private,
+    Keyword::Async,
 ];
 
 pub static DEFINITION_START_TOKENS: [TokenType; 4] = [
@@ -262,7 +268,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // nocheckin: handle semicolon properly? (empty statements, parse, format, ..)
+    // nocheckin #Broken: handle semicolon properly? (empty statements, parse, format, ..)
+    // (to disambiguate expressions as values to expressions as statements)
 
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
