@@ -6,6 +6,7 @@ use dyst_ast::{
 };
 use std::str::FromStr;
 
+use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::parse::variant::BINDING_MODIFIERS;
 use crate::{
@@ -142,26 +143,41 @@ impl<'a> Parser<'a> {
             }
 
             // character literal (ignore quotes)
-            LiteralType::Character { is_terminated } => {
-                if !is_terminated {
-                    return Err(ParserError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                }
-                let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
-                content
-                    .chars()
-                    .next()
-                    .map(ScalarLiteral::Character)
-                    .ok_or_else(|| {
-                        ParserError::expected_for(
+            LiteralType::Character {
+                is_terminated,
+                is_html_entity,
+            } => {
+                if is_html_entity {
+                    decode_html_entity(literal_str)
+                        .map(ScalarLiteral::Character)
+                        .ok_or_else(|| {
+                            ParserError::expected_for(
+                                literal_span.span,
+                                TokenType::Literal,
+                                NodeType::Expression,
+                            )
+                        })
+                } else {
+                    if !is_terminated {
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
-                        )
-                    })
+                        ));
+                    }
+                    let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
+                    content
+                        .chars()
+                        .next()
+                        .map(ScalarLiteral::Character)
+                        .ok_or_else(|| {
+                            ParserError::expected_for(
+                                literal_span.span,
+                                TokenType::Literal,
+                                NodeType::Expression,
+                            )
+                        })
+                }
             }
 
             // byte character literal (ignore quotes)

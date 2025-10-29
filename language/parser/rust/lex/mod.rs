@@ -1,3 +1,4 @@
+mod html_entities;
 mod lex;
 mod lexer;
 mod memchr;

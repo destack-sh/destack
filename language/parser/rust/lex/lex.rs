@@ -3,6 +3,7 @@
 use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 use std::str::FromStr;
 
+use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::{EOF_CHAR, Lexer};
 use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenType};
 
@@ -449,8 +450,11 @@ impl Lexer<'_> {
 
             // elementwise and, logical and and their assignments
             '&' => {
+                if let Some(html_entity_token) = self.try_eat_html_entity() {
+                    html_entity_token
+                }
                 // &&
-                if self.peek() == '&' {
+                else if self.peek() == '&' {
                     self.eat();
                     // &&=
                     if self.peek() == '=' {
@@ -695,7 +699,10 @@ impl Lexer<'_> {
             // character literal (with fallback to string literal for #Compatibility)
             '\'' => match self.eat_single_quoted_string() {
                 SingleQuotedLiteral::Character { is_terminated } => {
-                    let kind = LiteralType::Character { is_terminated };
+                    let kind = LiteralType::Character {
+                        is_terminated,
+                        is_html_entity: false,
+                    };
                     (TokenType::Literal, Some(kind))
                 }
                 SingleQuotedLiteral::String { is_terminated } => {
@@ -735,6 +742,47 @@ impl Lexer<'_> {
         let token = Token::new(token_type, self.get_pos_within_token(), literal);
         self.reset_pos_within_token();
         token
+    }
+
+    fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
+        let rest = self.as_str();
+        let semicolon_idx = rest.find(';')?;
+        if semicolon_idx == 0 {
+            return None;
+        }
+
+        let entity_data = &rest.as_bytes()[..semicolon_idx];
+        if entity_data.is_empty()
+            || entity_data.iter().any(|byte| {
+                !matches!(
+                    byte,
+                    b'#' | b'x' | b'X' | b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z'
+                )
+            })
+        {
+            return None;
+        }
+
+        let start = self.pos.saturating_sub(1);
+        let end = self.pos + semicolon_idx + 1;
+        if end > self.source.len() {
+            return None;
+        }
+
+        let entity_slice = &self.source[start..end];
+        let _ = decode_html_entity(entity_slice)?;
+
+        for _ in 0..=semicolon_idx {
+            self.eat();
+        }
+
+        Some((
+            TokenType::Literal,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                is_html_entity: true,
+            }),
+        ))
     }
 
     /// Parses a whitespace sequence (excluding first character).
@@ -1182,4 +1230,58 @@ impl Lexer<'_> {
             let _ = self.eat();
         }
     }
+}
+
+/// Decodes an HTML entity into a character.
+pub fn decode_html_entity(entity: &str) -> Option<char> {
+    if !entity.starts_with('&') || !entity.ends_with(';') {
+        return None;
+    }
+
+    let body = &entity[1..entity.len() - 1];
+    if body.is_empty() {
+        return None;
+    }
+
+    if let Some(codepoint) = body.strip_prefix('#') {
+        return decode_numeric_entity(codepoint);
+    }
+
+    decode_named_entity(body)
+}
+
+/// Decodes a numeric entity into a character (like `&#x1234;` or `&#1234;`).
+#[inline]
+fn decode_numeric_entity(codepoint: &str) -> Option<char> {
+    let (radix, digits) = if let Some(hex_digits) = codepoint.strip_prefix(['x', 'X']) {
+        (16, hex_digits)
+    } else {
+        (10, codepoint)
+    };
+
+    if digits.is_empty() {
+        return None;
+    }
+
+    let is_valid_digits = if radix == 16 {
+        digits.chars().all(|c| c.is_ascii_hexdigit())
+    } else {
+        digits.chars().all(|c| c.is_ascii_digit())
+    };
+
+    if !is_valid_digits {
+        return None;
+    }
+
+    let value = u32::from_str_radix(digits, radix).ok()?;
+    char::from_u32(value)
+}
+
+/// Decodes a named entity into a character (like `&lt;` or `&amp;`).
+#[inline]
+fn decode_named_entity(name: &str) -> Option<char> {
+    HTML_NAMED_ENTITIES
+        .binary_search_by(|(entity_name, _)| (*entity_name).cmp(name))
+        .ok()
+        .map(|idx| HTML_NAMED_ENTITIES[idx].1)
 }
