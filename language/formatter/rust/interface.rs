@@ -17,8 +17,8 @@ mod tests {
     #[test]
     fn test_format_interface_with_supers() {
         assert_format!(
-            "interface Foo: Bar, Baz {}",
-            "interface Foo: Bar, Baz { }",
+            "interface Foo extends Bar, Baz {}",
+            "interface Foo extends Bar, Baz { }",
             |p| p.eat_interface(DefinitionMeta::default()),
             DystFormatOptions::default()
         );
