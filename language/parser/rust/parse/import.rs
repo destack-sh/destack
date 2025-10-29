@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
         // arguments
         let arguments = if self.peek_keyword(Keyword::With).is_ok() {
             self.eat_keyword(Keyword::With)?;
-            self.eat_token(TokenType::OpenBrace)?;
+            self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
             let arguments = self.with_options(self.options.nested(), |parser| {
                 parser.eat_arguments_body(TokenType::CloseBrace)
             })?;
@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
         &mut self,
         ty: Option<DependencyKind>,
     ) -> ParserResult<Vec<NodeId<DependencyItem>>> {
-        self.eat_token(TokenType::OpenBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
 
         let mut items: Vec<NodeId<DependencyItem>> = Vec::new();

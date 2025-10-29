@@ -62,7 +62,8 @@ impl<'a> Parser<'a> {
         };
 
         // body
-        self.eat_token(TokenType::OpenBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+            .for_node_type(NodeType::Block)?;
         let expressions = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;

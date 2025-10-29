@@ -48,7 +48,8 @@ impl<'a> Parser<'a> {
         })?;
 
         // cases
-        self.eat_token(TokenType::OpenBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+            .for_node_type(NodeType::MatchCase)?;
         let cases_id = self.eat_match_cases(style)?;
         self.eat_token(TokenType::CloseBrace)?;
 
