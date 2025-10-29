@@ -131,6 +131,7 @@ impl<'a> Parser<'a> {
                 if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
                     let name = self.eat_name()?;
                     self.bump(); // eat colon
+                    self.eat_newlines_maybe()?;
                     (Some(name), false)
                 }
                 // name?:
@@ -141,6 +142,7 @@ impl<'a> Parser<'a> {
                     let name = self.eat_name()?;
                     self.bump(); // eat maybe
                     self.bump(); // eat colon
+                    self.eat_newlines_maybe()?;
                     (Some(name), true)
                 } else {
                     (None, false)
@@ -163,6 +165,7 @@ impl<'a> Parser<'a> {
             // default
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
+                self.eat_newlines_maybe()?;
                 Some(self.eat_expression().for_node_type(NodeType::Definition)?)
             } else {
                 None

@@ -41,7 +41,7 @@ impl LanguageCompatibility {
 
     /// Whether the language compatibility is XML-related.
     #[inline]
-    pub fn is_xml(&self) -> bool {
+    pub fn is_tree(&self) -> bool {
         matches!(
             self,
             LanguageCompatibility::JavaScriptXml | LanguageCompatibility::TypeScriptXml
@@ -72,9 +72,9 @@ pub struct LanguageOptions {
 impl LanguageOptions {
     /// Whether the language compatibility is XML-related.
     #[inline]
-    pub fn is_compatible_with_xml(&self) -> bool {
+    pub fn is_compatible_with_tree(&self) -> bool {
         self.compatibility
-            .is_some_and(|compatibility| compatibility.is_xml())
+            .is_some_and(|compatibility| compatibility.is_tree())
     }
 
     /// Whether the language compatibility is JavaScript-related.
@@ -89,6 +89,18 @@ impl LanguageOptions {
     pub fn is_compatible_with_typescript(&self) -> bool {
         self.compatibility
             .is_some_and(|compatibility| compatibility.is_typescript())
+    }
+
+    /// Whether we support XML-related syntax.
+    #[inline]
+    pub fn supports_tree(&self) -> bool {
+        self.compatibility.is_none() || self.is_compatible_with_tree()
+    }
+
+    /// Whether we support standalone maybe operator (like `x?`).
+    #[inline]
+    pub fn supports_standalone_maybe(&self) -> bool {
+        self.compatibility.is_none()
     }
 
     /// Set the language version.

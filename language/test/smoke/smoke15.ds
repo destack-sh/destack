@@ -114,8 +114,8 @@ export class OptionalNode extends BaseProp<"optional"> {
 	}
 
 	expression: string =
-		this.hasDefault() ?
-			`${this.compiledKey}: ${this.value.expression} = ${printable(this.inner.default)}`
+		this.hasDefault() 
+        ? 	`${this.compiledKey}: ${this.value.expression} = ${printable(this.inner.default)}`
 		:	`${this.compiledKey}?: ${this.value.expression}`
 
 	defaultValueMorph: Morph | undefined = getDefaultableMorph(this)
@@ -150,8 +150,7 @@ export const computeDefaultValueMorph = (
 ): Morph<any> => {
 	if (typeof defaultInput === "function") {
 		// if the value has a morph, pipe context through it
-		return value.includesTransform ?
-				(data, ctx) => {
+		return value.includesTransform ? (data, ctx) => {
 					traverseKey(key, () => value((data[key] = defaultInput()), ctx), ctx)
 					return data
 				}
@@ -166,13 +165,10 @@ export const computeDefaultValueMorph = (
 	const precomputedMorphedDefault =
 		value.includesTransform ? value.assert(defaultInput) : defaultInput
 
-	return hasDomain(precomputedMorphedDefault, "object") ?
-			// the type signature only allows this if the value was morphed
-			(data, ctx) => {
+	return hasDomain(precomputedMorphedDefault, "object") ? (data, ctx) => {
 				traverseKey(key, () => value((data[key] = defaultInput), ctx), ctx)
 				return data
-			}
-		:	data => {
+			} :	data => {
 				data[key] = precomputedMorphedDefault
 				return data
 			}
