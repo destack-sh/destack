@@ -40,9 +40,7 @@ impl<'a> Parser<'a> {
                     .insert(Pattern::Wildcard, self.get_span_from(start))
             }
             // rest
-            else if self.peek_token(TokenType::Range).is_ok()
-                || self.peek_token(TokenType::Spread).is_ok()
-            {
+            else if self.peek_token(TokenType::Spread).is_ok() {
                 self.bump(); // eat range
                 let name = if self.peek_identifier().is_ok() {
                     Some(self.eat_identifier()?)
@@ -232,9 +230,7 @@ impl<'a> Parser<'a> {
             Ok(pattern_id)
         }
         // range
-        else if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::Spread).is_ok()
-        {
+        else if self.peek_token(TokenType::Range).is_ok() {
             self.bump(); // eat range
             let end_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
             let pattern = Pattern::Range {
@@ -401,8 +397,8 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_rest_with_name() {
-        // ..rest
-        let mut test = TestParser::new("..rest");
+        // ...rest
+        let mut test = TestParser::new("...rest");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest { name: Some(name) } => {
@@ -534,7 +530,7 @@ mod tests {
 (
     x: 1
     2, 
-    ..
+    ...
 )",
         );
         let mut parser = test.prepare();
@@ -596,7 +592,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_struct_anonymous() {
-        let mut test = TestParser::new("{ x: 1, y, var z, const w: 4, .. }");
+        let mut test = TestParser::new("{ x: 1, y, var z, const w: 4, ... }");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -669,7 +665,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_slice() {
-        let mut test = TestParser::new("[1, ..]");
+        let mut test = TestParser::new("[1, ...]");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 

@@ -199,18 +199,18 @@ mod tests {
 
     #[test]
     fn test_format_pattern_tuple() {
-        assert_format!("(x: 1, 2, ..)", "(x: 1, 2, ...)", |p| p.eat_pattern());
+        assert_format!("(x: 1, 2, ...)", "(x: 1, 2, ...)", |p| p.eat_pattern());
     }
 
     #[test]
     fn test_format_pattern_tuple_with_path() {
-        assert_format!("Result.Success(_, ..)", "Result.Success(_, ...)", |p| p
+        assert_format!("Result.Success(_, ...)", "Result.Success(_, ...)", |p| p
             .eat_pattern());
     }
 
     #[test]
     fn test_format_pattern_slice() {
-        assert_format!("[1, 2, ..]", "[1, 2, ...]", |p| p.eat_pattern());
+        assert_format!("[1, 2, ...]", "[1, 2, ...]", |p| p.eat_pattern());
     }
 
     #[test]

@@ -95,9 +95,7 @@ impl<'a> Parser<'a> {
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
         // variadic
-        let is_variadic = if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::Spread).is_ok()
-        {
+        let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range or range wide
             true
         } else {
@@ -228,8 +226,7 @@ impl<'a> Parser<'a> {
     pub fn eat_parameters_body(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
         while self.peek_token(TokenType::Identifier).is_ok()
-            // range
-            || self.peek_token(TokenType::Range).is_ok()
+            // spread
             || self.peek_token(TokenType::Spread).is_ok()
             // pattern
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
@@ -373,9 +370,7 @@ impl<'a> Parser<'a> {
             Ok(argument_id)
         }
         // spread argument
-        else if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::Spread).is_ok()
-        {
+        else if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
@@ -456,7 +451,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         let modifiers: Option<BindingModifiers> = None;
         // spread argument
-        if self.peek_token(TokenType::Range).is_ok() || self.peek_token(TokenType::Spread).is_ok() {
+        if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
@@ -472,8 +467,7 @@ impl<'a> Parser<'a> {
         }
         // nested spread argument (like {...b} in tree literals for #Compatibility)
         else if self.peek_token(TokenType::OpenBrace).is_ok()
-            && (self.peek_next_token(TokenType::Range).is_ok()
-                || self.peek_next_token(TokenType::Spread).is_ok())
+            && self.peek_next_token(TokenType::Spread).is_ok()
             && self.peek_next_next_token(TokenType::Identifier).is_ok()
         {
             self.bump(); // eat open brace
