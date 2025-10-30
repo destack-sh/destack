@@ -49,10 +49,10 @@ ws.on('todos:update', (changes) => {
 })
 
 <Menu
-    items=[[
+    items=[
         { to: '/posts' },
         { to: '/posts/$postId', params: { postId: 'postId' } },
-    ]]
+    ]
 />
 
 const MyApp = {

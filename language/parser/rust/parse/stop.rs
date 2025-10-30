@@ -198,8 +198,24 @@ impl<'a> Parser<'a> {
     }
 
     /// Find a token.
+    #[inline]
     pub fn find_token(&self, target_token: TokenType) -> ParserResult<u32> {
         let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos) {
+            if token.token.ty == target_token {
+                return Ok(pos as u32);
+            }
+            pos += 1;
+        }
+        Err(ParserError::unexpected(
+            self.peek().unwrap_or(&self.eof_token).span,
+        ))
+    }
+
+    /// Find a token after a position.
+    #[inline]
+    pub fn find_token_after(&self, pos: u32, target_token: TokenType) -> ParserResult<u32> {
+        let mut pos = pos as usize;
         while let Some(token) = self.tokens.get(pos) {
             if token.token.ty == target_token {
                 return Ok(pos as u32);
@@ -304,7 +320,7 @@ impl<'a> Parser<'a> {
 
     /// Skip any newlines at and after a position.
     #[inline]
-    pub fn skip_newlines_after(&mut self, pos: u32) -> ParserResult<u32> {
+    pub fn skip_newlines(&mut self, pos: u32) -> ParserResult<u32> {
         let mut pos = pos as usize;
         while let Some(token) = self.tokens.get(pos + 1)
             && token.token.ty == TokenType::Newline
@@ -312,5 +328,16 @@ impl<'a> Parser<'a> {
             pos += 1;
         }
         Ok(pos as u32)
+    }
+
+    /// Skip any newlines at and after a position and find some token.
+    pub fn skip_newlines_and_find_token(
+        &mut self,
+        pos: u32,
+        target_token: TokenType,
+    ) -> ParserResult<u32> {
+        let pos = self.skip_newlines(pos)?;
+        let pos = self.find_token_after(pos, target_token)?;
+        Ok(pos)
     }
 }
