@@ -808,21 +808,30 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // abstraction / static
-                if *abstraction == FunctionAbstraction::Abstract {
-                    write!(f, [Keyword::Abstract, space()])?;
-                    if meta.scope == DeclarationScope::Static {
-                        write!(f, [Keyword::Static, space()])?;
+                match *abstraction {
+                    FunctionAbstraction::Abstract => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                        if meta.scope == DeclarationScope::Static {
+                            write!(f, [Keyword::Static, space()])?;
+                        }
                     }
-                } else if *abstraction == FunctionAbstraction::AbstractOverride {
-                    write!(f, [Keyword::Abstract, space()])?;
-                    if meta.scope == DeclarationScope::Static {
-                        write!(f, [Keyword::Static, space()])?;
+                    FunctionAbstraction::AbstractOverride => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                        if meta.scope == DeclarationScope::Static {
+                            write!(f, [Keyword::Static, space()])?;
+                        }
+                        write!(f, [Keyword::Override, space()])?;
                     }
-                    write!(f, [Keyword::Override, space()])?;
-                } else if *abstraction == FunctionAbstraction::ConcreteOverride {
-                    write!(f, [Keyword::Override, space()])?;
-                    if meta.scope == DeclarationScope::Static {
-                        write!(f, [Keyword::Static, space()])?;
+                    FunctionAbstraction::ConcreteOverride => {
+                        write!(f, [Keyword::Override, space()])?;
+                        if meta.scope == DeclarationScope::Static {
+                            write!(f, [Keyword::Static, space()])?;
+                        }
+                    }
+                    FunctionAbstraction::Concrete => {
+                        if meta.scope == DeclarationScope::Static {
+                            write!(f, [Keyword::Static, space()])?;
+                        }
                     }
                 }
 
