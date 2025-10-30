@@ -1,2 +1,0 @@
-/// Panics with the given message.
-function panic(message: string) => !{ }

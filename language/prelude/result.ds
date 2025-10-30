@@ -4,7 +4,7 @@ union Result<T, E> {
     Failure(E)
 
     /// Check if the Result is a Success.
-    function isSuccess(self) => boolean {
+    function isSuccess(self): boolean {
         match self {
             Success(_) => true
             Failure(_) => false
@@ -12,7 +12,7 @@ union Result<T, E> {
     }
 
     /// Check if the Result is an Error.
-    function isError(self) => boolean {
+    function isError(self): boolean {
         match self {
             Success(_) => false
             Failure(_) => true

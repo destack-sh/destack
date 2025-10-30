@@ -38,18 +38,18 @@ export struct Board {
     cells: Cell[][]
 
     /// Create a new empty board.
-    function new(width: int32, height: int32) => Board {
+    function new(width: int32, height: int32): Board {
         const cells = Cell[width][height]
         Board { width, height, cells }
     }
 
     /// Check if a position is valid on the board.
-    function isValidPosition(pos: Position) => boolean {
+    function isValidPosition(pos: Position): boolean {
         pos.x >= 0 && pos.x < this.width && pos.y >= 0 && pos.y < this.height
     }
 
     /// Check if a cell is filled at the given position.
-    function isFilled(pos: Position) => boolean {
+    function isFilled(pos: Position): boolean {
         if !this.isValidPosition(pos) {
             return true
         }
@@ -64,7 +64,7 @@ export struct Board {
     }
 
     /// Clear completed lines and return the number cleared.
-    function clearLines() => int32 {
+    function clearLines(): int32 {
         const linesCleared = 0
         const y = this.height - 1
         while y >= 0 {
@@ -127,13 +127,13 @@ export struct TetrisPiece {
 
 extension TetrisPiece {
     /// Create a new Tetris piece.
-    function new(shape: TetrisPieceShape) => TetrisPiece {
+    function new(shape: TetrisPieceShape): TetrisPiece {
         const blocks = TetrisPiece.getBlocksForShape(shape, 0)
         TetrisPiece { shape, rotation: 0, blocks }
     }
 
     /// Get the color of the Tetris piece.
-    function getColor(self) => Color {
+    function getColor(self): Color {
         match this.shape {
             TetrisPieceShape.I => Color.Blue
             TetrisPieceShape.J => Color.Red
@@ -146,7 +146,7 @@ extension TetrisPiece {
     }
 
     /// Get block positions for a shape and rotation.
-    function getBlocksForShape(shape: TetrisPieceShape, rotation: int32) => Position[] {
+    function getBlocksForShape(shape: TetrisPieceShape, rotation: int32): Position[] {
         const normalizedRotation = rotation % 4
         match shape {
             TetrisPieceShape.I => if normalizedRotation == 0 || normalizedRotation == 2 {
@@ -291,7 +291,7 @@ extension TetrisPiece {
     }
 
     /// Get absolute positions of blocks given a base position.
-    function getAbsolutePositions(self, basePos: Position) => Position[] {
+    function getAbsolutePositions(self, basePos: Position): Position[] {
         const positions = []
         for block in this.blocks {
             positions.push(Position {
@@ -305,7 +305,7 @@ extension TetrisPiece {
 
 extension TetrisGame implements New {
     /// Create a new Tetris game.
-    function new(width: int32, height: int32) => TetrisGame {
+    function new(width: int32, height: int32): TetrisGame {
         TetrisGame {
             board: Board.new(width, height),
             currentPiece: null,
@@ -332,7 +332,7 @@ extension TetrisGame implements New {
     }
 
     /// Check if the current piece would collide at the given position.
-    function collidesWith(pos: Position) => boolean {
+    function collidesWith(pos: Position): boolean {
         if const Some(piece) = this.currentPiece {
             const absolutePositions = piece.getAbsolutePositions(pos)
             for blockPos in absolutePositions {
@@ -345,7 +345,7 @@ extension TetrisGame implements New {
     }
 
     /// Try to move the current piece in the given direction.
-    function tryMove(dx: int32, dy: int32) => boolean {
+    function tryMove(dx: int32, dy: int32): boolean {
         const newPosition = Position {
             x: this.currentPosition.x + dx,
             y: this.currentPosition.y + dy,
@@ -358,7 +358,7 @@ extension TetrisGame implements New {
     }
 
     /// Try to rotate the current piece.
-    function tryRotate() => boolean {
+    function tryRotate(): boolean {
         if this.currentPiece != null {
             const oldRotation = this.currentPiece.rotation
             this.currentPiece.rotate()
@@ -450,7 +450,7 @@ extension TetrisGame implements New {
     }
 
     /// Get a random piece shape.
-    function getRandomShape(random: &Random) => TetrisPieceShape {
+    function getRandomShape(random: &Random): TetrisPieceShape {
         const shapes = [
             TetrisPieceShape.I,
             TetrisPieceShape.J,
