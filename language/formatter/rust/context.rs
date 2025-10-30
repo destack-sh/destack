@@ -383,6 +383,27 @@ impl<'ast> DystFormatContext<'ast> {
             )
         })
     }
+
+    /// Check if a node has a blank prefix annotation in first position.
+    #[inline]
+    pub fn has_blank_prefix_annotation_in_first_position<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        let Some(annotations) = self.get_annotations(node_id) else {
+            return false;
+        };
+        annotations.first().is_some_and(|annotation| {
+            matches!(
+                self.tree.get::<Annotation>(*annotation),
+                Annotation::Blank {
+                    position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                    ..
+                }
+            )
+        })
+    }
 }
 
 impl FormatContext for DystFormatContext<'_> {
