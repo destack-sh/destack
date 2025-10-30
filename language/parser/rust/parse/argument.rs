@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
 
         // variadic
         let is_variadic = if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::RangeWide).is_ok()
+            || self.peek_token(TokenType::Spread).is_ok()
         {
             self.bump(); // eat range or range wide
             true
@@ -230,7 +230,7 @@ impl<'a> Parser<'a> {
         while self.peek_token(TokenType::Identifier).is_ok()
             // range
             || self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::RangeWide).is_ok()
+            || self.peek_token(TokenType::Spread).is_ok()
             // pattern
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
             || self.peek_token(TokenType::OpenBracket).is_ok()
@@ -374,7 +374,7 @@ impl<'a> Parser<'a> {
         }
         // spread argument
         else if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::RangeWide).is_ok()
+            || self.peek_token(TokenType::Spread).is_ok()
         {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
@@ -457,7 +457,7 @@ impl<'a> Parser<'a> {
         let modifiers: Option<BindingModifiers> = None;
         // spread argument
         if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::RangeWide).is_ok()
+            || self.peek_token(TokenType::Spread).is_ok()
         {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
@@ -475,7 +475,7 @@ impl<'a> Parser<'a> {
         // nested spread argument (like {...b} in tree literals for #Compatibility)
         else if self.peek_token(TokenType::OpenBrace).is_ok()
             && (self.peek_next_token(TokenType::Range).is_ok()
-                || self.peek_next_token(TokenType::RangeWide).is_ok())
+                || self.peek_next_token(TokenType::Spread).is_ok())
             && self.peek_next_next_token(TokenType::Identifier).is_ok()
         {
             self.bump(); // eat open brace

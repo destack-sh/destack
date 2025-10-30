@@ -317,7 +317,7 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
     D(boolean, count: int32) = 6
     E { x: int32, y: T }
     
-    ..Bar
+    ...Bar
     function myFunc() { // nested declaration
     }
 }

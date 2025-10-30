@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
             }
             // rest
             else if self.peek_token(TokenType::Range).is_ok()
-                || self.peek_token(TokenType::RangeWide).is_ok()
+                || self.peek_token(TokenType::Spread).is_ok()
             {
                 self.bump(); // eat range
                 let name = if self.peek_identifier().is_ok() {
@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
         }
         // range
         else if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::RangeWide).is_ok()
+            || self.peek_token(TokenType::Spread).is_ok()
         {
             self.bump(); // eat range
             let end_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;

@@ -498,7 +498,7 @@ impl<'a> Parser<'a> {
                     // ..T
                     | (TokenType::Range, TokenType::Identifier, _)
                     // ...T
-                    | (TokenType::RangeWide, TokenType::Identifier, _) => {
+                    | (TokenType::Spread, TokenType::Identifier, _) => {
                         return Ok(None);
                     }
                     // [
@@ -755,7 +755,7 @@ impl<'a> Parser<'a> {
                 }
                 // spread argument
                 else if self.peek_token(TokenType::Range).is_ok()
-                    || self.peek_token(TokenType::RangeWide).is_ok()
+                    || self.peek_token(TokenType::Spread).is_ok()
                 {
                     self.bump(); // eat range
                     let name = self.eat_argument_name_maybe()?;

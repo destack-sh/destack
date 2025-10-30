@@ -933,10 +933,8 @@ impl<'a> Parser<'a> {
                 );
             }
             // range (`..`, `..=`)
-            else if self.peek_token(TokenType::Range).is_ok()
-                || self.peek_token(TokenType::RangeWide).is_ok()
-            {
-                self.bump(); // eat ..
+            else if self.peek_token(TokenType::Range).is_ok() {
+                self.bump(); // eat .. or ...
                 let is_inclusive = if self.peek_token(TokenType::Equal).is_ok() {
                     self.bump(); // eat =
                     true

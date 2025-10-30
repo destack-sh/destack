@@ -102,7 +102,7 @@ pub enum TokenType {
     /// `..`
     Range,
     /// `...`
-    RangeWide,
+    Spread,
     /// `->`
     Arrow,
     /// `=>`
@@ -329,7 +329,7 @@ impl Display for TokenType {
             TokenType::Comma => write!(f, ","),
             TokenType::Dot => write!(f, "."),
             TokenType::Range => write!(f, ".."),
-            TokenType::RangeWide => write!(f, "..."),
+            TokenType::Spread => write!(f, "..."),
             TokenType::Arrow => write!(f, "->"),
             TokenType::ArrowWide => write!(f, "=>"),
             TokenType::At => write!(f, "@"),

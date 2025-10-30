@@ -141,7 +141,7 @@ pub enum UnaryOperator {
     ElementwiseNot = 1903,
     /// `*`
     Dereference = 1902,
-    /// `..`
+    /// `...`
     Spread = 1901,
 }
 
@@ -186,8 +186,7 @@ impl UnaryOperator {
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
-            TokenType::Range => Some(UnaryOperator::Spread),
-            TokenType::RangeWide => Some(UnaryOperator::Spread),
+            TokenType::Spread => Some(UnaryOperator::Spread),
             _ => None,
         }
     }

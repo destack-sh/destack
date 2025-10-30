@@ -26,7 +26,7 @@ export struct Mass2D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
-    centerOfMass: Vector2? = null
+    centerOfMass: Vector2?
     /// Inertia of the Body
     inertia: float32 = 0.0
 }
@@ -61,14 +61,14 @@ export struct Mass3D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
-    centerOfMass: Vector3? = null
+    centerOfMass: Vector3?
     /// Inertia of the Body
     inertia: Vector3
 }
 
-/// A solid simulated Body in 3D space
+// A solid simulated Body in 2D space
 @entity
-export struct RigidBody3D {
+export struct RigidBody2D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic
 
@@ -76,4 +76,3 @@ export struct RigidBody3D {
     ...Kinematic3D
     ...Mass3D
 }
-

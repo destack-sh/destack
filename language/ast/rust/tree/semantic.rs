@@ -96,7 +96,7 @@ impl SemanticType {
             TokenType::Comma => SemanticType::Operator,
             TokenType::Dot => SemanticType::Operator,
             TokenType::Range => SemanticType::Operator,
-            TokenType::RangeWide => SemanticType::Operator,
+            TokenType::Spread => SemanticType::Operator,
             TokenType::Arrow => SemanticType::Operator,
             TokenType::ArrowWide => SemanticType::Operator,
             TokenType::At => SemanticType::Operator,
