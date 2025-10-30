@@ -12,9 +12,9 @@ impl<'a> Parser<'a> {
         let first = self.eat_identifier()?;
         segments.push(first);
 
-        // zero or more `.identifier`
-        // (but stop any non-[identifier/dot] token)
+        // zero or more `.identifier` (ignoring newlines)
         loop {
+            // dot followed by identifier
             if self.peek_token(TokenType::Dot).is_ok()
                 && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.ty == TokenType::Identifier
@@ -22,8 +22,17 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Dot)?;
                 let seg = self.eat_identifier()?;
                 segments.push(seg);
-                continue;
-            } else {
+            }
+            // newline followed by dot
+            else if self.peek_token(TokenType::Newline).is_ok()
+                && self
+                    .skip_newlines_and_find_token(self.pos(), TokenType::Dot)
+                    .is_ok()
+            {
+                self.eat_newlines_maybe()?;
+            }
+            // end of path
+            else {
                 break;
             }
         }
@@ -51,6 +60,14 @@ mod tests {
     #[test]
     fn test_parse_simple_path_multiple_segments() {
         let mut test = TestParser::new("destack.geometry.math");
+        let mut parser = test.prepare();
+        let path = parser.eat_path().unwrap();
+        assert_path!(parser, path, "destack.geometry.math");
+    }
+
+    #[test]
+    fn test_parse_simple_path_multiple_segments_with_newline() {
+        let mut test = TestParser::new("destack\n.geometry\n.math\n");
         let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
         assert_path!(parser, path, "destack.geometry.math");

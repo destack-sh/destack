@@ -382,10 +382,14 @@ impl<'a> Parser<'a> {
             //
 
             // eat leading elementwise operator
-            if token_type == TokenType::ElementwiseOr {
+            if token_type == TokenType::ElementwiseOr
+                || token_type == TokenType::ElementwiseAnd
+                    && self.language.is_compatible_with_typescript()
+            {
                 self.bump(); // eat elementwise operator
                 let leading_binary_operator = match token_type {
                     TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
+                    TokenType::ElementwiseAnd => BinaryOperator::ElementwiseAnd,
                     _ => unreachable!(),
                 };
 
@@ -428,7 +432,7 @@ impl<'a> Parser<'a> {
                     TokenType::OpenParenthesis,
                     TokenType::CloseParenthesis,
                 )?;
-                let closing_pos = self.skip_newlines_after(closing_pos)?;
+                let closing_pos = self.skip_newlines(closing_pos)?;
                 // function if the paranthesis are followed by an arrow (or colon)
                 if self
                     .tokens
@@ -2298,16 +2302,7 @@ self
                         assert_path!(parser, *path, "baz");
                         assert_node!(parser.tree, *left, Expression::Call { left: foo_recv, .. } => {
                             // self.foo
-                            assert_node!(
-                                parser.tree,
-                                *foo_recv,
-                                Expression::Member { left: self_recv, path: foo_path, .. } => {
-                                    // self
-                                    assert_expr_path!(parser, parser.tree.get(*self_recv), "self");
-                                    // foo
-                                    assert_path!(parser, *foo_path, "foo");
-                                }
-                            );
+                            assert_expr_path!(parser, parser.tree.get(*foo_recv), "self.foo");
                         })
                     }
                 );
