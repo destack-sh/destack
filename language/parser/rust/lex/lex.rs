@@ -295,7 +295,7 @@ impl Lexer<'_> {
                     if self.peek_next() == '.' {
                         self.eat();
                         self.eat();
-                        (TokenType::RangeWide, None)
+                        (TokenType::Spread, None)
                     }
                     // ..
                     else {
