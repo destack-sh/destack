@@ -11,7 +11,8 @@ use crate::{
     Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
 };
 
-pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
+pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
+    Keyword::Declare,
     Keyword::Namespace,
     Keyword::Module,
     Keyword::Struct,
