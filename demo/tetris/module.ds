@@ -303,7 +303,7 @@ extension TetrisPiece {
     }
 }
 
-extension TetrisGame implements New {
+extension TetrisGame {
     /// Create a new Tetris game.
     function new(width: int32, height: int32): TetrisGame {
         TetrisGame {

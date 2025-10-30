@@ -1,0 +1,61 @@
+// SYNTAX TEST "source.dyst" "literal and comment coverage"
+
+true
+// <- constant.language.boolean.dyst
+
+false
+// <- constant.language.boolean.dyst
+
+null
+// <- constant.language.null.dyst
+
+undefined
+// <- constant.language.undefined.dyst
+
+42
+// <- constant.numeric.decimal.dyst
+
+0b1010n
+// <- constant.numeric.binary.dyst
+
+0xff
+// <- constant.numeric.hex.dyst
+
+3.14
+// <- constant.numeric.decimal.dyst
+
+"hello"
+// <- string.quoted.double.dyst
+
+b"bytes"
+// <- string.quoted.double.byte.dyst
+
+'c'
+// <- string.quoted.single.dyst
+
+b'c'
+// <- string.quoted.single.byte.dyst
+
+r"raw"
+// <- string.quoted.double.raw.dyst
+
+br"raw"
+// <- string.quoted.double.raw.byte.dyst
+
+`template ${42}`
+// <- string.template.dyst
+//        ~~~~ meta.embedded.line.dyst
+
+/abc[0-9]+/i
+// <- string.regexp.dyst
+
+"escaped\n"
+// <- string.quoted.double.dyst
+//     ~~~~ constant.character.escape.dyst
+
+value = 1 // trailing comment
+//          ^^^^^^^^^^^^^^^^^ comment.line.double-slash.dyst
+
+/* block comment */
+// <- comment.block.dyst
+

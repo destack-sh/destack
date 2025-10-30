@@ -112,7 +112,8 @@
     "scripts": {
         "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun run bundle",
-        "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
+        "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
+        "test:grammar": "bunx vscode-tmgrammar-test --grammar dyst.tmLanguage.json typescript/tests.txt"
     },
     "dependencies": {},
     "devDependencies": {
@@ -122,6 +123,7 @@
         "typescript": "~5.5.4",
         "vsce": "^2.15.0",
         "vscode": "^1.1.37",
-        "vscode-languageclient": "^9.0.1"
+        "vscode-languageclient": "^9.0.1",
+        "vscode-tmgrammar-test": "^0.1.3"
     }
 }
