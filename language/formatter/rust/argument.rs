@@ -106,7 +106,7 @@ where
             .should_expand(true)
             .format(f)
         });
-        // if overall better fit, expand without indenting the 
+        // if overall better fit, expand without indenting the
         let format_inline_expanded = format_with(|f| {
             write!(
                 f,
