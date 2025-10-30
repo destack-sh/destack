@@ -934,10 +934,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // return type
                 if let Some(return_type) = return_type {
-                    if *style == FunctionStyle::Lambda && body.is_some() {
-                        write!(f, [token(":"), space(), return_type])?;
-                    } else {
+                    if *style == FunctionStyle::Lambda && body.is_none() {
                         write!(f, [space(), token("=>"), space(), return_type])?;
+                    } else {
+                        write!(f, [token(":"), space(), return_type])?;
                     }
                 }
 

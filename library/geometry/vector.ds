@@ -6,12 +6,12 @@ export struct Vector2 {
     y: float32
 
     /// Conexport struct a Vector2 from x and y components.
-    constructor(x: float32, y: float32) => Vector2 {
+    constructor(x: float32, y: float32): Vector2 {
         Vector2 { x, y }
     }
 }
 
-export async function clampScalar(v: float32, lo: float32, hi: float32) => float32 {
+export async function clampScalar(v: float32, lo: float32, hi: float32): float32 {
     if v < lo { lo } else if v > hi { hi } else { v }
 }
 
@@ -25,167 +25,161 @@ extension Vector2 {
     /// The unit y Vector2 (0, 1).
     const UnitY = Vector2 { x: 0.0, y: 1.0 }
     /// The negative unit x Vector2 (-1, 0).
-    const NegUnitX = Vector2 {
-        x: -1.0,
-        y: 0.0,
-    }
+    const NegUnitX = Vector2 { x: -1.0, y: 0.0 }
     /// The negative unit y Vector2 (0, -1).
-    const NegUnitY = Vector2 {
-        x: 0.0,
-        y: -1.0,
-    }
+    const NegUnitY = Vector2 { x: 0.0, y: -1.0 }
 
     /// Conexport struct a Vector2 with both components set to the same value.
-    function splat(v: float32) => Vector2 {
+    function splat(v: float32): Vector2 {
         Vector2 { x: v, y: v }
     }
 
     /// Returns the length of the Vector.
-    function length(self) => float32 {
-        self.x * self.x + self.y * self.y.sqrt()
+    function length(): float32 {
+        this.x * this.x + this.y * this.y.sqrt()
     }
 
     /// Returns the squared length of the Vector.
-    function lengthSquared(self) => float32 {
-        self.x * self.x + self.y * self.y
+    function lengthSquared(): float32 {
+        this.x * this.x + this.y * this.y
     }
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector2) => float32 {
-        self.x * other.x + self.y * other.y
+    function dot(other: Vector2): float32 {
+        this.x * other.x + this.y * other.y
     }
 
     /// Returns the cross product of the two Vectors.
-    function cross(self, other: Vector2) => float32 {
-        self.x * other.y - self.y * other.x
+    function cross(other: Vector2): float32 {
+        this.x * other.y - this.y * other.x
     }
 
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
-    function normalized(self) => Vector2 {
-        const len = self.length()
+    function normalized(): Vector2 {
+        const len = this.length()
         if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector2.
-    function distance(self, other: Vector2) => float32 {
+    function distance(other: Vector2): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector2.
-    function distanceSquared(self, other: Vector2) => float32 {
+    function distanceSquared(other: Vector2): float32 {
         self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector2, t: float32) => Vector2 {
+    function lerp(other: Vector2, t: float32): Vector2 {
         self + other - self * t
     }
     /// Component-wise absolute value.
-    function abs(self) => Vector2 {
+    function abs(): Vector2 {
         Vector2 {
-            x: self.x.abs(),
-            y: self.y.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector2) => Vector2 {
+    function min(other: Vector2): Vector2 {
         Vector2 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector2) => Vector2 {
+    function max(other: Vector2): Vector2 {
         Vector2 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector2, max: Vector2) => Vector2 {
+    function clamp(min: Vector2, max: Vector2): Vector2 {
         Vector2 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector2 {
-        Vector2 { x, y: self.y }
+    function withX(x: float32): Vector2 {
+        Vector2 { x, y: this.y }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector2 {
-        Vector2 { x: self.x, y }
+    function withY(y: float32): Vector2 {
+        Vector2 { x: this.x, y }
     }
 
     /// Rotate 90 degrees counter-clockwise (perpendicular vector).
-    function perp(self) => Vector2 {
+    function perp(): Vector2 {
         Vector2 {
-            x: -self.y,
-            y: self.x,
+            x: -this.y,
+            y: this.x,
         }
     }
 }
 
 extension Vector2 implements Numeric<float32> {
-    function add(self, other: float32) => Vector2 {
+    function add(other: float32): Vector2 {
         Vector2 {
-            x: self.x + other,
-            y: self.y + other,
+            x: this.x + other,
+            y: this.y + other,
         }
     }
 
-    function subtract(self, other: float32) => Vector2 {
+    function subtract(other: float32): Vector2 {
         Vector2 {
-            x: self.x - other,
-            y: self.y - other,
+            x: this.x - other,
+            y: this.y - other,
         }
     }
 
-    function multiply(self, other: float32) => Vector2 {
+    function multiply(other: float32): Vector2 {
         Vector2 {
-            x: self.x * other,
-            y: self.y * other,
+            x: this.x * other,
+            y: this.y * other,
         }
     }
 
-    function divide(self, other: float32) => Vector2 {
+    function divide(other: float32): Vector2 {
         Vector2 {
-            x: self.x / other,
-            y: self.y / other,
+            x: this.x / other,
+            y: this.y / other,
         }
     }
 }
 
 extension Vector2 implements Numeric<Vector2> {
-    function add(self, other: Vector2) => Vector2 {
+    function add(other: Vector2): Vector2 {
         Vector2 {
-            x: self.x + other.x,
-            y: self.y + other.y,
+            x: this.x + other.x,
+            y: this.y + other.y,
         }
     }
 
-    function subtract(self, other: Vector2) => Vector2 {
+    function subtract(other: Vector2): Vector2 {
         Vector2 {
-            x: self.x - other.x,
-            y: self.y - other.y,
+            x: this.x - other.x,
+            y: this.y - other.y,
         }
     }
 
-    function multiply(self, other: Vector2) => Vector2 {
+    function multiply(other: Vector2): Vector2 {
         Vector2 {
-            x: self.x * other.x,
-            y: self.y * other.y,
+            x: this.x * other.x,
+            y: this.y * other.y,
         }
     }
 
-    function divide(self, other: Vector2) => Vector2 {
+    function divide(other: Vector2): Vector2 {
         Vector2 {
-            x: self.x / other.x,
-            y: self.y / other.y,
+            x: this.x / other.x,
+            y: this.y / other.y,
         }
     }
 }
@@ -209,197 +203,185 @@ extension Vector3 {
     /// The unit z Vector3 (0, 0, 1).
     const UnitZ = Vector3 { x: 0.0, y: 0.0, z: 1.0 }
     /// The negative unit x Vector3 (-1, 0, 0).
-    const NegUnitX = Vector3 {
-        x: -1.0,
-        y: 0.0,
-        z: 0.0,
-    }
+    const NegUnitX = Vector3 { x: -1.0, y: 0.0, z: 0.0 }
     /// The negative unit y Vector3 (0, -1, 0).
-    const NegUnitY = Vector3 {
-        x: 0.0,
-        y: -1.0,
-        z: 0.0,
-    }
+    const NegUnitY = Vector3 { x: 0.0, y: -1.0, z: 0.0 }
     /// The negative unit z Vector3 (0, 0, -1).
-    const NegUnitZ = Vector3 {
-        x: 0.0,
-        y: 0.0,
-        z: -1.0,
-    }
+    const NegUnitZ = Vector3 { x: 0.0, y: 0.0, z: -1.0 }
 
     /// Conexport struct a Vector3 from x, y and z components.
-    function new(x: float32, y: float32, z: float32) => Vector3 {
+    function new(x: float32, y: float32, z: float32): Vector3 {
         Vector3 { x, y, z }
     }
 
     /// Conexport struct a Vector3 with all components set to the same value.
-    function splat(v: float32) => Vector3 {
+    function splat(v: float32): Vector3 {
         Vector3 { x: v, y: v, z: v }
     }
 
     /// Returns the length of the Vector.
-    function length(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z.sqrt()
+    function length(): float32 {
+        this.x * this.x + this.y * this.y + this.z * this.z.sqrt()
     }
 
     /// Returns the squared length of the Vector.
-    function lengthSquared(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
+    function lengthSquared(): float32 {
+        this.x * this.x + this.y * this.y + this.z * this.z
     }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector3) => float32 {
-        self.x * other.x + self.y * other.y + self.z * other.z
+    function dot(other: Vector3): float32 {
+        this.x * other.x + this.y * other.y + this.z * other.z
     }
 
     /// Returns the cross product of the two Vectors.
-    function cross(self, other: Vector3) => Vector3 {
+    function cross(other: Vector3): Vector3 {
         Vector3 {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
+            x: this.y * other.z - this.z * other.y,
+            y: this.z * other.x - this.x * other.z,
+            z: this.x * other.y - this.y * other.x,
         }
     }
 
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
-    function normalized(self) => Vector3 {
-        const len = self.length()
+    function normalized(): Vector3 {
+        const len = this.length()
         if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector3.
-    function distance(self, other: Vector3) => float32 {
+    function distance(other: Vector3): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector3.
-    function distanceSquared(self, other: Vector3) => float32 {
+    function distanceSquared(other: Vector3): float32 {
         self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector3, t: float32) => Vector3 {
+    function lerp(other: Vector3, t: float32): Vector3 {
         self + other - self * t
     }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector3 {
+    function abs(): Vector3 {
         Vector3 {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
+            z: this.z.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector3) => Vector3 {
+    function min(other: Vector3): Vector3 {
         Vector3 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
+            z: if this.z < other.z { this.z } else { other.z },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector3) => Vector3 {
+    function max(other: Vector3): Vector3 {
         Vector3 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
+            z: if this.z > other.z { this.z } else { other.z },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector3, max: Vector3) => Vector3 {
+    function clamp(min: Vector3, max: Vector3): Vector3 {
         Vector3 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
+            z: clampScalar(this.z, min.z, max.z),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector3 {
-        Vector3 { x, y: self.y, z: self.z }
+    function withX(x: float32): Vector3 {
+        Vector3 { x, y: this.y, z: this.z }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector3 {
-        Vector3 { x: self.x, y, z: self.z }
+    function withY(y: float32): Vector3 {
+        Vector3 { x: this.x, y, z: this.z }
     }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: float32) => Vector3 {
-        Vector3 { x: self.x, y: self.y, z }
+    function withZ(z: float32): Vector3 {
+        Vector3 { x: this.x, y: this.y, z }
     }
 }
 
 extension Vector3 implements Add<float32> {
-    function add(self, other: float32) => Vector3 {
+    function add(other: float32): Vector3 {
         Vector3 {
-            x: self.x + other,
-            y: self.y + other,
-            z: self.z + other,
+            x: this.x + other,
+            y: this.y + other,
+            z: this.z + other,
         }
     }
 }
 
 extension Vector3 implements Add<Vector3> {
-    function add(self, other: Vector3) => Vector3 {
+    function add(other: Vector3): Vector3 {
         Vector3 {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
         }
     }
 }
 
 extension Vector3 implements Subtract<float32> {
-    function subtract(self, other: float32) => Vector3 {
+    function subtract(other: float32): Vector3 {
         Vector3 {
-            x: self.x - other,
-            y: self.y - other,
-            z: self.z - other,
+            x: this.x - other,
+            y: this.y - other,
+            z: this.z - other,
         }
     }
 }
 
 extension Vector3 implements Subtract<Vector3> {
-    function subtract(self, other: Vector3) => Vector3 {
+    function subtract(other: Vector3): Vector3 {
         Vector3 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
         }
     }
 }
 
 extension Vector3 implements Multiply<float32> {
-    function multiply(self, other: float32) => Vector3 {
+    function multiply(other: float32): Vector3 {
         Vector3 {
-            x: self.x * other,
-            y: self.y * other,
-            z: self.z * other,
+            x: this.x * other,
+            y: this.y * other,
+            z: this.z * other,
         }
     }
 }
 
 extension Vector3 implements Multiply<Vector3> {
-    function multiply(self, other: Vector3) => Vector3 {
+    function multiply(other: Vector3): Vector3 {
         Vector3 {
-            x: self.x * other.x,
-            y: self.y * other.y,
-            z: self.z * other.z,
+            x: this.x * other.x,
+            y: this.y * other.y,
+            z: this.z * other.z,
         }
     }
 }
 
 extension Vector3 implements Divide<float32> {
-    function divide(self, other: float32) => Vector3 {
+    function divide(other: float32): Vector3 {
         Vector3 {
-            x: self.x / other,
-            y: self.y / other,
-            z: self.z / other,
+            x: this.x / other,
+            y: this.y / other,
+            z: this.z / other,
         }
     }
 }
@@ -455,185 +437,185 @@ extension Vector4 {
     }
 
     /// Conexport struct a Vector4 from x, y, z and w components.
-    function new(x: float32, y: float32, z: float32, w: float32) => Vector4 {
+    function new(x: float32, y: float32, z: float32, w: float32): Vector4 {
         Vector4 { x, y, z, w }
     }
 
     /// Conexport struct a Vector4 with all components set to the same value.
-    function splat(v: float32) => Vector4 {
+    function splat(v: float32): Vector4 {
         Vector4 { x: v, y: v, z: v, w: v }
     }
 
     /// Returns the length of the Vector.
-    function length(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w.sqrt()
+    function length(): float32 {
+        this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w.sqrt()
     }
 
     /// Returns the squared length of the Vector.
-    function lengthSquared(self) => float32 {
-        self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
+    function lengthSquared(): float32 {
+        this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w
     }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector4) => float32 {
-        self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+    function dot(other: Vector4): float32 {
+        this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
     }
 
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
-    function normalized(self) => Vector4 {
-        const len = self.length()
+    function normalized(): Vector4 {
+        const len = this.length()
         if len == 0.0 { self } else { self / len }
     }
 
     /// Compute Euclidean distance to another Vector4.
-    function distance(self, other: Vector4) => float32 {
+    function distance(other: Vector4): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector4.
-    function distanceSquared(self, other: Vector4) => float32 {
+    function distanceSquared(other: Vector4): float32 {
         self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
-    function lerp(self, other: Vector4, t: float32) => Vector4 {
+    function lerp(other: Vector4, t: float32): Vector4 {
         self + other - self * t
     }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector4 {
+    function abs(): Vector4 {
         Vector4 {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
-            w: self.w.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
+            z: this.z.abs(),
+            w: this.w.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector4) => Vector4 {
+    function min(other: Vector4): Vector4 {
         Vector4 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
-            w: if self.w < other.w { self.w } else { other.w },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
+            z: if this.z < other.z { this.z } else { other.z },
+            w: if this.w < other.w { this.w } else { other.w },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector4) => Vector4 {
+    function max(other: Vector4): Vector4 {
         Vector4 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
-            w: if self.w > other.w { self.w } else { other.w },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
+            z: if this.z > other.z { this.z } else { other.z },
+            w: if this.w > other.w { this.w } else { other.w },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector4, max: Vector4) => Vector4 {
+    function clamp(min: Vector4, max: Vector4): Vector4 {
         Vector4 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
-            w: clampScalar(self.w, min.w, max.w),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
+            z: clampScalar(this.z, min.z, max.z),
+            w: clampScalar(this.w, min.w, max.w),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: float32) => Vector4 {
-        Vector4 { x, y: self.y, z: self.z, w: self.w }
+    function withX(x: float32): Vector4 {
+        Vector4 { x, y: this.y, z: this.z, w: this.w }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: float32) => Vector4 {
-        Vector4 { x: self.x, y, z: self.z, w: self.w }
+    function withY(y: float32): Vector4 {
+        Vector4 { x: this.x, y, z: this.z, w: this.w }
     }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: float32) => Vector4 {
-        Vector4 { x: self.x, y: self.y, z, w: self.w }
+    function withZ(z: float32): Vector4 {
+        Vector4 { x: this.x, y: this.y, z, w: this.w }
     }
 
     /// Create a copy with a different w component.
-    function withW(self, w: float32) => Vector4 {
-        Vector4 { x: self.x, y: self.y, z: self.z, w }
+    function withW(w: float32): Vector4 {
+        Vector4 { x: this.x, y: this.y, z: this.z, w }
     }
 }
 
 extension Vector4 implements Add<float32> {
-    function add(self, other: float32) => Vector4 {
+    function add(other: float32): Vector4 {
         Vector4 {
-            x: self.x + other,
-            y: self.y + other,
-            z: self.z + other,
-            w: self.w + other,
+            x: this.x + other,
+            y: this.y + other,
+            z: this.z + other,
+            w: this.w + other,
         }
     }
 }
 
 extension Vector4 implements Add<Vector4> {
-    function add(self, other: Vector4) => Vector4 {
+    function add(other: Vector4): Vector4 {
         Vector4 {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-            w: self.w + other.w,
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
+            w: this.w + other.w,
         }
     }
 }
 
 extension Vector4 implements Subtract<float32> {
-    function subtract(self, other: float32) => Vector4 {
+    function subtract(other: float32): Vector4 {
         Vector4 {
-            x: self.x - other,
-            y: self.y - other,
-            z: self.z - other,
-            w: self.w - other,
+            x: this.x - other,
+            y: this.y - other,
+            z: this.z - other,
+            w: this.w - other,
         }
     }
 }
 
 extension Vector4 implements Subtract<Vector4> {
-    function subtract(self, other: Vector4) => Vector4 {
+    function subtract(other: Vector4): Vector4 {
         Vector4 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-            w: self.w - other.w,
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
+            w: this.w - other.w,
         }
     }
 }
 
 extension Vector4 implements Multiply<float32> {
-    function multiply(self, other: float32) => Vector4 {
+    function multiply(other: float32): Vector4 {
         Vector4 {
-            x: self.x * other,
-            y: self.y * other,
-            z: self.z * other,
-            w: self.w * other,
+            x: this.x * other,
+            y: this.y * other,
+            z: this.z * other,
+            w: this.w * other,
         }
     }
 }
 
 extension Vector4 implements Multiply<Vector4> {
-    function multiply(self, other: Vector4) => Vector4 {
+    function multiply(other: Vector4): Vector4 {
         Vector4 {
-            x: self.x * other.x,
-            y: self.y * other.y,
-            z: self.z * other.z,
-            w: self.w * other.w,
+            x: this.x * other.x,
+            y: this.y * other.y,
+            z: this.z * other.z,
+            w: this.w * other.w,
         }
     }
 }
 
 extension Vector4 implements Divide<float32> {
-    function divide(self, other: float32) => Vector4 {
+    function divide(other: float32): Vector4 {
         Vector4 {
-            x: self.x / other,
-            y: self.y / other,
-            z: self.z / other,
-            w: self.w / other,
+            x: this.x / other,
+            y: this.y / other,
+            z: this.z / other,
+            w: this.w / other,
         }
     }
 }
@@ -665,144 +647,144 @@ extension Vector2i {
     }
 
     /// Conexport struct a Vector2i from x and y components.
-    function new(x: int32, y: int32) => Vector2i {
+    function new(x: int32, y: int32): Vector2i {
         Vector2i { x, y }
     }
 
     /// Conexport struct a Vector2i with both components set to the same value.
-    function splat(v: int32) => Vector2i {
+    function splat(v: int32): Vector2i {
         Vector2i { x: v, y: v }
     }
 
     /// Returns the length of the Vector as float32.
-    function length(self) => float32 {
-        const fx = self.x as float32
-        const fy = self.y as float32
+    function length(): float32 {
+        const fx = this.x as float32
+        const fy = this.y as float32
         fx * fx + fy * fy.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
-    function lengthSquared(self) => int32 {
-        self.x * self.x + self.y * self.y
+    function lengthSquared(): int32 {
+        this.x * this.x + this.y * this.y
     }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector2i) => int32 {
-        self.x * other.x + self.y * other.y
+    function dot(other: Vector2i): int32 {
+        this.x * other.x + this.y * other.y
     }
 
     /// Compute Euclidean distance to another Vector2i as float32.
-    function distance(self, other: Vector2i) => float32 {
+    function distance(other: Vector2i): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector2i as int32.
-    function distanceSquared(self, other: Vector2i) => int32 {
+    function distanceSquared(other: Vector2i): int32 {
         self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector2i {
+    function abs(): Vector2i {
         Vector2i {
-            x: self.x.abs(),
-            y: self.y.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector2i) => Vector2i {
+    function min(other: Vector2i): Vector2i {
         Vector2i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector2i) => Vector2i {
+    function max(other: Vector2i): Vector2i {
         Vector2i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector2i, max: Vector2i) => Vector2i {
+    function clamp(min: Vector2i, max: Vector2i): Vector2i {
         Vector2i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector2i {
-        Vector2i { x, y: self.y }
+    function withX(x: int32): Vector2i {
+        Vector2i { x, y: this.y }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector2i {
-        Vector2i { x: self.x, y: y }
+    function withY(y: int32): Vector2i {
+        Vector2i { x: this.x, y: y }
     }
 }
 
 extension Vector2i implements Add<int32> {
-    function add(self, other: int32) => Vector2i {
+    function add(other: int32): Vector2i {
         Vector2i {
-            x: self.x + other,
-            y: self.y + other,
+            x: this.x + other,
+            y: this.y + other,
         }
     }
 }
 
 extension Vector2i implements Add<Vector2i> {
-    function add(self, other: Vector2i) => Vector2i {
+    function add(other: Vector2i): Vector2i {
         Vector2i {
-            x: self.x + other.x,
-            y: self.y + other.y,
+            x: this.x + other.x,
+            y: this.y + other.y,
         }
     }
 }
 
 extension Vector2i implements Subtract<int32> {
-    function subtract(self, other: int32) => Vector2i {
+    function subtract(other: int32): Vector2i {
         Vector2i {
-            x: self.x - other,
-            y: self.y - other,
+            x: this.x - other,
+            y: this.y - other,
         }
     }
 }
 
 extension Vector2i implements Subtract<Vector2i> {
-    function subtract(self, other: Vector2i) => Vector2i {
+    function subtract(other: Vector2i): Vector2i {
         Vector2i {
-            x: self.x - other.x,
-            y: self.y - other.y,
+            x: this.x - other.x,
+            y: this.y - other.y,
         }
     }
 }
 
 extension Vector2i implements Multiply<int32> {
-    function multiply(self, other: int32) => Vector2i {
+    function multiply(other: int32): Vector2i {
         Vector2i {
-            x: self.x * other,
-            y: self.y * other,
+            x: this.x * other,
+            y: this.y * other,
         }
     }
 }
 
 extension Vector2i implements Multiply<Vector2i> {
-    function multiply(self, other: Vector2i) => Vector2i {
+    function multiply(other: Vector2i): Vector2i {
         Vector2i {
-            x: self.x * other.x,
-            y: self.y * other.y,
+            x: this.x * other.x,
+            y: this.y * other.y,
         }
     }
 }
 
 extension Vector2i implements Divide<int32> {
-    function divide(self, other: int32) => Vector2i {
+    function divide(other: int32): Vector2i {
         Vector2i {
-            x: self.x / other,
-            y: self.y / other,
+            x: this.x / other,
+            y: this.y / other,
         }
     }
 }
@@ -845,161 +827,161 @@ extension Vector3i {
     }
 
     /// Conexport struct a Vector3i from x, y and z components.
-    function new(x: int32, y: int32, z: int32) => Vector3i {
+    function new(x: int32, y: int32, z: int32): Vector3i {
         Vector3i { x, y, z }
     }
 
     /// Conexport struct a Vector3i with all components set to the same value.
-    function splat(v: int32) => Vector3i {
+    function splat(v: int32): Vector3i {
         Vector3i { x: v, y: v, z: v }
     }
 
     /// Returns the length of the Vector as float32.
-    function length(self) => float32 {
-        const fx = self.x as float32
-        const fy = self.y as float32
-        const fz = self.z as float32
+    function length(): float32 {
+        const fx = this.x as float32
+        const fy = this.y as float32
+        const fz = this.z as float32
         fx * fx + fy * fy + fz * fz.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
-    function lengthSquared(self) => int32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
+    function lengthSquared(): int32 {
+        this.x * this.x + this.y * this.y + this.z * this.z
     }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector3i) => int32 {
-        self.x * other.x + self.y * other.y + self.z * other.z
+    function dot(other: Vector3i): int32 {
+        this.x * other.x + this.y * other.y + this.z * other.z
     }
 
     /// Compute Euclidean distance to another Vector3i as float32.
-    function distance(self, other: Vector3i) => float32 {
+    function distance(other: Vector3i): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector3i as int32.
-    function distanceSquared(self, other: Vector3i) => int32 {
+    function distanceSquared(other: Vector3i): int32 {
         self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector3i {
+    function abs(): Vector3i {
         Vector3i {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
+            z: this.z.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector3i) => Vector3i {
+    function min(other: Vector3i): Vector3i {
         Vector3i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
+            z: if this.z < other.z { this.z } else { other.z },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector3i) => Vector3i {
+    function max(other: Vector3i): Vector3i {
         Vector3i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
+            z: if this.z > other.z { this.z } else { other.z },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector3i, max: Vector3i) => Vector3i {
+    function clamp(min: Vector3i, max: Vector3i): Vector3i {
         Vector3i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
+            z: clampScalar(this.z, min.z, max.z),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector3i {
-        Vector3i { x, y: self.y, z: self.z }
+    function withX(x: int32): Vector3i {
+        Vector3i { x, y: this.y, z: this.z }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector3i {
-        Vector3i { x: self.x, y, z: self.z }
+    function withY(y: int32): Vector3i {
+        Vector3i { x: this.x, y, z: this.z }
     }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: int32) => Vector3i {
-        Vector3i { x: self.x, y: self.y, z }
+    function withZ(z: int32): Vector3i {
+        Vector3i { x: this.x, y: this.y, z }
     }
 }
 
 extension Vector3i implements Add<int32> {
-    function add(self, other: int32) => Vector3i {
+    function add(other: int32): Vector3i {
         Vector3i {
-            x: self.x + other,
-            y: self.y + other,
-            z: self.z + other,
+            x: this.x + other,
+            y: this.y + other,
+            z: this.z + other,
         }
     }
 }
 
 extension Vector3i implements Add<Vector3i> {
-    function add(self, other: Vector3i) => Vector3i {
+    function add(other: Vector3i): Vector3i {
         Vector3i {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
         }
     }
 }
 
 extension Vector3i implements Subtract<int32> {
-    function subtract(self, other: int32) => Vector3i {
+    function subtract(other: int32): Vector3i {
         Vector3i {
-            x: self.x - other,
-            y: self.y - other,
-            z: self.z - other,
+            x: this.x - other,
+            y: this.y - other,
+            z: this.z - other,
         }
     }
 }
 
 extension Vector3i implements Subtract<Vector3i> {
-    function subtract(self, other: Vector3i) => Vector3i {
+    function subtract(other: Vector3i): Vector3i {
         Vector3i {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
         }
     }
 }
 
 extension Vector3i implements Multiply<int32> {
-    function multiply(self, other: int32) => Vector3i {
+    function multiply(other: int32): Vector3i {
         Vector3i {
-            x: self.x * other,
-            y: self.y * other,
-            z: self.z * other,
+            x: this.x * other,
+            y: this.y * other,
+            z: this.z * other,
         }
     }
 }
 
 extension Vector3i implements Multiply<Vector3i> {
-    function multiply(self, other: Vector3i) => Vector3i {
+    function multiply(other: Vector3i): Vector3i {
         Vector3i {
-            x: self.x * other.x,
-            y: self.y * other.y,
-            z: self.z * other.z,
+            x: this.x * other.x,
+            y: this.y * other.y,
+            z: this.z * other.z,
         }
     }
 }
 
 extension Vector3i implements Divide<int32> {
-    function divide(self, other: int32) => Vector3i {
+    function divide(other: int32): Vector3i {
         Vector3i {
-            x: self.x / other,
-            y: self.y / other,
-            z: self.z / other,
+            x: this.x / other,
+            y: this.y / other,
+            z: this.z / other,
         }
     }
 }
@@ -1057,180 +1039,180 @@ export struct Vector4i {
     }
 
     /// Conexport struct a Vector4i from x, y, z and w components.
-    function new(x: int32, y: int32, z: int32, w: int32) => Vector4i {
+    function new(x: int32, y: int32, z: int32, w: int32): Vector4i {
         Vector4i { x, y, z, w }
     }
 }
 
 extension Vector4i {
     /// Conexport struct a Vector4i with all components set to the same value.
-    function splat(v: int32) => Vector4i {
+    function splat(v: int32): Vector4i {
         Vector4i { x: v, y: v, z: v, w: v }
     }
 
     /// Returns the length of the Vector as float32.
-    function length(self) => float32 {
-        const fx = self.x as float32
-        const fy = self.y as float32
-        const fz = self.z as float32
-        const fw = self.w as float32
+    function length(): float32 {
+        const fx = this.x as float32
+        const fy = this.y as float32
+        const fz = this.z as float32
+        const fw = this.w as float32
         fx * fx + fy * fy + fz * fz + fw * fw.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
-    function lengthSquared(self) => int32 {
-        self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
+    function lengthSquared(): int32 {
+        this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w
     }
 
     /// Returns the dot product of the two Vectors.
-    function dot(self, other: Vector4i) => int32 {
-        self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+    function dot(other: Vector4i): int32 {
+        this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
     }
 
     /// Compute Euclidean distance to another Vector4i as float32.
-    function distance(self, other: Vector4i) => float32 {
+    function distance(other: Vector4i): float32 {
         self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector4i as int32.
-    function distanceSquared(self, other: Vector4i) => int32 {
+    function distanceSquared(other: Vector4i): int32 {
         self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
-    function abs(self) => Vector4i {
+    function abs(): Vector4i {
         Vector4i {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
-            w: self.w.abs(),
+            x: this.x.abs(),
+            y: this.y.abs(),
+            z: this.z.abs(),
+            w: this.w.abs(),
         }
     }
 
     /// Component-wise minimum.
-    function min(self, other: Vector4i) => Vector4i {
+    function min(other: Vector4i): Vector4i {
         Vector4i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
-            w: if self.w < other.w { self.w } else { other.w },
+            x: if this.x < other.x { this.x } else { other.x },
+            y: if this.y < other.y { this.y } else { other.y },
+            z: if this.z < other.z { this.z } else { other.z },
+            w: if this.w < other.w { this.w } else { other.w },
         }
     }
 
     /// Component-wise maximum.
-    function max(self, other: Vector4i) => Vector4i {
+    function max(other: Vector4i): Vector4i {
         Vector4i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
-            w: if self.w > other.w { self.w } else { other.w },
+            x: if this.x > other.x { this.x } else { other.x },
+            y: if this.y > other.y { this.y } else { other.y },
+            z: if this.z > other.z { this.z } else { other.z },
+            w: if this.w > other.w { this.w } else { other.w },
         }
     }
 
     /// Clamp each component between corresponding min and max values.
-    function clamp(self, min: Vector4i, max: Vector4i) => Vector4i {
+    function clamp(min: Vector4i, max: Vector4i): Vector4i {
         Vector4i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
-            w: clampScalar(self.w, min.w, max.w),
+            x: clampScalar(this.x, min.x, max.x),
+            y: clampScalar(this.y, min.y, max.y),
+            z: clampScalar(this.z, min.z, max.z),
+            w: clampScalar(this.w, min.w, max.w),
         }
     }
 
     /// Create a copy with a different x component.
-    function withX(self, x: int32) => Vector4i {
-        Vector4i { x, y: self.y, z: self.z, w: self.w }
+    function withX(x: int32): Vector4i {
+        Vector4i { x, y: this.y, z: this.z, w: this.w }
     }
 
     /// Create a copy with a different y component.
-    function withY(self, y: int32) => Vector4i {
-        Vector4i { x: self.x, y, z: self.z, w: self.w }
+    function withY(y: int32): Vector4i {
+        Vector4i { x: this.x, y, z: this.z, w: this.w }
     }
 
     /// Create a copy with a different z component.
-    function withZ(self, z: int32) => Vector4i {
-        Vector4i { x: self.x, y: self.y, z, w: self.w }
+    function withZ(z: int32): Vector4i {
+        Vector4i { x: this.x, y: this.y, z, w: this.w }
     }
 
     /// Create a copy with a different w component.
-    function withW(self, w: int32) => Vector4i {
-        Vector4i { x: self.x, y: self.y, z: self.z, w }
+    function withW(w: int32): Vector4i {
+        Vector4i { x: this.x, y: this.y, z: this.z, w }
     }
 }
 
 extension Vector4i implements Add<int32> {
-    function add(self, other: int32) => Vector4i {
+    function add(other: int32): Vector4i {
         Vector4i {
-            x: self.x + other,
-            y: self.y + other,
-            z: self.z + other,
-            w: self.w + other,
+            x: this.x + other,
+            y: this.y + other,
+            z: this.z + other,
+            w: this.w + other,
         }
     }
 }
 
 extension Vector4i implements Add<Vector4i> {
-    function add(self, other: Vector4i) => Vector4i {
+    function add(other: Vector4i): Vector4i {
         Vector4i {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
-            w: self.w + other.w,
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
+            w: this.w + other.w,
         }
     }
 }
 
 extension Vector4i implements Subtract<int32> {
-    function subtract(self, other: int32) => Vector4i {
+    function subtract(other: int32): Vector4i {
         Vector4i {
-            x: self.x - other,
-            y: self.y - other,
-            z: self.z - other,
-            w: self.w - other,
+            x: this.x - other,
+            y: this.y - other,
+            z: this.z - other,
+            w: this.w - other,
         }
     }
 }
 
 extension Vector4i implements Subtract<Vector4i> {
-    function subtract(self, other: Vector4i) => Vector4i {
+    function subtract(other: Vector4i): Vector4i {
         Vector4i {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-            w: self.w - other.w,
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
+            w: this.w - other.w,
         }
     }
 }
 
 extension Vector4i implements Multiply<int32> {
-    function multiply(self, other: int32) => Vector4i {
+    function multiply(other: int32): Vector4i {
         Vector4i {
-            x: self.x * other,
-            y: self.y * other,
-            z: self.z * other,
-            w: self.w * other,
+            x: this.x * other,
+            y: this.y * other,
+            z: this.z * other,
+            w: this.w * other,
         }
     }
 }
 
 extension Vector4i implements Multiply<Vector4i> {
-    function multiply(self, other: Vector4i) => Vector4i {
+    function multiply(other: Vector4i): Vector4i {
         Vector4i {
-            x: self.x * other.x,
-            y: self.y * other.y,
-            z: self.z * other.z,
-            w: self.w * other.w,
+            x: this.x * other.x,
+            y: this.y * other.y,
+            z: this.z * other.z,
+            w: this.w * other.w,
         }
     }
 }
 
 extension Vector4i implements Divide<int32> {
-    function divide(self, other: int32) => Vector4i {
+    function divide(other: int32): Vector4i {
         Vector4i {
-            x: self.x / other,
-            y: self.y / other,
-            z: self.z / other,
-            w: self.w / other,
+            x: this.x / other,
+            y: this.y / other,
+            z: this.z / other,
+            w: this.w / other,
         }
     }
 }

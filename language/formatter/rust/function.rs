@@ -47,8 +47,8 @@ mod tests {
     #[test]
     fn test_format_function_with_modifiers() {
         assert_format!(
-            "abstract override async function* baz() => int32 {}",
-            "declare public abstract static override async function* baz() => int32 { }",
+            "abstract override async function* baz(): int32 {}",
+            "declare public abstract static override async function* baz(): int32 { }",
             |p| p.eat_function(
                 DefinitionMeta {
                     visibility: Some(Visibility::Public),
@@ -65,8 +65,8 @@ mod tests {
     #[test]
     fn test_format_function_with_return_type() {
         assert_format!(
-            "function baz() => int32 {}",
-            "function baz() => int32 { }",
+            "function baz(): int32 {}",
+            "function baz(): int32 { }",
             |p| p.eat_function(DefinitionMeta::default(), false, false)
         );
     }
@@ -102,8 +102,8 @@ mod tests {
     #[test]
     fn test_format_function_declaration() {
         assert_format!(
-            "function external() => int32",
-            "function external() => int32",
+            "function external(): int32",
+            "function external(): int32",
             |p| p.eat_function(DefinitionMeta::default(), false, false)
         );
     }
@@ -117,15 +117,15 @@ mod tests {
     #[test]
     fn test_format_function_with_with_and_return() {
         assert_format!(
-            "function foo() => int32 with Disk {}",
-            "function foo() => int32 with Disk { }",
+            "function foo(): int32 with Disk {}",
+            "function foo(): int32 with Disk { }",
             |p| p.eat_function(DefinitionMeta::default(), false, false)
         );
     }
 
     #[test]
     fn test_format_function_with_self_parameter() {
-        let source = r"function foo(self: int32) => void";
+        let source = r"function foo(self: int32): void";
         assert_format!(source, source, |p| p.eat_function(
             DefinitionMeta::default(),
             false,
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_format_function_with_this_parameter() {
-        let source = r"function foo(this: int32) => void";
+        let source = r"function foo(this: int32): void";
         assert_format!(source, source, |p| p.eat_function(
             DefinitionMeta::default(),
             false,
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_format_function_with_self_return_type() {
-        let source = r"function init(capacity: int32) => Self {
+        let source = r"function init(capacity: int32): Self {
     Self {
         map: Map.new(capacity),
         queue: Queue.new(capacity),

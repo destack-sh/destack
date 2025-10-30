@@ -1930,8 +1930,8 @@ mod tests {
     #[test]
     fn test_format_index_member_chain_breaks() {
         assert_format!(
-            "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
-            "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]",
+            "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]\n",
+            "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]\n",
             |p| p.eat_expression(),
             DystFormatOptions::default_tab_with_line_width(20)
         );
