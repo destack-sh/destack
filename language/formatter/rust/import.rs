@@ -29,7 +29,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         // type
-        if self.kind == DependencyKind::Type {
+        if self.kind == Some(DependencyKind::Type) {
             write!(f, [Keyword::Type, space()])?;
         }
 

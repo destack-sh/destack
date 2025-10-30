@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        // type
+        // kind
         let kind = if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type
             Some(DependencyKind::Type)
@@ -82,8 +82,9 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // binding (require import target)
-        let (target, alias, items) = self.eat_dependency_binding(kind)?;
+        // binding 
+        let (target, alias, items) = self.eat_dependency_binding()?;
+        // binding for import needs a dependency target
         let target = match target {
             Some(target) => target,
             None => {
@@ -152,8 +153,8 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // type
-        let ty = if self.peek_keyword(Keyword::Type).is_ok() {
+        // kind
+        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type
             Some(DependencyKind::Type)
         } else {
@@ -161,13 +162,13 @@ impl<'a> Parser<'a> {
         };
 
         // binding
-        let (target, alias, items) = self.eat_dependency_binding(ty)?;
+        let (target, alias, items) = self.eat_dependency_binding()?;
 
         // export
         let export_id = self.tree.insert(
             Expression::Export {
                 mode,
-                kind: ty.unwrap_or(DependencyKind::Value),
+                kind: kind.unwrap_or(DependencyKind::Value),
                 target,
                 alias,
                 items,
@@ -227,24 +228,15 @@ impl<'a> Parser<'a> {
     /// ```
     fn eat_dependency_binding(
         &mut self,
-        ty: Option<DependencyKind>,
     ) -> ParserResult<(
         Option<DependencyTarget>,
         Option<StringId>,
         Option<Vec<NodeId<DependencyItem>>>,
     )> {
-        // type
-        let ty = if self.peek_keyword(Keyword::Type).is_ok() {
-            self.bump(); // eat type
-            Some(DependencyKind::Type)
-        } else {
-            ty
-        };
-
         // `{ ... }` with optional `from`
         if self.peek_token(TokenType::OpenBrace).is_ok() {
             let items = self
-                .eat_dependency_items_block(ty)
+                .eat_dependency_items_block()
                 .for_node_type(NodeType::Expression)?;
             // `from` target
             let target = if self.peek_keyword(Keyword::From).is_ok() {
@@ -278,7 +270,7 @@ impl<'a> Parser<'a> {
             let alias = self.eat_identifier()?;
             self.eat_token(TokenType::Comma)?;
             // `{ ... }`
-            let items = self.eat_dependency_items_block(ty)?;
+            let items = self.eat_dependency_items_block()?;
             // `from`
             self.eat_keyword(Keyword::From)?;
             let target = Some(self.eat_dependency_target()?);
@@ -298,7 +290,7 @@ impl<'a> Parser<'a> {
             // items
             let items = if self.peek_token(TokenType::Dot).is_ok() {
                 self.bump(); // eat .
-                Some(self.eat_dependency_items_block(ty)?)
+                Some(self.eat_dependency_items_block()?)
             } else {
                 None
             };
@@ -317,17 +309,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of import items (like `{ a, b }` in `import foo.{a, b}`).
-    fn eat_dependency_items_block(
-        &mut self,
-        ty: Option<DependencyKind>,
-    ) -> ParserResult<Vec<NodeId<DependencyItem>>> {
+    fn eat_dependency_items_block(&mut self) -> ParserResult<Vec<NodeId<DependencyItem>>> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
 
         let mut items: Vec<NodeId<DependencyItem>> = Vec::new();
         while self.peek_token(TokenType::CloseBrace).is_err() {
             let item = self
-                .eat_dependency_item(ty)
+                .eat_dependency_item()
                 .for_node_type(NodeType::DependencyItem)?;
             items.push(item);
             if self.peek_any_stop().is_ok() {
@@ -347,18 +336,15 @@ impl<'a> Parser<'a> {
     /// geometry
     /// geometry as geom
     /// ```
-    pub(crate) fn eat_dependency_item(
-        &mut self,
-        ty: Option<DependencyKind>,
-    ) -> ParserResult<NodeId<DependencyItem>> {
+    pub(crate) fn eat_dependency_item(&mut self) -> ParserResult<NodeId<DependencyItem>> {
         let start = self.mark();
 
-        // type
-        let ty = if self.peek_keyword(Keyword::Type).is_ok() {
+        // kind
+        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
             self.bump(); // eat type
             Some(DependencyKind::Type)
         } else {
-            ty
+            None
         };
 
         // name
@@ -375,11 +361,7 @@ impl<'a> Parser<'a> {
         };
 
         let item = self.tree.insert(
-            DependencyItem {
-                kind: ty.unwrap_or(DependencyKind::Value),
-                name,
-                alias,
-            },
+            DependencyItem { kind, name, alias },
             self.get_span_from(start),
         );
         Ok(item)
@@ -537,12 +519,12 @@ mod tests {
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
             assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Value);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "Vector2");
                 assert_eq!(*alias, None);
             });
             assert_node!(parser.tree, items[1], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Type);
+                assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, *name, "Vector3");
                 assert_string!(parser, alias.unwrap(), "V3");
             });
@@ -562,12 +544,12 @@ mod tests {
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
             assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Value);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "Vector2");
                 assert!(alias.is_none());
             });
             assert_node!(parser.tree, items[1], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Value);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "Vector3");
                 assert_string!(parser, alias.unwrap(), "V3");
             });
@@ -627,12 +609,12 @@ import {
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
             assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Value);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "StructuredObject");
                 assert!(alias.is_none());
             });
             assert_node!(parser.tree, items[1], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Type);
+                assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, *name, "StructuredObjectOptions");
                 assert!(alias.is_none());
             });
@@ -653,7 +635,7 @@ import {
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 1);
             assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Type);
+                assert_eq!(*kind, Some(DependencyKind::Type));
                 assert_string!(parser, *name, "Item");
                 assert!(alias.is_none());
             });
@@ -682,13 +664,13 @@ export type { CreateUIMessage, UIMessage }
             assert_eq!(items.len(), 2);
             // CreateUIMessage
             assert_node!(parser.tree, items[0], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Type);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "CreateUIMessage");
                 assert!(alias.is_none());
             });
             // UIMessage
             assert_node!(parser.tree, items[1], DependencyItem { kind, name, alias } => {
-                assert_eq!(*kind, DependencyKind::Type);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "UIMessage");
                 assert!(alias.is_none());
             });

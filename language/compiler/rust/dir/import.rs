@@ -50,7 +50,10 @@ impl<'a> Compiler<'a> {
                 .iter()
                 .map(|item| {
                     let dependency_item = ast.get(*item);
-                    let kind = self.lower_dependency_kind(source_id, ast, dependency_item.kind);
+                    let kind = dependency_item
+                        .kind
+                        .map(|kind| self.lower_dependency_kind(source_id, ast, kind))
+                        .unwrap_or(kind);
                     let name = self.lower_string_id(source_id, dependency_item.name);
                     let alias = dependency_item
                         .alias

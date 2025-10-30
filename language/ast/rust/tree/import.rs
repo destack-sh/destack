@@ -38,8 +38,8 @@ pub enum DependencyKind {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DependencyItem {
-    /// The type of the item.
-    pub kind: DependencyKind,
+    /// The type of the item (if specified).
+    pub kind: Option<DependencyKind>,
     /// The source of the item (like `foo` in `foo as bar`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar`)
