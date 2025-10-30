@@ -1,61 +1,292 @@
-// SYNTAX TEST "source.dyst" "literal and comment coverage"
+// SYNTAX TEST "source.ds"
 
 true
-// <- constant.language.boolean.dyst
+// <- constant.language.boolean.ds
 
 false
-// <- constant.language.boolean.dyst
+// <- constant.language.boolean.ds
 
 null
-// <- constant.language.null.dyst
+// <- constant.language.null.ds
 
 undefined
-// <- constant.language.undefined.dyst
+// <- constant.language.undefined.ds
 
 42
-// <- constant.numeric.decimal.dyst
+// <- constant.numeric.decimal.ds
 
 0b1010n
-// <- constant.numeric.binary.dyst
+// <- constant.numeric.binary.ds
 
 0xff
-// <- constant.numeric.hex.dyst
+// <- constant.numeric.hex.ds
 
 3.14
-// <- constant.numeric.decimal.dyst
+// <- constant.numeric.decimal.ds
 
 "hello"
-// <- string.quoted.double.dyst
+// <- string.quoted.double.ds
 
 b"bytes"
-// <- string.quoted.double.byte.dyst
+// <- string.quoted.double.byte.ds
 
 'c'
-// <- string.quoted.single.dyst
+// <- string.quoted.single.ds
 
 b'c'
-// <- string.quoted.single.byte.dyst
+// <- string.quoted.single.byte.ds
 
 r"raw"
-// <- string.quoted.double.raw.dyst
+// <- string.quoted.double.raw.ds
 
 br"raw"
-// <- string.quoted.double.raw.byte.dyst
+// <- string.quoted.double.raw.byte.ds
 
 `template ${42}`
-// <- string.template.dyst
-//        ~~~~ meta.embedded.line.dyst
+// <- string.template.ds
+//        ~~~~ meta.embedded.line.ds
 
 /abc[0-9]+/i
-// <- string.regexp.dyst
+// <- string.regexp.ds
 
 "escaped\n"
-// <- string.quoted.double.dyst
-//     ~~~~ constant.character.escape.dyst
+// <- string.quoted.double.ds
+//     ~~~~ constant.character.escape.ds
 
 value = 1 // trailing comment
-//          ^^^^^^^^^^^^^^^^^ comment.line.double-slash.dyst
+//          ^^^^^^^^^^^^^^^^^ comment.line.double-slash.ds
 
 /* block comment */
-// <- comment.block.dyst
+// <- comment.block.ds
 
+public
+// <- keyword.other.modifier.ds
+
+self
+// <- keyword.other.context.ds
+
+import
+// <- keyword.declaration.import.ds
+
+const
+// <- keyword.declaration.type.ds
+
+new
+// <- keyword.operator.new.ds
+
+extends
+// <- keyword.operator.type.ds
+
+any
+// <- keyword.other.type.ds
+
+if
+// <- keyword.control.conditional.ds
+
+for
+// <- keyword.control.loop.ds
+
+return
+// <- keyword.control.flow.ds
+
+catch
+// <- keyword.control.exception.ds
+
+await
+// <- keyword.control.async.ds
+
+get
+// <- keyword.other.accessor.ds
+
+// unary operators
+value++
+//   ^^ keyword.operator.increment.ds
+
+value--
+//   ^^ keyword.operator.increment.ds
+
+value && !other
+//       ^ keyword.operator.logical.not.ds
+
+value | ~other
+//      ^ keyword.operator.bitwise.ds
+
+value + -other
+//      ^ keyword.operator.arithmetic.ds
+
+value + -%other
+//      ^^ keyword.operator.arithmetic.ds
+
+call(...args)
+//   ^^^ keyword.operator.spread.ds
+
+// binary operators
+value * other
+//    ^ keyword.operator.arithmetic.ds
+
+value *% other
+//    ^^ keyword.operator.arithmetic.ds
+
+value *| other
+//    ^^ keyword.operator.arithmetic.ds
+
+value/other
+//   ^ keyword.operator.arithmetic.ds
+
+value % other
+//    ^ keyword.operator.arithmetic.ds
+
+value + other
+//    ^ keyword.operator.arithmetic.ds
+
+value +% other
+//    ^^ keyword.operator.arithmetic.ds
+
+value +| other
+//    ^^ keyword.operator.arithmetic.ds
+
+value - other
+//    ^ keyword.operator.arithmetic.ds
+
+value -% other
+//    ^^ keyword.operator.arithmetic.ds
+
+value -| other
+//    ^^ keyword.operator.arithmetic.ds
+
+value << other
+//    ^^ keyword.operator.shift.ds
+
+value <<| other
+//    ^^^ keyword.operator.shift.ds
+
+value >> other
+//    ^^ keyword.operator.shift.ds
+
+value & other
+//    ^ keyword.operator.bitwise.ds
+
+value ^ other
+//    ^ keyword.operator.bitwise.ds
+
+value | other
+//    ^ keyword.operator.bitwise.ds
+
+value == other
+//    ^^ keyword.operator.comparison.ds
+
+value != other
+//    ^^ keyword.operator.comparison.ds
+
+value === other
+//    ^^^ keyword.operator.comparison.ds
+
+value !== other
+//    ^^^ keyword.operator.comparison.ds
+
+value < other
+//    ^ keyword.operator.comparison.ds
+
+value <= other
+//    ^^ keyword.operator.comparison.ds
+
+value > other
+//    ^ keyword.operator.comparison.ds
+
+value >= other
+//    ^^ keyword.operator.comparison.ds
+
+value && other
+//    ^^ keyword.operator.logical.ds
+
+value || other
+//    ^^ keyword.operator.logical.ds
+
+value ?? other
+//    ^^ keyword.operator.logical.ds
+
+// assignment operators
+value = other
+//    ^ keyword.operator.assignment.ds
+
+value *= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value *%= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value *|= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value/= other
+//   ^^ keyword.operator.assignment.compound.ds
+
+value %= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value += other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value +%= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value +|= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value -= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value -%= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value -|= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value <<= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value <<|= other
+//    ^^^^ keyword.operator.assignment.compound.ds
+
+value >>= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value &= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value ^= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value |= other
+//    ^^ keyword.operator.assignment.compound.ds
+
+value &&= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value ||= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+value ??= other
+//    ^^^ keyword.operator.assignment.compound.ds
+
+// type operators
+value as Type
+//    ^^ keyword.operator.type.ds
+
+value is Type
+//    ^^ keyword.operator.type.ds
+
+value instanceof Type
+//    ^^^^^^^^^^ keyword.operator.type.ds
+
+value satisfies Constraint
+//    ^^^^^^^^^ keyword.operator.type.ds
+
+value in collection
+//    ^^ keyword.operator.type.ds
+
+value of entries
+//    ^^ keyword.operator.type.ds
+
+struct Foo implements Bar
+//         ^^^^^^^^^^ keyword.operator.type.ds

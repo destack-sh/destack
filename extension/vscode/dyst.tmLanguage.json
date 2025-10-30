@@ -1,6 +1,6 @@
 {
   "name": "Dyst",
-  "scopeName": "source.dyst",
+  "scopeName": "source.ds",
   "fileTypes": [
     "ds"
   ],
@@ -13,37 +13,46 @@
     "expression": {
       "patterns": [
         {
-          "include": "#comments"
+          "include": "#comment"
         },
         {
-          "include": "#literals"
+          "include": "#literal"
+        },
+        {
+          "include": "#keyword"
+        },
+        {
+          "include": "#path"
+        },
+        {
+          "include": "#operator"
         }
       ]
     },
-    "comments": {
+    "comment": {
       "patterns": [
         {
-          "name": "comment.line.double-slash.dyst",
+          "name": "comment.line.double-slash.ds",
           "match": "//.*$"
         },
         {
-          "name": "comment.block.dyst",
+          "name": "comment.block.ds",
           "begin": "/\\*",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.begin.dyst"
+              "name": "punctuation.definition.comment.begin.ds"
             }
           },
           "end": "\\*/",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.end.dyst"
+              "name": "punctuation.definition.comment.end.ds"
             }
           }
         }
       ]
     },
-    "literals": {
+    "literal": {
       "patterns": [
         {
           "include": "#literal-boolean"
@@ -68,10 +77,138 @@
         }
       ]
     },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.other.modifier.ds",
+          "match": "\\b(?:public|protected|private|readonly|mut|static|final|default|abstract|override)\\b"
+        },
+        {
+          "name": "keyword.other.context.ds",
+          "match": "\\b(?:self|this|super|package)\\b"
+        },
+        {
+          "name": "keyword.declaration.import.ds",
+          "match": "\\b(?:import|export|from|use|with)\\b"
+        },
+        {
+          "name": "keyword.declaration.type.ds",
+          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
+        },
+        {
+          "name": "keyword.operator.new.ds",
+          "match": "\\b(?:new|delete)\\b"
+        },
+        {
+          "name": "keyword.operator.type.ds",
+          "match": "\\b(?:extends|implements|satisfies|instanceof|tuple|where|typeof|keyof|infer|as|is|in|of)\\b"
+        },
+        {
+          "name": "keyword.other.type.ds",
+          "match": "\\b(?:any|never)\\b"
+        },
+        {
+          "name": "keyword.control.conditional.ds",
+          "match": "\\b(?:if|else|match|switch|case)\\b"
+        },
+        {
+          "name": "keyword.control.loop.ds",
+          "match": "\\b(?:do|while|for|loop)\\b"
+        },
+        {
+          "name": "keyword.control.flow.ds",
+          "match": "\\b(?:break|continue|defer|return|yield|goto)\\b"
+        },
+        {
+          "name": "keyword.control.exception.ds",
+          "match": "\\b(?:try|catch|throw|finally)\\b"
+        },
+        {
+          "name": "keyword.control.async.ds",
+          "match": "\\b(?:async|await)\\b"
+        },
+        {
+          "name": "keyword.other.accessor.ds",
+          "match": "\\b(?:get|set)\\b"
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.compound.ds",
+          "match": "(?x)(?:<<\\|=|\\?\\?=|\\|\\|=|&&=|\\+\\|=|\\+%=|\\*\\|=|\\*%=|-\\|=|-%=|<<=|>>=|\\+=|-=|\\*=|/=|%=|&=|\\^=|\\|=)"
+        },
+        {
+          "name": "keyword.operator.logical.ds",
+          "match": "(?x)(?:\\?\\?|&&|\\|\\|)"
+        },
+        {
+          "name": "keyword.operator.shift.ds",
+          "match": "(?x)(?:<<\\||<<|>>)"
+        },
+        {
+          "name": "keyword.operator.comparison.ds",
+          "match": "(?x)(?:===|!==|==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.ds",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.increment.ds",
+          "match": "(?x)(?:\\+\\+|--)"
+        },
+        {
+          "name": "keyword.operator.spread.ds",
+          "match": "\\.\\.\\."
+        },
+        {
+          "name": "keyword.operator.arithmetic.ds",
+          "match": "(?x)(?:\\+\\||\\+%|\\+|-\\||-%|-|\\*\\||\\*%|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.bitwise.ds",
+          "match": "(?x)(?:~|&|\\^|\\|)"
+        },
+        {
+          "name": "keyword.operator.logical.not.ds",
+          "match": "!"
+        }
+      ]
+    },
+    "path": {
+      "patterns": [
+        {
+          "name": "meta.path.ds",
+          "begin": "(?x)\\b([A-Za-z_$][\\w$]*)\\b(?=\\s*(?:\\r?\\n\\s*(?://[^\\r\\n]*)?)*\\s*\\.\\s*[A-Za-z_$])",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.path.segment.ds"
+            }
+          },
+          "end": "(?x)(?=\\s*(?:[^\\s./]|$))",
+          "patterns": [
+            {
+              "name": "meta.path.segment.ds",
+              "match": "(?x)\\G\\s*(?:\\r?\\n\\s*(?://[^\\r\\n]*)?)*\\s*(\\.)\\s*([A-Za-z_$][\\w$]*)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.accessor.dot.ds"
+                },
+                "2": {
+                  "name": "entity.name.path.segment.ds"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
     "literal-boolean": {
       "patterns": [
         {
-          "name": "constant.language.boolean.dyst",
+          "name": "constant.language.boolean.ds",
           "match": "\\b(?:true|false)\\b"
         }
       ]
@@ -79,11 +216,11 @@
     "literal-nullish": {
       "patterns": [
         {
-          "name": "constant.language.null.dyst",
+          "name": "constant.language.null.ds",
           "match": "\\bnull\\b"
         },
         {
-          "name": "constant.language.undefined.dyst",
+          "name": "constant.language.undefined.ds",
           "match": "\\bundefined\\b"
         }
       ]
@@ -91,27 +228,27 @@
     "literal-numeric": {
       "patterns": [
         {
-          "name": "constant.numeric.binary.dyst",
+          "name": "constant.numeric.binary.ds",
           "match": "\\b0[bB][01_]+n?\\b"
         },
         {
-          "name": "constant.numeric.octal.dyst",
+          "name": "constant.numeric.octal.ds",
           "match": "\\b0[oO][0-7_]+n?\\b"
         },
         {
-          "name": "constant.numeric.hex.dyst",
+          "name": "constant.numeric.hex.ds",
           "match": "\\b0[xX][0-9a-fA-F_]+n?\\b"
         },
         {
-          "name": "constant.numeric.bigint.decimal.dyst",
+          "name": "constant.numeric.bigint.decimal.ds",
           "match": "\\b(?:0|[1-9][\\d_]*)n\\b"
         },
         {
-          "name": "constant.numeric.decimal.dyst",
+          "name": "constant.numeric.decimal.ds",
           "match": "(?x)\\b(?:\\d[\\d_]*)(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?\\b"
         },
         {
-          "name": "constant.numeric.decimal.dyst",
+          "name": "constant.numeric.decimal.ds",
           "match": "(?x)(?<![\\w$])\\.(?:\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?\\b"
         }
       ]
@@ -119,17 +256,17 @@
     "literal-string": {
       "patterns": [
         {
-          "name": "string.quoted.double.byte.dyst",
+          "name": "string.quoted.double.byte.ds",
           "begin": "b\"",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "\"",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
@@ -139,17 +276,17 @@
           ]
         },
         {
-          "name": "string.quoted.single.byte.dyst",
+          "name": "string.quoted.single.byte.ds",
           "begin": "b'",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "'",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
@@ -159,32 +296,32 @@
           ]
         },
         {
-          "name": "string.quoted.double.raw.byte.dyst",
+          "name": "string.quoted.double.raw.byte.ds",
           "begin": "br\"",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "\"",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           }
         },
         {
-          "name": "string.quoted.double.dyst",
+          "name": "string.quoted.double.ds",
           "begin": "\"",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "\"",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
@@ -194,17 +331,17 @@
           ]
         },
         {
-          "name": "string.quoted.single.dyst",
+          "name": "string.quoted.single.ds",
           "begin": "'",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "'",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
@@ -214,17 +351,17 @@
           ]
         },
         {
-          "name": "string.quoted.double.raw.dyst",
+          "name": "string.quoted.double.raw.ds",
           "begin": "r\"",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "\"",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           }
         }
@@ -233,17 +370,17 @@
     "literal-template": {
       "patterns": [
         {
-          "name": "string.template.dyst",
+          "name": "string.template.ds",
           "begin": "`",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "`",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
@@ -251,17 +388,17 @@
               "include": "#string-escape"
             },
             {
-              "name": "meta.embedded.line.dyst",
+              "name": "meta.embedded.line.ds",
               "begin": "\\$\\{",
               "beginCaptures": {
                 "0": {
-                  "name": "punctuation.section.embedded.begin.dyst"
+                  "name": "punctuation.section.embedded.begin.ds"
                 }
               },
               "end": "\\}",
               "endCaptures": {
                 "0": {
-                  "name": "punctuation.section.embedded.end.dyst"
+                  "name": "punctuation.section.embedded.end.ds"
                 }
               },
               "patterns": [
@@ -277,41 +414,41 @@
     "literal-regex": {
       "patterns": [
         {
-          "name": "string.regexp.dyst",
+          "name": "string.regexp.ds",
           "begin": "(?x)(?<![\\w$\\)\\]\\}])/(?![/*])",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dyst"
+              "name": "punctuation.definition.string.begin.ds"
             }
           },
           "end": "/[a-zA-Z]*",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dyst"
+              "name": "punctuation.definition.string.end.ds"
             }
           },
           "patterns": [
             {
-              "name": "constant.character.escape.dyst",
+              "name": "constant.character.escape.ds",
               "match": "\\\\."
             },
             {
-              "name": "constant.other.class.set.dyst",
+              "name": "constant.other.class.set.ds",
               "begin": "\\[",
               "beginCaptures": {
                 "0": {
-                  "name": "punctuation.definition.character-class.begin.dyst"
+                  "name": "punctuation.definition.character-class.begin.ds"
                 }
               },
               "end": "\\]",
               "endCaptures": {
                 "0": {
-                  "name": "punctuation.definition.character-class.end.dyst"
+                  "name": "punctuation.definition.character-class.end.ds"
                 }
               },
               "patterns": [
                 {
-                  "name": "constant.character.escape.dyst",
+                  "name": "constant.character.escape.ds",
                   "match": "\\\\."
                 }
               ]
@@ -323,23 +460,19 @@
     "literal-type": {
       "patterns": [
         {
-          "name": "support.type.builtin.dyst",
-          "match": "\\b(?:any|never|unknown|boolean|bool|character|char|string|str|number|Self|void)\\b"
+          "name": "support.type.builtin.ds",
+          "match": "\\b(?:unknown|boolean|bool|character|char|string|str|number|Self|void)\\b"
         },
         {
-          "name": "support.type.numeric.dyst",
+          "name": "support.type.numeric.ds",
           "match": "\\b(?:int(?:\\d+)?|uint(?:\\d+)?|float(?:\\d+)?|i\\d+|u\\d+|f\\d+)\\b"
-        },
-        {
-          "name": "support.type.composite.dyst",
-          "match": "\\b(?:type|struct|enum|union|tuple|interface|function)\\b"
         }
       ]
     },
     "string-escape": {
       "patterns": [
         {
-          "name": "constant.character.escape.dyst",
+          "name": "constant.character.escape.ds",
           "match": "\\\\(?:x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]{1,6}\\}|u[0-9A-Fa-f]{4}|[0-9]{1,3}|.)"
         }
       ]
