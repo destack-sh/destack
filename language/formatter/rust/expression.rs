@@ -418,31 +418,36 @@ fn group_chain_expression_lines(
     while let Some(op) = iter.next() {
         let mut line = smallvec![op.clone()];
         match op {
+            // (maybe)
             ChainExpression::Maybe { .. } => {
-                // keep optional chaining with its immediate operation
                 match iter.peek() {
+                    // (maybe, member)
                     Some(ChainExpression::Member { .. }) => {
                         line.push(iter.next().unwrap());
+                        // (maybe, member, index | call)
                         if let Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) =
                             iter.peek()
                         {
                             line.push(iter.next().unwrap());
                         }
                     }
+                    // (maybe, index | call)
                     Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) => {
                         line.push(iter.next().unwrap());
                     }
                     _ => {}
                 }
             }
+            // (member)
             ChainExpression::Member { .. } => {
-                // keep call or index tight with preceding member
+                // (member, index | call)
                 if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
                     iter.peek()
                 {
                     line.push(iter.next().unwrap());
                 }
             }
+            // (index | call)
             ChainExpression::Index { .. } | ChainExpression::Call { .. } => {
                 // end of line
             }
@@ -1926,7 +1931,7 @@ mod tests {
     fn test_format_index_member_chain_breaks() {
         assert_format!(
             "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
-            "identifier1\n\t.identifier2\n\t.identifier3\n\t[indexA]\n\t.identifier4\n\t[indexB]\n\t?.[indexC]\n\t[indexD]",
+            "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]",
             |p| p.eat_expression(),
             DystFormatOptions::default_tab_with_line_width(20)
         );
