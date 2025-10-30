@@ -100,7 +100,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
 }
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
-pub(crate) fn format_if_chain<'ast>(
+pub(crate) fn format_if_else_chain<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
@@ -143,6 +143,11 @@ pub(crate) fn format_if_chain<'ast>(
                     _ => write!(f, [*then_expression_id])?,
                 }
 
+                // postfix annotations
+                if next_if_id != node_id {
+                    write!(f, [f.context().any_postfix_annotations(next_if_id)])?;
+                }
+
                 // next node
                 if let Some(else_expression) = else_expression_id {
                     if !f.context().has_prefix_annotation(*else_expression)
@@ -150,20 +155,25 @@ pub(crate) fn format_if_chain<'ast>(
                     {
                         write!(f, [space()])?;
                     }
-                    write!(f, [Keyword::Else, space()])?;
                     match f.context().tree.get(*else_expression) {
                         // else if
                         Expression::If { .. } => {
+                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
+                            write!(f, [Keyword::Else, space()])?;
+                            // (postfix is covered by the next if above)
                             next_if_id = *else_expression;
                         }
                         // else
-                        Expression::Block(else_expression_id) => {
-                            format_block(f, *else_expression_id)?;
+                        Expression::Block(else_block_id) => {
+                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
+                            write!(f, [Keyword::Else, space()])?;
+                            format_block(f, *else_block_id)?;
+                            write!(f, [f.context().any_postfix_annotations(*else_expression)])?;
                             break;
                         }
                         // something else
                         _ => {
-                            write!(f, [*else_expression])?;
+                            write!(f, [Keyword::Else, space(), *else_expression])?;
                             break;
                         }
                     }
@@ -1215,7 +1225,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 style: IfStyle::Regular,
                 ..
             } => {
-                write!(f, [group(&format_with(|f| format_if_chain(f, node_id)))])?;
+                write!(
+                    f,
+                    [group(&format_with(|f| format_if_else_chain(f, node_id)))]
+                )?;
             }
 
             // while
