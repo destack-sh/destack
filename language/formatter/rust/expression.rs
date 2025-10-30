@@ -1840,7 +1840,7 @@ mod tests {
     #[test]
     fn test_format_expression_struct_literal_trivial() {
         assert_format!(
-            "{ a: 1, ..B }",
+            "{ a: 1, ...B }",
             "{ a: 1, ...B }",
             |p| p.eat_expression(),
             DystFormatOptions::default()
@@ -1850,7 +1850,7 @@ mod tests {
     #[test]
     fn test_format_expression_struct_literal_spread() {
         assert_format!(
-            "Foo { ..B }",
+            "Foo { ...B }",
             "Foo { ...B }",
             |p| p.eat_expression(),
             DystFormatOptions::default()

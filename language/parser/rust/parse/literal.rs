@@ -495,8 +495,6 @@ impl<'a> Parser<'a> {
                     | (TokenType::Literal, TokenType::Colon, _)
                     // string?:
                     | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
-                    // ..T
-                    | (TokenType::Range, TokenType::Identifier, _)
                     // ...T
                     | (TokenType::Spread, TokenType::Identifier, _) => {
                         return Ok(None);
@@ -754,9 +752,7 @@ impl<'a> Parser<'a> {
                     )
                 }
                 // spread argument
-                else if self.peek_token(TokenType::Range).is_ok()
-                    || self.peek_token(TokenType::Spread).is_ok()
-                {
+                else if self.peek_token(TokenType::Spread).is_ok() {
                     self.bump(); // eat range
                     let name = self.eat_argument_name_maybe()?;
                     let value =
@@ -1540,7 +1536,7 @@ mod tests {
         let mut test = TestParser::new(
             r"
 <A  
-    a={..a} // not a rest because {..a} is just a struct literal
+    a={...a} // not a rest because {...a} is just a struct literal
     {...b} // ...b
     ...c
 />",
