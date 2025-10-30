@@ -2,10 +2,11 @@ use dyst_ast::{
     Argument, Asynchrony, DependencyKind, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
     TypeBinaryOperator, TypeUnaryOperator, YieldCardinality,
 };
-use dyst_container::SmallVec;
+use dyst_container::{SmallVec, smallvec};
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
+use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::block::format_block;
@@ -178,6 +179,476 @@ pub(crate) fn format_if_chain<'ast>(
     Ok(())
 }
 
+/// Format a member expression without considering chaining.
+#[inline]
+fn format_member_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Member { left, path } = f.context().tree.get(node_id) {
+        write!(f, [*left, token("."), path.clone()])?
+    } else {
+        debug_assert!(false, "unexpected expression kind for member formatter");
+    }
+    Ok(())
+}
+
+/// Format an index expression without considering chaining.
+#[inline]
+fn format_index_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Index {
+        position,
+        left,
+        index,
+    } = f.context().tree.get(node_id)
+    {
+        write!(f, [*left])?;
+        if *position == PostfixPosition::Indirect {
+            write!(f, [token(".")])?;
+        }
+        if let Some(index) = index {
+            write!(f, [token("["), *index, token("]")])?;
+        } else {
+            write!(f, [token("[]")])?;
+        }
+    } else {
+        debug_assert!(false, "unexpected expression kind for index formatter");
+    }
+    Ok(())
+}
+
+/// Format a call expression without considering chaining.
+#[inline]
+fn format_call_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Call {
+        position,
+        runtime,
+        left,
+        dynamic_arguments,
+    } = f.context().tree.get(node_id)
+    {
+        let runtime = runtime.unwrap_or(Runtime::Dynamic);
+        if runtime == Runtime::Static {
+            write!(f, [token("@")])?;
+        }
+        write!(f, [*left])?;
+        if *position == PostfixPosition::Indirect {
+            write!(f, [token(".")])?;
+        }
+        if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
+            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+        }
+    } else {
+        debug_assert!(false, "unexpected expression kind for call formatter");
+    }
+    Ok(())
+}
+
+/// Format a maybe expression without considering chaining.
+#[inline]
+fn format_maybe_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
+        write!(f, [*left])?;
+        match position {
+            PostfixPosition::Direct => write!(f, [token("?")])?,
+            PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
+        }
+    } else {
+        debug_assert!(false, "unexpected expression kind for maybe formatter");
+    }
+    Ok(())
+}
+
+/// The head of a chain before any postfix operations.
+#[derive(Clone)]
+enum ChainExpressionBaseHead {
+    PathSegment {
+        segment: StringId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    Expression(NodeId<Expression>),
+}
+
+/// The initial portion of the chain including direct postfix ops.
+#[derive(Clone)]
+struct ChainExpressionBase {
+    head: ChainExpressionBaseHead,
+    ops: Vec<ChainExpression>,
+}
+
+/// One operation in an expression chain.
+#[derive(Clone)]
+enum ChainExpression {
+    PathSegment {
+        segment: StringId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    Member(Path),
+    Call {
+        runtime: Option<Runtime>,
+        position: PostfixPosition,
+        dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+    Index {
+        position: PostfixPosition,
+        index: Option<NodeId<Expression>>,
+    },
+    Maybe {
+        position: PostfixPosition,
+    },
+}
+
+/// Format the base portion of the chain.
+fn format_chain_base<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    base: &ChainExpressionBase,
+) -> FormatResult<()> {
+    match &base.head {
+        ChainExpressionBaseHead::PathSegment {
+            segment,
+            static_arguments,
+        } => {
+            write!(f, [*segment])?;
+            if let Some(arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", arguments)])?;
+            }
+        }
+        ChainExpressionBaseHead::Expression(node_id) => {
+            let expression = f.context().tree.get(*node_id);
+            debug_assert!(
+                !matches!(
+                    expression,
+                    Expression::Member { .. }
+                        | Expression::Call { .. }
+                        | Expression::Index { .. }
+                        | Expression::Maybe { .. }
+                ),
+                "chain base expression should not be another chain node"
+            );
+            write!(f, [*node_id])?;
+        }
+    }
+
+    for op in &base.ops {
+        format_chain_expression(f, op)?;
+    }
+
+    Ok(())
+}
+
+/// Format one chained operation.
+fn format_chain_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    op: &ChainExpression,
+) -> FormatResult<()> {
+    match op {
+        ChainExpression::PathSegment {
+            segment,
+            static_arguments,
+        } => {
+            write!(f, [token("."), *segment])?;
+            if let Some(arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", arguments)])?;
+            }
+        }
+        ChainExpression::Member(path) => {
+            write!(f, [token(".")])?;
+            let mut segments = path.segments.iter();
+            if let Some(first) = segments.next() {
+                write!(f, [*first])?;
+            }
+            for segment in segments {
+                write!(f, [token("."), *segment])?;
+            }
+        }
+        ChainExpression::Call {
+            runtime,
+            position,
+            dynamic_arguments,
+        } => {
+            let runtime = runtime.unwrap_or(Runtime::Dynamic);
+            if runtime == Runtime::Static {
+                write!(f, [token("@")])?;
+            }
+            if *position == PostfixPosition::Indirect {
+                write!(f, [token(".")])?;
+            }
+            if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
+                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            }
+        }
+        ChainExpression::Index { position, index } => {
+            if *position == PostfixPosition::Indirect {
+                write!(f, [token(".")])?;
+            }
+            if let Some(index) = index {
+                write!(f, [token("["), *index, token("]")])?;
+            } else {
+                write!(f, [token("[]")])?;
+            }
+        }
+        ChainExpression::Maybe { position } => match position {
+            PostfixPosition::Direct => write!(f, [token("?")])?,
+            PostfixPosition::Indirect => {
+                write!(f, [token("."), token("?")])?;
+            }
+        },
+    }
+    Ok(())
+}
+
+/// Format all operations for one chain line.
+fn format_chain_expression_line<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    ops: &[ChainExpression],
+) -> FormatResult<()> {
+    for op in ops {
+        format_chain_expression(f, op)?;
+    }
+    Ok(())
+}
+
+/// Group chain operations into the segments that should share lines.
+fn group_chain_expression_lines(operations: Vec<ChainExpression>) -> Vec<SmallVec<ChainExpression, 2>> {
+    let mut lines = Vec::new();
+    let mut iter = operations.into_iter().peekable();
+    while let Some(op) = iter.next() {
+        match op {
+            ChainExpression::PathSegment { .. } => {
+                // single path segment per line
+                lines.push(smallvec![op]);
+            }
+            ChainExpression::Maybe { .. } => {
+                let mut line = smallvec![op];
+                // keep optional chaining with its immediate operation
+                while let Some(next) = iter.peek() {
+                    match next {
+                        ChainExpression::Member(_)
+                        | ChainExpression::Index { .. }
+                        | ChainExpression::Call { .. } => {
+                            line.push(iter.next().unwrap());
+                        }
+                        _ => break,
+                    }
+                }
+                lines.push(line);
+            }
+            ChainExpression::Member(_) => {
+                let mut line = smallvec![op];
+                // keep call or index tight with preceding member
+                while let Some(next) = iter.peek() {
+                    match next {
+                        ChainExpression::Call { .. } | ChainExpression::Index { .. } => {
+                            line.push(iter.next().unwrap());
+                        }
+                        _ => break,
+                    }
+                }
+                lines.push(line);
+            }
+            ChainExpression::Index { .. } => {
+                let mut line = smallvec![op];
+                // keep call following an index inline
+                if let Some(ChainExpression::Call { .. }) = iter.peek() {
+                    line.push(iter.next().unwrap());
+                }
+                lines.push(line);
+            }
+            ChainExpression::Call { .. } => {
+                lines.push(smallvec![op]);
+            }
+        }
+    }
+
+    lines
+}
+
+/// Check whether the expression is part of a member/call/maybe/index chain.
+fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
+    match tree.get(node_id) {
+        Expression::Member { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. } => is_chain_expression(tree.get(*left)),
+        _ => false,
+    }
+}
+
+/// Format a member/call/maybe/index chain with prettier-style breaking.
+pub(crate) fn format_expression_chain<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // collect the nodes that belong to this chain
+    let mut chain = Vec::new();
+    let mut current = node_id;
+    loop {
+        chain.push(current);
+        let next = match tree.get(current) {
+            Expression::Member { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left, .. } => Some(*left),
+            _ => None,
+        };
+
+        if let Some(next_id) = next {
+            current = next_id;
+        } else {
+            break;
+        }
+    }
+    chain.reverse();
+    let root_id = *chain
+        .first()
+        .expect("member/call/maybe/index chain must contain at least one node");
+
+    // gather operations while breaking path roots into individual segments
+    let mut operations = Vec::new();
+    let mut base_head = ChainExpressionBaseHead::Expression(root_id);
+
+    // break leading path expression into individual segments
+    if let Expression::Path {
+        path,
+        static_arguments,
+    } = tree.get(root_id)
+    {
+        let mut segments = path.segments.clone().into_iter();
+        let static_arguments = static_arguments.clone();
+        let first_segment = segments.next().expect("path is not empty");
+        let remaining_segments: Vec<StringId> = segments.collect();
+
+        // path base (keeps static arguments if there are no remaining segments)
+        let base_static_arguments = if remaining_segments.is_empty() {
+            static_arguments.clone()
+        } else {
+            None
+        };
+        base_head = ChainExpressionBaseHead::PathSegment {
+            segment: first_segment,
+            static_arguments: base_static_arguments,
+        };
+
+        // path rest (tail segments)
+        let tail_len = remaining_segments.len();
+        for (index, segment) in remaining_segments.into_iter().enumerate() {
+            // last segment keeps static arguments if there are any
+            let static_args = if tail_len != 0 && index + 1 == tail_len {
+                static_arguments.clone()
+            } else {
+                None
+            };
+            operations.push(ChainExpression::PathSegment {
+                segment,
+                static_arguments: static_args,
+            });
+        }
+    }
+
+    // convert the chain into individual chain expression
+    for &expression_id in &chain[1..] {
+        match tree.get(expression_id) {
+            Expression::Member { path, .. } => {
+                operations.push(ChainExpression::Member(path.clone()));
+            }
+            Expression::Call {
+                runtime,
+                position,
+                dynamic_arguments,
+                ..
+            } => {
+                operations.push(ChainExpression::Call {
+                    runtime: *runtime,
+                    position: *position,
+                    dynamic_arguments: dynamic_arguments.clone(),
+                });
+            }
+            Expression::Index {
+                position, index, ..
+            } => {
+                operations.push(ChainExpression::Index {
+                    position: *position,
+                    index: *index,
+                });
+            }
+            Expression::Maybe { position, .. } => {
+                operations.push(ChainExpression::Maybe {
+                    position: *position,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    // keep a leading call with the base so alignment stays stable
+    let mut base = ChainExpressionBase {
+        head: base_head,
+        ops: Vec::new(),
+    };
+
+    if let Some(first_op) = operations.first()
+        && matches!(
+            first_op,
+            ChainExpression::Call {
+                position: PostfixPosition::Direct,
+                ..
+            }
+        )
+    {
+        base.ops.push(first_op.clone());
+        operations.remove(0);
+    }
+
+    let lines = group_chain_expression_lines(operations);
+
+    // inline variant keeps everything on one line when it fits
+    let format_inline = format_with(|f| {
+        format_chain_base(f, &base)?;
+        for line in &lines {
+            format_chain_expression_line(f, line)?;
+        }
+        Ok(())
+    });
+    // chain variant breaks each operation onto its own line
+    let format_chain = format_with(|f| {
+        group(&format_with(|f| {
+            // always print the base first so indentation aligns subsequent lines
+            format_chain_base(f, &base)?;
+            // indent chained entries so each operation sits on its own line
+            if !lines.is_empty() {
+                write!(
+                    f,
+                    [block_indent(&format_with(|f| {
+                        // each chain line renders in isolation to mirror prettier style
+                        let mut join = f.join_with(hard_line_break());
+                        for line in &lines {
+                            join.entry(&format_with(|f| format_chain_expression_line(f, line)));
+                        }
+                        join.finish()
+                    }))]
+                )?;
+            }
+            Ok(())
+        }))
+        .format(f)
+    });
+
+    best_fitting![format_inline, format_chain]
+        .with_mode(BestFittingMode::AllLines)
+        .format(f)
+}
+
 /// Format a match expression.
 #[inline]
 pub(crate) fn format_match<'ast>(
@@ -230,6 +701,17 @@ pub(crate) fn format_match<'ast>(
     write!(f, [hard_line_break(), token("}")])?;
 
     Ok(())
+}
+
+/// Check whether the expression is a chain expression.
+fn is_chain_expression(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Member { .. }
+            | Expression::Call { .. }
+            | Expression::Index { .. }
+            | Expression::Maybe { .. }
+    )
 }
 
 /// Whether an expression is "trivial" (prefers to be fully inline).
@@ -301,6 +783,8 @@ pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
 /// Whether the expression can break itself across multiple lines.
 pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
+        Expression::ArrayLiteral { elements, .. } => !elements.is_empty(),
+        Expression::TupleLiteral { elements, .. } => !elements.is_empty(),
         Expression::StructLiteral { ty, fields, .. } => {
             ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty))) || !fields.is_empty()
         }
@@ -316,8 +800,6 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
                     .as_ref()
                     .is_some_and(|elements| !elements.is_empty())
         }
-        Expression::ArrayLiteral { elements, .. } => !elements.is_empty(),
-        Expression::TupleLiteral { elements, .. } => !elements.is_empty(),
         Expression::Call {
             dynamic_arguments, ..
         } => !dynamic_arguments.is_empty(),
@@ -337,7 +819,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::With { .. }
         | Expression::Import { .. }
         | Expression::Export { .. } => true,
-        Expression::Binary { .. } => true,
+        Expression::Binary { .. } | Expression::TypeBinary { .. } => true,
         _ => false,
     }
 }
@@ -1075,45 +1557,29 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // member
-            Expression::Member {
-                left: receiver,
-                path,
-            } => write!(f, [receiver, token("."), path])?,
+            Expression::Member { .. } => {
+                if is_expression_chain(tree, node_id) {
+                    format_expression_chain(f, node_id)?;
+                } else {
+                    format_member_expression(f, node_id)?;
+                }
+            }
 
             // index
-            Expression::Index {
-                position,
-                left: receiver,
-                index,
-            } => {
-                write!(f, [receiver])?;
-                if *position == PostfixPosition::Indirect {
-                    write!(f, [token(".")])?;
-                }
-                if let Some(index) = index {
-                    write!(f, [token("["), index, token("]")])?;
+            Expression::Index { .. } => {
+                if is_expression_chain(tree, node_id) {
+                    format_expression_chain(f, node_id)?;
                 } else {
-                    write!(f, [token("[]")])?;
+                    format_index_expression(f, node_id)?;
                 }
             }
 
             // call
-            Expression::Call {
-                position,
-                runtime,
-                left: receiver,
-                dynamic_arguments,
-            } => {
-                let runtime = runtime.unwrap_or(Runtime::Dynamic);
-                if runtime == Runtime::Static {
-                    write!(f, [token("@")])?;
-                }
-                write!(f, [receiver])?;
-                if *position == PostfixPosition::Indirect {
-                    write!(f, [token(".")])?;
-                }
-                if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
-                    write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            Expression::Call { .. } => {
+                if is_expression_chain(tree, node_id) {
+                    format_expression_chain(f, node_id)?;
+                } else {
+                    format_call_expression(f, node_id)?;
                 }
             }
 
@@ -1136,11 +1602,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // maybe
-            Expression::Maybe { left, position } => {
-                left.format(f)?;
-                match position {
-                    PostfixPosition::Direct => write!(f, [token("?")])?,
-                    PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
+            Expression::Maybe { .. } => {
+                if is_expression_chain(tree, node_id) {
+                    format_expression_chain(f, node_id)?;
+                } else {
+                    format_maybe_expression(f, node_id)?;
                 }
             }
 
@@ -1423,6 +1889,56 @@ mod tests {
             "x?.[f]?.[2]?.(a, b)",
             |p| p.eat_expression(),
             DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_member_call_chain_line() {
+        assert_format!(
+            "call().followed().by().many().calls()",
+            "call().followed().by().many().calls()",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(100)
+        );
+    }
+
+    #[test]
+    fn test_format_member_call_chain_retains_breaks() {
+        assert_format!(
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(20)
+        );
+    }
+
+    #[test]
+    fn test_format_member_call_chain_breaks() {
+        assert_format!(
+            "call().followed().by().many().calls()\n",
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(20)
+        );
+    }
+
+    #[test]
+    fn test_format_member_call_chain_breaks_with_maybe_and_index() {
+        assert_format!(
+            "call().followed()?.by()[0]?.many()?.calls()\n",
+            "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()\n",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(20)
+        );
+    }
+
+    #[test]
+    fn test_format_path_member_call_chain_breaks() {
+        assert_format!(
+            "long.base.path.followed().by().many().calls()\n",
+            "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
