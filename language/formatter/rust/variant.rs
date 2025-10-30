@@ -1,4 +1,4 @@
-use dyst_ast::{BindingKind, BindingModifiers, Keyword, Mutability};
+use dyst_ast::{BindingKind, BindingModifiers, DeclarationScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -12,6 +12,9 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
 ) -> FormatResult<()> {
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;
+    }
+    if modifiers.scope == Some(DeclarationScope::Static) {
+        write!(f, [Keyword::Static, space()])?;
     }
     if modifiers.mutability == Some(Mutability::Immutable) {
         write!(f, [Keyword::Readonly, space()])?;
