@@ -271,7 +271,7 @@ fn format_maybe_expression<'ast>(
 /// The head of a chain before any postfix operations.
 #[derive(Clone)]
 enum ChainExpressionBaseHead {
-    PathSegment {
+    Path {
         segment: StringId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
@@ -282,29 +282,30 @@ enum ChainExpressionBaseHead {
 #[derive(Clone)]
 struct ChainExpressionBase {
     head: ChainExpressionBaseHead,
-    ops: Vec<ChainExpression>,
+    body: Vec<ChainExpression>,
 }
 
 /// One operation in an expression chain.
 #[derive(Clone)]
 enum ChainExpression {
-    PathSegment {
+    /// Member expression.
+    Member {
         segment: StringId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
-    Member(Path),
+    /// Call expression.
     Call {
         runtime: Option<Runtime>,
         position: PostfixPosition,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
+    /// Index expression.
     Index {
         position: PostfixPosition,
         index: Option<NodeId<Expression>>,
     },
-    Maybe {
-        position: PostfixPosition,
-    },
+    /// Maybe expression.
+    Maybe { position: PostfixPosition },
 }
 
 /// Format the base portion of the chain.
@@ -313,7 +314,7 @@ fn format_chain_base<'ast>(
     base: &ChainExpressionBase,
 ) -> FormatResult<()> {
     match &base.head {
-        ChainExpressionBaseHead::PathSegment {
+        ChainExpressionBaseHead::Path {
             segment,
             static_arguments,
         } => {
@@ -338,7 +339,7 @@ fn format_chain_base<'ast>(
         }
     }
 
-    for op in &base.ops {
+    for op in &base.body {
         format_chain_expression(f, op)?;
     }
 
@@ -351,23 +352,14 @@ fn format_chain_expression<'ast>(
     op: &ChainExpression,
 ) -> FormatResult<()> {
     match op {
-        ChainExpression::PathSegment {
+        ChainExpression::Member {
             segment,
             static_arguments,
         } => {
-            write!(f, [token("."), *segment])?;
+            write!(f, [token(".")])?;
+            write!(f, [*segment])?;
             if let Some(arguments) = static_arguments {
                 write!(f, [list_like("<", ">", ",", arguments)])?;
-            }
-        }
-        ChainExpression::Member(path) => {
-            write!(f, [token(".")])?;
-            let mut segments = path.segments.iter();
-            if let Some(first) = segments.next() {
-                write!(f, [*first])?;
-            }
-            for segment in segments {
-                write!(f, [token("."), *segment])?;
             }
         }
         ChainExpression::Call {
@@ -418,55 +410,44 @@ fn format_chain_expression_line<'ast>(
 }
 
 /// Group chain operations into the segments that should share lines.
-fn group_chain_expression_lines(operations: Vec<ChainExpression>) -> Vec<SmallVec<ChainExpression, 2>> {
+fn group_chain_expression_lines(
+    operations: Vec<ChainExpression>,
+) -> Vec<SmallVec<ChainExpression, 2>> {
     let mut lines = Vec::new();
     let mut iter = operations.into_iter().peekable();
     while let Some(op) = iter.next() {
+        let mut line = smallvec![op.clone()];
         match op {
-            ChainExpression::PathSegment { .. } => {
-                // single path segment per line
-                lines.push(smallvec![op]);
-            }
             ChainExpression::Maybe { .. } => {
-                let mut line = smallvec![op];
                 // keep optional chaining with its immediate operation
-                while let Some(next) = iter.peek() {
-                    match next {
-                        ChainExpression::Member(_)
-                        | ChainExpression::Index { .. }
-                        | ChainExpression::Call { .. } => {
+                match iter.peek() {
+                    Some(ChainExpression::Member { .. }) => {
+                        line.push(iter.next().unwrap());
+                        if let Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) =
+                            iter.peek()
+                        {
                             line.push(iter.next().unwrap());
                         }
-                        _ => break,
                     }
+                    Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) => {
+                        line.push(iter.next().unwrap());
+                    }
+                    _ => {}
                 }
-                lines.push(line);
             }
-            ChainExpression::Member(_) => {
-                let mut line = smallvec![op];
+            ChainExpression::Member { .. } => {
                 // keep call or index tight with preceding member
-                while let Some(next) = iter.peek() {
-                    match next {
-                        ChainExpression::Call { .. } | ChainExpression::Index { .. } => {
-                            line.push(iter.next().unwrap());
-                        }
-                        _ => break,
-                    }
-                }
-                lines.push(line);
-            }
-            ChainExpression::Index { .. } => {
-                let mut line = smallvec![op];
-                // keep call following an index inline
-                if let Some(ChainExpression::Call { .. }) = iter.peek() {
+                if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
+                    iter.peek()
+                {
                     line.push(iter.next().unwrap());
                 }
-                lines.push(line);
             }
-            ChainExpression::Call { .. } => {
-                lines.push(smallvec![op]);
+            ChainExpression::Index { .. } | ChainExpression::Call { .. } => {
+                // end of line
             }
         }
+        lines.push(line);
     }
 
     lines
@@ -515,7 +496,7 @@ pub(crate) fn format_expression_chain<'ast>(
         .expect("member/call/maybe/index chain must contain at least one node");
 
     // gather operations while breaking path roots into individual segments
-    let mut operations = Vec::new();
+    let mut body: Vec<ChainExpression> = Vec::new();
     let mut base_head = ChainExpressionBaseHead::Expression(root_id);
 
     // break leading path expression into individual segments
@@ -535,7 +516,7 @@ pub(crate) fn format_expression_chain<'ast>(
         } else {
             None
         };
-        base_head = ChainExpressionBaseHead::PathSegment {
+        base_head = ChainExpressionBaseHead::Path {
             segment: first_segment,
             static_arguments: base_static_arguments,
         };
@@ -549,55 +530,53 @@ pub(crate) fn format_expression_chain<'ast>(
             } else {
                 None
             };
-            operations.push(ChainExpression::PathSegment {
+            body.push(ChainExpression::Member {
                 segment,
                 static_arguments: static_args,
             });
         }
     }
+    let mut base = ChainExpressionBase {
+        head: base_head,
+        body: Vec::new(),
+    };
 
     // convert the chain into individual chain expression
     for &expression_id in &chain[1..] {
-        match tree.get(expression_id) {
-            Expression::Member { path, .. } => {
-                operations.push(ChainExpression::Member(path.clone()));
-            }
+        let chain_expression = match tree.get(expression_id) {
+            Expression::Member { path, .. } => ChainExpression::Member {
+                segment: path.segments[0],
+                static_arguments: None,
+            },
             Expression::Call {
                 runtime,
                 position,
                 dynamic_arguments,
                 ..
-            } => {
-                operations.push(ChainExpression::Call {
-                    runtime: *runtime,
-                    position: *position,
-                    dynamic_arguments: dynamic_arguments.clone(),
-                });
-            }
+            } => ChainExpression::Call {
+                runtime: *runtime,
+                position: *position,
+                dynamic_arguments: dynamic_arguments.clone(),
+            },
             Expression::Index {
                 position, index, ..
-            } => {
-                operations.push(ChainExpression::Index {
-                    position: *position,
-                    index: *index,
-                });
-            }
-            Expression::Maybe { position, .. } => {
-                operations.push(ChainExpression::Maybe {
-                    position: *position,
-                });
-            }
-            _ => {}
-        }
+            } => ChainExpression::Index {
+                position: *position,
+                index: *index,
+            },
+            Expression::Maybe { position, .. } => ChainExpression::Maybe {
+                position: *position,
+            },
+            _ => panic!(
+                "unexpected expression kind for chain expression: {:?}",
+                tree.get(expression_id)
+            ),
+        };
+        body.push(chain_expression);
     }
 
     // keep a leading call with the base so alignment stays stable
-    let mut base = ChainExpressionBase {
-        head: base_head,
-        ops: Vec::new(),
-    };
-
-    if let Some(first_op) = operations.first()
+    if let Some(first_op) = body.first()
         && matches!(
             first_op,
             ChainExpression::Call {
@@ -606,11 +585,12 @@ pub(crate) fn format_expression_chain<'ast>(
             }
         )
     {
-        base.ops.push(first_op.clone());
-        operations.remove(0);
+        base.body.push(first_op.clone());
+        body.remove(0);
     }
 
-    let lines = group_chain_expression_lines(operations);
+    // group the chain operations into lines
+    let lines = group_chain_expression_lines(body);
 
     // inline variant keeps everything on one line when it fits
     let format_inline = format_with(|f| {
@@ -643,7 +623,7 @@ pub(crate) fn format_expression_chain<'ast>(
         }))
         .format(f)
     });
-
+    // prefer inline, otherwise chain
     best_fitting![format_inline, format_chain]
         .with_mode(BestFittingMode::AllLines)
         .format(f)
@@ -1937,6 +1917,16 @@ mod tests {
         assert_format!(
             "long.base.path.followed().by().many().calls()\n",
             "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            |p| p.eat_expression(),
+            DystFormatOptions::default_tab_with_line_width(20)
+        );
+    }
+
+    #[test]
+    fn test_format_index_member_chain_breaks() {
+        assert_format!(
+            "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
+            "identifier1\n\t.identifier2\n\t.identifier3\n\t[indexA]\n\t.identifier4\n\t[indexB]\n\t?.[indexC]\n\t[indexD]",
             |p| p.eat_expression(),
             DystFormatOptions::default_tab_with_line_width(20)
         );
