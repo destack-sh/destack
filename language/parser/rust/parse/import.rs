@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // binding 
+        // binding
         let (target, alias, items) = self.eat_dependency_binding()?;
         // binding for import needs a dependency target
         let target = match target {

@@ -362,16 +362,21 @@ impl<'a> Parser<'a> {
         if !is_block_prefix_only && is_one_line {
             // find previous token not in ignore span
             let prev_token = if token_idx > 0 {
-                let mut prev_token_idx = token_idx as usize - 1;
+                let mut prev_token_idx = token_idx as usize;
                 loop {
+                    if prev_token_idx == 0 {
+                        break None;
+                    }
+                    prev_token_idx -= 1;
                     let Some(prev_token) = tokens.get(prev_token_idx) else {
                         break None;
                     };
-                    if !ignore_span.contains(&prev_token.span) {
-                        break Some(prev_token);
-                    } else {
-                        prev_token_idx -= 1;
+                    if ignore_span.contains(&prev_token.span)
+                        || prev_token.token.ty == TokenType::Whitespace
+                    {
+                        continue;
                     }
+                    break Some(prev_token);
                 }
             } else {
                 None
@@ -384,11 +389,13 @@ impl<'a> Parser<'a> {
                     let Some(next_token) = tokens.get(next_token_idx) else {
                         break None;
                     };
-                    if !ignore_span.contains(&next_token.span) {
-                        break Some(next_token);
-                    } else {
+                    if ignore_span.contains(&next_token.span)
+                        || next_token.token.ty == TokenType::Whitespace
+                    {
                         next_token_idx += 1;
+                        continue;
                     }
+                    break Some(next_token);
                 }
             };
 
@@ -432,53 +439,43 @@ impl<'a> Parser<'a> {
         }
 
         // block prefix: find the following targetable node
-        let next_targetable_token = {
-            let mut next_token_idx = token_idx as usize + group.len();
-            loop {
-                let Some(next_token) = tokens.get(next_token_idx) else {
-                    break None;
-                };
-                if !ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
-                    && !ignore_span.contains(&next_token.span)
-                {
-                    break Some(next_token);
-                } else {
-                    next_token_idx += 1;
-                }
+        let mut next_token_idx = token_idx as usize + group.len();
+        while let Some(next_token) = tokens.get(next_token_idx) {
+            if ignore_span.contains(&next_token.span)
+                || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
+                || next_token.token.ty == TokenType::Whitespace
+            {
+                next_token_idx += 1;
+                continue;
             }
-        };
-        if let Some(next_targetable_token) = next_targetable_token
-            && let Some(next_node) = self
-                .find_node_starting_at(&next_targetable_token.span, NodeSearch::BiggestOutermost)
-        {
-            return Some((AnnotationPosition::BlockPrefix, next_node.idx));
+            if let Some(next_node) =
+                self.find_node_starting_at(&next_token.span, NodeSearch::BiggestOutermost)
+            {
+                return Some((AnnotationPosition::BlockPrefix, next_node.idx));
+            }
+            next_token_idx += 1;
         }
 
         // block postfix: find the preceding targetable node
-        let prev_targetable_token = if !is_block_prefix_only && token_idx > 0 {
-            let mut prev_token_idx = token_idx as usize - 1;
-            loop {
+        if !is_block_prefix_only && token_idx > 0 {
+            let mut prev_token_idx = token_idx as usize;
+            while prev_token_idx > 0 {
+                prev_token_idx -= 1;
                 let Some(prev_token) = tokens.get(prev_token_idx) else {
-                    break None;
+                    break;
                 };
-                if !ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
-                    && !ignore_span.contains(&prev_token.span)
+                if ignore_span.contains(&prev_token.span)
+                    || ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
+                    || prev_token.token.ty == TokenType::Whitespace
                 {
-                    break Some(prev_token);
-                } else if prev_token_idx > 0 {
-                    prev_token_idx -= 1;
-                } else {
-                    break None;
+                    continue;
+                }
+                if let Some(prev_node) =
+                    self.find_node_ending_at(&prev_token.span, NodeSearch::BiggestOutermost)
+                {
+                    return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
                 }
             }
-        } else {
-            None
-        };
-        if let Some(prev_targetable_token) = prev_targetable_token
-            && let Some(prev_node) =
-                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::BiggestOutermost)
-        {
-            return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
         }
 
         // find inner enclosing node (block infix)
@@ -1316,7 +1313,7 @@ export module Outer {
                         assert_eq!(*style, CommentStyle::Slash);
                     });
                 });
-                
+
                 // Middle
                 assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
                     assert_node!(parser.tree, *node, Definition::Module { meta, expressions, .. } => {

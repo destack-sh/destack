@@ -456,9 +456,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         let modifiers: Option<BindingModifiers> = None;
         // spread argument
-        if self.peek_token(TokenType::Range).is_ok()
-            || self.peek_token(TokenType::Spread).is_ok()
-        {
+        if self.peek_token(TokenType::Range).is_ok() || self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
             let value = self.eat_expression().for_node_type(NodeType::Argument)?;
