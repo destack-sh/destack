@@ -243,6 +243,22 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
                     .iter()
                     .all(|field| is_trivial_argument(tree, tree.get(*field)))
         }
+        Expression::Unary {
+            operator: _,
+            expression,
+        } => is_trivial_expression(tree, tree.get(*expression)),
+        Expression::Index { left, index, .. } => {
+            is_trivial_expression(tree, tree.get(*left)) && index.is_none()
+                || is_trivial_expression(tree, tree.get(*index.as_ref().unwrap()))
+        }
+        Expression::Reference {
+            mutability: _,
+            variance: _,
+            right,
+        } => is_trivial_expression(tree, tree.get(*right)),
+        Expression::Member { left, path, .. } => {
+            is_trivial_expression(tree, tree.get(*left)) && path.segments.len() <= 3
+        }
         Expression::Path {
             path,
             static_arguments,
