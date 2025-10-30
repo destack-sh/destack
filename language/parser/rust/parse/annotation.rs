@@ -357,6 +357,11 @@ impl<'a> Parser<'a> {
         let start_token = group[0];
         let end_token = group[group.len() - 1];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
+        let enclosing_scope =
+            self.find_node_enclosing_at(&start_token.span, NodeSearch::SmallestInnermost, |span| {
+                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
+            });
+        let enclosing_span = enclosing_scope.map(|scope| scope.span);
 
         // line prefix or postfix
         if !is_block_prefix_only && is_one_line {
@@ -376,6 +381,11 @@ impl<'a> Parser<'a> {
                     {
                         continue;
                     }
+                    if let Some(scope_span) = enclosing_span
+                        && !scope_span.intersects(prev_token.span)
+                    {
+                        break None;
+                    }
                     break Some(prev_token);
                 }
             } else {
@@ -394,6 +404,11 @@ impl<'a> Parser<'a> {
                     {
                         next_token_idx += 1;
                         continue;
+                    }
+                    if let Some(scope_span) = enclosing_span
+                        && !scope_span.intersects(next_token.span)
+                    {
+                        break None;
                     }
                     break Some(next_token);
                 }
@@ -448,6 +463,11 @@ impl<'a> Parser<'a> {
                 next_token_idx += 1;
                 continue;
             }
+            if let Some(scope_span) = enclosing_span
+                && !scope_span.intersects(next_token.span)
+            {
+                break;
+            }
             if let Some(next_node) =
                 self.find_node_starting_at(&next_token.span, NodeSearch::BiggestOutermost)
             {
@@ -470,6 +490,11 @@ impl<'a> Parser<'a> {
                 {
                     continue;
                 }
+                if let Some(scope_span) = enclosing_span
+                    && !scope_span.intersects(prev_token.span)
+                {
+                    break;
+                }
                 if let Some(prev_node) =
                     self.find_node_ending_at(&prev_token.span, NodeSearch::BiggestOutermost)
                 {
@@ -479,13 +504,7 @@ impl<'a> Parser<'a> {
         }
 
         // find inner enclosing node (block infix)
-        if !is_block_prefix_only
-            && let Some(enclosing_node) = self.find_node_enclosing_at(
-                &start_token.span,
-                NodeSearch::SmallestInnermost,
-                |span| !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx)),
-            )
-        {
+        if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }
 
@@ -1367,7 +1386,7 @@ export module Outer {
 
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 2);
-            
+
             // a
             let a = expressions[0];
             let a_annotations = parser.tree.get_annotations_for(a.id);
@@ -1387,7 +1406,7 @@ export module Outer {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
                     let annotations = parser.tree.get_annotations_for(expressions[0].id);
-                    assert_eq!(annotations.len(), 4);
+                    assert_eq!(annotations.len(), 2);
                     // comment part 1\ncomment part 2
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1436,7 +1455,7 @@ export module Outer {
                         });
                     });
                     // comment part 9\ncomment part 10
-                    assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPostfix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(parser.get_string(*string), "comment part 9\ncomment part 10");
@@ -1447,7 +1466,7 @@ export module Outer {
             });
 
             // comment part 11
-            assert_node!(parser.tree, b_annotations[2], Annotation::Comment { node, position } => {
+            assert_node!(parser.tree, b_annotations[1], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPostfix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_eq!(parser.get_string(*string), "comment part 11");
