@@ -788,7 +788,7 @@ impl<'a> Parser<'a> {
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // tree literal
-            else if self.language.supports_tree()
+            else if self.language.supports_tree_literal()
                 && token_type == TokenType::LessThan
                 && self.peek_tree_literal().is_ok()
             {

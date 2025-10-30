@@ -93,22 +93,35 @@ where
             Ok(())
         });
 
+        // prefer keeping the list on a single line
         let format_inline =
             format_with(|f| write!(f, [&token(self.start_token), body, &token(self.end_token)]));
+        // otherwise, indent the body
         let format_indented = format_with(|f| {
             group(&format_args![
                 &token(self.start_token),
                 block_indent(body),
                 &token(self.end_token)
             ])
-            .should_expand(self.force_expand)
+            .should_expand(true)
             .format(f)
+        });
+        // if overall better fit, expand without indenting the 
+        let format_inline_expanded = format_with(|f| {
+            write!(
+                f,
+                [
+                    &token(self.start_token),
+                    fits_expanded(&group(body).should_expand(true)),
+                    &token(self.end_token)
+                ]
+            )
         });
 
         if self.force_expand {
             format_indented.format(f)?;
         } else {
-            best_fitting![format_inline, format_indented]
+            best_fitting![format_inline, format_indented, format_inline_expanded]
                 .with_mode(BestFittingMode::AllLines)
                 .format(f)?;
         }
