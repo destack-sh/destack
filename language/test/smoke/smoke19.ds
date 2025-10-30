@@ -1,0 +1,8 @@
+// Outer comment
+export module Outer {
+    // Middle comment
+    export module Middle {
+        // Inner comment
+        export type Inner = {}
+    }
+}
