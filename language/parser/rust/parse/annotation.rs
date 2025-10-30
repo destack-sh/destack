@@ -1269,4 +1269,74 @@ struct Floof {
                 });
         })
     }
+
+    #[test]
+    fn test_attach_annotations_in_mixed_nested_declaration() {
+        let mut test = TestParser::new(
+            r"
+// Outer comment
+export module Outer {
+    // Middle comment
+    export module Middle {
+        // Inner comment
+        export type Inner = { }
+    }
+}",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        // Outer
+        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+            // Outer comment
+            let annotations = parser.tree.get_annotations_for(expressions[0].id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(parser.get_string(*string), "Outer comment");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+
+            // Outer
+            assert_node!(parser.tree, *node, Definition::Module { meta, expressions, .. } => {
+                assert_string!(parser, meta.name.unwrap().string(), "Outer");
+
+                // Middle comment
+                assert_eq!(expressions.len(), 1);
+                let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(parser.get_string(*string), "Middle comment");
+                        assert_eq!(*style, CommentStyle::Slash);
+                    });
+                });
+                
+                // Middle
+                assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+                    assert_node!(parser.tree, *node, Definition::Module { meta, expressions, .. } => {
+                        assert_string!(parser, meta.name.unwrap().string(), "Middle");
+
+                        // Inner comment
+                        assert_eq!(expressions.len(), 1);
+                        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "Inner comment");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
+                        });
+                    });
+                });
+            });
+
+        });
+    }
 }
