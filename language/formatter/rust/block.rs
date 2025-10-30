@@ -91,12 +91,10 @@ pub(crate) fn format_block_body_wide<'ast>(
     block_id: NodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
-
     // label
     if let Some(label) = &block.label {
         write!(f, [label, token(":"), space()])?;
     }
-
     // body
     write!(
         f,

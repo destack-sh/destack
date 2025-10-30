@@ -461,7 +461,7 @@ mod tests {
     /// Multiple comments around an expression should retain their order across successive blocks.
     #[test]
     fn test_format_multiple_comments_around_expression_in_successive_blocks() {
-        let source = "{
+        let source = "root: {
     // comment part 0
     a: {
         // comment part 1
@@ -469,7 +469,7 @@ mod tests {
         const A = 1
         // comment part 3
         // comment part 4
-    },
+    }
     // comment part 5
     // comment part 6
     b: {
@@ -478,12 +478,13 @@ mod tests {
         const B = 2
         // comment part 9
         // comment part 10
-    },
+    }
+    // comment part 11
 }";
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_block(),
             DystFormatOptions::default()
         );
     }

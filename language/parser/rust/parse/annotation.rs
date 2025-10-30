@@ -1336,4 +1336,124 @@ export module Outer {
 
         });
     }
+
+    #[test]
+    fn test_attach_multiple_comments_around_expression_in_successive_blocks() {
+        let mut test = TestParser::new(
+            r"root: {
+    // comment part 0
+    a: {
+        // comment part 1
+        // comment part 2
+        const A = 1
+        // comment part 3
+        // comment part 4
+    }
+    // comment part 5
+    // comment part 6
+    b: {
+        // comment part 7
+        // comment part 8
+        const B = 2
+        // comment part 9
+        // comment part 10
+    }
+    // comment part 11
+}",
+        );
+        let mut parser = test.prepare();
+        let block = parser.eat_block().unwrap();
+        parser.finalize();
+
+        assert_node!(parser.tree, block, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 2);
+            
+            // a
+            let a = expressions[0];
+            let a_annotations = parser.tree.get_annotations_for(a.id);
+            assert_eq!(a_annotations.len(), 1); // (0 as block prefix)
+
+            // comment part 0
+            assert_node!(parser.tree, a_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(parser.get_string(*string), "comment part 0");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+
+            // a: { .. }
+            assert_node!(parser.tree, a, Expression::Block (block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    assert_eq!(annotations.len(), 4);
+                    // comment part 1\ncomment part 2
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "comment part 1\ncomment part 2");
+                            assert_eq!(*style, CommentStyle::Slash);
+                        });
+                    });
+                    // comment part 3\ncomment part 4
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "comment part 3\ncomment part 4");
+                            assert_eq!(*style, CommentStyle::Slash);
+                        });
+                    });
+                });
+            });
+
+            // b
+            let b = expressions[1];
+            let b_annotations = parser.tree.get_annotations_for(b.id);
+            assert_eq!(b_annotations.len(), 2); // (5+6 as block prefix, 11 as block postfix)
+
+            // comment part 5\ncomment part 6
+            assert_node!(parser.tree, b_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(parser.get_string(*string), "comment part 5\ncomment part 6");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+
+            // b: { .. }
+            assert_node!(parser.tree, b, Expression::Block (block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    assert_eq!(annotations.len(), 2);
+                    // comment part 7\ncomment part 8
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "comment part 7\ncomment part 8");
+                            assert_eq!(*style, CommentStyle::Slash);
+                        });
+                    });
+                    // comment part 9\ncomment part 10
+                    assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "comment part 9\ncomment part 10");
+                            assert_eq!(*style, CommentStyle::Slash);
+                        });
+                    });
+                });
+            });
+
+            // comment part 11
+            assert_node!(parser.tree, b_annotations[2], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(parser.get_string(*string), "comment part 11");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+        });
+    }
 }
