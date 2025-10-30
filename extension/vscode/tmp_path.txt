@@ -1,0 +1,6 @@
+// SYNTAX TEST "source.ds"
+
+destack
+  .geometry
+// ^ meta.path.ds punctuation.accessor.dot.ds
+//  ^^^^^^^^ meta.path.ds entity.name.path.segment.ds
