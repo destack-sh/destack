@@ -19,15 +19,19 @@ export struct NotificationEvent {
 /// Notification sent.
 @event
 export struct NotificationSentEvent extends NotificationEvent { }
+
 /// Notification rescinded.
 @event
 export struct NotificationRescindedEvent extends NotificationEvent { }
+
 /// Notification read.
 @event
 export struct NotificationReadEvent extends NotificationEvent { }
+
 /// Notification dismissed.
 @event
 export struct NotificationDismissedEvent extends NotificationEvent { }
+
 /// Notification expired.
 @event
 export struct NotificationExpiredEvent extends NotificationEvent { }

@@ -18,21 +18,25 @@ export struct TimerEvent {
 export struct TimerStartedEvent {
     ...TimerEvent
 }
+
 /// Timer paused.
 @event
 export struct TimerPausedEvent {
     ...TimerEvent
 }
+
 /// Timer resumed.
 @event
 export struct TimerResumedEvent {
     ...TimerEvent
 }
+
 /// Timer completed.
 @event
 export struct TimerCompletedEvent {
     ...TimerEvent
 }
+
 /// Timer cancelled.
 @event
 export struct TimerCancelledEvent {

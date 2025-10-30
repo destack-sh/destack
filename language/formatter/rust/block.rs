@@ -1,3 +1,4 @@
+use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
@@ -102,15 +103,42 @@ pub(crate) fn format_block_body_wide<'ast>(
         [
             token("{"),
             hard_line_break(),
-            soft_block_indent(&format_with(|f| f
-                .join_with(hard_line_break())
-                .entries(&block.expressions)
-                .finish())),
+            soft_block_indent(&format_with(|f| format_block_of_expressions(
+                f,
+                &block.expressions
+            ))),
             hard_line_break(),
             block_indent(&f.context().block_infix_annotations(block_id)),
             token("}"),
         ]
     )
+}
+
+/// Format a block of expressions (with appropriate empty annotations)
+pub(crate) fn format_block_of_expressions<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    expressions: &[NodeId<Expression>],
+) -> FormatResult<()> {
+    for (i, &expression_id) in expressions.iter().enumerate() {
+        let is_definition = matches!(
+            f.context().tree.get(expression_id),
+            Expression::Definition(_)
+        );
+        // blank line between expressions
+        if i > 0 {
+            write!(f, [hard_line_break()])?;
+            // extra blank line between definitions
+            if is_definition
+                && !f
+                    .context()
+                    .has_blank_prefix_annotation_in_first_position(expression_id)
+            {
+                write!(f, [empty_line()])?;
+            }
+        }
+        expression_id.format(f)?;
+    }
+    Ok(())
 }
 
 #[inline]

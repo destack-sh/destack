@@ -1,4 +1,5 @@
 use crate::argument::list_like;
+use crate::block::format_block_of_expressions;
 use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
@@ -83,15 +84,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             } => {
                 if format == &ModuleFormat::Source {
                     // print expressions only for source modules (?)
-                    if !expressions.is_empty() {
-                        write!(
-                            f,
-                            [format_with(|f| f
-                                .join_with(hard_line_break())
-                                .entries(expressions)
-                                .finish())]
-                        )?;
-                    }
+                    format_block_of_expressions(f, expressions)?;
                     return Ok(());
                 }
 
@@ -150,10 +143,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                             write!(f, [token("{"), hard_line_break()])?;
                             write!(
                                 f,
-                                [group(&format_args![block_indent(&format_with(|f| f
-                                    .join_with(hard_line_break())
-                                    .entries(expressions)
-                                    .finish())),])]
+                                [group(&block_indent(&format_with(|f| {
+                                    format_block_of_expressions(f, expressions)
+                                })))]
                             )?;
                             write!(
                                 f,
@@ -303,7 +295,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     )?;
                 }
 
-                // blank line between fields and statements
+                // blank line between fields and expressions
                 if !fields.is_empty() && !expressions.is_empty() {
                     write!(f, [hard_line_break()])?;
                     if !f.context().has_blank_prefix_annotation(expressions[0]) {
@@ -311,14 +303,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // statements
+                // expressions
                 if !expressions.is_empty() {
                     write!(
                         f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(expressions)
-                            .finish())),])]
+                        [group(&format_args![block_indent(&format_with(|f| {
+                            format_block_of_expressions(f, expressions)
+                        })),])]
                     )?;
                 }
 
@@ -431,13 +422,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // statements
+                // expressions
                 write!(
                     f,
-                    [group(&format_args![block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(expressions)
-                        .finish())),])]
+                    [group(&format_args![block_indent(&format_with(|f| {
+                        format_block_of_expressions(f, expressions)
+                    })),])]
                 )?;
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
                 write!(f, [hard_line_break(), token("}")])?;
@@ -529,7 +519,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     )?;
                 }
 
-                // blank line between fields and statements
+                // blank line between fields and expressions
                 if !fields.is_empty() && !expressions.is_empty() {
                     write!(f, [hard_line_break()])?;
                     if !f.context().has_blank_prefix_annotation(expressions[0]) {
@@ -537,14 +527,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // statements
+                // expressions
                 if !expressions.is_empty() {
                     write!(
                         f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(expressions)
-                            .finish())),])]
+                        [group(&format_args![block_indent(&format_with(|f| {
+                            format_block_of_expressions(f, expressions)
+                        })),])]
                     )?;
                 }
 
@@ -662,7 +651,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     )?;
                 }
 
-                // blank line between fields and statements
+                // blank line between fields and expressions
                 if !fields.is_empty() && !expressions.is_empty() {
                     write!(f, [hard_line_break()])?;
                     if !f.context().has_blank_prefix_annotation(expressions[0]) {
@@ -670,14 +659,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // statements
+                // expressions
                 if !expressions.is_empty() {
                     write!(
                         f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(expressions)
-                            .finish())),])]
+                        [group(&format_args![block_indent(&format_with(|f| {
+                            format_block_of_expressions(f, expressions)
+                        })),])]
                     )?;
                 }
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
@@ -767,10 +755,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space(), token("{"), hard_line_break()])?;
                 write!(
                     f,
-                    [group(&format_args![block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(expressions)
-                        .finish())),])]
+                    [group(&format_args![block_indent(&format_with(|f| {
+                        format_block_of_expressions(f, expressions)
+                    })),])]
                 )?;
                 write!(f, [hard_line_break(), token("}")])?;
             }
@@ -972,5 +959,49 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
+
+    /// Expression definitions should be surrounded by at least one blank line (except start/end).
+    #[test]
+    fn test_format_expression_definitions_with_spacing() {
+        assert_format!(
+            r#"class Foo {
+    
+    function a() { }
+
+
+
+
+    function b() { }
+    function c() { }
+
+    /**
+     * Comment
+     */
+    function d() { }
+
+
+
+}
+        "#,
+            r#"class Foo {
+    function a() { }
+
+    function b() { }
+
+    function c() { }
+
+    /** Comment */
+    function d() { }
+
+}"#,
+            |p| p.eat_expression()
+        );
     }
 }

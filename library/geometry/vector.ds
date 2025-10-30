@@ -43,6 +43,7 @@ extension Vector2 {
     function lengthSquared(): float32 {
         this.x * this.x + this.y * this.y
     }
+
     /// Returns the dot product of the two Vectors.
     function dot(other: Vector2): float32 {
         this.x * other.x + this.y * other.y
@@ -73,6 +74,7 @@ extension Vector2 {
     function lerp(other: Vector2, t: float32): Vector2 {
         self + other - self * t
     }
+
     /// Component-wise absolute value.
     function abs(): Vector2 {
         Vector2 {
