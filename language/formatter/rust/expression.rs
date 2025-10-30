@@ -62,15 +62,12 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
             }
             Argument::Spread {
                 modifiers: _,
-                name,
+                name: _,
                 value,
             } => {
                 // keyword
                 write!(f, [token("...")])?;
-                // name
-                if let Some(name) = name {
-                    write!(f, [name, token("="), space()])?;
-                }
+                // value
                 write!(f, [value])?;
             }
             Argument::Dynamic {
@@ -547,6 +544,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     return Ok(());
                 };
 
+                // prefer keeping the value on a single line
                 let format_inline = format_with(|f| {
                     write!(
                         f,
@@ -554,6 +552,20 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     )?;
                     Ok(())
                 });
+                // expand inline if possible (like let x = [ ... ])
+                let format_inline_expanded = format_with(|f| {
+                    write!(
+                        f,
+                        [
+                            header,
+                            space(),
+                            token("="),
+                            space(),
+                            fits_expanded(&group(value_expression_id).should_expand(true)),
+                        ]
+                    )
+                });
+                // if overall better fit, expand without indenting the value
                 let format_indented = format_with(|f| {
                     group(&format_args![
                         header,
@@ -564,7 +576,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_indented]
+                best_fitting![format_inline, format_inline_expanded, format_indented]
                     .with_mode(BestFittingMode::AllLines)
                     .format(f)?;
             }
@@ -842,18 +854,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if let Some(static_arguments) = static_arguments
                     && !static_arguments.is_empty()
                 {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token("<"),
-                            soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                                    .entries(static_arguments)
-                                    .finish()
-                            })),
-                            token(">")
-                        ])]
-                    )?;
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
                 }
             }
 
@@ -1397,10 +1398,10 @@ mod tests {
     #[test]
     fn test_format_expression_tree_literal_with_array_of_struct_element() {
         let source = r#"<Menu
-    items=[[
+    items=[
         { to: "/posts" },
         { to: "/posts/$postId", params: { postId: "postId" } },
-    ]]
+    ]
 />"#;
         assert_format!(
             source,
