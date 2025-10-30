@@ -41,8 +41,9 @@ pub static DEFINITION_START_TOKENS: [TokenType; 4] = [
     TokenType::LessThan,
 ];
 
-pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
+pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 9] = [
     Keyword::Type,
+    Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
     Keyword::Enum,

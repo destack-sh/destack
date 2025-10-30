@@ -298,6 +298,50 @@ pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
     }
 }
 
+/// Whether the expression can break itself across multiple lines.
+pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
+    match expression {
+        Expression::StructLiteral { ty, fields, .. } => {
+            ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty))) || !fields.is_empty()
+        }
+        Expression::TreeLiteral {
+            arguments,
+            elements,
+            ..
+        } => {
+            arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+                || elements
+                    .as_ref()
+                    .is_some_and(|elements| !elements.is_empty())
+        }
+        Expression::ArrayLiteral { elements, .. } => !elements.is_empty(),
+        Expression::TupleLiteral { elements, .. } => !elements.is_empty(),
+        Expression::Call {
+            dynamic_arguments, ..
+        } => !dynamic_arguments.is_empty(),
+        Expression::Match { .. } => true,
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments
+            .as_ref()
+            .is_some_and(|static_arguments| !static_arguments.is_empty()),
+        Expression::If { .. }
+        | Expression::Loop { .. }
+        | Expression::Try { .. }
+        | Expression::Block { .. }
+        | Expression::ForEach { .. }
+        | Expression::ForCondition { .. }
+        | Expression::While { .. }
+        | Expression::With { .. }
+        | Expression::Import { .. }
+        | Expression::Export { .. } => true,
+        Expression::Binary { .. } => true,
+        _ => false,
+    }
+}
+
 /// Format a struct literal.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
@@ -555,20 +599,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
-                let Some(value_expression_id) = value_id else {
+                let Some(value_id) = value_id else {
                     write!(f, [header])?;
                     return Ok(());
                 };
 
                 // prefer keeping the value on a single line
                 let format_inline = format_with(|f| {
-                    write!(
-                        f,
-                        [header, space(), token("="), space(), *value_expression_id]
-                    )?;
+                    write!(f, [header, space(), token("="), space(), *value_id])?;
                     Ok(())
                 });
-                // expand inline if possible (like let x = [ ... ])
+                // expand inline if breakable (like let x = [\n ... ])
                 let format_inline_expanded = format_with(|f| {
                     write!(
                         f,
@@ -577,24 +618,28 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                             space(),
                             token("="),
                             space(),
-                            fits_expanded(&group(value_expression_id).should_expand(true)),
+                            fits_expanded(&group(value_id).should_expand(true)),
                         ]
                     )
                 });
-                // if overall better fit, expand without indenting the value
+                // expand and indent the value
                 let format_indented = format_with(|f| {
                     group(&format_args![
                         header,
                         space(),
                         token("="),
-                        block_indent(value_expression_id)
+                        block_indent(value_id)
                     ])
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_inline_expanded, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
+                if is_expression_breakable(tree, tree.get(*value_id)) {
+                    best_fitting![format_inline, format_inline_expanded, format_indented]
+                        .with_mode(BestFittingMode::AllLines)
+                        .format(f)?;
+                } else {
+                    best_fitting![format_inline, format_indented].format(f)?;
+                }
             }
 
             // type
@@ -602,7 +647,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 mutability,
                 meta,
                 static_parameters,
-                value,
+                value: value_id,
             } => {
                 let header = format_with(|f| {
                     // export
@@ -631,21 +676,44 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Ok(())
                 });
 
-                let format_inline =
-                    format_with(|f| write!(f, [header, space(), token("="), space(), value]));
+                // prefer keeping the value on a single line
+                let format_inline = format_with(|f| {
+                    write!(f, [header, space(), token("="), space(), *value_id])?;
+                    Ok(())
+                });
+                // expand inline if breakable (like let x = [\n ... ])
+                let format_inline_expanded = format_with(|f| {
+                    write!(
+                        f,
+                        [
+                            header,
+                            space(),
+                            token("="),
+                            space(),
+                            fits_expanded(&group(value_id).should_expand(true)),
+                        ]
+                    )
+                });
+                // expand and indent the value
                 let format_indented = format_with(|f| {
                     group(&format_args![
                         header,
                         space(),
                         token("="),
-                        block_indent(&value)
+                        block_indent(value_id)
                     ])
                     .format(f)
                 });
 
-                best_fitting![format_inline, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
+                if is_expression_breakable(tree, tree.get(*value_id)) {
+                    best_fitting![format_inline, format_inline_expanded, format_indented]
+                        .with_mode(BestFittingMode::AllLines)
+                        .format(f)?;
+                } else {
+                    best_fitting![format_inline, format_indented]
+                        .with_mode(BestFittingMode::AllLines)
+                        .format(f)?;
+                }
             }
 
             // if (ternary)

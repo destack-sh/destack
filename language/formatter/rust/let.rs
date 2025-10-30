@@ -112,8 +112,8 @@ mod tests {
     #[test]
     fn test_format_let_breaks_if_too_long() {
         assert_format!(
-            "const veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
-            "const veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
+            "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
+            "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
             |p| p.eat_let(DefinitionMeta::default()),
             DystFormatOptions::default_tab().with_line_width(40)
         );
