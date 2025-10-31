@@ -7,7 +7,7 @@ export struct Epoch {
 
 /// The materialization level of an Entity.
 export enum Materialization {
-    Virtual
+    String
     Partial
     Full
     Root

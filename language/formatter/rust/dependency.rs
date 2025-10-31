@@ -15,7 +15,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for DependencyTarget {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyTarget::Path(path) => write!(f, [path]),
-            DependencyTarget::Virtual(string) => write!(f, [token("\""), string, token("\"")]),
+            DependencyTarget::String(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }

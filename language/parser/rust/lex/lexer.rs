@@ -36,6 +36,7 @@ pub struct Lexer<'a> {
     pub(super) tokens: Vec<TokenSpan>,
 
     /// The options for the lexer.
+    #[allow(unused)]
     pub(super) language: LanguageOptions,
 }
 

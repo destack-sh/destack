@@ -26,9 +26,9 @@ export struct Machine {
     cpu: float32 = 1.0
     /// RAM in GB.
     ram: float32 = 1.0
-    /// Virtual display width.
+    /// String display width.
     width: uint32 = 1280
-    /// Virtual display height.
+    /// String display height.
     height: uint32 = 960
     /// Whether to run headless.
     isHeadless: boolean = false

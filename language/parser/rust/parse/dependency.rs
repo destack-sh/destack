@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
 
             // target (first argument)
             let target = match self.eat_scalar_literal()? {
-                ScalarLiteral::String(string) => DependencyTarget::Virtual(string),
+                ScalarLiteral::String(string) => DependencyTarget::String(string),
                 _ => return Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
             };
 
@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Literal).is_ok() {
             let literal = self.eat_scalar_literal()?;
             match literal {
-                ScalarLiteral::String(string) => Ok(DependencyTarget::Virtual(string)),
+                ScalarLiteral::String(string) => Ok(DependencyTarget::String(string)),
                 _ => Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
             }
         }
@@ -400,7 +400,7 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { kind, asynchrony, target: DependencyTarget::Virtual(target), alias, items, arguments } => {
+        assert_node!(parser.tree, import_id, Expression::Import { kind, asynchrony, target: DependencyTarget::String(target), alias, items, arguments } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert!(alias.is_none());
@@ -418,7 +418,7 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { kind, asynchrony, target: DependencyTarget::Virtual(target), alias, items, arguments: Some(arguments) } => {
+        assert_node!(parser.tree, import_id, Expression::Import { kind, asynchrony, target: DependencyTarget::String(target), alias, items, arguments: Some(arguments) } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert!(alias.is_none());
@@ -460,7 +460,7 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
 
         // import os from 'os'
-        assert_node!(parser.tree, expression_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { kind, target: DependencyTarget::String(target), alias, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, alias.unwrap(), "os");
             assert!(items.is_none());
@@ -579,7 +579,7 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * as geom from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::String(target), alias, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, alias.unwrap(), "geom");
             assert!(items.is_none());
@@ -601,7 +601,7 @@ import {
         parser.eat_newline().unwrap();
 
         let import_id = parser.eat_import().unwrap();
-        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::String(target), alias, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert!(alias.is_none());
             assert_string!(parser, *target, "./lib/object.ng");
@@ -627,7 +627,7 @@ import {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::Virtual(target), alias, items, .. } => {
+        assert_node!(parser.tree, import_id, Expression::Import { kind, target: DependencyTarget::String(target), alias, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             // Default
             assert_string!(parser, alias.unwrap(), "Default");
