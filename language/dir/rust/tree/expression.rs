@@ -26,11 +26,12 @@ pub enum Expression {
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// Export dependency declaration (flattened for grouped items like `export { bar } from foo`)
+    /// Export dependency declaration (flattened for items like `export { bar } from foo`)
     Export {
         mode: ExportType,
         kind: DependencyKind,
-        items: Vec<NodeId<DependencyItem>>,
+        items: Option<Vec<NodeId<DependencyItem>>>,
+        value: Option<NodeId<Expression>>,
     },
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {

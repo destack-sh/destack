@@ -1324,6 +1324,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 alias,
                 items: _,
+                value: _,
             } => {
                 self.node("Expression::Export", _id.id)
                     .field("mode", mode)

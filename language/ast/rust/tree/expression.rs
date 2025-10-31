@@ -79,6 +79,7 @@ pub enum Expression {
     /// export { bar, baz }
     /// export foo.{} // valid but linted
     /// export foo as baz
+    /// export = foo
     /// ```
     Export {
         mode: ExportType,
@@ -86,6 +87,7 @@ pub enum Expression {
         target: Option<DependencyTarget>,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
+        value: Option<NodeId<Expression>>,
     },
 
     /// Let or var binding for constant or mutable variables.

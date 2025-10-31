@@ -159,7 +159,7 @@ impl<'a> Compiler<'a> {
                 );
                 let kind = self.lower_dependency_kind(source_id, ast, *kind);
                 Expression::Export {
-                    mode: self.lower_export_mode(*mode),
+                    mode: self.lower_export_type(*mode),
                     kind,
                     items,
                 }

@@ -134,6 +134,7 @@ impl<'a> Parser<'a> {
     /// export { bar, baz }
     /// export foo.{} // valid but linted
     /// export foo as baz
+    /// export = foo
     /// ```
     pub fn eat_export(&mut self, mode: Option<ExportType>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -147,6 +148,9 @@ impl<'a> Parser<'a> {
                 if self.peek_keyword(Keyword::Default).is_ok() {
                     self.bump(); // eat default
                     ExportType::Default
+                } else if self.peek_token(TokenType::Assign).is_ok() {
+                    self.bump(); // eat assign
+                    ExportType::Module
                 } else {
                     ExportType::Item
                 }
@@ -161,6 +165,22 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // value for module export
+        if mode == ExportType::Module {
+            let value = self.eat_expression()?;
+            return Ok(self.tree.insert(
+                Expression::Export {
+                    mode,
+                    kind: kind.unwrap_or(DependencyKind::Value),
+                    target: None,
+                    alias: None,
+                    items: None,
+                    value: Some(value),
+                },
+                self.get_span_from(start),
+            ));
+        }
+
         // binding
         let (target, alias, items) = self.eat_dependency_binding()?;
 
@@ -172,6 +192,7 @@ impl<'a> Parser<'a> {
                 target,
                 alias,
                 items,
+                value: None,
             },
             self.get_span_from(start),
         );
@@ -187,31 +208,6 @@ impl<'a> Parser<'a> {
             Ok(())
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
-        }
-    }
-
-    /// Eat an dependency target.
-    ///
-    /// Examples:
-    /// ```
-    /// foo
-    /// foo.bar
-    /// "foo"
-    /// "foo/bar:something"
-    /// ```
-    fn eat_dependency_target(&mut self) -> ParserResult<DependencyTarget> {
-        // physical/string target
-        if self.peek_token(TokenType::Literal).is_ok() {
-            let literal = self.eat_scalar_literal()?;
-            match literal {
-                ScalarLiteral::String(string) => Ok(DependencyTarget::String(string)),
-                _ => Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
-            }
-        }
-        // virtual target
-        else {
-            let path = self.eat_path()?;
-            Ok(DependencyTarget::Path(path))
         }
     }
 
@@ -308,6 +304,31 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eat an dependency target.
+    ///
+    /// Examples:
+    /// ```
+    /// foo
+    /// foo.bar
+    /// "foo"
+    /// "foo/bar:something"
+    /// ```
+    fn eat_dependency_target(&mut self) -> ParserResult<DependencyTarget> {
+        // physical/string target
+        if self.peek_token(TokenType::Literal).is_ok() {
+            let literal = self.eat_scalar_literal()?;
+            match literal {
+                ScalarLiteral::String(string) => Ok(DependencyTarget::String(string)),
+                _ => Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
+            }
+        }
+        // virtual target
+        else {
+            let path = self.eat_path()?;
+            Ok(DependencyTarget::Path(path))
+        }
+    }
+
     /// Eat a block of import items (like `{ a, b }` in `import foo.{a, b}`).
     fn eat_dependency_items_block(&mut self) -> ParserResult<Vec<NodeId<DependencyItem>>> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
@@ -375,7 +396,9 @@ mod tests {
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{DependencyItem, Expression, assert_node, assert_path, assert_string};
+    use crate::{
+        DependencyItem, Expression, assert_expr_path, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_import_simple() {
@@ -655,7 +678,7 @@ export type { CreateUIMessage, UIMessage }
         parser.eat_newline().unwrap();
 
         let export_id = parser.eat_export(None).unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target, alias, items } => {
+        assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target, alias, items, value: None } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert_eq!(*mode, ExportType::Item);
             assert!(target.is_none());
@@ -674,6 +697,18 @@ export type { CreateUIMessage, UIMessage }
                 assert_string!(parser, *name, "UIMessage");
                 assert!(alias.is_none());
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_with_module_export() {
+        let mut test = TestParser::new("export = foo");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export(None).unwrap();
+        assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target: None, value: Some(value), .. } => {
+            assert_eq!(*mode, ExportType::Module);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_expr_path!(parser, parser.tree.get(*value), "foo");
         });
     }
 }
