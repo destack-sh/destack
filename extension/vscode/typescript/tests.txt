@@ -117,9 +117,6 @@ value + -other
 value + -%other
 //      ^^ keyword.operator.addition.ds
 
-call(...args)
-//   ^^^ keyword.operator.prefix.ds
-
 // binary operators
 value * other
 //    ^ keyword.operator.multiplication.ds
@@ -300,3 +297,23 @@ keyof Foo
 
 infer T
 // <- keyword.operator.type.unary.ds
+
+call(...args)
+//   ^^^ keyword.operator.prefix.ds
+
+// function calls
+compute()
+// <- entity.name.function.call.ds
+
+compute<number>(value)
+// <- entity.name.function.call.ds
+
+obj.method()
+//  ^^^^^^ entity.name.function.call.ds
+
+// function definitions
+function compose() {}
+//       ^^^^^^^ entity.name.function.definition.ds
+
+function makeThing<T>(value: T) {}
+//       ^^^^^^^^^ entity.name.function.definition.ds
