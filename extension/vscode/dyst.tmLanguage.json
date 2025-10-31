@@ -23,6 +23,12 @@
         },
         {
           "include": "#operator"
+        },
+        {
+          "include": "#function-definition"
+        },
+        {
+          "include": "#function-call"
         }
       ]
     },
@@ -471,6 +477,35 @@
         {
           "name": "constant.character.escape.ds",
           "match": "\\\\(?:x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]{1,6}\\}|u[0-9A-Fa-f]{4}|[0-9]{1,3}|.)"
+        }
+      ]
+    },
+    "function-definition": {
+      "patterns": [
+        {
+          "name": "meta.function.definition.ds",
+          "match": "(?x)\\b(function)\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "entity.name.function.definition.ds"
+            }
+          }
+        }
+      ]
+    },
+    "function-call": {
+      "patterns": [
+        {
+          "name": "meta.function.call.ds",
+          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.call.ds"
+            }
+          }
         }
       ]
     }
