@@ -25,10 +25,16 @@
           "include": "#entity-definition"
         },
         {
-          "include": "#keyword"
+          "include": "#wildcard"
         },
         {
-          "include": "#wildcard"
+          "include": "#binding"
+        },
+        {
+          "include": "#function-call"
+        },
+        {
+          "include": "#keyword"
         },
         {
           "include": "#decorator"
@@ -40,16 +46,10 @@
           "include": "#optional-operator"
         },
         {
-          "include": "#binding"
-        },
-        {
           "include": "#path"
         },
         {
           "include": "#operator"
-        },
-        {
-          "include": "#function-call"
         }
       ]
     },
@@ -141,7 +141,7 @@
         },
         {
           "name": "keyword.control.flow.ds",
-          "match": "\\b(?:break|continue|defer|return|yield|goto)\\b"
+          "match": "\\b(?:defer|break|continue|return|yield|goto)\\b"
         },
         {
           "name": "keyword.control.exception.ds",
@@ -723,7 +723,7 @@
       "patterns": [
         {
           "name": "meta.function.call.ds",
-          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)\\b(?!(?:if|match|switch|case|while|for|with|catch)\\b)([A-Za-z_]\\w*)\\b(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "entity.name.function.call.ds"
