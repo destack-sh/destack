@@ -168,6 +168,20 @@ value => value + 1
 let point = { x: 1 }
 //            ^ variable.other.binding.ds
 
+const node = <div class="greeting" />
+//            ^^^ entity.name.tag.tsx
+
+const fragment = <test.MyComponent flag arg={true} />
+//                ^^^^ entity.name.tag.tsx
+//                     ^^^^^^^^^^ entity.name.tag.tsx
+
+return (
+  <Button>
+//   ^ entity.name.tag.tsx
+  </Button>
+//    ^ entity.name.tag.tsx
+)
+
 // entity definitions
 struct Foo {}
 //      ^ entity.name.type.definition.ds
