@@ -511,7 +511,8 @@ impl<'a> Parser<'a> {
                 }
 
             // function shorthand
-            if token_ty == TokenType::Identifier
+            if !self.options.in_block_slot
+                && token_ty == TokenType::Identifier
                 && (next_token_ty == TokenType::OpenParenthesis
                     || next_token_ty == TokenType::Maybe
                         && next_next_token_ty == TokenType::OpenParenthesis

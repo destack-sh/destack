@@ -193,6 +193,61 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_if_with_nested_parenthesized_condition() {
+        let mut test = TestParser::new(
+            r"
+if cond {
+    if (cond) {
+        a
+    } else {
+        b
+    }
+}
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        // if cond { if (cond) { a } else { b } }
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            // cond
+            assert_expr_path!(parser, parser.tree.get(*condition), "cond");
+            // { if (cond) { a } else { b } }
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(expressions.len(), 1);
+                    // if (cond) { a } else { b }
+                    assert_node!(parser.tree, expressions[0], Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
+                        // (cond)
+                        assert_node!(parser.tree, *inner_condition, Expression::Parenthesized { expression } => {
+                            assert_expr_path!(parser, parser.tree.get(*expression), "cond");
+                        });
+                        // { a }
+                        assert_node!(parser.tree, *inner_then, Expression::Block(inner_block_id) => {
+                            assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions, label } => {
+                                assert!(label.is_none());
+                                assert_eq!(expressions.len(), 1);
+                                assert_expr_path!(parser, parser.tree.get(expressions[0]), "a");
+                            });
+                        });
+                        // { b }
+                        assert_node!(parser.tree, inner_else.unwrap(), Expression::Block(inner_block_id) => {
+                            assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions, label } => {
+                                assert!(label.is_none());
+                                assert_eq!(expressions.len(), 1);
+                                assert_expr_path!(parser, parser.tree.get(expressions[0]), "b");
+                            });
+                        });
+                    });
+                });
+            });
+            assert!(else_expression.is_none());
+        });
+    }
+
+    #[test]
     fn test_parse_if_else_if_with_empty_blocks() {
         let mut test = TestParser::new("if true {} else if false {}");
         let mut parser = test.prepare();
