@@ -197,9 +197,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             items,
             value,
         } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
+            if let Some(items) = items {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
             }
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);

@@ -1037,7 +1037,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 if let Some(value) = value {
-                    write!(f, [space(), token("="), space(), value])?;
+                    write!(f, [token("="), space(), value])?;
                 } else {
                     format_dependency_binding(
                         f,

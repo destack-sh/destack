@@ -59,6 +59,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
         match self {
             ExportType::Item => write!(f, [Keyword::Export])?,
             ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
+            ExportType::Module => write!(f, [Keyword::Export])?,
         };
         Ok(())
     }
@@ -830,13 +831,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // kind
                 if let Some(kind) = kind {
                     write!(f, [kind.to_keyword()])?;
-                    if meta.name.is_some() {
+                    if meta.name.is_some() || *kind == FunctionKind::New {
                         write!(f, [space()])?;
                     }
                 }
 
                 // keyword
-                if *style == FunctionStyle::Function && *kind != Some(FunctionKind::Constructor) {
+                if *style == FunctionStyle::Function
+                    && *kind != Some(FunctionKind::Constructor)
+                    && *kind != Some(FunctionKind::New)
+                {
                     // function keyword
                     if *cardinality == FunctionCardinality::Generator {
                         write!(f, [Keyword::Function, token("*"), space()])?;

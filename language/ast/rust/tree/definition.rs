@@ -429,6 +429,8 @@ pub enum FunctionKind {
     Setter,
     /// Constructor function (alias).
     Constructor,
+    /// New type constructor function.
+    New,
 }
 
 /// The abstraction level of a definition.
@@ -452,6 +454,7 @@ impl FunctionKind {
             FunctionKind::Getter => Keyword::Get,
             FunctionKind::Setter => Keyword::Set,
             FunctionKind::Constructor => Keyword::Constructor,
+            FunctionKind::New => Keyword::New,
         }
     }
 }
