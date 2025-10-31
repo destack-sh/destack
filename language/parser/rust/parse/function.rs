@@ -201,21 +201,36 @@ impl<'a> Parser<'a> {
 
         // kind
         let kind = {
+            // getter
             if self.peek_keyword(Keyword::Get).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
             {
                 self.bump(); // eat get keyword
                 Some(FunctionKind::Getter)
-            } else if self.peek_keyword(Keyword::Set).is_ok()
+            }
+            // setter
+            else if self.peek_keyword(Keyword::Set).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
             {
                 self.bump(); // eat set keyword
                 Some(FunctionKind::Setter)
-            } else if self.peek_keyword(Keyword::Constructor).is_ok()
-                && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+            }
+            // constructor
+            else if self.peek_keyword(Keyword::Constructor).is_ok()
+                && (self.peek_next_token(TokenType::LessThan).is_ok()
+                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
             {
                 self.bump(); // eat constructor keyword
                 Some(FunctionKind::Constructor)
+            }
+            // new type constructor
+            else if self.options.in_type
+                && self.peek_keyword(Keyword::New).is_ok()
+                && (self.peek_next_token(TokenType::LessThan).is_ok()
+                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+            {
+                self.bump(); // eat new keyword
+                Some(FunctionKind::New)
             } else {
                 None
             }
@@ -530,6 +545,62 @@ mod tests {
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_lambda_type_constructor_expression() {
+        let mut test = TestParser::new("new() => $");
+        let mut parser = test.prepare();
+        parser.options.in_type = true;
+
+        let expression_id = parser.eat_expression().unwrap();
+        // new (x) => int32
+        assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { meta, style, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+                assert_eq!(meta.name, None);
+                assert_eq!(*kind, Some(FunctionKind::New));
+                assert_eq!(*style, FunctionStyle::Lambda);
+                assert!(static_parameters.is_none());
+                assert!(dynamic_parameters.is_empty());
+                assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "$");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_lambda_type_constructor_expression_with_static_arguments() {
+        let mut test = TestParser::new("new <T>(x: int32) => T");
+        let mut parser = test.prepare();
+        parser.options.in_type = true;
+
+        let expression_id = parser.eat_expression().unwrap();
+        // new <T>(x: int32) => T
+        assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { meta, style, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+                assert_eq!(meta.name, None);
+                assert_eq!(*kind, Some(FunctionKind::New));
+                assert_eq!(*style, FunctionStyle::Lambda);
+
+                // <T>
+                assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
+                assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, .. } => {
+                    assert_string!(parser, *name, "T");
+                });
+
+                // x: int32
+                assert_eq!(dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "x");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
+                        assert_eq!(int_ty.width, Some(32));
+                        assert!(int_ty.is_signed);
+                    });
+                });
+
+                // T
+                assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
             });
         });
     }

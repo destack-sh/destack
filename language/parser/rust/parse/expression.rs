@@ -651,6 +651,10 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Async)
                 || keyword == Some(Keyword::Abstract)
                 || keyword == Some(Keyword::Override)
+                || (self.options.in_type
+                    && keyword == Some(Keyword::New)
+                    && (next_token_type == TokenType::LessThan
+                        || next_token_type == TokenType::OpenParenthesis))
                 || (self.options.in_variant
                     && (keyword == Some(Keyword::Get)
                         || keyword == Some(Keyword::Set)

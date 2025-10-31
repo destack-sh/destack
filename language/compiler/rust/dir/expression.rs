@@ -147,6 +147,7 @@ impl<'a> Compiler<'a> {
                 target,
                 alias,
                 items,
+                value,
             } => {
                 let items = self.lower_dependency_binding(
                     source_id,
@@ -157,11 +158,13 @@ impl<'a> Compiler<'a> {
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
+                let value = value.map(|value| self.lower_expression(source_id, ast, value));
                 let kind = self.lower_dependency_kind(source_id, ast, *kind);
                 Expression::Export {
                     mode: self.lower_export_type(*mode),
                     kind,
-                    items,
+                    items: if items.is_empty() { None } else { Some(items) },
+                    value,
                 }
             }
             ast::Expression::Let {
