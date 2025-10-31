@@ -1531,9 +1531,18 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // type unary
-            Expression::TypeUnary { operator, right } => {
-                write!(f, [operator, space(), right])?;
-            }
+            Expression::TypeUnary { operator, expression: right } => match operator {
+                TypeUnaryOperator::Type
+                | TypeUnaryOperator::Readonly
+                | TypeUnaryOperator::Typeof
+                | TypeUnaryOperator::Keyof
+                | TypeUnaryOperator::Infer => {
+                    write!(f, [operator, space(), right])?;
+                }
+                TypeUnaryOperator::AsConst => {
+                    write!(f, [right, token(" as const")])?;
+                }
+            },
 
             // reference
             Expression::Reference {
@@ -1692,6 +1701,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
             TypeUnaryOperator::Typeof => token("typeof"),
             TypeUnaryOperator::Keyof => token("keyof"),
             TypeUnaryOperator::Infer => token("infer"),
+            TypeUnaryOperator::AsConst => token("as const"),
         };
         write!(f, [token])
     }

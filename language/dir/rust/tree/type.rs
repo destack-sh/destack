@@ -93,6 +93,8 @@ pub enum TypeUnaryOperator {
     Keyof,
     /// `infer`
     Infer,
+    /// `as const`
+    AsConst,
 }
 
 /// A TypeBinaryOperator is a type binary operator.

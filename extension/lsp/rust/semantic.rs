@@ -250,7 +250,7 @@ impl DestackLanguageServer {
                 ast,
                 root_definition_id: module_id,
                 ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None, true),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None, false),
             _ => None,
         }
     }
@@ -270,7 +270,7 @@ impl DestackLanguageServer {
                 ast,
                 root_definition_id: module_id,
                 ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range), true),
+            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range), false),
             _ => None,
         }
     }

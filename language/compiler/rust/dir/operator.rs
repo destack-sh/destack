@@ -30,6 +30,7 @@ impl<'a> Compiler<'a> {
             ast::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
             ast::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
             ast::TypeUnaryOperator::Infer => TypeUnaryOperator::Infer,
+            ast::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
         }
     }
 
