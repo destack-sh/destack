@@ -15,6 +15,7 @@ use crate::TokenType;
 /// && || ??                           // boolean
 /// in of                              // container
 /// as in is instanceof satisfies      // type binary operator
+/// asserts                            // type unary assertion operator
 /// =                                  // assignment
 /// *= /= %= **= *%= *|=               // assignment multiplication
 /// += -= +%= -%= +|= -|=              // assignment addition
@@ -57,24 +58,27 @@ pub enum OperatorPrecedence {
     /// Type binary operators.
     /// `as in is instanceof satisfies extends implements`
     TypeBinary = 1000,
+    /// Type unary assertion operator.
+    /// `asserts`
+    TypeUnaryAssertion = 900,
     /// Assignment-related binary operators.
     /// `=`
-    Assignment = 900,
+    Assignment = 800,
     /// Assignment multiplication-related binary operators.
     /// `*= /= %= **= *%= *|=`
-    AssignmentMultiplication = 800,
+    AssignmentMultiplication = 700,
     /// Assignment addition-related binary operators.
     /// `+= -= +%= -%= +|= -|=`
-    AssignmentAddition = 700,
+    AssignmentAddition = 600,
     /// Assignment shift-related binary operators.
     /// `<<= >>= <<|=`
-    AssignmentShift = 600,
+    AssignmentShift = 500,
     /// Assignment elementwise-related binary operators.
     /// `&= ^= |=`
-    AssignmentElementwise = 500,
+    AssignmentElementwise = 400,
     /// Assignment logical-related binary operators.
     /// `&&= ||= ??=`
-    AssignmentBoolean = 400,
+    AssignmentBoolean = 300,
 }
 
 /// A TypeUnaryOperator is a type unary operator.
@@ -92,6 +96,8 @@ pub enum TypeUnaryOperator {
     Infer = 1802,
     /// `as const`
     AsConst = 1801,
+    /// `asserts`
+    Asserts = 900,
 }
 
 impl TypeUnaryOperator {
@@ -116,7 +122,8 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof
-            | TypeUnaryOperator::Infer => true,
+            | TypeUnaryOperator::Infer
+            | TypeUnaryOperator::Asserts => true,
             TypeUnaryOperator::AsConst => false,
         }
     }
@@ -135,6 +142,7 @@ impl TypeUnaryOperator {
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             "infer" => Some(TypeUnaryOperator::Infer),
+            "asserts" => Some(TypeUnaryOperator::Asserts),
             _ => None,
         }
     }
@@ -246,17 +254,17 @@ impl UnaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {
     /// `as`
-    Cast,
+    Cast = 1006,
     /// `is`
-    Is,
+    Is = 1005,
     /// `instanceof`
-    Instanceof,
+    Instanceof = 1004,
     /// `satisfies`
-    Satisfies,
+    Satisfies = 1003,
     /// `extends`
-    Extends,
+    Extends = 1002,
     /// `implements`
-    Implements,
+    Implements = 1001,
 }
 
 impl TypeBinaryOperator {
@@ -490,57 +498,57 @@ impl BinaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
     /// `=`
-    Assign = 601,
+    Assign = 800,
 
     // assignment multiplication
     /// `*=`
-    MultiplyAssign = 505,
+    MultiplyAssign = 705,
     /// `*%=`
-    WrappingMultiplyAssign = 504,
+    WrappingMultiplyAssign = 704,
     /// `*|=`
-    SaturatingMultiplyAssign = 503,
+    SaturatingMultiplyAssign = 703,
     /// `/=`
-    DivideAssign = 502,
+    DivideAssign = 702,
     /// `%=`
-    RemainderAssign = 501,
+    RemainderAssign = 701,
 
     // assignment addition
     /// `+=`
-    AddAssign = 406,
+    AddAssign = 606,
     /// `+%=`
-    WrappingAddAssign = 405,
+    WrappingAddAssign = 605,
     /// `+|=`
-    SaturatingAddAssign = 404,
+    SaturatingAddAssign = 604,
     /// `-=`
-    SubtractAssign = 403,
+    SubtractAssign = 603,
     /// `-%=`
-    WrappingSubtractAssign = 402,
+    WrappingSubtractAssign = 602,
     /// `-|=`
-    SaturatingSubtractAssign = 401,
+    SaturatingSubtractAssign = 601,
 
     // assignment shift
     /// `<<=`
-    ShiftLeftAssign = 303,
+    ShiftLeftAssign = 503,
     /// `<<|=`
-    SaturatingShiftLeftAssign = 302,
+    SaturatingShiftLeftAssign = 502,
     /// `>>=`
-    ShiftRightAssign = 301,
+    ShiftRightAssign = 501,
 
     // assignment elementwise
     /// `&=`
-    ElementwiseAndAssign = 203,
+    ElementwiseAndAssign = 403,
     /// `^=`
-    ElementwiseXorAssign = 202,
+    ElementwiseXorAssign = 402,
     /// `|=`
-    ElementwiseOrAssign = 201,
+    ElementwiseOrAssign = 401,
 
     // assignment logical
     /// `&&=`
-    AndAssign = 103,
+    AndAssign = 303,
     /// `||=`
-    OrAssign = 102,
+    OrAssign = 302,
     /// `??=`
-    CoalesceAssign = 101,
+    CoalesceAssign = 301,
 }
 
 impl AssignOperator {

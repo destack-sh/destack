@@ -1536,7 +1536,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 | TypeUnaryOperator::Readonly
                 | TypeUnaryOperator::Typeof
                 | TypeUnaryOperator::Keyof
-                | TypeUnaryOperator::Infer => {
+                | TypeUnaryOperator::Infer
+                | TypeUnaryOperator::Asserts => {
                     write!(f, [operator, space(), right])?;
                 }
                 TypeUnaryOperator::AsConst => {
@@ -1702,6 +1703,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
             TypeUnaryOperator::Keyof => token("keyof"),
             TypeUnaryOperator::Infer => token("infer"),
             TypeUnaryOperator::AsConst => token("as const"),
+            TypeUnaryOperator::Asserts => token("asserts"),
         };
         write!(f, [token])
     }

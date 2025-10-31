@@ -88,9 +88,11 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Typing
     // ------------------------------------------------------------
-    /// Extends (alias).
+    /// Asserts expression.
+    Asserts,
+    /// Extends.
     Extends,
-    /// Implements (alias).
+    /// Implements.
     Implements,
     /// Satisfies.
     Satisfies,
@@ -152,6 +154,8 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Flow control
     // ------------------------------------------------------------
+    /// Assert expression.
+    Assert,
     /// Break expression.
     Break,
     /// Continue expression.
@@ -194,7 +198,8 @@ impl Keyword {
     pub const fn is_control(&self) -> bool {
         matches!(
             self,
-            Keyword::Break
+            Keyword::Assert
+                | Keyword::Break
                 | Keyword::Continue
                 | Keyword::Defer
                 | Keyword::Return
@@ -269,6 +274,7 @@ impl Keyword {
             Keyword::Satisfies => "satisfies",
             Keyword::Abstract => "abstract",
             Keyword::Override => "override",
+            Keyword::Asserts => "asserts",
             Keyword::Tuple => "tuple",
             Keyword::Instanceof => "instanceof",
             Keyword::Where => "where",
@@ -296,6 +302,7 @@ impl Keyword {
             Keyword::Loop => "loop",
 
             // flow control
+            Keyword::Assert => "assert",
             Keyword::Break => "break",
             Keyword::Continue => "continue",
             Keyword::Defer => "defer",
@@ -371,6 +378,7 @@ impl FromStr for Keyword {
             "satisfies" => Ok(Keyword::Satisfies),
             "abstract" => Ok(Keyword::Abstract),
             "override" => Ok(Keyword::Override),
+            "asserts" => Ok(Keyword::Asserts),
             "tuple" => Ok(Keyword::Tuple),
             "instanceof" => Ok(Keyword::Instanceof),
             "where" => Ok(Keyword::Where),
@@ -398,6 +406,7 @@ impl FromStr for Keyword {
             "loop" => Ok(Keyword::Loop),
 
             // flow control
+            "assert" => Ok(Keyword::Assert),
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
             "defer" => Ok(Keyword::Defer),
