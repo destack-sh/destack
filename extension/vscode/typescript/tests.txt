@@ -208,6 +208,12 @@ value
 value.foo().bar
 //            ^ variable.other.member.ds
 
+0..this.count
+//  ^ keyword.other.context.ds
+
+...spread.member
+//         ^ variable.other.member.ds
+
 // binary operators
 value * other
 //    ^ keyword.operator.multiplication.ds

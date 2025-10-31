@@ -682,7 +682,7 @@
       "patterns": [
         {
           "name": "meta.path.segment.ds",
-          "match": "(?x)(\\.)(\\s*)([A-Za-z_]\\w*+)(?!\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)(?<!\\.)(\\.)(\\s*)([A-Za-z_]\\w*+)(?!\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "punctuation.accessor.dot.ds"
