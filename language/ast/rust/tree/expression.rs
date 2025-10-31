@@ -523,7 +523,7 @@ pub enum Expression {
     /// Type operation.
     TypeUnary {
         operator: TypeUnaryOperator,
-        right: NodeId<Expression>,
+        expression: NodeId<Expression>,
     },
 
     /// Type binary operation.

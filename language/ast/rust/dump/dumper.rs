@@ -1515,7 +1515,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeUnary { operator, right: _ } => {
+            Expression::TypeUnary { operator, expression: _ } => {
                 self.node("Expression::TypeUnary", _id.id)
                     .field("operator", operator)
                     .end();

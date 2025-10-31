@@ -46,17 +46,16 @@ impl LanguageServer for DestackLanguageServer {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
                 lsp::TextDocumentSyncKind::FULL,
             )),
-            // nocheckin
-            // semantic_tokens_provider: Some(
-            //     lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
-            //         lsp::SemanticTokensOptions {
-            //             legend: semantic::legend(),
-            //             range: Some(true),
-            //             full: Some(lsp::SemanticTokensFullOptions::Bool(true)),
-            //             work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
-            //         },
-            //     ),
-            // ),
+            semantic_tokens_provider: Some(
+                lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                    lsp::SemanticTokensOptions {
+                        legend: semantic::legend(),
+                        range: Some(true),
+                        full: Some(lsp::SemanticTokensFullOptions::Bool(true)),
+                        work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
+                    },
+                ),
+            ),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {

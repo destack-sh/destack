@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
             // (if we're before a block then { is a terminator, not the start of a block)
             || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
             || UnaryOperator::from_prefix_token( token_type).is_some()
-            || TypeUnaryOperator::from_token(token_str, token_type).is_some()
+            || TypeUnaryOperator::from_prefix_token(token_str, token_type).is_some()
     }
 
     /// Whether the token string encodes a type literal with an explicit width.
@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
                 } else {
                     TypeUnaryOperator::Type
                 };
-                let expression = Expression::TypeUnary { operator, right };
+                let expression = Expression::TypeUnary { operator, expression: right };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
         }
@@ -270,7 +270,7 @@ impl<'a> Parser<'a> {
             } else {
                 TypeUnaryOperator::Type
             };
-            let expression = Expression::TypeUnary { operator, right };
+            let expression = Expression::TypeUnary { operator, expression: right };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
     }
@@ -395,9 +395,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B>
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
             assert_eq!(*operator, TypeUnaryOperator::Type);
-            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *expression, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "T");
                 assert_eq!(static_arguments.as_ref().unwrap().len(), 2);
             })
@@ -410,9 +410,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
             assert_eq!(*operator, TypeUnaryOperator::Type);
-            assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
+            assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
@@ -430,9 +430,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // readonly T
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
             assert_eq!(*operator, TypeUnaryOperator::Readonly);
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });

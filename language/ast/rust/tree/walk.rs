@@ -487,7 +487,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::TypeUnary { operator: _, right } => {
+        Expression::TypeUnary { operator: _, expression: right } => {
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }

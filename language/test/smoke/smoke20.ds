@@ -1,0 +1,7 @@
+if cond {
+    if (cond) {
+        a
+    } else {
+        b
+    }
+}

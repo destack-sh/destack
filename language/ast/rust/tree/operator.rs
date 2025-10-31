@@ -31,7 +31,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
     /// Type unary operators.
-    /// `type readonly typeof keyof infer`
+    /// `type readonly typeof keyof infer as const`
     TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
@@ -81,15 +81,17 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeUnaryOperator {
     /// `type`
-    Type,
+    Type = 1807,
     /// `readonly`
-    Readonly,
+    Readonly = 1806,
     /// `typeof`
-    Typeof,
+    Typeof = 1804,
     /// `keyof`
-    Keyof,
+    Keyof = 1803,
     /// `infer`
-    Infer,
+    Infer = 1802,
+    /// `as const`
+    AsConst = 1801,
 }
 
 impl TypeUnaryOperator {
@@ -106,14 +108,46 @@ impl TypeUnaryOperator {
         self as u16
     }
 
+    /// Whether the type unary operator is a prefix operator.
+    #[inline]
+    pub fn is_prefix(&self) -> bool {
+        match self {
+            TypeUnaryOperator::Type
+            | TypeUnaryOperator::Readonly
+            | TypeUnaryOperator::Typeof
+            | TypeUnaryOperator::Keyof
+            | TypeUnaryOperator::Infer => true,
+            TypeUnaryOperator::AsConst => false,
+        }
+    }
+
+    /// Whether the type unary operator is a postfix operator.
+    #[inline]
+    pub fn is_postfix(&self) -> bool {
+        !self.is_prefix()
+    }
+
     /// Convert a TokenType to a TypeUnaryOperator (if a direct mapping exists).
     #[inline]
-    pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
+    pub fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
         match token_str {
-            // NOTE: type and readonly are disambiguated separately (in eat_type)
+            // NOTE: type / readonly / as const are disambiguated separately
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             "infer" => Some(TypeUnaryOperator::Infer),
+            _ => None,
+        }
+    }
+
+    /// Convert a TokenType to a TypeUnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_postfix_token(
+        token_str: &str,
+        next_token_str: &str,
+        _token_type: TokenType,
+    ) -> Option<TypeUnaryOperator> {
+        match (token_str, next_token_str) {
+            ("as", "const") => Some(TypeUnaryOperator::AsConst),
             _ => None,
         }
     }
@@ -173,6 +207,12 @@ impl UnaryOperator {
             | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
         }
+    }
+
+    /// Whether the unary operator is a postfix operator.
+    #[inline]
+    pub fn is_postfix(&self) -> bool {
+        !self.is_prefix()
     }
 
     /// Convert a prefix token to a UnaryOperator (if a direct mapping exists).
