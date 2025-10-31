@@ -535,6 +535,15 @@
         {
           "name": "variable.other.binding.ds",
           "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*=(?![=]))"
+        },
+        {
+          "name": "variable.other.binding.ds",
+          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*(?:,|}))",
+          "captures": {
+            "1": {
+              "name": "variable.other.binding.ds"
+            }
+          }
         }
       ]
     },
