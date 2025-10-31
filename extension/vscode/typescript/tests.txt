@@ -172,8 +172,9 @@ const node = <div class="greeting" />
 //            ^^^ entity.name.tag.tsx
 
 const fragment = <test.MyComponent flag arg={true} />
-//                ^^^^ entity.name.tag.tsx
-//                     ^^^^^^^^^^ entity.name.tag.tsx
+//                ^^^^  ^^^^^^^^ entity.name.tag.tsx
+//                                  ^^^ entity.other.attribute-name.tsx
+//                                      ^^^ entity.other.attribute-name.tsx
 
 return (
   <Button>

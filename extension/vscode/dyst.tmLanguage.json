@@ -578,18 +578,95 @@
       "patterns": [
         {
           "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx",
-          "match": "(?x)(?<![\\w>])(<\\/?)([A-Za-z_][\\w-]*)(?:\\.([A-Za-z_][\\w-]*))?",
-          "captures": {
+          "begin": "(?x)(?<![\\w>])(<)(/?)([A-Za-z_][\\w-]*(?:\\.[A-Za-z_][\\w-]*)*)",
+          "beginCaptures": {
             "1": {
-              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx punctuation.definition.tag.tsx"
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx punctuation.definition.tag.begin.tsx"
             },
             "2": {
-              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx entity.name.tag.tsx"
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx punctuation.definition.tag.begin.tsx"
             },
             "3": {
               "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx entity.name.tag.tsx"
             }
-          }
+          },
+          "end": "(?x)(/?>)",
+          "endCaptures": {
+            "1": {
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx punctuation.definition.tag.end.tsx"
+            }
+          },
+          "patterns": [
+            {
+              "name": "source.tsx entity.other.attribute-name.tsx",
+              "match": "(?x)(?<=\\s)([A-Za-z_][\\w-]*)(?=\\s*=)",
+              "captures": {
+                "1": {
+                  "name": "entity.other.attribute-name.tsx"
+                }
+              }
+            },
+            {
+              "name": "source.tsx entity.other.attribute-name.tsx",
+              "match": "(?x)(?<=\\s)([A-Za-z_][\\w-]*)(?=\\s|/|>)",
+              "captures": {
+                "1": {
+                  "name": "entity.other.attribute-name.tsx"
+                }
+              }
+            },
+            {
+              "name": "source.tsx keyword.operator.assignment.tsx",
+              "match": "="
+            },
+            {
+              "name": "source.tsx string.quoted.double.tsx",
+              "begin": "\"",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.begin.tsx"
+                }
+              },
+              "end": "\"",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.end.tsx"
+                }
+              },
+              "patterns": [
+                {
+                  "name": "constant.character.escape.tsx",
+                  "match": "\\\\."
+                }
+              ]
+            },
+            {
+              "name": "source.tsx meta.embedded.expression.tsx",
+              "begin": "\\{",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.embedded.begin.tsx"
+                }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.section.embedded.end.tsx"
+                }
+              },
+              "patterns": [
+                {
+                  "include": "#expression"
+                }
+              ]
+            },
+            {
+              "include": "#literal-string"
+            },
+            {
+              "include": "#literal-template"
+            }
+          ]
         }
       ]
     },
