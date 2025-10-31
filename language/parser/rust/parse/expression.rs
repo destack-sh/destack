@@ -528,10 +528,9 @@ impl<'a> Parser<'a> {
 
             // unary prefix operations
             else if let Ok(unary_operator) = self.peek_unary_prefix_operator() {
-                let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options.in_left_precedence(right_precedence),
+                    self.options.in_left_precedence(unary_operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::Unary {
@@ -542,10 +541,10 @@ impl<'a> Parser<'a> {
             }
             // type unary operations
             else if let Ok(type_unary_operator) = self.peek_type_unary_prefix_operator() {
-                let right_precedence = type_unary_operator.precedence();
                 self.bump(); // eat type unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options.type_in_left_precedence(right_precedence),
+                    self.options
+                        .type_in_left_precedence(type_unary_operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::TypeUnary {
@@ -1155,32 +1154,32 @@ impl<'a> Parser<'a> {
 
         // eat infix expressions while left precedence is weaker than right precedence
         loop {
-            let (right_operator, operator_len) = {
-                // infix operator on same line
-                if let Ok((right_operator, operator_len)) = self.peek_infix_operator()
+            let (right_operator, operator_offset) = {
+                // infix operator on same line with higher precedence
+                if let Ok((right_operator, operator_offset)) = self.peek_infix_operator()
                     && (self.options.left_precedence.is_none()
                         || self.options.left_precedence.unwrap() < right_operator.precedence())
                 {
-                    (right_operator, operator_len)
+                    (right_operator, operator_offset)
                 }
-                // infix operator on next line
+                // infix operator on next line with higher precedence
                 else if self.peek_token(TokenType::Newline).is_ok()
-                    && let Ok((right_operator, operator_len)) = self.peek_next_infix_operator()
+                    && let Ok((right_operator, operator_offset)) = self.peek_next_infix_operator()
                     && (self.options.left_precedence.is_none()
                         || self.options.left_precedence.unwrap() < right_operator.precedence())
                 {
-                    (right_operator, operator_len)
+                    (right_operator, operator_offset)
                 }
-                // no infix operator, break
+                // no infix operator with higher precedence
                 else {
                     break;
                 }
             };
             if self.peek_token(TokenType::Newline).is_ok() {
-                self.bump(); // eat newline
+                self.eat_newlines_maybe()?; // eat newlines
             }
-            self.bump_by(operator_len); // eat infix operator
-            self.eat_newline_maybe()?; // allow one newline
+            self.bump_by(operator_offset); // eat infix operator
+            self.eat_newline_maybe()?; // allow newlines after infix operator
 
             // eat right expression
             let right_expression_id = self.with_options(
@@ -2695,6 +2694,47 @@ self
         assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
             assert_eq!(*operator, TypeUnaryOperator::AsConst);
             assert_expr_path!(parser, parser.tree.get(*expression), "Value");
+        });
+    }
+
+    /// Parse a type asserts expression.
+    #[test]
+    fn test_parse_type_unary_postfix_asserts_expression() {
+        let mut test = TestParser::new(
+            r"
+function isStringy(value: any): asserts value is string {
+    // ...
+}
+",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        // function isStringy(value: any): asserts value is string { .. }
+        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { meta, dynamic_parameters, return_type, .. } => {
+                // isStringy
+                assert_string!(parser, meta.name.unwrap().string(), "isStringy");
+                assert_eq!(dynamic_parameters.len(), 1);
+                // value: any
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
+                });
+                // asserts value is string
+                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeUnary { operator, expression } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Asserts);
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right, .. } => {
+                        // value is string
+                        assert_expr_path!(parser, parser.tree.get(*left), "value");
+                        // is
+                        assert_eq!(*operator, TypeBinaryOperator::Is);
+                        // string
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::String));
+                    });
+                });
+            });
         });
     }
 
