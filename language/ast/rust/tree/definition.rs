@@ -427,7 +427,7 @@ pub enum FunctionKind {
     Getter,
     /// Setter function.
     Setter,
-    /// Constructor function (alias).
+    /// Constructor function.
     Constructor,
     /// New type constructor function.
     New,

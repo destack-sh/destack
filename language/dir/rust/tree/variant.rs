@@ -1,12 +1,19 @@
 use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, Type, Visibility};
 
-/// The type of a binding (definite or maybe).
+/// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingKind {
     /// Definite binding (like `x: int32`).
     Must,
     /// Maybe binding (like `x?: int32` or just `T?`).
     Maybe,
+}
+
+/// The operator to apply to the binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingOperator {
+    /// Apply `as const` to the value of the binding.
+    AsConst,
 }
 
 /// The modifiers of a field-like item.
@@ -18,6 +25,8 @@ pub struct BindingModifiers {
     pub mutability: Option<Mutability>,
     /// The visibility of the field.
     pub visibility: Option<Visibility>,
+    /// The operator to apply to the binding.
+    pub operator: Option<BindingOperator>,
 }
 
 /// A VariantField is a field of a variant.

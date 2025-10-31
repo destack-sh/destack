@@ -981,6 +981,13 @@ impl Dump for BindingKind {
     }
 }
 
+/// Dump a BindingOperator as a string.
+impl Dump for BindingOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a BindingModifiers as a string.
 impl Dump for BindingModifiers {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -989,6 +996,7 @@ impl Dump for BindingModifiers {
             .field_optional("kind", &self.kind)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)
+            .field_optional("operator", &self.operator)
             .end();
     }
 }
