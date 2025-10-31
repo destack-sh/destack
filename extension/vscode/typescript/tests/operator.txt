@@ -1,0 +1,207 @@
+// SYNTAX TEST "source.ds"
+
+// unary operators
+value++
+//   ^^ keyword.operator.postfix.ds
+
+value--
+//   ^^ keyword.operator.postfix.ds
+
+value?
+//   ^ keyword.operator.postfix.ds
+
+value && !other
+//       ^ keyword.operator.prefix.ds
+
+value | ~other
+//      ^ keyword.operator.prefix.ds
+
+value + -other
+//      ^ keyword.operator.addition.ds
+
+value + -%other
+//      ^^ keyword.operator.addition.ds
+
+// binary operators
+value * other
+//    ^ keyword.operator.multiplication.ds
+
+value *% other
+//    ^^ keyword.operator.multiplication.ds
+
+value *| other
+//    ^^ keyword.operator.multiplication.ds
+
+value/other
+//   ^ keyword.operator.multiplication.ds
+
+value % other
+//    ^ keyword.operator.multiplication.ds
+
+value + other
+//    ^ keyword.operator.addition.ds
+
+value +% other
+//    ^^ keyword.operator.addition.ds
+
+value +| other
+//    ^^ keyword.operator.addition.ds
+
+value - other
+//    ^ keyword.operator.addition.ds
+
+value -% other
+//    ^^ keyword.operator.addition.ds
+
+value -| other
+//    ^^ keyword.operator.addition.ds
+
+value << other
+//    ^^ keyword.operator.shift.ds
+
+value <<| other
+//    ^^^ keyword.operator.shift.ds
+
+value >> other
+//    ^^ keyword.operator.shift.ds
+
+value & other
+//    ^ keyword.operator.elementwise.ds
+
+value ^ other
+//    ^ keyword.operator.elementwise.ds
+
+value | other
+//    ^ keyword.operator.elementwise.ds
+
+value == other
+//    ^^ keyword.operator.comparison.ds
+
+value != other
+//    ^^ keyword.operator.comparison.ds
+
+value === other
+//    ^^^ keyword.operator.comparison.ds
+
+value !== other
+//    ^^^ keyword.operator.comparison.ds
+
+value < other
+//    ^ keyword.operator.comparison.ds
+
+value <= other
+//    ^^ keyword.operator.comparison.ds
+
+value > other
+//    ^ keyword.operator.comparison.ds
+
+value >= other
+//    ^^ keyword.operator.comparison.ds
+
+value && other
+//    ^^ keyword.operator.boolean.ds
+
+value || other
+//    ^^ keyword.operator.boolean.ds
+
+value ?? other
+//    ^^ keyword.operator.boolean.ds
+
+// assignment operators
+value = other
+//    ^ keyword.operator.assignment.ds
+
+value *= other
+//    ^^ keyword.operator.assignment.multiplication.ds
+
+value *%= other
+//    ^^^ keyword.operator.assignment.multiplication.ds
+
+value *|= other
+//    ^^^ keyword.operator.assignment.multiplication.ds
+
+value/= other
+//   ^ keyword.operator.assignment.multiplication.ds
+
+value %= other
+//    ^^ keyword.operator.assignment.multiplication.ds
+
+value += other
+//    ^^ keyword.operator.assignment.addition.ds
+
+value +%= other
+//    ^^^ keyword.operator.assignment.addition.ds
+
+value +|= other
+//    ^^^ keyword.operator.assignment.addition.ds
+
+value -= other
+//    ^^ keyword.operator.assignment.addition.ds
+
+value -%= other
+//    ^^^ keyword.operator.assignment.addition.ds
+
+value -|= other
+//    ^^^ keyword.operator.assignment.addition.ds
+
+value <<= other
+//    ^^^ keyword.operator.assignment.shift.ds
+
+value <<|= other
+//    ^^^^ keyword.operator.assignment.shift.ds
+
+value >>= other
+//    ^^^ keyword.operator.assignment.shift.ds
+
+value &= other
+//    ^^ keyword.operator.assignment.elementwise.ds
+
+value ^= other
+//    ^^ keyword.operator.assignment.elementwise.ds
+
+value |= other
+//    ^^ keyword.operator.assignment.elementwise.ds
+
+value &&= other
+//    ^^^ keyword.operator.assignment.boolean.ds
+
+value ||= other
+//    ^^^ keyword.operator.assignment.boolean.ds
+
+value ??= other
+//    ^^^ keyword.operator.assignment.boolean.ds
+
+// type operators
+value as Type
+//    ^^ keyword.operator.type.binary.ds
+
+value is Type
+//    ^^ keyword.operator.type.binary.ds
+
+value instanceof Type
+//    ^^^^^^^^^^ keyword.operator.type.binary.ds
+
+value satisfies Constraint
+//    ^^^^^^^^^ keyword.operator.type.binary.ds
+
+value in collection
+//    ^^ keyword.operator.container.ds
+
+value of entries
+//    ^^ keyword.operator.container.ds
+
+struct Foo implements Bar
+//         ^^^^^^^^^^ keyword.operator.type.binary.ds
+
+// type unary operators
+typeof value
+// <- keyword.operator.type.unary.ds
+
+keyof Foo
+// <- keyword.operator.type.unary.ds
+
+infer T
+// <- keyword.operator.type.unary.ds
+
+call(...args)
+//   ^^^ keyword.operator.prefix.ds

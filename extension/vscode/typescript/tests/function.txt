@@ -1,0 +1,30 @@
+// SYNTAX TEST "source.ds"
+
+// function calls
+compute()
+// <- entity.name.function.call.ds
+
+compute<number>(value)
+// <- entity.name.function.call.ds
+
+obj.method()
+//  ^^^^^^ entity.name.function.call.ds
+
+defer()
+// <- entity.name.function.call.ds
+
+default()
+// <- entity.name.function.call.ds
+
+return()
+// <- entity.name.function.call.ds
+
+import()
+// <- entity.name.function.call.ds
+
+// function definitions
+function compose() {}
+//       ^^^^^^^ entity.name.function.definition.ds
+
+function makeThing<T>(value: T) {}
+//       ^^^^^^^^^ entity.name.function.definition.ds

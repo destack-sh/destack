@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.ds"
+
+const x = 0
+//    ^ variable.other.binding.ds
+
+let field: int32
+//  ^^^^^ variable.other.binding.ds
+
+let optional?: string
+//  ^^^^^^^ variable.other.binding.ds
+
+let default: string
+//  ^^^^^^^ variable.other.binding.ds
+
+let default?: string
+//  ^^^^^^^ variable.other.binding.ds
+
+value => value + 1
+// <- variable.other.binding.ds
+
+let point = { x: 1 }
+//            ^ variable.other.binding.ds
+
+let Board { width, height, cells }
+//          ^^^^^ variable.other.binding.ds
+//                 ^^^^^^ variable.other.binding.ds
+//                         ^^^^^ variable.other.binding.ds
+
+_
+// <- keyword.other.wildcard.ds
+
+let _ = value
+//  ^ keyword.other.wildcard.ds

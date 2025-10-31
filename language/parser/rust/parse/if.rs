@@ -83,7 +83,6 @@ impl<'a> Parser<'a> {
             let else_expr_id = self.with_options(self.options.in_block_slot(), |parser| {
                 parser.eat_expression_as_block()
             })?;
-
             Expression::If {
                 runtime,
                 style: IfStyle::Regular,

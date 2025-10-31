@@ -113,7 +113,7 @@
         "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
-        "test:grammar": "bunx vscode-tmgrammar-test --grammar dyst.tmLanguage.json typescript/tests.txt"
+        "test:grammar": "bunx vscode-tmgrammar-test --grammar dyst.tmLanguage.json \"typescript/tests/*.txt\""
     },
     "dependencies": {},
     "devDependencies": {
