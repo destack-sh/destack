@@ -19,13 +19,31 @@
           "include": "#literal"
         },
         {
+          "include": "#function-definition"
+        },
+        {
+          "include": "#entity-definition"
+        },
+        {
           "include": "#keyword"
         },
         {
-          "include": "#operator"
+          "include": "#wildcard"
         },
         {
-          "include": "#function-definition"
+          "include": "#decorator"
+        },
+        {
+          "include": "#optional-operator"
+        },
+        {
+          "include": "#binding"
+        },
+        {
+          "include": "#path"
+        },
+        {
+          "include": "#operator"
         },
         {
           "include": "#function-call"
@@ -140,7 +158,11 @@
       "patterns": [
         {
           "name": "keyword.operator.postfix.ds",
-          "match": "(?x)(?<=\\w|\\]|\\))(?:\\+\\+|--|!(?![=]))"
+          "match": "(?x)(?<=\\w|\\]|\\))(?:\\+\\+|--|!(?![=])|\\?(?!\\?))"
+        },
+        {
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)(?<=\\w|\\]|\\))\\?(?!\\?)"
         },
         {
           "name": "keyword.operator.prefix.ds",
@@ -197,6 +219,10 @@
         {
           "name": "keyword.operator.boolean.ds",
           "match": "(?x)(?:&&(?!=)|\\|\\|(?!=)|\\?\\?(?!=))"
+        },
+        {
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)\\?(?!\\?)"
         },
         {
           "name": "keyword.operator.container.ds",
@@ -418,13 +444,13 @@
       "patterns": [
         {
           "name": "string.regexp.ds",
-          "begin": "(?x)(?<![\\w$\\)\\]\\}])/(?![/*])",
+          "begin": "(?x)(?<![\\w$\\)\\]\\}])/(?![/*])(?=(?:\\\\.|\\[(?:\\\\.|[^\\]\\n])*\\]|[^/\\n])*/[a-z]*\\b)",
           "beginCaptures": {
             "0": {
               "name": "punctuation.definition.string.begin.ds"
             }
           },
-          "end": "/[a-zA-Z]*",
+          "end": "(?<!\\\\)/(?:[a-z]*)|(?=\\n)",
           "endCaptures": {
             "0": {
               "name": "punctuation.definition.string.end.ds"
@@ -436,17 +462,17 @@
               "match": "\\\\."
             },
             {
-              "name": "constant.other.class.set.ds",
+              "name": "string.regexp.class.ds",
               "begin": "\\[",
+              "end": "\\](?!\\])",
               "beginCaptures": {
                 "0": {
-                  "name": "punctuation.definition.character-class.begin.ds"
+                  "name": "punctuation.section.brackets.begin.ds"
                 }
               },
-              "end": "\\]",
               "endCaptures": {
                 "0": {
-                  "name": "punctuation.definition.character-class.end.ds"
+                  "name": "punctuation.section.brackets.end.ds"
                 }
               },
               "patterns": [
@@ -456,7 +482,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "applyEndPatternLast": true
         }
       ]
     },
@@ -491,6 +518,94 @@
             },
             "2": {
               "name": "entity.name.function.definition.ds"
+            }
+          }
+        }
+      ]
+    },
+    "binding": {
+      "patterns": [
+        {
+          "name": "variable.other.binding.ds",
+          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*[?!]?\\s*:(?!:))"
+        },
+        {
+          "name": "variable.other.binding.ds",
+          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*=(?![=]))"
+        }
+      ]
+    },
+    "wildcard": {
+      "patterns": [
+        {
+          "name": "keyword.other.wildcard.ds",
+          "match": "(?x)(?<!\\w)_(?!\\w)"
+        }
+      ]
+    },
+    "decorator": {
+      "patterns": [
+        {
+          "name": "meta.decorator.call.ds",
+          "match": "(?x)([#@])([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.decorator.ds"
+            },
+            "2": {
+              "name": "entity.name.function.decorator.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.decorator.ds",
+          "match": "(?x)([#@])([A-Za-z_]\\w*)",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.decorator.ds"
+            },
+            "2": {
+              "name": "entity.name.function.decorator.ds"
+            }
+          }
+        }
+      ]
+    },
+    "optional-operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)(?<!\\?)\\?(?!\\?)"
+        }
+      ]
+    },
+    "path": {
+      "patterns": [
+        {
+          "name": "meta.path.segment.ds",
+          "match": "(?x)(\\.)(\\s*)([A-Za-z_]\\w*+)(?!\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "punctuation.accessor.dot.ds"
+            },
+            "3": {
+              "name": "variable.other.member.ds"
+            }
+          }
+        }
+      ]
+    },
+    "entity-definition": {
+      "patterns": [
+        {
+          "name": "meta.entity.definition.ds",
+          "match": "(?x)\\b(struct|interface|extension|module|namespace|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "entity.name.type.definition.ds"
             }
           }
         }

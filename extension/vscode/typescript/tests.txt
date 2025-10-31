@@ -105,6 +105,9 @@ value++
 value--
 //   ^^ keyword.operator.postfix.ds
 
+value?
+//   ^ keyword.operator.postfix.ds
+
 value && !other
 //       ^ keyword.operator.prefix.ds
 
@@ -116,6 +119,79 @@ value + -other
 
 value + -%other
 //      ^^ keyword.operator.addition.ds
+
+// function calls
+compute()
+// <- entity.name.function.call.ds
+
+compute<number>(value)
+// <- entity.name.function.call.ds
+
+obj.method()
+//  ^^^^^^ entity.name.function.call.ds
+
+_
+// <- keyword.other.wildcard.ds
+
+let _ = value
+//  ^ keyword.other.wildcard.ds
+
+#tag
+// <- entity.name.function.decorator.ds
+//^^ entity.name.function.decorator.ds
+
+#tag()
+// <- entity.name.function.decorator.ds
+//^^ entity.name.function.decorator.ds
+
+@decorator
+// <- entity.name.function.decorator.ds
+//^^^^^^^ entity.name.function.decorator.ds
+
+@decorator<T>()
+// <- entity.name.function.decorator.ds
+//^^^^^^^ entity.name.function.decorator.ds
+
+// bindings
+const x = 0
+//    ^ variable.other.binding.ds
+
+let field: int32
+//  ^^^^^ variable.other.binding.ds
+
+let optional?: string
+//  ^^^^^^^ variable.other.binding.ds
+
+value => value + 1
+// <- variable.other.binding.ds
+
+let point = { x: 1 }
+//            ^ variable.other.binding.ds
+
+// entity definitions
+struct Foo {}
+//      ^ entity.name.type.definition.ds
+
+interface Bar {}
+//         ^ entity.name.type.definition.ds
+
+enum(flags) MyEnum {}
+//             ^ entity.name.type.definition.ds
+
+namespace MyNs {}
+//          ^ entity.name.type.definition.ds
+
+// paths
+value.foo.bar
+//      ^ variable.other.member.ds
+//          ^ variable.other.member.ds
+
+value
+  .foo
+//   ^ variable.other.member.ds
+
+value.foo().bar
+//            ^ variable.other.member.ds
 
 // binary operators
 value * other
@@ -300,13 +376,6 @@ infer T
 
 call(...args)
 //   ^^^ keyword.operator.prefix.ds
-
-// function calls
-compute()
-// <- entity.name.function.call.ds
-
-compute<number>(value)
-// <- entity.name.function.call.ds
 
 obj.method()
 //  ^^^^^^ entity.name.function.call.ds
