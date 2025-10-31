@@ -133,7 +133,7 @@ impl<'a> Compiler<'a> {
         let visibility = meta
             .visibility
             .map(|visibility| self.lower_visibility(visibility));
-        let export = meta.export.map(|export| self.lower_export_mode(export));
+        let export = meta.export.map(|export| self.lower_export_type(export));
         DefinitionMeta {
             kind,
             name,

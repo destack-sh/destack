@@ -758,6 +758,7 @@ impl Dump for ExportType {
         match self {
             ExportType::Item => dumper.write_str("ExportType::Item", Some(Color::Yellow)),
             ExportType::Default => dumper.write_str("ExportType::Default", Some(Color::Yellow)),
+            ExportType::Module => dumper.write_str("ExportType::Module", Some(Color::Yellow)),
         }
     }
 }
@@ -1401,6 +1402,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mode,
                 kind,
                 items: _,
+                value: _,
             } => {
                 self.node("Expression::Export", id.id)
                     .field("mode", mode)

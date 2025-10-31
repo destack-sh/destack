@@ -5,10 +5,12 @@ use crate::{Node, NodeType, Path};
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExportType {
-    // Export as regular item (export foo)
+    /// Export as regular item (export foo)
     Item,
-    // Export as default item (export default foo)
+    /// Export as default item (export default foo)
     Default,
+    /// Export as entire module (export * from foo)
+    Module,
 }
 
 /// A DependencyTarget is the target to import from.

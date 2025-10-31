@@ -46,7 +46,7 @@ pub struct DefinitionMeta {
     pub name: Option<StringId> = None,
     /// The visibility of the definition.
     pub visibility: Option<Visibility> = None,
-    /// The export mode of the definition.
+    /// The export type of the definition.
     pub export: Option<ExportType> = None,
 }
 

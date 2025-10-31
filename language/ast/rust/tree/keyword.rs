@@ -18,7 +18,7 @@ pub enum Keyword {
     Static,
     /// Final modifier (reserved).  
     Final,
-    /// Default export mode.
+    /// Default export type.
     Default,
 
     // ------------------------------------------------------------

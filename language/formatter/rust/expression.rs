@@ -1026,21 +1026,26 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // export
             Expression::Export {
                 mode,
-                kind: ty,
+                kind,
                 target,
                 alias,
                 items,
+                value,
             } => {
                 write!(f, [mode, space()])?;
-                if *ty == DependencyKind::Type {
+                if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_dependency_binding(
-                    f,
-                    target.as_ref(),
-                    alias.as_ref().copied(),
-                    items.as_ref(),
-                )?;
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
+                } else {
+                    format_dependency_binding(
+                        f,
+                        target.as_ref(),
+                        alias.as_ref().copied(),
+                        items.as_ref(),
+                    )?;
+                }
             }
 
             // let

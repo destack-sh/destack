@@ -8,11 +8,12 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
-    /// Lower an export mode to a DIR export mode.
-    pub fn lower_export_mode(&mut self, export_mode: ast::ExportType) -> ExportType {
-        match export_mode {
+    /// Lower an export type to a DIR export type.
+    pub fn lower_export_type(&mut self, export_type: ast::ExportType) -> ExportType {
+        match export_type {
             ast::ExportType::Item => ExportType::Item,
             ast::ExportType::Default => ExportType::Default,
+            ast::ExportType::Module => ExportType::Module,
         }
     }
 
