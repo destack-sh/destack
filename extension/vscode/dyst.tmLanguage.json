@@ -34,6 +34,9 @@
           "include": "#decorator"
         },
         {
+          "include": "#tsx"
+        },
+        {
           "include": "#optional-operator"
         },
         {
@@ -566,6 +569,25 @@
             },
             "2": {
               "name": "entity.name.function.decorator.ds"
+            }
+          }
+        }
+      ]
+    },
+    "tsx": {
+      "patterns": [
+        {
+          "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx",
+          "match": "(?x)(?<![\\w>])(<\\/?)([A-Za-z_][\\w-]*)(?:\\.([A-Za-z_][\\w-]*))?",
+          "captures": {
+            "1": {
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx punctuation.definition.tag.tsx"
+            },
+            "2": {
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx entity.name.tag.tsx"
+            },
+            "3": {
+              "name": "source.tsx meta.function.tsx meta.block.tsx meta.tag.tsx entity.name.tag.tsx"
             }
           }
         }
