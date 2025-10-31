@@ -171,6 +171,11 @@ let point = { x: 1 }
 const node = <div class="greeting" />
 //            ^^^ entity.name.tag.tsx
 
+let Board { width, height, cells }
+//          ^^^^^ variable.other.binding.ds
+//                 ^^^^^^ variable.other.binding.ds
+//                         ^^^^^ variable.other.binding.ds
+
 const fragment = <test.MyComponent flag arg={true} />
 //                ^^^^  ^^^^^^^^ entity.name.tag.tsx
 //                                  ^^^ entity.other.attribute-name.tsx
