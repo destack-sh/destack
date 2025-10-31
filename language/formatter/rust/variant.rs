@@ -1,4 +1,4 @@
-use dyst_ast::{BindingKind, BindingModifiers, DeclarationScope, Keyword, Mutability};
+use dyst_ast::{BindingKind, BindingModifiers, BindingOperator, DeclarationScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -18,6 +18,9 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     }
     if modifiers.mutability == Some(Mutability::Immutable) {
         write!(f, [Keyword::Readonly, space()])?;
+    }
+    if modifiers.operator == Some(BindingOperator::AsConst) {
+        write!(f, [Keyword::Const, space()])?;
     }
     Ok(())
 }

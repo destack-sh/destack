@@ -276,8 +276,10 @@ pub enum FunctionKind {
     Getter,
     /// Setter function.
     Setter,
-    /// Constructor function (alias).
+    /// Constructor function.
     Constructor,
+    /// New type constructor.
+    New,
 }
 
 /// The abstraction level of a definition.

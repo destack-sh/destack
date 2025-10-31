@@ -64,6 +64,7 @@ impl<'a> Compiler<'a> {
             ast::FunctionKind::Getter => FunctionKind::Getter,
             ast::FunctionKind::Setter => FunctionKind::Setter,
             ast::FunctionKind::Constructor => FunctionKind::Constructor,
+            ast::FunctionKind::New => FunctionKind::New,
         }
     }
 

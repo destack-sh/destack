@@ -1,6 +1,6 @@
 use dyst_ast::{
-    BindingKind, BindingModifiers, Expression, Keyword, Mutability, Name, Pattern, ScalarLiteral,
-    StringId,
+    BindingKind, BindingModifiers, BindingOperator, Expression, Keyword, Mutability, Name, Pattern,
+    ScalarLiteral, StringId,
 };
 
 use crate::parse::prelude::*;
@@ -25,6 +25,14 @@ impl<'a> Parser<'a> {
                 modifiers = Some(BindingModifiers::default());
             }
             modifiers.as_mut().unwrap().mutability = Some(Mutability::Immutable);
+        }
+        // operator
+        if self.peek_keyword(Keyword::Const).is_ok() {
+            self.bump(); // eat const
+            if modifiers.is_none() {
+                modifiers = Some(BindingModifiers::default());
+            }
+            modifiers.as_mut().unwrap().operator = Some(BindingOperator::AsConst);
         }
         Ok(modifiers)
     }
@@ -613,7 +621,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{BindingKind, Name, Pattern, PatternField};
+    use dyst_ast::{
+        BindingKind, BindingOperator, Mutability, Name, Pattern, PatternField, Visibility,
+    };
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -742,6 +752,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_parameter_with_modifiers() {
+        // private readonly const x: 1
+        let mut test = TestParser::new("private readonly const x: 1");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), .. } => {
+            assert_eq!(modifiers.visibility, Some(Visibility::Private));
+            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+        });
+    }
+
+    #[test]
     fn test_parse_argument_named() {
         // x: 1
         let mut test = TestParser::new("x: 1");
@@ -838,6 +861,19 @@ mod tests {
             assert_expr_path!(parser, parser.tree.get(*key), "string");
             // any
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_with_modifiers() {
+        // private readonly const x: 1
+        let mut test = TestParser::new("private readonly const x: 1");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: Some(modifiers), .. } => {
+            assert_eq!(modifiers.visibility, Some(Visibility::Private));
+            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
         });
     }
 }
