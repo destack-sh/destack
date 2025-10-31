@@ -22,9 +22,6 @@
           "include": "#keyword"
         },
         {
-          "include": "#path"
-        },
-        {
           "include": "#operator"
         }
       ]
@@ -101,7 +98,7 @@
         },
         {
           "name": "keyword.operator.type.ds",
-          "match": "\\b(?:extends|implements|satisfies|instanceof|tuple|where|typeof|keyof|infer|as|is|in|of)\\b"
+          "match": "\\b(?:tuple|where)\\b"
         },
         {
           "name": "keyword.other.type.ds",
@@ -136,72 +133,72 @@
     "operator": {
       "patterns": [
         {
-          "name": "keyword.operator.assignment.compound.ds",
-          "match": "(?x)(?:<<\\|=|\\?\\?=|\\|\\|=|&&=|\\+\\|=|\\+%=|\\*\\|=|\\*%=|-\\|=|-%=|<<=|>>=|\\+=|-=|\\*=|/=|%=|&=|\\^=|\\|=)"
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)(?<=\\w|\\]|\\))(?:\\+\\+|--|!(?![=]))"
         },
         {
-          "name": "keyword.operator.logical.ds",
-          "match": "(?x)(?:\\?\\?|&&|\\|\\|)"
+          "name": "keyword.operator.prefix.ds",
+          "match": "(?x)(?<!\\w)(?:\\+\\+(?=\\s*[\\w(])|--(?=\\s*[\\w(])|!(?![=])|~|\\.\\.\\.)"
+        },
+        {
+          "name": "keyword.operator.type.unary.ds",
+          "match": "\\b(?:typeof|keyof|infer)\\b"
+        },
+        {
+          "name": "keyword.operator.multiplication.ds",
+          "match": "(?x)(?:\\*\\*(?!=)|\\*\\|(?!=)|\\*%(?!=)|\\*(?![=|%])|/(?![=])|%(?![=]))"
+        },
+        {
+          "name": "keyword.operator.addition.ds",
+          "match": "(?x)(?:\\+\\|(?!=)|\\+%(?!=)|\\+(?![=|%+])|-\\|(?!=)|-%(?!=)|-(?![=>=\\-\\|%]))"
         },
         {
           "name": "keyword.operator.shift.ds",
-          "match": "(?x)(?:<<\\||<<|>>)"
+          "match": "(?x)(?:<<\\|(?!=)|<<(?![=|])|>>(?![=]))"
+        },
+        {
+          "name": "keyword.operator.elementwise.ds",
+          "match": "(?x)(?:&(?![&=])|\\^(?!=)|\\|(?![|=]))"
+        },
+        {
+          "name": "keyword.operator.assignment.ds",
+          "match": "=(?![=>])"
+        },
+        {
+          "name": "keyword.operator.assignment.multiplication.ds",
+          "match": "(?x)(?:\\*\\*=|\\*\\|=|\\*%=|\\*=|/=|%=)"
+        },
+        {
+          "name": "keyword.operator.assignment.addition.ds",
+          "match": "(?x)(?:\\+\\|=|\\+%=|\\+=|-\\|=|-%=|-=)"
+        },
+        {
+          "name": "keyword.operator.assignment.shift.ds",
+          "match": "(?x)(?:<<\\|=|<<=|>>=)"
+        },
+        {
+          "name": "keyword.operator.assignment.elementwise.ds",
+          "match": "(?x)(?:&=|\\^=|\\|=)"
+        },
+        {
+          "name": "keyword.operator.assignment.boolean.ds",
+          "match": "(?x)(?:&&=|\\|\\|=|\\?\\?=)"
         },
         {
           "name": "keyword.operator.comparison.ds",
           "match": "(?x)(?:===|!==|==|!=|<=|>=|<|>)"
         },
         {
-          "name": "keyword.operator.assignment.ds",
-          "match": "="
+          "name": "keyword.operator.boolean.ds",
+          "match": "(?x)(?:&&(?!=)|\\|\\|(?!=)|\\?\\?(?!=))"
         },
         {
-          "name": "keyword.operator.increment.ds",
-          "match": "(?x)(?:\\+\\+|--)"
+          "name": "keyword.operator.container.ds",
+          "match": "\\b(?:in|of)\\b"
         },
         {
-          "name": "keyword.operator.spread.ds",
-          "match": "\\.\\.\\."
-        },
-        {
-          "name": "keyword.operator.arithmetic.ds",
-          "match": "(?x)(?:\\+\\||\\+%|\\+|-\\||-%|-|\\*\\||\\*%|\\*|/|%)"
-        },
-        {
-          "name": "keyword.operator.bitwise.ds",
-          "match": "(?x)(?:~|&|\\^|\\|)"
-        },
-        {
-          "name": "keyword.operator.logical.not.ds",
-          "match": "!"
-        }
-      ]
-    },
-    "path": {
-      "patterns": [
-        {
-          "name": "meta.path.ds",
-          "begin": "(?x)\\b([A-Za-z_$][\\w$]*)\\b(?=\\s*(?:\\r?\\n\\s*(?://[^\\r\\n]*)?)*\\s*\\.\\s*[A-Za-z_$])",
-          "beginCaptures": {
-            "1": {
-              "name": "entity.name.path.segment.ds"
-            }
-          },
-          "end": "(?x)(?=\\s*(?:[^\\s./]|$))",
-          "patterns": [
-            {
-              "name": "meta.path.segment.ds",
-              "match": "(?x)\\G\\s*(?:\\r?\\n\\s*(?://[^\\r\\n]*)?)*\\s*(\\.)\\s*([A-Za-z_$][\\w$]*)",
-              "captures": {
-                "1": {
-                  "name": "punctuation.accessor.dot.ds"
-                },
-                "2": {
-                  "name": "entity.name.path.segment.ds"
-                }
-              }
-            }
-          ]
+          "name": "keyword.operator.type.binary.ds",
+          "match": "\\b(?:as|is|instanceof|satisfies|extends|implements)\\b"
         }
       ]
     },
