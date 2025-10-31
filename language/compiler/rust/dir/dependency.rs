@@ -101,9 +101,9 @@ impl<'a> Compiler<'a> {
                 let path = self.lower_path(source_id, ast, path);
                 DirDependencyTarget::Path(path)
             }
-            ast::DependencyTarget::Virtual(string_id) => {
+            ast::DependencyTarget::String(string_id) => {
                 let string_id = self.lower_string_id(source_id, *string_id);
-                DirDependencyTarget::Virtual(string_id)
+                DirDependencyTarget::String(string_id)
             }
         }
     }

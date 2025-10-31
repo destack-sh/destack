@@ -1035,9 +1035,9 @@ impl Dump for DependencyTarget {
             DependencyTarget::Path(path) => {
                 dumper.object("DependencyTarget::Path").value(path).end();
             }
-            DependencyTarget::Virtual(string) => {
+            DependencyTarget::String(string) => {
                 dumper
-                    .object("DependencyTarget::Virtual")
+                    .object("DependencyTarget::String")
                     .value(string)
                     .end();
             }
@@ -1515,7 +1515,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeUnary { operator, expression: _ } => {
+            Expression::TypeUnary {
+                operator,
+                expression: _,
+            } => {
                 self.node("Expression::TypeUnary", _id.id)
                     .field("operator", operator)
                     .end();

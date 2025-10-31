@@ -10,7 +10,7 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::block::format_block;
-use crate::import::format_dependency_binding;
+use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
@@ -1531,7 +1531,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // type unary
-            Expression::TypeUnary { operator, expression: right } => match operator {
+            Expression::TypeUnary {
+                operator,
+                expression: right,
+            } => match operator {
                 TypeUnaryOperator::Type
                 | TypeUnaryOperator::Readonly
                 | TypeUnaryOperator::Typeof

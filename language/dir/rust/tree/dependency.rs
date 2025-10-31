@@ -16,8 +16,8 @@ pub enum ExportType {
 pub enum DependencyTarget {
     // Regular Path target as an identifier/path (like `foo` or `foo.bar`)
     Path(Path),
-    // Virtual string target as a literal string (like `"foo"` or `"foo/bar"`)
-    Virtual(StringId),
+    // Module string target as a literal string (like `"foo"` or `"foo/bar"`)
+    String(StringId),
 }
 
 /// The type of a dependency item.
@@ -29,21 +29,22 @@ pub enum DependencyKind {
     Value,
 }
 
-/// A DependencyItem is an item to import from a target in a import clause.
-///
-/// Examples:
-/// ```
-/// baz
-/// qux as quux
-/// ```
+/// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DependencyItem {
-    /// The type of the item (if specified).
-    pub kind: Option<DependencyKind>,
-    /// The source of the item (like `foo` in `foo as bar`)
-    pub name: StringId,
-    /// The alias to use for the item (like `bar` in `foo as bar`)
-    pub alias: Option<StringId>,
+pub enum DependencyItem {
+    /// Import all items from a target (`import * from foo` or `export * from foo`).
+    Glob {
+        kind: DependencyKind,
+        target: DependencyTarget,
+        alias: Option<StringId>,
+    },
+    /// Import a single item from a target (or current scope when target is None) (`import foo` or `export foo`).
+    Scalar {
+        kind: DependencyKind,
+        target: Option<DependencyTarget>,
+        name: StringId,
+        alias: Option<StringId>,
+    },
 }
 
 impl Node for DependencyItem {
