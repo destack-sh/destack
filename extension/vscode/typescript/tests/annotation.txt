@@ -1,0 +1,32 @@
+// SYNTAX TEST "source.ds"
+
+const node = <div class="greeting" />
+//            ^^^ entity.name.tag.tsx
+
+const fragment = <test.MyComponent flag arg={true} />
+//                ^^^^  ^^^^^^^^ entity.name.tag.tsx
+//                                  ^^^ entity.other.attribute-name.tsx
+//                                      ^^^ entity.other.attribute-name.tsx
+
+return (
+  <Button>
+//   ^ entity.name.tag.tsx
+  </Button>
+//    ^ entity.name.tag.tsx
+)
+
+#tag
+// <- entity.name.function.decorator.ds
+//^^ entity.name.function.decorator.ds
+
+#tag()
+// <- entity.name.function.decorator.ds
+//^^ entity.name.function.decorator.ds
+
+@decorator
+// <- entity.name.function.decorator.ds
+//^^^^^^^ entity.name.function.decorator.ds
+
+@decorator<T>()
+// <- entity.name.function.decorator.ds
+//^^^^^^^ entity.name.function.decorator.ds

@@ -1,0 +1,30 @@
+// SYNTAX TEST "source.ds"
+
+struct Foo {}
+//      ^ entity.name.type.definition.ds
+
+interface Bar {}
+//         ^ entity.name.type.definition.ds
+
+enum(flags) MyEnum {}
+//             ^ entity.name.type.definition.ds
+
+namespace MyNs {}
+//          ^ entity.name.type.definition.ds
+
+value.foo.bar
+//      ^ variable.other.member.ds
+//          ^ variable.other.member.ds
+
+value
+  .foo
+//   ^ variable.other.member.ds
+
+value.foo().bar
+//            ^ variable.other.member.ds
+
+0..this.count
+//  ^ keyword.other.context.ds
+
+...spread.member
+//         ^ variable.other.member.ds
