@@ -130,6 +130,24 @@ compute<number>(value)
 obj.method()
 //  ^^^^^^ entity.name.function.call.ds
 
+defer()
+// <- entity.name.function.call.ds
+
+default()
+// <- entity.name.function.call.ds
+
+return()
+// <- entity.name.function.call.ds
+
+import()
+// <- entity.name.function.call.ds
+
+defer: 
+// <- variable.other.binding.ds
+
+defer {}
+// <- keyword.control.flow.ds
+
 _
 // <- keyword.other.wildcard.ds
 
@@ -160,6 +178,12 @@ let field: int32
 //  ^^^^^ variable.other.binding.ds
 
 let optional?: string
+//  ^^^^^^^ variable.other.binding.ds
+
+let default: string
+//  ^^^^^^^ variable.other.binding.ds
+
+let default?: string
 //  ^^^^^^^ variable.other.binding.ds
 
 value => value + 1
