@@ -4,6 +4,9 @@ use crate::{Expression, ParserError, Path, TokenType};
 
 use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability};
 
+// nocheckin TODO #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
+//  (and how does this interact with let/const expressions, bindings/arguments/parameters/fields, ..)
+
 impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParserResult<()> {
@@ -37,10 +40,10 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
-    /// var
-    /// const
-    /// var(x, y)
-    /// const(session.source)
+    /// mut
+    /// readonly
+    /// mut(x, y)
+    /// readonly(session.source)
     /// ```
     pub fn eat_scoped_mutability(&mut self) -> ParserResult<ScopedMutability> {
         // mutability

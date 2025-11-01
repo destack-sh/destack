@@ -1,6 +1,8 @@
 import destack.simulation
 
 /// A 2-dimensional vector with float32 components.
+
+
 export struct Vector2 {
     x: float32
     y: float32
@@ -318,7 +320,16 @@ extension Vector3 {
     }
 }
 
-extension Vector3 implements Add<float32> {
+extension Vector3 implements (
+    Add<float32>,
+    Subtract<float32>,
+    Multiply<float32>,
+    Divide<float32>,
+    Add<Vector3>,
+    Subtract<Vector3>,
+    Multiply<Vector3>,
+    Divide<Vector3>,
+) {
     function add(other: float32): Vector3 {
         Vector3 {
             x: this.x + other,
@@ -326,9 +337,7 @@ extension Vector3 implements Add<float32> {
             z: this.z + other,
         }
     }
-}
 
-extension Vector3 implements Add<Vector3> {
     function add(other: Vector3): Vector3 {
         Vector3 {
             x: this.x + other.x,
@@ -336,9 +345,7 @@ extension Vector3 implements Add<Vector3> {
             z: this.z + other.z,
         }
     }
-}
 
-extension Vector3 implements Subtract<float32> {
     function subtract(other: float32): Vector3 {
         Vector3 {
             x: this.x - other,
@@ -346,9 +353,7 @@ extension Vector3 implements Subtract<float32> {
             z: this.z - other,
         }
     }
-}
 
-extension Vector3 implements Subtract<Vector3> {
     function subtract(other: Vector3): Vector3 {
         Vector3 {
             x: this.x - other.x,
@@ -356,9 +361,7 @@ extension Vector3 implements Subtract<Vector3> {
             z: this.z - other.z,
         }
     }
-}
 
-extension Vector3 implements Multiply<float32> {
     function multiply(other: float32): Vector3 {
         Vector3 {
             x: this.x * other,
@@ -366,9 +369,7 @@ extension Vector3 implements Multiply<float32> {
             z: this.z * other,
         }
     }
-}
 
-extension Vector3 implements Multiply<Vector3> {
     function multiply(other: Vector3): Vector3 {
         Vector3 {
             x: this.x * other.x,
@@ -376,9 +377,7 @@ extension Vector3 implements Multiply<Vector3> {
             z: this.z * other.z,
         }
     }
-}
 
-extension Vector3 implements Divide<float32> {
     function divide(other: float32): Vector3 {
         Vector3 {
             x: this.x / other,

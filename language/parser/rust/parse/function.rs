@@ -220,7 +220,7 @@ impl<'a> Parser<'a> {
         };
 
         // kind
-        let kind = {
+        let mut kind = {
             // getter
             if self.peek_keyword(Keyword::Get).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
@@ -453,7 +453,10 @@ impl<'a> Parser<'a> {
                 Some(body)
             }
             // lambda with body
-            else if style == FunctionStyle::Lambda && !self.options.in_type {
+            else if style == FunctionStyle::Lambda
+                && !self.options.in_type
+                && self.peek_arrow().is_ok()
+            {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
                 let body = self.with_options(self.options.in_block_slot(), |parser| {
@@ -466,6 +469,11 @@ impl<'a> Parser<'a> {
                 None
             }
         };
+
+        // turn into call if we don't have a name or body
+        if meta.name.is_none() && kind.is_none() && body.is_none() {
+            kind = Some(FunctionKind::Call);
+        }
 
         // function
         let asynchrony = if is_async {
@@ -504,7 +512,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter, ReferenceType,
+        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
+        ReferenceType,
     };
 
     use crate::parse::tests::TestParser;
@@ -566,6 +575,35 @@ mod tests {
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_lambda_call_expression() {
+        let mut test = TestParser::new("<T = any>(x: T): T");
+        let mut parser = test.prepare();
+        let function_id = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
+        // <T = any>(x: T): T
+        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, style, static_parameters, dynamic_parameters, return_type, .. } => {
+            assert_eq!(meta.name, None);
+            assert_eq!(*style, FunctionStyle::Lambda);
+            assert_eq!(*kind, Some(FunctionKind::Call));
+            // <T = any>
+            assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
+            assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty: None, default, .. } => {
+                assert_string!(parser, *name, "T");
+                assert_node!(parser.tree, default.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
+            });
+            // x: T
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
+            });
+            // T
+            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
         });
     }
 
@@ -765,7 +803,7 @@ function b(
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
         let mut test = TestParser::new("function c(&var self) {}");
-        let mut parser = test.prepare();    
+        let mut parser = test.prepare();
 
         let function_id = parser
             .eat_function(DefinitionMeta::default(), false, false)

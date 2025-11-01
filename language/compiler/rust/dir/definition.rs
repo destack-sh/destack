@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics,
-    NodeId, ReferenceStyle,
+    NodeId, StructStyle,
 };
 use dyst_source::SourceId;
 
@@ -298,8 +298,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let meta = self.lower_definition_meta(source_id, meta);
                 let style = match style {
-                    ast::ReferenceStyle::Struct => ReferenceStyle::Struct,
-                    ast::ReferenceStyle::Class => ReferenceStyle::Class,
+                    ast::StructStyle::Struct => StructStyle::Struct,
+                    ast::StructStyle::Class => StructStyle::Class,
                 };
                 let generics = self.lower_generics(
                     source_id,

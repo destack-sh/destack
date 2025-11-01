@@ -121,7 +121,7 @@ pub enum Definition {
     /// ```
     Struct {
         meta: DefinitionMeta,
-        style: ReferenceStyle,
+        style: StructStyle,
         kind: VariantKind,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
@@ -401,7 +401,7 @@ impl Definition {
 
 /// The style of a struct or class.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ReferenceStyle {
+pub enum StructStyle {
     /// Struct.
     Struct,
     /// Class.
@@ -428,8 +428,10 @@ pub enum FunctionKind {
     Setter,
     /// Constructor function.
     Constructor,
-    /// New type constructor function.
+    /// New type function.
     New,
+    /// Implicit call function.
+    Call,
 }
 
 /// The abstraction level of a definition.
@@ -448,12 +450,13 @@ pub enum FunctionAbstraction {
 impl FunctionKind {
     /// Get the keyword for the function accessor.
     #[inline]
-    pub fn to_keyword(&self) -> Keyword {
+    pub fn to_keyword(&self) -> Option<Keyword> {
         match self {
-            FunctionKind::Getter => Keyword::Get,
-            FunctionKind::Setter => Keyword::Set,
-            FunctionKind::Constructor => Keyword::Constructor,
-            FunctionKind::New => Keyword::New,
+            FunctionKind::Getter => Some(Keyword::Get),
+            FunctionKind::Setter => Some(Keyword::Set),
+            FunctionKind::Constructor => Some(Keyword::Constructor),
+            FunctionKind::New => Some(Keyword::New),
+            FunctionKind::Call => None,
         }
     }
 }

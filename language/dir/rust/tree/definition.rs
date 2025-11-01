@@ -86,7 +86,7 @@ pub enum Definition {
     /// Struct or class definition.
     Struct {
         meta: DefinitionMeta,
-        style: ReferenceStyle,
+        style: StructStyle,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variant: NodeId<Variant>,
@@ -249,7 +249,7 @@ impl Node for Definition {
 
 /// The style of a struct or class.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ReferenceStyle {
+pub enum StructStyle {
     /// Struct.
     Struct,
     /// Class.
@@ -278,6 +278,8 @@ pub enum FunctionKind {
     Constructor,
     /// New type constructor.
     New,
+    /// Implicit call function.
+    Call,
 }
 
 /// The abstraction level of a definition.

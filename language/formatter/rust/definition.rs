@@ -8,7 +8,9 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, ReferenceType, Visibility
+    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceType, StructStyle,
+    Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -204,8 +206,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // keyword
                 match style {
-                    ReferenceStyle::Struct => write!(f, [Keyword::Struct])?,
-                    ReferenceStyle::Class => write!(f, [Keyword::Class])?,
+                    StructStyle::Struct => write!(f, [Keyword::Struct])?,
+                    StructStyle::Class => write!(f, [Keyword::Class])?,
                 }
                 if let Some(representation_type) = representation_type {
                     write!(f, [token("("), representation_type, token(")")])?;
@@ -853,21 +855,21 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
+                // name (with @)
                 if *style == FunctionStyle::Function {
-                    // name (with @)
                     if *runtime == Runtime::Static {
                         write!(f, [token("@")])?;
                     }
                     if let Some(name) = meta.name {
                         write!(f, [name])?;
                     }
+                }
 
-                    // static parameters
-                    if let Some(static_parameters) = &static_parameters
-                        && !static_parameters.is_empty()
-                    {
-                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                    }
+                // static parameters
+                if let Some(static_parameters) = &static_parameters
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // self parameter and dynamic parameters
