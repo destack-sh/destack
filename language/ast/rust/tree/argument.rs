@@ -96,12 +96,6 @@ pub enum Argument {
         modifiers: Option<BindingModifiers>,
         name: StringId,
     },
-    /// Named shorthand function argument (like `foo()`, only in certain contexts like struct literals).
-    Function {
-        modifiers: Option<BindingModifiers>,
-        name: Name,
-        value: NodeId<Expression>,
-    },
     /// Positional argument (like `1` or `foo()`).
     Positional {
         modifiers: Option<BindingModifiers>,
@@ -115,6 +109,19 @@ pub enum Argument {
     },
     /// Dynamic argument (like `{ [variable]: 2 }`).
     Dynamic {
+        modifiers: Option<BindingModifiers>,
+        name: Option<StringId>,
+        key: NodeId<Expression>,
+        value: NodeId<Expression>,
+    },
+    /// Named shorthand function argument (like `foo()` or `<T>(): T`, only in struct literals).
+    Function {
+        modifiers: Option<BindingModifiers>,
+        name: Option<Name>,
+        value: NodeId<Expression>,
+    },
+    /// Dynamic function argument (like `[x: string](): T`, only in struct literals).
+    DynamicFunction {
         modifiers: Option<BindingModifiers>,
         name: Option<StringId>,
         key: NodeId<Expression>,

@@ -40,16 +40,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
                 // value
                 write!(f, [token("="), value])?;
             }
-            Argument::Function {
-                modifiers: _,
-                name,
-                value,
-            } => {
-                // name
-                write!(f, [name])?;
-                // value
-                write!(f, [token("="), value])?;
-            }
+
             Argument::Shorthand { modifiers: _, name } => {
                 // name
                 write!(f, [name])?;
@@ -72,6 +63,32 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
                 write!(f, [value])?;
             }
             Argument::Dynamic {
+                modifiers: _,
+                name,
+                key,
+                value,
+            } => {
+                // key
+                write!(f, [token("[")])?;
+                // name
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [key, token("]")])?;
+                // value
+                write!(f, [token("="), value])?;
+            }
+            Argument::Function {
+                modifiers: _,
+                name,
+                value,
+            } => {
+                // name
+                write!(f, [name])?;
+                // value
+                write!(f, [token("="), value])?;
+            }
+            Argument::DynamicFunction {
                 modifiers: _,
                 name,
                 key,

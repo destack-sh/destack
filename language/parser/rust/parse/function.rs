@@ -446,7 +446,7 @@ impl<'a> Parser<'a> {
             }
             // function with body
             if style == FunctionStyle::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(self.options.in_block_slot(), |parser| {
+                let body = self.with_options(self.options.in_block_position(), |parser| {
                     parser.eat_expression()
                 })?;
                 Some(body)
@@ -458,7 +458,7 @@ impl<'a> Parser<'a> {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let body = self.with_options(self.options.in_block_slot(), |parser| {
+                let body = self.with_options(self.options.in_block_position(), |parser| {
                     parser.eat_expression()
                 })?;
                 Some(body)

@@ -162,25 +162,6 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::Function {
-                modifiers,
-                name,
-                value,
-            } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
-                let name = self.intern_string(source_id, name.string());
-                let value = self.lower_expression(source_id, ast, *value);
-                self.tree.insert_from_ast(
-                    Argument::UnresolvedNamed {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                    source_id,
-                    argument_id,
-                )
-            }
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
@@ -232,6 +213,7 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
+            _ => todo!("lower_argument({argument:?})"),
         }
     }
 }

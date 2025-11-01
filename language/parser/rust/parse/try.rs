@@ -47,7 +47,11 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat keyword
                 // no pattern or catch match
                 if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
-                    (Some(self.eat_expression()?), None)
+                    let catch_expression = self
+                        .with_options(self.options.in_block_position(), |parser| {
+                            parser.eat_expression()
+                        })?;
+                    (Some(catch_expression), None)
                 }
                 // catch pattern with expression content
                 else {
@@ -55,7 +59,10 @@ impl<'a> Parser<'a> {
                         .with_options(self.options.in_before_block(), |parser| {
                             parser.eat_pattern()
                         })?;
-                    let catch_expression = self.eat_expression()?;
+                    let catch_expression = self
+                        .with_options(self.options.in_block_position(), |parser| {
+                            parser.eat_expression()
+                        })?;
                     (Some(catch_expression), Some(catch_pattern))
                 }
             } else {
@@ -66,7 +73,7 @@ impl<'a> Parser<'a> {
             let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
                 self.bump(); // eat keyword
                 let finally_expression = self
-                    .with_options(self.options.in_block_slot(), |parser| {
+                    .with_options(self.options.in_block_position(), |parser| {
                         parser.eat_expression()
                     })?;
                 Some(finally_expression)

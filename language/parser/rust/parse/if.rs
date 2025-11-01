@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
 
         // then block
-        let then_expression_id = self.with_options(self.options.in_block_slot(), |parser| {
+        let then_expression_id = self.with_options(self.options.in_block_position(), |parser| {
             parser.eat_expression_as_block()
         })?;
 
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
             self.bump(); // eat else
             self.eat_newlines_maybe()?;
-            let else_expr_id = self.with_options(self.options.in_block_slot(), |parser| {
+            let else_expr_id = self.with_options(self.options.in_block_position(), |parser| {
                 parser.eat_expression_as_block()
             })?;
             Expression::If {

@@ -1997,16 +1997,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Argument::Function {
-                modifiers,
-                name,
-                value: _,
-            } => {
-                self.node("Argument::Function", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("name", name)
-                    .end();
-            }
             Argument::Positional {
                 modifiers,
                 value: _,
@@ -2032,6 +2022,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 value: _,
             } => {
                 self.node("Argument::Dynamic", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("name", name)
+                    .end();
+            }
+            Argument::Function {
+                modifiers,
+                name,
+                value: _,
+            } => {
+                self.node("Argument::Function", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("name", name)
+                    .end();
+            }
+            Argument::DynamicFunction {
+                modifiers,
+                name,
+                key: _,
+                value: _,
+            } => {
+                self.node("Argument::DynamicFunction", _id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();

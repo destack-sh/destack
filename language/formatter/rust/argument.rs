@@ -260,20 +260,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Function {
-                modifiers,
-                name,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // name
-                write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                write!(f, [token(":"), space(), value])?;
-            }
             Argument::Positional { modifiers, value } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -300,6 +286,40 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 write!(f, [value])?;
             }
             Argument::Dynamic {
+                modifiers,
+                name,
+                key,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(f, [token("[")])?;
+                // name
+                if let Some(name) = name {
+                    write!(f, [name, token(":"), space()])?;
+                }
+                write!(f, [key, token("]")])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
+            Argument::Function {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
+            Argument::DynamicFunction {
                 modifiers,
                 name,
                 key,

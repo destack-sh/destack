@@ -1206,14 +1206,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         } => {
             // no child nodes to visit
         }
-        Argument::Function {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
+
         Argument::Positional {
             modifiers: _,
             value,
@@ -1230,6 +1223,25 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Dynamic {
+            modifiers: _,
+            name: _,
+            key,
+            value,
+        } => {
+            let key_expr = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expr);
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        Argument::Function {
+            modifiers: _,
+            name: _,
+            value,
+        } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        Argument::DynamicFunction {
             modifiers: _,
             name: _,
             key,
