@@ -2,8 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantKind};
 use crate::{
-    Asynchrony, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Runtime,
-    ScopedMutability, Visibility, WhereClause, WithClause,
+    Asynchrony, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
 };
 
 /// The kind of declaration.
@@ -548,6 +547,8 @@ pub enum FunctionStyle {
 /// var self
 /// &self
 /// &var self
+/// ^self
+/// ^var self
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
@@ -555,8 +556,8 @@ pub struct SelfParameter {
     pub keyword: Keyword,
     /// Whether the self parameter is mutable.
     pub mutability: ScopedMutability,
-    /// Whether the self parameter is a pointer.
-    pub is_reference: bool,
+    /// The reference type of the self parameter.
+    pub reference_type: Option<ReferenceType>,
     /// The type of the self parameter.
     pub ty: Option<NodeId<Expression>>,
 }

@@ -825,6 +825,13 @@ impl Dump for Asynchrony {
     }
 }
 
+/// Dump a ReferenceType as a string.
+impl Dump for ReferenceType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -908,7 +915,7 @@ impl Dump for SelfParameter {
         dumper
             .object("SelfParameter")
             .field("mutability", &self.mutability)
-            .field("is_reference", &self.is_reference)
+            .field("reference_type", &self.reference_type)
             .end();
     }
 }

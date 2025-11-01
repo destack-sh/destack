@@ -1,7 +1,5 @@
 use crate::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics,
-    Intrinsic, Node, NodeId, NodeType, Parameter, Runtime, ScopedMutability, StringId, Type,
-    Variant, VariantField, Visibility,
+    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -300,8 +298,8 @@ pub enum FunctionAbstraction {
 pub struct SelfParameter {
     /// The mutability of the "self" parameter.
     pub mutability: ScopedMutability,
-    /// Whether the "self" parameter is a reference.
-    pub is_reference: bool,
+    /// The reference type of the "self" parameter.
+    pub reference_type: Option<ReferenceType>,
     /// The type of the "self" parameter.
     pub ty: Option<NodeId<Type>>,
 }

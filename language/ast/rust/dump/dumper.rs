@@ -800,6 +800,24 @@ impl Dump for AssignOperator {
     }
 }
 
+/// Dump a ReferenceType as a string.
+impl Dump for ReferenceType {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a SelfParameter as a string.
+impl Dump for SelfParameter {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("SelfParameter")
+            .field("mutability", &self.mutability)
+            .field("reference_type", &self.reference_type)
+            .end();
+    }
+}
+
 /// Dump a Runtime as a string.
 impl Dump for Runtime {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1755,7 +1773,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 style,
                 static_parameters: _,
-                self_parameter: _,
+                self_parameter,
                 dynamic_parameters: _,
                 return_type: _,
                 with_clauses: _,
@@ -1770,6 +1788,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("cardinality", cardinality)
                     .field_optional("kind", kind)
                     .field("style", style)
+                    .field_optional("self_parameter", self_parameter)
                     .end();
             }
         }

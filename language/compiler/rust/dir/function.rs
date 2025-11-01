@@ -16,9 +16,12 @@ impl<'a> Compiler<'a> {
             .ty
             .as_ref()
             .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
+        let reference_type = self_parameter
+            .reference_type
+            .map(|reference_type| self.lower_reference_type(reference_type));
         SelfParameter {
             mutability,
-            is_reference: self_parameter.is_reference,
+            reference_type,
             ty,
         }
     }

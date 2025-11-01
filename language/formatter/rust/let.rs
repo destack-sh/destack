@@ -8,33 +8,17 @@ use dyst_fir::{format_args, write};
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormatScopedMutability {
     /// The scoped mutability to format.
-    scoped_mutability: ScopedMutability,
+    mutability: ScopedMutability,
     /// Which mutability (if any) is implicit in the binding.
     implicit_mutability: Option<Mutability>,
 }
 
 impl FormatScopedMutability {
-    /// Format a scoped mutability explicitly.
-    pub fn explicit(scoped_mutability: ScopedMutability) -> Self {
-        Self {
-            scoped_mutability,
-            implicit_mutability: None,
-        }
-    }
-
     /// Format a scoped mutability with const implicitly.
     pub fn implicit_const(scoped_mutability: ScopedMutability) -> Self {
         Self {
-            scoped_mutability,
+            mutability: scoped_mutability,
             implicit_mutability: Some(Mutability::Immutable),
-        }
-    }
-
-    /// Format a scoped mutability with var implicitly.
-    pub fn implicit_var(scoped_mutability: ScopedMutability) -> Self {
-        Self {
-            scoped_mutability,
-            implicit_mutability: Some(Mutability::Mutable),
         }
     }
 
@@ -42,7 +26,7 @@ impl FormatScopedMutability {
     /// Might be a no-op if the actual mutability is implicit.
     #[inline]
     fn format_mutability(&self, f: &mut DystFormatter<'_, '_>) -> FormatResult<()> {
-        match &self.scoped_mutability {
+        match &self.mutability {
             ScopedMutability::Scoped { mutability, .. } => match self.implicit_mutability {
                 Some(implicit_mutability) => {
                     if implicit_mutability != *mutability {
@@ -70,7 +54,7 @@ impl FormatScopedMutability {
 
 impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
-        match &self.scoped_mutability {
+        match &self.mutability {
             ScopedMutability::Scoped { scopes, .. } => {
                 // mutability
                 self.format_mutability(f)?;
