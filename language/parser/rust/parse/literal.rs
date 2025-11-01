@@ -695,7 +695,7 @@ impl<'a> Parser<'a> {
                         self.get_span_from(start),
                     )
                 }
-                // function shorthand argument (might be maybe)
+                // function shorthand argument
                 else if self.peek_token(TokenType::Identifier).is_ok()
                     && (self
                         .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])

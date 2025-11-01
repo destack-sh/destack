@@ -784,8 +784,8 @@ impl Dump for FunctionKind {
     }
 }
 
-/// Dump a ReferenceStyle as a string.
-impl Dump for ReferenceStyle {
+/// Dump a StructStyle as a string.
+impl Dump for StructStyle {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }

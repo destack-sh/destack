@@ -266,10 +266,13 @@ impl<'a> Parser<'a> {
                 fields.push(field);
             }
             // function shorthand
-            else if self.peek_token(TokenType::Identifier).is_ok()
-                && self
-                    .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
-                    .is_ok()
+            else if self
+                .peek_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                .is_ok()
+                || (self.peek_token(TokenType::Identifier).is_ok()
+                    && self
+                        .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                        .is_ok())
             {
                 let meta: DefinitionMeta = DefinitionMeta {
                     kind,
@@ -307,6 +310,7 @@ impl<'a> Parser<'a> {
                 let expression_id = self.tree.insert(
                     Expression::Maybe {
                         // TODO #Broken: function maybe shorthand in variants? field or expression?
+                        //  (turn both shorthands into fields if they don't have a body?)
                         left: expression_id,
                         position: PostfixPosition::Direct,
                     },
