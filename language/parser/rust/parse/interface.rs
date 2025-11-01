@@ -312,7 +312,7 @@ interface Client {
     }
 
     #[test]
-    fn test_parse_interface_with_anonymous_shorthand_functions() {
+    fn test_parse_interface_with_mixed_shorthand_functions() {
         let mut test = TestParser::new(
             r#"
 interface SQL {
@@ -321,6 +321,8 @@ interface SQL {
     (value: any, ...arguments: any[]): SQL.Result<any>[];
 
     new(): SQL;
+
+    [Symbol.asyncIterator](): AsyncIterableIterator<string>;
 }
         "#,
         );
@@ -331,8 +333,8 @@ interface SQL {
         assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "SQL");
-            assert_eq!(fields.len(), 0);
-            assert_eq!(expressions.len(), 3);
+            assert_eq!(fields.len(), 4);
+            assert_eq!(expressions.len(), 0);
 
             // <T = any>(value: T): SQL.Result<T>;
             let expression_id = expressions[0];
@@ -363,6 +365,17 @@ interface SQL {
                 assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, dynamic_parameters, return_type, .. } => {
                     assert!(meta.name.is_none());
                     assert_eq!(*kind, Some(FunctionKind::New));
+                    assert_eq!(dynamic_parameters.len(), 0);
+                    assert!(return_type.is_some());
+                });
+            });
+
+            // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
+            let expression_id = expressions[3];
+            assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, dynamic_parameters, return_type, .. } => {
+                    assert!(meta.name.is_none());
+                    assert_eq!(*kind, Some(FunctionKind::Call));
                     assert_eq!(dynamic_parameters.len(), 0);
                     assert!(return_type.is_some());
                 });

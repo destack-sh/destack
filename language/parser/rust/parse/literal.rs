@@ -508,7 +508,7 @@ impl<'a> Parser<'a> {
                                 return Ok(None);
                             }
                     }       
-                     // [ (dynamic field or function)
+                    // [ (dynamic field or function)
                     | (TokenType::OpenBracket, _, _) => {
                         // only if the closing bracket is followed by a colon or opening parenthesis
                         if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
