@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, Definition, DefinitionMeta, FunctionStyle, Keyword, Path,
-    StringId, TemplateLiteral,
+    BindingKind, BindingModifiers, Definition, DefinitionMeta, FunctionStyle, Keyword, Path, StringId, TemplateLiteral
 };
 use std::str::FromStr;
 
@@ -472,7 +471,7 @@ impl<'a> Parser<'a> {
 
             // empty struct literal (if not expecting a block)
             if !self.options.in_before_block
-                && !self.options.in_block_slot
+                && !self.options.in_block_position
                 && self.tokens.get(pos).map(|token| token.token.ty) == Some(TokenType::CloseBrace)
             {
                 return Ok(None);
@@ -496,22 +495,33 @@ impl<'a> Parser<'a> {
                     // string?:
                     | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
                     // ...T
-                    | (TokenType::Spread, TokenType::Identifier, _) => {
+                    | (TokenType::Spread, TokenType::Identifier, _)
+                    // < (anonymous function static parameters)
+                    | (TokenType::LessThan, _, _) => {
                         return Ok(None);
                     }
-                    // [
-                    | (TokenType::OpenBracket, _, _) => {
-                        // only if the closing bracket is followed by a colon
-                        if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
+                    // ( (anonymous function dynamic parameters)
+                    | (TokenType::OpenParenthesis, _, _) => {
+                        // only if the closing parenthesis is followed by a colon
+                        if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenParenthesis, TokenType::CloseParenthesis)
                             && let Some(token_after) = self.tokens.get(closing_pos as usize + 1) && token_after.token.ty == TokenType::Colon {
+                                return Ok(None);
+                            }
+                    }       
+                     // [ (dynamic field or function)
+                    | (TokenType::OpenBracket, _, _) => {
+                        // only if the closing bracket is followed by a colon or opening parenthesis
+                        if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
+                            && let Some(token_after) = self.tokens.get(closing_pos as usize + 1)
+                             && (token_after.token.ty == TokenType::Colon || token_after.token.ty == TokenType::OpenParenthesis) {
                                 return Ok(None);
                             }
                     }
                     _ => {}
                 }
 
-            // function shorthand
-            if !self.options.in_block_slot
+            // named function shorthand
+            if !self.options.in_block_position
                 && token_ty == TokenType::Identifier
                 && (next_token_ty == TokenType::OpenParenthesis
                     || next_token_ty == TokenType::Maybe
@@ -520,67 +530,70 @@ impl<'a> Parser<'a> {
                     || next_token_ty == TokenType::Maybe
                         && next_next_token_ty == TokenType::LessThan)
             {
-                // speculatively parse function definition
-                // (since we can't just count bracket pairs here)
+                // speculatively parse function definition (can't just count bracket pairs here)
                 let speculative_start = (self.mark(), self.tree.next_id());
                 self.eat_token(TokenType::OpenBrace).expect("peeked");
                 self.eat_newlines_maybe().expect("peeked");
-
-                // function
-                let start = self.mark();
-                debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
-                let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                let expect_body = !self.options.in_type;
-                let Ok(function_id) =
-                    self.eat_function(DefinitionMeta::default(), is_maybe, expect_body)
-                else {
+                let Ok(argument) = self.eat_struct_named_function_shorthand(None) else {
                     self.restore(speculative_start.0, speculative_start.1);
                     return Err(ParserError::unexpected(self.peek()?.span));
                 };
-                // name
-                let name = self
-                    .tree
-                    .get(function_id)
-                    .name()
-                    .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
-                // value
-                let value = self.tree.insert(
-                    Expression::Definition(function_id),
-                    self.get_span_from(start),
-                );
-                // clear function name
-                match self.tree.get_mut(function_id) {
-                    Definition::Function {
-                        meta: DefinitionMeta { name, .. },
-                        style,
-                        ..
-                    } => {
-                        *name = None;
-                        *style = FunctionStyle::Lambda;
-                    }
-                    _ => panic!("expected function for"),
-                };
-                // maybe
-                let modifiers = if is_maybe {
-                    Some(BindingModifiers {
-                        kind: Some(BindingKind::Maybe),
-                        ..BindingModifiers::default()
-                    })
-                } else {
-                    None
-                };
-                return Ok(Some(self.tree.insert(
-                    Argument::Function {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                    self.get_span_from(start),
-                )));
+                return Ok(Some(argument));
             }
         }
 
         Err(ParserError::unexpected(self.peek()?.span))
+    }
+
+    /// Eat a named function shorthand argument (like `foo()`, only in certain contexts like struct literals).
+    fn eat_struct_named_function_shorthand(&mut self, modifiers: Option<BindingModifiers>) -> ParserResult<NodeId<Argument>> {
+        let start = self.mark();
+        debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
+        let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
+        let function_id =
+            self.eat_function(DefinitionMeta::default(), is_maybe, false)?;
+        
+        // name
+        let name = self.tree.get(function_id).name();
+        
+        // value
+        let value = self.tree.insert(
+            Expression::Definition(function_id),
+            self.get_span_from(start),
+        );
+        
+        // clear function name
+        match self.tree.get_mut(function_id) {
+            Definition::Function {
+                meta: DefinitionMeta { name, .. },
+                style,
+                ..
+            } => {
+                *name = None;
+                *style = FunctionStyle::Lambda;
+            }
+            _ => panic!("expected function for"),
+        };
+        
+        // maybe
+        let modifiers = if is_maybe {
+            Some(BindingModifiers {
+                kind: Some(BindingKind::Maybe),
+                ..BindingModifiers::default()
+            })
+        } else {
+            modifiers
+        };
+    
+        // argument
+        Ok(self.tree.insert(
+            Argument::Function {
+                modifiers,
+                name,
+                value,
+            },
+            self.get_span_from(start),
+        ))
     }
 
     /// Eat the body of a struct literal (including the `{` and `}`, without a prefix).
@@ -618,12 +631,12 @@ impl<'a> Parser<'a> {
             }
 
             // NOTE: struct literal arguments are different from regular arguments
-            //  (so we re-extension some of the argument parsing logic here,
+            //  (so we re-implement some of the argument parsing logic here,
             //   because we need to account for readonly/maybe/functions/...)
             let start = self.mark();
             let argument_id = {
                 // modifiers
-                let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
+                let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
                 // named argument
                 if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
@@ -665,7 +678,7 @@ impl<'a> Parser<'a> {
                         self.get_span_from(start),
                     )
                 }
-                // dynamic argument
+                // dynamic argument or dynamic function argument
                 else if self.peek_token(TokenType::OpenBracket).is_ok() {
                     self.bump(); // eat open bracket
                     // name
@@ -681,21 +694,42 @@ impl<'a> Parser<'a> {
                     // key
                     let key = self.eat_expression().for_node_type(NodeType::Argument)?;
                     self.eat_token(TokenType::CloseBracket)?;
-                    // value
-                    self.eat_token(TokenType::Colon)?;
-                    self.eat_newlines_maybe()?;
-                    let value = self.eat_expression().for_node_type(NodeType::Argument)?;
-                    self.tree.insert(
-                        Argument::Dynamic {
-                            modifiers,
-                            name,
-                            key,
-                            value,
-                        },
-                        self.get_span_from(start),
-                    )
+                    
+                    // dynamic function argument
+                    if self.peek_token(TokenType::OpenParenthesis).is_ok() || self.peek_token(TokenType::LessThan).is_ok() {
+                        let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
+                        let function_id = self.tree.insert(
+                            Expression::Definition(function_id),
+                            self.get_span_from(start),
+                        );
+                        self.tree.insert(
+                            Argument::DynamicFunction {
+                                modifiers,
+                                name,
+                                key,
+                                value: function_id,
+                            },
+                            self.get_span_from(start),
+                        )
+                    } 
+                    // dynamic argument
+                    else {
+                        // value
+                        self.eat_token(TokenType::Colon)?;
+                        self.eat_newlines_maybe()?;
+                        let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+                        self.tree.insert(
+                            Argument::Dynamic {
+                                modifiers,
+                                name,
+                                key,
+                                value,
+                            },
+                            self.get_span_from(start),
+                        )
+                    }
                 }
-                // function shorthand argument
+                // named or call function shorthand argument
                 else if self.peek_token(TokenType::Identifier).is_ok()
                     && (self
                         .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
@@ -708,46 +742,20 @@ impl<'a> Parser<'a> {
                                 ])
                                 .is_ok())
                 {
-                    // postfix modifiers
-                    let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-                    if is_maybe {
-                        modifiers = match modifiers {
-                            Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
-                            None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
-                        };
-                    }
-                    // function
-                    let function_id = self
-                        .eat_function(DefinitionMeta::default(), is_maybe, false)
-                        .for_node_type(NodeType::Expression)?;
-                    // name
-                    let name = self
-                        .tree
-                        .get(function_id)
-                        .name()
-                        .ok_or(ParserError::unexpected(self.get_span_from(start)))?;
-                    // value
-                    let value = self.tree.insert(
+                    self.eat_struct_named_function_shorthand(modifiers)?
+                }
+                // anonymous call function shorthand argument
+                else if self.peek_token(TokenType::LessThan).is_ok() || self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                    let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
+                    let function_id = self.tree.insert(
                         Expression::Definition(function_id),
                         self.get_span_from(start),
                     );
-                    // clear function name
-                    match self.tree.get_mut(function_id) {
-                        Definition::Function {
-                            meta: DefinitionMeta { name, .. },
-                            style,
-                            ..
-                        } => {
-                            *name = None;
-                            *style = FunctionStyle::Lambda;
-                        }
-                        _ => panic!("expected function definition"),
-                    };
                     self.tree.insert(
                         Argument::Function {
                             modifiers,
-                            name,
-                            value,
+                            name: None,
+                            value: function_id,
                         },
                         self.get_span_from(start),
                     )
@@ -939,7 +947,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, Mutability, Name, Parameter, TemplateLiteral,
+        BindingKind, Definition, DefinitionMeta, FunctionKind, Mutability, Name, Parameter, TemplateLiteral
     };
 
     use crate::parse::tests::TestParser;
@@ -1262,12 +1270,15 @@ mod tests {
     readonly d: T, // readonly T
     e<T>(),
     f?(): T,
+    (): T, // anonymous call function shorthand
+    <T>(): T, // anonymous call function shorthand
+    new(): T, // constructor function shorthand
 }",
         );
         let mut parser = test.prepare();
 
         let arguments = parser.eat_struct_literal_body(None).unwrap();
-        assert_eq!(arguments.len(), 6);
+        assert_eq!(arguments.len(), 9);
 
         // readonly a?: T
         assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: Some(modifiers), name: Name::Identifier(name), value } => {
@@ -1297,7 +1308,7 @@ mod tests {
         });
 
         // e<T>()
-        assert_node!(parser.tree, arguments[4], Argument::Function { modifiers: _, name, value } => {
+        assert_node!(parser.tree, arguments[4], Argument::Function { modifiers: _, name: Some(name), value } => {
             assert_string!(parser, name.string(), "e");
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, .. } => {
@@ -1310,11 +1321,55 @@ mod tests {
         });
 
         // f?(): T
-        assert_node!(parser.tree, arguments[5], Argument::Function { modifiers: Some(modifiers), name, value } => {
+        assert_node!(parser.tree, arguments[5], Argument::Function { modifiers: Some(modifiers), name: Some(name), value } => {
             assert_string!(parser, name.string(), "f");
             assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                 assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
+            });
+        });
+
+        // (): T
+        assert_node!(parser.tree, arguments[6], Argument::Function { modifiers: _, name: None, value } => {
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, dynamic_parameters, return_type, .. } => {
+                    assert!(static_parameters.is_none());
+                    // ()
+                    assert_eq!(dynamic_parameters.len(), 0);
+                    // T
+                    assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
+                });
+            });
+        });
+
+        // <T>(): T
+        assert_node!(parser.tree, arguments[7], Argument::Function { modifiers: _, name: None, value } => {
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, static_parameters, dynamic_parameters, return_type, .. } => {
+                    // T
+                    assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, .. } => {
+                        assert_string!(parser, *name, "T");
+                    });
+                    // ()
+                    assert_eq!(dynamic_parameters.len(), 0);
+                    // T
+                    assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
+                });
+            });
+        });
+
+        // new(): T
+        assert_node!(parser.tree, arguments[8], Argument::Function { modifiers: _, name: None, value } => {
+            assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+                    // new
+                    assert_eq!(*kind, Some(FunctionKind::New));
+                    assert!(static_parameters.is_none());
+                    // ()
+                    assert_eq!(dynamic_parameters.len(), 0);
+                    // T
+                    assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
+                });
             });
         });
     }
@@ -1335,7 +1390,7 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 1);
             // fetch
-            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name: Some(name), value } => {
                 assert_string!(parser, name.string(), "fetch");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
@@ -1360,14 +1415,14 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, fields } => {
             assert_eq!(fields.len(), 2);
             // foo
-            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name, value } => {
+            assert_node!(parser.tree, fields[0], Argument::Function { modifiers: _, name: Some(name), value } => {
                 assert_string!(parser, name.string(), "foo");
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
                     assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, .. });
                 });
             });
             // foo?(): T
-            assert_node!(parser.tree, fields[1], Argument::Function { modifiers: Some(modifiers), name, value } => {
+            assert_node!(parser.tree, fields[1], Argument::Function { modifiers: Some(modifiers), name: Some(name), value } => {
                 assert_string!(parser, name.string(), "foo");
                 assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
                 assert_node!(parser.tree, *value, Expression::Definition(function_id) => {

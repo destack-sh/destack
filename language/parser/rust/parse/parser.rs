@@ -42,7 +42,7 @@ pub(crate) struct ParserOptions {
     pub in_before_block: bool = false,
     /// Whether we're parsing an expression that might be a block (like in if, match, for, while).
     /// Disallows empty anonymous struct literals.
-    pub in_block_slot: bool = false,
+    pub in_block_position: bool = false,
     /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
     pub in_tree_literal: bool = false,
@@ -96,10 +96,10 @@ impl ParserOptions {
         }
     }
 
-    /// Set `in_block_slot=true`.
-    pub(crate) fn in_block_slot(self) -> Self {
+    /// Set `in_block_position=true`.
+    pub(crate) fn in_block_position(self) -> Self {
         Self {
-            in_block_slot: true,
+            in_block_position: true,
             ..self
         }
     }
