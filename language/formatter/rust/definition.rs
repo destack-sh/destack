@@ -8,8 +8,7 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, Visibility,
+    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceStyle, ReferenceType, Visibility
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -884,12 +883,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                             });
                             let mut join = f.join_with(&separator);
                             if let Some(self_parameter) = self_parameter.as_ref() {
-                                let is_reference = self_parameter.is_reference;
                                 let mutability = &self_parameter.mutability;
                                 join.entry(&format_with(move |f| {
-                                    // pointer
-                                    if is_reference {
-                                        write!(f, [token("&")])?;
+                                    // reference type
+                                    if let Some(reference_type) = self_parameter.reference_type {
+                                        match reference_type {
+                                            ReferenceType::Reference => write!(f, [token("&")])?,
+                                            ReferenceType::Value => write!(f, [token("^")])?,
+                                        }
                                     }
                                     // mutability
                                     write!(

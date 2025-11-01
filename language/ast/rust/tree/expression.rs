@@ -98,9 +98,9 @@ pub enum Expression {
     /// const x = 1
     /// const x: int32 = 1
     /// const (x, y) = foo()
-    /// var x = 1
-    /// var x: int32 = 1
-    /// var x: int32 // implicitly uninitialized, must be set before use
+    /// let x = 1
+    /// let x: int32 = 1
+    /// let x: int32 // implicitly uninitialized, must be set before use
     /// const t = foo() ?? return;
     ///
     /// if const Some(x) = someFunction() {

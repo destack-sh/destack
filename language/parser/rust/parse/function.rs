@@ -6,7 +6,7 @@ use dyst_ast::{
 };
 
 use crate::parse::prelude::*;
-use crate::{ScopedMutability, TokenType};
+use crate::{ReferenceType, ScopedMutability, TokenType};
 
 use crate::{
     Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
 
     /// Eat the self parameter maybe.
     fn eat_self_parameter_maybe(&mut self) -> ParserResult<Option<SelfParameter>> {
-        let (keyword, mutability, is_reference) = {
+        let (keyword, mutability, reference_type) = {
             // var_ self
             if self.peek_keyword(Keyword::Var).is_ok()
                 || self.peek_keyword(Keyword::Mut).is_ok()
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
             {
                 let mutability = self.eat_scoped_mutability()?;
                 let keyword = self.eat_self_keyword()?; // eat self
-                (keyword, mutability, false)
+                (keyword, mutability, None)
             }
             // self
             else if self.peek_self_keyword().is_ok() {
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
                 let mutability = ScopedMutability::Unscoped {
                     mutability: Mutability::Immutable,
                 };
-                (keyword, mutability, false)
+                (keyword, mutability, None)
             }
             // &var_ self
             else if (self.peek_token(TokenType::Multiply).is_ok()
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat &
                 let mutability = self.eat_scoped_mutability()?;
                 let keyword = self.eat_self_keyword()?; // eat self
-                (keyword, mutability, true)
+                (keyword, mutability, Some(ReferenceType::Reference))
             }
             // &self
             else if self.peek_token(TokenType::Multiply).is_ok()
@@ -76,7 +76,27 @@ impl<'a> Parser<'a> {
                 let mutability = ScopedMutability::Unscoped {
                     mutability: Mutability::Immutable,
                 };
-                (keyword, mutability, true)
+                (keyword, mutability, Some(ReferenceType::Reference))
+            }
+            // ^var_ self
+            else if self.peek_token(TokenType::ElementwiseXor).is_ok()
+                && (self.peek_next_keyword(Keyword::Var).is_ok()
+                    || self.peek_next_keyword(Keyword::Mut).is_ok()
+                    || self.peek_next_keyword(Keyword::Const).is_ok())
+            {
+                self.bump(); // eat &
+                let mutability = self.eat_scoped_mutability()?;
+                let keyword = self.eat_self_keyword()?; // eat self
+                (keyword, mutability, Some(ReferenceType::Value))
+            }
+            // ^self
+            else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
+                self.bump(); // eat &
+                let keyword = self.eat_self_keyword()?; // eat self
+                let mutability = ScopedMutability::Unscoped {
+                    mutability: Mutability::Immutable,
+                };
+                (keyword, mutability, Some(ReferenceType::Value))
             }
             // other
             else {
@@ -97,7 +117,7 @@ impl<'a> Parser<'a> {
         Ok(Some(SelfParameter {
             keyword,
             mutability,
-            is_reference,
+            reference_type,
             ty,
         }))
     }
@@ -484,7 +504,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
+        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter, ReferenceType,
     };
 
     use crate::parse::tests::TestParser;
@@ -698,7 +718,7 @@ function foo() => int32 with (
             assert_string!(parser, meta.name.unwrap().string(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(!self_param.is_reference);
+            assert_eq!(self_param.reference_type, None);
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert!(dynamic_parameters.is_empty());
@@ -726,7 +746,7 @@ function b(
             assert_string!(parser, meta.name.unwrap().string(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(self_param.is_reference);
+            assert_eq!(self_param.reference_type, Some(ReferenceType::Reference));
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert_eq!(dynamic_parameters.len(), 1);
@@ -745,7 +765,7 @@ function b(
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
         let mut test = TestParser::new("function c(&var self) {}");
-        let mut parser = test.prepare();
+        let mut parser = test.prepare();    
 
         let function_id = parser
             .eat_function(DefinitionMeta::default(), false, false)
@@ -754,7 +774,7 @@ function b(
             assert_string!(parser, meta.name.unwrap().string(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
-            assert!(self_param.is_reference);
+            assert_eq!(self_param.reference_type, Some(ReferenceType::Reference));
             assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
             assert!(dynamic_parameters.is_empty());
