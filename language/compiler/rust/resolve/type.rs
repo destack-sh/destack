@@ -89,6 +89,21 @@ impl<'a> Compiler<'a> {
                     right: type_id,
                 }
             }
+            // value
+            Expression::Value {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mutability = mutability.clone();
+                let variance = variance.clone();
+                let type_id = self.try_resolve_expression_to_type(*right)?;
+                Type::Value {
+                    mutability,
+                    variance,
+                    right: type_id,
+                }
+            }
             // reference
             Expression::Reference {
                 mutability,

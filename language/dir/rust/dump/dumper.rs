@@ -1455,6 +1455,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::Value {
+                mutability,
+                variance,
+                right: _,
+            } => {
+                self.node("Expression::Value", id.id)
+                    .field_optional("mutability", mutability)
+                    .field_optional("variance", variance)
+                    .end();
+            }
             Expression::Reference {
                 mutability,
                 variance,
@@ -1818,6 +1828,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Type::Mutable", id.id)
                     .field("mutability", mutability)
+                    .end();
+            }
+            Type::Value {
+                mutability,
+                variance,
+                right: _,
+            } => {
+                self.node("Type::Value", id.id)
+                    .field_optional("mutability", mutability)
+                    .field_optional("variance", variance)
                     .end();
             }
             Type::Reference {

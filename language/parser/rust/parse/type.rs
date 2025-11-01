@@ -7,6 +7,7 @@ use crate::{
 
 impl<'a> Parser<'a> {
     /// Eat a variance modifier maybe.
+    #[inline]
     pub fn eat_variance_modifier_maybe(&mut self) -> ParserResult<Option<VarianceBound>> {
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
@@ -20,6 +21,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Whether the token type can start an expression.
+    #[inline]
     fn is_start_of_expression(&self, token_str: &str, token_type: TokenType) -> bool {
         token_type == TokenType::OpenParenthesis
             || token_type == TokenType::Identifier
@@ -31,6 +33,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Whether the token string encodes a type literal with an explicit width.
+    #[inline]
     fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
             target.parse::<u16>().ok()

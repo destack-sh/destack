@@ -500,6 +500,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
+        Expression::Value {
+            mutability: _,
+            variance: _,
+            right,
+        } => {
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+
         Expression::Reference {
             mutability: _,
             variance: _,

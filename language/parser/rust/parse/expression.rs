@@ -557,6 +557,19 @@ impl<'a> Parser<'a> {
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
+            // value (`^` or `^var` or `^T`)
+            else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
+                self.bump(); // eat ^
+                let mutability = self.eat_scoped_mutability_maybe()?;
+                let variance = self.eat_variance_modifier_maybe()?;
+                let right = self.eat_expression()?;
+                let expression = Expression::Value {
+                    mutability,
+                    variance,
+                    right,
+                };
+                self.tree.insert(expression, self.get_span_from(start))
+            }
             // reference (`&` or `&var` or `&T`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
@@ -2211,6 +2224,19 @@ geom.Mesh<2, Dims: 4> {
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Reference { mutability: Some(mutability), variance, right, .. } => {
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*variance, Some(VarianceBound::Super));
+            assert_expr_path!(parser, parser.tree.get(*right), "T");
+        });
+    }
+
+    /// Parse a value expression.
+    #[test]
+    fn test_parse_value_expression() {
+        let mut test = TestParser::new("^mut super T");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Value { mutability, variance, right, .. } => {
+            assert_eq!(*mutability, Some(ScopedMutability::Unscoped { mutability: Mutability::Mutable }));
             assert_eq!(*variance, Some(VarianceBound::Super));
             assert_expr_path!(parser, parser.tree.get(*right), "T");
         });
