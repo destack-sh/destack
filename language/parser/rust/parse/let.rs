@@ -4,7 +4,7 @@ use crate::{Expression, ParserError, Path, TokenType};
 
 use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability};
 
-// nocheckin TODO #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
+// TODO #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
 //  (and how does this interact with let/const expressions, bindings/arguments/parameters/fields, ..)
 
 impl<'a> Parser<'a> {

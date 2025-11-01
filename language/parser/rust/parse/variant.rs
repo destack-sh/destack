@@ -38,10 +38,17 @@ impl<'a> Parser<'a> {
                 | (TokenType::Literal, TokenType::Colon, _)
                 // string?:
                 | (TokenType::Literal, TokenType::Maybe, TokenType::Colon)
-                // [
-                | (TokenType::OpenBracket, _, _)
                 => {
                     return Ok(());
+                }
+                // [ (dynamic field, NOT function)
+                | (TokenType::OpenBracket, _, _) => {
+                    // only if the closing bracket is followed by a colon or opening parenthesis
+                    if let Ok(closing_pos) = self.find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
+                        && let Some(token_after) = self.tokens.get(closing_pos as usize + 1)
+                         && token_after.token.ty == TokenType::Colon {
+                            return Ok(());
+                        }
                 }
                 _ => {}
             }
@@ -265,7 +272,7 @@ impl<'a> Parser<'a> {
                     .for_node_type(NodeType::VariantField)?;
                 fields.push(field);
             }
-            // function shorthand
+            // function shorthand (field if )
             else if self
                 .peek_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                 .is_ok()
@@ -288,7 +295,7 @@ impl<'a> Parser<'a> {
                 );
                 expressions.push(expression_id);
             }
-            // function maybe shorthand
+            // function maybe shorthand (always a field)
             else if self.peek_token(TokenType::Identifier).is_ok()
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self
@@ -303,20 +310,61 @@ impl<'a> Parser<'a> {
                     visibility,
                 };
                 let function_id = self.eat_function(meta, true, false)?;
-                let expression_id = self.tree.insert(
+                let function_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
-                let expression_id = self.tree.insert(
-                    Expression::Maybe {
-                        // TODO #Broken: function maybe shorthand in variants? field or expression?
-                        //  (turn both shorthands into fields if they don't have a body?)
-                        left: expression_id,
-                        position: PostfixPosition::Direct,
-                    },
-                    self.tree.spans.get(expression_id),
+            }
+            // dynamic function shorthand
+            else if self.peek_token(TokenType::OpenBracket).is_ok()
+                && let Ok(closing_pos) = self
+                    .find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
+                && let Some(token_after) = self.tokens.get(closing_pos as usize + 1)
+                && (token_after.token.ty == TokenType::LessThan
+                    || token_after.token.ty == TokenType::OpenParenthesis)
+            {
+                // name
+                let name = if self.peek_identifier().is_ok()
+                    && self.peek_next_token(TokenType::Colon).is_ok()
+                {
+                    let name = self.eat_identifier()?;
+                    self.bump(); // eat colon
+                    Some(name)
+                } else {
+                    None
+                };
+                // key
+                let key = self
+                    .eat_expression()
+                    .for_node_type(NodeType::VariantField)?;
+                self.eat_token(TokenType::CloseBracket)?;
+
+                // function
+                let meta: DefinitionMeta = DefinitionMeta {
+                    kind,
+                    scope,
+                    name: None,
+                    export: None,
+                    visibility,
+                };
+                let function_id = self.eat_function(meta, false, false)?;
+                let function_id = self.tree.insert(
+                    Expression::Definition(function_id),
+                    self.tree.spans.get(function_id),
                 );
-                expressions.push(expression_id);
+
+                // field
+                let field_id = self.tree.insert(
+                    VariantField::Dynamic {
+                        modifiers,
+                        name,
+                        key,
+                        ty: function_id,
+                        default: None,
+                    },
+                    self.get_span_from(start),
+                );
+                fields.push(field_id);
             }
             // eat any other expressions
             else {
