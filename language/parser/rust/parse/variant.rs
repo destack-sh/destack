@@ -1,8 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, DeclarationKind, DeclarationScope, DefinitionMeta, Expression,
-    Keyword, PostfixPosition,
+    BindingKind, BindingModifier, DeclarationKind, DeclarationScope, DefinitionMeta, Expression,
+    Keyword,
 };
 
 use crate::TokenType;
@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    /// Eat a single variant field: `T`,`name: T`, or `name: T = <expr>` (including modifiers).
+    /// Eat a single variant field: `T`, `name: T`, or `name: T = <expr>` (including modifiers).
     ///
     /// Examples:
     /// ```
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
             if is_maybe {
                 modifiers = match modifiers {
                     Some(modifiers) => Some(modifiers.with_kind(BindingKind::Maybe)),
-                    None => Some(BindingModifiers::default().with_kind(BindingKind::Maybe)),
+                    None => Some(BindingModifier::default().with_kind(BindingKind::Maybe)),
                 };
             }
 
@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
             else if self
                 .peek_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                 .is_ok()
-                || (self.peek_token(TokenType::Identifier).is_ok()
+                || (self.peek_name().is_ok()
                     && self
                         .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
                         .is_ok())
@@ -285,6 +285,7 @@ impl<'a> Parser<'a> {
                     kind,
                     scope,
                     name: None,
+                    key: None,
                     export: None,
                     visibility,
                 };
@@ -296,7 +297,7 @@ impl<'a> Parser<'a> {
                 expressions.push(expression_id);
             }
             // function maybe shorthand (always a field)
-            else if self.peek_token(TokenType::Identifier).is_ok()
+            else if self.peek_name().is_ok()
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self
                     .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
@@ -306,6 +307,7 @@ impl<'a> Parser<'a> {
                     kind,
                     scope,
                     name: None,
+                    key: None,
                     export: None,
                     visibility,
                 };
@@ -314,57 +316,7 @@ impl<'a> Parser<'a> {
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
-            }
-            // dynamic function shorthand
-            else if self.peek_token(TokenType::OpenBracket).is_ok()
-                && let Ok(closing_pos) = self
-                    .find_open_and_matching_close(TokenType::OpenBracket, TokenType::CloseBracket)
-                && let Some(token_after) = self.tokens.get(closing_pos as usize + 1)
-                && (token_after.token.ty == TokenType::LessThan
-                    || token_after.token.ty == TokenType::OpenParenthesis)
-            {
-                // name
-                let name = if self.peek_identifier().is_ok()
-                    && self.peek_next_token(TokenType::Colon).is_ok()
-                {
-                    let name = self.eat_identifier()?;
-                    self.bump(); // eat colon
-                    Some(name)
-                } else {
-                    None
-                };
-                // key
-                let key = self
-                    .eat_expression()
-                    .for_node_type(NodeType::VariantField)?;
-                self.eat_token(TokenType::CloseBracket)?;
-
-                // function
-                let meta: DefinitionMeta = DefinitionMeta {
-                    kind,
-                    scope,
-                    name: None,
-                    export: None,
-                    visibility,
-                };
-                let function_id = self.eat_function(meta, false, false)?;
-                let function_id = self.tree.insert(
-                    Expression::Definition(function_id),
-                    self.tree.spans.get(function_id),
-                );
-
-                // field
-                let field_id = self.tree.insert(
-                    VariantField::Dynamic {
-                        modifiers,
-                        name,
-                        key,
-                        ty: function_id,
-                        default: None,
-                    },
-                    self.get_span_from(start),
-                );
-                fields.push(field_id);
+                expressions.push(function_id);
             }
             // eat any other expressions
             else {

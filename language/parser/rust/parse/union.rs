@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        meta.name = self.eat_name_maybe()?;
+        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;

@@ -1,4 +1,4 @@
-use dyst_ast::{BindingKind, BindingModifiers, BindingOperator, DeclarationScope, Keyword, Mutability};
+use dyst_ast::{BindingKind, BindingModifier, BindingOperator, DeclarationScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, NodeId, VariantField};
@@ -8,7 +8,7 @@ use dyst_fir::write;
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    modifiers: BindingModifiers,
+    modifiers: BindingModifier,
 ) -> FormatResult<()> {
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;
@@ -28,7 +28,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    modifiers: Option<BindingModifiers>,
+    modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
         format_binding_modifiers_prefix(f, modifiers)?;
@@ -39,7 +39,7 @@ pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    modifiers: BindingModifiers,
+    modifiers: BindingModifier,
 ) -> FormatResult<()> {
     if modifiers.kind == Some(BindingKind::Maybe) {
         write!(f, [token("?")])?;
@@ -50,7 +50,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    modifiers: Option<BindingModifiers>,
+    modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
         format_binding_modifiers_postfix(f, modifiers)?;

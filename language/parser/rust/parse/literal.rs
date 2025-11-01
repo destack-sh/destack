@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    BindingKind, BindingModifiers, Definition, DefinitionMeta, FunctionStyle, Keyword, Path, StringId, TemplateLiteral
+    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionStyle, Keyword, Path, StringId, TemplateLiteral
 };
 use std::str::FromStr;
 
@@ -546,7 +546,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a named function shorthand argument (like `foo()`, only in certain contexts like struct literals).
-    fn eat_struct_named_function_shorthand(&mut self, modifiers: Option<BindingModifiers>) -> ParserResult<NodeId<Argument>> {
+    fn eat_struct_named_function_shorthand(&mut self, modifiers: Option<BindingModifier>) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
         debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
         let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
@@ -577,9 +577,9 @@ impl<'a> Parser<'a> {
         
         // maybe
         let modifiers = if is_maybe {
-            Some(BindingModifiers {
+            Some(BindingModifier {
                 kind: Some(BindingKind::Maybe),
-                ..BindingModifiers::default()
+                ..BindingModifier::default()
             })
         } else {
             modifiers

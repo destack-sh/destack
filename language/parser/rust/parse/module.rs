@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
         };
 
         // name
-        meta.name = self.eat_name_maybe()?;
+        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;

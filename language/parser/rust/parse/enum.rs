@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        meta.name = self.eat_name_maybe()?;
+        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
 
     /// Peek an enum field.
     fn peek_enum_field(&self) -> ParserResult<()> {
-        if self.peek_identifier().is_ok()
+        if self.peek_name().is_ok()
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
                 || self.peek_next_token(TokenType::Comma).is_ok()
@@ -165,7 +165,7 @@ impl<'a> Parser<'a> {
     /// Eat a single enum field and return it as a UnionField node id.
     fn eat_enum_field(&mut self) -> ParserResult<NodeId<EnumField>> {
         let start = self.mark();
-        let name = self.eat_identifier().for_node_type(NodeType::EnumField)?;
+        let name = self.eat_name().for_node_type(NodeType::EnumField)?;
 
         // optional `= <expr>` value
         let value = if self.peek_token(TokenType::Assign).is_ok() {
@@ -244,13 +244,13 @@ enum {
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_string!(parser, *name, "Success");
+                assert_string!(parser, name.string(), "Success");
                 assert!(value.is_none());
             });
 
             // Failure
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_string!(parser, *name, "Failure");
+                assert_string!(parser, name.string(), "Failure");
                 assert!(value.is_none());
             });
         });
@@ -296,13 +296,13 @@ enum(uint8) Foo extends Day {
 
             // Baz = 1
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_string!(parser, *name, "Baz");
+                assert_string!(parser, name.string(), "Baz");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // Qux = 2
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_string!(parser, *name, "Qux");
+                assert_string!(parser, name.string(), "Qux");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
