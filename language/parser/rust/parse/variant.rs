@@ -272,13 +272,21 @@ impl<'a> Parser<'a> {
                     .for_node_type(NodeType::VariantField)?;
                 fields.push(field);
             }
-            // function shorthand (field if )
+            // function shorthand
             else if self
-                .peek_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                .peek_token_in(&[
+                    TokenType::LessThan,
+                    TokenType::OpenParenthesis,
+                    TokenType::OpenBracket,
+                ])
                 .is_ok()
                 || (self.peek_name().is_ok()
                     && self
-                        .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                        .peek_next_token_in(&[
+                            TokenType::LessThan,
+                            TokenType::OpenParenthesis,
+                            TokenType::OpenBracket,
+                        ])
                         .is_ok())
             {
                 let meta: DefinitionMeta = DefinitionMeta {
@@ -290,17 +298,23 @@ impl<'a> Parser<'a> {
                     visibility,
                 };
                 let function_id = self.eat_function(meta, false, false)?;
-                let expression_id = self.tree.insert(
+                
+                let function_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
-                expressions.push(expression_id);
+
+                expressions.push(function_id);
             }
-            // function maybe shorthand (always a field)
+            // function maybe shorthand
             else if self.peek_name().is_ok()
                 && self.peek_next_token(TokenType::Maybe).is_ok()
                 && self
-                    .peek_next_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
+                    .peek_next_next_token_in(&[
+                        TokenType::LessThan,
+                        TokenType::OpenParenthesis,
+                        TokenType::OpenBracket,
+                    ])
                     .is_ok()
             {
                 let meta: DefinitionMeta = DefinitionMeta {
@@ -316,6 +330,7 @@ impl<'a> Parser<'a> {
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
+                // nocheckin: maybe binding
                 expressions.push(function_id);
             }
             // eat any other expressions

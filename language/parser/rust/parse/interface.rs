@@ -312,8 +312,7 @@ interface [Symbols.Client] {
     }
 
     #[test]
-    #[ignore = "nocheckin"]
-    fn test_parse_interface_with_mixed_shorthand_functions() {
+    fn test_parse_interface_with_nameless_shorthand_functions() {
         let mut test = TestParser::new(
             r#"
 interface SQL {
@@ -324,6 +323,8 @@ interface SQL {
     new(): SQL;
 
     [Symbol.asyncIterator](): AsyncIterableIterator<string>;
+
+    [Symbol.toPrimitive]?(): number;
 }
         "#,
         );
@@ -334,7 +335,7 @@ interface SQL {
         assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "SQL");
-            assert_eq!(fields.len(), 4);
+            assert_eq!(fields.len(), 5);
             assert_eq!(expressions.len(), 0);
 
             // <T = any>(value: T): SQL.Result<T>;
@@ -376,6 +377,19 @@ interface SQL {
             assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
                 assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, dynamic_parameters, return_type, .. } => {
                     assert!(meta.name.is_none());
+                    assert_expr_path!(parser, parser.tree.get(meta.key.unwrap()), "Symbol.asyncIterator");
+                    assert_eq!(*kind, Some(FunctionKind::Call));
+                    assert_eq!(dynamic_parameters.len(), 0);
+                    assert!(return_type.is_some());
+                });
+            });
+
+            // [Symbol.toPrimitive]?(): number;
+            let expression_id = expressions[4];
+            assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, dynamic_parameters, return_type, .. } => {
+                    assert!(meta.name.is_none());
+                    assert_expr_path!(parser, parser.tree.get(meta.key.unwrap()), "Symbol.toPrimitive");
                     assert_eq!(*kind, Some(FunctionKind::Call));
                     assert_eq!(dynamic_parameters.len(), 0);
                     assert!(return_type.is_some());
