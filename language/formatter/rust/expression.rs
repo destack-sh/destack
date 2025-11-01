@@ -1553,6 +1553,25 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             },
 
+            // value
+            Expression::Value {
+                mutability,
+                variance,
+                right,
+            } => {
+                write!(f, [token("^")])?;
+                if let Some(mutability) = mutability {
+                    write!(
+                        f,
+                        [FormatScopedMutability::implicit_const(mutability.clone())]
+                    )?;
+                }
+                if let Some(variance) = variance {
+                    write!(f, [variance.to_keyword(), space()])?;
+                }
+                right.format(f)?;
+            }
+
             // reference
             Expression::Reference {
                 mutability,

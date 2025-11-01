@@ -541,6 +541,13 @@ pub enum Expression {
         expression: NodeId<Expression>,
     },
 
+    /// Value operation.
+    Value {
+        mutability: Option<ScopedMutability>,
+        variance: Option<VarianceBound>,
+        right: NodeId<Expression>,
+    },
+
     /// Reference operation.
     Reference {
         mutability: Option<ScopedMutability>,

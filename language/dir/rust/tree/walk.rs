@@ -244,6 +244,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             operator: _,
             expression: right,
         }
+        | Expression::Value {
+            mutability: _,
+            variance: _,
+            right,
+        }
         | Expression::Reference {
             mutability: _,
             variance: _,
@@ -723,6 +728,11 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Unary { operator: _, right }
         | Type::Mutable {
             mutability: _,
+            right,
+        }
+        | Type::Value {
+            mutability: _,
+            variance: _,
             right,
         }
         | Type::Reference {

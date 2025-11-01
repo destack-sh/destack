@@ -64,6 +64,12 @@ pub enum Expression {
         operator: UnaryOperator,
         expression: NodeId<Expression>,
     },
+    /// Value operation (e.g., `^x`).
+    Value {
+        mutability: Option<ScopedMutability>,
+        variance: Option<VarianceBound>,
+        right: NodeId<Expression>,
+    },
     /// Reference operation (e.g., `&x`).
     Reference {
         mutability: Option<ScopedMutability>,
@@ -240,6 +246,7 @@ impl Expression {
             | Expression::Unary { .. }
             | Expression::TypeBinary { .. }
             | Expression::Reference { .. }
+            | Expression::Value { .. }
             | Expression::Binary { .. }
             | Expression::TypeUnary { .. }
             | Expression::AssignDirect { .. }
