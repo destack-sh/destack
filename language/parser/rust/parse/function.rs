@@ -243,9 +243,8 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat constructor keyword
                 Some(FunctionKind::Constructor)
             }
-            // new type constructor
-            else if self.options.in_type
-                && self.peek_keyword(Keyword::New).is_ok()
+            // new constructor
+            else if self.peek_keyword(Keyword::New).is_ok()
                 && (self.peek_next_token(TokenType::LessThan).is_ok()
                     || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
             {
