@@ -297,7 +297,7 @@ impl<'a> Parser<'a> {
         };
 
         // function style: runtime, name, static parameters
-        let (runtime, name, static_parameters) = {
+        let (runtime, name_or_key, static_parameters) = {
             if style == FunctionStyle::Function {
                 // runtime
                 let runtime = if self.peek_token(TokenType::At).is_ok() {
@@ -308,8 +308,8 @@ impl<'a> Parser<'a> {
                 };
 
                 // name
-                let name = if self.peek_name().is_ok() {
-                    Some(self.eat_name()?)
+                let name_or_key = if self.peek_name_or_key().is_ok() {
+                    Some(self.eat_name_or_key()?)
                 } else {
                     None
                 };
@@ -324,7 +324,7 @@ impl<'a> Parser<'a> {
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Definition)?;
 
-                (runtime, name, static_parameters)
+                (runtime, name_or_key, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
@@ -334,7 +334,7 @@ impl<'a> Parser<'a> {
                 (Runtime::Dynamic, None, static_parameters)
             }
         };
-        meta.name = name;
+        meta = meta.with_name_or_key_maybe(name_or_key);
 
         // dynamic parameters
         let (self_parameter, dynamic_parameters) = {

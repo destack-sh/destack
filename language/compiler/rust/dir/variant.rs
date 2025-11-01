@@ -130,7 +130,7 @@ impl<'a> Compiler<'a> {
         field_id: ast::NodeId<ast::EnumField>,
     ) -> NodeId<Variant> {
         let field = ast.get(field_id);
-        let name = self.intern_string(source_id, field.name);
+        let name = self.intern_string(source_id, field.name.string());
         let value = field
             .value
             .map(|value| self.lower_expression(source_id, ast, value));

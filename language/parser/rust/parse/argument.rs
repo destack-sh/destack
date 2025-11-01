@@ -1,5 +1,5 @@
 use dyst_ast::{
-    BindingKind, BindingModifiers, BindingOperator, Expression, Keyword, Mutability, Name, Pattern,
+    BindingKind, BindingModifier, BindingOperator, Expression, Keyword, Mutability, Name, Pattern,
     ScalarLiteral, StringId,
 };
 
@@ -8,13 +8,13 @@ use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenTy
 
 impl<'a> Parser<'a> {
     /// Eat a binding modifiers prefix (visibility and mutability).
-    pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParserResult<Option<BindingModifiers>> {
-        let mut modifiers: Option<BindingModifiers> = None;
+    pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParserResult<Option<BindingModifier>> {
+        let mut modifiers: Option<BindingModifier> = None;
         // visibility
         if let Ok(Some(visibility)) = self.peek_visibility() {
             self.bump(); // eat visibility
             if modifiers.is_none() {
-                modifiers = Some(BindingModifiers::default());
+                modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().visibility = Some(visibility);
         }
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::Readonly).is_ok() {
             self.bump(); // eat readonly
             if modifiers.is_none() {
-                modifiers = Some(BindingModifiers::default());
+                modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().mutability = Some(Mutability::Immutable);
         }
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::Const).is_ok() {
             self.bump(); // eat const
             if modifiers.is_none() {
-                modifiers = Some(BindingModifiers::default());
+                modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().operator = Some(BindingOperator::AsConst);
         }
@@ -41,19 +41,19 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_binding_modifiers_postfix_maybe(
         &mut self,
-        modifiers: Option<BindingModifiers>,
-    ) -> ParserResult<Option<BindingModifiers>> {
+        modifiers: Option<BindingModifier>,
+    ) -> ParserResult<Option<BindingModifier>> {
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat maybe
             if let Some(modifiers) = modifiers {
-                Ok(Some(BindingModifiers {
+                Ok(Some(BindingModifier {
                     kind: Some(BindingKind::Maybe),
                     ..modifiers
                 }))
             } else {
-                Ok(Some(BindingModifiers {
+                Ok(Some(BindingModifier {
                     kind: Some(BindingKind::Maybe),
-                    ..BindingModifiers::default()
+                    ..BindingModifier::default()
                 }))
             }
         } else {
@@ -65,18 +65,18 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_binding_modifiers_postfix(
         &mut self,
-        modifiers: Option<BindingModifiers>,
-    ) -> ParserResult<Option<BindingModifiers>> {
+        modifiers: Option<BindingModifier>,
+    ) -> ParserResult<Option<BindingModifier>> {
         self.eat_token(TokenType::Maybe)?;
         if let Some(modifiers) = modifiers {
-            Ok(Some(BindingModifiers {
+            Ok(Some(BindingModifier {
                 kind: Some(BindingKind::Maybe),
                 ..modifiers
             }))
         } else {
-            Ok(Some(BindingModifiers {
+            Ok(Some(BindingModifier {
                 kind: Some(BindingKind::Maybe),
-                ..BindingModifiers::default()
+                ..BindingModifier::default()
             }))
         }
     }
@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat maybe
             if modifiers.is_none() {
-                modifiers = Some(BindingModifiers::default());
+                modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
         }
@@ -457,7 +457,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_tree_literal_argument(&mut self) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
-        let modifiers: Option<BindingModifiers> = None;
+        let modifiers: Option<BindingModifier> = None;
         // spread argument
         if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range

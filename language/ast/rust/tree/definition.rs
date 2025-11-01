@@ -2,7 +2,8 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantKind};
 use crate::{
-    Asynchrony, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
+    Asynchrony, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node, NodeId, NodeType,
+    Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -32,6 +33,8 @@ pub struct DefinitionMeta {
     pub scope: DeclarationScope = DeclarationScope::Container,
     /// The name of the definition.
     pub name: Option<Name> = None,
+    /// The dynamic key of the definition.
+    pub key: Option<NodeId<Expression>> = None,
     /// The visibility of the definition.
     pub visibility: Option<Visibility> = None,
     /// The export type of the definition.
@@ -45,14 +48,53 @@ impl DefinitionMeta {
             kind: DeclarationKind::Definition,
             scope: DeclarationScope::Container,
             name: Some(name),
+            key: None,
             visibility: None,
             export: None,
         }
     }
 
     /// Create a new definition meta with the given name and scope.
+    #[inline]
     pub fn with_scope(self, scope: DeclarationScope) -> Self {
         Self { scope, ..self }
+    }
+
+    /// Create a new definition meta with the given name and name.
+    #[inline]
+    pub fn with_name(self, name: Name) -> Self {
+        Self {
+            name: Some(name),
+            ..self
+        }
+    }
+
+    /// Create a new definition meta with the given name and key.
+    #[inline]
+    pub fn with_key(self, key: NodeId<Expression>) -> Self {
+        Self {
+            key: Some(key),
+            ..self
+        }
+    }
+
+    /// Create a new definition meta with the given name or key.
+    #[inline]
+    pub fn with_name_or_key(self, name_or_key: NameOrDynamicKey) -> Self {
+        match name_or_key {
+            NameOrDynamicKey::Name(name) => self.with_name(name),
+            NameOrDynamicKey::DynamicKey(key) => self.with_key(key),
+        }
+    }
+
+    /// Create a new definition meta with the given name or key maybe.
+    #[inline]
+    pub fn with_name_or_key_maybe(self, name_or_key: Option<NameOrDynamicKey>) -> Self {
+        if let Some(name_or_key) = name_or_key {
+            self.with_name_or_key(name_or_key)
+        } else {
+            self
+        }
     }
 }
 
@@ -491,7 +533,7 @@ pub enum ModuleStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
     /// The name of the enum field.
-    pub name: StringId,
+    pub name: Name,
     /// The default value of the enum field.
     pub value: Option<NodeId<Expression>>,
 }

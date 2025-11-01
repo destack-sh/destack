@@ -1006,11 +1006,11 @@ impl Dump for BindingOperator {
     }
 }
 
-/// Dump a BindingModifiers as a string.
-impl Dump for BindingModifiers {
+/// Dump a BindingModifier as a string.
+impl Dump for BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("BindingModifiers")
+            .object("BindingModifier")
             .field_optional("kind", &self.kind)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)

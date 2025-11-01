@@ -18,7 +18,7 @@ pub enum BindingOperator {
 
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct BindingModifiers {
+pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
     /// The mutability of the field.
@@ -35,7 +35,7 @@ pub enum VariantField {
     /// Named field ().
     Named {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The name of the field.
         name: StringId,
         /// The type of the field.
@@ -46,7 +46,7 @@ pub enum VariantField {
     /// Positional field.
     Positional {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The type of the field.
         ty: NodeId<Type>,
         /// The default value of the field.
@@ -55,7 +55,7 @@ pub enum VariantField {
     /// Dynamic field.
     Dynamic {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The name of the field (if any).
         name: Option<StringId>,
         /// The type of the field.
@@ -74,7 +74,7 @@ impl Node for VariantField {
 impl VariantField {
     /// Get the modifiers of the field.
     #[inline]
-    pub fn modifiers(&self) -> Option<BindingModifiers> {
+    pub fn modifiers(&self) -> Option<BindingModifier> {
         match self {
             VariantField::Named { modifiers, .. } => *modifiers,
             VariantField::Positional { modifiers, .. } => *modifiers,

@@ -1,24 +1,4 @@
-use crate::{BindingModifiers, Expression, Node, NodeId, NodeType, Pattern, StringId};
-
-/// A Name is a regular or string identifier.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Name {
-    /// A regular identifier (regular `x` or `someThing`).
-    Identifier(StringId),
-    /// A string identifier (like `["Content-Type"]`, only in certain contexts).
-    String(StringId),
-}
-
-impl Name {
-    /// Get the string identifier.
-    #[inline]
-    pub fn string(&self) -> StringId {
-        match self {
-            Name::Identifier(id) => *id,
-            Name::String(id) => *id,
-        }
-    }
-}
+use crate::{BindingModifier, Expression, Name, Node, NodeId, NodeType, Pattern, StringId};
 
 /// A Parameter is a parameter to some construct.
 ///
@@ -40,21 +20,21 @@ impl Name {
 pub enum Parameter {
     /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
     Named {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Expression>>,
         default: Option<NodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
     Pattern {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
         default: Option<NodeId<Expression>>,
     },
     /// Variadic parameter (like `..T` or `...x: int32[]`).
     Variadic {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Expression>>,
     },
@@ -87,42 +67,42 @@ impl Node for Parameter {
 pub enum Argument {
     /// Named argument (like `x: 1` or `y: foo()`).
     Named {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Name,
         value: NodeId<Expression>,
     },
     /// Named shorthand argument (like `y`, only in certain contexts like struct literals).
     Shorthand {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
     },
     /// Positional argument (like `1` or `foo()`).
     Positional {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         value: NodeId<Expression>,
     },
     /// Spread argument (like `...args` or `...args: int32[]`).
     Spread {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
     /// Dynamic argument (like `{ [variable]: 2 }`).
     Dynamic {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },
     /// Named shorthand function argument (like `foo()` or `<T>(): T`, only in struct literals).
     Function {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<Name>,
         value: NodeId<Expression>,
     },
     /// Dynamic function argument (like `[x: string](): T`, only in struct literals).
     DynamicFunction {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,

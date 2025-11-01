@@ -35,11 +35,12 @@ pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
     Keyword::Async,
 ];
 
-pub static DEFINITION_START_TOKENS: [TokenType; 5] = [
+pub static DEFINITION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,
     TokenType::Identifier,
     TokenType::OpenParenthesis,
     TokenType::OpenBrace,
+    TokenType::OpenBracket,
     TokenType::LessThan,
 ];
 

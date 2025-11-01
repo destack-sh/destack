@@ -1,5 +1,5 @@
 use crate::{
-    BindingModifiers, Expression, Node, NodeId, NodeType, Pattern, StringId, Type, VariantField,
+    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, Type, VariantField,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -7,21 +7,21 @@ use crate::{
 pub enum Parameter {
     /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
     Named {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
     Pattern {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
     },
     /// Variadic parameter (like `..T` or `...x: int32[]`).
     Variadic {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Type>>,
     },
@@ -45,24 +45,24 @@ pub enum ArgumentSlot {
 pub enum Argument {
     /// Unresolved named argument.
     UnresolvedNamed {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         value: NodeId<Expression>,
     },
     /// Unresolved positional argument.
     UnresolvedPositional {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         value: NodeId<Expression>,
     },
     /// Unresolved positional spread argument.
     UnresolvedSpread {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
     /// Unresolved dynamic argument.
     UnresolvedDynamic {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,
@@ -70,20 +70,20 @@ pub enum Argument {
 
     /// Direct argument (named or positional).
     Direct {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: StringId,
         slot: ArgumentSlot,
         value: NodeId<Expression>,
     },
     /// Spread argument.
     Spread {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         slot: ArgumentSlot,
         value: NodeId<Expression>,
     },
     /// Dynamic argument.
     Dynamic {
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,

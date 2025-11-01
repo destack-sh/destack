@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // optional name
+        // optional name / key
         meta.name = self.eat_name_maybe()?;
 
         // style / tuple struct

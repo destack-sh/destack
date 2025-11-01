@@ -1,0 +1,30 @@
+use crate::{Expression, NodeId, StringId};
+
+/// A Name is a regular or string identifier.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Name {
+    /// A regular identifier (regular `x` or `someThing`).
+    Identifier(StringId),
+    /// A string identifier (like `["Content-Type"]`, only in certain contexts).
+    String(StringId),
+}
+
+impl Name {
+    /// Get the string identifier.
+    #[inline]
+    pub fn string(&self) -> StringId {
+        match self {
+            Name::Identifier(id) => *id,
+            Name::String(id) => *id,
+        }
+    }
+}
+
+/// A NameOrDynamicKey is a name or a dynamic key.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NameOrDynamicKey {
+    /// A name (like `x` or `someThing`).
+    Name(Name),
+    /// A dynamic key (like `["Content-Type"]`).
+    DynamicKey(NodeId<Expression>),
+}

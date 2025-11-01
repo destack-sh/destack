@@ -29,7 +29,7 @@ pub enum BindingOperator {
 
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
-pub struct BindingModifiers {
+pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind> = None,
     /// The scope of the binding.
@@ -42,7 +42,7 @@ pub struct BindingModifiers {
     pub operator: Option<BindingOperator> = None,
 }
 
-impl BindingModifiers {
+impl BindingModifier {
     /// Create a new binding modifiers with the given kind.
     pub fn with_kind(self, kind: BindingKind) -> Self {
         Self {
@@ -103,7 +103,7 @@ pub enum VariantField {
     /// Named field.
     Named {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The name of the field.
         name: Name,
         /// The type of the field.
@@ -114,7 +114,7 @@ pub enum VariantField {
     /// Positional field.
     Positional {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The type of the field.
         ty: NodeId<Expression>,
         /// The default value of the field.
@@ -123,7 +123,7 @@ pub enum VariantField {
     /// Dynamic field.
     Dynamic {
         /// The modifiers of the field.
-        modifiers: Option<BindingModifiers>,
+        modifiers: Option<BindingModifier>,
         /// The name of the field (if any).
         name: Option<StringId>,
         /// The type of the field.
@@ -142,7 +142,7 @@ impl Node for VariantField {
 impl VariantField {
     /// Get the modifiers of the field.
     #[inline]
-    pub fn modifiers(&self) -> Option<BindingModifiers> {
+    pub fn modifiers(&self) -> Option<BindingModifier> {
         match self {
             VariantField::Named { modifiers, .. } => *modifiers,
             VariantField::Positional { modifiers, .. } => *modifiers,
