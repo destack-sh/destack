@@ -572,7 +572,8 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::LineComment => {
-                let string = self.intern_string(self.clean_annotation_string(token_type, group));
+                let string = self.clean_annotation_string(token_type, group);
+                let string = self.intern_string(string);
                 let comment = self.tree.insert(
                     Comment {
                         string,
@@ -589,7 +590,8 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::BlockComment => {
-                let string = self.intern_string(self.clean_annotation_string(token_type, group));
+                let string = self.clean_annotation_string(token_type, group);
+                let string = self.intern_string(string);
                 let comment = self.tree.insert(
                     Comment {
                         string,
@@ -606,7 +608,8 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::DocLineComment => {
-                let string = self.intern_string(self.clean_annotation_string(token_type, group));
+                let string = self.clean_annotation_string(token_type, group);
+                let string = self.intern_string(string);
                 let doc = self.tree.insert(
                     Doc {
                         string,
@@ -623,7 +626,8 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::DocBlockComment => {
-                let string = self.intern_string(self.clean_annotation_string(token_type, group));
+                let string = self.clean_annotation_string(token_type, group);
+                let string = self.intern_string(string);
                 let doc = self.tree.insert(
                     Doc {
                         string,
@@ -655,7 +659,7 @@ impl<'a> Parser<'a> {
         for token in group {
             // strip comment prefixes and suffixes
             let raw_str = self.source.get_span_str(token.span);
-            let inner_str = match token_type {
+            let mut inner_str = match token_type {
                 TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
                 TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
                 TokenType::BlockComment => raw_str
@@ -670,6 +674,15 @@ impl<'a> Parser<'a> {
                     .unwrap_or(raw_str),
                 _ => panic!("unexpected token type: {token_type:?}"),
             };
+
+            if matches!(token_type, TokenType::BlockComment | TokenType::DocBlockComment) {
+                if inner_str.starts_with(' ') {
+                    inner_str = &inner_str[1..];
+                }
+                while inner_str.ends_with(' ') {
+                    inner_str = inner_str.strip_suffix(' ').unwrap();
+                }
+            }
 
             // clean up whitespace and formatting characters
             let cleaned = match token_type {
@@ -687,17 +700,17 @@ impl<'a> Parser<'a> {
                     }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
-                    let trimmed = inner_str.trim();
-                    if trimmed.is_empty() {
+                    if inner_str.trim().is_empty() {
                         String::new()
                     } else {
                         // strip block comment formatting with optional asterisk prefixes
-                        trimmed
-                            .lines()
+                        // (also strip first/last space before/after the asterisk)
+                        inner_str
+                            .split('\n')
                             .map(|line| {
-                                let first_real_char =
-                                    line.char_indices().find(|&(_, ch)| ch != ' ');
-                                if let Some((idx, ch)) = first_real_char
+                                let mut cleaned_line = if let Some((idx, ch)) = line
+                                    .char_indices()
+                                    .find(|&(_, ch)| ch != ' ')
                                     && ch == '*'
                                 {
                                     // strip asterisk prefix and following space
@@ -709,7 +722,15 @@ impl<'a> Parser<'a> {
                                 } else {
                                     // strip leading space
                                     line.strip_prefix(' ').unwrap_or(line).to_owned()
+                                };
+
+                                if cleaned_line.chars().all(|ch| ch == ' ') {
+                                    cleaned_line.clear();
+                                } else {
+                                    cleaned_line = cleaned_line.trim_end_matches(' ').to_owned();
                                 }
+
+                                cleaned_line
                             })
                             .collect::<Vec<_>>()
                             .join("\n")
@@ -735,6 +756,53 @@ mod tests {
         Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Runtime,
         ScalarLiteral, Tag, VariantField, assert_node, assert_path, assert_string,
     };
+
+    /// Block comments should retain all their newlines (including leading and trailing newlines).
+    #[test]
+    fn test_attach_block_comment_retain_newlines() {
+        let mut test: TestParser = TestParser::new(
+            r#"
+/* 
+ * Comment 1
+ */
+let x;
+/*
+ * Comment 2.1
+ * Comment 2.2
+ * Comment 2.3
+ */
+let y;
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        assert_eq!(expressions.len(), 2);
+
+        // let x;
+        let x_annotations = parser.tree.get_annotations_for(expressions[0].id);
+        assert_eq!(x_annotations.len(), 1);
+        assert_node!(parser.tree, x_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                let comment = parser.get_string(*string);
+                assert_eq!(comment, "\nComment 1\n");
+                assert_eq!(*style, CommentStyle::Star);
+            });
+        });
+        // let y;
+        let y_annotations = parser.tree.get_annotations_for(expressions[1].id);
+        assert_eq!(y_annotations.len(), 1);
+        assert_node!(parser.tree, y_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                let comment = parser.get_string(*string);
+                assert_eq!(comment, "\nComment 2.1\nComment 2.2\nComment 2.3\n");
+                assert_eq!(*style, CommentStyle::Star);
+            });
+        });
+    }
 
     /// Tag annotations should be parsed around a struct.
     #[test]
@@ -978,9 +1046,9 @@ over multiple lines with trailing space    */",
         });
     }
 
-    /// Multiline block comments are cleaned up properly.
+    /// Multiline block doc comments are cleaned up properly.
     #[test]
-    fn test_clean_multiline_block_comment() {
+    fn test_clean_multiline_block_doc() {
         let mut test = TestParser::new(
             "{
     /** some multiline

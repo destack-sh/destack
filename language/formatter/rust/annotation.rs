@@ -265,12 +265,20 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         match self.style {
             DocStyle::Star => {
                 if is_multi_line {
-                    write!(f, [token("/**"), hard_line_break()])?;
-                    for line in string.lines() {
-                        write!(f, [token(" *")])?;
+                    for (i, line) in string.lines().enumerate() {
+                        if i == 0 {
+                            write!(f, [token("/**")])?;
+                        } else {
+                            write!(f, [token(" *")])?;
+                        }
                         if !line.is_empty() {
                             write!(f, [space(), text(line)])?;
                         }
+                        if i != string.lines().count() - 1 {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+                    if string.ends_with('\n') {
                         write!(f, [hard_line_break()])?;
                     }
                     write!(f, [token(" */")])?;
@@ -306,12 +314,20 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         match self.style {
             CommentStyle::Star => {
                 if is_multi_line {
-                    write!(f, [token("/*"), hard_line_break()])?;
-                    for line in string.lines() {
-                        write!(f, [token(" *")])?;
+                    for (i, line) in string.lines().enumerate() {
+                        if i == 0 {
+                            write!(f, [token("/*")])?;
+                        } else {
+                            write!(f, [token(" *")])?;
+                        }
                         if !line.is_empty() {
                             write!(f, [space(), text(line)])?;
                         }
+                        if i != string.lines().count() - 1 {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+                    if string.ends_with('\n') {
                         write!(f, [hard_line_break()])?;
                     }
                     write!(f, [token(" */")])?;
@@ -390,6 +406,30 @@ mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
+
+    /// Block comments should retain all their newlines (including leading and trailing newlines).
+    #[test]
+    fn test_format_block_comment_retain_newlines() {
+        let source = r#"{
+    /*
+     * Comment 1
+     */
+    let x
+
+    /*
+     * Comment 2.1
+     * Comment 2.2
+     * Comment 2.3
+     */
+    let y
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
 
     /// Tags should be preserved in order.
     #[test]
@@ -511,11 +551,9 @@ mod tests {
     const X = 1 
 }",
             "{
-    /**
-     * some multiline
+    /** some multiline
      * doc comment
-     * over multiple lines
-     */
+     * over multiple lines */
     const X = 1
 }",
             |p| p.eat_block(),
@@ -533,10 +571,8 @@ mod tests {
 }",
             "{
     const X = 1
-    /*
-     * some comment
-     * over multiple lines yo
-     */
+    /* some comment
+     * over multiple lines yo */
 }",
             |p| p.eat_block(),
             DystFormatOptions::default()
