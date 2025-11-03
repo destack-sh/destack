@@ -7,6 +7,8 @@ use crate::{
     TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
+// TODO #Performance: reduce Expression size to <=64B
+
 /// An Expression is a generic container for value-producing forms.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,

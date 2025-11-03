@@ -4,19 +4,17 @@ use std::marker::PhantomData;
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
-    // groupings
-    Expression,
     Block,
-    // definitions
+	Statement,
+    Expression,
     Definition,
     Field,
-    EnumField,
-    UnionField,
-    // context
     DependencyItem,
-    // bindings
+	SwtichCase,
     Parameter,
     Argument,
+	Type,
+	EnumField,
 }
 
 /// Unique identifier for nodes with dynamic type.
