@@ -126,6 +126,9 @@ impl SemanticType {
             TokenType::Multiply
             | TokenType::WrappingMultiply
             | TokenType::SaturatingMultiply
+            | TokenType::Exponent
+            | TokenType::WrappingExponent
+            | TokenType::SaturatingExponent
             | TokenType::Divide
             | TokenType::Remainder
 
@@ -183,6 +186,9 @@ impl SemanticType {
             | TokenType::MultiplyAssign
             | TokenType::WrappingMultiplyAssign
             | TokenType::SaturatingMultiplyAssign
+            | TokenType::ExponentAssign
+            | TokenType::WrappingExponentAssign
+            | TokenType::SaturatingExponentAssign
             | TokenType::DivideAssign
             | TokenType::RemainderAssign
 

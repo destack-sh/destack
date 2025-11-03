@@ -1021,7 +1021,9 @@ mod tests {
 
     function c() { }
 
-    /** Comment */
+    /** 
+     * Comment
+     */
     function d() { }
 
 }"#,

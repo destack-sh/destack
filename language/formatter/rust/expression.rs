@@ -1732,6 +1732,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::PreDecrement => token("--"),
             UnaryOperator::Not => token("!"),
             UnaryOperator::Negate => token("-"),
+            UnaryOperator::Plus => token("+"),
             UnaryOperator::WrappingNegate => token("-%"),
             UnaryOperator::ElementwiseNot => token("~"),
             UnaryOperator::Dereference => token("*"),
@@ -1763,6 +1764,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::Multiply => token("*"),
             BinaryOperator::WrappingMultiply => token("*%"),
             BinaryOperator::SaturatingMultiply => token("*|"),
+            BinaryOperator::Exponent => token("**"),
+            BinaryOperator::WrappingExponent => token("**%"),
+            BinaryOperator::SaturatingExponent => token("**|"),
             BinaryOperator::Divide => token("/"),
             BinaryOperator::Remainder => token("%"),
 
@@ -1838,6 +1842,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
             AssignOperator::MultiplyAssign => "*=",
             AssignOperator::WrappingMultiplyAssign => "*%=",
             AssignOperator::SaturatingMultiplyAssign => "*|=",
+            AssignOperator::ExponentAssign => "**=",
+            AssignOperator::WrappingExponentAssign => "**%=",
+            AssignOperator::SaturatingExponentAssign => "**|=",
             AssignOperator::DivideAssign => "/=",
             AssignOperator::RemainderAssign => "%=",
 

@@ -51,8 +51,6 @@ pub enum TypeLiteral {
     Null,
     /// Primitive type.
     Primitive(PrimitiveType),
-    /// Scalar literal.
-    // ScalarLiteral(ScalarLiteral),
 }
 
 /// A TypeUnaryOperator is a type unary operator.

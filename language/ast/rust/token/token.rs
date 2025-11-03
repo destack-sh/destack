@@ -147,6 +147,12 @@ pub enum TokenType {
     WrappingMultiply,
     /// `*|`
     SaturatingMultiply,
+    /// `**`
+    Exponent,
+    /// `**%`
+    WrappingExponent,
+    /// `**|`
+    SaturatingExponent,
     /// `/`
     Divide,
     /// `%`
@@ -241,6 +247,12 @@ pub enum TokenType {
     WrappingMultiplyAssign,
     /// `*|=`
     SaturatingMultiplyAssign,
+    /// `**=`
+    ExponentAssign,
+    /// `**%=`
+    WrappingExponentAssign,
+    /// `**|`
+    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
@@ -351,6 +363,9 @@ impl Display for TokenType {
             TokenType::Multiply => write!(f, "*"),
             TokenType::WrappingMultiply => write!(f, "*%"),
             TokenType::SaturatingMultiply => write!(f, "*|"),
+            TokenType::Exponent => write!(f, "**"),
+            TokenType::WrappingExponent => write!(f, "**%"),
+            TokenType::SaturatingExponent => write!(f, "**|"),
             TokenType::Divide => write!(f, "/"),
             TokenType::Remainder => write!(f, "%"),
 
@@ -394,6 +409,9 @@ impl Display for TokenType {
             TokenType::MultiplyAssign => write!(f, "*="),
             TokenType::WrappingMultiplyAssign => write!(f, "*%="),
             TokenType::SaturatingMultiplyAssign => write!(f, "*|=="),
+            TokenType::ExponentAssign => write!(f, "**="),
+            TokenType::WrappingExponentAssign => write!(f, "**%="),
+            TokenType::SaturatingExponentAssign => write!(f, "**|=="),
             TokenType::DivideAssign => write!(f, "/="),
             TokenType::RemainderAssign => write!(f, "%="),
 

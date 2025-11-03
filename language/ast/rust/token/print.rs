@@ -82,6 +82,9 @@ impl Token {
             TokenType::Multiply => "*".to_string(),
             TokenType::WrappingMultiply => "*%".to_string(),
             TokenType::SaturatingMultiply => "*|".to_string(),
+            TokenType::Exponent => "**".to_string(),
+            TokenType::WrappingExponent => "**%".to_string(),
+            TokenType::SaturatingExponent => "**|".to_string(),
             TokenType::Divide => "/".to_string(),
             TokenType::Remainder => "%".to_string(),
 
@@ -130,6 +133,9 @@ impl Token {
             TokenType::MultiplyAssign => "*=".to_string(),
             TokenType::WrappingMultiplyAssign => "*%=".to_string(),
             TokenType::SaturatingMultiplyAssign => "*|=".to_string(),
+            TokenType::ExponentAssign => "**=".to_string(),
+            TokenType::WrappingExponentAssign => "**%=".to_string(),
+            TokenType::SaturatingExponentAssign => "**|=".to_string(),
             TokenType::DivideAssign => "/=".to_string(),
             TokenType::RemainderAssign => "%=".to_string(),
 

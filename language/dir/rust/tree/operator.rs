@@ -12,6 +12,8 @@ pub enum UnaryOperator {
     PreDecrement,
     /// `!`
     Not,
+    /// `+`
+    Plus,
     /// `-`
     Negate,
     /// `-%`
@@ -35,6 +37,12 @@ pub enum BinaryOperator {
     WrappingMultiply,
     /// `*|`
     SaturatingMultiply,
+    /// `**`
+    Exponent,
+    /// `**%`
+    WrappingExponent,
+    /// `**|`
+    SaturatingExponent,
     /// `/`
     Divide,
     /// `%`
@@ -118,6 +126,12 @@ pub enum AssignOperator {
     WrappingMultiplyAssign,
     /// `*|=`
     SaturatingMultiplyAssign,
+    /// `**=`
+    ExponentAssign,
+    /// `**%=`
+    WrappingExponentAssign,
+    /// `**|`
+    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
