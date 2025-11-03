@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifier, DeclarationKind, DeclarationScope, DefinitionMeta, Expression,
+    BindingKind, BindingModifier, DeclarationKind, BindingScope, DefinitionMeta, Expression,
     Keyword,
 };
 
@@ -10,7 +10,8 @@ use crate::parse::prelude::*;
 
 use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
 
-pub(crate) static BINDING_MODIFIERS: [Keyword; 5] = [
+pub(crate) static BINDING_MODIFIERS: [Keyword; 6] = [
+    Keyword::Static,
     Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
@@ -257,9 +258,9 @@ impl<'a> Parser<'a> {
             };
             let scope = if self.peek_keyword(Keyword::Static).is_ok() {
                 self.bump(); // eat static
-                DeclarationScope::Static
+                BindingScope::Static
             } else {
-                DeclarationScope::Container
+                BindingScope::Container
             };
             if self.peek_keyword(Keyword::Readonly).is_ok() {
                 self.bump(); // eat readonly

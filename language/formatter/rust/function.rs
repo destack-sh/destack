@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::{DeclarationKind, DeclarationScope, DefinitionMeta, Visibility};
+    use dyst_ast::{DeclarationKind, BindingScope, DefinitionMeta, Visibility};
 
     #[test]
     fn test_format_function_lambda_empty() {
@@ -53,7 +53,7 @@ mod tests {
                 DefinitionMeta {
                     visibility: Some(Visibility::Public),
                     kind: DeclarationKind::Declaration,
-                    scope: DeclarationScope::Static,
+                    scope: BindingScope::Static,
                     ..DefinitionMeta::default()
                 },
                 false,

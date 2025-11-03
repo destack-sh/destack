@@ -1,7 +1,7 @@
 //! Parse expressions. Mostly defers to other parsers.
 
 use dyst_ast::{
-    DeclarationKind, DeclarationScope, DefinitionMeta, ExportType, IfStyle, PostfixPosition,
+    DeclarationKind, BindingScope, DefinitionMeta, ExportType, IfStyle, PostfixPosition,
     TypeBinaryOperator, TypeUnaryOperator,
 };
 
@@ -344,9 +344,9 @@ impl<'a> Parser<'a> {
         // scope
         meta.scope = if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
-            DeclarationScope::Static
+            BindingScope::Static
         } else {
-            DeclarationScope::Container
+            BindingScope::Container
         };
 
         // runtime

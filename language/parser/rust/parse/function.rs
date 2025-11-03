@@ -13,6 +13,16 @@ use crate::{
     SelfParameter,
 };
 
+pub(crate) static FUNCTION_MODIFIERS: [Keyword; 7] = [
+    Keyword::Async,
+    Keyword::Abstract,
+    Keyword::Override,
+    Keyword::Get,
+    Keyword::Set,
+    Keyword::Constructor,
+    Keyword::New,
+];
+
 impl<'a> Parser<'a> {
     /// Peek a self keyword (also accepts `this`).
     fn peek_self_keyword(&mut self) -> ParserResult<Keyword> {
@@ -256,17 +266,20 @@ impl<'a> Parser<'a> {
         };
 
         // function style
-        let style = {
+        let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
+        let (style, is_generator) = {
             // constructors are always functions
             if kind == Some(FunctionKind::Constructor) {
-                FunctionStyle::Function
+                (FunctionStyle::Function, false)
             }
             // regular `function` style
             else if self.peek_keyword(Keyword::Function).is_ok() {
                 self.bump(); // eat function keyword
-                FunctionStyle::Function
+                let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
+                (FunctionStyle::Function, is_generator)
             }
-            // shorthand `name()` style
+            // shorthand `name()` or `name?()` style
+            // (or `[Symbol.iterator]()` or `[Symbol.iterator]?()` style)
             else if self.peek_token(TokenType::Identifier).is_ok()
                 && (!expect_maybe
                     && self
@@ -279,21 +292,14 @@ impl<'a> Parser<'a> {
                                 TokenType::OpenParenthesis,
                             ])
                             .is_ok())
+                || self.peek_token(TokenType::OpenBracket).is_ok()
             {
-                FunctionStyle::Function
+                (FunctionStyle::Function, is_generator)
             }
             // lambda style
             else {
-                FunctionStyle::Lambda
+                (FunctionStyle::Lambda, is_generator)
             }
-        };
-
-        // cardinality
-        let is_generator = if self.peek_token(TokenType::Multiply).is_ok() {
-            self.bump(); // eat *
-            true
-        } else {
-            false
         };
 
         // function style: runtime, name, static parameters
@@ -510,8 +516,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle, Parameter,
-        ReferenceType,
+        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle,
+        Parameter, ReferenceType,
     };
 
     use crate::parse::tests::TestParser;
@@ -916,6 +922,36 @@ async function* foo() => int32 {
             assert_string!(parser, meta.name.unwrap().string(), "foo");
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*cardinality, FunctionCardinality::Generator);
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_symbol_iterator() {
+        let mut test = TestParser::new(
+            r#"
+async *[Symbol.iterator]() {
+    yield 1; 
+    yield 2; 
+    yield 3;
+}
+            "#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let function_id = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
+        assert_node!(parser.tree, function_id, Definition::Function { meta, asynchrony, cardinality, body, .. } => {
+            assert!(meta.name.is_none());
+            assert_expr_path!(parser, parser.tree.get(meta.key.unwrap()), "Symbol.iterator");
+            assert_eq!(*asynchrony, Asynchrony::Async);
+            assert_eq!(*cardinality, FunctionCardinality::Generator);
+            assert_node!(parser.tree, body.unwrap(), Expression::Block(block) => {
+                assert_node!(parser.tree, *block, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 3);
+                });
+            });
         });
     }
 

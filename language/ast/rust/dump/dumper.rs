@@ -985,8 +985,8 @@ impl Dump for VariantKind {
     }
 }
 
-/// Dump a DeclarationScope as a string.
-impl Dump for DeclarationScope {
+/// Dump a BindingScope as a string.
+impl Dump for BindingScope {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }

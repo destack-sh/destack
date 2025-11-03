@@ -8,7 +8,7 @@ use crate::{
     Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, DeclarationScope, ExportType, FunctionAbstraction,
+    Asynchrony, DeclarationKind, BindingScope, ExportType, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceType, StructStyle,
     Visibility,
 };
@@ -800,25 +800,25 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 match *abstraction {
                     FunctionAbstraction::Abstract => {
                         write!(f, [Keyword::Abstract, space()])?;
-                        if meta.scope == DeclarationScope::Static {
+                        if meta.scope == BindingScope::Static {
                             write!(f, [Keyword::Static, space()])?;
                         }
                     }
                     FunctionAbstraction::AbstractOverride => {
                         write!(f, [Keyword::Abstract, space()])?;
-                        if meta.scope == DeclarationScope::Static {
+                        if meta.scope == BindingScope::Static {
                             write!(f, [Keyword::Static, space()])?;
                         }
                         write!(f, [Keyword::Override, space()])?;
                     }
                     FunctionAbstraction::ConcreteOverride => {
                         write!(f, [Keyword::Override, space()])?;
-                        if meta.scope == DeclarationScope::Static {
+                        if meta.scope == BindingScope::Static {
                             write!(f, [Keyword::Static, space()])?;
                         }
                     }
                     FunctionAbstraction::Concrete => {
-                        if meta.scope == DeclarationScope::Static {
+                        if meta.scope == BindingScope::Static {
                             write!(f, [Keyword::Static, space()])?;
                         }
                     }
