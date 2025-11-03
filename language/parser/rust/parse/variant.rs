@@ -173,7 +173,8 @@ impl<'a> Parser<'a> {
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                Some(self.eat_expression().for_node_type(NodeType::Definition)?)
+                let default = self.eat_expression().for_node_type(NodeType::Definition)?;
+                Some(default)
             } else {
                 None
             };
@@ -298,7 +299,7 @@ impl<'a> Parser<'a> {
                     visibility,
                 };
                 let function_id = self.eat_function(meta, false, false)?;
-                
+
                 let function_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),

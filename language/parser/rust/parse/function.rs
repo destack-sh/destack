@@ -414,7 +414,6 @@ impl<'a> Parser<'a> {
                         .with_options(self.options.nested_type_in_before_block(), |parser| {
                             parser.eat_expression()
                         })?;
-                    self.eat_newlines_maybe()?;
                     Some(return_type)
                 } else {
                     None

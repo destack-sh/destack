@@ -47,6 +47,23 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek a keyword after any newlines.
+    #[inline]
+    pub fn peek_keyword_after_newlines(&self, keyword: Keyword) -> ParserResult<&TokenSpan> {
+        let mut pos = self.pos();
+        while let Some(token) = self.tokens.get(pos as usize)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+        let current = self.tokens.get(pos as usize).unwrap();
+        if keyword.as_str() == self.get_span_str(current.span) {
+            Ok(current)
+        } else {
+            Err(ParserError::expected(current.span, TokenType::Identifier))
+        }
+    }
+
     /// Eat a keyword.
     pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<&TokenSpan> {
         self.peek_keyword(keyword)?;
