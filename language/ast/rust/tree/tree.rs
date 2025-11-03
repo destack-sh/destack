@@ -32,7 +32,7 @@ pub struct NodeTree {
     pub(crate) blocks: NodeArena<Block>,
     // definitions
     pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) variant_fields: NodeArena<Field>,
+    pub(crate) fields: NodeArena<Field>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) union_fields: NodeArena<UnionField>,
     // context
@@ -85,7 +85,7 @@ impl NodeTree {
             blocks: NodeArena::new(),
             // definitions
             definitions: NodeArena::new(),
-            variant_fields: NodeArena::new(),
+            fields: NodeArena::new(),
             enum_fields: NodeArena::new(),
             union_fields: NodeArena::new(),
             // context
@@ -244,7 +244,7 @@ impl NodeTree {
             NodeType::Block => self.blocks.deallocate(local_ids),
             // definitions
             NodeType::Definition => self.definitions.deallocate(local_ids),
-            NodeType::Field => self.variant_fields.deallocate(local_ids),
+            NodeType::Field => self.fields.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
             // context
@@ -390,7 +390,7 @@ impl_node_tree_stores! {
     Block => blocks,
     // definitions
     Definition => definitions,
-    Field => variant_fields,
+    Field => fields,
     EnumField => enum_fields,
     UnionField => union_fields,
     // context

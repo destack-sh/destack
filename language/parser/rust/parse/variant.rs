@@ -1,14 +1,14 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifier, DeclarationKind, BindingScope, DefinitionMeta, Expression,
+    BindingKind, BindingModifier, BindingScope, DeclarationKind, DefinitionMeta, Expression,
     Keyword,
 };
 
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, Field};
+use crate::{Field, NodeId, NodeType, Parser, ParserError, ParserResult};
 
 pub(crate) static BINDING_MODIFIERS: [Keyword; 6] = [
     Keyword::Static,
@@ -22,7 +22,7 @@ pub(crate) static BINDING_MODIFIERS: [Keyword; 6] = [
 impl<'a> Parser<'a> {
     /// Peek a variant field: `name: Type` with optional default `= <expr>`.
     /// May be preceded by any number of field modifiers.
-    pub(crate) fn peek_variant_field(&self) -> ParserResult<()> {
+    pub(crate) fn peek_field(&self) -> ParserResult<()> {
         let pos = self.pos() as usize;
         if pos + 3 < self.tokens.len() {
             let token_ty = self.tokens[pos].token.ty;
@@ -64,18 +64,20 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// bar: int32
     /// T
-    /// name: T
-    /// name: T = <expr>
     /// public T
     /// readonly name: T
+    /// baz: T
+    /// public T
+    /// readonly bar: int32
     /// baz?: T // shorthand for baz: T?
     /// "Content-Type": string
     /// [x: string]: any
     /// [string]: woof
     /// [T] = "hello"
     /// ```
-    fn eat_variant_field(&mut self) -> ParserResult<NodeId<Field>> {
+    fn eat_field(&mut self) -> ParserResult<NodeId<Field>> {
         let start = self.mark();
 
         // modifiers
@@ -97,9 +99,7 @@ impl<'a> Parser<'a> {
             };
 
             // key
-            let key = self
-                .eat_expression()
-                .for_node_type(NodeType::Field)?;
+            let key = self.eat_expression().for_node_type(NodeType::Field)?;
 
             // close bracket
             self.eat_token(TokenType::CloseBracket)?;
@@ -216,7 +216,7 @@ impl<'a> Parser<'a> {
             }
             // keep eating tuple fields
             else {
-                let field = self.eat_variant_field()?;
+                let field = self.eat_field()?;
                 tuple_fields.push(field);
             }
         }
@@ -267,11 +267,9 @@ impl<'a> Parser<'a> {
             }
 
             // variant field
-            if allow_fields && self.peek_variant_field().is_ok() {
+            if allow_fields && self.peek_field().is_ok() {
                 self.rewind(modifier_start);
-                let field = self
-                    .eat_variant_field()
-                    .for_node_type(NodeType::Field)?;
+                let field = self.eat_field().for_node_type(NodeType::Field)?;
                 fields.push(field);
             }
             // function shorthand
@@ -361,12 +359,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_variant_field_with_implicit_self_function() {
+    fn test_parse_field_with_implicit_self_function() {
         let mut test = TestParser::new(r#"onconnect: (this: Client) => void"#);
         let mut parser = test.prepare();
 
-        let variant_field = parser.eat_variant_field().unwrap();
-        assert_node!(parser.tree, variant_field, Field::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
+        let field = parser.eat_field().unwrap();
+        assert_node!(parser.tree, field, Field::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
             assert_string!(parser, *name, "onconnect");
             // (this: Client) => void;
             assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
@@ -380,15 +378,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_variant_field_with_es_visibility_modifier() {
+    fn test_parse_field_with_es_visibility_modifier() {
         let mut test = TestParser::new_with_options(
             r#"#name: string"#,
             LanguageOptions::default().with_compatibility(LanguageCompatibility::TypeScript),
         );
         let mut parser = test.prepare();
 
-        let variant_field = parser.eat_variant_field().unwrap();
-        assert_node!(parser.tree, variant_field, Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default: None, .. } => {
+        let field = parser.eat_field().unwrap();
+        assert_node!(parser.tree, field, Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default: None, .. } => {
             // #name means private for #Compatibility
             assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
             // name

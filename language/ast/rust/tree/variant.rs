@@ -93,11 +93,14 @@ impl BindingModifier {
     }
 }
 
-/// A Field is a field declaration in some type.
+/// A Field is a field in some variant type.
 ///
 /// Examples:
 /// ```
 /// bar: int32
+/// T
+/// public T
+/// readonly name: T
 /// baz: T
 /// public T
 /// readonly bar: int32
@@ -134,46 +137,4 @@ pub enum Field {
 
 impl Node for Field {
     const KIND: NodeType = NodeType::Field;
-}
-
-impl Field {
-    /// Get the modifiers of the field.
-    #[inline]
-    pub fn modifiers(&self) -> Option<BindingModifier> {
-        match self {
-            Field::Named { modifiers, .. } => *modifiers,
-            Field::Positional { modifiers, .. } => *modifiers,
-            Field::Dynamic { modifiers, .. } => *modifiers,
-        }
-    }
-
-    /// Get the name of the field.
-    #[inline]
-    pub fn name(&self) -> Option<StringId> {
-        match self {
-            Field::Named { name, .. } => Some(name.string()),
-            Field::Positional { .. } => None,
-            Field::Dynamic { name, .. } => *name,
-        }
-    }
-
-    /// Get the type of the field.
-    #[inline]
-    pub fn ty(&self) -> NodeId<Expression> {
-        match self {
-            Field::Named { ty, .. } => *ty,
-            Field::Positional { ty, .. } => *ty,
-            Field::Dynamic { ty, .. } => *ty,
-        }
-    }
-
-    /// Get the default value of the field.
-    #[inline]
-    pub fn default(&self) -> Option<NodeId<Expression>> {
-        match self {
-            Field::Named { default, .. } => *default,
-            Field::Positional { default, .. } => *default,
-            Field::Dynamic { default, .. } => *default,
-        }
-    }
 }
