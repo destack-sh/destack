@@ -1,7 +1,7 @@
 use dyst_ast::{BindingKind, BindingModifier, BindingOperator, BindingScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, VariantField};
+use crate::{DystFormatter, FormatNode, NodeId, Field};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -63,16 +63,16 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     Ok(())
 }
 
-impl<'ast> FormatNode<'ast, VariantField> for VariantField {
+impl<'ast> FormatNode<'ast, Field> for Field {
     fn format_node(
         &self,
-        node_id: NodeId<VariantField>,
+        node_id: NodeId<Field>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            VariantField::Named {
+            Field::Named {
                 modifiers,
                 name,
                 ty,
@@ -92,7 +92,7 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            VariantField::Positional {
+            Field::Positional {
                 modifiers,
                 ty,
                 default,
@@ -108,7 +108,7 @@ impl<'ast> FormatNode<'ast, VariantField> for VariantField {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            VariantField::Dynamic {
+            Field::Dynamic {
                 modifiers,
                 name,
                 ty,

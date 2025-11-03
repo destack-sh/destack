@@ -150,7 +150,7 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Definition, Expression, IntType, Parameter, TypeLiteral, VariantField,
+        BinaryOperator, Definition, Expression, IntType, Parameter, TypeLiteral, Field,
         VariantKind, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
         assert_string,
     };
@@ -177,7 +177,7 @@ struct { public x: int32, readonly y: boolean
             assert!(where_clauses.is_none());
 
             // public x: int32
-            assert_node!(parser.tree, fields[0], VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[0], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
                 assert!(modifiers.mutability.is_none());
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert_string!(parser, *name, "x");
@@ -186,7 +186,7 @@ struct { public x: int32, readonly y: boolean
             });
 
             // readonly y: boolean
-            assert_node!(parser.tree, fields[1], VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[1], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
                 assert!(*modifiers.mutability.as_ref().unwrap() == Mutability::Immutable);
                 assert!(modifiers.visibility.is_none());
                 assert_string!(parser, *name, "y");
@@ -245,13 +245,13 @@ struct Foo(int32, public boolean) {}
             assert!(where_clauses.is_none());
 
             // int32
-            assert_node!(parser.tree, fields[0], VariantField::Positional { modifiers: None, ty, default, .. } => {
+            assert_node!(parser.tree, fields[0], Field::Positional { modifiers: None, ty, default, .. } => {
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
             });
 
             // public boolean
-            assert_node!(parser.tree, fields[1], VariantField::Positional { modifiers: Some(modifiers), ty, default, .. } => {
+            assert_node!(parser.tree, fields[1], Field::Positional { modifiers: Some(modifiers), ty, default, .. } => {
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
@@ -319,7 +319,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
 
             assert_eq!(fields.len(), 4);
             // a: T
-            assert_node!(parser.tree, fields[0], VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[0], Field::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "a");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
@@ -327,14 +327,14 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // b?: T
-            assert_node!(parser.tree, fields[1], VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[1], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
                 assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
                 assert_string!(parser, *name, "b");
                 assert!(default.is_none());
                 assert_expr_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
-            assert_node!(parser.tree, fields[2], VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[2], Field::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "c");
                 assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
@@ -344,7 +344,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, fields[3], VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, fields[3], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));

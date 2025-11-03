@@ -93,7 +93,7 @@ impl BindingModifier {
     }
 }
 
-/// A VariantField is a field declaration in some type.
+/// A Field is a field declaration in some type.
 ///
 /// Examples:
 /// ```
@@ -108,54 +108,42 @@ impl BindingModifier {
 /// [T] = "hello"
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum VariantField {
+pub enum Field {
     /// Named field.
     Named {
-        /// The modifiers of the field.
         modifiers: Option<BindingModifier>,
-        /// The name of the field.
         name: Name,
-        /// The type of the field.
         ty: NodeId<Expression>,
-        /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
     /// Positional field.
     Positional {
-        /// The modifiers of the field.
         modifiers: Option<BindingModifier>,
-        /// The type of the field.
         ty: NodeId<Expression>,
-        /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
     /// Dynamic field.
     Dynamic {
-        /// The modifiers of the field.
         modifiers: Option<BindingModifier>,
-        /// The name of the field (if any).
         name: Option<StringId>,
-        /// The type of the field.
         ty: NodeId<Expression>,
-        /// The key type of the field.
         key: NodeId<Expression>,
-        /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
 }
 
-impl Node for VariantField {
-    const KIND: NodeType = NodeType::VariantField;
+impl Node for Field {
+    const KIND: NodeType = NodeType::Field;
 }
 
-impl VariantField {
+impl Field {
     /// Get the modifiers of the field.
     #[inline]
     pub fn modifiers(&self) -> Option<BindingModifier> {
         match self {
-            VariantField::Named { modifiers, .. } => *modifiers,
-            VariantField::Positional { modifiers, .. } => *modifiers,
-            VariantField::Dynamic { modifiers, .. } => *modifiers,
+            Field::Named { modifiers, .. } => *modifiers,
+            Field::Positional { modifiers, .. } => *modifiers,
+            Field::Dynamic { modifiers, .. } => *modifiers,
         }
     }
 
@@ -163,9 +151,9 @@ impl VariantField {
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self {
-            VariantField::Named { name, .. } => Some(name.string()),
-            VariantField::Positional { .. } => None,
-            VariantField::Dynamic { name, .. } => *name,
+            Field::Named { name, .. } => Some(name.string()),
+            Field::Positional { .. } => None,
+            Field::Dynamic { name, .. } => *name,
         }
     }
 
@@ -173,9 +161,9 @@ impl VariantField {
     #[inline]
     pub fn ty(&self) -> NodeId<Expression> {
         match self {
-            VariantField::Named { ty, .. } => *ty,
-            VariantField::Positional { ty, .. } => *ty,
-            VariantField::Dynamic { ty, .. } => *ty,
+            Field::Named { ty, .. } => *ty,
+            Field::Positional { ty, .. } => *ty,
+            Field::Dynamic { ty, .. } => *ty,
         }
     }
 
@@ -183,9 +171,9 @@ impl VariantField {
     #[inline]
     pub fn default(&self) -> Option<NodeId<Expression>> {
         match self {
-            VariantField::Named { default, .. } => *default,
-            VariantField::Positional { default, .. } => *default,
-            VariantField::Dynamic { default, .. } => *default,
+            Field::Named { default, .. } => *default,
+            Field::Positional { default, .. } => *default,
+            Field::Dynamic { default, .. } => *default,
         }
     }
 }

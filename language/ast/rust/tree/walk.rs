@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc,
     EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Tag, TemplateLiteral, UnionField, VariantField, WhereClause, WithClause,
+    PatternField, Tag, TemplateLiteral, UnionField, Field, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -31,7 +31,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let definition = tree.definitions.get(local_idx);
             walk_definition(visitor, tree, NodeId::new(node_id), definition);
         }
-        NodeType::VariantField => {
+        NodeType::Field => {
             let variant_field = tree.variant_fields.get(local_idx);
             walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
         }
@@ -975,16 +975,16 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the VariantField.
+/// Walk the Field.
 pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<VariantField>,
-    field: &VariantField,
+    id: NodeId<Field>,
+    field: &Field,
 ) {
-    visitor.visit_any(tree, NodeType::VariantField, id.id);
+    visitor.visit_any(tree, NodeType::Field, id.id);
     match field {
-        VariantField::Named {
+        Field::Named {
             modifiers: _,
             name: _,
             ty,
@@ -997,7 +997,7 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, expression);
             }
         }
-        VariantField::Positional {
+        Field::Positional {
             modifiers: _,
             ty,
             default,
@@ -1009,7 +1009,7 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, expression);
             }
         }
-        VariantField::Dynamic {
+        Field::Dynamic {
             modifiers: _,
             name: _,
             ty,

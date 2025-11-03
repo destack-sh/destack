@@ -2,7 +2,7 @@
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, Expression, MatchCase, NodeId,
-    NodeTree, NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
+    NodeTree, NodeType, Parameter, Pattern, PatternField, Type, Variant, Field, WhereClause,
     WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
     walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type,
     walk_variant, walk_variant_field, walk_where_clause, walk_with_clause,
@@ -62,12 +62,12 @@ pub trait NodeVisitor {
         walk_variant(self, tree, id, variant);
     }
 
-    /// Visit a VariantField.
+    /// Visit a Field.
     fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<VariantField>,
-        variant_field: &VariantField,
+        id: NodeId<Field>,
+        variant_field: &Field,
     ) {
         walk_variant_field(self, tree, id, variant_field);
     }
@@ -231,10 +231,10 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<VariantField>,
-        _variant_field: &VariantField,
+        id: NodeId<Field>,
+        _variant_field: &Field,
     ) {
-        self.visit_any(tree, NodeType::VariantField, id.id);
+        self.visit_any(tree, NodeType::Field, id.id);
     }
 
     fn visit_where_clause(

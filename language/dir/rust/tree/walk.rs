@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, Expression,
     FunctionSignature, Generics, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, TemplateLiteral, Type, Variant, VariantField, WhereClause, WithClause,
+    Pattern, PatternField, TemplateLiteral, Type, Variant, Field, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -42,7 +42,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let variant = tree.variants.get(local_idx);
             walk_variant(visitor, tree, NodeId::new(node_id), variant);
         }
-        NodeType::VariantField => {
+        NodeType::Field => {
             let variant_field = tree.variant_fields.get(local_idx);
             walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
         }
@@ -853,22 +853,22 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the VariantField.
+/// Walk the Field.
 pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<VariantField>,
-    variant_field: &VariantField,
+    id: NodeId<Field>,
+    variant_field: &Field,
 ) {
-    visitor.visit_any(tree, NodeType::VariantField, id.id);
+    visitor.visit_any(tree, NodeType::Field, id.id);
     match variant_field {
-        VariantField::Named {
+        Field::Named {
             modifiers: _,
             name: _,
             ty,
             default,
         }
-        | VariantField::Positional {
+        | Field::Positional {
             modifiers: _,
             ty,
             default,
@@ -880,7 +880,7 @@ pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        VariantField::Dynamic {
+        Field::Dynamic {
             modifiers: _,
             name: _,
             ty,

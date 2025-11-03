@@ -7,7 +7,7 @@ use dyst_source::SourceId;
 use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, Expression, MatchCase, Node, NodeId,
-    NodeType, Parameter, Pattern, PatternField, Type, Variant, VariantField, WhereClause,
+    NodeType, Parameter, Pattern, PatternField, Type, Variant, Field, WhereClause,
     WithClause,
 };
 
@@ -41,7 +41,7 @@ pub struct NodeTree {
     // types
     pub(crate) types: NodeArena<Type>,
     pub(crate) variants: NodeArena<Variant>,
-    pub(crate) variant_fields: NodeArena<VariantField>,
+    pub(crate) variant_fields: NodeArena<Field>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
@@ -322,7 +322,7 @@ impl_node_tree_stores! {
     // types
     Type => types,
     Variant => variants,
-    VariantField => variant_fields,
+    Field => variant_fields,
     WhereClause => where_clauses,
     // context
     WithClause => with_clauses,

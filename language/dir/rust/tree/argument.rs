@@ -1,5 +1,5 @@
 use crate::{
-    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, Type, VariantField,
+    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, Type, Field,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -37,7 +37,7 @@ pub enum ArgumentSlot {
     /// Parameter slot.
     Parameter { parameter: NodeId<Parameter> },
     /// Field slot.
-    Field { field: NodeId<VariantField> },
+    Field { field: NodeId<Field> },
 }
 
 /// An Argument is a named or positional argument to a function or method call.

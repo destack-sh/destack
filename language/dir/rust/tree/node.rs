@@ -14,7 +14,7 @@ pub enum NodeType {
     // Types
     Type,
     Variant,
-    VariantField,
+    Field,
     WhereClause,
     // Context
     WithClause,

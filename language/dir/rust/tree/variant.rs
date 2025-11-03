@@ -29,9 +29,9 @@ pub struct BindingModifier {
     pub operator: Option<BindingOperator>,
 }
 
-/// A VariantField is a field of a variant.
+/// A Field is a field of a variant.
 #[derive(Debug, Clone, PartialEq)]
-pub enum VariantField {
+pub enum Field {
     /// Named field ().
     Named {
         /// The modifiers of the field.
@@ -67,18 +67,18 @@ pub enum VariantField {
     },
 }
 
-impl Node for VariantField {
-    const KIND: NodeType = NodeType::VariantField;
+impl Node for Field {
+    const KIND: NodeType = NodeType::Field;
 }
 
-impl VariantField {
+impl Field {
     /// Get the modifiers of the field.
     #[inline]
     pub fn modifiers(&self) -> Option<BindingModifier> {
         match self {
-            VariantField::Named { modifiers, .. } => *modifiers,
-            VariantField::Positional { modifiers, .. } => *modifiers,
-            VariantField::Dynamic { modifiers, .. } => *modifiers,
+            Field::Named { modifiers, .. } => *modifiers,
+            Field::Positional { modifiers, .. } => *modifiers,
+            Field::Dynamic { modifiers, .. } => *modifiers,
         }
     }
 
@@ -86,9 +86,9 @@ impl VariantField {
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self {
-            VariantField::Named { name, .. } => Some(*name),
-            VariantField::Positional { .. } => None,
-            VariantField::Dynamic { name, .. } => *name,
+            Field::Named { name, .. } => Some(*name),
+            Field::Positional { .. } => None,
+            Field::Dynamic { name, .. } => *name,
         }
     }
 
@@ -96,9 +96,9 @@ impl VariantField {
     #[inline]
     pub fn ty(&self) -> NodeId<Type> {
         match self {
-            VariantField::Named { ty, .. } => *ty,
-            VariantField::Positional { ty, .. } => *ty,
-            VariantField::Dynamic { ty, .. } => *ty,
+            Field::Named { ty, .. } => *ty,
+            Field::Positional { ty, .. } => *ty,
+            Field::Dynamic { ty, .. } => *ty,
         }
     }
 
@@ -106,9 +106,9 @@ impl VariantField {
     #[inline]
     pub fn default(&self) -> Option<NodeId<Expression>> {
         match self {
-            VariantField::Named { default, .. } => *default,
-            VariantField::Positional { default, .. } => *default,
-            VariantField::Dynamic { default, .. } => *default,
+            Field::Named { default, .. } => *default,
+            Field::Positional { default, .. } => *default,
+            Field::Dynamic { default, .. } => *default,
         }
     }
 }
@@ -123,7 +123,7 @@ pub enum Variant {
         /// Representation type of the variant.
         ty: Option<NodeId<Type>>,
         /// Fields of the variant.
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         /// Discriminator value.
         value: Option<NodeId<Expression>>,
     },
@@ -134,7 +134,7 @@ pub enum Variant {
         /// Representation type of the variant.
         ty: Option<NodeId<Type>>,
         /// Fields of the variant.
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         /// Discriminator value.
         value: Option<NodeId<Expression>>,
     },

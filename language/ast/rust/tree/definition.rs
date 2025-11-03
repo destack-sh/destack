@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::tree::variant::{VariantField, VariantKind};
+use crate::tree::variant::{Field, VariantKind};
 use crate::{
     Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
 };
@@ -161,7 +161,7 @@ pub enum Definition {
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -286,7 +286,7 @@ pub enum Definition {
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -550,13 +550,13 @@ pub enum UnionField {
     /// Tuple union field (like `A(int32)`).
     Tuple {
         name: StringId,
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         value: Option<NodeId<Expression>>,
     },
     /// Struct union field (like `A { x: int32, y: int32 }`).
     Struct {
         name: StringId,
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         value: Option<NodeId<Expression>>,
     },
 }

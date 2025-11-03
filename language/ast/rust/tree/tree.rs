@@ -7,7 +7,7 @@ use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
     DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeId, NodeSpanIndex, NodeType,
-    Parameter, Pattern, PatternField, Tag, UnionField, VariantField, WhereClause, WithClause,
+    Parameter, Pattern, PatternField, Tag, UnionField, Field, WhereClause, WithClause,
 };
 
 /// The AST Node tree for a single source unit.
@@ -32,7 +32,7 @@ pub struct NodeTree {
     pub(crate) blocks: NodeArena<Block>,
     // definitions
     pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) variant_fields: NodeArena<VariantField>,
+    pub(crate) variant_fields: NodeArena<Field>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) union_fields: NodeArena<UnionField>,
     // context
@@ -244,7 +244,7 @@ impl NodeTree {
             NodeType::Block => self.blocks.deallocate(local_ids),
             // definitions
             NodeType::Definition => self.definitions.deallocate(local_ids),
-            NodeType::VariantField => self.variant_fields.deallocate(local_ids),
+            NodeType::Field => self.variant_fields.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
             // context
@@ -390,7 +390,7 @@ impl_node_tree_stores! {
     Block => blocks,
     // definitions
     Definition => definitions,
-    VariantField => variant_fields,
+    Field => variant_fields,
     EnumField => enum_fields,
     UnionField => union_fields,
     // context
