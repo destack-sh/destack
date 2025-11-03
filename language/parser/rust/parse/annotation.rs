@@ -44,8 +44,7 @@ impl<'a> Parser<'a> {
                 && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
             {
                 // speculatively parse the decorator
-                let speculative_start = self.mark();
-                let speculative_start_idx = self.tree.next_id();
+                let speculative_start = (self.mark(), self.tree.next_id());
                 let decorator = self.with_recovery(
                     self.mark(),
                     |parser| parser.eat_decorator().map(Some),
@@ -56,7 +55,7 @@ impl<'a> Parser<'a> {
                 // allow `@if(...)` if it's unambiguously an if without a following block
                 if decorator.is_some() && next_span_str == "if" && self.peek_block().is_ok() {
                     // otherwise ignore this decorator, it's just a static if
-                    self.restore(speculative_start, speculative_start_idx);
+                    self.restore(speculative_start.0, speculative_start.1);
                     self.bump();
                     continue;
                 }
@@ -360,8 +359,16 @@ impl<'a> Parser<'a> {
         let enclosing_scope =
             self.find_node_enclosing_at(&start_token.span, NodeSearch::SmallestInnermost, |span| {
                 !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
+                    && !ignore_span.contains(&span.span)
             });
         let enclosing_span = enclosing_scope.map(|scope| scope.span);
+
+        #[cfg(debug_assertions)]
+        let _start_token_str = self.get_span_str(start_token.span);
+        #[cfg(debug_assertions)]
+        let _end_token_str = self.get_span_str(end_token.span);
+        #[cfg(debug_assertions)]
+        let _enclosing_span_str = enclosing_span.map(|span| self.get_span_str(span));
 
         // line prefix or postfix
         if !is_block_prefix_only && is_one_line {
@@ -370,21 +377,23 @@ impl<'a> Parser<'a> {
                 let mut prev_token_idx = token_idx as usize;
                 loop {
                     if prev_token_idx == 0 {
-                        break None;
+                        break None; // stop at the start of the tokens
                     }
                     prev_token_idx -= 1;
                     let Some(prev_token) = tokens.get(prev_token_idx) else {
-                        break None;
+                        break None; // stop at the start of the tokens
                     };
+                    #[cfg(debug_assertions)]
+                    let _prev_token_str = self.get_span_str(prev_token.span);
                     if ignore_span.contains(&prev_token.span)
                         || prev_token.token.ty == TokenType::Whitespace
                     {
-                        continue;
+                        continue; // ignore non-targetable tokens
                     }
-                    if let Some(scope_span) = enclosing_span
-                        && !scope_span.intersects(prev_token.span)
+                    if let Some(enclosing_span) = enclosing_span
+                        && !enclosing_span.intersects(prev_token.span)
                     {
-                        break None;
+                        break None; // stop outside the enclosing scope
                     }
                     break Some(prev_token);
                 }
@@ -397,18 +406,20 @@ impl<'a> Parser<'a> {
                 let mut next_token_idx = token_idx as usize + group.len();
                 loop {
                     let Some(next_token) = tokens.get(next_token_idx) else {
-                        break None;
+                        break None; // stop at the end of the tokens
                     };
+                    #[cfg(debug_assertions)]
+                    let _next_token_str = self.get_span_str(next_token.span);
                     if ignore_span.contains(&next_token.span)
                         || next_token.token.ty == TokenType::Whitespace
                     {
                         next_token_idx += 1;
-                        continue;
+                        continue; // ignore non-targetable tokens
                     }
-                    if let Some(scope_span) = enclosing_span
-                        && !scope_span.intersects(next_token.span)
+                    if let Some(enclosing_span) = enclosing_span
+                        && !enclosing_span.intersects(next_token.span)
                     {
-                        break None;
+                        break None; // stop outside the enclosing scope
                     }
                     break Some(next_token);
                 }
@@ -456,17 +467,19 @@ impl<'a> Parser<'a> {
         // block prefix: find the following targetable node
         let mut next_token_idx = token_idx as usize + group.len();
         while let Some(next_token) = tokens.get(next_token_idx) {
+            #[cfg(debug_assertions)]
+            let _next_token_str = self.get_span_str(next_token.span);
             if ignore_span.contains(&next_token.span)
                 || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
                 || next_token.token.ty == TokenType::Whitespace
             {
                 next_token_idx += 1;
-                continue;
+                continue; // ignore non-targetable tokens
             }
-            if let Some(scope_span) = enclosing_span
-                && !scope_span.intersects(next_token.span)
+            if let Some(enclosing_span) = enclosing_span
+                && !enclosing_span.intersects(next_token.span)
             {
-                break;
+                break; // stop outside the enclosing scope
             }
             if let Some(next_node) =
                 self.find_node_starting_at(&next_token.span, NodeSearch::BiggestOutermost)
@@ -484,16 +497,18 @@ impl<'a> Parser<'a> {
                 let Some(prev_token) = tokens.get(prev_token_idx) else {
                     break;
                 };
+                #[cfg(debug_assertions)]
+                let _prev_token_str = self.get_span_str(prev_token.span);
                 if ignore_span.contains(&prev_token.span)
                     || ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
                     || prev_token.token.ty == TokenType::Whitespace
                 {
-                    continue;
+                    continue; // ignore non-targetable tokens
                 }
-                if let Some(scope_span) = enclosing_span
-                    && !scope_span.intersects(prev_token.span)
+                if let Some(enclosing_span) = enclosing_span
+                    && !enclosing_span.intersects(prev_token.span)
                 {
-                    break;
+                    break; // stop outside the enclosing scope
                 }
                 if let Some(prev_node) =
                     self.find_node_ending_at(&prev_token.span, NodeSearch::BiggestOutermost)
@@ -675,7 +690,10 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpected token type: {token_type:?}"),
             };
 
-            if matches!(token_type, TokenType::BlockComment | TokenType::DocBlockComment) {
+            if matches!(
+                token_type,
+                TokenType::BlockComment | TokenType::DocBlockComment
+            ) {
                 if inner_str.starts_with(' ') {
                     inner_str = &inner_str[1..];
                 }
@@ -708,9 +726,8 @@ impl<'a> Parser<'a> {
                         inner_str
                             .split('\n')
                             .map(|line| {
-                                let mut cleaned_line = if let Some((idx, ch)) = line
-                                    .char_indices()
-                                    .find(|&(_, ch)| ch != ' ')
+                                let mut cleaned_line = if let Some((idx, ch)) =
+                                    line.char_indices().find(|&(_, ch)| ch != ' ')
                                     && ch == '*'
                                 {
                                     // strip asterisk prefix and following space
@@ -1070,6 +1087,49 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, *node, Doc { string, style } => {
                     assert_eq!(parser.get_string(*string), "some multiline\nblock comment\nover multiple lines");
                     assert_eq!(*style, DocStyle::Star);
+                });
+            });
+        });
+    }
+
+    /// Block doc comments in definition blocks should attach to the following function.
+    #[test]
+    fn test_attach_doc_block_prefix_to_next_function() {
+        let mut test = TestParser::new(
+            r"interface X {
+    /** doc1 */
+    function a(): B
+    /** doc2 */
+    function b(): C
+}",
+        );
+        let mut parser = test.prepare();
+        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
+        parser.finalize();
+
+        // interface X
+        assert_node!(parser.tree, interface_id, Definition::Interface { expressions, .. } => {
+            assert_eq!(expressions.len(), 2);
+
+            // function a(): B
+            let annotations = parser.tree.get_annotations_for(expressions[0].id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Doc { string, style } => {
+                    assert_eq!(*style, DocStyle::Star);
+                    assert_string!(parser, *string, "doc1");
+                });
+            });
+
+            // function b(): C
+            let annotations = parser.tree.get_annotations_for(expressions[1].id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Doc { string, style } => {
+                    assert_eq!(*style, DocStyle::Star);
+                    assert_string!(parser, *string, "doc2");
                 });
             });
         });

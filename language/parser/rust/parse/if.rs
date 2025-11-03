@@ -74,11 +74,10 @@ impl<'a> Parser<'a> {
             parser.eat_expression_as_block()
         })?;
 
-        self.eat_newlines_maybe()?;
-
         // if / else if / else node
-        let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
-            self.bump(); // eat else
+        let if_node = if self.peek_keyword_after_newlines(Keyword::Else).is_ok() {
+            self.eat_newlines_maybe()?;
+            self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
             let else_expr_id = self.with_options(self.options.in_block_position(), |parser| {
                 parser.eat_expression_as_block()
