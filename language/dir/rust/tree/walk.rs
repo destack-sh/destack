@@ -282,9 +282,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }
-        Expression::Member { left, path: _ } => {
+        Expression::Member { left, path: _, static_arguments } => {
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
         }
         Expression::Call {
             runtime: _,

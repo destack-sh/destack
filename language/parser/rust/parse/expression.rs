@@ -862,8 +862,7 @@ impl<'a> Parser<'a> {
             }
             // alias / path
             else if token_type == TokenType::Identifier {
-                let path_id = self.eat_path().for_node_type(NodeType::Expression)?;
-
+                let path = self.eat_path().for_node_type(NodeType::Expression)?;
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
                 let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
@@ -880,7 +879,7 @@ impl<'a> Parser<'a> {
                     None
                 };
                 let expression = Expression::Path {
-                    path: path_id,
+                    path,
                     static_arguments,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
@@ -1003,11 +1002,27 @@ impl<'a> Parser<'a> {
             // member (also works across newline)
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
-                let path_id = self.eat_path()?;
+                let path = self.eat_path()?;
+                // speculatively unwrap postfix static parameterisation with `<`
+                //  (might also be just a comparison operator)
+                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                    let speculative_start = self.mark();
+                    let speculative_start_idx = self.tree.next_id();
+                    match self.eat_static_arguments() {
+                        Ok(static_arguments) => Some(static_arguments),
+                        Err(_) => {
+                            self.restore(speculative_start, speculative_start_idx);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
                 left_expression_id = self.tree.insert(
                     Expression::Member {
                         left: left_expression_id,
-                        path: path_id,
+                        path,
+                        static_arguments,
                     },
                     self.get_span_from(start),
                 );
@@ -1836,11 +1851,11 @@ const shapes = (
     /// Parse a mixed index postfix expression (should disambiguate ternary and index/call).
     #[test]
     fn test_parse_mixed_index_call_postfix() {
-        let mut test = TestParser::new("x?.[f]?.y?.().?");
+        let mut test = TestParser::new("x?.[f]?.y<T>?.().?");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
 
-        // x?.[f]?.2?.().?
+        // x?.[f]?.y<T>?.().?
         // .?
         assert_node!(parser.tree, expr_id, Expression::Maybe { left, position: PostfixPosition::Indirect } => {
             // ()
@@ -1849,9 +1864,11 @@ const shapes = (
                 // ?
                 assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
                     // .y
-                    assert_node!(parser.tree, *left, Expression::Member { left, path } => {
+                    assert_node!(parser.tree, *left, Expression::Member { left, path, static_arguments: Some(static_arguments) } => {
                         // y
                         assert_path!(parser, *path, "y");
+                        // <T>
+                        assert_eq!(static_arguments.len(), 1);
                         // ?
                         assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
                             // .[f]

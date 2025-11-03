@@ -1570,7 +1570,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::Member { left: _, path } => {
+            Expression::Member { left: _, path, static_arguments: _ } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)
                     .end();

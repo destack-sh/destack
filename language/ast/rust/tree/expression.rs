@@ -391,8 +391,6 @@ pub enum Expression {
     /// ```
     Return { value: Option<NodeId<Expression>> },
 
-    // NOTE #Incomplete: multiply parameterized Expression Paths?
-    //  (like `Foo<int32, boolean>.Bar<Yes: true>`)
     /// Alias reference to some path, statically parameterized.
     Path {
         path: Path,
@@ -560,10 +558,12 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// foo.bar
+    /// foo.bar<T>
     /// ```
     Member {
         left: NodeId<Expression>,
         path: Path,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
     },
 
     /// Index into a receiver expression.

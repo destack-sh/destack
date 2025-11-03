@@ -1512,7 +1512,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::Member { left: _, path } => {
+            Expression::Member { left: _, path, static_arguments: _ } => {
                 self.node("Expression::Member", id.id)
                     .field("path", path)
                     .end();
