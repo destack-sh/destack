@@ -6,26 +6,20 @@ use crate::{Keyword, Path};
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
-    // groupings
     Expression,
     Block,
-    // definitions
     Definition,
     Field,
     EnumField,
     UnionField,
-    // context
     WithClause,
     WhereClause,
     DependencyItem,
-    // bindings
     Parameter,
     Argument,
-    // matching
     MatchCase,
     Pattern,
     PatternField,
-    // annotations
     Annotation,
     Blank,
     Doc,

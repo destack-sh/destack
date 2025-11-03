@@ -109,7 +109,7 @@ pub enum Expression {
     /// New constructor call (for #Compatibility).
     New {
         left: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Box<Vec<NodeId<Argument>>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// Delete expression (for #Compatibility).
@@ -203,6 +203,8 @@ pub enum Expression {
     /// Error expression.
     Error,
 }
+
+const _: () = assert!(size_of::<Expression>() <= 64);
 
 impl Node for Expression {
     const KIND: NodeType = NodeType::Expression;
