@@ -1,6 +1,6 @@
 use dyst_ast::{
-    BindingKind, BindingModifier, BindingOperator, Expression, Keyword, Mutability, Name, Pattern,
-    ScalarLiteral, StringId,
+    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Keyword, Mutability,
+    Name, Pattern, ScalarLiteral, StringId,
 };
 
 use crate::parse::prelude::*;
@@ -17,6 +17,14 @@ impl<'a> Parser<'a> {
                 modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().visibility = Some(visibility);
+        }
+        // scope
+        if self.peek_keyword(Keyword::Static).is_ok() {
+            self.bump(); // eat static
+            if modifiers.is_none() {
+                modifiers = Some(BindingModifier::default());
+            }
+            modifiers.as_mut().unwrap().scope = Some(BindingScope::Static);
         }
         // mutability
         if self.peek_keyword(Keyword::Readonly).is_ok() {

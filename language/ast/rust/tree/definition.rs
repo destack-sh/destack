@@ -2,8 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::{VariantField, VariantKind};
 use crate::{
-    Asynchrony, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node, NodeId, NodeType,
-    Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause,
+    Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
 };
 
 /// The kind of declaration.
@@ -15,22 +14,13 @@ pub enum DeclarationKind {
     Definition,
 }
 
-/// The scope of a binding (dynamic or static).
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DeclarationScope {
-    /// Container scope (whatever contains the declaration).
-    Container,
-    /// Static scope (static in relation to the container).
-    Static,
-}
-
 /// The meta data for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DefinitionMeta {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The scope of the declaration.
-    pub scope: DeclarationScope = DeclarationScope::Container,
+    pub scope: BindingScope = BindingScope::Container,
     /// The name of the definition.
     pub name: Option<Name> = None,
     /// The dynamic key of the definition.
@@ -46,7 +36,7 @@ impl DefinitionMeta {
     pub fn new(name: Name) -> Self {
         Self {
             kind: DeclarationKind::Definition,
-            scope: DeclarationScope::Container,
+            scope: BindingScope::Container,
             name: Some(name),
             key: None,
             visibility: None,
@@ -56,7 +46,7 @@ impl DefinitionMeta {
 
     /// Create a new definition meta with the given name and scope.
     #[inline]
-    pub fn with_scope(self, scope: DeclarationScope) -> Self {
+    pub fn with_scope(self, scope: BindingScope) -> Self {
         Self { scope, ..self }
     }
 

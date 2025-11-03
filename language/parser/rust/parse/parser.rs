@@ -642,6 +642,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eat a token maybe.
+    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParserResult<bool> {
+        if self.peek_token(token_type).is_ok() {
+            self.bump();
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Eat a token in a list of tokens.
     #[inline]
     pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {

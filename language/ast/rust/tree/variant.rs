@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{DeclarationScope, Expression, Mutability, Name, Node, NodeId, NodeType, Visibility};
+use crate::{Expression, Mutability, Name, Node, NodeId, NodeType, Visibility};
 
 /// The kind of a variant (tuple or struct).
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -20,6 +20,15 @@ pub enum BindingKind {
     Maybe,
 }
 
+/// The scope of a binding (dynamic or static).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingScope {
+    /// Container scope (whatever contains the declaration).
+    Container,
+    /// Static scope (static in relation to the container).
+    Static,
+}
+
 /// The operator to apply to the binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingOperator {
@@ -33,7 +42,7 @@ pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind> = None,
     /// The scope of the binding.
-    pub scope: Option<DeclarationScope> = None,
+    pub scope: Option<BindingScope> = None,
     /// The mutability of the field.
     pub mutability: Option<Mutability> = None,
     /// The visibility of the field.
@@ -52,7 +61,7 @@ impl BindingModifier {
     }
 
     /// Create a new binding modifiers with the given scope.
-    pub fn with_scope(self, scope: DeclarationScope) -> Self {
+    pub fn with_scope(self, scope: BindingScope) -> Self {
         Self {
             scope: Some(scope),
             ..self
