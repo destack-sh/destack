@@ -5,7 +5,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
     Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
-    Runtime, VariantField, VariantKind, empty_block_with_infix_annotations,
+    Runtime, Field, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
     Asynchrony, DeclarationKind, BindingScope, ExportType, FunctionAbstraction,
@@ -178,12 +178,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // split tuple / struct fields
-                let tuple_fields: &[NodeId<VariantField>] = if *kind == VariantKind::Tuple {
+                let tuple_fields: &[NodeId<Field>] = if *kind == VariantKind::Tuple {
                     fields
                 } else {
                     &[]
                 };
-                let fields: &[NodeId<VariantField>] = if *kind == VariantKind::Struct {
+                let fields: &[NodeId<Field>] = if *kind == VariantKind::Struct {
                     fields
                 } else {
                     &[]

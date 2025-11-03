@@ -771,7 +771,7 @@ mod tests {
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Runtime,
-        ScalarLiteral, Tag, VariantField, assert_node, assert_path, assert_string,
+        ScalarLiteral, Tag, Field, assert_node, assert_path, assert_string,
     };
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
@@ -1447,7 +1447,7 @@ struct Floof {
             assert_node!(parser.tree, *node, Definition::Struct { fields, .. } => {
                 // a: int32
                 assert_eq!(fields.len(), 1);
-                assert_node!(parser.tree, fields[0], VariantField::Named { name: Name::Identifier(name), .. } => {
+                assert_node!(parser.tree, fields[0], Field::Named { name: Name::Identifier(name), .. } => {
                     assert_string!(parser, *name, "a");
                     let annotations = parser.tree.get_annotations_for(fields[0].id);
                     assert_eq!(annotations.len(), 4);

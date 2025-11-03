@@ -1951,38 +1951,38 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_variant_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<VariantField>,
-        variant_field: &VariantField,
+        id: NodeId<Field>,
+        variant_field: &Field,
     ) {
         match variant_field {
-            VariantField::Named {
+            Field::Named {
                 modifiers,
                 name,
                 ty: _,
                 default: _,
             } => {
-                self.node("VariantField::Named", id.id)
+                self.node("Field::Named", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            VariantField::Positional {
+            Field::Positional {
                 modifiers,
                 ty: _,
                 default: _,
             } => {
-                self.node("VariantField::Positional", id.id)
+                self.node("Field::Positional", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
-            VariantField::Dynamic {
+            Field::Dynamic {
                 modifiers,
                 name,
                 ty: _,
                 key: _,
                 default: _,
             } => {
-                self.node("VariantField::Dynamic", id.id)
+                self.node("Field::Dynamic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();

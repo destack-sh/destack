@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{NodeId, StringId, Type, Variant, VariantField};
+use dyst_dir::{NodeId, StringId, Type, Variant, Field};
 use dyst_source::SourceId;
 
 #[allow(clippy::too_many_arguments)]
@@ -11,10 +11,10 @@ impl<'a> Compiler<'a> {
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        field_id: ast::NodeId<ast::VariantField>,
-    ) -> NodeId<VariantField> {
+        field_id: ast::NodeId<ast::Field>,
+    ) -> NodeId<Field> {
         let field = match ast.get(field_id) {
-            ast::VariantField::Named {
+            ast::Field::Named {
                 modifiers,
                 name,
                 ty,
@@ -25,14 +25,14 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, name.string());
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
-                VariantField::Named {
+                Field::Named {
                     modifiers,
                     name,
                     ty,
                     default,
                 }
             }
-            ast::VariantField::Positional {
+            ast::Field::Positional {
                 modifiers,
                 ty,
                 default,
@@ -41,13 +41,13 @@ impl<'a> Compiler<'a> {
                     .map(|modifiers| self.lower_binding_modifiers(source_id, ast, modifiers));
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
-                VariantField::Positional {
+                Field::Positional {
                     modifiers,
                     ty,
                     default,
                 }
             }
-            ast::VariantField::Dynamic {
+            ast::Field::Dynamic {
                 modifiers,
                 name,
                 ty,
@@ -60,7 +60,7 @@ impl<'a> Compiler<'a> {
                 let ty = self.lower_expression_to_type(source_id, ast, *ty);
                 let key = self.lower_expression_to_type(source_id, ast, *key);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
-                VariantField::Dynamic {
+                Field::Dynamic {
                     modifiers,
                     name,
                     ty,
@@ -82,7 +82,7 @@ impl<'a> Compiler<'a> {
         name: Option<StringId>,
         style: ast::VariantKind,
         ty: Option<NodeId<Type>>,
-        fields: &[ast::NodeId<ast::VariantField>],
+        fields: &[ast::NodeId<ast::Field>],
     ) -> NodeId<Variant> {
         let variant_fields = fields
             .iter()

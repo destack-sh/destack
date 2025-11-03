@@ -17,7 +17,7 @@ pub enum NodeType {
     Block,
     // definitions
     Definition,
-    VariantField,
+    Field,
     EnumField,
     UnionField,
     // context

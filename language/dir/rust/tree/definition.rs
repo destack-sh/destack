@@ -1,5 +1,5 @@
 use crate::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, StringId, Type, Variant, VariantField, Visibility
+    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, StringId, Type, Variant, Field, Visibility
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -113,7 +113,7 @@ pub enum Definition {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
-        fields: Vec<NodeId<VariantField>>,
+        fields: Vec<NodeId<Field>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Function definition. Nested definitions are lifted from the body.

@@ -8,7 +8,7 @@ use dyst_ast::{
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, VariantField};
+use crate::{NodeId, NodeType, Parser, ParserError, ParserResult, Field};
 
 pub(crate) static BINDING_MODIFIERS: [Keyword; 6] = [
     Keyword::Static,
@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
     /// [string]: woof
     /// [T] = "hello"
     /// ```
-    fn eat_variant_field(&mut self) -> ParserResult<NodeId<VariantField>> {
+    fn eat_variant_field(&mut self) -> ParserResult<NodeId<Field>> {
         let start = self.mark();
 
         // modifiers
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
             // key
             let key = self
                 .eat_expression()
-                .for_node_type(NodeType::VariantField)?;
+                .for_node_type(NodeType::Field)?;
 
             // close bracket
             self.eat_token(TokenType::CloseBracket)?;
@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
 
             // field
             let field_id = self.tree.insert(
-                VariantField::Dynamic {
+                Field::Dynamic {
                     modifiers,
                     name,
                     ty,
@@ -182,14 +182,14 @@ impl<'a> Parser<'a> {
 
             // field
             let field = if let Some(name) = name {
-                VariantField::Named {
+                Field::Named {
                     modifiers,
                     name,
                     ty,
                     default,
                 }
             } else {
-                VariantField::Positional {
+                Field::Positional {
                     modifiers,
                     ty,
                     default,
@@ -201,8 +201,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a variant body (without the parenthesis, without any expressions).
-    pub fn eat_variant_body_fields(&mut self) -> ParserResult<Vec<NodeId<VariantField>>> {
-        let mut tuple_fields: Vec<NodeId<VariantField>> = Vec::new();
+    pub fn eat_variant_body_fields(&mut self) -> ParserResult<Vec<NodeId<Field>>> {
+        let mut tuple_fields: Vec<NodeId<Field>> = Vec::new();
         loop {
             // stop at closing parenthesis
             if self.peek_token(TokenType::CloseParenthesis).is_ok()
@@ -227,9 +227,9 @@ impl<'a> Parser<'a> {
     pub fn eat_variant_body_mixed(
         &mut self,
         allow_fields: bool,
-    ) -> ParserResult<(Vec<NodeId<VariantField>>, Vec<NodeId<Expression>>)> {
+    ) -> ParserResult<(Vec<NodeId<Field>>, Vec<NodeId<Expression>>)> {
         // eat everything
-        let mut fields: Vec<NodeId<VariantField>> = Vec::new();
+        let mut fields: Vec<NodeId<Field>> = Vec::new();
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // stop on closing brace
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
                 self.rewind(modifier_start);
                 let field = self
                     .eat_variant_field()
-                    .for_node_type(NodeType::VariantField)?;
+                    .for_node_type(NodeType::Field)?;
                 fields.push(field);
             }
             // function shorthand
@@ -300,7 +300,6 @@ impl<'a> Parser<'a> {
                     visibility,
                 };
                 let function_id = self.eat_function(meta, false, false)?;
-
                 let function_id = self.tree.insert(
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
@@ -367,7 +366,7 @@ mod tests {
         let mut parser = test.prepare();
 
         let variant_field = parser.eat_variant_field().unwrap();
-        assert_node!(parser.tree, variant_field, VariantField::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
+        assert_node!(parser.tree, variant_field, Field::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
             assert_string!(parser, *name, "onconnect");
             // (this: Client) => void;
             assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
@@ -389,7 +388,7 @@ mod tests {
         let mut parser = test.prepare();
 
         let variant_field = parser.eat_variant_field().unwrap();
-        assert_node!(parser.tree, variant_field, VariantField::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default: None, .. } => {
+        assert_node!(parser.tree, variant_field, Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default: None, .. } => {
             // #name means private for #Compatibility
             assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
             // name
