@@ -1,7 +1,5 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc,
-    EnumField, Expression, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Tag, TemplateLiteral, UnionField, Field, WhereClause, WithClause,
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta, DependencyItem, Doc, EnumField, Expression, Field, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField, WhereClause, WithClause
 };
 
 /// Walk any node.
@@ -633,6 +631,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 // Declarations
 // ----------------------------------------------------------------------------
 
+fn walk_definition_meta<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    meta: &DefinitionMeta,
+) {
+    if let Some(key) = meta.key {
+        let key_expr = tree.get(key);
+        visitor.visit_expression(tree, key, key_expr);
+    }
+}
+
 /// Walk the Definition and visit all child nodes.
 pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -644,13 +653,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 
     match definition {
         Definition::Module {
-            meta: _,
+            meta,
             format: _,
             style: _,
             with_clauses,
             where_clauses,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
                 visitor.visit_expression(tree, *expr_id, expr);
@@ -669,7 +679,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
-            meta: _,
+            meta,
             style: _,
             kind: _,
             extends_types,
@@ -681,6 +691,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(ext_types) = extends_types {
                 for extends_type_id in ext_types {
                     let expr = tree.get(*extends_type_id);
@@ -725,7 +736,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
-            meta: _,
+            meta,
             tag_type,
             static_parameters,
             extends_types,
@@ -735,6 +746,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(tag_type) = tag_type {
                 let expr = tree.get(*tag_type);
                 visitor.visit_expression(tree, *tag_type, expr);
@@ -779,7 +791,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Union {
-            meta: _,
+            meta,
             tag_type,
             representation_type,
             static_parameters,
@@ -790,6 +802,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(tag_type) = tag_type {
                 let expr = tree.get(*tag_type);
                 visitor.visit_expression(tree, *tag_type, expr);
@@ -838,7 +851,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
-            meta: _,
+            meta,
             extends_types,
             static_parameters,
             with_clauses,
@@ -846,6 +859,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(extends_types) = extends_types {
                 for extends_type_id in extends_types {
                     let expr = tree.get(*extends_type_id);
@@ -880,7 +894,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Extension {
-            meta: _,
+            meta,
             static_parameters,
             target_type,
             implements_types,
@@ -888,6 +902,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             where_clauses,
             expressions,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(static_parameters) = static_parameters {
                 for argument_id in static_parameters {
                     let argument = tree.get(*argument_id);
@@ -920,7 +935,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
-            meta: _,
+            meta,
             abstraction: _,
             runtime: _,
             asynchrony: _,
@@ -935,6 +950,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             where_clauses,
             body,
         } => {
+            walk_definition_meta(visitor, tree, meta);
             if let Some(static_parameters) = static_parameters {
                 for param_id in static_parameters {
                     let param = tree.get(*param_id);

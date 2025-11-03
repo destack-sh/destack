@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
         };
 
         // optional name / key
-        meta.name = self.eat_name_maybe()?;
+        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
         // style / tuple struct
         let (kind, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {

@@ -4,11 +4,11 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, DystFormatContext, DystFormatter, FormatNode, Keyword, ModuleFormat, NodeId,
-    Runtime, Field, VariantKind, empty_block_with_infix_annotations,
+    Definition, DystFormatContext, DystFormatter, Field, FormatNode, Keyword, ModuleFormat, NodeId,
+    Runtime, VariantKind, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
-    Asynchrony, DeclarationKind, BindingScope, ExportType, FunctionAbstraction,
+    Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceType, StructStyle,
     Visibility,
 };
@@ -110,8 +110,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     ModuleStyle::Module => write!(f, [Keyword::Module])?,
                     ModuleStyle::Namespace => write!(f, [Keyword::Namespace])?,
                 }
+
+                // name / key
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
+                } else if let Some(key) = meta.key {
+                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // with
@@ -213,17 +217,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [token("("), representation_type, token(")")])?;
                 }
 
-                // name
+                // name / key
                 if let Some(name) = meta.name {
-                    write!(f, [space()])?;
-                    write!(f, [name])?;
+                    write!(f, [space(), name])?;
+                } else if let Some(key) = meta.key {
+                    write!(f, [space(), token("["), key, token("]")])?;
+                }
 
-                    // static parameters
-                    if let Some(static_parameters) = &static_parameters
-                        && !static_parameters.is_empty()
-                    {
-                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                    }
+                // static parameters
+                if let Some(static_parameters) = &static_parameters
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // tuple
@@ -259,14 +264,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
-                // with
-                if let Some(with) = with_clauses
-                    && !with.is_empty()
+                // with clauses
+                if let Some(with_clauses) = with_clauses
+                    && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
-                    format_with_clause(f, with)?;
+                    format_with_clause(f, with_clauses)?;
                 }
 
+                // where clauses
                 if let Some(where_clauses) = where_clauses
                     && !where_clauses.is_empty()
                 {
@@ -327,7 +333,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 static_parameters,
                 extends_types,
                 implements_types,
-                with_clauses: with,
+                with_clauses,
                 where_clauses,
                 fields,
                 expressions,
@@ -355,9 +361,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 } else {
                     write!(f, [space()])?;
                 }
-                // name
+
+                // name / key
                 if let Some(name) = meta.name {
-                    write!(f, [name])?;
+                    write!(f, [space(), name])?;
+                } else if let Some(key) = meta.key {
+                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -370,11 +379,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space()])?;
                 }
 
+                // extends types
                 if let Some(extends_types) = &extends_types
                     && !extends_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
+
+                // implements types
                 if let Some(implements_types) = &implements_types
                     && !implements_types.is_empty()
                 {
@@ -382,7 +394,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with
-                if let Some(with) = with
+                if let Some(with) = with_clauses
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -463,10 +475,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // keyword
                 write!(f, [Keyword::Interface])?;
 
-                // name
+                // name / key
                 if let Some(name) = meta.name {
-                    write!(f, [space()])?;
-                    write!(f, [name])?;
+                    write!(f, [space(), name])?;
+                } else if let Some(key) = meta.key {
+                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -475,7 +488,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
-
+                
+                // extends types
                 if let Some(extends_types) = &extends_types
                     && !extends_types.is_empty()
                 {
@@ -490,6 +504,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     format_with_clause(f, with)?;
                 }
 
+                // where clauses
                 if let Some(where_clauses) = &where_clauses
                     && !where_clauses.is_empty()
                 {
@@ -589,10 +604,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [token(")")])?;
                 }
 
-                // name
+                // name / key
                 if let Some(name) = meta.name {
-                    write!(f, [space()])?;
-                    write!(f, [name])?;
+                    write!(f, [space(), name])?;
+                } else if let Some(key) = meta.key {
+                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -682,7 +698,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 static_parameters: static_arguments,
                 target_type,
                 implements_types,
-                with_clauses: with,
+                with_clauses,
                 where_clauses,
                 expressions,
             } => {
@@ -725,6 +741,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // target type
                 write!(f, [space(), target_type])?;
 
+                // implements types
                 if let Some(implements_types) = &implements_types
                     && !implements_types.is_empty()
                 {
@@ -732,7 +749,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with
-                if let Some(with) = with
+                if let Some(with) = with_clauses
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -855,13 +872,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // name (with @)
+                // name / key (with @)
                 if *style == FunctionStyle::Function {
                     if *runtime == Runtime::Static {
                         write!(f, [token("@")])?;
                     }
                     if let Some(name) = meta.name {
                         write!(f, [name])?;
+                    } else if let Some(key) = meta.key {
+                        write!(f, [token("["), key, token("]")])?;
                     }
                 }
 
