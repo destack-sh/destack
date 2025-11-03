@@ -94,13 +94,13 @@ pub enum Argument {
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },
-    /// Named shorthand function argument (like `foo()` or `<T>(): T`, only in struct literals).
+    /// Named member function argument (like `foo()` or `<T>(): T`, only in struct literals).
     Function {
         modifiers: Option<BindingModifier>,
         name: Option<Name>,
         value: NodeId<Expression>,
     },
-    /// Dynamic function argument (like `[x: string](): T`, only in struct literals).
+    /// Dynamic member function argument (like `[x: string](): T`, only in struct literals).
     DynamicFunction {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,

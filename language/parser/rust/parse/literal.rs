@@ -1374,7 +1374,7 @@ mod tests {
         });
     }
 
-    /// Parse a struct literal body with a single shorthand function argument.
+    /// Parse a struct literal body with a single named member function argument.
     #[test]
     fn test_parse_struct_literal_single_shorthand_function() {
         let mut test = TestParser::new(

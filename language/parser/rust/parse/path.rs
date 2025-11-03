@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             // newline followed by dot
             else if self.peek_token(TokenType::Newline).is_ok()
                 && self
-                    .skip_newlines_and_find_token(self.pos(), TokenType::Dot)
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
             {
                 self.eat_newlines_maybe()?;

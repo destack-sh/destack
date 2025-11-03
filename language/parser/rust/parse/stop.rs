@@ -330,14 +330,19 @@ impl<'a> Parser<'a> {
         Ok(pos as u32)
     }
 
-    /// Skip any newlines at and after a position and find some token.
-    pub fn skip_newlines_and_find_token(
+    /// Skip any newlines at and after a position and check if there's a specific token after.
+    pub fn peek_token_after_newlines(
         &mut self,
         pos: u32,
         target_token: TokenType,
     ) -> ParserResult<u32> {
         let pos = self.skip_newlines(pos)?;
-        let pos = self.find_token_after(pos, target_token)?;
-        Ok(pos)
+        if let Some(token) = self.tokens.get(pos as usize + 1)
+            && token.token.ty == target_token
+        {
+            Ok(pos)
+        } else {
+            Err(ParserError::expected(self.peek()?.span, target_token))
+        }
     }
 }
