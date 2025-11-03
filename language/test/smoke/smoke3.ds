@@ -2507,7 +2507,7 @@ export namespace JSC {
     export type StopTrackingResponse = {};
   }
   export namespace TestReporter {
-    export type TestStatus = "pass" | "fail" | "timeout" | "skip" | "todo" | "skipped_because_label";
+    export type TestStatus = "pass" | "fail" | "timeout" | "skip" | "skipped_because_label";
     export type TestType = "test" | "describe";
     /**
      * undefined

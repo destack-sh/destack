@@ -18,8 +18,8 @@ Bun.serve({
 	},
 });
 
-function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
-	return { ...todo, ...fieldsToUpdate };
+function updateTodo(post: Todo, fieldsToUpdate: Partial<Todo>) {
+	return { ...post, ...fieldsToUpdate };
 }
 
 export default function Counter() {
@@ -1040,44 +1040,44 @@ export function useFunnelTooltip(showPersonsModal: boolean): React.RefObject<HTM
     return vizRef
 }
 
-ws.on('todos:update', (changes) => {
-    todosCollection.utils.writeBatch(() => {
+ws.on('posts:update', (changes) => {
+    postsCollection.utils.writeBatch(() => {
         changes.forEach(change => {
             switch (change.type) {
                 case 'insert':
-                    todosCollection.utils.writeInsert(change.data)
+                    postsCollection.utils.writeInsert(change.data)
                 case 'update':
-                    todosCollection.utils.writeUpdate(change.data)
+                    postsCollection.utils.writeUpdate(change.data)
                 case 'delete':
-                    todosCollection.utils.writeDelete(change.id)
+                    postsCollection.utils.writeDelete(change.id)
             }
         })
     })
 })
 
 
-const todoCollection = createCollection({
+const postCollection = createCollection({
     onUpdate: updateMutationFn,
 })
 
 const Todos = () => {
     // bind data using live queries
-    const { data: todos } = useLiveQuery((query) =>
-        query.from({ todo: todoCollection }).where(({ todo }) => todo.completed)
+    const { data: posts } = useLiveQuery((query) =>
+        query.from({ post: postCollection }).where(({ post }) => post.completed)
     )
 
-    function complete(todo) {
+    function complete(post) {
         // instantly applies optimistic state
-        todoCollection.update(todo.id, (draft) => {
+        postCollection.update(post.id, (draft) => {
             draft.completed = true
         })
     }
 
     return (
         <ul>
-            {todos.map((todo) => (
-                <li key={todo.id} onClick={() => complete(todo)}>
-                    {todo.text}
+            {posts.map((post) => (
+                <li key={post.id} onClick={() => complete(post)}>
+                    {post.text}
                 </li>
             ))}
         </ul>

@@ -312,7 +312,7 @@ interface [Symbols.Client] {
     }
 
     #[test]
-    #[ignore = "nocheckin"]
+    #[ignore = "TODO"]
     fn test_parse_interface_with_nameless_shorthand_functions() {
         let mut test = TestParser::new(
             r#"
