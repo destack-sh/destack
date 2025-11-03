@@ -212,8 +212,11 @@ fn format_member_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
-    if let Expression::Member { left, path } = f.context().tree.get(node_id) {
-        write!(f, [*left, token("."), path.clone()])?
+    if let Expression::Member { left, path, static_arguments } = f.context().tree.get(node_id) {
+        write!(f, [*left, token("."), path.clone()])?;
+        if let Some(static_arguments) = static_arguments {
+            write!(f, [list_like("<", ">", ",", static_arguments)])?;
+        }
     } else {
         debug_assert!(false, "unexpected expression kind for member formatter");
     }

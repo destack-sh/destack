@@ -98,6 +98,7 @@ pub enum Expression {
     Member {
         left: NodeId<Expression>,
         path: Path,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Call to a function.
     Call {

@@ -294,10 +294,17 @@ impl<'a> Compiler<'a> {
             ast::Expression::Member {
                 left: receiver,
                 path,
+                static_arguments,
             } => {
                 let left = self.lower_expression(source_id, ast, *receiver);
                 let path = self.lower_path(source_id, ast, path);
-                Expression::Member { left, path }
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .collect()
+                });
+                Expression::Member { left, path, static_arguments }
             }
             ast::Expression::Call {
                 position: _,
