@@ -10,7 +10,8 @@ use crate::parse::prelude::*;
 
 use crate::{Field, NodeId, NodeType, Parser, ParserError, ParserResult};
 
-pub(crate) static BINDING_MODIFIERS: [Keyword; 6] = [
+/// The keywords that can appear before a binding.
+pub static BINDING_MODIFIERS: [Keyword; 6] = [
     Keyword::Static,
     Keyword::Override,
     Keyword::Readonly,
@@ -329,7 +330,7 @@ impl<'a> Parser<'a> {
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
-                // TODO: maybe binding / shorthands are just member functions!, ..
+                // TODO #Incomplete: merge StructLiteral/Block, shorthands are just member functions, ..
                 expressions.push(function_id);
             }
             // eat any other expressions

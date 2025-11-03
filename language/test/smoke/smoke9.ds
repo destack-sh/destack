@@ -176,10 +176,6 @@ export function $reset($: MemoCache) {
     }
 }
 
-export function $makeReadOnly() {
-    throw new Error("TODO: extension $makeReadOnly in react-compiler-runtime")
-}
-
 /**
  * Instrumentation to count rerenders in React components
  */

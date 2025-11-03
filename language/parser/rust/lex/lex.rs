@@ -1,5 +1,3 @@
-//! Low-level general purpose DS lexer (adapted from rustc).
-
 use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 use std::str::FromStr;
 

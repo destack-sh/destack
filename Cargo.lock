@@ -564,6 +564,7 @@ dependencies = [
  "dyst_session",
  "dyst_source",
  "dyst_string",
+ "dyst_tree",
  "pprof",
 ]
 
@@ -612,6 +613,7 @@ dependencies = [
  "dyst_session",
  "dyst_source",
  "dyst_string",
+ "dyst_tree",
 ]
 
 [[package]]
@@ -655,7 +657,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_javascript"
+name = "dyst_js"
+version = "2025.11.3-0"
+dependencies = [
+ "destack_unicode",
+ "dyst_container",
+ "dyst_memory",
+ "dyst_prelude",
+ "dyst_session",
+ "dyst_source",
+ "dyst_string",
+ "dyst_tree",
+]
+
+[[package]]
+name = "dyst_jsc"
+version = "2025.11.3-0"
+dependencies = [
+ "destack_unicode",
+ "dyst_ast",
+ "dyst_diagnostic",
+ "dyst_dir",
+ "dyst_fir",
+ "dyst_memory",
+ "dyst_mir",
+ "dyst_prelude",
+ "dyst_session",
+ "dyst_source",
+ "dyst_string",
+]
+
+[[package]]
+name = "dyst_jsm"
 version = "2025.11.3-0"
 dependencies = [
  "destack_unicode",
@@ -740,6 +773,16 @@ version = "2025.11.3-0"
 [[package]]
 name = "dyst_test"
 version = "2025.11.3-0"
+
+[[package]]
+name = "dyst_tree"
+version = "2025.11.3-0"
+dependencies = [
+ "destack_unicode",
+ "dyst_memory",
+ "dyst_source",
+ "dyst_string",
+]
 
 [[package]]
 name = "either"

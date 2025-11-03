@@ -1,5 +1,4 @@
 mod annotation;
-mod arena;
 mod argument;
 mod block;
 mod definition;
@@ -20,12 +19,12 @@ mod visit;
 mod walk;
 
 pub use annotation::*;
-pub use arena::*;
 pub use argument::*;
 pub use block::*;
 pub use definition::*;
 pub use dependency::*;
 pub use dyst_source::{StringId, StringPool};
+pub use dyst_tree::NodeArena;
 pub use error::*;
 pub use expression::*;
 pub use intrinsic::*;

@@ -92,13 +92,13 @@ impl<'a> Compiler<'a> {
             ast::VariantKind::Tuple => Variant::Tuple {
                 name,
                 ty,
-                fields: fields,
+                fields,
                 value: None,
             },
             ast::VariantKind::Struct => Variant::Struct {
                 name,
                 ty,
-                fields: fields,
+                fields,
                 value: None,
             },
         };

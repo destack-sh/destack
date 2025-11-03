@@ -1,6 +1,6 @@
 [package]
-name = "dyst_javascript"
-description = "Dyst JavaScript"
+name = "dyst_jsc"
+description = "Dyst JavaScript Compiler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

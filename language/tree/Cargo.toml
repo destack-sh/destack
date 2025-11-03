@@ -1,0 +1,24 @@
+[package]
+name = "dyst_tree"
+description = "Dyst Tree"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_source = { workspace = true }
+dyst_string = { workspace = true }
+dyst_memory = { workspace = true }
+
+destack_unicode = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

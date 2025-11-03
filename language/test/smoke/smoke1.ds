@@ -1221,7 +1221,7 @@ export function FunnelCanvasLabel(): JSX.Element | null {
             ? [
                   <LemonButton
                       key="run-experiment"
-                      icon={<IconTestTube />}
+                      icon=<IconTestTube />
                       type="secondary"
                       data-attr="create-experiment-from-insight"
                       size="xsmall"

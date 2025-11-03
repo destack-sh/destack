@@ -4,7 +4,7 @@ use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
+    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl, NodeType,
     Tag,
 };
 
@@ -117,7 +117,7 @@ pub struct Annotations<T: Node> {
 impl<'ast, T> Format<DystFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeStore<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(annotations) = f.context().get_annotations(self.node_id) else {

@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
                 right,
             } => {
                 let mutability = mutability.clone();
-                let variance = variance.clone();
+                let variance = *variance;
                 let type_id = self.try_resolve_expression_to_type(*right)?;
                 Type::Value {
                     mutability,
@@ -111,7 +111,7 @@ impl<'a> Compiler<'a> {
                 right,
             } => {
                 let mutability = mutability.clone();
-                let variance = variance.clone();
+                let variance = *variance;
                 let type_id = self.try_resolve_expression_to_type(*right)?;
                 Type::Reference {
                     mutability,
@@ -149,11 +149,11 @@ impl<'a> Compiler<'a> {
                 }
             }
             // tuple
-            Expression::TupleLiteral { ty, elements } if ty.is_none() => {
+            Expression::TupleLiteral { ty, .. } if ty.is_none() => {
                 todo!()
             }
             // struct
-            Expression::StructLiteral { ty, fields } if ty.is_none() => {
+            Expression::StructLiteral { ty, .. } if ty.is_none() => {
                 todo!()
             }
 

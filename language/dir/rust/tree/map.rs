@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeStore, walk_any};
+use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeImpl, walk_any};
 
 /// The NodeParentIndex is a side index of parent nodes into a NodeTree.
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ impl NodeParentIndex {
     pub fn get<T>(&self, node_id: NodeId<T>) -> Option<u32>
     where
         T: Node,
-        NodeTree: NodeTreeStore<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.parents_per_node[node_id.id as usize]
     }
@@ -68,7 +68,7 @@ impl NodeParentIndex {
     pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<u32>
     where
         T: Node,
-        NodeTree: NodeTreeStore<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.walk_parents_by_id(node_id.id)
     }

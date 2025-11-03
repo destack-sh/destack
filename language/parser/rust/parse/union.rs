@@ -1,5 +1,3 @@
-//! Parse unions.
-
 use dyst_ast::DefinitionMeta;
 
 use crate::parse::prelude::*;

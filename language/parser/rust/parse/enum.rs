@@ -1,5 +1,3 @@
-//! Parse enums.
-
 use dyst_ast::DefinitionMeta;
 
 use crate::TokenType;

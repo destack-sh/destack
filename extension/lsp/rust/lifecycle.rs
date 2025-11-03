@@ -1,5 +1,3 @@
-//! Async language server implementation built on tower-lsp-server.
-
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
