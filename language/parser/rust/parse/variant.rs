@@ -329,7 +329,7 @@ impl<'a> Parser<'a> {
                     Expression::Definition(function_id),
                     self.tree.spans.get(function_id),
                 );
-                // nocheckin: maybe binding / shorthands are just member functions!, ..
+                // TODO: maybe binding / shorthands are just member functions!, ..
                 expressions.push(function_id);
             }
             // eat any other expressions

@@ -22,27 +22,19 @@ interface AnimationDefinition {
     map: Map<string, NativeAnimation<any>>
     key: string
     unresolvedKeyframes: UnresolvedValueKeyframe[]
-    options: Omit<NativeAnimationOptions, "keyframes"> & {
-        keyframes?: ValueKeyframe[]
-    }
+    options: Omit<NativeAnimationOptions, "keyframes"> & { keyframes?: ValueKeyframe[] }
 }
 
 export function animateElements(
     elementOrSelector: ElementOrSelector,
     keyframes: DOMKeyframesDefinition,
     options?: DynamicAnimationOptions,
-    scope?: AnimationScope
+    scope?: AnimationScope,
 ) {
-    const elements = resolveElements(elementOrSelector, scope) as Array<
-        HTMLElement | SVGElement
-    >
+    const elements = resolveElements(elementOrSelector, scope) as Array<HTMLElement | SVGElement>
     const numElements = elements.length
 
-    invariant(
-        Boolean(numElements),
-        "No valid elements provided.",
-        "no-valid-elements"
-    )
+    invariant(Boolean(numElements), "No valid elements provided.", "no-valid-elements")
 
     /**
      * WAAPI doesn't support interrupting animations.
@@ -88,9 +80,7 @@ export function animateElements(
                 ...getValueTransition(elementTransition as any, valueName),
             }
 
-            valueOptions.duration &&= secondsToMilliseconds(
-                valueOptions.duration
-            )
+            valueOptions.duration &&= secondsToMilliseconds(valueOptions.duration)
 
             valueOptions.delay &&= secondsToMilliseconds(valueOptions.delay)
 
@@ -99,10 +89,7 @@ export function animateElements(
              * before creating a new one.
              */
             const map = getAnimationMap(element)
-            const key = animationMapKey(
-                valueName,
-                valueOptions.pseudoElement || ""
-            )
+            const key = animationMapKey(valueName, valueOptions.pseudoElement || "")
             const currentAnimation = map.get(key)
             currentAnimation && currentAnimation.stop()
 
@@ -114,8 +101,7 @@ export function animateElements(
                     ...valueOptions,
                     element,
                     name: valueName,
-                    allowFlatten:
-                        !elementTransition.type && !elementTransition.ease,
+                    allowFlatten: !elementTransition.type && !elementTransition.ease,
                 },
             })
         }
@@ -125,8 +111,7 @@ export function animateElements(
      * Step 2: Resolve keyframes (read)
      */
     for (let i = 0; i < animationDefinitions.length; i++) {
-        const { unresolvedKeyframes, options: animationOptions } =
-            animationDefinitions[i]
+        const { unresolvedKeyframes, options: animationOptions } = animationDefinitions[i]
 
         const { element, name, pseudoElement } = animationOptions
         if (!pseudoElement && unresolvedKeyframes[0] === null) {
@@ -155,9 +140,7 @@ export function animateElements(
     const animations: AnimationPlaybackControls[] = []
     for (let i = 0; i < animationDefinitions.length; i++) {
         const { map, key, options: animationOptions } = animationDefinitions[i]
-        const animation = new NativeAnimation(
-            animationOptions as NativeAnimationOptions
-        )
+        const animation = new NativeAnimation(animationOptions as NativeAnimationOptions)
 
         map.set(key, animation)
         animation.finished.finally(() => map.delete(key))

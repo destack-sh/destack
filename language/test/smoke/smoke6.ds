@@ -1,14 +1,14 @@
-import { type EventSubscription } from 'expo-modules-core';
-import { useEffect, useState } from 'react';
+import { type EventSubscription } from "expo-modules-core"
+import { useEffect, useState } from "react"
 
 import {
-  BatteryLevelEvent,
-  BatteryState,
-  BatteryStateEvent,
-  PowerModeEvent,
-  PowerState,
-} from './Battery.types';
-import ExpoBattery from './ExpoBattery';
+    BatteryLevelEvent,
+    BatteryState,
+    BatteryStateEvent,
+    PowerModeEvent,
+    PowerState,
+} from "./Battery.types"
+import * as ExpoBattery from "./ExpoBattery"
 
 // @needsAudit
 /**
@@ -17,7 +17,7 @@ import ExpoBattery from './ExpoBattery';
  * it depends on whether the browser supports the web battery API.
  */
 export async function isAvailableAsync(): Promise<boolean> {
-  return Promise.resolve((ExpoBattery && ExpoBattery.isSupported) || false);
+    return Promise.resolve((ExpoBattery && ExpoBattery.isSupported) || false)
 }
 
 // @needsAudit
@@ -34,10 +34,10 @@ export async function isAvailableAsync(): Promise<boolean> {
  * ```
  */
 export async function getBatteryLevelAsync(): Promise<number> {
-  if (!ExpoBattery.getBatteryLevelAsync) {
-    return -1;
-  }
-  return await ExpoBattery.getBatteryLevelAsync();
+    if (!ExpoBattery.getBatteryLevelAsync) {
+        return -1
+    }
+    return await ExpoBattery.getBatteryLevelAsync()
 }
 
 // @needsAudit
@@ -52,10 +52,10 @@ export async function getBatteryLevelAsync(): Promise<number> {
  * ```
  */
 export async function getBatteryStateAsync(): Promise<BatteryState> {
-  if (!ExpoBattery.getBatteryStateAsync) {
-    return BatteryState.UNKNOWN;
-  }
-  return await ExpoBattery.getBatteryStateAsync();
+    if (!ExpoBattery.getBatteryStateAsync) {
+        return BatteryState.UNKNOWN
+    }
+    return await ExpoBattery.getBatteryStateAsync()
 }
 
 // @needsAudit
@@ -73,10 +73,10 @@ export async function getBatteryStateAsync(): Promise<BatteryState> {
  * ```
  */
 export async function isLowPowerModeEnabledAsync(): Promise<boolean> {
-  if (!ExpoBattery.isLowPowerModeEnabledAsync) {
-    return false;
-  }
-  return await ExpoBattery.isLowPowerModeEnabledAsync();
+    if (!ExpoBattery.isLowPowerModeEnabledAsync) {
+        return false
+    }
+    return await ExpoBattery.isLowPowerModeEnabledAsync()
 }
 
 // @needsAudit
@@ -93,10 +93,10 @@ export async function isLowPowerModeEnabledAsync(): Promise<boolean> {
  * ```
  */
 export async function isBatteryOptimizationEnabledAsync(): Promise<boolean> {
-  if (!ExpoBattery.isBatteryOptimizationEnabledAsync) {
-    return false;
-  }
-  return await ExpoBattery.isBatteryOptimizationEnabledAsync();
+    if (!ExpoBattery.isBatteryOptimizationEnabledAsync) {
+        return false
+    }
+    return await ExpoBattery.isBatteryOptimizationEnabledAsync()
 }
 
 /**
@@ -115,16 +115,16 @@ export async function isBatteryOptimizationEnabledAsync(): Promise<boolean> {
  * ```
  */
 export async function getPowerStateAsync(): Promise<PowerState> {
-  const [batteryLevel, batteryState, lowPowerMode] = await Promise.all([
-    getBatteryLevelAsync(),
-    getBatteryStateAsync(),
-    isLowPowerModeEnabledAsync(),
-  ]);
-  return {
-    batteryLevel,
-    batteryState,
-    lowPowerMode,
-  };
+    const [batteryLevel, batteryState, lowPowerMode] = await Promise.all([
+        getBatteryLevelAsync(),
+        getBatteryStateAsync(),
+        isLowPowerModeEnabledAsync(),
+    ])
+    return {
+        batteryLevel,
+        batteryState,
+        lowPowerMode,
+    }
 }
 
 // @needsAudit
@@ -146,9 +146,9 @@ export async function getPowerStateAsync(): Promise<PowerState> {
  * @return A `Subscription` object on which you can call `remove()` to unsubscribe from the listener.
  */
 export function addBatteryLevelListener(
-  listener: (event: BatteryLevelEvent) => void
+    listener: (event: BatteryLevelEvent) => void,
 ): EventSubscription {
-  return ExpoBattery.addListener('Expo.batteryLevelDidChange', listener);
+    return ExpoBattery.addListener("Expo.batteryLevelDidChange", listener)
 }
 
 // @needsAudit
@@ -162,9 +162,9 @@ export function addBatteryLevelListener(
  * @return A `Subscription` object on which you can call `remove()` to unsubscribe from the listener.
  */
 export function addBatteryStateListener(
-  listener: (event: BatteryStateEvent) => void
+    listener: (event: BatteryStateEvent) => void,
 ): EventSubscription {
-  return ExpoBattery.addListener('Expo.batteryStateDidChange', listener);
+    return ExpoBattery.addListener("Expo.batteryStateDidChange", listener)
 }
 
 // @needsAudit
@@ -178,9 +178,9 @@ export function addBatteryStateListener(
  * @return A `Subscription` object on which you can call `remove()` to unsubscribe from the listener.
  */
 export function addLowPowerModeListener(
-  listener: (event: PowerModeEvent) => void
+    listener: (event: PowerModeEvent) => void,
 ): EventSubscription {
-  return ExpoBattery.addListener('Expo.powerModeDidChange', listener);
+    return ExpoBattery.addListener("Expo.powerModeDidChange", listener)
 }
 
 // @needsAudit
@@ -195,15 +195,15 @@ export function addLowPowerModeListener(
  * @return The battery level of the device.
  */
 export function useBatteryLevel(): number {
-  const [batteryLevel, setBatteryLevel] = useState(-1);
+    const [batteryLevel, setBatteryLevel] = useState(-1)
 
-  useEffect(() => {
-    getBatteryLevelAsync().then(setBatteryLevel);
-    const listener = addBatteryLevelListener((b) => setBatteryLevel(b.batteryLevel));
-    return () => listener.remove();
-  }, []);
+    useEffect(() => {
+        getBatteryLevelAsync().then(setBatteryLevel)
+        const listener = addBatteryLevelListener((b) => setBatteryLevel(b.batteryLevel))
+        return () => listener.remove()
+    }, [])
 
-  return batteryLevel;
+    return batteryLevel
 }
 
 // @needsAudit
@@ -218,15 +218,15 @@ export function useBatteryLevel(): number {
  * @return The battery state of the device.
  */
 export function useBatteryState(): BatteryState {
-  const [batteryState, setBatteryState] = useState(BatteryState.UNKNOWN);
+    const [batteryState, setBatteryState] = useState(BatteryState.UNKNOWN)
 
-  useEffect(() => {
-    getBatteryStateAsync().then(setBatteryState);
-    const listener = addBatteryStateListener((b) => setBatteryState(b.batteryState));
-    return () => listener.remove();
-  }, []);
+    useEffect(() => {
+        getBatteryStateAsync().then(setBatteryState)
+        const listener = addBatteryStateListener((b) => setBatteryState(b.batteryState))
+        return () => listener.remove()
+    }, [])
 
-  return batteryState;
+    return batteryState
 }
 
 // @needsAudit
@@ -241,15 +241,15 @@ export function useBatteryState(): BatteryState {
  * @return Returns a boolean indicating if the device is in low power mode.
  */
 export function useLowPowerMode(): boolean {
-  const [lowPowerMode, setLowPowerMode] = useState(false);
+    const [lowPowerMode, setLowPowerMode] = useState(false)
 
-  useEffect(() => {
-    isLowPowerModeEnabledAsync().then(setLowPowerMode);
-    const listener = addLowPowerModeListener((b) => setLowPowerMode(b.lowPowerMode));
-    return () => listener.remove();
-  }, []);
+    useEffect(() => {
+        isLowPowerModeEnabledAsync().then(setLowPowerMode)
+        const listener = addLowPowerModeListener((b) => setLowPowerMode(b.lowPowerMode))
+        return () => listener.remove()
+    }, [])
 
-  return lowPowerMode;
+    return lowPowerMode
 }
 
 // @needsAudit
@@ -264,32 +264,32 @@ export function useLowPowerMode(): boolean {
  * @return Returns power state information.
  */
 export function usePowerState(): PowerState {
-  const [lowPowerMode, setLowPowerMode] = useState(false);
-  const [batteryState, setBatteryState] = useState(BatteryState.UNKNOWN);
-  const [batteryLevel, setBatteryLevel] = useState(-1);
+    const [lowPowerMode, setLowPowerMode] = useState(false)
+    const [batteryState, setBatteryState] = useState(BatteryState.UNKNOWN)
+    const [batteryLevel, setBatteryLevel] = useState(-1)
 
-  useEffect(() => {
-    isLowPowerModeEnabledAsync().then(setLowPowerMode);
-    getBatteryStateAsync().then(setBatteryState);
-    getBatteryLevelAsync().then(setBatteryLevel);
-    const modeListener = addLowPowerModeListener((b) => setLowPowerMode(b.lowPowerMode));
-    const levelListener = addBatteryLevelListener((b) => setBatteryLevel(b.batteryLevel));
-    const stateListener = addBatteryStateListener((b) => setBatteryState(b.batteryState));
-    return () => {
-      modeListener.remove();
-      levelListener.remove();
-      stateListener.remove();
-    };
-  }, []);
+    useEffect(() => {
+        isLowPowerModeEnabledAsync().then(setLowPowerMode)
+        getBatteryStateAsync().then(setBatteryState)
+        getBatteryLevelAsync().then(setBatteryLevel)
+        const modeListener = addLowPowerModeListener((b) => setLowPowerMode(b.lowPowerMode))
+        const levelListener = addBatteryLevelListener((b) => setBatteryLevel(b.batteryLevel))
+        const stateListener = addBatteryStateListener((b) => setBatteryState(b.batteryState))
+        return () => {
+            modeListener.remove()
+            levelListener.remove()
+            stateListener.remove()
+        }
+    }, [])
 
-  return { lowPowerMode, batteryLevel, batteryState };
+    return { lowPowerMode, batteryLevel, batteryState }
 }
 
 export {
-  BatteryLevelEvent,
-  BatteryState,
-  BatteryStateEvent,
-  PowerModeEvent,
-  PowerState,
-  EventSubscription as Subscription,
-};
+    BatteryLevelEvent,
+    BatteryState,
+    BatteryStateEvent,
+    PowerModeEvent,
+    PowerState,
+    EventSubscription as Subscription,
+}

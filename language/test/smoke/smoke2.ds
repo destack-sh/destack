@@ -1,13 +1,13 @@
-ws.on('todos:update', (changes) => {
-    todosCollection.utils.writeBatch(() => {
+ws.on('posts:update', (changes) => {
+    postsCollection.utils.writeBatch(() => {
         changes.forEach(change => {
             switch (change.type) {
                 case 'insert':
-                    todosCollection.utils.writeInsert(change.data)
+                    postsCollection.utils.writeInsert(change.data)
                 case 'update':
-                    todosCollection.utils.writeUpdate(change.data)
+                    postsCollection.utils.writeUpdate(change.data)
                 case 'delete':
-                    todosCollection.utils.writeDelete(change.id)
+                    postsCollection.utils.writeDelete(change.id)
             }
         })
     })
@@ -19,8 +19,8 @@ Bun.serve({
 	},
 });
 
-function updateTodo(todo: Todo, fieldsToUpdate: Partial<Todo>) {
-	return { ...todo, ...fieldsToUpdate };
+function updateTodo(post: Todo, fieldsToUpdate: Partial<Todo>) {
+	return { ...post, ...fieldsToUpdate };
 }
 
 const ast = await parseAsync(text, {
@@ -33,16 +33,16 @@ const ast = await parseAsync(text, {
 	babelrc: false,
 });
 
-ws.on('todos:update', (changes) => {
-    todosCollection.utils.writeBatch(() => {
+ws.on('posts:update', (changes) => {
+    postsCollection.utils.writeBatch(() => {
         changes.forEach(change => {
             switch (change.type) {
                 case 'insert':
-                    todosCollection.utils.writeInsert(change.data)
+                    postsCollection.utils.writeInsert(change.data)
                 case 'update':
-                    todosCollection.utils.writeUpdate(change.data)
+                    postsCollection.utils.writeUpdate(change.data)
                 case 'delete':
-                    todosCollection.utils.writeDelete(change.id)
+                    postsCollection.utils.writeDelete(change.id)
             }
         })
     })
