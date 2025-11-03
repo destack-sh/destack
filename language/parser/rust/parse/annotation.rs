@@ -1097,10 +1097,10 @@ over multiple lines with trailing space    */",
     fn test_attach_doc_block_prefix_to_next_function() {
         let mut test = TestParser::new(
             r"interface X {
-    /** doc1 */
-    function a(): B
-    /** doc2 */
-    function b(): C
+    /** Doc A */
+    function a(): A
+    /** Doc B */
+    function b(): B
 }",
         );
         let mut parser = test.prepare();
@@ -1111,25 +1111,104 @@ over multiple lines with trailing space    */",
         assert_node!(parser.tree, interface_id, Definition::Interface { expressions, .. } => {
             assert_eq!(expressions.len(), 2);
 
-            // function a(): B
+            // function a(): A
             let annotations = parser.tree.get_annotations_for(expressions[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Doc { string, style } => {
                     assert_eq!(*style, DocStyle::Star);
-                    assert_string!(parser, *string, "doc1");
+                    assert_string!(parser, *string, "Doc A");
                 });
             });
 
-            // function b(): C
+            // function b(): B
             let annotations = parser.tree.get_annotations_for(expressions[1].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Doc { string, style } => {
                     assert_eq!(*style, DocStyle::Star);
-                    assert_string!(parser, *string, "doc2");
+                    assert_string!(parser, *string, "Doc B");
+                });
+            });
+        });
+    }
+
+    /// Block doc comments should attach to the following function in a nested function.
+    #[test]
+    fn test_attach_doc_block_prefix_to_nested_function() {
+        let mut test = TestParser::new(
+            r"function foo() {
+    /** Doc A */
+    function a(): A
+    /** Doc B */
+    function b(): B
+    /** Doc C */
+    function c(): C {
+        remove(hey.so)
+    }
+}",
+        );
+        let mut parser = test.prepare();
+        let function = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
+        parser.finalize();
+
+        // function foo()
+        assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
+            assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 3);
+                    
+                    // function a(): A
+                    assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
+                            assert_string!(parser, meta.name.unwrap().string(), "a");
+                        });
+                    });
+                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
+                            assert_eq!(*style, DocStyle::Star);
+                            assert_string!(parser, *string, "Doc A");
+                        });
+                    });
+
+                    // function b(): B
+                    assert_node!(parser.tree, expressions[1], Expression::Definition(node) => {
+                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
+                            assert_string!(parser, meta.name.unwrap().string(), "b");
+                        });
+                    });
+                    let annotations = parser.tree.get_annotations_for(expressions[1].id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
+                            assert_eq!(*style, DocStyle::Star);
+                            assert_string!(parser, *string, "Doc B");
+                        });
+                    });
+
+                    // function c() C { .. }
+                    assert_node!(parser.tree, expressions[2], Expression::Definition(node) => {
+                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
+                            assert_string!(parser, meta.name.unwrap().string(), "c");
+                        });
+                    });
+                    let annotations = parser.tree.get_annotations_for(expressions[2].id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
+                            assert_eq!(*style, DocStyle::Star);
+                            assert_string!(parser, *string, "Doc C");
+                        });
+                    });
                 });
             });
         });
