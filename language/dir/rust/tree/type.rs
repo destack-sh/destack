@@ -52,9 +52,9 @@ pub enum DefinitionType {
 /// A TypeLiteral is a scalar type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeLiteral {
-    /// Never type `!`.
+    /// Never type `never`.
     Never,
-    /// Any type `$` or `any`.
+    /// Any type `any`.
     Any,
     /// Infer placeholder `_`.
     Infer,

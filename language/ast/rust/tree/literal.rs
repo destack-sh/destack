@@ -78,9 +78,8 @@ pub enum TemplateLiteral {
 ///
 /// Examples:
 /// ```
-/// !
-/// $
-/// _
+/// never
+/// any
 /// undefined
 /// void
 /// null
@@ -93,9 +92,9 @@ pub enum TemplateLiteral {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeLiteral {
-    /// Never type `!`.
+    /// Never type `never`.
     Never,
-    /// Any type `$` or `any`.
+    /// Any type `any`.
     Any,
     /// Infer type `_`.
     Infer,
