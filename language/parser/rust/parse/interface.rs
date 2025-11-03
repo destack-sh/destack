@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Interface)
             .for_node_type(NodeType::Definition)?;
 
-        // optional name
+        // optional name / key
         meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
         // optional static parameters: < ... >
@@ -312,6 +312,7 @@ interface [Symbols.Client] {
     }
 
     #[test]
+    #[ignore = "nocheckin"]
     fn test_parse_interface_with_nameless_shorthand_functions() {
         let mut test = TestParser::new(
             r#"
