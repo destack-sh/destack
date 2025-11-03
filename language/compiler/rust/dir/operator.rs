@@ -12,6 +12,7 @@ impl<'a> Compiler<'a> {
             ast::UnaryOperator::PreDecrement => UnaryOperator::PreDecrement,
             ast::UnaryOperator::Not => UnaryOperator::Not,
             ast::UnaryOperator::Negate => UnaryOperator::Negate,
+            ast::UnaryOperator::Plus => UnaryOperator::Plus,
             ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
@@ -45,6 +46,9 @@ impl<'a> Compiler<'a> {
             ast::BinaryOperator::Multiply => dyst_dir::BinaryOperator::Multiply,
             ast::BinaryOperator::WrappingMultiply => dyst_dir::BinaryOperator::WrappingMultiply,
             ast::BinaryOperator::SaturatingMultiply => dyst_dir::BinaryOperator::SaturatingMultiply,
+            ast::BinaryOperator::Exponent => dyst_dir::BinaryOperator::Exponent,
+            ast::BinaryOperator::WrappingExponent => dyst_dir::BinaryOperator::WrappingExponent,
+            ast::BinaryOperator::SaturatingExponent => dyst_dir::BinaryOperator::SaturatingExponent,
             ast::BinaryOperator::Divide => dyst_dir::BinaryOperator::Divide,
             ast::BinaryOperator::Remainder => dyst_dir::BinaryOperator::Remainder,
 
@@ -122,6 +126,11 @@ impl<'a> Compiler<'a> {
             ast::AssignOperator::WrappingMultiplyAssign => AssignOperator::WrappingMultiplyAssign,
             ast::AssignOperator::SaturatingMultiplyAssign => {
                 AssignOperator::SaturatingMultiplyAssign
+            }
+            ast::AssignOperator::ExponentAssign => AssignOperator::ExponentAssign,
+            ast::AssignOperator::WrappingExponentAssign => AssignOperator::WrappingExponentAssign,
+            ast::AssignOperator::SaturatingExponentAssign => {
+                AssignOperator::SaturatingExponentAssign
             }
             ast::AssignOperator::DivideAssign => AssignOperator::DivideAssign,
             ast::AssignOperator::RemainderAssign => AssignOperator::RemainderAssign,

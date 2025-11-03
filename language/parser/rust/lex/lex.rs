@@ -644,8 +644,47 @@ impl Lexer<'_> {
 
             // multiply
             '*' => {
+                // ** (exponent, exponent assign, wrapping/saturating exponent, etc)
+                if self.peek() == '*' {
+                    self.eat();
+                    // **%
+                    if self.peek() == '%' {
+                        self.eat();
+                        // **%=
+                        if self.peek() == '=' {
+                            self.eat();
+                            (TokenType::WrappingExponentAssign, None)
+                        }
+                        // **%
+                        else {
+                            (TokenType::WrappingExponent, None)
+                        }
+                    }
+                    // **|
+                    else if self.peek() == '|' {
+                        self.eat();
+                        // **|=
+                        if self.peek() == '=' {
+                            self.eat();
+                            (TokenType::SaturatingExponentAssign, None)
+                        }
+                        // **|
+                        else {
+                            (TokenType::SaturatingExponent, None)
+                        }
+                    }
+                    // **=
+                    else if self.peek() == '=' {
+                        self.eat();
+                        (TokenType::ExponentAssign, None)
+                    }
+                    // **
+                    else {
+                        (TokenType::Exponent, None)
+                    }
+                }
                 // *%
-                if self.peek() == '%' {
+                else if self.peek() == '%' {
                     self.eat();
                     // *%=
                     if self.peek() == '=' {

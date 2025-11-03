@@ -35,7 +35,7 @@ pub enum OperatorPrecedence {
     /// `type readonly typeof keyof infer as const`
     TypeUnary = 1800,
     /// Multiplication-related binary operators.
-    /// `* / % ** *% *|`
+    /// `* / % ** *% *| **% **|`
     Multiplication = 1700,
     /// Addition-related binary operators.
     /// `+ - +% -% +| -|`
@@ -170,11 +170,13 @@ pub enum UnaryOperator {
     /// `--`
     PostDecrement = 2009,
     /// `++`
-    PreIncrement = 1908,
+    PreIncrement = 1909,
     /// `--`
-    PreDecrement = 1907,
+    PreDecrement = 1908,
     /// `!`
-    Not = 1906,
+    Not = 1907,
+    /// `+`
+    Plus = 1906,
     /// `-`
     Negate = 1905,
     /// `-%`
@@ -208,6 +210,7 @@ impl UnaryOperator {
             UnaryOperator::PreIncrement
             | UnaryOperator::PreDecrement
             | UnaryOperator::Not
+            | UnaryOperator::Plus
             | UnaryOperator::Negate
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
@@ -230,6 +233,7 @@ impl UnaryOperator {
             TokenType::Increment => Some(UnaryOperator::PreIncrement),
             TokenType::Decrement => Some(UnaryOperator::PreDecrement),
             TokenType::Not => Some(UnaryOperator::Not),
+            TokenType::Add => Some(UnaryOperator::Plus),
             TokenType::Subtract => Some(UnaryOperator::Negate),
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
@@ -302,15 +306,21 @@ impl TypeBinaryOperator {
 pub enum BinaryOperator {
     // multiplication
     /// `*`
-    Multiply = 1704,
+    Multiply = 1708,
     /// `*%`
-    WrappingMultiply = 1703,
+    WrappingMultiply = 1707,
     /// `*|`
-    SaturatingMultiply = 1702,
+    SaturatingMultiply = 1706,
+    /// `**`
+    Exponent = 1705,
+    /// `**%`
+    WrappingExponent = 1704,
+    /// `**|`
+    SaturatingExponent = 1703,
     /// `/`
-    Divide = 1701,
+    Divide = 1702,
     /// `%`
-    Remainder = 1700,
+    Remainder = 1701,
 
     // addition
     /// `+`
@@ -384,6 +394,9 @@ impl BinaryOperator {
             BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
             BinaryOperator::WrappingMultiply => OperatorPrecedence::Multiplication,
             BinaryOperator::SaturatingMultiply => OperatorPrecedence::Multiplication,
+            BinaryOperator::Exponent => OperatorPrecedence::Multiplication,
+            BinaryOperator::WrappingExponent => OperatorPrecedence::Multiplication,
+            BinaryOperator::SaturatingExponent => OperatorPrecedence::Multiplication,
             BinaryOperator::Divide => OperatorPrecedence::Multiplication,
             BinaryOperator::Remainder => OperatorPrecedence::Multiplication,
 
@@ -440,6 +453,9 @@ impl BinaryOperator {
             TokenType::Multiply => Some(BinaryOperator::Multiply),
             TokenType::WrappingMultiply => Some(BinaryOperator::WrappingMultiply),
             TokenType::SaturatingMultiply => Some(BinaryOperator::SaturatingMultiply),
+            TokenType::Exponent => Some(BinaryOperator::Exponent),
+            TokenType::WrappingExponent => Some(BinaryOperator::WrappingExponent),
+            TokenType::SaturatingExponent => Some(BinaryOperator::SaturatingExponent),
             TokenType::Divide => Some(BinaryOperator::Divide),
             TokenType::Remainder => Some(BinaryOperator::Remainder),
 
@@ -502,11 +518,17 @@ pub enum AssignOperator {
 
     // assignment multiplication
     /// `*=`
-    MultiplyAssign = 705,
+    MultiplyAssign = 708,
     /// `*%=`
-    WrappingMultiplyAssign = 704,
+    WrappingMultiplyAssign = 707,
     /// `*|=`
-    SaturatingMultiplyAssign = 703,
+    SaturatingMultiplyAssign = 706,
+    /// `**=`
+    ExponentAssign = 705,
+    /// `**%=`
+    WrappingExponentAssign = 704,
+    /// `**|`
+    SaturatingExponentAssign = 703,
     /// `/=`
     DivideAssign = 702,
     /// `%=`
@@ -563,6 +585,9 @@ impl AssignOperator {
             AssignOperator::MultiplyAssign
             | AssignOperator::WrappingMultiplyAssign
             | AssignOperator::SaturatingMultiplyAssign
+            | AssignOperator::ExponentAssign
+            | AssignOperator::WrappingExponentAssign
+            | AssignOperator::SaturatingExponentAssign
             | AssignOperator::DivideAssign
             | AssignOperator::RemainderAssign => OperatorPrecedence::AssignmentMultiplication,
 
@@ -616,6 +641,9 @@ impl AssignOperator {
             TokenType::MultiplyAssign => Some(AssignOperator::MultiplyAssign),
             TokenType::WrappingMultiplyAssign => Some(AssignOperator::WrappingMultiplyAssign),
             TokenType::SaturatingMultiplyAssign => Some(AssignOperator::SaturatingMultiplyAssign),
+            TokenType::ExponentAssign => Some(AssignOperator::ExponentAssign),
+            TokenType::WrappingExponentAssign => Some(AssignOperator::WrappingExponentAssign),
+            TokenType::SaturatingExponentAssign => Some(AssignOperator::SaturatingExponentAssign),
             TokenType::DivideAssign => Some(AssignOperator::DivideAssign),
             TokenType::RemainderAssign => Some(AssignOperator::RemainderAssign),
 
@@ -656,6 +684,9 @@ impl AssignOperator {
             AssignOperator::MultiplyAssign => TokenType::MultiplyAssign,
             AssignOperator::WrappingMultiplyAssign => TokenType::WrappingMultiplyAssign,
             AssignOperator::SaturatingMultiplyAssign => TokenType::SaturatingMultiplyAssign,
+            AssignOperator::ExponentAssign => TokenType::ExponentAssign,
+            AssignOperator::WrappingExponentAssign => TokenType::WrappingExponentAssign,
+            AssignOperator::SaturatingExponentAssign => TokenType::SaturatingExponentAssign,
             AssignOperator::DivideAssign => TokenType::DivideAssign,
             AssignOperator::RemainderAssign => TokenType::RemainderAssign,
 
