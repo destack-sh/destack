@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use dyst_dir::{
-    Annotation, Argument, Expression, Node, NodeId, NodeIdAny, NodeTreeStore, NodeType, Type,
+    Annotation, Argument, Expression, Node, NodeId, NodeIdAny, NodeTreeImpl, NodeType, Type,
 };
 
 use crate::{
@@ -63,6 +63,7 @@ impl CompilerQueue {
     }
 }
 
+#[allow(dead_code)]
 impl<'s> Compiler<'s> {
     /// Resolve compile time constructs and check compile time invariants.
     /// Runs until there is nothing left to resolve.
@@ -129,7 +130,7 @@ impl<'s> Compiler<'s> {
     // Queue a node to be resolved.
     pub(crate) fn queue_resolve_node<T>(&mut self, node_id: NodeId<T>)
     where
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
         T: Node,
     {
         match T::KIND {
@@ -169,7 +170,7 @@ impl<'s> Compiler<'s> {
     fn process_message(&mut self, message: CompilerMessage) {
         match message {
             CompilerMessage::ResolveRequest(request) => {
-                let result = match request {
+                let _result = match request {
                     ResolveRequest::ResolveExpression { expression } => {
                         self.resolve_expression(expression)
                     }

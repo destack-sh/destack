@@ -32,8 +32,12 @@ mod visibility;
 mod r#where;
 mod with;
 
-pub use expression::*;
+pub use expression::{
+    COMPOSITE_TYPE_KEYWORDS, DEFINITION_KEYWORDS, DEFINITION_START_TOKENS, PATTERN_START_TOKENS,
+};
+pub use function::FUNCTION_MODIFIERS;
 pub use prelude::*;
+pub use variant::BINDING_MODIFIERS;
 
 #[cfg(test)]
 pub(crate) mod tests;

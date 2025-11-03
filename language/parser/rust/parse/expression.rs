@@ -1,5 +1,3 @@
-//! Parse expressions. Mostly defers to other parsers.
-
 use dyst_ast::{
     DeclarationKind, BindingScope, DefinitionMeta, ExportType, IfStyle, PostfixPosition,
     TypeBinaryOperator, TypeUnaryOperator,

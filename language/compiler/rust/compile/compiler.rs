@@ -80,7 +80,7 @@ impl<'s> Compiler<'s> {
     pub fn get_ast_node<T>(&self, node: AstNodeId<T>) -> (&ast::NodeTree, &T)
     where
         T: ast::Node,
-        ast::NodeTree: ast::NodeTreeStore<T>,
+        ast::NodeTree: ast::NodeTreeImpl<T>,
     {
         let document = self
             .workspace

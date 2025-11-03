@@ -47,7 +47,7 @@ async function stopServerProc(serverLog: vscode.OutputChannel) {
     });
 
     if (!exited) {
-        serverLog.appendLine("Server didn't exit on SIGTERM, sending SIGKILL.");
+        serverLog.appendLine("server didn't exit on SIGTERM, sending SIGKILL.");
         try {
             process.kill(proc.pid!, "SIGKILL");
         } catch {}
@@ -74,7 +74,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
             throw new Error("destack.server.command is required");
         }
 
-        serverLog.info(`Using Destack Server: ${serverCommand} ${args.join(" ")}`);
+        serverLog.info(`using Destack: ${serverCommand} ${args.join(" ")}`);
 
         return await new Promise<StreamInfo>((resolve, reject) => {
             // prepare env
@@ -99,25 +99,22 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
             serverProc.once("spawn", () => {
                 serverLog.info(
-                    `Spawned ${serverCommand} ${args.join(" ")} (pid ${serverProc?.pid ?? ""}) cwd=${cwd || workspaceFolder?.uri.fsPath}`,
+                    `spawned ${serverCommand} ${args.join(" ")} (pid ${serverProc?.pid ?? ""}) cwd=${cwd || workspaceFolder?.uri.fsPath}`,
                 );
 
                 if (DEBUG) {
-                    // Tee server stdout to both client reader and log.
+                    // tee server stdout to both client reader and log
                     const outTee = new PassThrough();
                     serverProc!.stdout.pipe(outTee);
                     outTee.on("data", (chunk) => {
-                        // Log raw LSP from server -> client
                         serverLog.append(`[server → client]\n${chunk.toString()}\n`);
                     });
 
-                    // Tee client writer to both child stdin and log.
+                    // tee client writer to both child stdin and log
                     const inTee = new PassThrough();
                     inTee.on("data", (chunk) => {
-                        // Log raw LSP from client -> server
                         serverLog.append(`[client → server]\n${chunk.toString()}\n`);
                     });
-                    // **IMPORTANT**: pipe the tee into the real stdin
                     inTee.pipe(serverProc!.stdin);
 
                     resolve({ reader: outTee, writer: inTee });
@@ -144,6 +141,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
             { language: "dsb" },
             { language: "dsx" },
             { pattern: "**/*.ds" },
+            { pattern: "**/*.d.ds" },
             { pattern: "**/*.dst" },
             { pattern: "**/*.dsb" },
             { pattern: "**/*.dsx" },

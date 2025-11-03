@@ -11,7 +11,9 @@ members = [
 	"language/dvm",
 	"language/fir",
 	"language/formatter",
-	"language/javascript",
+	"language/js",
+	"language/jsc",
+	"language/jsm",
 	"language/mir",
 	"language/parser",
 	"language/package",
@@ -19,6 +21,7 @@ members = [
 	"language/source",
 	"language/string",
 	"language/test",
+	"language/tree",
 	# library
 	"library/access",
 	"library/animation",
@@ -79,7 +82,9 @@ dyst_dir = { path = "language/dir" }
 dyst_dvm = { path = "language/dvm" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
-dyst_javascript = { path = "language/javascript" }
+dyst_js = { path = "language/js" }
+dyst_jsc = { path = "language/jsc" }
+dyst_jsm = { path = "language/jsm" }
 dyst_memory = { path = "language/memory" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
@@ -89,6 +94,7 @@ dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
 dyst_string = { path = "language/string" }
 dyst_test = { path = "language/test" }
+dyst_tree = { path = "language/tree" }
 # library
 destack_access = { path = "library/access" }
 destack_animation = { path = "library/animation" }

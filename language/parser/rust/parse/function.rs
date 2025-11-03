@@ -1,5 +1,3 @@
-//! Parse functions and closures.
-
 use dyst_ast::{
     Asynchrony, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionKind, NodeType,
     Parameter,
@@ -13,7 +11,8 @@ use crate::{
     SelfParameter,
 };
 
-pub(crate) static FUNCTION_MODIFIERS: [Keyword; 7] = [
+/// The keywords that can appear before a function definition.
+pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
     Keyword::Async,
     Keyword::Abstract,
     Keyword::Override,

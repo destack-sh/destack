@@ -1,5 +1,3 @@
-//! Parse patterns.
-
 use dyst_ast::Expression;
 
 use crate::TokenType;

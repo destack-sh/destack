@@ -357,9 +357,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Enum])?;
                 // type
                 if let Some(ty) = tag_type {
-                    write!(f, [token("("), ty, token(")"), space()])?;
-                } else {
-                    write!(f, [space()])?;
+                    write!(f, [token("("), ty, token(")")])?;
                 }
 
                 // name / key

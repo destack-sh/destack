@@ -4,10 +4,9 @@ use std::fmt::{Debug, Formatter};
 use dyst_ast as ast;
 use dyst_source::SourceId;
 
-use crate::tree::arena::NodeArena;
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, Expression, MatchCase, Node, NodeId,
-    NodeType, Parameter, Pattern, PatternField, Type, Variant, Field, WhereClause,
+    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase, Node,
+    NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant, WhereClause,
     WithClause,
 };
 
@@ -118,12 +117,12 @@ impl NodeTree {
     fn insert<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
         self.type_by_node_id.push(T::KIND);
-        let local_id = <Self as NodeTreeStore<T>>::push(self, node);
+        let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
         self.source_by_node_id.push(source_id);
         NodeId::new(global_id)
@@ -138,9 +137,9 @@ impl NodeTree {
     ) -> NodeId<T>
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
         U: ast::Node,
-        ast::NodeTree: ast::NodeTreeStore<U>,
+        ast::NodeTree: ast::NodeTreeImpl<U>,
     {
         let node_id = self.insert(node, source_id);
         self.ast_id_by_node_id.push(Some(ast_node_id.id));
@@ -153,9 +152,9 @@ impl NodeTree {
     pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
         U: Node,
-        Self: NodeTreeStore<U>,
+        Self: NodeTreeImpl<U>,
     {
         let source_id = self.source_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, source_id);
@@ -168,7 +167,7 @@ impl NodeTree {
     pub fn alias_from_ast<T>(&mut self, source_id: SourceId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         self.alias_node_id_by_ast_id
             .insert((source_id, ast_id), alias.id);
@@ -178,7 +177,7 @@ impl NodeTree {
     pub fn alias_from_dir<T>(&mut self, dir_id: u32, alias: NodeId<T>)
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
     }
@@ -194,10 +193,10 @@ impl NodeTree {
     pub fn get<T>(&self, id: NodeId<T>) -> &T
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeStore<T>>::get(self, local_id)
+        <Self as NodeTreeImpl<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
@@ -205,10 +204,10 @@ impl NodeTree {
     pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
     where
         T: Node,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         let local_id = self.local_id_by_node_id[id.id as usize];
-        <Self as NodeTreeStore<T>>::get_mut(self, local_id)
+        <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
     }
 
     /// Iterate over all nodes of a given type together with their NodeId.
@@ -216,7 +215,7 @@ impl NodeTree {
     pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
-        Self: NodeTreeStore<T>,
+        Self: NodeTreeImpl<T>,
     {
         self.local_id_by_node_id
             .iter()
@@ -224,7 +223,7 @@ impl NodeTree {
             .filter_map(|(global_index, &local_index)| {
                 if self.type_by_node_id[global_index] == T::KIND {
                     let node_id = NodeId::new(global_index as u32);
-                    let node = <Self as NodeTreeStore<T>>::get(self, local_index);
+                    let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
                     Some((node_id, node))
                 } else {
                     None
@@ -276,7 +275,7 @@ impl NodeTree {
 }
 
 /// Map node types to arenas.
-pub trait NodeTreeStore<T: Node> {
+pub trait NodeTreeImpl<T: Node> {
     /// Push a node into the relevant arena.
     fn push(tree: &mut NodeTree, node: T) -> u32;
     /// Get a node from the relevant arena.
@@ -287,7 +286,7 @@ pub trait NodeTreeStore<T: Node> {
 
 macro_rules! impl_node_tree_store {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeStore<$ty> for NodeTree {
+        impl NodeTreeImpl<$ty> for NodeTree {
             #[inline]
             fn push(tree: &mut NodeTree, node: $ty) -> u32 {
                 tree.$field.push(node)

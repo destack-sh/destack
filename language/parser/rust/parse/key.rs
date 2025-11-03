@@ -1,5 +1,3 @@
-//! Parse identifiers.
-
 use crate::{Parser, ParserError, ParserResult, TokenSpan, TokenType};
 use dyst_ast::{LiteralType, Name, NameOrDynamicKey};
 use dyst_source::StringId;

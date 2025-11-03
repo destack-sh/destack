@@ -632,8 +632,6 @@ declare var Loader: {
       key: string;
       /**
        * This refers to the state the ESM module is in
-       *
-       * TODO: make an enum for this number
        */
       state: number;
       fetch: Promise<any>;
