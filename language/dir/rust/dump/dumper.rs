@@ -1948,13 +1948,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_variant_field(
+    fn visit_field(
         &mut self,
         tree: &NodeTree,
         id: NodeId<Field>,
-        variant_field: &Field,
+        field: &Field,
     ) {
-        match variant_field {
+        match field {
             Field::Named {
                 modifiers,
                 name,
@@ -1989,7 +1989,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
         }
         self.with_depth(|dumper| {
-            walk_variant_field(dumper, tree, id, variant_field);
+            walk_field(dumper, tree, id, field);
         });
     }
 

@@ -7,7 +7,7 @@ use dyst_source::SourceId;
 impl<'a> Compiler<'a> {
     /// Lower an AST variant field to a DIR variant field.
     #[inline]
-    pub(super) fn lower_variant_field(
+    pub(super) fn lower_field(
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
@@ -84,21 +84,21 @@ impl<'a> Compiler<'a> {
         ty: Option<NodeId<Type>>,
         fields: &[ast::NodeId<ast::Field>],
     ) -> NodeId<Variant> {
-        let variant_fields = fields
+        let fields = fields
             .iter()
-            .map(|field| self.lower_variant_field(source_id, ast, *field))
+            .map(|field| self.lower_field(source_id, ast, *field))
             .collect();
         let variant = match style {
             ast::VariantKind::Tuple => Variant::Tuple {
                 name,
                 ty,
-                fields: variant_fields,
+                fields: fields,
                 value: None,
             },
             ast::VariantKind::Struct => Variant::Struct {
                 name,
                 ty,
-                fields: variant_fields,
+                fields: fields,
                 value: None,
             },
         };
@@ -199,7 +199,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_variant_field(source_id, ast, *field))
+                    .map(|field| self.lower_field(source_id, ast, *field))
                     .collect();
                 let value = value.map(|value| self.lower_expression(source_id, ast, value));
                 Variant::Tuple {
@@ -217,7 +217,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, *name);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_variant_field(source_id, ast, *field))
+                    .map(|field| self.lower_field(source_id, ast, *field))
                     .collect();
                 let value = value.map(|value| self.lower_expression(source_id, ast, value));
                 Variant::Struct {

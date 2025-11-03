@@ -1797,7 +1797,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_variant_field(
+    fn visit_field(
         &mut self,
         _tree: &NodeTree,
         _id: NodeId<Field>,
@@ -1838,7 +1838,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
         }
         self.with_depth(|dumper| {
-            walk_variant_field(dumper, _tree, _id, field);
+            walk_field(dumper, _tree, _id, field);
         });
     }
 

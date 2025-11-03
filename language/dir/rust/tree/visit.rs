@@ -5,7 +5,7 @@ use crate::{
     NodeTree, NodeType, Parameter, Pattern, PatternField, Type, Variant, Field, WhereClause,
     WithClause, walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
     walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_type,
-    walk_variant, walk_variant_field, walk_where_clause, walk_with_clause,
+    walk_variant, walk_field, walk_where_clause, walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the DIR.
@@ -63,13 +63,13 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Field.
-    fn visit_variant_field(
+    fn visit_field(
         &mut self,
         tree: &NodeTree,
         id: NodeId<Field>,
-        variant_field: &Field,
+        field: &Field,
     ) {
-        walk_variant_field(self, tree, id, variant_field);
+        walk_field(self, tree, id, field);
     }
 
     /// Visit a WhereClause.
@@ -228,11 +228,11 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Variant, id.id);
     }
 
-    fn visit_variant_field(
+    fn visit_field(
         &mut self,
         tree: &NodeTree,
         id: NodeId<Field>,
-        _variant_field: &Field,
+        _field: &Field,
     ) {
         self.visit_any(tree, NodeType::Field, id.id);
     }

@@ -41,7 +41,7 @@ pub struct NodeTree {
     // types
     pub(crate) types: NodeArena<Type>,
     pub(crate) variants: NodeArena<Variant>,
-    pub(crate) variant_fields: NodeArena<Field>,
+    pub(crate) fields: NodeArena<Field>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
     // context
     pub(crate) with_clauses: NodeArena<WithClause>,
@@ -97,7 +97,7 @@ impl NodeTree {
             // types
             types: NodeArena::new(),
             variants: NodeArena::new(),
-            variant_fields: NodeArena::new(),
+            fields: NodeArena::new(),
             where_clauses: NodeArena::new(),
             // context
             with_clauses: NodeArena::new(),
@@ -322,7 +322,7 @@ impl_node_tree_stores! {
     // types
     Type => types,
     Variant => variants,
-    Field => variant_fields,
+    Field => fields,
     WhereClause => where_clauses,
     // context
     WithClause => with_clauses,

@@ -43,8 +43,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             walk_variant(visitor, tree, NodeId::new(node_id), variant);
         }
         NodeType::Field => {
-            let variant_field = tree.variant_fields.get(local_idx);
-            walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
+            let field = tree.fields.get(local_idx);
+            walk_field(visitor, tree, NodeId::new(node_id), field);
         }
         NodeType::WhereClause => {
             let where_clause = tree.where_clauses.get(local_idx);
@@ -659,7 +659,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             for field_id in fields.iter() {
                 let field = tree.get(*field_id);
-                visitor.visit_variant_field(tree, *field_id, field);
+                visitor.visit_field(tree, *field_id, field);
             }
             for definition_id in definitions.iter() {
                 let child_definition = tree.get(*definition_id);
@@ -829,7 +829,7 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
             }
             for field_id in fields.iter() {
                 let field = tree.get(*field_id);
-                visitor.visit_variant_field(tree, *field_id, field);
+                visitor.visit_field(tree, *field_id, field);
             }
             if let Some(value) = value {
                 let value_expression = tree.get(*value);
@@ -854,14 +854,14 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Field.
-pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
+pub fn walk_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Field>,
-    variant_field: &Field,
+    field: &Field,
 ) {
     visitor.visit_any(tree, NodeType::Field, id.id);
-    match variant_field {
+    match field {
         Field::Named {
             modifiers: _,
             name: _,
@@ -1058,7 +1058,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
                 }
                 ArgumentSlot::Field { field } => {
                     let field_node = tree.get(*field);
-                    visitor.visit_variant_field(tree, *field, field_node);
+                    visitor.visit_field(tree, *field, field_node);
                 }
             }
             let value_expression = tree.get(*value);

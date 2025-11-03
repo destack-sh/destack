@@ -485,7 +485,7 @@ impl<'a> Compiler<'a> {
                 );
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_variant_field(source_id, ast, *field))
+                    .map(|field| self.lower_field(source_id, ast, *field))
                     .collect();
                 let definitions = expressions
                     .iter()

@@ -32,8 +32,8 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             walk_definition(visitor, tree, NodeId::new(node_id), definition);
         }
         NodeType::Field => {
-            let variant_field = tree.variant_fields.get(local_idx);
-            walk_variant_field(visitor, tree, NodeId::new(node_id), variant_field);
+            let field = tree.fields.get(local_idx);
+            walk_field(visitor, tree, NodeId::new(node_id), field);
         }
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
@@ -717,7 +717,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             for field_id in fields {
                 let field = tree.get(*field_id);
-                visitor.visit_variant_field(tree, *field_id, field);
+                visitor.visit_field(tree, *field_id, field);
             }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
@@ -872,7 +872,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
             for field_id in fields {
                 let field = tree.get(*field_id);
-                visitor.visit_variant_field(tree, *field_id, field);
+                visitor.visit_field(tree, *field_id, field);
             }
             for expr_id in expressions {
                 let expr = tree.get(*expr_id);
@@ -976,7 +976,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Field.
-pub fn walk_variant_field<V: NodeVisitor + ?Sized>(
+pub fn walk_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
     id: NodeId<Field>,
@@ -1064,7 +1064,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
         } => {
             for field in fields {
                 let field_node = tree.get(*field);
-                visitor.visit_variant_field(tree, *field, field_node);
+                visitor.visit_field(tree, *field, field_node);
             }
             if let Some(value) = value {
                 let expression = tree.get(*value);
@@ -1078,7 +1078,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
         } => {
             for field in fields {
                 let field_node = tree.get(*field);
-                visitor.visit_variant_field(tree, *field, field_node);
+                visitor.visit_field(tree, *field, field_node);
             }
             if let Some(value) = value {
                 let expression = tree.get(*value);
