@@ -6,9 +6,7 @@ use crate::{
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
-    /// Declare without link.
     Declaration,
-    /// Inline definition.
     Definition,
 }
 

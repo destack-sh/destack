@@ -7,6 +7,7 @@ use dyst_source::SourceId;
 impl<'a> Compiler<'a> {
     fn lower_path_base(&self, string_id: StringId) -> Option<PathBase> {
         match self.get_string(string_id) {
+            "this" => Some(PathBase::SelfValue),
             "self" => Some(PathBase::SelfValue),
             "Self" => Some(PathBase::SelfType),
             "super" => Some(PathBase::SuperValue),

@@ -1314,7 +1314,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 let keyword = match kind {
                     ForEachKind::In => Keyword::In,
                     ForEachKind::Of => Keyword::Of,
-                    _ => unreachable!(),
                 };
                 write!(f, [pattern, space(), keyword, space()])?;
                 write!(f, [iterator, space()])?;

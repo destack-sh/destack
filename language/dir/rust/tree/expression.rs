@@ -227,6 +227,7 @@ impl Node for Expression {
 }
 
 impl Expression {
+    // nocheckin #Broken: revisit Compiler is_resolve/resolve logic
     /// Whether the expression is resolved (ignoring child nodes).
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {

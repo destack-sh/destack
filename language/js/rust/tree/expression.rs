@@ -1,16 +1,14 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, BinaryOperator, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
+    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
     TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Class expression.
-    Class {},
-    /// Function expression.
-    Function {},
+    /// Definition expression.
+    Definition { definition: NodeId<Definition> },
     /// Arrow function expression.
     ArrowFunction {
         dynamic_parameters: Vec<NodeId<Parameter>>,
@@ -85,7 +83,7 @@ pub enum Expression {
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
-    
+
     /// If ternary.
     IfTernary {
         condition: NodeId<Expression>,

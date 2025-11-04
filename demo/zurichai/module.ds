@@ -47,7 +47,10 @@ export struct MeetupRegistration {
 }
 
 @action(commit: true)
-export async function register(meetup: Reference<Meetup>, user: Reference<User>): MeetupRegistration {
+export async function register(
+    meetup: Reference<Meetup>,
+    user: Reference<User>,
+): MeetupRegistration {
     const registration = MeetupRegistration { meetup, user }
     session.create(registration)
     return registration
