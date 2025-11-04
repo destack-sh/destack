@@ -59,7 +59,7 @@ pub enum PatternField {
         default: Option<NodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y`).
-    NamedAlias {
+    Alias {
         mutability: Option<ScopedMutability>,
         name: StringId,
         alias: StringId,

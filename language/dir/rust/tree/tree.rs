@@ -246,13 +246,13 @@ impl NodeTree {
 
     /// Whether there are any annotations attached to a node.
     #[inline]
-    pub fn has_annotations_for(&self, node_id: u32) -> bool {
+    pub fn has_annotations(&self, node_id: u32) -> bool {
         self.annotations_per_node_id.contains_key(&node_id)
     }
 
     /// Get annotations attached to a node.
     #[inline]
-    pub fn get_annotations_for(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
         self.annotations_per_node_id
             .get(&node_id)
             .cloned()

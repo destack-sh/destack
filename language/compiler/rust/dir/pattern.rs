@@ -167,7 +167,7 @@ impl<'a> Compiler<'a> {
                     default,
                 }
             }
-            ast::PatternField::NamedAlias {
+            ast::PatternField::Alias {
                 mutability,
                 name,
                 alias,
@@ -179,7 +179,7 @@ impl<'a> Compiler<'a> {
                 let name = self.intern_string(source_id, name.string());
                 let alias = self.intern_string(source_id, *alias);
                 let default = default.map(|default| self.lower_expression(source_id, ast, default));
-                PatternField::NamedAlias {
+                PatternField::Alias {
                     mutability,
                     name,
                     alias,

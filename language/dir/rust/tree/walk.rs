@@ -1232,7 +1232,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        PatternField::NamedAlias {
+        PatternField::Alias {
             mutability: _,
             name: _,
             alias: _,

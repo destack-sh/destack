@@ -262,13 +262,13 @@ impl NodeTree {
 
     /// Whether there are any annotations attached to a node.
     #[inline]
-    pub fn has_annotations_for(&self, node_id: u32) -> bool {
+    pub fn has_annotations(&self, node_id: u32) -> bool {
         self.annotations_per_node_id.contains_key(&node_id)
     }
 
     /// Get annotations attached to a node.
     #[inline]
-    pub fn get_annotations_for(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
         self.annotations_per_node_id
             .get(&node_id)
             .cloned()
@@ -294,7 +294,7 @@ impl NodeTree {
     /// Get blank annotation attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_blanks_for(&self, node_id: u32) -> Vec<(NodeId<Blank>, AnnotationPosition)> {
-        self.get_annotations_for(node_id)
+        self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
                 Annotation::Blank { node, position } => Some((*node, *position)),
@@ -306,7 +306,7 @@ impl NodeTree {
     /// Get comment annotations attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_comments_for(&self, node_id: u32) -> Vec<(NodeId<Comment>, AnnotationPosition)> {
-        self.get_annotations_for(node_id)
+        self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
                 Annotation::Comment { node, position } => Some((*node, *position)),
@@ -318,7 +318,7 @@ impl NodeTree {
     /// Get doc annotation attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_docs_for(&self, node_id: u32) -> Vec<(NodeId<Doc>, AnnotationPosition)> {
-        self.get_annotations_for(node_id)
+        self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
                 Annotation::Doc { node, position } => Some((*node, *position)),

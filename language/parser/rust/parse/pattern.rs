@@ -300,7 +300,7 @@ impl<'a> Parser<'a> {
                             } else {
                                 None
                             };
-                            PatternField::NamedAlias {
+                            PatternField::Alias {
                                 mutability,
                                 name,
                                 alias,

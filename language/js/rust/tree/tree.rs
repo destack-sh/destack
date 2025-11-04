@@ -183,6 +183,14 @@ impl NodeTree {
             self.dir_id_by_node_id[node_id as usize],
         )
     }
+
+    /// Get the annotations for a node.
+    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+        self.annotations_per_node_id
+            .get(&node_id)
+            .cloned()
+            .unwrap_or_else(Vec::new)
+    }
 }
 
 /// Map node types to arenas.

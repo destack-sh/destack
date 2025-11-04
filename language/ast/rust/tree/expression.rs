@@ -653,6 +653,8 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
+    // TODO #Incomplete: pattern assign expression (without let, see JS/TS)
+
     /// Assignment operation.
     Assign {
         left: NodeId<Expression>,
