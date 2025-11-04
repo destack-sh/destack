@@ -1,4 +1,4 @@
-use dyst_ast::{Block, BlockFormat, IfStyle};
+use dyst_ast::{Block, BlockFormat, IfKind};
 
 use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
             })?;
             Expression::If {
                 runtime,
-                style: IfStyle::Regular,
+                kind: IfKind::Regular,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: Some(else_expr_id),
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
             // if ...
             Expression::If {
                 runtime,
-                style: IfStyle::Regular,
+                kind: IfKind::Regular,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: None,

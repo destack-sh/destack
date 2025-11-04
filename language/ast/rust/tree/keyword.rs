@@ -134,15 +134,15 @@ pub enum Keyword {
     Else,
     /// Match expression.
     Match,
-    /// Switch expression (reserved).
+    /// Switch expression.
     Switch,
-    /// Case expression (reserved).
+    /// Case expression.
     Case,
 
     // ------------------------------------------------------------
     // Loops
     // ------------------------------------------------------------
-    /// Do expression (reserved).
+    /// Do expression.
     Do,
     /// Loop expression.
     While,
@@ -164,7 +164,7 @@ pub enum Keyword {
     Defer,
     /// Return expression.
     Return,
-    /// Yield expression (reserved).
+    /// Yield expression.
     Yield,
     /// Goto expression (reserved).
     Goto,
@@ -176,7 +176,7 @@ pub enum Keyword {
     Try,
     /// Catch expression.
     Catch,
-    /// Throw expression (reserved).
+    /// Throw expression.
     Throw,
     /// Finally expression.
     Finally,
@@ -184,13 +184,13 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Async & Dispatch
     // ------------------------------------------------------------
-    /// Async expression (reserved).
+    /// Async expression.
     Async,
-    /// Await expression (reserved).
+    /// Await expression.
     Await,
-    /// Getter function (reserved).
+    /// Getter function.
     Get,
-    /// Setter function (reserved).
+    /// Setter function.
     Set,
 }
 

@@ -1,6 +1,5 @@
 use dyst_ast::{
-    Argument, Asynchrony, DependencyKind, IfStyle, Mutability, NodeTree, Path, PostfixPosition,
-    TypeBinaryOperator, TypeUnaryOperator, YieldCardinality,
+    Argument, Asynchrony, DependencyKind, IfKind, Mutability, NodeTree, Path, PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, WhileKind, YieldCardinality
 };
 use dyst_container::{SmallVec, smallvec};
 use dyst_fir::format::BestFittingMode;
@@ -129,7 +128,7 @@ pub(crate) fn format_if_else_chain<'ast>(
             // if or else if
             Expression::If {
                 runtime,
-                style: _, // we turn everything into regular ifs
+                kind: _, // we turn everything into regular ifs
                 condition,
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
@@ -212,7 +211,12 @@ fn format_member_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
-    if let Expression::Member { left, path, static_arguments } = f.context().tree.get(node_id) {
+    if let Expression::Member {
+        left,
+        path,
+        static_arguments,
+    } = f.context().tree.get(node_id)
+    {
         write!(f, [*left, token("."), path.clone()])?;
         if let Some(static_arguments) = static_arguments {
             write!(f, [list_like("<", ">", ",", static_arguments)])?;
@@ -674,7 +678,7 @@ pub(crate) fn format_match<'ast>(
     let match_node = f.context().tree.get(node_id);
     let Expression::Match {
         runtime,
-        style: _,
+        kind: _,
         value,
         cases,
     } = &match_node
@@ -1220,7 +1224,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // if (ternary)
             Expression::If {
-                style: IfStyle::Ternary,
+                kind: IfKind::Ternary,
                 condition,
                 then_expression,
                 else_expression,
@@ -1247,7 +1251,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // if (regular)
             Expression::If {
-                style: IfStyle::Regular,
+                kind: IfKind::Regular,
                 ..
             } => {
                 write!(
@@ -1259,6 +1263,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // while
             Expression::While {
                 runtime,
+                kind,
                 condition,
                 body,
             } => {
@@ -1267,7 +1272,25 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 {
                     write!(f, [token("@")])?;
                 }
-                write!(f, [Keyword::While, space(), condition, space(), body])?;
+                match *kind {
+                    WhileKind::While => {
+                        write!(f, [Keyword::While, space(), condition, space(), body])?;
+                    }
+                    WhileKind::DoWhile => {
+                        write!(
+                            f,
+                            [
+                                Keyword::Do,
+                                space(),
+                                body,
+                                space(),
+                                Keyword::While,
+                                space(),
+                                condition
+                            ]
+                        )?;
+                    }
+                }
             }
 
             // for each

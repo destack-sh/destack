@@ -93,12 +93,6 @@ pub enum Expression {
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
     /// Object literal.
     ObjectLiteral { fields: Vec<NodeId<Argument>> },
-    /// Tree literal.
-    TreeLiteral {
-        path: Option<Path>,
-        arguments: Option<Vec<NodeId<Argument>>>,
-        elements: Option<Vec<NodeId<Expression>>>,
-    },
 
     /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
