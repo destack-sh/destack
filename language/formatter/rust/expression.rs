@@ -1,5 +1,6 @@
 use dyst_ast::{
-    Argument, Asynchrony, DependencyKind, IfKind, Mutability, NodeTree, Path, PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, WhileKind, YieldCardinality
+    Argument, Asynchrony, DependencyKind, ForEachKind, IfKind, Mutability, NodeTree, Path,
+    PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use dyst_container::{SmallVec, smallvec};
 use dyst_fir::format::BestFittingMode;
@@ -833,7 +834,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::Try { .. }
         | Expression::Block { .. }
         | Expression::ForEach { .. }
-        | Expression::ForCondition { .. }
+        | Expression::For { .. }
         | Expression::While { .. }
         | Expression::With { .. }
         | Expression::Import { .. }
@@ -1251,8 +1252,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // if (regular)
             Expression::If {
-                kind: IfKind::Regular,
-                ..
+                kind: IfKind::If, ..
             } => {
                 write!(
                     f,
@@ -1297,6 +1297,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::ForEach {
                 runtime,
                 asynchrony,
+                kind,
                 pattern,
                 iterator,
                 body,
@@ -1310,15 +1311,18 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Await, space()])?;
                 }
-                if let Some(pattern) = pattern {
-                    write!(f, [pattern, space(), Keyword::In, space()])?;
-                }
+                let keyword = match kind {
+                    ForEachKind::In => Keyword::In,
+                    ForEachKind::Of => Keyword::Of,
+                    _ => unreachable!(),
+                };
+                write!(f, [pattern, space(), keyword, space()])?;
                 write!(f, [iterator, space()])?;
                 write!(f, [body])?;
             }
 
             // for condition
-            Expression::ForCondition {
+            Expression::For {
                 runtime,
                 initialization,
                 condition,
@@ -1828,7 +1832,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
 
             // container
             BinaryOperator::In => token("in"),
-            BinaryOperator::Of => token("of"),
         };
         write!(f, [token])
     }

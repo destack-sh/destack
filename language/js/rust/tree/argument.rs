@@ -3,18 +3,16 @@ use crate::{Expression, Mutability, Node, NodeId, NodeType, Pattern, StringId, T
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingKind {
-    /// Definite binding (like `x: int32`).
     Must,
-    /// Maybe binding (like `x?: int32` or just `T?`).
     Maybe,
 }
 
 /// The scope of a binding (dynamic or static).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingScope {
-    /// Container scope (whatever contains the declaration).
+    /// Container scope.
     Container,
-    /// Static scope (static in relation to the container).
+    /// Static scope.
     Static,
 }
 

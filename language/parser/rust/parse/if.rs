@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
             })?;
             Expression::If {
                 runtime,
-                kind: IfKind::Regular,
+                kind: IfKind::If,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: Some(else_expr_id),
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
             // if ...
             Expression::If {
                 runtime,
-                kind: IfKind::Regular,
+                kind: IfKind::If,
                 condition: condition_id,
                 then_expression: then_expression_id,
                 else_expression: None,

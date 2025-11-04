@@ -93,7 +93,12 @@ static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 8] = [
     BinaryOperator::Divide,
 ];
 
-/// Make an infix operator.
+// can't use `in` in for each expressions
+static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [
+    BinaryOperator::In,
+];
+
+/// Make an infix operator (in context).
 #[inline]
 fn to_infix_operator(
     token_str: &str,
@@ -113,6 +118,7 @@ fn to_infix_operator(
     else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
         && (!options.in_tree_literal || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
+        && (!options.in_for_each || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
     {
         Ok((InfixOperator::Binary(binary_operator), 1))
     }

@@ -1,5 +1,8 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta, DependencyItem, Doc, EnumField, Expression, Field, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField, WhereClause, WithClause
+    Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta,
+    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, NodeId, NodeTree, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField, WhereClause,
+    WithClause,
 };
 
 /// Walk any node.
@@ -270,21 +273,20 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ForEach {
             runtime: _,
             asynchrony: _,
+            kind: _,
             pattern,
             iterator,
             body,
         } => {
-            if let Some(pattern_id) = pattern {
-                let pattern_node = tree.get(*pattern_id);
-                visitor.visit_pattern(tree, *pattern_id, pattern_node);
-            }
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
             let iterator_expr = tree.get(*iterator);
             visitor.visit_expression(tree, *iterator, iterator_expr);
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
 
-        Expression::ForCondition {
+        Expression::For {
             runtime: _,
             initialization,
             condition,
