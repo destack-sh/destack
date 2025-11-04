@@ -1,6 +1,7 @@
 /// Panic if not defused before dropping.
 pub(crate) struct DebugDropBomb {
     is_defused: bool,
+    #[allow(unused)]
     message: &'static str,
 }
 

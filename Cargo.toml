@@ -182,6 +182,7 @@ codegen-units = 1
 lto = "thin"
 debug-assertions = false
 overflow-checks = false
+split-debuginfo = "unpacked"
 strip = "none"
 debug = true
 

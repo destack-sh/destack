@@ -40,6 +40,7 @@ dmypy.json
 target/
 **/target/
 Cargo.lock
+*.trace
 
 # JavaScript/TypeScript/Node
 node_modules/

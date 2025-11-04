@@ -235,6 +235,19 @@ impl<'a> Compiler<'a> {
                     expression: right,
                 }
             }
+
+            ast::Expression::TypeUnary {
+                operator,
+                expression: right,
+            } => {
+                let right = self.lower_expression(source_id, ast, *right);
+                let operator = self.lower_type_unary_operator(*operator);
+                Expression::TypeUnary {
+                    operator,
+                    expression: right,
+                }
+            }
+
             ast::Expression::Value {
                 mutability,
                 variance,
@@ -276,6 +289,20 @@ impl<'a> Compiler<'a> {
                 let right = self.lower_expression(source_id, ast, *right);
                 let operator = self.lower_binary_operator(*operator);
                 Expression::Binary {
+                    left,
+                    operator,
+                    right,
+                }
+            }
+            ast::Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.lower_expression(source_id, ast, *left);
+                let right = self.lower_expression(source_id, ast, *right);
+                let operator = self.lower_type_binary_operator(*operator);
+                Expression::TypeBinary {
                     left,
                     operator,
                     right,

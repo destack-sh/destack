@@ -47,27 +47,27 @@ pub enum Statement {
         then_block: NodeId<Block>,
         else_block: Option<NodeId<Block>>,
     },
-    /// While.
+    /// While loop.
     While {
         condition: NodeId<Expression>,
         body: NodeId<Block>,
     },
-    /// For.
+    /// For three-part loop.
     For {
         initialization: Option<NodeId<Expression>>,
         condition: NodeId<Expression>,
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
-    /// For each.
+    /// For in loop.
     ForIn {
-        // pattern: Option<NodeId<Pattern>>,
+        name: StringId,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
-    /// For of.
+    /// For of loop.
     ForOf {
-        // pattern: Option<NodeId<Pattern>>,
+        pattern: NodeId<Pattern>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
