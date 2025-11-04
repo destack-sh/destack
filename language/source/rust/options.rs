@@ -1,10 +1,10 @@
 /// The mode we're parsing, compiling, checking Dyst in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageMode {
-    /// Lenient scripting with relaxed checking, conversion, cloning, boxing and more.
-    Script,
-    /// Strict engineering with explicit context, defaults, typing, behavior and more.
-    Library,
+    /// Lenient mode with relaxed checking, conversion, cloning, boxing and more.
+    Lenient,
+    /// Strict mode with explicit context, defaults, typing, behavior and more.
+    Strict,
 }
 
 /// The language compatibility mode.
@@ -62,7 +62,7 @@ pub struct LanguageOptions {
     /// The version of the language.
     pub version: LanguageVersion = LanguageVersion::V1,
     /// The mode we're operating Dyst in.
-    pub mode: LanguageMode = LanguageMode::Script,
+    pub mode: LanguageMode = LanguageMode::Lenient,
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility> = None,
     /// The formatting options.
