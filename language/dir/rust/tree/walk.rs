@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, Expression,
+    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, Expression, Field,
     FunctionSignature, Generics, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, TemplateLiteral, Type, Variant, Field, WhereClause, WithClause,
+    Pattern, PatternField, TemplateLiteral, Type, Variant, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -282,7 +282,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }
-        Expression::Member { left, path: _, static_arguments } => {
+        Expression::Member {
+            left,
+            path: _,
+            static_arguments,
+        } => {
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
             if let Some(static_arguments) = static_arguments {
@@ -419,6 +423,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::If {
             runtime: _,
+            kind: _,
             condition,
             then_expression,
             else_expression,
@@ -440,6 +445,43 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let condition_expression = tree.get(*condition);
             visitor.visit_expression(tree, *condition, condition_expression);
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
+        }
+        Expression::ForEach {
+            runtime: _,
+            asynchrony: _,
+            kind: _,
+            pattern,
+            iterator,
+            body,
+        } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            let iterator_expression = tree.get(*iterator);
+            visitor.visit_expression(tree, *iterator, iterator_expression);
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
+        }
+        Expression::For {
+            runtime: _,
+            initialization,
+            condition,
+            increment,
+            body,
+        } => {
+            if let Some(initialization_id) = initialization {
+                let initialization_expression = tree.get(*initialization_id);
+                visitor.visit_expression(tree, *initialization_id, initialization_expression);
+            }
+            if let Some(condition_id) = condition {
+                let condition_expression = tree.get(*condition_id);
+                visitor.visit_expression(tree, *condition_id, condition_expression);
+            }
+            if let Some(increment_id) = increment {
+                let increment_expression = tree.get(*increment_id);
+                visitor.visit_expression(tree, *increment_id, increment_expression);
+            }
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
@@ -573,7 +615,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Struct {
             meta: _,
-            style: _,
+            kind: _,
             generics,
             embedded_definitions,
             variant,

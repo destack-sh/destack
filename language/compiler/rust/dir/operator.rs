@@ -89,7 +89,6 @@ impl<'a> Compiler<'a> {
 
             // container
             ast::BinaryOperator::In => dyst_dir::BinaryOperator::In,
-            ast::BinaryOperator::Of => dyst_dir::BinaryOperator::Of,
         }
     }
 

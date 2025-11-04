@@ -1,8 +1,10 @@
 use dyst_source::StringId;
 
-use crate::tree::variant::{Field, VariantKind};
+use crate::tree::variant::{Field, VariantFormat};
 use crate::{
-    Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause, WithClause
+    Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node,
+    NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause,
+    WithClause,
 };
 
 /// The kind of declaration.
@@ -153,8 +155,8 @@ pub enum Definition {
     /// ```
     Struct {
         meta: DefinitionMeta,
-        style: StructStyle,
-        kind: VariantKind,
+        kind: StructKind,
+        format: VariantFormat,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
         representation_type: Option<NodeId<Expression>>,
@@ -393,8 +395,8 @@ pub enum Definition {
         abstraction: FunctionAbstraction,
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
-        kind: Option<FunctionKind>,
-        style: FunctionStyle,
+        mode: Option<FunctionMode>,
+        kind: FunctionKind,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         self_parameter: Option<SelfParameter>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
@@ -431,9 +433,9 @@ impl Definition {
     }
 }
 
-/// The style of a struct or class.
+/// The kind of a struct.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructStyle {
+pub enum StructKind {
     /// Struct.
     Struct,
     /// Class.
@@ -451,9 +453,9 @@ pub enum FunctionCardinality {
 
 impl FunctionCardinality {}
 
-/// The kind of a function.
+/// The mode of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionKind {
+pub enum FunctionMode {
     /// Getter function.
     Getter,
     /// Setter function.
@@ -464,6 +466,20 @@ pub enum FunctionKind {
     New,
     /// Implicit call function.
     Call,
+}
+
+impl FunctionMode {
+    /// Get the keyword for the function accessor.
+    #[inline]
+    pub fn to_keyword(&self) -> Option<Keyword> {
+        match self {
+            FunctionMode::Getter => Some(Keyword::Get),
+            FunctionMode::Setter => Some(Keyword::Set),
+            FunctionMode::Constructor => Some(Keyword::Constructor),
+            FunctionMode::New => Some(Keyword::New),
+            FunctionMode::Call => None,
+        }
+    }
 }
 
 /// The abstraction level of a definition.
@@ -477,20 +493,6 @@ pub enum FunctionAbstraction {
     ConcreteOverride,
     /// Concrete definition.
     Concrete,
-}
-
-impl FunctionKind {
-    /// Get the keyword for the function accessor.
-    #[inline]
-    pub fn to_keyword(&self) -> Option<Keyword> {
-        match self {
-            FunctionKind::Getter => Some(Keyword::Get),
-            FunctionKind::Setter => Some(Keyword::Set),
-            FunctionKind::Constructor => Some(Keyword::Constructor),
-            FunctionKind::New => Some(Keyword::New),
-            FunctionKind::Call => None,
-        }
-    }
 }
 
 /// The format of a module.
@@ -567,7 +569,7 @@ impl Node for UnionField {
 
 /// A FunctionStyle is the style of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionStyle {
+pub enum FunctionKind {
     /// A normal function.
     Function,
     /// A lambda function.

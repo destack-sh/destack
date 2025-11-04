@@ -482,8 +482,8 @@ impl Dump for FunctionCardinality {
     }
 }
 
-/// Dump a FunctionKind as a string.
-impl Dump for FunctionKind {
+/// Dump a FunctionMode as a string.
+impl Dump for FunctionMode {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -546,7 +546,7 @@ impl Dump for YieldCardinality {
 }
 
 /// Dump a FunctionStyle as a string.
-impl Dump for FunctionStyle {
+impl Dump for FunctionKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -635,8 +635,8 @@ impl Dump for ModuleStyle {
     }
 }
 
-/// Dump a VariantKind as a string.
-impl Dump for VariantKind {
+/// Dump a VariantFormat as a string.
+impl Dump for VariantFormat {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -676,8 +676,8 @@ impl Dump for BindingModifier {
     }
 }
 
-/// Dump a StructStyle as a string.
-impl Dump for StructStyle {
+/// Dump a StructKind as a string.
+impl Dump for StructKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1355,8 +1355,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Struct {
                 meta,
-                style,
                 kind,
+                format,
                 extends_types: _,
                 implements_types: _,
                 representation_type: _,
@@ -1368,7 +1368,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
-                    .field("style", style)
+                    .field("format", format)
                     .field("kind", kind)
                     .end();
             }
@@ -1435,8 +1435,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 abstraction,
                 asynchrony,
                 cardinality,
-                kind,
-                style,
+                mode: kind,
+                kind: style,
                 static_parameters: _,
                 self_parameter,
                 dynamic_parameters: _,

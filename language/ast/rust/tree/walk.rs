@@ -683,8 +683,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Struct {
             meta,
-            style: _,
             kind: _,
+            format: _,
             extends_types,
             implements_types,
             representation_type,
@@ -943,8 +943,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             runtime: _,
             asynchrony: _,
             cardinality: _,
+            mode: _,
             kind: _,
-            style: _,
             static_parameters,
             self_parameter,
             dynamic_parameters,

@@ -18,12 +18,6 @@ pub enum Expression {
         body: NodeId<Expression>,
     },
 
-    /// This.
-    This,
-    /// Super.
-    Super,
-    /// Import metadata (`import.meta`).
-    ImportMeta,
     /// Path.
     Path {
         path: Path,
@@ -90,6 +84,13 @@ pub enum Expression {
         left: Path,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+    
+    /// If ternary.
+    IfTernary {
+        condition: NodeId<Expression>,
+        then_expression: NodeId<Expression>,
+        else_expression: Option<NodeId<Expression>>,
     },
 }
 

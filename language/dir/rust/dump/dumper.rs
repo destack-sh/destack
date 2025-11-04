@@ -422,15 +422,15 @@ impl Dump for FunctionCardinality {
     }
 }
 
-/// Dump a FunctionKind as a string.
-impl Dump for FunctionKind {
+/// Dump a FunctionMode as a string.
+impl Dump for FunctionMode {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
-/// Dump a StructStyle as a string.
-impl Dump for StructStyle {
+/// Dump a StructKind as a string.
+impl Dump for StructKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -607,8 +607,8 @@ impl Dump for FunctionSignature {
             .field("runtime", &self.runtime)
             .field("abstraction", &self.abstraction)
             .field("cardinality", &self.cardinality)
-            .field_optional("kind", &self.kind)
-            .field("style", &self.style)
+            .field_optional("kind", &self.mode)
+            .field("style", &self.kind)
             .field_optional("self_parameter", &self.self_parameter)
             .end();
     }
@@ -629,7 +629,28 @@ impl Dump for MatchSource {
 }
 
 /// Dump a FunctionStyle as a string.
-impl Dump for FunctionStyle {
+impl Dump for FunctionKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a ForEachKind as a string.
+impl Dump for ForEachKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a WhileKind as a string.
+impl Dump for WhileKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a IfKind as a string.
+impl Dump for IfKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1247,12 +1268,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::If {
                 runtime,
+                kind,
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
                 self.node("Expression::If", id.id)
                     .field_optional("runtime", runtime)
+                    .field("kind", kind)
                     .end();
             }
             Expression::Loop {
@@ -1264,6 +1287,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Loop", id.id)
                     .field_optional("runtime", runtime)
                     .field("source", source)
+                    .end();
+            }
+            Expression::ForEach {
+                runtime,
+                asynchrony,
+                kind,
+                pattern: _,
+                iterator: _,
+                body: _,
+            } => {
+                self.node("Expression::ForEach", id.id)
+                    .field_optional("runtime", runtime)
+                    .field("asynchrony", asynchrony)
+                    .field("kind", kind)
+                    .end();
+            }
+            Expression::For {
+                runtime,
+                initialization: _,
+                condition: _,
+                increment: _,
+                body: _,
+            } => {
+                self.node("Expression::For", id.id)
+                    .field_optional("runtime", runtime)
                     .end();
             }
             Expression::Match {
@@ -1379,7 +1427,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Struct {
                 meta,
-                style,
+                kind,
                 generics,
                 embedded_definitions: _,
                 variant: _,
@@ -1387,7 +1435,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
-                    .field("style", style)
+                    .field("kind", kind)
                     .field_optional("generics", generics)
                     .end();
             }

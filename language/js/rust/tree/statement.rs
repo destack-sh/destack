@@ -47,12 +47,6 @@ pub enum Statement {
         then_block: NodeId<Block>,
         else_block: Option<NodeId<Block>>,
     },
-    /// If ternary.
-    IfTernary {
-        condition: NodeId<Expression>,
-        then_expression: NodeId<Expression>,
-        else_expression: Option<NodeId<Expression>>,
-    },
     /// While.
     While {
         condition: NodeId<Expression>,

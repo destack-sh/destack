@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Asynchrony, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionKind, NodeType,
+    Asynchrony, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionMode, NodeType,
     Parameter,
 };
 
@@ -7,7 +7,7 @@ use crate::parse::prelude::*;
 use crate::{ReferenceType, ScopedMutability, TokenType};
 
 use crate::{
-    Definition, FunctionStyle, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
+    Definition, FunctionKind, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
     SelfParameter,
 };
 
@@ -228,21 +228,21 @@ impl<'a> Parser<'a> {
             false
         };
 
-        // kind
-        let mut kind = {
+        // mode
+        let mut mode = {
             // getter
             if self.peek_keyword(Keyword::Get).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
             {
                 self.bump(); // eat get keyword
-                Some(FunctionKind::Getter)
+                Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
             {
                 self.bump(); // eat set keyword
-                Some(FunctionKind::Setter)
+                Some(FunctionMode::Setter)
             }
             // constructor
             else if self.peek_keyword(Keyword::Constructor).is_ok()
@@ -250,7 +250,7 @@ impl<'a> Parser<'a> {
                     || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
             {
                 self.bump(); // eat constructor keyword
-                Some(FunctionKind::Constructor)
+                Some(FunctionMode::Constructor)
             }
             // new constructor
             else if self.peek_keyword(Keyword::New).is_ok()
@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
                     || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
             {
                 self.bump(); // eat new keyword
-                Some(FunctionKind::New)
+                Some(FunctionMode::New)
             } else {
                 None
             }
@@ -266,16 +266,16 @@ impl<'a> Parser<'a> {
 
         // function style
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
-        let (style, is_generator) = {
+        let (kind, is_generator) = {
             // constructors are always functions
-            if kind == Some(FunctionKind::Constructor) {
-                (FunctionStyle::Function, false)
+            if mode == Some(FunctionMode::Constructor) {
+                (FunctionKind::Function, false)
             }
             // regular `function` style
             else if self.peek_keyword(Keyword::Function).is_ok() {
                 self.bump(); // eat function keyword
                 let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
-                (FunctionStyle::Function, is_generator)
+                (FunctionKind::Function, is_generator)
             }
             // shorthand `name()` or `name?()` style
             // (or `[Symbol.iterator]()` or `[Symbol.iterator]?()` style)
@@ -293,17 +293,17 @@ impl<'a> Parser<'a> {
                             .is_ok())
                 || self.peek_token(TokenType::OpenBracket).is_ok()
             {
-                (FunctionStyle::Function, is_generator)
+                (FunctionKind::Function, is_generator)
             }
             // lambda style
             else {
-                (FunctionStyle::Lambda, is_generator)
+                (FunctionKind::Lambda, is_generator)
             }
         };
 
         // function style: runtime, name, static parameters
         let (runtime, name_or_key, static_parameters) = {
-            if style == FunctionStyle::Function {
+            if kind == FunctionKind::Function {
                 // runtime
                 let runtime = if self.peek_token(TokenType::At).is_ok() {
                     self.eat_token(TokenType::At)?;
@@ -344,7 +344,7 @@ impl<'a> Parser<'a> {
         // dynamic parameters
         let (self_parameter, dynamic_parameters) = {
             // regular `(...) => ...` function/lambda
-            if style == FunctionStyle::Function
+            if kind == FunctionKind::Function
                 || self.options.in_type
                 || self.peek_token(TokenType::OpenParenthesis).is_ok()
             {
@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
         // only for functions or lambda types
         let (return_type, with_clauses, where_clauses) = {
             // lambda with explicit return type
-            if style == FunctionStyle::Lambda
+            if kind == FunctionKind::Lambda
                 && (self.peek_colon().is_ok() || self.options.in_type && self.peek_arrow().is_ok())
             {
                 self.bump(); // eat colon or arrow
@@ -410,7 +410,7 @@ impl<'a> Parser<'a> {
                 (Some(return_type), with_clauses, where_clauses)
             }
             // regular function with return type or lambda type
-            else if style == FunctionStyle::Function || self.options.in_type {
+            else if kind == FunctionKind::Function || self.options.in_type {
                 // return type
                 let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
                     self.bump(); // eat arrow or colon
@@ -449,14 +449,14 @@ impl<'a> Parser<'a> {
                 ));
             }
             // function with body
-            if style == FunctionStyle::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
+            if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
                 let body = self.with_options(self.options.in_block_position(), |parser| {
                     parser.eat_expression()
                 })?;
                 Some(body)
             }
             // lambda with body
-            else if style == FunctionStyle::Lambda
+            else if kind == FunctionKind::Lambda
                 && !self.options.in_type
                 && self.peek_arrow().is_ok()
             {
@@ -474,8 +474,8 @@ impl<'a> Parser<'a> {
         };
 
         // turn into call if we don't have a name or body
-        if meta.name.is_none() && kind.is_none() && body.is_none() {
-            kind = Some(FunctionKind::Call);
+        if meta.name.is_none() && mode.is_none() && body.is_none() {
+            mode = Some(FunctionMode::Call);
         }
 
         // function
@@ -496,8 +496,8 @@ impl<'a> Parser<'a> {
                 abstraction,
                 asynchrony,
                 cardinality,
+                mode,
                 kind,
-                style,
                 static_parameters,
                 self_parameter,
                 dynamic_parameters,
@@ -515,7 +515,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionStyle,
+        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionMode, FunctionKind,
         Parameter, ReferenceType,
     };
 
@@ -534,9 +534,9 @@ mod tests {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         // (x: number): number => x
-        assert_node!(parser.tree, function_id, Definition::Function { meta, style, dynamic_parameters, return_type, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
             assert_eq!(meta.name, None);
-            assert_eq!(*style, FunctionStyle::Lambda);
+            assert_eq!(*kind, FunctionKind::Lambda);
             // x: number
             assert_eq!(dynamic_parameters.len(), 1);
             assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
@@ -561,9 +561,9 @@ mod tests {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         // (x): int32 => x
-        assert_node!(parser.tree, function_id, Definition::Function { meta, style, dynamic_parameters, return_type, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
             assert_eq!(meta.name, None);
-            assert_eq!(*style, FunctionStyle::Lambda);
+            assert_eq!(*kind, FunctionKind::Lambda);
             // x
             assert_eq!(dynamic_parameters.len(), 1);
             assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
@@ -589,10 +589,10 @@ mod tests {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
         // <T = any>(x: T): T
-        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, style, static_parameters, dynamic_parameters, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
             assert_eq!(meta.name, None);
-            assert_eq!(*style, FunctionStyle::Lambda);
-            assert_eq!(*kind, Some(FunctionKind::Call));
+            assert_eq!(*kind, FunctionKind::Lambda);
+            assert_eq!(*mode, Some(FunctionMode::Call));
             // <T = any>
             assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
             assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty: None, default, .. } => {
@@ -619,10 +619,10 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
         // new (x) => int32
         assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { meta, style, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, mode, static_parameters, dynamic_parameters, return_type, .. } => {
                 assert_eq!(meta.name, None);
-                assert_eq!(*kind, Some(FunctionKind::New));
-                assert_eq!(*style, FunctionStyle::Lambda);
+                assert_eq!(*mode, Some(FunctionMode::New));
+                assert_eq!(*kind, FunctionKind::Lambda);
                 assert!(static_parameters.is_none());
                 assert!(dynamic_parameters.is_empty());
                 assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "$");
@@ -639,10 +639,10 @@ mod tests {
         let expression_id = parser.eat_expression().unwrap();
         // new <T>(x: int32) => T
         assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { meta, style, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, mode, static_parameters, dynamic_parameters, return_type, .. } => {
                 assert_eq!(meta.name, None);
-                assert_eq!(*kind, Some(FunctionKind::New));
-                assert_eq!(*style, FunctionStyle::Lambda);
+                assert_eq!(*mode, Some(FunctionMode::New));
+                assert_eq!(*kind, FunctionKind::Lambda);
 
                 // <T>
                 assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
@@ -674,9 +674,9 @@ mod tests {
         let function_id = parser
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, style, dynamic_parameters, return_type,  .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type,  .. } => {
             assert_string!(parser, meta.name.unwrap().string(), "foo");
-            assert_eq!(*style, FunctionStyle::Function);
+            assert_eq!(*kind, FunctionKind::Function);
             // ()
             assert_eq!(dynamic_parameters.len(), 0);
             // int32
@@ -963,9 +963,9 @@ async *[Symbol.iterator]() {
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
 
-        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, body, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, dynamic_parameters, body, .. } => {
             assert!(meta.name.is_none());
-            assert_eq!(*kind, Some(FunctionKind::Constructor));
+            assert_eq!(*mode, Some(FunctionMode::Constructor));
             assert_eq!(dynamic_parameters.len(), 1);
             assert!(body.is_none());
         });

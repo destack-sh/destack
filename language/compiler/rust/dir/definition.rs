@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics,
-    NodeId, StructStyle,
+    NodeId, StructKind,
 };
 use dyst_source::SourceId;
 
@@ -204,8 +204,8 @@ impl<'a> Compiler<'a> {
         abstraction: ast::FunctionAbstraction,
         asynchrony: ast::Asynchrony,
         cardinality: ast::FunctionCardinality,
-        kind: Option<ast::FunctionKind>,
-        style: ast::FunctionStyle,
+        mode: Option<ast::FunctionMode>,
+        kind: ast::FunctionKind,
         self_parameter: &Option<ast::SelfParameter>,
         dynamic_parameters: &[ast::NodeId<ast::Parameter>],
         return_type: &Option<ast::NodeId<ast::Expression>>,
@@ -214,8 +214,8 @@ impl<'a> Compiler<'a> {
         let abstraction = self.lower_function_abstraction(abstraction);
         let asynchrony = self.lower_asynchrony(asynchrony);
         let cardinality = self.lower_function_cardinality(cardinality);
-        let kind = kind.map(|kind| self.lower_function_kind(kind));
-        let style = self.lower_function_style(style);
+        let kind = self.lower_function_kind(kind);
+        let mode = mode.map(|mode| self.lower_function_mode(mode));
         let self_parameter = self_parameter
             .as_ref()
             .map(|self_parameter| self.lower_self_parameter(source_id, ast, self_parameter));
@@ -231,8 +231,8 @@ impl<'a> Compiler<'a> {
             abstraction,
             asynchrony,
             cardinality,
+            mode,
             kind,
-            style,
             self_parameter,
             dynamic_parameters,
             return_type,
@@ -285,8 +285,8 @@ impl<'a> Compiler<'a> {
             // Struct definition
             ast::Definition::Struct {
                 meta,
-                style,
-                kind,
+                kind: style,
+                format: kind,
                 extends_types,
                 implements_types,
                 representation_type,
@@ -298,8 +298,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let meta = self.lower_definition_meta(source_id, meta);
                 let style = match style {
-                    ast::StructStyle::Struct => StructStyle::Struct,
-                    ast::StructStyle::Class => StructStyle::Class,
+                    ast::StructKind::Struct => StructKind::Struct,
+                    ast::StructKind::Class => StructKind::Class,
                 };
                 let generics = self.lower_generics(
                     source_id,
@@ -336,7 +336,7 @@ impl<'a> Compiler<'a> {
                 self.tree.insert_from_ast(
                     Definition::Struct {
                         meta,
-                        style,
+                        kind: style,
                         generics,
                         embedded_definitions,
                         variant,
@@ -511,8 +511,8 @@ impl<'a> Compiler<'a> {
                 abstraction,
                 asynchrony,
                 cardinality,
+                mode,
                 kind,
-                style,
                 self_parameter,
                 dynamic_parameters,
                 return_type,
@@ -536,8 +536,8 @@ impl<'a> Compiler<'a> {
                     *abstraction,
                     *asynchrony,
                     *cardinality,
+                    *mode,
                     *kind,
-                    *style,
                     self_parameter,
                     dynamic_parameters,
                     return_type,

@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionStyle,
-    NodeId, Path, PathBase, Runtime, Visibility,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    IfKind, NodeId, Path, PathBase, Runtime, Visibility,
 };
 use dyst_source::SourceId;
 
@@ -27,12 +27,21 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function style into a DIR function style.
+    /// Lower if kind into a DIR if kind.
     #[inline]
-    pub fn lower_function_style(&self, style: ast::FunctionStyle) -> FunctionStyle {
-        match style {
-            ast::FunctionStyle::Function => FunctionStyle::Function,
-            ast::FunctionStyle::Lambda => FunctionStyle::Lambda,
+    pub fn lower_if_kind(&self, kind: ast::IfKind) -> IfKind {
+        match kind {
+            ast::IfKind::If => IfKind::If,
+            ast::IfKind::Ternary => IfKind::Ternary,
+        }
+    }
+
+    /// Lower function kind into a DIR function kind.
+    #[inline]
+    pub fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
+        match kind {
+            ast::FunctionKind::Function => FunctionKind::Function,
+            ast::FunctionKind::Lambda => FunctionKind::Lambda,
         }
     }
 
@@ -57,15 +66,15 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function kind into a DIR function kind.
+    /// Lower function mode into a DIR function mode.
     #[inline]
-    pub fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
-        match kind {
-            ast::FunctionKind::Getter => FunctionKind::Getter,
-            ast::FunctionKind::Setter => FunctionKind::Setter,
-            ast::FunctionKind::Constructor => FunctionKind::Constructor,
-            ast::FunctionKind::New => FunctionKind::New,
-            ast::FunctionKind::Call => FunctionKind::Call,
+    pub fn lower_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
+        match mode {
+            ast::FunctionMode::Getter => FunctionMode::Getter,
+            ast::FunctionMode::Setter => FunctionMode::Setter,
+            ast::FunctionMode::Constructor => FunctionMode::Constructor,
+            ast::FunctionMode::New => FunctionMode::New,
+            ast::FunctionMode::Call => FunctionMode::Call,
         }
     }
 
@@ -304,7 +313,11 @@ impl<'a> Compiler<'a> {
                         .map(|argument| self.lower_argument(source_id, ast, *argument))
                         .collect()
                 });
-                Expression::Member { left, path, static_arguments }
+                Expression::Member {
+                    left,
+                    path,
+                    static_arguments,
+                }
             }
             ast::Expression::Call {
                 position: _,
@@ -393,18 +406,20 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::If {
                 runtime,
-                kind: _,
+                kind,
                 condition,
                 then_expression,
                 else_expression,
             } => {
                 let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
+                let kind = self.lower_if_kind(*kind);
                 let condition = self.lower_expression(source_id, ast, *condition);
                 let then_expression = self.lower_expression(source_id, ast, *then_expression);
                 let else_expression = else_expression
                     .map(|else_expression| self.lower_expression(source_id, ast, else_expression));
                 Expression::If {
                     runtime,
+                    kind,
                     condition,
                     then_expression,
                     else_expression,

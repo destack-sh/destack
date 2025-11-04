@@ -1,5 +1,7 @@
 use crate::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, StringId, Type, Variant, Field, Visibility
+    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Field, Generics,
+    Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability,
+    StringId, Type, Variant, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -86,7 +88,7 @@ pub enum Definition {
     /// Struct or class definition.
     Struct {
         meta: DefinitionMeta,
-        style: StructStyle,
+        kind: StructKind,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         variant: NodeId<Variant>,
@@ -249,7 +251,7 @@ impl Node for Definition {
 
 /// The style of a struct or class.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructStyle {
+pub enum StructKind {
     /// Struct.
     Struct,
     /// Class.
@@ -267,9 +269,9 @@ pub enum FunctionCardinality {
 
 impl FunctionCardinality {}
 
-/// The accessor type of a function.
+/// The purpose of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionKind {
+pub enum FunctionMode {
     /// Getter function.
     Getter,
     /// Setter function.
@@ -308,7 +310,7 @@ pub struct SelfParameter {
 
 /// The style of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionStyle {
+pub enum FunctionKind {
     /// Function with a body.
     Function,
     /// Lambda function with a return type.
@@ -326,10 +328,10 @@ pub struct FunctionSignature {
     pub asynchrony: Asynchrony,
     /// The cardinality of the function.
     pub cardinality: FunctionCardinality,
-    /// The special intent of the function.
-    pub kind: Option<FunctionKind>,
-    /// The style of the function.
-    pub style: FunctionStyle,
+    /// The mode of the function.
+    pub mode: Option<FunctionMode>,
+    /// The kind of the function.
+    pub kind: FunctionKind,
     /// The "self" parameter of the function.
     pub self_parameter: Option<SelfParameter>,
     /// The dynamic parameters of the function.

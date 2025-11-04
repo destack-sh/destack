@@ -89,6 +89,6 @@ export struct Entity {
 }
 
 /// Transform a struct-like type into an Entity type.
-function @entity(entity: any): typeof Entity {
+function entity(entity: any): typeof Entity {
     return entity
 }
