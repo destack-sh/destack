@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{SourceId, Span};
+use dyst_source::SourceId;
+use dyst_tree::NodeArena;
 
-use crate::{Annotation, Node, NodeId, NodeType};
+use crate::{
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, Node,
+    NodeId, NodeType, Parameter, Statement, SwitchCase, Type,
+};
 
 /// The AST Node tree for a single source unit.
 #[derive(Clone)]
@@ -27,14 +31,26 @@ pub struct NodeTree {
     pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
     /// The alias node id by DIR source / node id.
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
-    
+
     // per-node arenas
-    // groupings
+    pub(crate) blocks: NodeArena<Block>,
+    pub(crate) statements: NodeArena<Statement>,
+    pub(crate) expressions: NodeArena<Expression>,
+    pub(crate) definitions: NodeArena<Definition>,
+    pub(crate) fields: NodeArena<Field>,
+    pub(crate) types: NodeArena<Type>,
+    pub(crate) enum_fields: NodeArena<EnumField>,
+    pub(crate) dependency_items: NodeArena<DependencyItem>,
+    pub(crate) switch_cases: NodeArena<SwitchCase>,
+    pub(crate) parameters: NodeArena<Parameter>,
+    pub(crate) arguments: NodeArena<Argument>,
+    pub(crate) annotations: NodeArena<Annotation>,
 }
 
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
+            .field("source_id", &self.source_id)
             .field("next_global_id", &self.next_global_id)
             .field("node_count", &self.local_id_by_node_id.len())
             .finish()
@@ -59,6 +75,19 @@ impl NodeTree {
             ast_id_by_node_id: Vec::with_capacity(capacity),
             dir_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_dir_id: HashMap::new(),
+            // per-node arenas
+            blocks: NodeArena::new(),
+            statements: NodeArena::new(),
+            expressions: NodeArena::new(),
+            definitions: NodeArena::new(),
+            fields: NodeArena::new(),
+            types: NodeArena::new(),
+            enum_fields: NodeArena::new(),
+            dependency_items: NodeArena::new(),
+            switch_cases: NodeArena::new(),
+            parameters: NodeArena::new(),
+            arguments: NodeArena::new(),
+            annotations: NodeArena::new(),
         }
     }
 
@@ -177,4 +206,19 @@ macro_rules! impl_node_tree_stores {
     ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
         $( impl_node_tree_store!($ty, $field); )*
     };
+}
+
+impl_node_tree_stores! {
+    Block => blocks,
+    Statement => statements,
+    Expression => expressions,
+    Definition => definitions,
+    Field => fields,
+    Type => types,
+    EnumField => enum_fields,
+    DependencyItem => dependency_items,
+    SwitchCase => switch_cases,
+    Parameter => parameters,
+    Argument => arguments,
+    Annotation => annotations,
 }

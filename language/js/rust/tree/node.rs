@@ -5,14 +5,16 @@ use std::marker::PhantomData;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
     Block,
-	Statement,
+    Statement,
     Expression,
     Definition,
     Field,
-	Type,
-	EnumField,
+    Type,
+    EnumField,
     DependencyItem,
-	SwtichCase,
+    SwitchCase,
+    Pattern,
+    PatternField,
     Parameter,
     Argument,
     Annotation,
@@ -93,4 +95,42 @@ impl<T: Node> NodeId<T> {
 /// A Node.
 pub trait Node: Sized {
     const TYPE: NodeType;
+}
+
+/// A Visibility is the visibility of an item.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Visibility {
+    /// Public to everything.
+    Public,
+    /// Protected to derived constructs.
+    Protected,
+    /// Private to the closest module scope.
+    Private,
+}
+
+/// A Runtime is the evaluation context of an expression / function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Runtime {
+    /// The dynamic runtime (regular runtime).
+    Dynamic,
+    /// The static runtime ("comptime").
+    Static,
+}
+
+/// The asynchrony of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Asynchrony {
+    /// Synchronous function.
+    Sync,
+    /// Asynchronous function.
+    Async,
+}
+
+/// A Mutability is the mutability of a binding (const or mutable).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Mutability {
+    /// Cannot be modified (incl. inner even if they are mutable).
+    Immutable,
+    /// May be modified (incl. inner if they are also mutable).
+    Mutable,
 }
