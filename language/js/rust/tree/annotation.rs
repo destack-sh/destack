@@ -2,7 +2,9 @@ use crate::{Node, NodeType, StringId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// A comment annotation.
+    /// Documentation annotation.
+    Doc { string: StringId },
+    /// Comment annotation.
     Comment { string: StringId },
 }
 

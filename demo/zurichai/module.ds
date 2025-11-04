@@ -1,4 +1,5 @@
 import { entity, Entity, Reference } from "destack"
+import { DateTime } from "destack.time"
 
 /// The status of a Meetup.
 export enum(uint8) MeetupStatus {
@@ -25,7 +26,7 @@ export struct MeetupSeries {
 @entity
 export struct Meetup {
     // When the Meetup is happening.
-    date: Date
+    date: DateTime
     // The name of the Meetup.
     name: string
     // The number of the Meetup.
@@ -45,7 +46,9 @@ export struct MeetupRegistration {
     user: Reference<User>
 }
 
-@action
-export function register(meetup: Reference<Meetup>, user: Reference<User>) {
-    // throw "not implemented"
+@action(commit: true)
+export async function register(meetup: Reference<Meetup>, user: Reference<User>): MeetupRegistration {
+    const registration = MeetupRegistration { meetup, user }
+    session.create(registration)
+    return registration
 }

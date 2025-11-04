@@ -1,15 +1,95 @@
-use crate::{Node, NodeType};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, Pattern, StringId, Type, Visibility};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Argument {}
+/// The type of a binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingKind {
+    /// Definite binding (like `x: int32`).
+    Must,
+    /// Maybe binding (like `x?: int32` or just `T?`).
+    Maybe,
+}
 
-impl Node for Argument {
-    const TYPE: NodeType = NodeType::Argument;
+/// The scope of a binding (dynamic or static).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingScope {
+    /// Container scope (whatever contains the declaration).
+    Container,
+    /// Static scope (static in relation to the container).
+    Static,
+}
+
+/// The operator to apply to the binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingOperator {
+    /// Apply `as const` to the value of the binding.
+    AsConst,
+}
+
+/// The modifiers of a field-like item.
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct BindingModifier {
+    /// The kind of the binding.
+    pub kind: Option<BindingKind> = None,
+    /// The scope of the binding.
+    pub scope: Option<BindingScope> = None,
+    /// The mutability of the field.
+    pub mutability: Option<Mutability> = None,
+    /// The visibility of the field.
+    pub visibility: Option<Visibility> = None,
+    /// The operator to apply to the binding.
+    pub operator: Option<BindingOperator> = None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Parameter {}
+pub enum Parameter {
+    /// Named parameter.
+    Named {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        ty: Option<NodeId<Type>>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Pattern parameter.
+    Pattern {
+        modifiers: Option<BindingModifier>,
+        pattern: NodeId<Pattern>,
+        ty: Option<NodeId<Type>>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Variadic parameter.
+    Variadic {
+        modifiers: Option<BindingModifier>,
+        name: StringId,
+        ty: Option<NodeId<Type>>,
+    },
+}
 
 impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Argument {
+    /// Positional argument.
+    Positional {
+        modifiers: Option<BindingModifier>,
+        value: NodeId<Expression>,
+    },
+    /// Spread argument.
+    Spread {
+        modifiers: Option<BindingModifier>,
+        name: Option<StringId>,
+        value: NodeId<Expression>,
+    },
+    /// Dynamic argument.
+    Dynamic {
+        modifiers: Option<BindingModifier>,
+        name: Option<StringId>,
+        key: NodeId<Expression>,
+        value: NodeId<Expression>,
+    },
+}
+
+impl Node for Argument {
+    const TYPE: NodeType = NodeType::Argument;
 }
