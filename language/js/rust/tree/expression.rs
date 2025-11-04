@@ -1,5 +1,7 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Node, NodeId, NodeType, Path, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator
+    Argument, AssignOperator, BinaryOperator, Block, Mutability, Node, NodeId, NodeType, Parameter,
+    Path, ScalarLiteral, StringId, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator,
+    UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -10,57 +12,73 @@ pub enum Expression {
     Export {},
 
     /// Let.
-    Let {},
+    Let {
+        mutability: Mutability,
+        ty: Option<NodeId<Type>>,
+        value: Option<NodeId<Expression>>,
+    },
     /// Let type.
-    LetType {},
+    LetType {
+        name: StringId,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        value: NodeId<Type>,
+    },
 
     /// If.
     If {
-		condition: NodeId<Expression>,
-		then_block: NodeId<Block>,
-		else_block: Option<NodeId<Block>>,
-	},
-	/// If ternary.
-	IfTernary {
-		condition: NodeId<Expression>,
-		then_expression: NodeId<Expression>,
-		else_expression: Option<NodeId<Expression>>,
-	},
+        condition: NodeId<Expression>,
+        then_block: NodeId<Block>,
+        else_block: Option<NodeId<Block>>,
+    },
+    /// If ternary.
+    IfTernary {
+        condition: NodeId<Expression>,
+        then_expression: NodeId<Expression>,
+        else_expression: Option<NodeId<Expression>>,
+    },
     /// While.
     While {
-		condition: NodeId<Expression>,
-		body: NodeId<Block>,
-	},
+        condition: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
     /// For each.
     ForIn {
-		pattern: Option<NodeId<Pattern>>,
-		iterator: NodeId<Expression>,
-		body: NodeId<Block>,
-	},
+        // pattern: Option<NodeId<Pattern>>,
+        iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
     /// For of.
     ForOf {
-		pattern: Option<NodeId<Pattern>>,
-		iterator: NodeId<Expression>,
-		body: NodeId<Block>,
-	},
+        // pattern: Option<NodeId<Pattern>>,
+        iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
     /// For condition.
     ForCondition {
-		initialization: Option<NodeId<Expression>>,
-		condition: NodeId<Expression>,
-		increment: Option<NodeId<Expression>>,
-		body: NodeId<Block>,
-	},
-    
-	/// Try.
-    Try {},
+        initialization: Option<NodeId<Expression>>,
+        condition: NodeId<Expression>,
+        increment: Option<NodeId<Expression>>,
+        body: NodeId<Block>,
+    },
+
+    /// Try.
+    Try {
+        try_block: NodeId<Block>,
+        catch_block: NodeId<Block>,
+        finally_block: Option<NodeId<Block>>,
+    },
     /// Await.
-    Await {},
+    Await { value: NodeId<Expression> },
     /// Yield.
-    Yield {},
+    Yield { value: NodeId<Expression> },
     /// Throw.
-    Throw {},
+    Throw { value: NodeId<Expression> },
+	/// Continue.
+	Continue { label: Option<StringId> },
+    /// Break.
+    Break { label: Option<StringId> },
     /// Return.
-    Return {},
+    Return { value: Option<NodeId<Expression>> },
 
     /// Path.
     Path {
@@ -74,15 +92,13 @@ pub enum Expression {
     /// Array literal.
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
     /// Object literal.
-    ObjectLiteral {
-		fields: Vec<NodeId<Argument>>,
-	},
+    ObjectLiteral { fields: Vec<NodeId<Argument>> },
     /// Tree literal.
     TreeLiteral {
-		path: Option<Path>,
-		arguments: Option<Vec<NodeId<Argument>>>,
-		elements: Option<Vec<NodeId<Expression>>>,
-	},
+        path: Option<Path>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+        elements: Option<Vec<NodeId<Expression>>>,
+    },
 
     /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
@@ -109,12 +125,12 @@ pub enum Expression {
         operator: BinaryOperator,
         right: NodeId<Expression>,
     },
-	/// Assignment.
-	Assign {
-		left: NodeId<Expression>,
-		operator: AssignOperator,
-		right: NodeId<Expression>,
-	},
+    /// Assignment.
+    Assign {
+        left: NodeId<Expression>,
+        operator: AssignOperator,
+        right: NodeId<Expression>,
+    },
 
     /// Member access.
     Member {

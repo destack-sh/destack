@@ -27,7 +27,6 @@ pub struct NodeTree {
     pub spans: NodeSpanIndex,
 
     // per-node arenas
-    // groupings
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) blocks: NodeArena<Block>,
     pub(crate) definitions: NodeArena<Definition>,
@@ -366,7 +365,6 @@ macro_rules! impl_node_tree_stores {
     };
 }
 
-// usage
 impl_node_tree_stores! {
     Expression => expressions,
     Block => blocks,

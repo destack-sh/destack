@@ -1,3 +1,5 @@
+use crate::{Node, NodeType};
+
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveType {
@@ -95,4 +97,14 @@ pub enum TypeBinaryOperator {
     Extends,
     /// `implements`
     Implements,
+}
+
+/// A Type is a Typescript type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+
+}
+
+impl Node for Type {
+	const TYPE: NodeType = NodeType::Type;
 }
