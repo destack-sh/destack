@@ -179,6 +179,19 @@ pub enum Expression {
         body: NodeId<Block>,
         source: LoopSource,
     },
+    /// For in loop.
+    ForIn {
+        runtime: Option<Runtime>,
+        asynchrony: Asynchrony,
+        iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
+    /// For of loop.
+    ForOf {
+        runtime: Option<Runtime>,
+        iterator: NodeId<Expression>,
+        body: NodeId<Block>,
+    },
     /// Match expression.
     Match {
         runtime: Option<Runtime>,
@@ -227,6 +240,8 @@ impl Expression {
             // control flow
             Expression::If { .. }
             | Expression::Loop { .. }
+            | Expression::ForIn { .. }
+            | Expression::ForOf { .. }
             | Expression::Match { .. }
             | Expression::Break { .. }
             | Expression::Continue { .. }
