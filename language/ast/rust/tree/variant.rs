@@ -2,9 +2,9 @@ use dyst_source::StringId;
 
 use crate::{Expression, Mutability, Name, Node, NodeId, NodeType, Visibility};
 
-/// The kind of a variant (tuple or struct).
+/// The format of a variant (tuple or struct).
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum VariantKind {
+pub enum VariantFormat {
     /// A tuple struct with explicit representation.
     Tuple,
     /// A struct with explicit representation.

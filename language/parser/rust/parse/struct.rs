@@ -1,11 +1,11 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{DefinitionMeta, StructStyle};
+use dyst_ast::{DefinitionMeta, StructKind};
 
 use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{Definition, Keyword, NodeId, NodeType, Parser, ParserResult, VariantKind};
+use crate::{Definition, Keyword, NodeId, NodeType, Parser, ParserResult, VariantFormat};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -53,9 +53,9 @@ impl<'a> Parser<'a> {
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
             .for_node_type(NodeType::Definition)?;
-        let style = match keyword {
-            Keyword::Struct => StructStyle::Struct,
-            Keyword::Class => StructStyle::Class,
+        let kind = match keyword {
+            Keyword::Struct => StructKind::Struct,
+            Keyword::Class => StructKind::Class,
             _ => unreachable!(),
         };
 
@@ -72,17 +72,17 @@ impl<'a> Parser<'a> {
         // optional name / key
         meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
 
-        // style / tuple struct
-        let (kind, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        // format
+        let (format, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
             let tuple_fields = self
                 .eat_variant_body_fields()
                 .for_node_type(NodeType::Definition)?;
             self.eat_token(TokenType::CloseParenthesis)
                 .for_node_type(NodeType::Definition)?;
-            (VariantKind::Tuple, Some(tuple_fields))
+            (VariantFormat::Tuple, Some(tuple_fields))
         } else {
-            (VariantKind::Struct, None)
+            (VariantFormat::Struct, None)
         };
 
         // optional static parameters: < ... >
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let (mut fields, expressions) = self
-            .eat_variant_body_mixed(kind == VariantKind::Struct)
+            .eat_variant_body_mixed(format == VariantFormat::Struct)
             .for_node_type(NodeType::Definition)?;
         if let Some(tuple_fields) = tuple_fields {
             // merge in tuple fields
@@ -124,8 +124,8 @@ impl<'a> Parser<'a> {
         let struct_id = self.tree.insert(
             Definition::Struct {
                 meta,
-                style,
                 kind,
+                format,
                 extends_types,
                 implements_types,
                 static_parameters,
@@ -145,13 +145,13 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, DeclarationKind, DefinitionMeta, Mutability, Name, StructStyle, Visibility,
+        BindingKind, DeclarationKind, DefinitionMeta, Mutability, Name, StructKind, Visibility,
     };
 
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Definition, Expression, IntType, Parameter, TypeLiteral, Field,
-        VariantKind, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
+        BinaryOperator, Definition, Expression, Field, IntType, Parameter, TypeLiteral,
+        VariantFormat, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
         assert_string,
     };
 
@@ -225,7 +225,7 @@ struct Foo extends Bar {}
     }
 
     #[test]
-    fn test_parse_struct_with_tuple_style() {
+    fn test_parse_struct_with_tuple_format() {
         let mut test = TestParser::new(
             r###"
 struct Foo(int32, public boolean) {}
@@ -235,11 +235,11 @@ struct Foo(int32, public boolean) {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, style, kind, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, kind, format, fields, expressions, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(*style, StructStyle::Struct);
-            assert_eq!(*kind, VariantKind::Tuple);
+            assert_eq!(*kind, StructKind::Struct);
+            assert_eq!(*format, VariantFormat::Tuple);
             assert_eq!(fields.len(), 2);
             assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
@@ -260,7 +260,7 @@ struct Foo(int32, public boolean) {}
     }
 
     #[test]
-    fn test_parse_struct_with_struct_style() {
+    fn test_parse_struct_with_struct_kind() {
         let mut test = TestParser::new(
             r###"
 struct Foo<T: Numeric> extends Boz implements Quux {

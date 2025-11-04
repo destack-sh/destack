@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionStyle, Keyword, Path, StringId, TemplateLiteral
+    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionKind, Keyword, Path, StringId, TemplateLiteral
 };
 use std::str::FromStr;
 
@@ -566,11 +566,11 @@ impl<'a> Parser<'a> {
         match self.tree.get_mut(function_id) {
             Definition::Function {
                 meta: DefinitionMeta { name, .. },
-                style,
+                kind,
                 ..
             } => {
                 *name = None;
-                *style = FunctionStyle::Lambda;
+                *kind = FunctionKind::Lambda;
             }
             _ => panic!("expected function for"),
         };
@@ -947,7 +947,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, FunctionKind, Mutability, Name, Parameter, TemplateLiteral
+        BindingKind, Definition, DefinitionMeta, FunctionMode, Mutability, Name, Parameter, TemplateLiteral
     };
 
     use crate::parse::tests::TestParser;
@@ -1361,9 +1361,9 @@ mod tests {
         // new(): T
         assert_node!(parser.tree, arguments[8], Argument::Function { modifiers: _, name: None, value } => {
             assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+                assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, mode, static_parameters, dynamic_parameters, return_type, .. } => {
                     // new
-                    assert_eq!(*kind, Some(FunctionKind::New));
+                    assert_eq!(*mode, Some(FunctionMode::New));
                     assert!(static_parameters.is_none());
                     // ()
                     assert_eq!(dynamic_parameters.len(), 0);

@@ -2,10 +2,9 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, Destination, ExportType, ForEachKind, MatchCase, MatchSource, Mutability, Node,
-    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
-    TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
+    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -169,6 +168,7 @@ pub enum Expression {
     /// If expression.
     If {
         runtime: Option<Runtime>,
+        kind: IfKind,
         condition: NodeId<Expression>,
         then_expression: NodeId<Expression>,
         else_expression: Option<NodeId<Expression>>,
@@ -245,8 +245,8 @@ impl Expression {
             // control flow
             Expression::If { .. }
             | Expression::Loop { .. }
-            | Expression::ForIn { .. }
-            | Expression::ForOf { .. }
+            | Expression::For { .. }
+            | Expression::ForEach { .. }
             | Expression::Match { .. }
             | Expression::Break { .. }
             | Expression::Continue { .. }
@@ -305,7 +305,7 @@ pub enum IfKind {
     /// If expression.
     If,
     /// If ternary expression.
-    IfTernary,
+    Ternary,
 }
 
 /// The kind of a while expression.
@@ -323,7 +323,7 @@ pub enum ForEachKind {
     /// In expression.
     In,
     /// Of expression.
-    In,
+    Of,
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

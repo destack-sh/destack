@@ -80,7 +80,7 @@ impl<'a> Compiler<'a> {
         ast: &ast::NodeTree,
         definition_id: ast::NodeId<ast::Definition>,
         name: Option<StringId>,
-        style: ast::VariantKind,
+        format: ast::VariantFormat,
         ty: Option<NodeId<Type>>,
         fields: &[ast::NodeId<ast::Field>],
     ) -> NodeId<Variant> {
@@ -88,14 +88,14 @@ impl<'a> Compiler<'a> {
             .iter()
             .map(|field| self.lower_field(source_id, ast, *field))
             .collect();
-        let variant = match style {
-            ast::VariantKind::Tuple => Variant::Tuple {
+        let variant = match format {
+            ast::VariantFormat::Tuple => Variant::Tuple {
                 name,
                 ty,
                 fields,
                 value: None,
             },
-            ast::VariantKind::Struct => Variant::Struct {
+            ast::VariantFormat::Struct => Variant::Struct {
                 name,
                 ty,
                 fields,

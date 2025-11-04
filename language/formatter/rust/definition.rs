@@ -5,11 +5,11 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
     Definition, DystFormatContext, DystFormatter, Field, FormatNode, Keyword, ModuleFormat, NodeId,
-    Runtime, VariantKind, empty_block_with_infix_annotations,
+    Runtime, VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
     Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionStyle, ModuleStyle, ReferenceType, StructStyle,
+    FunctionCardinality, FunctionMode, FunctionKind, ModuleStyle, ReferenceType, StructKind,
     Visibility,
 };
 use dyst_fir::format::FormatResult;
@@ -170,8 +170,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // struct
             Definition::Struct {
                 meta,
-                style,
-                kind,
+                kind: style,
+                format,
                 extends_types,
                 implements_types,
                 representation_type,
@@ -182,12 +182,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 expressions,
             } => {
                 // split tuple / struct fields
-                let tuple_fields: &[NodeId<Field>] = if *kind == VariantKind::Tuple {
+                let tuple_fields: &[NodeId<Field>] = if *format == VariantFormat::Tuple {
                     fields
                 } else {
                     &[]
                 };
-                let fields: &[NodeId<Field>] = if *kind == VariantKind::Struct {
+                let fields: &[NodeId<Field>] = if *format == VariantFormat::Struct {
                     fields
                 } else {
                     &[]
@@ -210,8 +210,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // keyword
                 match style {
-                    StructStyle::Struct => write!(f, [Keyword::Struct])?,
-                    StructStyle::Class => write!(f, [Keyword::Class])?,
+                    StructKind::Struct => write!(f, [Keyword::Struct])?,
+                    StructKind::Class => write!(f, [Keyword::Class])?,
                 }
                 if let Some(representation_type) = representation_type {
                     write!(f, [token("("), representation_type, token(")")])?;
@@ -232,7 +232,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // tuple
-                if *kind == VariantKind::Tuple {
+                if *format == VariantFormat::Tuple {
                     if tuple_fields.is_empty() {
                         write!(f, [token("("), token(")")])?;
                     } else {
@@ -785,8 +785,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 abstraction,
                 asynchrony,
                 cardinality,
-                kind,
-                style,
+                mode: kind,
+                kind: style,
                 static_parameters,
                 self_parameter,
                 dynamic_parameters,
@@ -846,15 +846,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // kind
                 if let Some(kind) = kind {
                     write!(f, [kind.to_keyword()])?;
-                    if meta.name.is_some() || *kind == FunctionKind::New {
+                    if meta.name.is_some() || *kind == FunctionMode::New {
                         write!(f, [space()])?;
                     }
                 }
 
                 // keyword
-                if *style == FunctionStyle::Function
-                    && *kind != Some(FunctionKind::Constructor)
-                    && *kind != Some(FunctionKind::New)
+                if *style == FunctionKind::Function
+                    && *kind != Some(FunctionMode::Constructor)
+                    && *kind != Some(FunctionMode::New)
                 {
                     // function keyword
                     if *cardinality == FunctionCardinality::Generator {
@@ -870,7 +870,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // name / key (with @)
-                if *style == FunctionStyle::Function {
+                if *style == FunctionKind::Function {
                     if *runtime == Runtime::Static {
                         write!(f, [token("@")])?;
                     }
@@ -944,7 +944,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // return type
                 if let Some(return_type) = return_type {
-                    if *style == FunctionStyle::Lambda && body.is_none() {
+                    if *style == FunctionKind::Lambda && body.is_none() {
                         write!(f, [space(), token("=>"), space(), return_type])?;
                     } else {
                         write!(f, [token(":"), space(), return_type])?;
@@ -969,7 +969,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // body
                 if let Some(body) = body {
-                    if *style == FunctionStyle::Lambda {
+                    if *style == FunctionKind::Lambda {
                         // arrow is fine since lambdas can only have return type or body
                         write!(f, [space(), token("=>"), space(), body])?;
                     } else {

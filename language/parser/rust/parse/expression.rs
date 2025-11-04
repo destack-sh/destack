@@ -1242,7 +1242,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         AssignOperator, Block, Definition, DefinitionMeta, DefinitionType, DependencyKind,
-        DependencyTarget, ExportType, FunctionStyle, IntType, Name, Parameter, PatternField,
+        DependencyTarget, ExportType, FunctionKind, IntType, Name, Parameter, PatternField,
         PostfixPosition, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, VarianceBound,
         WithClause,
     };
@@ -1905,7 +1905,7 @@ const shapes = (
             .unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
             assert_node!(parser.tree, *definition_id, Definition::Function {
-                style: FunctionStyle::Lambda,
+                kind: FunctionKind::Lambda,
                 dynamic_parameters,
                 return_type,
                 ..
@@ -1926,7 +1926,7 @@ const shapes = (
             .unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
             assert_node!(parser.tree, *definition_id, Definition::Function {
-                style: FunctionStyle::Lambda,
+                kind: FunctionKind::Lambda,
                 dynamic_parameters,
                 return_type,
                 with_clauses,
@@ -1955,7 +1955,7 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
             assert_node!(parser.tree, *definition_id, Definition::Function {
-                style: FunctionStyle::Lambda,
+                kind: FunctionKind::Lambda,
                 dynamic_parameters,
                 return_type: None,
                 body,
@@ -1985,7 +1985,7 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
             assert_node!(parser.tree, *definition_id, Definition::Function {
-                style: FunctionStyle::Lambda,
+                kind: FunctionKind::Lambda,
                 dynamic_parameters,
                 return_type: None,
                 body: Some(_),
@@ -2027,7 +2027,7 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
             assert_node!(parser.tree, *definition_id, Definition::Function {
-                style: FunctionStyle::Lambda,
+                kind: FunctionKind::Lambda,
                 dynamic_parameters,
                 return_type: None,
                 body,
