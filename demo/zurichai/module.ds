@@ -1,4 +1,4 @@
-import destack
+import { entity, Entity, Reference } from "destack"
 
 /// The status of a Meetup.
 export enum(uint8) MeetupStatus {
@@ -47,5 +47,5 @@ export struct MeetupRegistration {
 
 @action
 export function register(meetup: Reference<Meetup>, user: Reference<User>) {
-    throw "not implemented"
+    // throw "not implemented"
 }
