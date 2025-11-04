@@ -301,10 +301,10 @@ impl<'ast> DystFormatContext<'ast> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        if !self.tree.has_annotations_for(node_id.id) {
+        if !self.tree.has_annotations(node_id.id) {
             return None;
         }
-        Some(self.tree.get_annotations_for(node_id.id).to_vec())
+        Some(self.tree.get_annotations(node_id.id).to_vec())
     }
 
     /// Check if a node has an annotation.

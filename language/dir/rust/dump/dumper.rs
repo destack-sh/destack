@@ -1037,7 +1037,7 @@ impl Dump for TemplateLiteral {
 
 impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
-        let annotations = tree.get_annotations_for(id);
+        let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
             self.visit_annotation(tree, annotation_id, annotation);
@@ -1967,13 +1967,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::NamedAlias {
+            PatternField::Alias {
                 mutability,
                 name,
                 alias,
                 default: _,
             } => {
-                self.node("PatternField::NamedAlias", id.id)
+                self.node("PatternField::Alias", id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .field_optional("mutability", mutability)

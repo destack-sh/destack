@@ -137,7 +137,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            PatternField::NamedAlias {
+            PatternField::Alias {
                 mutability,
                 name,
                 alias,

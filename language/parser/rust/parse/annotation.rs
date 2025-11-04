@@ -798,7 +798,7 @@ let y;
         assert_eq!(expressions.len(), 2);
 
         // let x;
-        let x_annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let x_annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(x_annotations.len(), 1);
         assert_node!(parser.tree, x_annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -809,7 +809,7 @@ let y;
             });
         });
         // let y;
-        let y_annotations = parser.tree.get_annotations_for(expressions[1].id);
+        let y_annotations = parser.tree.get_annotations(expressions[1].id);
         assert_eq!(y_annotations.len(), 1);
         assert_node!(parser.tree, y_annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -837,7 +837,7 @@ struct Test {}
         parser.finalize();
 
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 3);
         // doc block prefix
         // /// Test doc
@@ -889,7 +889,7 @@ struct Test {}
         parser.finalize();
 
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         // @foo
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
@@ -910,7 +910,7 @@ struct Test {}
         parser.finalize();
 
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         // @if
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
@@ -950,7 +950,7 @@ struct Test {}
         parser.finalize();
 
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 4);
         // A: block prefix
         assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
@@ -987,7 +987,7 @@ struct Test {}
 
         // block infix to innermost node (Definition::Struct)
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-            let annotations = parser.tree.get_annotations_for(node.id);
+            let annotations = parser.tree.get_annotations(node.id);
             assert_eq!(annotations.len(), 3);
             // C: block infix
             assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
@@ -1027,7 +1027,7 @@ struct Test {}
         // let A = 1
         assert_eq!(expressions.len(), 1);
         // line comment, suffix
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
@@ -1052,7 +1052,7 @@ over multiple lines with trailing space    */",
         // let A = 1
         assert_eq!(expressions.len(), 1);
         // block comment, postfix
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
@@ -1080,7 +1080,7 @@ over multiple lines with trailing space    */",
 
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 1);
-            let annotations = parser.tree.get_annotations_for(expressions[0].id);
+            let annotations = parser.tree.get_annotations(expressions[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1112,7 +1112,7 @@ over multiple lines with trailing space    */",
             assert_eq!(expressions.len(), 2);
 
             // function a(): A
-            let annotations = parser.tree.get_annotations_for(expressions[0].id);
+            let annotations = parser.tree.get_annotations(expressions[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1123,7 +1123,7 @@ over multiple lines with trailing space    */",
             });
 
             // function b(): B
-            let annotations = parser.tree.get_annotations_for(expressions[1].id);
+            let annotations = parser.tree.get_annotations(expressions[1].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1168,7 +1168,7 @@ over multiple lines with trailing space    */",
                             assert_string!(parser, meta.name.unwrap().string(), "a");
                         });
                     });
-                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    let annotations = parser.tree.get_annotations(expressions[0].id);
                     assert_eq!(annotations.len(), 1);
                     assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1184,7 +1184,7 @@ over multiple lines with trailing space    */",
                             assert_string!(parser, meta.name.unwrap().string(), "b");
                         });
                     });
-                    let annotations = parser.tree.get_annotations_for(expressions[1].id);
+                    let annotations = parser.tree.get_annotations(expressions[1].id);
                     assert_eq!(annotations.len(), 1);
                     assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1200,7 +1200,7 @@ over multiple lines with trailing space    */",
                             assert_string!(parser, meta.name.unwrap().string(), "c");
                         });
                     });
-                    let annotations = parser.tree.get_annotations_for(expressions[2].id);
+                    let annotations = parser.tree.get_annotations(expressions[2].id);
                     assert_eq!(annotations.len(), 1);
                     assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1233,7 +1233,7 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
                     assert_path!(parser, *path, "A");
                 });
-                let annotations = parser.tree.get_annotations_for(left.id);
+                let annotations = parser.tree.get_annotations(left.id);
                 // line prefix, pre-A comment
                 assert_eq!(annotations.len(), 2);
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
@@ -1257,7 +1257,7 @@ over multiple lines with trailing space    */",
                     assert_path!(parser, *path, "B");
                 });
                 // line postfix boundary, B comment
-                let annotations = parser.tree.get_annotations_for(right.id);
+                let annotations = parser.tree.get_annotations(right.id);
                 assert_eq!(annotations.len(), 1);
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
@@ -1287,7 +1287,7 @@ let A = 1 // line suffix comment
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 3);
 
         // block prefix comment
@@ -1327,7 +1327,7 @@ let A = 1 // line suffix comment
         assert_eq!(expressions.len(), 2);
 
         // A has one prefix block blank
-        let a_annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let a_annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(a_annotations.len(), 1);
         assert_node!(parser.tree, a_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1338,7 +1338,7 @@ let A = 1 // line suffix comment
 
         // B has one prefix block blank and one postfix block blank
         // (the postfix blank after B because there is nothing else to attach to)
-        let b_annotations = parser.tree.get_annotations_for(expressions[1].id);
+        let b_annotations = parser.tree.get_annotations(expressions[1].id);
         assert_eq!(b_annotations.len(), 2);
         assert_node!(parser.tree, b_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1375,7 +1375,7 @@ function main() {
         assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
             assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
                 // block comment, infix
-                let annotations = parser.tree.get_annotations_for(block_id.id);
+                let annotations = parser.tree.get_annotations(block_id.id);
                 assert_eq!(annotations.len(), 1);
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockInfix);
@@ -1415,7 +1415,7 @@ struct Floof {
 
         // struct Floof
         assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 3);
         // doc block prefix, floating
         assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
@@ -1449,7 +1449,7 @@ struct Floof {
                 assert_eq!(fields.len(), 1);
                 assert_node!(parser.tree, fields[0], Field::Named { name: Name::Identifier(name), .. } => {
                     assert_string!(parser, *name, "a");
-                    let annotations = parser.tree.get_annotations_for(fields[0].id);
+                    let annotations = parser.tree.get_annotations(fields[0].id);
                     assert_eq!(annotations.len(), 4);
 
                     // doc block prefix
@@ -1514,7 +1514,7 @@ export module Outer {
         // Outer
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
             // Outer comment
-            let annotations = parser.tree.get_annotations_for(expressions[0].id);
+            let annotations = parser.tree.get_annotations(expressions[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1530,7 +1530,7 @@ export module Outer {
 
                 // Middle comment
                 assert_eq!(expressions.len(), 1);
-                let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                let annotations = parser.tree.get_annotations(expressions[0].id);
                 assert_eq!(annotations.len(), 1);
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1547,7 +1547,7 @@ export module Outer {
 
                         // Inner comment
                         assert_eq!(expressions.len(), 1);
-                        let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                        let annotations = parser.tree.get_annotations(expressions[0].id);
                         assert_eq!(annotations.len(), 1);
                         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1596,7 +1596,7 @@ export module Outer {
 
             // a
             let a = expressions[0];
-            let a_annotations = parser.tree.get_annotations_for(a.id);
+            let a_annotations = parser.tree.get_annotations(a.id);
             assert_eq!(a_annotations.len(), 1); // (0 as block prefix)
 
             // comment part 0
@@ -1612,7 +1612,7 @@ export module Outer {
             assert_node!(parser.tree, a, Expression::Block (block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    let annotations = parser.tree.get_annotations(expressions[0].id);
                     assert_eq!(annotations.len(), 2);
                     // comment part 1\ncomment part 2
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
@@ -1635,7 +1635,7 @@ export module Outer {
 
             // b
             let b = expressions[1];
-            let b_annotations = parser.tree.get_annotations_for(b.id);
+            let b_annotations = parser.tree.get_annotations(b.id);
             assert_eq!(b_annotations.len(), 2); // (5+6 as block prefix, 11 as block postfix)
 
             // comment part 5\ncomment part 6
@@ -1651,7 +1651,7 @@ export module Outer {
             assert_node!(parser.tree, b, Expression::Block (block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    let annotations = parser.tree.get_annotations_for(expressions[0].id);
+                    let annotations = parser.tree.get_annotations(expressions[0].id);
                     assert_eq!(annotations.len(), 2);
                     // comment part 7\ncomment part 8
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
