@@ -1,6 +1,6 @@
 //! Parse loops, for, while, etc.
 
-use dyst_ast::{Asynchrony, TokenType};
+use dyst_ast::{Asynchrony, TokenType, WhileKind};
 
 use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
 
@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a while loop (including keyword and header).
+    /// Eat a while or do-while loop (including keyword and header).
     ///
     /// Examples:
     /// ```
@@ -200,37 +200,71 @@ impl<'a> Parser<'a> {
     ///     y = 2
     ///     break :l
     /// }
+    ///
+    /// do {
+    ///     y = 2
+    /// } while x > 1
     /// ```
     pub fn eat_while(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
-        // header
-        self.eat_keyword(Keyword::While)?;
+        // do-while loop
+        if self.peek_keyword(Keyword::Do).is_ok() {
+            // do keyword
+            self.bump(); // eat do keyword
 
-        // condition
-        let condition_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
+            // body
+            let body_id = self.eat_block()?;
 
-        // body
-        let body_id = self.eat_block()?;
+            // while keyword
+            self.eat_keyword(Keyword::While)?;
 
-        // while
-        let while_id = self.tree.insert(
-            Expression::While {
-                runtime,
-                condition: condition_id,
-                body: body_id,
-            },
-            self.get_span_from(start),
-        );
-        Ok(while_id)
+            // condition
+            let condition_id = self.eat_expression()?;
+
+            // while
+            let while_id = self.tree.insert(
+                Expression::While {
+                    runtime,
+                    kind: WhileKind::DoWhile,
+                    condition: condition_id,
+                    body: body_id,
+                },
+                self.get_span_from(start),
+            );
+            Ok(while_id)
+        }
+        // while loop
+        else {
+            // while keyword
+            self.eat_keyword(Keyword::While)?;
+
+            // condition
+            let condition_id = self.with_options(self.options.in_before_block(), |parser| {
+                parser.eat_expression()
+            })?;
+
+            // body
+            let body_id = self.eat_block()?;
+
+            // while
+            let while_id = self.tree.insert(
+                Expression::While {
+                    runtime,
+                    kind: WhileKind::While,
+                    condition: condition_id,
+                    body: body_id,
+                },
+                self.get_span_from(start),
+            );
+            Ok(while_id)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Asynchrony, ScalarLiteral, ScopedMutability, UnaryOperator};
+    use dyst_ast::{Asynchrony, ScalarLiteral, ScopedMutability, UnaryOperator, WhileKind};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -480,6 +514,25 @@ while x > y {
                     });
                 });
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_do_while_loop() {
+        let mut test = TestParser::new(
+            r###"
+do { x } while true
+"###,
+        );
+
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        // do { x } while true
+        let do_while_id = parser.eat_while(None).unwrap();
+        assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body: _, .. } => {
+            assert_eq!(*kind, WhileKind::DoWhile);
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         });
     }
 }

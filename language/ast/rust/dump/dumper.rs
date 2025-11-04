@@ -511,15 +511,22 @@ impl Dump for VarianceBound {
     }
 }
 
-/// Dump a IfStyle as a string.
-impl Dump for IfStyle {
+/// Dump a IfKind as a string.
+impl Dump for IfKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
-/// Dump a MatchStyle as a string.
-impl Dump for MatchStyle {
+/// Dump a WhileKind as a string.
+impl Dump for WhileKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a MatchKind as a string.
+impl Dump for MatchKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1028,23 +1035,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::If {
                 runtime,
-                style,
+                kind,
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
                 self.node("Expression::If", _id.id)
                     .field_optional("runtime", runtime)
-                    .field("style", style)
+                    .field("kind", kind)
                     .end();
             }
             Expression::While {
                 runtime,
+                kind,
                 condition: _,
                 body: _,
             } => {
                 self.node("Expression::While", _id.id)
                     .field_optional("runtime", runtime)
+                    .field("kind", kind)
                     .end();
             }
             Expression::ForEach {
@@ -1088,7 +1097,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Match {
                 runtime,
-                style,
+                kind: style,
                 value: _,
                 cases: _,
             } => {

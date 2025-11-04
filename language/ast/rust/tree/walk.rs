@@ -240,7 +240,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::If {
             runtime: _,
-            style: _,
+            kind: _,
             condition,
             then_expression,
             else_expression,
@@ -257,6 +257,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::While {
             runtime: _,
+            kind: _,
             condition,
             body,
         } => {
@@ -336,7 +337,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Match {
             runtime: _,
-            style: _,
+            kind: _,
             value,
             cases,
         } => {

@@ -1,5 +1,5 @@
 use dyst_ast::{
-    DeclarationKind, BindingScope, DefinitionMeta, ExportType, IfStyle, PostfixPosition,
+    BindingScope, DeclarationKind, DefinitionMeta, ExportType, IfKind, PostfixPosition,
     TypeBinaryOperator, TypeUnaryOperator,
 };
 
@@ -742,7 +742,7 @@ impl<'a> Parser<'a> {
                 self.eat_if(runtime)?
             }
             // while
-            else if keyword == Some(Keyword::While) {
+            else if keyword == Some(Keyword::While) || keyword == Some(Keyword::Do) {
                 self.eat_while(runtime)?
             }
             // for
@@ -1118,7 +1118,7 @@ impl<'a> Parser<'a> {
                     // ternary if
                     let expression = Expression::If {
                         runtime,
-                        style: IfStyle::Ternary,
+                        kind: IfKind::Ternary,
                         condition: left_expression_id,
                         then_expression: then_expression_id,
                         else_expression: Some(else_expression_id),

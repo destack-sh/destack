@@ -166,13 +166,13 @@ pub enum Expression {
     /// ```
     If {
         runtime: Option<Runtime>,
-        style: IfStyle,
+        kind: IfKind,
         condition: NodeId<Expression>,
         then_expression: NodeId<Expression>,
         else_expression: Option<NodeId<Expression>>,
     },
 
-    /// A While is while loop.
+    /// A While is while or do-while loop.
     ///
     /// Examples:
     /// ```
@@ -187,6 +187,7 @@ pub enum Expression {
     /// ```
     While {
         runtime: Option<Runtime>,
+        kind: WhileKind,
         condition: NodeId<Expression>,
         body: NodeId<Block>,
     },
@@ -304,7 +305,7 @@ pub enum Expression {
     /// ```
     Match {
         runtime: Option<Runtime>,
-        style: MatchStyle,
+        kind: MatchKind,
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
     },
@@ -724,11 +725,20 @@ impl VarianceBound {
 
 /// The style of if expression.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum IfStyle {
+pub enum IfKind {
     /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
     Regular,
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
     Ternary,
+}
+
+/// The kind of a while expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WhileKind {
+    /// Regular while expression (like `while <condition> <body>`)
+    While,
+    /// Do-while expression (like `do <body> while <condition>`)
+    DoWhile,
 }
 
 /// The cardinality of a yield expression.
@@ -797,7 +807,7 @@ impl Node for WhereClause {
 
 /// The style of a match expression.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MatchStyle {
+pub enum MatchKind {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
     /// Switch expression with cases (like `switch <expr> { ... }`).

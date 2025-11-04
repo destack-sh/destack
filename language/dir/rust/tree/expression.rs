@@ -155,7 +155,7 @@ pub enum Expression {
         fields: Vec<NodeId<Argument>>,
     },
     /// Tree creation.
-    TreeLiteral {
+    TreeLiteral { 
         path: Option<Path>,
         arguments: Option<Vec<NodeId<Argument>>>,
         elements: Option<Vec<NodeId<Argument>>>,
