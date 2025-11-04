@@ -47,7 +47,7 @@ pub enum Annotation {
 }
 
 impl Node for Annotation {
-    const KIND: NodeType = NodeType::Annotation;
+    const TYPE: NodeType = NodeType::Annotation;
 }
 
 impl Annotation {
@@ -70,7 +70,7 @@ pub struct Blank {
 }
 
 impl Node for Blank {
-    const KIND: NodeType = NodeType::Blank;
+    const TYPE: NodeType = NodeType::Blank;
 }
 
 /// A DocStyle is the style of a documentation comment.
@@ -103,7 +103,7 @@ pub struct Doc {
 }
 
 impl Node for Doc {
-    const KIND: NodeType = NodeType::Doc;
+    const TYPE: NodeType = NodeType::Doc;
 }
 
 /// A CommentStyle is the style of a comment.
@@ -132,7 +132,7 @@ pub struct Comment {
 }
 
 impl Node for Comment {
-    const KIND: NodeType = NodeType::Comment;
+    const TYPE: NodeType = NodeType::Comment;
 }
 
 /// A Tag is a block or line-scoped tag annotation.
@@ -151,7 +151,7 @@ pub struct Tag {
 }
 
 impl Node for Tag {
-    const KIND: NodeType = NodeType::Tag;
+    const TYPE: NodeType = NodeType::Tag;
 }
 
 /// A Decorator is a block-scoped decorator annotation.
@@ -171,5 +171,5 @@ pub struct Decorator {
 }
 
 impl Node for Decorator {
-    const KIND: NodeType = NodeType::Decorator;
+    const TYPE: NodeType = NodeType::Decorator;
 }

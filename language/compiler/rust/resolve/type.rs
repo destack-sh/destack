@@ -162,7 +162,7 @@ impl<'a> Compiler<'a> {
                 // array with static length
                 if let &Some(right) = right {
                     let left_id = self.try_resolve_expression_to_type(*left)?;
-                    Type::ArraySized {
+                    Type::ArrayStatic {
                         element: left_id,
                         count: right,
                     }

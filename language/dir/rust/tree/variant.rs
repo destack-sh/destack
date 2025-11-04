@@ -68,7 +68,7 @@ pub enum Field {
 }
 
 impl Node for Field {
-    const KIND: NodeType = NodeType::Field;
+    const TYPE: NodeType = NodeType::Field;
 }
 
 impl Field {
@@ -150,7 +150,7 @@ pub enum Variant {
 }
 
 impl Node for Variant {
-    const KIND: NodeType = NodeType::Variant;
+    const TYPE: NodeType = NodeType::Variant;
 }
 
 impl Variant {

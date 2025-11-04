@@ -663,7 +663,7 @@ pub enum Expression {
 }
 
 impl Node for Expression {
-    const KIND: NodeType = NodeType::Expression;
+    const TYPE: NodeType = NodeType::Expression;
 }
 
 impl Expression {
@@ -761,7 +761,7 @@ pub struct WithClause {
 }
 
 impl Node for WithClause {
-    const KIND: NodeType = NodeType::WithClause;
+    const TYPE: NodeType = NodeType::WithClause;
 }
 
 /// A WhereClause is a single clause in a where type declaration.
@@ -792,7 +792,7 @@ pub enum WhereClause {
 }
 
 impl Node for WhereClause {
-    const KIND: NodeType = NodeType::WhereClause;
+    const TYPE: NodeType = NodeType::WhereClause;
 }
 
 /// The style of a match expression.
@@ -831,5 +831,5 @@ pub enum MatchCase {
 }
 
 impl Node for MatchCase {
-    const KIND: NodeType = NodeType::MatchCase;
+    const TYPE: NodeType = NodeType::MatchCase;
 }

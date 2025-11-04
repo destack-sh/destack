@@ -49,5 +49,5 @@ pub struct DependencyItem {
 }
 
 impl Node for DependencyItem {
-    const KIND: NodeType = NodeType::DependencyItem;
+    const TYPE: NodeType = NodeType::DependencyItem;
 }

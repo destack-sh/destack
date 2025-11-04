@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use dyst_source::{SourceId, Span};
 
-use crate::{Node, NodeId, NodeType};
+use crate::{Annotation, Node, NodeId, NodeType};
 
 /// The AST Node tree for a single source unit.
 #[derive(Clone)]
@@ -15,6 +16,18 @@ pub struct NodeTree {
     pub(crate) local_id_by_node_id: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
+    /// The sources of all nodes. Index is the global node id.
+    pub(crate) source_by_node_id: Vec<SourceId>,
+    /// The annotations attached to nodes.
+    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+
+    /// The source AST ids of all nodes. Index is the global node id.
+    pub(crate) ast_id_by_node_id: Vec<Option<u32>>,
+    /// The source DIR ids of all nodes. Index is the global node id.
+    pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
+    /// The alias node id by DIR source / node id.
+    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
+    
     // per-node arenas
     // groupings
 }
@@ -22,7 +35,6 @@ pub struct NodeTree {
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("source_id", &self.source_id)
             .field("next_global_id", &self.next_global_id)
             .field("node_count", &self.local_id_by_node_id.len())
             .finish()
@@ -42,7 +54,42 @@ impl NodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
+            source_by_node_id: Vec::with_capacity(capacity),
+            annotations_per_node_id: HashMap::new(),
+            ast_id_by_node_id: Vec::with_capacity(capacity),
+            dir_id_by_node_id: Vec::with_capacity(capacity),
+            alias_node_id_by_dir_id: HashMap::new(),
         }
+    }
+
+    /// Allocate a new node in the tree.
+    fn insert<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
+        self.type_by_node_id.push(T::TYPE);
+        let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
+        self.local_id_by_node_id.push(local_id);
+        self.source_by_node_id.push(source_id);
+        NodeId::new(global_id)
+    }
+
+    /// Allocate a new node in the DIR tree derived from another node.
+    pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+        U: Node,
+        Self: NodeTreeImpl<U>,
+    {
+        let source_id = self.source_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, source_id);
+        self.ast_id_by_node_id.push(None);
+        self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
+        node_id
     }
 
     /// Get the next id.
@@ -87,7 +134,7 @@ impl NodeTree {
     {
         let mut nodes = Vec::new();
         for (idx, ty) in self.type_by_node_id.iter().enumerate() {
-            if *ty == T::KIND {
+            if *ty == T::TYPE {
                 nodes.push(NodeId::new(idx as u32));
             }
         }

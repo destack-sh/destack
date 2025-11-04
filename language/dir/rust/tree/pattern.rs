@@ -45,7 +45,7 @@ pub enum Pattern {
 }
 
 impl Node for Pattern {
-    const KIND: NodeType = NodeType::Pattern;
+    const TYPE: NodeType = NodeType::Pattern;
 }
 
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
@@ -70,7 +70,7 @@ pub enum PatternField {
 }
 
 impl Node for PatternField {
-    const KIND: NodeType = NodeType::PatternField;
+    const TYPE: NodeType = NodeType::PatternField;
 }
 
 /// A MatchSource is where the match was lowered from.
@@ -105,5 +105,5 @@ pub enum MatchCase {
 }
 
 impl Node for MatchCase {
-    const KIND: NodeType = NodeType::MatchCase;
+    const TYPE: NodeType = NodeType::MatchCase;
 }

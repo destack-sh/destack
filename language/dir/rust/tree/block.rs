@@ -9,5 +9,5 @@ pub struct Block {
 }
 
 impl Node for Block {
-    const KIND: NodeType = NodeType::Block;
+    const TYPE: NodeType = NodeType::Block;
 }

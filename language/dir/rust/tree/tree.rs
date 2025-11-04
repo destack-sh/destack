@@ -32,27 +32,20 @@ pub struct NodeTree {
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
 
     // per-node arenas
-    // groupings
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) blocks: NodeArena<Block>,
-    // definitions
     pub(crate) definitions: NodeArena<Definition>,
-    // types
     pub(crate) types: NodeArena<Type>,
     pub(crate) variants: NodeArena<Variant>,
     pub(crate) fields: NodeArena<Field>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
-    // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
-    // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
-    // matching
     pub(crate) match_cases: NodeArena<MatchCase>,
     pub(crate) patterns: NodeArena<Pattern>,
     pub(crate) pattern_fields: NodeArena<PatternField>,
-    // annotations
     pub(crate) annotations: NodeArena<Annotation>,
 }
 
@@ -88,32 +81,25 @@ impl NodeTree {
             alias_node_id_by_ast_id: HashMap::new(),
             alias_node_id_by_dir_id: HashMap::new(),
             annotations_per_node_id: HashMap::new(),
-            // groupings
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
-            // definitions
             definitions: NodeArena::new(),
-            // types
             types: NodeArena::new(),
             variants: NodeArena::new(),
             fields: NodeArena::new(),
             where_clauses: NodeArena::new(),
-            // context
             with_clauses: NodeArena::new(),
             dependency_items: NodeArena::new(),
-            // bindings
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
-            // matching
             match_cases: NodeArena::new(),
             patterns: NodeArena::new(),
             pattern_fields: NodeArena::new(),
-            // annotations
             annotations: NodeArena::new(),
         }
     }
 
-    /// Allocate a new node in the tree from a source AST node.
+    /// Allocate a new node in the tree.
     fn insert<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
     where
         T: Node,
@@ -121,7 +107,7 @@ impl NodeTree {
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.type_by_node_id.push(T::KIND);
+        self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
         self.source_by_node_id.push(source_id);
@@ -148,7 +134,7 @@ impl NodeTree {
         node_id
     }
 
-    /// Allocate a new node in the DIR tree derived from another node.
+    /// Allocate a new node in the DIR tree derived from another DIR node.
     pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
     where
         T: Node,
@@ -221,7 +207,7 @@ impl NodeTree {
             .iter()
             .enumerate()
             .filter_map(|(global_index, &local_index)| {
-                if self.type_by_node_id[global_index] == T::KIND {
+                if self.type_by_node_id[global_index] == T::TYPE {
                     let node_id = NodeId::new(global_index as u32);
                     let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
                     Some((node_id, node))
@@ -313,26 +299,19 @@ macro_rules! impl_node_tree_stores {
 
 // usage
 impl_node_tree_stores! {
-    // groupings
     Expression => expressions,
     Block => blocks,
-    // definitions
     Definition => definitions,
-    // types
     Type => types,
     Variant => variants,
     Field => fields,
     WhereClause => where_clauses,
-    // context
     WithClause => with_clauses,
     DependencyItem => dependency_items,
-    // bindings
     Parameter => parameters,
     Argument => arguments,
-    // matching
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
-    // annotations
     Annotation => annotations,
 }

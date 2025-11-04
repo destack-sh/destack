@@ -63,7 +63,7 @@ where
     fn from(id: NodeId<T>) -> Self {
         Self {
             id: id.id,
-            ty: T::KIND,
+            ty: T::TYPE,
         }
     }
 }
@@ -112,7 +112,7 @@ impl<T: Node> NodeId<T> {
 
 /// A Node.
 pub trait Node: Sized {
-    const KIND: NodeType;
+    const TYPE: NodeType;
 }
 
 /// A Visibility is the visibility of an item.

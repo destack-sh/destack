@@ -1,16 +1,25 @@
+mod annotation;
 mod argument;
+mod block;
 mod definition;
 mod expression;
+mod literal;
 mod node;
 mod operator;
+mod path;
 mod tree;
 mod r#type;
 
+pub use annotation::*;
 pub use argument::*;
+pub use block::*;
 pub use definition::*;
+pub use dyst_source::{Source, SourceId, StringId, StringPool};
 pub use dyst_tree::NodeArena;
 pub use expression::*;
+pub use literal::*;
 pub use node::*;
 pub use operator::*;
+pub use path::*;
 pub use tree::*;
 pub use r#type::*;

@@ -1525,17 +1525,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Type::ArraySized {
+            Type::ArrayStatic {
                 element: _,
                 count: _,
             } => {
-                self.node("Type::Array", id.id).end();
+                self.node("Type::ArrayStatic", id.id).end();
             }
             Type::ArraySlice { element: _ } => {
-                self.node("Type::Slice", id.id).end();
+                self.node("Type::ArraySlice", id.id).end();
             }
-            Type::Array { elements: _ } => {
-                self.node("Type::Array", id.id).end();
+            Type::ArrayDynamic { elements: _ } => {
+                self.node("Type::ArrayDynamic", id.id).end();
             }
             Type::Tuple(_) => {
                 self.node("Type::Tuple", id.id).end();

@@ -244,7 +244,7 @@ impl Definition {
 }
 
 impl Node for Definition {
-    const KIND: NodeType = NodeType::Definition;
+    const TYPE: NodeType = NodeType::Definition;
 }
 
 /// The style of a struct or class.

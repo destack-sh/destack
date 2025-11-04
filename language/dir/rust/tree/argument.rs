@@ -28,7 +28,7 @@ pub enum Parameter {
 }
 
 impl Node for Parameter {
-    const KIND: NodeType = NodeType::Parameter;
+    const TYPE: NodeType = NodeType::Parameter;
 }
 
 /// A slot is the "position" target of an argument.
@@ -91,7 +91,7 @@ pub enum Argument {
 }
 
 impl Node for Argument {
-    const KIND: NodeType = NodeType::Argument;
+    const TYPE: NodeType = NodeType::Argument;
 }
 
 impl Argument {

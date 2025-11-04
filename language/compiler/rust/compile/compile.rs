@@ -133,7 +133,7 @@ impl<'s> Compiler<'s> {
         Self: NodeTreeImpl<T>,
         T: Node,
     {
-        match T::KIND {
+        match T::TYPE {
             NodeType::Expression => {
                 self.queue.push_back(CompilerMessage::ResolveRequest(
                     ResolveRequest::ResolveExpression {

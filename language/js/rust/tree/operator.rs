@@ -13,7 +13,7 @@ pub enum UnaryOperator {
     /// `-`
     Negate,
     /// `~`
-    BitwiseNot,
+    ElementwiseNot,
     /// `!`
     LogicalNot,
 }
@@ -36,7 +36,7 @@ pub enum BinaryOperator {
     /// `-`
     Subtract,
 
-    // bitwise shift
+    // shift
     /// `<<`
     ShiftLeft,
     /// `>>`
@@ -44,7 +44,7 @@ pub enum BinaryOperator {
     /// `>>>`
     ShiftRightUnsigned,
 
-    // relational
+    // comparison
     /// `<`
     LessThan,
     /// `<=`
@@ -53,12 +53,6 @@ pub enum BinaryOperator {
     GreaterThan,
     /// `>=`
     GreaterThanOrEqual,
-    /// `in`
-    In,
-    /// `instanceof`
-    InstanceOf,
-
-    // equality
     /// `==`
     Equal,
     /// `!=`
@@ -68,13 +62,13 @@ pub enum BinaryOperator {
     /// `!==`
     NotEqualStrict,
 
-    // bitwise
+    // elementwise
     /// `&`
-    BitwiseAnd,
+    ElementwiseAnd,
     /// `^`
-    BitwiseXor,
+    ElementwiseXor,
     /// `|`
-    BitwiseOr,
+    ElementwiseOr,
 
     // logical
     /// `&&`
@@ -82,7 +76,15 @@ pub enum BinaryOperator {
     /// `||`
     LogicalOr,
     /// `??`
-    NullishCoalesce,
+    Coalesce,
+
+    // container
+    /// `in`
+    In,
+    /// `of`
+    Of,
+    /// `instanceof`
+    InstanceOf,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -111,16 +113,16 @@ pub enum AssignOperator {
     ShiftRightUnsignedAssign,
 
     /// `&=`
-    BitwiseAndAssign,
+    ElementwiseAndAssign,
     /// `^=`
-    BitwiseXorAssign,
+    ElementwiseXorAssign,
     /// `|=`
-    BitwiseOrAssign,
+    ElementwiseOrAssign,
 
     /// `&&=`
     LogicalAndAssign,
     /// `||=`
     LogicalOrAssign,
     /// `??=`
-    NullishCoalesceAssign,
+    CoalesceAssign,
 }
