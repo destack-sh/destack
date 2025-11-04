@@ -497,6 +497,10 @@
           "match": "\\b(?:unknown|boolean|bool|character|char|string|str|number|Self|void)\\b"
         },
         {
+          "name": "support.type.builtin.ds",
+          "match": "\\b(?:Partial|Required|Readonly|Record|Pick|Omit|Exclude|Extract|NonNullable|Parameters|ConstructorParameters|ReturnType|InstanceType|ThisParameterType|OmitThisParameter|ThisType|Awaited|Uppercase|Lowercase|Capitalize|Uncapitalize)\\b(?=\\s*<)"
+        },
+        {
           "name": "support.type.numeric.ds",
           "match": "\\b(?:int(?:\\d+)?|uint(?:\\d+)?|float(?:\\d+)?|i\\d+|u\\d+|f\\d+)\\b"
         }

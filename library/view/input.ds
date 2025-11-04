@@ -19,4 +19,3 @@ export struct SliderInputView2D extends InputView2D {
     /// The current slider value
     value: float64?
 }
-

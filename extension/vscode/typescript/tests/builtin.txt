@@ -1,0 +1,64 @@
+// SYNTAX TEST "source.ds"
+
+Partial<Foo>
+// <- support.type.builtin.ds
+
+Required<Foo>
+// <- support.type.builtin.ds
+
+Readonly<Foo>
+// <- support.type.builtin.ds
+
+Record<Key, Value>
+// <- support.type.builtin.ds
+
+Pick<Foo, Bar>
+// <- support.type.builtin.ds
+
+Omit<Foo, Bar>
+// <- support.type.builtin.ds
+
+Exclude<Foo, Bar>
+// <- support.type.builtin.ds
+
+Extract<Foo, Bar>
+// <- support.type.builtin.ds
+
+NonNullable<Foo>
+// <- support.type.builtin.ds
+
+Parameters<Foo>
+// <- support.type.builtin.ds
+
+ConstructorParameters<Foo>
+// <- support.type.builtin.ds
+
+ReturnType<Foo>
+// <- support.type.builtin.ds
+
+InstanceType<Foo>
+// <- support.type.builtin.ds
+
+ThisParameterType<Foo>
+// <- support.type.builtin.ds
+
+OmitThisParameter<Foo>
+// <- support.type.builtin.ds
+
+ThisType<Foo>
+// <- support.type.builtin.ds
+
+Awaited<Foo>
+// <- support.type.builtin.ds
+
+Uppercase<Text>
+// <- support.type.builtin.ds
+
+Lowercase<Text>
+// <- support.type.builtin.ds
+
+Capitalize<Text>
+// <- support.type.builtin.ds
+
+Uncapitalize<Text>
+// <- support.type.builtin.ds
