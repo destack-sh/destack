@@ -372,9 +372,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                    write!(f, [space()])?;
-                } else if meta.name.is_some() {
-                    write!(f, [space()])?;
                 }
 
                 // extends types
@@ -406,6 +403,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [space()])?;
                     format_where_clause(f, where_clauses)?;
                 }
+
+                write!(f, [space()])?;
 
                 // empty block
                 if fields.is_empty() && expressions.is_empty() {

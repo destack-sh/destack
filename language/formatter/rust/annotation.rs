@@ -265,6 +265,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         match self.style {
             DocStyle::Star => {
                 if is_multi_line {
+                    let total_lines = string.lines().count();
                     for (i, line) in string.lines().enumerate() {
                         if i == 0 {
                             write!(f, [token("/**")])?;
@@ -273,8 +274,10 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
                         }
                         if !line.is_empty() {
                             write!(f, [space(), text(line)])?;
+                        } else if i == 0 {
+                            write!(f, [space()])?;
                         }
-                        if i != string.lines().count() - 1 {
+                        if i != total_lines - 1 {
                             write!(f, [hard_line_break()])?;
                         }
                     }
