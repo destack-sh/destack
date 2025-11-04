@@ -19,10 +19,5 @@ export struct Meetup {
     number: uint32
     // The Series this Meetup is part of.
     series: Reference<MeetupSeries>
-
-    // {
-    //     function get(self) { return @format("{self.name} {self.surname}") }
-    //     function set(self, value: string) { self.name = value }
-    // }
 }
 

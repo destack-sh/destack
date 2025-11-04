@@ -1,7 +1,12 @@
-use crate::{Node, NodeType};
+use crate::{Node, NodeId, NodeType, StringId};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Pattern {}
+pub enum Pattern {
+    Identifier { name: StringId },
+    Array { elements: Vec<NodeId<Pattern>> },
+    Object { fields: Vec<NodeId<PatternField>> },
+    Rest,
+}
 
 impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;

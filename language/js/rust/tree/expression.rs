@@ -1,84 +1,29 @@
+use dyst_source::StringId;
+
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Block, Mutability, Node, NodeId, NodeType, Parameter,
-    Path, ScalarLiteral, StringId, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator,
-    UnaryOperator,
+    Argument, BinaryOperator, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
+    TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Import.
-    Import {},
-    /// Export.
-    Export {},
+    /// This.
+    This,
+    /// Super.
+    Super,
+    /// Import meta (`import.meta`).
+    ImportMeta,
 
-    /// Let.
-    Let {
-        mutability: Mutability,
-        ty: Option<NodeId<Type>>,
-        value: Option<NodeId<Expression>>,
+    /// Class expression.
+    Class {},
+    /// Function expression.
+    Function {},
+    /// Arrow function expression.
+    ArrowFunction {
+        dynamic_parameters: Vec<NodeId<Parameter>>,
+        return_type: Option<NodeId<Type>>,
+        body: NodeId<Expression>,
     },
-    /// Let type.
-    LetType {
-        name: StringId,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        value: NodeId<Type>,
-    },
-
-    /// If.
-    If {
-        condition: NodeId<Expression>,
-        then_block: NodeId<Block>,
-        else_block: Option<NodeId<Block>>,
-    },
-    /// If ternary.
-    IfTernary {
-        condition: NodeId<Expression>,
-        then_expression: NodeId<Expression>,
-        else_expression: Option<NodeId<Expression>>,
-    },
-    /// While.
-    While {
-        condition: NodeId<Expression>,
-        body: NodeId<Block>,
-    },
-    /// For each.
-    ForIn {
-        // pattern: Option<NodeId<Pattern>>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
-    },
-    /// For of.
-    ForOf {
-        // pattern: Option<NodeId<Pattern>>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
-    },
-    /// For condition.
-    ForCondition {
-        initialization: Option<NodeId<Expression>>,
-        condition: NodeId<Expression>,
-        increment: Option<NodeId<Expression>>,
-        body: NodeId<Block>,
-    },
-
-    /// Try.
-    Try {
-        try_block: NodeId<Block>,
-        catch_block: NodeId<Block>,
-        finally_block: Option<NodeId<Block>>,
-    },
-    /// Await.
-    Await { value: NodeId<Expression> },
-    /// Yield.
-    Yield { value: NodeId<Expression> },
-    /// Throw.
-    Throw { value: NodeId<Expression> },
-	/// Continue.
-	Continue { label: Option<StringId> },
-    /// Break.
-    Break { label: Option<StringId> },
-    /// Return.
-    Return { value: Option<NodeId<Expression>> },
 
     /// Path.
     Path {
@@ -119,12 +64,6 @@ pub enum Expression {
         operator: BinaryOperator,
         right: NodeId<Expression>,
     },
-    /// Assignment.
-    Assign {
-        left: NodeId<Expression>,
-        operator: AssignOperator,
-        right: NodeId<Expression>,
-    },
 
     /// Member access.
     Member {
@@ -145,6 +84,8 @@ pub enum Expression {
         is_maybe: bool,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
+    /// Import call.
+    ImportCall { source: StringId },
     /// New.
     New {
         left: Path,
