@@ -2,9 +2,10 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    DependencyKind, Destination, ExportType, ForEachKind, MatchCase, MatchSource, Mutability, Node,
+    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
+    TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -155,7 +156,7 @@ pub enum Expression {
         fields: Vec<NodeId<Argument>>,
     },
     /// Tree creation.
-    TreeLiteral { 
+    TreeLiteral {
         path: Option<Path>,
         arguments: Option<Vec<NodeId<Argument>>>,
         elements: Option<Vec<NodeId<Argument>>>,
@@ -179,17 +180,21 @@ pub enum Expression {
         body: NodeId<Block>,
         source: LoopSource,
     },
-    /// For in loop.
-    ForIn {
+    /// For each loop.
+    ForEach {
         runtime: Option<Runtime>,
         asynchrony: Asynchrony,
+        kind: ForEachKind,
+        pattern: NodeId<Pattern>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
-    /// For of loop.
-    ForOf {
+    /// For three-part loop.
+    For {
         runtime: Option<Runtime>,
-        iterator: NodeId<Expression>,
+        initialization: Option<NodeId<Expression>>,
+        condition: Option<NodeId<Expression>>,
+        increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
     /// Match expression.
@@ -285,13 +290,40 @@ impl Expression {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopSource {
     /// For loop.
-    ForCondition,
+    For,
     /// For loop.
     ForEach,
     /// While loop.
     While,
     /// Loop loop.
     Loop,
+}
+
+/// The style of if expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IfKind {
+    /// If expression.
+    If,
+    /// If ternary expression.
+    IfTernary,
+}
+
+/// The kind of a while expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WhileKind {
+    /// While expression.
+    While,
+    /// Do-while expression.
+    DoWhile,
+}
+
+/// The kind of a for each expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ForEachKind {
+    /// In expression.
+    In,
+    /// Of expression.
+    In,
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

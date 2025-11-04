@@ -1,9 +1,9 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use std::borrow::Cow;
-use dyst_tree::{Color, rebuild_tree_output};
-use dyst_container::SmallVec;
 use crate::*;
+use dyst_container::SmallVec;
+use dyst_tree::{Color, rebuild_tree_output};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DumperOptions {
@@ -188,7 +188,6 @@ impl<'a> Dumper<'a> {
         StructDumper::new(self, name, None)
     }
 }
-
 
 /// Helper for dumping a single struct-like type.
 #[derive(Debug)]
@@ -520,6 +519,13 @@ impl Dump for IfKind {
 
 /// Dump a WhileKind as a string.
 impl Dump for WhileKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a ForEachKind as a string.
+impl Dump for ForEachKind {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
@@ -1059,6 +1065,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ForEach {
                 runtime,
                 asynchrony,
+                kind,
                 pattern: _,
                 iterator: _,
                 body: _,
@@ -1066,16 +1073,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::ForEach", _id.id)
                     .field_optional("runtime", runtime)
                     .field("asynchrony", asynchrony)
+                    .field("kind", kind)
                     .end();
             }
-            Expression::ForCondition {
+            Expression::For {
                 runtime,
                 initialization: _,
                 condition: _,
                 increment: _,
                 body: _,
             } => {
-                self.node("Expression::ForCondition", _id.id)
+                self.node("Expression::For", _id.id)
                     .field_optional("runtime", runtime)
                     .end();
             }
@@ -1223,7 +1231,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::Member { left: _, path, static_arguments: _ } => {
+            Expression::Member {
+                left: _,
+                path,
+                static_arguments: _,
+            } => {
                 self.node("Expression::Member", _id.id)
                     .field("path", path)
                     .end();
@@ -1450,12 +1462,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_field(
-        &mut self,
-        _tree: &NodeTree,
-        _id: NodeId<Field>,
-        field: &Field,
-    ) {
+    fn visit_field(&mut self, _tree: &NodeTree, _id: NodeId<Field>, field: &Field) {
         match field {
             Field::Named {
                 modifiers,

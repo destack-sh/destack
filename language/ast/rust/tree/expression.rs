@@ -210,12 +210,13 @@ pub enum Expression {
     ForEach {
         runtime: Option<Runtime>,
         asynchrony: Asynchrony,
-        pattern: Option<NodeId<Pattern>>,
+        kind: ForEachKind,
+        pattern: NodeId<Pattern>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
 
-    /// A ForCondition is a for loop with the traditional three-part (initialization, condition, increment).
+    /// A For is a for loop with the traditional three-part (initialization, condition, increment).
     ///
     /// Examples:
     /// ```
@@ -224,7 +225,7 @@ pub enum Expression {
     ///     y = 2
     /// }
     /// ```
-    ForCondition {
+    For {
         runtime: Option<Runtime>,
         initialization: Option<NodeId<Expression>>,
         condition: Option<NodeId<Expression>>,
@@ -727,7 +728,7 @@ impl VarianceBound {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IfKind {
     /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
-    Regular,
+    If,
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
     Ternary,
 }
@@ -739,6 +740,15 @@ pub enum WhileKind {
     While,
     /// Do-while expression (like `do <body> while <condition>`)
     DoWhile,
+}
+
+/// The kind of a for each expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ForEachKind {
+    /// Of expression.
+    Of,
+    /// In expression.
+    In,
 }
 
 /// The cardinality of a yield expression.

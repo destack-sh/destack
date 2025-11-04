@@ -49,6 +49,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a ternary if expression.
     /// Disallows some shorthand syntax like lambdas that looks like a ternary part.
     pub in_ternary_condition: bool = false,
+    /// Whether we're parsing a for each expression.
+    /// Disallows container operators.
+    pub in_for_each: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
@@ -91,6 +94,15 @@ impl ParserOptions {
     /// Set `in_before_block=true`.
     pub(crate) fn in_before_block(self) -> Self {
         Self {
+            in_before_block: true,
+            ..self
+        }
+    }
+
+    /// Set `in_for_each=true`, `in_before_block=true`.
+    pub(crate) fn in_for_each_before_block(self) -> Self {
+        Self {
+            in_for_each: true,
             in_before_block: true,
             ..self
         }

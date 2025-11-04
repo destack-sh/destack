@@ -381,8 +381,6 @@ pub enum BinaryOperator {
     // container
     /// `in`
     In = 1102,
-    /// `of`
-    Of = 1101,
 }
 
 impl BinaryOperator {
@@ -435,7 +433,6 @@ impl BinaryOperator {
 
             // container
             BinaryOperator::In => OperatorPrecedence::Container,
-            BinaryOperator::Of => OperatorPrecedence::Container,
         }
     }
 
@@ -493,7 +490,6 @@ impl BinaryOperator {
 
             // container
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
-            TokenType::Identifier if token_str == "of" => Some(BinaryOperator::Of),
 
             _ => None,
         }
