@@ -1,14 +1,56 @@
-use dyst_source::StringId;
+use crate::{
+    BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType, Parameter, StringId,
+    Type, Visibility,
+};
 
-use crate::{Expression, Node, NodeId, NodeType, Type};
+/// The kind of declaration.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DeclarationKind {
+    /// Declare without link.
+    Declaration,
+    /// Inline definition.
+    Definition,
+}
+
+/// The meta data for a definition.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct DefinitionMeta {
+    pub kind: DeclarationKind = DeclarationKind::Definition,
+    pub scope: BindingScope = BindingScope::Container,
+    pub name: Option<Name> = None,
+    pub key: Option<NodeId<Expression>> = None,
+    pub visibility: Option<Visibility> = None,
+    pub export: Option<ExportType> = None,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    Namespace {},
-    Class {},
-    Interface { fields: Vec<NodeId<Field>> },
-    Enum { fields: Vec<NodeId<EnumField>> },
-    Function {},
+    Namespace {
+        meta: DefinitionMeta,
+        definitions: Vec<NodeId<Definition>>,
+    },
+    Class {
+        meta: DefinitionMeta,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        fields: Vec<NodeId<Field>>,
+        definitions: Vec<NodeId<Definition>>,
+    },
+    Interface {
+        meta: DefinitionMeta,
+        fields: Vec<NodeId<Field>>,
+        definitions: Vec<NodeId<Definition>>,
+    },
+    Enum {
+        meta: DefinitionMeta,
+        fields: Vec<NodeId<EnumField>>,
+    },
+    Function {
+        meta: DefinitionMeta,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        dynamic_parameters: Vec<NodeId<Parameter>>,
+        return_type: Option<NodeId<Type>>,
+        body: Option<NodeId<Block>>,
+    },
 }
 
 impl Node for Definition {

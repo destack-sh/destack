@@ -7,13 +7,6 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// This.
-    This,
-    /// Super.
-    Super,
-    /// Import meta (`import.meta`).
-    ImportMeta,
-
     /// Class expression.
     Class {},
     /// Function expression.
@@ -25,6 +18,12 @@ pub enum Expression {
         body: NodeId<Expression>,
     },
 
+    /// This.
+    This,
+    /// Super.
+    Super,
+    /// Import metadata (`import.meta`).
+    ImportMeta,
     /// Path.
     Path {
         path: Path,

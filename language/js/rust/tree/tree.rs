@@ -29,8 +29,6 @@ pub struct NodeTree {
     pub(crate) ast_id_by_node_id: Vec<Option<u32>>,
     /// The source DIR ids of all nodes. Index is the global node id.
     pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
-    /// The alias node id by DIR source / node id.
-    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
 
     // per-node arenas
     pub(crate) blocks: NodeArena<Block>,
@@ -74,7 +72,6 @@ impl NodeTree {
             annotations_per_node_id: HashMap::new(),
             ast_id_by_node_id: Vec::with_capacity(capacity),
             dir_id_by_node_id: Vec::with_capacity(capacity),
-            alias_node_id_by_dir_id: HashMap::new(),
             // per-node arenas
             blocks: NodeArena::new(),
             statements: NodeArena::new(),
@@ -117,7 +114,7 @@ impl NodeTree {
         let source_id = self.source_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, source_id);
         self.ast_id_by_node_id.push(None);
-        self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
+        self.dir_id_by_node_id.push(Some(dir_node_id.id));
         node_id
     }
 
@@ -168,6 +165,23 @@ impl NodeTree {
             }
         }
         nodes
+    }
+
+    /// Get the source and AST id of a node by its global id.
+    /// Every DIR node has a source, but only some come directly from AST nodes.
+    pub fn get_source_ast(&self, node_id: u32) -> (SourceId, Option<u32>) {
+        (
+            self.source_by_node_id[node_id as usize],
+            self.ast_id_by_node_id[node_id as usize],
+        )
+    }
+
+    /// Get the source and DIR id of a node by its global id.
+    pub fn get_source_dir(&self, node_id: u32) -> (SourceId, Option<u32>) {
+        (
+            self.source_by_node_id[node_id as usize],
+            self.dir_id_by_node_id[node_id as usize],
+        )
     }
 }
 
