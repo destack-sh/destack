@@ -1,5 +1,18 @@
 import destack
 
+/// The status of a Meetup.
+export enum(uint8) MeetupStatus {
+    /// The Meetup is a draft.
+    #default
+    Draft = 1
+    /// The Meetup is upcoming.
+    Upcoming
+    /// The Meetup is cancelled.
+    Cancelled
+    /// The Meetup is past.
+    Past
+}
+
 /// A Series of related Meetups (with a common prefix).
 @entity
 export struct MeetupSeries {
@@ -19,5 +32,20 @@ export struct Meetup {
     number: uint32
     // The Series this Meetup is part of.
     series: Reference<MeetupSeries>
+    // The status of the Meetup.
+    status: MeetupStatus
 }
 
+/// Registration for a Meetup.
+@entity
+export struct MeetupRegistration {
+    // The Meetup this registration is for.
+    meetup: Reference<Meetup>
+    // The person registering.
+    user: Reference<User>
+}
+
+@action
+export function register(meetup: Reference<Meetup>, user: Reference<User>) {
+    throw "not implemented"
+}
