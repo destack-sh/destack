@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
             }
         }
         Err(ParserError::expected(
-            self.tokens[pos].span,
+            self.peek()?.span,
             TokenType::Identifier,
         ))
     }

@@ -1,5 +1,5 @@
-import destack
-import destack.entity
+import { entity, Entity, Reference } from "destack"
+import "destack.geometry"
 
 /// A color in the Tetris game.
 export enum Color {
@@ -26,12 +26,14 @@ export struct Position {
 }
 
 /// A cell on the Tetris board.
+@entity
 export struct Cell {
     isFilled: boolean
     color: Color?
 }
 
 /// The Tetris game board.
+@entity
 export struct Board {
     width: int32 = 10
     height: int32 = 20
