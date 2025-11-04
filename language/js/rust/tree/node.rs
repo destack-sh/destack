@@ -9,12 +9,13 @@ pub enum NodeType {
     Expression,
     Definition,
     Field,
+	Type,
+	EnumField,
     DependencyItem,
 	SwtichCase,
     Parameter,
     Argument,
-	Type,
-	EnumField,
+    Annotation,
 }
 
 /// Unique identifier for nodes with dynamic type.
@@ -42,7 +43,7 @@ where
     fn from(id: NodeId<T>) -> Self {
         Self {
             id: id.id,
-            ty: T::KIND,
+            ty: T::TYPE,
         }
     }
 }
@@ -91,5 +92,5 @@ impl<T: Node> NodeId<T> {
 
 /// A Node.
 pub trait Node: Sized {
-    const KIND: NodeType;
+    const TYPE: NodeType;
 }

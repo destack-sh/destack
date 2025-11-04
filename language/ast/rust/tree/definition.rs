@@ -406,7 +406,7 @@ pub enum Definition {
 }
 
 impl Node for Definition {
-    const KIND: NodeType = NodeType::Definition;
+    const TYPE: NodeType = NodeType::Definition;
 }
 
 impl Definition {
@@ -529,7 +529,7 @@ pub struct EnumField {
 }
 
 impl Node for EnumField {
-    const KIND: NodeType = NodeType::EnumField;
+    const TYPE: NodeType = NodeType::EnumField;
 }
 
 /// A UnionField is a union field declaration.
@@ -562,7 +562,7 @@ pub enum UnionField {
 }
 
 impl Node for UnionField {
-    const KIND: NodeType = NodeType::UnionField;
+    const TYPE: NodeType = NodeType::UnionField;
 }
 
 /// A FunctionStyle is the style of a function.

@@ -41,7 +41,7 @@ pub enum Parameter {
 }
 
 impl Node for Parameter {
-    const KIND: NodeType = NodeType::Parameter;
+    const TYPE: NodeType = NodeType::Parameter;
 }
 
 /// An Argument is an argument to a function call.
@@ -110,5 +110,5 @@ pub enum Argument {
 }
 
 impl Node for Argument {
-    const KIND: NodeType = NodeType::Argument;
+    const TYPE: NodeType = NodeType::Argument;
 }

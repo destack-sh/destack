@@ -30,23 +30,18 @@ pub struct NodeTree {
     // groupings
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) blocks: NodeArena<Block>,
-    // definitions
     pub(crate) definitions: NodeArena<Definition>,
     pub(crate) fields: NodeArena<Field>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) union_fields: NodeArena<UnionField>,
-    // context
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
-    // bindings
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
-    // matching
     pub(crate) match_cases: NodeArena<MatchCase>,
     pub(crate) patterns: NodeArena<Pattern>,
     pub(crate) pattern_fields: NodeArena<PatternField>,
-    // annotations
     pub(crate) annotations: NodeArena<Annotation>,
     pub(crate) blanks: NodeArena<Blank>,
     pub(crate) docs: NodeArena<Doc>,
@@ -80,26 +75,20 @@ impl NodeTree {
             type_by_node_id: Vec::with_capacity(capacity),
             annotations_per_node_id: HashMap::new(),
             spans: NodeSpanIndex::new(),
-            // groupings
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
-            // definitions
             definitions: NodeArena::new(),
             fields: NodeArena::new(),
             enum_fields: NodeArena::new(),
             union_fields: NodeArena::new(),
-            // context
             with_clauses: NodeArena::new(),
             where_clauses: NodeArena::new(),
             dependency_items: NodeArena::new(),
-            // bindings
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
-            // matching
             match_cases: NodeArena::new(),
             patterns: NodeArena::new(),
             pattern_fields: NodeArena::new(),
-            // annotations
             annotations: NodeArena::new(),
             blanks: NodeArena::new(),
             docs: NodeArena::new(),
@@ -125,7 +114,7 @@ impl NodeTree {
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.type_by_node_id.push(T::KIND);
+        self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
         self.spans.append(span);
@@ -228,7 +217,7 @@ impl NodeTree {
     {
         let mut nodes = Vec::new();
         for (idx, ty) in self.type_by_node_id.iter().enumerate() {
-            if *ty == T::KIND {
+            if *ty == T::TYPE {
                 nodes.push(NodeId::new(idx as u32));
             }
         }
@@ -239,26 +228,20 @@ impl NodeTree {
     #[inline]
     fn delete(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
         match node_type {
-            // groupings
             NodeType::Expression => self.expressions.deallocate(local_ids),
             NodeType::Block => self.blocks.deallocate(local_ids),
-            // definitions
             NodeType::Definition => self.definitions.deallocate(local_ids),
             NodeType::Field => self.fields.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
-            // context
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
             NodeType::DependencyItem => self.dependency_items.deallocate(local_ids),
-            // bindings
             NodeType::Parameter => self.parameters.deallocate(local_ids),
             NodeType::Argument => self.arguments.deallocate(local_ids),
-            // matching
             NodeType::MatchCase => self.match_cases.deallocate(local_ids),
             NodeType::Pattern => self.patterns.deallocate(local_ids),
             NodeType::PatternField => self.pattern_fields.deallocate(local_ids),
-            // annotations
             NodeType::Annotation => self.annotations.deallocate(local_ids),
             NodeType::Blank => self.blanks.deallocate(local_ids),
             NodeType::Doc => self.docs.deallocate(local_ids),
@@ -385,26 +368,20 @@ macro_rules! impl_node_tree_stores {
 
 // usage
 impl_node_tree_stores! {
-    // groupings
     Expression => expressions,
     Block => blocks,
-    // definitions
     Definition => definitions,
     Field => fields,
     EnumField => enum_fields,
     UnionField => union_fields,
-    // context
     WithClause => with_clauses,
     WhereClause => where_clauses,
     DependencyItem => dependency_items,
-    // bindings
     Parameter => parameters,
     Argument => arguments,
-    // matching
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
-    // annotations
     Annotation => annotations,
     Blank => blanks,
     Doc => docs,

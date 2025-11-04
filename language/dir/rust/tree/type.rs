@@ -164,14 +164,14 @@ pub enum Type {
         is_inclusive: bool,
     },
     /// Sized array type `T[N]`.
-    ArraySized {
+    ArrayStatic {
         element: NodeId<Type>,
         count: NodeId<Expression>,
     },
     /// Array slice type `T[]`. Dynamically sized.
     ArraySlice { element: NodeId<Type> },
     /// Array type `[T1, T2, ...]`. May be fixed or dynamically sized.
-    Array { elements: Vec<NodeId<Type>> },
+    ArrayDynamic { elements: Vec<NodeId<Type>> },
     /// Tuple type `(T1, T2, ...)`. Fixed size.
     Tuple(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
@@ -187,7 +187,7 @@ pub enum Type {
 }
 
 impl Node for Type {
-    const KIND: NodeType = NodeType::Type;
+    const TYPE: NodeType = NodeType::Type;
 }
 
 impl Type {
@@ -382,5 +382,5 @@ pub enum WhereClause {
 }
 
 impl Node for WhereClause {
-    const KIND: NodeType = NodeType::WhereClause;
+    const TYPE: NodeType = NodeType::WhereClause;
 }

@@ -37,7 +37,7 @@ pub enum Annotation {
 }
 
 impl Node for Annotation {
-    const KIND: NodeType = NodeType::Annotation;
+    const TYPE: NodeType = NodeType::Annotation;
 }
 
 impl Annotation {

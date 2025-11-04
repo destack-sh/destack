@@ -205,7 +205,7 @@ pub enum Expression {
 }
 
 impl Node for Expression {
-    const KIND: NodeType = NodeType::Expression;
+    const TYPE: NodeType = NodeType::Expression;
 }
 
 impl Expression {
@@ -289,5 +289,5 @@ pub struct WithClause {
 }
 
 impl Node for WithClause {
-    const KIND: NodeType = NodeType::WithClause;
+    const TYPE: NodeType = NodeType::WithClause;
 }

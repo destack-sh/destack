@@ -770,7 +770,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let end_type = tree.get(*end);
             visitor.visit_type(tree, *end, end_type);
         }
-        Type::ArraySized { element, count } => {
+        Type::ArrayStatic { element, count } => {
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
             let count_expression = tree.get(*count);
@@ -780,7 +780,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
         }
-        Type::Array { elements } => {
+        Type::ArrayDynamic { elements } => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);

@@ -136,5 +136,5 @@ pub enum Field {
 }
 
 impl Node for Field {
-    const KIND: NodeType = NodeType::Field;
+    const TYPE: NodeType = NodeType::Field;
 }
