@@ -1,8 +1,8 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
-    TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, BindingKind, Definition, Node, NodeId, NodeType, Parameter, Path,
+    ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,19 +60,19 @@ pub enum Expression {
     Member {
         left: NodeId<Expression>,
         path: Path,
-        is_maybe: bool,
+        kind: BindingKind,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Index.
     Index {
         left: NodeId<Expression>,
-        is_maybe: bool,
+        kind: BindingKind,
         index: Option<NodeId<Expression>>,
     },
     /// Call.
     Call {
         left: NodeId<Expression>,
-        is_maybe: bool,
+        kind: BindingKind,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// Import call.

@@ -1,6 +1,6 @@
 mod annotation;
 mod argument;
-mod destination;
+mod block;
 mod expression;
 mod path;
 mod r#type;

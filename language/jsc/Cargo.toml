@@ -17,6 +17,7 @@ dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_mir = { workspace = true }
+dyst_js = { workspace = true }
 dyst_session = { workspace = true }
 dyst_prelude = { workspace = true }
 dyst_diagnostic = { workspace = true }

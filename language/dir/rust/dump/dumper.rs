@@ -656,21 +656,21 @@ impl Dump for IfKind {
     }
 }
 
-/// Dump a Destination as a structured representation.
-impl Dump for Destination {
+/// Dump a BlockTarget as a structured representation.
+impl Dump for BlockTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Destination::UnresolvedString { label } => {
+            BlockTarget::UnresolvedString { label } => {
                 dumper
-                    .object("Destination::UnresolvedString")
+                    .object("BlockTarget::UnresolvedString")
                     .field("label", label)
                     .end();
             }
-            Destination::Definition { .. } => {
-                dumper.object("Destination::Definition").end();
+            BlockTarget::Definition { .. } => {
+                dumper.object("BlockTarget::Definition").end();
             }
-            Destination::Error => {
-                dumper.object("Destination::Error").end();
+            BlockTarget::Error => {
+                dumper.object("BlockTarget::Error").end();
             }
         }
     }
@@ -1325,17 +1325,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("source", source)
                     .end();
             }
-            Expression::Break {
-                destination,
-                value: _,
-            } => {
+            Expression::Break { target, value: _ } => {
                 self.node("Expression::Break", id.id)
-                    .field("destination", destination)
+                    .field("target", target)
                     .end();
             }
-            Expression::Continue { destination } => {
+            Expression::Continue { target } => {
                 self.node("Expression::Continue", id.id)
-                    .field("destination", destination)
+                    .field("target", target)
                     .end();
             }
             Expression::Defer { expression: _ } => {

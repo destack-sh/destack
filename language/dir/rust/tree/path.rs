@@ -47,20 +47,20 @@ impl Path {
     }
 }
 
-/// A destination is a target for a control flow statement.
+/// A block target for a control flow statement.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Destination {
-    /// Unresolved Destination with a string label.
+pub enum BlockTarget {
+    /// Unresolved block target with a string label.
     UnresolvedString { label: StringId },
-    /// Resolved Destination to a Definition.
+    /// Resolved block target to a Definition.
     Definition { definition: NodeId<Definition> },
-    /// Error destination.
+    /// Error target.
     Error,
 }
 
-impl Destination {
-    /// Whether the destination is resolved (ignoring child nodes).
+impl BlockTarget {
+    /// Whether the target is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        matches!(self, Destination::Definition { .. })
+        matches!(self, BlockTarget::Definition { .. })
     }
 }

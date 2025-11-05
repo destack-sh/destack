@@ -498,16 +498,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_match_case(tree, *case_id, case);
             }
         }
-        Expression::Break {
-            destination: _,
-            value,
-        } => {
+        Expression::Break { target: _, value } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 visitor.visit_expression(tree, *value_id, value_expression);
             }
         }
-        Expression::Continue { destination: _ } => {}
+        Expression::Continue { target: _ } => {}
         Expression::Defer { expression } => {
             let body_expression = tree.get(*expression);
             visitor.visit_expression(tree, *expression, body_expression);

@@ -1,19 +1,19 @@
 use dyst_ast as ast;
-use dyst_dir::{Block, Destination, NodeId};
+use dyst_dir::{Block, BlockTarget, NodeId};
 use dyst_source::SourceId;
 
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a label to a DIR destination.
+    /// Lower a label to a DIR block target.
     pub fn lower_label(
         &mut self,
         source_id: SourceId,
         _ast: &ast::NodeTree,
         label: ast::StringId,
-    ) -> Destination {
+    ) -> BlockTarget {
         let label = self.intern_string(source_id, label);
-        Destination::UnresolvedString { label }
+        BlockTarget::UnresolvedString { label }
     }
 
     /// Lower a block to a DIR block.
