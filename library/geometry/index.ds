@@ -1,0 +1,17 @@
+/// The Destack Simulation Geometry Module.
+
+export shape
+export point
+export circle
+export capsule
+export rectangle
+export segment
+export path
+export ellipse
+export halfspace
+export convex
+export mesh
+export cone
+export cylinder
+export quaternion
+export vector
