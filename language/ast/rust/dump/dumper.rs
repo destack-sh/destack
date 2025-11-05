@@ -40,6 +40,8 @@ pub struct Dumper<'a> {
     pub tree: &'a NodeTree,
     /// The dump options.
     pub options: DumperOptions,
+    /// The visitor options.
+    visitor_options: NodeVisitorOptions,
 
     /// The buffer we're writing to.
     buffer: String,
@@ -59,6 +61,7 @@ impl<'a> Dumper<'a> {
             strings,
             tree,
             options,
+            visitor_options: NodeVisitorOptions::default(),
             buffer: String::new(),
             depth: 0,
             branch_stack: Vec::new(),
@@ -746,6 +749,11 @@ impl Dump for TypeLiteral {
 // ----------------------------------------------------------------------------
 
 impl<'a> NodeVisitor for Dumper<'a> {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.visitor_options
+    }
+
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
@@ -753,10 +761,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             self.visit_annotation(tree, annotation_id, annotation);
         }
     }
-
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
 
     fn visit_expression(
         &mut self,
@@ -1119,10 +1123,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    // ------------------------------------------------------------
-    // Declarations
-    // ------------------------------------------------------------
-
     fn visit_definition(
         &mut self,
         tree: &NodeTree,
@@ -1333,10 +1333,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     fn visit_with_clause(
         &mut self,
         _tree: &NodeTree,
@@ -1386,10 +1382,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             walk_dependency_item(dumper, _tree, _id, item);
         });
     }
-
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
 
     fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
         match param {
@@ -1503,10 +1495,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             walk_argument(dumper, _tree, _id, arg);
         });
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 
     fn visit_match_case(&mut self, _tree: &NodeTree, _id: NodeId<MatchCase>, case: &MatchCase) {
         match case {
@@ -1629,10 +1617,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             walk_pattern_field(dumper, _tree, _id, field);
         });
     }
-
-    // ------------------------------------------------------------
-    // Annotations
-    // ------------------------------------------------------------
 
     fn visit_annotation(
         &mut self,

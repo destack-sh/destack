@@ -8,16 +8,21 @@ use crate::{
     walk_type, walk_variant, walk_where_clause, walk_with_clause,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct NodeVisitorOptions {
+    /// Visit non-children nodes.
+    pub visit_indirect: bool = false,
+}
+
 /// A NodeVisitor is a visitor for the DIR.
 pub trait NodeVisitor {
+    /// Get the options for the visitor.
+    fn options(&self) -> &NodeVisitorOptions;
+
     #[inline]
     fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {
         // nothing to do
     }
-
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
 
     /// Visit an Expression.
     fn visit_expression(
@@ -34,10 +39,6 @@ pub trait NodeVisitor {
         walk_block(self, tree, id, block);
     }
 
-    // ------------------------------------------------------------
-    // Definitions
-    // ------------------------------------------------------------
-
     /// Visit a Definition.
     fn visit_definition(
         &mut self,
@@ -47,10 +48,6 @@ pub trait NodeVisitor {
     ) {
         walk_definition(self, tree, id, definition);
     }
-
-    // ------------------------------------------------------------
-    // Types
-    // ------------------------------------------------------------
 
     /// Visit a Type.
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
@@ -77,10 +74,6 @@ pub trait NodeVisitor {
         walk_where_clause(self, tree, id, where_clause);
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     /// Visit a WithClause.
     fn visit_with_clause(
         &mut self,
@@ -101,10 +94,6 @@ pub trait NodeVisitor {
         walk_dependency_item(self, tree, id, dependency_item);
     }
 
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     /// Visit a Parameter.
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
@@ -114,10 +103,6 @@ pub trait NodeVisitor {
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 
     /// Visit a Pattern.
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
@@ -139,10 +124,6 @@ pub trait NodeVisitor {
         walk_match_case(self, tree, id, match_case);
     }
 
-    // ------------------------------------------------------------
-    // Annotations
-    // ------------------------------------------------------------
-
     /// Visit an Annotation.
     fn visit_annotation(
         &mut self,
@@ -158,12 +139,14 @@ pub trait NodeVisitor {
 #[derive(Debug, Clone, Default)]
 pub struct CapturingNodeVisitor {
     visited: Vec<u32>,
+    options: NodeVisitorOptions,
 }
 
 impl CapturingNodeVisitor {
-    pub fn new() -> Self {
+    pub fn new(options: NodeVisitorOptions) -> Self {
         Self {
             visited: Vec::new(),
+            options,
         }
     }
 
@@ -177,13 +160,14 @@ impl CapturingNodeVisitor {
 }
 
 impl NodeVisitor for CapturingNodeVisitor {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
     fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
         self.visited.push(id);
     }
-
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
 
     fn visit_expression(
         &mut self,
@@ -198,10 +182,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Block, id.id);
     }
 
-    // ------------------------------------------------------------
-    // Definitions
-    // ------------------------------------------------------------
-
     fn visit_definition(
         &mut self,
         tree: &NodeTree,
@@ -210,10 +190,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     ) {
         self.visit_any(tree, NodeType::Definition, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Types
-    // ------------------------------------------------------------
 
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, _ty: &Type) {
         self.visit_any(tree, NodeType::Type, id.id);
@@ -236,10 +212,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::WhereClause, id.id);
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     fn visit_with_clause(
         &mut self,
         tree: &NodeTree,
@@ -258,10 +230,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, _parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
@@ -269,10 +237,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, _argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, _pattern: &Pattern) {
         self.visit_any(tree, NodeType::Pattern, id.id);
@@ -295,10 +259,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     ) {
         self.visit_any(tree, NodeType::MatchCase, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Annotations
-    // ------------------------------------------------------------
 
     fn visit_annotation(
         &mut self,

@@ -10,8 +10,14 @@ use crate::{
     walk_with_clause,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct NodeVisitorOptions {}
+
 /// A NodeVisitor is a visitor for the AST.
 pub trait NodeVisitor {
+    /// Get the options for the visitor.
+    fn options(&self) -> &NodeVisitorOptions;
+
     #[inline]
     fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {
         // nothing to do
@@ -186,12 +192,14 @@ pub trait NodeVisitor {
 #[derive(Debug, Clone, Default)]
 pub struct CapturingNodeVisitor {
     visited: Vec<u32>,
+    options: NodeVisitorOptions,
 }
 
 impl CapturingNodeVisitor {
-    pub fn new() -> Self {
+    pub fn new(options: NodeVisitorOptions) -> Self {
         Self {
             visited: Vec::new(),
+            options,
         }
     }
 
@@ -205,13 +213,14 @@ impl CapturingNodeVisitor {
 }
 
 impl NodeVisitor for CapturingNodeVisitor {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
     fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {
         self.visited.push(id);
     }
-
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
 
     fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
         self.visit_any(tree, NodeType::Block, id.id);
@@ -225,10 +234,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     ) {
         self.visit_any(tree, NodeType::Expression, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Declarations
-    // ------------------------------------------------------------
 
     fn visit_definition(
         &mut self,
@@ -256,10 +261,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::UnionField, id.id);
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     fn visit_with_clause(
         &mut self,
         tree: &NodeTree,
@@ -278,10 +279,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
@@ -289,10 +286,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
         self.visit_any(tree, NodeType::Pattern, id.id);
@@ -310,10 +303,6 @@ impl NodeVisitor for CapturingNodeVisitor {
     fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
         self.visit_any(tree, NodeType::MatchCase, id.id);
     }
-
-    // ------------------------------------------------------------
-    // Annotations
-    // ------------------------------------------------------------
 
     fn visit_annotation(
         &mut self,
