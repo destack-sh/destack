@@ -5,24 +5,24 @@ members = [
 	"language/ast",
 	"language/container",
 	"language/compiler",
-	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
-	"language/dvm",
+	"language/machine",
 	"language/fir",
 	"language/formatter",
-	"language/js",
-	"language/jsc",
-	"language/jsm",
+	"language/javascript/ast",
+	"language/javascript/compiler",
+	"language/javascript/machine",
 	"language/mir",
 	"language/parser",
 	"language/module",
 	"language/source",
-	"language/string",
 	"language/test",
 	"language/tree",
 	# platform
+	"platform/cli",
 	"platform/file",
+	"platform/lsp",
 	"platform/terminal",
 	"platform/test",
 	"platform/json",
@@ -30,12 +30,8 @@ members = [
 	"platform/time",
 	"platform/unicode",
 	"platform/uuid",
-	# extension
-	"extension/cli",
-	"extension/lsp",
-	"extension/tokei",
-	"extension/vscode",
-	"extension/zed",
+	"platform/tokei",
+	"platform/vscode",
 ]
 
 [workspace.package]
@@ -49,44 +45,35 @@ rust-version = "1.88.0"
 # language
 dyst_ast = { path = "language/ast" }
 dyst_compiler = { path = "language/compiler" }
-dyst_concurrency = { path = "language/concurrency" }
 dyst_container = { path = "language/container" }
 dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
-dyst_dvm = { path = "language/dvm" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
-dyst_js = { path = "language/js" }
-dyst_jsc = { path = "language/jsc" }
-dyst_jsm = { path = "language/jsm" }
-dyst_memory = { path = "language/memory" }
+dyst_javascript_ast = { path = "language/javascript/ast" }
+dyst_javascript_compiler = { path = "language/javascript/compiler" }
+dyst_javascript_machine = { path = "language/javascript/machine" }
+dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
 dyst_module = { path = "language/module" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }
-dyst_string = { path = "language/string" }
 dyst_test = { path = "language/test" }
 dyst_tree = { path = "language/tree" }
 # platform
+destack_cli = { path = "platform/cli" }
 destack_file = { path = "platform/file" }
 destack_json = { path = "platform/json" }
+destack_lsp = { path = "platform/lsp" }
 destack_order = { path = "platform/order" }
 destack_terminal = { path = "platform/terminal" }
 destack_test = { path = "platform/test" }
 destack_time = { path = "platform/time" }
+destack_tokei = { path = "platform/tokei" }
 destack_unicode = { path = "platform/unicode" }
 destack_uuid = { path = "platform/uuid" }
-# extension
-destack_cli = { path = "extension/cli" }
-destack_javascript = { path = "extension/javascript" }
-destack_lsp = { path = "extension/lsp" }
-destack_python = { path = "extension/python" }
-destack_rust = { path = "extension/rust" }
-destack_tokei = { path = "extension/tokei" }
-destack_vscode = { path = "extension/vscode" }
-destack_web = { path = "extension/web" }
-destack_zed = { path = "extension/zed" }
+destack_vscode = { path = "platform/vscode" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"

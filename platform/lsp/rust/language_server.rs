@@ -1,16 +1,16 @@
 //! Async language server implementation built on tower-lsp-server.
 
 use std::str::FromStr;
+use tower_lsp_server::{LanguageServer, jsonrpc};
+use tower_lsp_server::lsp_types as lsp;
 
 use dyst_diagnostic::Severity;
-use tower_lsp_server::{LanguageServer, jsonrpc};
 
 use dyst_source::SourceFormat;
 
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
 use dyst_module::{FileContent, SourceFile};
-use tower_lsp_server::lsp_types as lsp;
 
 impl LanguageServer for DestackLanguageServer {
     // ------------------------------------------------------------

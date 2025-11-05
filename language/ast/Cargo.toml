@@ -17,7 +17,6 @@ dyst_diagnostic = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
-dyst_string = { workspace = true }
 dyst_tree = { workspace = true }
 
 destack_file = { workspace = true }

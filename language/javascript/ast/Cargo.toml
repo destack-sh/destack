@@ -1,6 +1,6 @@
 [package]
-name = "dyst_js"
-description = "Dyst JavaScript"
+name = "dyst_javascript_ast"
+description = "Dyst JavaScript AST"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,10 +13,8 @@ doctest = false
 
 [dependencies]
 dyst_container = { workspace = true }
-dyst_memory = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
-dyst_string = { workspace = true }
 dyst_tree = { workspace = true }
 
 destack_unicode = { workspace = true }

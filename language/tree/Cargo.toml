@@ -13,8 +13,6 @@ doctest = false
 
 [dependencies]
 dyst_source = { workspace = true }
-dyst_string = { workspace = true }
-dyst_memory = { workspace = true }
 
 destack_unicode = { workspace = true }
 
