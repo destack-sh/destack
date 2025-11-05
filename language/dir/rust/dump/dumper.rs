@@ -1,7 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use dyst_container::SmallVec;
-use dyst_tree::{Color, rebuild_tree_output};
+use dyst_tree::{Color, impl_dump_display, rebuild_tree_output};
 
 use crate::*;
 
@@ -383,71 +383,34 @@ where
     }
 }
 
-/// Dump a Visibility as a string.
-impl Dump for Visibility {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a DeclarationKind as a string.
-impl Dump for DeclarationKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a ExportType as a string.
-impl Dump for ExportType {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            ExportType::Item => dumper.write_str("ExportType::Item", Some(Color::Yellow)),
-            ExportType::Default => dumper.write_str("ExportType::Default", Some(Color::Yellow)),
-            ExportType::Module => dumper.write_str("ExportType::Module", Some(Color::Yellow)),
-        }
-    }
-}
-
-/// Dump a Runtime as a string.
-impl Dump for Runtime {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a FunctionCardinality as a string.
-impl Dump for FunctionCardinality {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a FunctionMode as a string.
-impl Dump for FunctionMode {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a StructKind as a string.
-impl Dump for StructKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a BindingKind as a string.
-impl Dump for BindingKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a BindingOperator as a string.
-impl Dump for BindingOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
+impl_dump_display! {
+    AnnotationPosition,
+    Asynchrony,
+    AssignOperator,
+    BindingKind,
+    BindingOperator,
+    BinaryOperator,
+    DeclarationKind,
+    DependencyKind,
+    ExportType,
+    ForEachKind,
+    FunctionAbstraction,
+    FunctionCardinality,
+    FunctionKind,
+    FunctionMode,
+    IfKind,
+    LoopSource,
+    MatchSource,
+    Mutability,
+    ReferenceType,
+    Runtime,
+    StructKind,
+    TypeBinaryOperator,
+    TypeUnaryOperator,
+    UnaryOperator,
+    VarianceBound,
+    Visibility,
+    WhileKind,
 }
 
 /// Dump a BindingModifier as a string.
@@ -462,29 +425,6 @@ impl Dump for BindingModifier {
             .end();
     }
 }
-
-/// Dump a Asynchrony as a string.
-impl Dump for Asynchrony {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a ReferenceType as a string.
-impl Dump for ReferenceType {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a Mutability as a string.
-impl Dump for Mutability {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a ScopedMutability as a string.
 impl Dump for ScopedMutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
@@ -502,41 +442,6 @@ impl Dump for ScopedMutability {
                     .end();
             }
         }
-    }
-}
-
-/// Dump a UnaryOperator as a string.
-impl Dump for UnaryOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a TypeUnaryOperator as a string.
-impl Dump for TypeUnaryOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a BinaryOperator as a string.
-impl Dump for BinaryOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a TypeBinaryOperator as a string.
-impl Dump for TypeBinaryOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump an AssignOperator as a string.
-impl Dump for AssignOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -578,24 +483,10 @@ impl Dump for DefinitionMeta {
     }
 }
 
-/// Dump a VarianceBound as a string.
-impl Dump for VarianceBound {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
 /// Dump a Generics as a structured object.
 impl Dump for Generics {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.object("Generics").end();
-    }
-}
-
-/// Dump a FunctionAbstraction as a string.
-impl Dump for FunctionAbstraction {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -611,48 +502,6 @@ impl Dump for FunctionSignature {
             .field("style", &self.kind)
             .field_optional("self_parameter", &self.self_parameter)
             .end();
-    }
-}
-
-/// Dump a LoopSource as a string.
-impl Dump for LoopSource {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a MatchSource as a string.
-impl Dump for MatchSource {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a FunctionStyle as a string.
-impl Dump for FunctionKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a ForEachKind as a string.
-impl Dump for ForEachKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a WhileKind as a string.
-impl Dump for WhileKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-    }
-}
-
-/// Dump a IfKind as a string.
-impl Dump for IfKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -673,13 +522,6 @@ impl Dump for BlockTarget {
                 dumper.object("BlockTarget::Error").end();
             }
         }
-    }
-}
-
-/// Dump an AnnotationPosition as a string.
-impl Dump for AnnotationPosition {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -741,13 +583,6 @@ impl Dump for Path {
 impl Dump for Intrinsic {
     fn dump<'a>(&self, _dumper: &mut Dumper<'a>) {
         match *self {}
-    }
-}
-
-/// Dump a DependencyKind as a string.
-impl Dump for DependencyKind {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 

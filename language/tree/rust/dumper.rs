@@ -49,6 +49,19 @@ impl Color {
     }
 }
 
+#[macro_export]
+macro_rules! impl_dump_display {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl Dump for $ty {
+                fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+                    dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+                }
+            }
+        )+
+    };
+}
+
 /// Metadata for a dumped line.
 #[derive(Debug)]
 struct LineMetadata {

@@ -9,6 +9,6 @@ impl<'a> Compiler<'a> {
         _scope_id: NodeIdAny,
         destination: BlockTarget,
     ) -> ResolveResult<BlockTarget> {
-        todo!("resolve_destination({destination:?})")
+        todo!("resolve_target({destination:?})")
     }
 }
