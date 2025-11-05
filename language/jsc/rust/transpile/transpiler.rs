@@ -4,14 +4,14 @@ use dyst_session::Session;
 use dyst_source::{LanguageOptions, StringPool};
 
 /// The options for transpiling a Workspace.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct TranspilerOptions {
     /// The target language.
-    pub target: LanguageTarget,
+    pub target: LanguageTarget = LanguageTarget::TypeScript,
     /// The ECMAScript level.
-    pub es_version: EcmaScriptVersion,
+    pub es_version: EcmaScriptVersion = EcmaScriptVersion::ES2022,
     /// The TypeScript version.
-    pub ts_version: TypeScriptVersion,
+    pub ts_version: TypeScriptVersion = TypeScriptVersion::TS5_0,
 }
 
 /// The target language for transpiling.
