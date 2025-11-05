@@ -1,9 +1,8 @@
 /// Basics Access Module.
 
-export "entitlement"
-export "invite"
-export "membership"
-export "permission"
-export "role"
-export "sanction"
-
+export * from "./entitlement"
+export * from "./invite"
+export * from "./membership"
+export * from "./permission"
+export * from "./role"
+export * from "./sanction"

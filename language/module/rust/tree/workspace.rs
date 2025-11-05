@@ -8,8 +8,7 @@ use dyst_session::Session;
 use dyst_source::{LanguageOptions, SourceFormat, SourceId, Uri};
 
 use crate::{
-    File, FileContent, FileMode, PACKAGE_FILE_NAME, Package, PackageId, SourceFile,
-    infer_source_format_from_uri,
+    File, FileContent, FileMode, Package, PackageId, SourceFile, infer_source_format_from_uri,
 };
 
 pub const TRACKED_FORMATS: [SourceFormat; 4] = [
@@ -102,17 +101,18 @@ impl Workspace {
             // loop until we find the `package.dst` file in the directory
             let mut current_path = uri.to_file_path();
             let mut root_uri = None;
-            while let Some(current_dir) = current_path {
-                if current_dir.is_dir() {
-                    let package_file = current_dir.join(PACKAGE_FILE_NAME);
-                    if package_file.exists() {
-                        let root_dir = current_dir.canonicalize()?;
-                        root_uri = Some(Uri::from_file_path(root_dir));
-                        break;
-                    }
-                }
-                current_path = current_dir.parent();
-            }
+            todo!("nocheckin");
+            // while let Some(current_dir) = current_path {
+            //     if current_dir.is_dir() {
+            //         let package_file = current_dir.join(PACKAGE_FILE_NAME);
+            //         if package_file.exists() {
+            //             let root_dir = current_dir.canonicalize()?;
+            //             root_uri = Some(Uri::from_file_path(root_dir));
+            //             break;
+            //         }
+            //     }
+            //     current_path = current_dir.parent();
+            // }
             root_uri
         };
 
@@ -265,15 +265,16 @@ impl Workspace {
         is_open: bool,
         content: Vec<u8>,
     ) -> SourceId {
-        match format {
-            SourceFormat::Dyst | SourceFormat::DystDeclaration | SourceFormat::DystText => {
-                let content = String::from_utf8_lossy(&content).to_string();
-                self.upsert_text_file(uri, format, is_open, content)
-            }
-            SourceFormat::DystBinary | SourceFormat::DystExecutable => {
-                self.upsert_binary_file(uri, format, is_open, content)
-            }
-        }
+        todo!("nocheckin");
+        // match format {
+        //     SourceFormat::Dyst | SourceFormat::DystDeclaration | SourceFormat::DystText => {
+        //         let content = String::from_utf8_lossy(&content).to_string();
+        //         self.upsert_text_file(uri, format, is_open, content)
+        //     }
+        //     SourceFormat::DystBinary | SourceFormat::DystExecutable => {
+        //         self.upsert_binary_file(uri, format, is_open, content)
+        //     }
+        // }
     }
 
     /// Upsert and parse a file into the workspace.
@@ -455,7 +456,7 @@ impl Workspace {
 
         // create packages for missing manifests
         for file in self.files_by_uri.values_mut() {
-            if file.mode == FileMode::Package && !self.packages_by_id.contains_key(&file.package_id)
+            if false /* file.mode == FileMode::Package */ && !self.packages_by_id.contains_key(&file.package_id)
             {
                 let uri = file.uri.clone();
                 let package_id = PackageId::new(self.next_package_id);

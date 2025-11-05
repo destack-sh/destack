@@ -4,7 +4,7 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::{
-    DependencyItem, DependencyTarget, LanguageFormatter, FormatNode, LanguageFormatContext, NodeId,
+    DependencyItem, DependencyTarget, FormatNode, LanguageFormatContext, LanguageFormatter, NodeId,
 };
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
@@ -51,6 +51,7 @@ pub(crate) fn format_dependency_binding<'ast>(
     target: Option<&DependencyTarget>,
     alias: Option<StringId>,
     items: Option<&Vec<NodeId<DependencyItem>>>,
+    include_glob: bool,
 ) -> FormatResult<()> {
     // items with maybe target
     if let Some(items) = items
@@ -80,6 +81,8 @@ pub(crate) fn format_dependency_binding<'ast>(
                     space(),
                 ]
             )?;
+        } else if include_glob {
+            write!(f, [token("*"), space(), Keyword::From, space()])?;
         }
         // target
         write!(f, [target])?;
@@ -155,6 +158,16 @@ mod tests {
             source,
             |p| p.eat_expression(),
             LanguageFormatOptions::default_with_line_width(60)
+        );
+    }
+
+    #[test]
+    fn test_format_export_glob() {
+        assert_format!(
+            r#"export * from "./foo""#,
+            r#"export * from "./foo""#,
+            |p| p.eat_expression(),
+            LanguageFormatOptions::default()
         );
     }
 }

@@ -1,10 +1,10 @@
-/// The Destack Simulation Perception Module.
+/// The Destack Perception Module.
 
-import input
-import pointer
-import mouse
-import key
-import focus
-import drag
-import clipboard
+export * from "./input"
+export * from "./pointer"
+export * from "./mouse"
+export * from "./key"
+export * from "./focus"
+export * from "./drag"
+export * from "./clipboard"
 

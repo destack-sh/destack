@@ -1,7 +1,7 @@
-/// The Destack Simulation Physics Module.
+/// The Destack Physics Module.
 
-import body
-import collider
-import joint
-import soft
-import rigid
+export * from "./body"
+export * from "./collider"
+export * from "./joint"
+export * from "./soft"
+export * from "./rigid"

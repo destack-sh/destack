@@ -186,17 +186,6 @@ impl File {
         let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
         let content = FileContent::parse_text(source, language, session);
         todo!("nocheckin");
-
-        File {
-            id,
-            package_id,
-            name,
-            uri,
-            format,
-            mode: intent,
-            is_open,
-            content,
-        }
     }
 
     /// Build a parsed File for the provided binary content.
