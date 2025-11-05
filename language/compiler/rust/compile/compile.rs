@@ -5,7 +5,7 @@ use dyst_dir::{
 };
 
 use crate::{
-    Compiler, CompilerMode, ExecuteRequest, LowerRequest, ResolveRequest, ValidateRequest,
+    Compiler, CompilerStatus, ExecuteRequest, LowerRequest, ResolveRequest, ValidateRequest,
 };
 
 /// Message from the compiler during compilation.
@@ -68,8 +68,8 @@ impl<'s> Compiler<'s> {
     /// Resolve compile time constructs and check compile time invariants.
     /// Runs until there is nothing left to resolve.
     pub fn compile(&mut self) {
-        assert!(self.mode == CompilerMode::Parsed);
-        self.mode = CompilerMode::Compiling;
+        assert!(self.status == CompilerStatus::Parsed);
+        self.status = CompilerStatus::Compiling;
 
         // process all unresolved nodes
         self.queue_all_unresolved_nodes();
@@ -77,7 +77,7 @@ impl<'s> Compiler<'s> {
             self.process_message(message);
         }
 
-        self.mode = CompilerMode::Compiled;
+        self.status = CompilerStatus::Compiled;
     }
 
     // Generate messages for all unresolved nodes.

@@ -10,7 +10,7 @@ use dyst_source::SourceFormat;
 
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
-use dyst_module::{FileContent, SourceFile};
+use dyst_workspace::{FileContent, SourceFile};
 
 impl LanguageServer for DestackLanguageServer {
     // ------------------------------------------------------------

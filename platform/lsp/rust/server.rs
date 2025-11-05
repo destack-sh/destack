@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicU64;
 use tokio::sync::RwLock;
 use tower_lsp_server::Client;
 
-use dyst_module::Workspace;
+use dyst_workspace::Workspace;
 
 #[derive(Debug)]
 pub struct DestackLanguageServer {

@@ -1,9 +1,8 @@
 #![allow(clippy::new_without_default)]
 
-use dyst_diagnostic::{Diagnostic, Severity};
-use dyst_source::SourceId;
+use crate::{Diagnostic, Severity, SourceId};
 
-/// A session for diagnostic operations.
+/// A session for language operations.
 #[derive(Debug)]
 pub struct Session {
     /// The diagnostics emitted in this session.

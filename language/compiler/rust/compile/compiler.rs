@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_module::{FileContent, Package, SourceFile, Workspace};
+use dyst_workspace::{FileContent, Package, SourceFile, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
@@ -16,9 +16,9 @@ pub struct CompilerOptions {
     pub default_float_width: u16 = 64,
 }
 
-/// The mode the compiler is in.
+/// The status the compiler is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CompilerMode {
+pub enum CompilerStatus {
     Parsed,
     Compiling,
     Compiled,
@@ -43,8 +43,8 @@ pub struct Compiler<'s> {
     pub strings: StringPool,
     /// The options for compiling the Package.
     pub options: CompilerOptions,
-    /// The mode the compiler is in.
-    pub mode: CompilerMode,
+    /// The status the compiler is in.
+    pub status: CompilerStatus,
     /// The queue of compiler messages.
     pub queue: CompilerQueue,
 }
@@ -66,7 +66,7 @@ impl<'s> Compiler<'s> {
             tree: NodeTree::new(),
             strings: StringPool::new(),
             options,
-            mode: CompilerMode::Parsed,
+            status: CompilerStatus::Parsed,
             queue: CompilerQueue::new(),
         }
     }
@@ -116,7 +116,7 @@ impl<'s> Compiler<'s> {
 
     /// Finalize the compiler.
     pub fn finalize(&mut self) {
-        assert!(self.mode == CompilerMode::Compiled);
-        self.mode = CompilerMode::Finalized;
+        assert!(self.status == CompilerStatus::Compiled);
+        self.status = CompilerStatus::Finalized;
     }
 }

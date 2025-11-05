@@ -1,4 +1,4 @@
-use dyst_source::LabeledSpan;
+use crate::LabeledSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SuggestionStyle {

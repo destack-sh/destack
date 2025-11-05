@@ -13,9 +13,6 @@ doctest = false
 
 [dependencies]
 dyst_ast = { workspace = true }
-dyst_container = { workspace = true }
-dyst_diagnostic = { workspace = true }
-dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 
 destack_file = { workspace = true }
