@@ -766,8 +766,10 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     match ty {
         Type::Scalar(_) => {}
         Type::Definition(definition_id) => {
-            let definition = tree.get(*definition_id);
-            visitor.visit_definition(tree, *definition_id, definition);
+            if visitor.options().visit_indirect {
+                let definition = tree.get(*definition_id);
+                visitor.visit_definition(tree, *definition_id, definition);
+            }
         }
 
         Type::Unary { operator: _, right }
@@ -852,17 +854,17 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
     match variant {
         Variant::Struct {
             name: _,
-            ty: representation_type,
+            ty,
             fields,
             value,
         }
         | Variant::Tuple {
             name: _,
-            ty: representation_type,
+            ty,
             fields,
             value,
         } => {
-            if let Some(representation_type) = representation_type {
+            if let Some(representation_type) = ty {
                 let representation_type_node = tree.get(*representation_type);
                 visitor.visit_type(tree, *representation_type, representation_type_node);
             }
@@ -875,18 +877,14 @@ pub fn walk_variant<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value, value_expression);
             }
         }
-        Variant::Unit {
-            name: _,
-            ty: representation_type,
-            value,
-        } => {
-            if let Some(representation_type_id) = representation_type {
-                let representation_type = tree.get(*representation_type_id);
-                visitor.visit_type(tree, *representation_type_id, representation_type);
+        Variant::Unit { name: _, ty, value } => {
+            if let Some(ty_id) = ty {
+                let ty = tree.get(*ty_id);
+                visitor.visit_type(tree, *ty_id, ty);
             }
-            if let Some(value) = value {
-                let value_expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, value_expression);
+            if let Some(value_id) = value {
+                let value = tree.get(*value_id);
+                visitor.visit_expression(tree, *value_id, value);
             }
         }
     }

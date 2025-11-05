@@ -2,9 +2,9 @@ import { entity, Entity, Reference } from "destack"
 import { DateTime } from "destack.time"
 
 /// The status of a Meetup.
-export enum(uint8) MeetupStatus {
+export enum MeetupStatus {
     /// The Meetup is a draft.
-    #default
+    @default
     Draft = 1
     /// The Meetup is upcoming.
     Upcoming
@@ -30,7 +30,7 @@ export struct Meetup {
     // The name of the Meetup.
     name: string
     // The number of the Meetup.
-    number: uint32
+    number: uint
     // The Series this Meetup is part of.
     series: Reference<MeetupSeries>
     // The status of the Meetup.

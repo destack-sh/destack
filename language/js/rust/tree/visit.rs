@@ -8,8 +8,17 @@ use crate::{
     walk_statement, walk_switch_case, walk_type,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct NodeVisitorOptions {
+    /// Visit non-children nodes.
+    pub visit_indirect: bool = false,
+}
+
 /// A NodeVisitor visits nodes in the JS/TS AST.
 pub trait NodeVisitor {
+    /// Get the options for the visitor.
+    fn options(&self) -> &NodeVisitorOptions;
+
     #[inline]
     fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {}
 
@@ -118,12 +127,14 @@ pub trait NodeVisitor {
 #[derive(Debug, Clone, Default)]
 pub struct CapturingNodeVisitor {
     visited: Vec<u32>,
+    options: NodeVisitorOptions,
 }
 
 impl CapturingNodeVisitor {
-    pub fn new() -> Self {
+    pub fn new(options: NodeVisitorOptions) -> Self {
         Self {
             visited: Vec::new(),
+            options,
         }
     }
 
@@ -137,6 +148,11 @@ impl CapturingNodeVisitor {
 }
 
 impl NodeVisitor for CapturingNodeVisitor {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
     fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
         self.visited.push(id);
     }
