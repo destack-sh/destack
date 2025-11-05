@@ -6,7 +6,7 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{
-    Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
+    Argument, LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
     Parameter,
 };
 use dyst_fir::prelude::*;
@@ -57,13 +57,13 @@ where
     }
 }
 
-impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<LanguageFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
             if self.include_space {
@@ -350,7 +350,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_parameter() {
@@ -358,7 +358,7 @@ mod tests {
             "x: int32",
             "x: int32",
             |p| p.eat_parameter(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -368,7 +368,7 @@ mod tests {
             "x: int32 = 1",
             "x: int32 = 1",
             |p| p.eat_parameter(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -378,17 +378,17 @@ mod tests {
             "x: 1",
             "x: 1",
             |p| p.eat_argument(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
     #[test]
     fn test_format_argument_named_shorthand() {
-        assert_format!("x", "x", |p| p.eat_argument(), DystFormatOptions::default());
+        assert_format!("x", "x", |p| p.eat_argument(), LanguageFormatOptions::default());
     }
 
     #[test]
     fn test_format_argument_positional() {
-        assert_format!("1", "1", |p| p.eat_argument(), DystFormatOptions::default());
+        assert_format!("1", "1", |p| p.eat_argument(), LanguageFormatOptions::default());
     }
 }

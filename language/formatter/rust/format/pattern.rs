@@ -3,12 +3,12 @@ use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
 use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField,
+    LanguageFormatContext, DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
+impl<'ast> Format<LanguageFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("const")]),
@@ -17,7 +17,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for ScopedMutability {
+impl<'ast> Format<LanguageFormatContext<'ast>> for ScopedMutability {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ScopedMutability::Unscoped { mutability } => write!(f, [mutability])?,
@@ -163,7 +163,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_pattern_wildcard() {

@@ -10,11 +10,11 @@ use dyst_source::{
     StringId, StringPool,
 };
 
-pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
+pub type DystFormatter<'ast, 'buf> = Formatter<'buf, LanguageFormatContext<'ast>>;
 
-/// Dyst format options (mostly for testing).
+/// Dyst format options.
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct DystFormatOptions {
+pub struct LanguageFormatOptions {
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility>,
     /// The type of line ending to apply to the printed input.  
@@ -27,7 +27,7 @@ pub struct DystFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl From<LanguageOptions> for DystFormatOptions {
+impl From<LanguageOptions> for LanguageFormatOptions {
     #[inline]
     fn from(options: LanguageOptions) -> Self {
         Self {
@@ -40,7 +40,7 @@ impl From<LanguageOptions> for DystFormatOptions {
     }
 }
 
-impl DystFormatOptions {
+impl LanguageFormatOptions {
     /// Default options with a given line width.
     pub fn default_with_line_width(line_width: u8) -> Self {
         Self {
@@ -101,15 +101,18 @@ impl DystFormatOptions {
     }
 }
 
-impl FormatOptions for DystFormatOptions {
+impl FormatOptions for LanguageFormatOptions {
+    #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
     }
 
+    #[inline]
     fn indent_width(&self) -> u8 {
         self.indent_width
     }
 
+    #[inline]
     fn line_width(&self) -> u8 {
         self.line_width
     }
@@ -121,9 +124,9 @@ impl FormatOptions for DystFormatOptions {
 
 /// Dyst format context.
 #[derive(Debug, Clone)]
-pub struct DystFormatContext<'ast> {
+pub struct LanguageFormatContext<'ast> {
     /// The format options.
-    pub options: DystFormatOptions,
+    pub options: LanguageFormatOptions,
     /// The source.
     pub source: &'ast Source,
     /// The main tokens.
@@ -144,7 +147,7 @@ pub struct DystFormatContext<'ast> {
     pub session: &'ast Session,
 }
 
-impl<'ast> DystFormatContext<'ast> {
+impl<'ast> LanguageFormatContext<'ast> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'ast str {
@@ -406,8 +409,8 @@ impl<'ast> DystFormatContext<'ast> {
     }
 }
 
-impl FormatContext for DystFormatContext<'_> {
-    type Options = DystFormatOptions;
+impl FormatContext for LanguageFormatContext<'_> {
+    type Options = LanguageFormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -423,14 +426,14 @@ impl FormatContext for DystFormatContext<'_> {
 /// Format Nodes with more information.
 pub(crate) trait FormatNode<'ast, T: Node>
 where
-    DystFormatContext<'ast>: FormatContext,
+    LanguageFormatContext<'ast>: FormatContext,
 {
     /// Format a node.
     fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode via context.
-impl<'ast, T: Node> Format<DystFormatContext<'ast>> for NodeId<T>
+impl<'ast, T: Node> Format<LanguageFormatContext<'ast>> for NodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,

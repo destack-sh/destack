@@ -4,11 +4,11 @@ use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl, NodeType,
+    LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl, NodeType,
     Tag,
 };
 
-impl<'ast> DystFormatContext<'ast> {
+impl<'ast> LanguageFormatContext<'ast> {
     /// Format the block infix annotations for a node.
     #[inline]
     pub fn block_infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
@@ -114,7 +114,7 @@ pub struct Annotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for Annotations<T>
+impl<'ast, T> Format<LanguageFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
@@ -407,7 +407,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
@@ -430,7 +430,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -448,7 +448,7 @@ mod tests {
             source,
             source,
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -468,7 +468,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -497,7 +497,7 @@ mod tests {
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -528,7 +528,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -539,7 +539,7 @@ mod tests {
             "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(200)
+            LanguageFormatOptions::default_with_line_width(200)
         );
     }
 
@@ -560,7 +560,7 @@ mod tests {
     const X = 1
 }",
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -578,7 +578,7 @@ mod tests {
      * over multiple lines yo */
 }",
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -597,7 +597,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 }

@@ -3,7 +3,7 @@ use dyst_ast::{
     TokenSpan, TokenType,
 };
 use dyst_fir::format;
-use dyst_formatter::{DystFormatContext, DystFormatOptions};
+use dyst_formatter::{LanguageFormatContext, LanguageFormatOptions};
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
@@ -290,8 +290,8 @@ impl File {
 
         // format with default options
         // NOTE #Incomplete: configure LSP formatting options from Workspace/Package
-        let options = DystFormatOptions::default();
-        let context = DystFormatContext {
+        let options = LanguageFormatOptions::default();
+        let context = LanguageFormatContext {
             options,
             source,
             tokens,

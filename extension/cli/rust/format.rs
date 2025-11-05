@@ -12,7 +12,7 @@ use dyst_fir::format::{
     format as format_fir,
 };
 use dyst_fir::format_args;
-use dyst_formatter::DystFormatContext;
+use dyst_formatter::LanguageFormatContext;
 use dyst_parser::Parser;
 use dyst_session::Session;
 use dyst_source::{
@@ -329,7 +329,7 @@ fn format_source(
 
     // format the AST
     let parents = NodeParentIndex::from_tree(&tree);
-    let context = DystFormatContext {
+    let context = LanguageFormatContext {
         options: language.into(),
         source,
         tree: &tree,

@@ -4,13 +4,13 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::{
-    DependencyItem, DependencyTarget, DystFormatContext, DystFormatter, FormatNode, NodeId,
+    DependencyItem, DependencyTarget, LanguageFormatContext, DystFormatter, FormatNode, NodeId,
 };
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-impl<'ast> Format<DystFormatContext<'ast>> for DependencyTarget {
+impl<'ast> Format<LanguageFormatContext<'ast>> for DependencyTarget {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
@@ -91,7 +91,7 @@ pub(crate) fn format_dependency_binding<'ast>(
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_import_simple() {
@@ -99,7 +99,7 @@ mod tests {
             "import foo",
             "import foo",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -109,7 +109,7 @@ mod tests {
             "import foo as bar",
             "import * as bar from foo",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -119,7 +119,7 @@ mod tests {
             "import foo.{bar, baz}",
             "import { bar, baz } from foo",
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
+            LanguageFormatOptions::default_with_line_width(60)
         );
     }
     #[test]
@@ -128,7 +128,7 @@ mod tests {
             "import {bar, baz} from foo",
             "import { bar, baz } from foo",
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
+            LanguageFormatOptions::default_with_line_width(60)
         );
     }
 
@@ -138,7 +138,7 @@ mod tests {
             "import \"foo\"",
             "import \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -154,7 +154,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
+            LanguageFormatOptions::default_with_line_width(60)
         );
     }
 }

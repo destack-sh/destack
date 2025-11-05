@@ -5,7 +5,7 @@ use dyst_parser::{Parser, ParserResult};
 use dyst_session::Session;
 use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
-use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree};
+use crate::{LanguageFormatContext, LanguageFormatOptions, NodeParentIndex, NodeTree};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -63,11 +63,11 @@ impl TestFormatter {
     }
 
     /// Format a node from the parse tree.
-    pub(crate) fn format<'a, N>(&'a self, n: &N, options: DystFormatOptions) -> String
+    pub(crate) fn format<'a, N>(&'a self, n: &N, options: LanguageFormatOptions) -> String
     where
-        N: Format<DystFormatContext<'a>>,
+        N: Format<LanguageFormatContext<'a>>,
     {
-        let context = DystFormatContext {
+        let context = LanguageFormatContext {
             options,
             source: &self.source,
             session: &self.session,
@@ -97,7 +97,7 @@ impl TestFormatter {
 /// assert_format!(
 ///     "a(b)",
 ///     "a(b)",
-///     DystFormatOptions::default().with_indent_style(IndentStyle::Tab)
+///     LanguageFormatOptions::default().with_indent_style(IndentStyle::Tab)
 /// );
 ///
 /// // arbitrary node
@@ -106,7 +106,7 @@ impl TestFormatter {
 ///     "a.b",
 ///     |p| p.eat_path(),
 ///     |_, n| n,
-///     DystFormatOptions::default()
+///     LanguageFormatOptions::default()
 /// );
 /// ```
 #[macro_export]
@@ -114,14 +114,14 @@ macro_rules! assert_format {
     // Format a statement.
     ($input:expr, $output:expr) => {
         let (test, stmt_id) = TestFormatter::parse($input, |p| p.eat_statement()).unwrap();
-        let formatted = test.format(&stmt_id, DystFormatOptions::default());
+        let formatted = test.format(&stmt_id, LanguageFormatOptions::default());
         assert_eq!(formatted, $output);
     };
 
     // Format an arbitrary node.
     ($input:expr, $output:expr, $parse_fn:expr) => {
         let (test, node_id) = TestFormatter::parse($input, $parse_fn).unwrap();
-        let formatted = test.format(&node_id, DystFormatOptions::default());
+        let formatted = test.format(&node_id, LanguageFormatOptions::default());
         assert_eq!(formatted, $output);
     };
 

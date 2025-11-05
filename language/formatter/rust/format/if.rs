@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_if_with_body() {
@@ -9,7 +9,7 @@ mod tests {
             "if cond { const X = 1 } else { const Y = 2 }",
             "if cond {\n\tconst X = 1\n} else {\n\tconst Y = 2\n}",
             |p| p.eat_if(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -22,7 +22,7 @@ mod tests {
 } else {
     const Y = 2
 }";
-        assert_format!(source, source, |p| p.eat_if(), DystFormatOptions::default());
+        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
     }
 
     #[test]
@@ -39,7 +39,7 @@ else if cond2 {
 else {
     const Z = 3 // comment trailing Z
 }";
-        assert_format!(source, source, |p| p.eat_if(), DystFormatOptions::default());
+        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
     }
 
     #[test]
@@ -52,6 +52,6 @@ else {
         }
     }
 }";
-        assert_format!(source, source, |p| p.eat_if(), DystFormatOptions::default());
+        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
     }
 }

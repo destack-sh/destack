@@ -682,6 +682,7 @@ dependencies = [
  "dyst_js",
  "dyst_memory",
  "dyst_mir",
+ "dyst_package",
  "dyst_prelude",
  "dyst_session",
  "dyst_source",

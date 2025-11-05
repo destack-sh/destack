@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatContext, DystFormatter, Mutability, ScopedMutability};
+use crate::{LanguageFormatContext, DystFormatter, Mutability, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -52,7 +52,7 @@ impl FormatScopedMutability {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
+impl<'ast> Format<LanguageFormatContext<'ast>> for FormatScopedMutability {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match &self.mutability {
             ScopedMutability::Scoped { scopes, .. } => {
@@ -84,7 +84,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     #[test]
@@ -99,7 +99,7 @@ mod tests {
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_tab().with_line_width(40)
+            LanguageFormatOptions::default_tab().with_line_width(40)
         );
     }
 
@@ -115,7 +115,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -130,7 +130,7 @@ mod tests {
     TetrisPieceShape.O,
 )",
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -146,7 +146,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -161,7 +161,7 @@ mod tests {
     TetrisPieceShape.O,
 ]",
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 }

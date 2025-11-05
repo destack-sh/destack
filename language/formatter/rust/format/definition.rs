@@ -4,7 +4,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, DystFormatContext, DystFormatter, Field, FormatNode, Keyword, ModuleFormat, NodeId,
+    Definition, LanguageFormatContext, DystFormatter, Field, FormatNode, Keyword, ModuleFormat, NodeId,
     VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
@@ -44,7 +44,7 @@ pub(crate) fn format_type_clause<'ast>(
     )
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
+impl<'ast> Format<LanguageFormatContext<'ast>> for Visibility {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Visibility::Public => write!(f, [Keyword::Public])?,
@@ -55,7 +55,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
+impl<'ast> Format<LanguageFormatContext<'ast>> for ExportType {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ExportType::Item => write!(f, [Keyword::Export])?,
@@ -984,7 +984,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     /// Expression definitions should be surrounded by at least one blank line (except start/end).
     #[test]
