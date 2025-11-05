@@ -16,7 +16,7 @@ members = [
 	"language/jsm",
 	"language/mir",
 	"language/parser",
-	"language/package",
+	"language/module",
 	"language/prelude",
 	"language/source",
 	"language/string",
@@ -88,7 +88,7 @@ dyst_jsm = { path = "language/jsm" }
 dyst_memory = { path = "language/memory" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
-dyst_package = { path = "language/package" }
+dyst_module = { path = "language/module" }
 dyst_prelude = { path = "language/prelude" }
 dyst_session = { path = "language/session" }
 dyst_source = { path = "language/source" }

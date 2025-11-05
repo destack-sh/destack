@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, DefinitionType, LanguageFormatContext, DystFormatter, FloatType, IntType, Keyword,
+    Argument, DefinitionType, LanguageFormatter, FloatType, IntType, Keyword, LanguageFormatContext,
     NodeId, ScalarLiteral, TypeLiteral,
 };
 
@@ -16,7 +16,7 @@ use dyst_source::{Span, StringId};
 pub(crate) fn format_scalar_literal<'ast>(
     scalar: &ScalarLiteral,
     span: Span,
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     let span_str = f.context().source.get_span_str(span);
     match scalar {
@@ -76,7 +76,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 fn format_interpolated_template_literal<'ast>(
     strings: &[StringId],
     arguments: &[NodeId<Argument>],
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
 
@@ -109,7 +109,7 @@ fn format_interpolated_template_literal<'ast>(
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
     _span: Span,
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match template {
         TemplateLiteral::String { string } => {
@@ -135,7 +135,7 @@ pub(crate) fn format_template_literal<'ast>(
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for TypeLiteral {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
             TypeLiteral::Any => write!(f, [token("any")]),

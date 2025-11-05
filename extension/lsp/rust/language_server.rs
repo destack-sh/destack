@@ -9,7 +9,7 @@ use dyst_source::SourceFormat;
 
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
-use dyst_package::{FileContent, SourceFile};
+use dyst_module::{FileContent, SourceFile};
 use tower_lsp_server::lsp_types as lsp;
 
 impl LanguageServer for DestackLanguageServer {
@@ -535,9 +535,24 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        let Some(formatted) = document.format(&workspace.session) else {
-            return Ok(None);
+        // format with default options
+        // NOTE #Incomplete: configure LSP formatting options from Workspace/Package
+        let options = LanguageFormatOptions::default();
+        let context = LanguageFormatContext {
+            options,
+            source,
+            tokens,
+            side_tokens,
+            side_span,
+            tree: ast,
+            spans: &ast.spans,
+            parents: NodeParentIndex::from_tree(ast),
+            session,
+            strings,
         };
+        let formatted = format!(context, [module_id]).unwrap();
+        let printed = formatted.print();
+
         let Some((end_line, end_character)) = source.get_position(source.len) else {
             return Ok(None);
         };

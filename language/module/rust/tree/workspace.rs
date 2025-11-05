@@ -8,7 +8,7 @@ use dyst_session::Session;
 use dyst_source::{LanguageOptions, SourceFormat, SourceId, Uri};
 
 use crate::{
-    File, FileContent, FileIntent, PACKAGE_FILE_NAME, Package, PackageId, SourceFile,
+    File, FileContent, FileMode, PACKAGE_FILE_NAME, Package, PackageId, SourceFile,
     infer_source_format_from_uri,
 };
 
@@ -455,8 +455,7 @@ impl Workspace {
 
         // create packages for missing manifests
         for file in self.files_by_uri.values_mut() {
-            if file.intent == FileIntent::Package
-                && !self.packages_by_id.contains_key(&file.package_id)
+            if file.mode == FileMode::Package && !self.packages_by_id.contains_key(&file.package_id)
             {
                 let uri = file.uri.clone();
                 let package_id = PackageId::new(self.next_package_id);

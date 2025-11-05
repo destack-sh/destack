@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{LanguageFormatContext, DystFormatter, Mutability, ScopedMutability};
+use crate::{LanguageFormatter, LanguageFormatContext, Mutability, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -25,7 +25,7 @@ impl FormatScopedMutability {
     /// Format the mutability (without any scopes).
     /// Might be a no-op if the actual mutability is implicit.
     #[inline]
-    fn format_mutability(&self, f: &mut DystFormatter<'_, '_>) -> FormatResult<()> {
+    fn format_mutability(&self, f: &mut LanguageFormatter<'_, '_>) -> FormatResult<()> {
         match &self.mutability {
             ScopedMutability::Scoped { mutability, .. } => match self.implicit_mutability {
                 Some(implicit_mutability) => {
@@ -53,7 +53,7 @@ impl FormatScopedMutability {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for FormatScopedMutability {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         match &self.mutability {
             ScopedMutability::Scoped { scopes, .. } => {
                 // mutability

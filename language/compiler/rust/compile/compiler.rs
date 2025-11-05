@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_package::{FileContent, Package, SourceFile, Workspace};
+use dyst_module::{FileContent, Package, SourceFile, Workspace};
 use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};

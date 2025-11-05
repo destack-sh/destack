@@ -10,7 +10,7 @@ use dyst_source::{
     StringId, StringPool,
 };
 
-pub type DystFormatter<'ast, 'buf> = Formatter<'buf, LanguageFormatContext<'ast>>;
+pub type LanguageFormatter<'ast, 'buf> = Formatter<'buf, LanguageFormatContext<'ast>>;
 
 /// Dyst format options.
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -429,7 +429,7 @@ where
     LanguageFormatContext<'ast>: FormatContext,
 {
     /// Format a node.
-    fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()>;
+    fn format_node(&self, node_id: NodeId<T>, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode via context.
@@ -440,7 +440,7 @@ where
     T: FormatNode<'ast, T>,
 {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)

@@ -1,6 +1,6 @@
 [package]
-name = "dyst_package"
-description = "Dyst Package"
+name = "dyst_module"
+description = "Dyst Module"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

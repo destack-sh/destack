@@ -1,9 +1,9 @@
-use crate::{LanguageFormatContext, DystFormatter, Path};
+use crate::{LanguageFormatter, LanguageFormatContext, Path};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for Path {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         // a.b.c
         write!(
             f,

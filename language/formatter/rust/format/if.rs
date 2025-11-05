@@ -22,7 +22,12 @@ mod tests {
 } else {
     const Y = 2
 }";
-        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(),
+            LanguageFormatOptions::default()
+        );
     }
 
     #[test]
@@ -39,7 +44,12 @@ else if cond2 {
 else {
     const Z = 3 // comment trailing Z
 }";
-        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(),
+            LanguageFormatOptions::default()
+        );
     }
 
     #[test]
@@ -52,6 +62,11 @@ else {
         }
     }
 }";
-        assert_format!(source, source, |p| p.eat_if(), LanguageFormatOptions::default());
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(),
+            LanguageFormatOptions::default()
+        );
     }
 }

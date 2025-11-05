@@ -18,8 +18,8 @@ pub enum FormatMode {
 pub struct LanguageFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
-	/// The target language.
-	pub options: TranspilerOptions,
+	/// The transpiler options.
+	pub transpiler: TranspilerOptions,
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.

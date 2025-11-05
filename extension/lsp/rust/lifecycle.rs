@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_package::{FileContent, SourceFile, Workspace};
+use dyst_module::{FileContent, SourceFile, Workspace};
 use dyst_source::SourceFormat;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};

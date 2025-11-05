@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, MatchCase, NodeId};
+use crate::{LanguageFormatter, FormatNode, Keyword, MatchCase, NodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -8,7 +8,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
         &self,
         node_id: NodeId<MatchCase>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

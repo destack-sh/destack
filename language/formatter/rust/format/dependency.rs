@@ -4,7 +4,7 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::{
-    DependencyItem, DependencyTarget, LanguageFormatContext, DystFormatter, FormatNode, NodeId,
+    DependencyItem, DependencyTarget, LanguageFormatter, FormatNode, LanguageFormatContext, NodeId,
 };
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
@@ -12,7 +12,7 @@ use dyst_fir::write;
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for DependencyTarget {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyTarget::Path(path) => write!(f, [path]),
             DependencyTarget::String(string) => write!(f, [token("\""), string, token("\"")]),
@@ -24,7 +24,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         node_id: NodeId<DependencyItem>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -47,7 +47,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 
 /// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
 pub(crate) fn format_dependency_binding<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     target: Option<&DependencyTarget>,
     alias: Option<StringId>,
     items: Option<&Vec<NodeId<DependencyItem>>>,

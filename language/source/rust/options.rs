@@ -7,6 +7,23 @@ pub enum LanguageMode {
     Strict,
 }
 
+/// The type of language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LanguageType {
+    /// The Dyst language (like `.ds`, `.dst`).
+    Dyst,
+    /// The Dyst data language (like `.d.ds`).
+    DystDeclaration,
+    /// JavaScript (like `.js`).
+    JavaScript,
+    /// JavaScript XML (like `.jsx`).
+    JavaScriptXml,
+    /// TypeScript (like `.ts`).
+    TypeScript,
+    /// TypeScript XML (like `.tsx`).
+    TypeScriptXml,
+}
+
 /// The language compatibility mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageCompatibility {

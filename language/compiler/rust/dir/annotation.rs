@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{Annotation, AnnotationPosition, NodeId};
-use dyst_package::{FileContent, SourceFile};
+use dyst_module::{FileContent, SourceFile};
 use dyst_source::SourceId;
 
 impl<'a> Compiler<'a> {

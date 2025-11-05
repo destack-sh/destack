@@ -1,13 +1,13 @@
 use dyst_ast::{BindingKind, BindingModifier, BindingOperator, BindingScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, Field, FormatNode, NodeId};
+use crate::{LanguageFormatter, Field, FormatNode, NodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // visibility
@@ -31,7 +31,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -42,7 +42,7 @@ pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // kind
@@ -54,7 +54,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -67,7 +67,7 @@ impl<'ast> FormatNode<'ast, Field> for Field {
     fn format_node(
         &self,
         node_id: NodeId<Field>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

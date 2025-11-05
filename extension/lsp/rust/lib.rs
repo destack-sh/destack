@@ -12,7 +12,7 @@ pub mod workspace;
 pub use server::DestackLanguageServer;
 pub use source::*;
 
-use dyst_package::Workspace;
+use dyst_module::Workspace;
 
 use tower_lsp_server::{LspService, Server};
 

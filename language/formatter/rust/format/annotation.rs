@@ -4,8 +4,8 @@ use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl, NodeType,
-    Tag,
+    LanguageFormatter, FormatNode, LanguageFormatContext, Node, NodeId, NodeTree, NodeTreeImpl,
+    NodeType, Tag,
 };
 
 impl<'ast> LanguageFormatContext<'ast> {
@@ -119,7 +119,7 @@ where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
         };
@@ -215,7 +215,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     fn format_node(
         &self,
         node_id: NodeId<Annotation>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Annotation::Blank { node, .. } => {
@@ -246,7 +246,7 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
     fn format_node(
         &self,
         _node_id: NodeId<Blank>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // reduce any number of blank lines to a single one
         write!(f, [empty_line()])?;
@@ -258,7 +258,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
     fn format_node(
         &self,
         _node_id: NodeId<Doc>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -310,7 +310,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
     fn format_node(
         &self,
         _node_id: NodeId<Comment>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -356,7 +356,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
     fn format_node(
         &self,
         _node_id: NodeId<Tag>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("#"), self.receiver])?;
         if let Some(arguments) = &self.arguments
@@ -382,7 +382,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     fn format_node(
         &self,
         _node_id: NodeId<Decorator>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("@"), self.receiver])?;
         if let Some(arguments) = &self.arguments

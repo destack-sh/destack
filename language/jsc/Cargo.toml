@@ -19,7 +19,7 @@ dyst_fir = { workspace = true }
 dyst_js = { workspace = true }
 dyst_memory = { workspace = true }
 dyst_mir = { workspace = true }
-dyst_package = { workspace = true }
+dyst_module = { workspace = true }
 dyst_prelude = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }

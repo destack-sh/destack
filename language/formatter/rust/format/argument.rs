@@ -6,8 +6,8 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{
-    Argument, LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
-    Parameter,
+    Argument, LanguageFormatter, FormatNode, LanguageFormatContext, Node, NodeId, NodeTree,
+    NodeTreeImpl, Parameter,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
@@ -160,7 +160,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: NodeId<Parameter>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -233,7 +233,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         node_id: NodeId<Argument>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -384,11 +384,21 @@ mod tests {
 
     #[test]
     fn test_format_argument_named_shorthand() {
-        assert_format!("x", "x", |p| p.eat_argument(), LanguageFormatOptions::default());
+        assert_format!(
+            "x",
+            "x",
+            |p| p.eat_argument(),
+            LanguageFormatOptions::default()
+        );
     }
 
     #[test]
     fn test_format_argument_positional() {
-        assert_format!("1", "1", |p| p.eat_argument(), LanguageFormatOptions::default());
+        assert_format!(
+            "1",
+            "1",
+            |p| p.eat_argument(),
+            LanguageFormatOptions::default()
+        );
     }
 }
