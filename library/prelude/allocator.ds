@@ -1,3 +1,0 @@
-export interface Allocator {
-    function allocate(self, size: usize)
-}

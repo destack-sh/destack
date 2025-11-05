@@ -1,9 +1,0 @@
-import destack
-
-/// A Script.
-@entity
-export struct Script {
-    /// The script code.
-    code: string
-}
-

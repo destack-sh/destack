@@ -1,6 +1,0 @@
-import destack
-
-/// An Environment is a usage scenario.
-@entity
-export struct Environment { }
-

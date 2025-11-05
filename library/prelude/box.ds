@@ -1,4 +1,0 @@
-/// Box is a simple wrapper around a value.
-export struct Box<T> {
-    value: T
-}

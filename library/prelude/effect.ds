@@ -1,2 +1,0 @@
-/// Marker export interface for external side Effects.
-export interface Effect { }

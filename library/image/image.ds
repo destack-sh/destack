@@ -1,9 +1,0 @@
-import destack
-
-/// An Image File
-@entity
-export struct Image extends File {
-    width: uint32
-    height: uint32
-}
-

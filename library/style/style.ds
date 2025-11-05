@@ -1,6 +1,0 @@
-import destack
-
-/// A Style defines a base visual appearance in some context
-@entity
-export struct Style { }
-
