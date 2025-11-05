@@ -2,7 +2,7 @@
 
 use dyst_ast::{Asynchrony, ForEachKind, TokenType, WhileKind};
 
-use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
+use crate::{Expression, Keyword, NodeId, Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_loop(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_loop(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -27,10 +27,7 @@ impl<'a> Parser<'a> {
 
         // loop
         let loop_id = self.tree.insert(
-            Expression::Loop {
-                runtime,
-                body: body_id,
-            },
+            Expression::Loop { body: body_id },
             self.get_span_from(start),
         );
         Ok(loop_id)
@@ -59,7 +56,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// }
     /// ```
-    pub fn eat_for(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_for(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -121,7 +118,6 @@ impl<'a> Parser<'a> {
             // for
             let for_id = self.tree.insert(
                 Expression::For {
-                    runtime,
                     initialization: initialization_id,
                     condition: condition_id,
                     increment: increment_id,
@@ -168,7 +164,6 @@ impl<'a> Parser<'a> {
             // for
             let for_id = self.tree.insert(
                 Expression::ForEach {
-                    runtime,
                     asynchrony,
                     kind,
                     pattern: pattern_id,
@@ -198,7 +193,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// } while x > 1
     /// ```
-    pub fn eat_while(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_while(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // do-while loop
@@ -218,7 +213,6 @@ impl<'a> Parser<'a> {
             // while
             let while_id = self.tree.insert(
                 Expression::While {
-                    runtime,
                     kind: WhileKind::DoWhile,
                     condition: condition_id,
                     body: body_id,
@@ -243,7 +237,6 @@ impl<'a> Parser<'a> {
             // while
             let while_id = self.tree.insert(
                 Expression::While {
-                    runtime,
                     kind: WhileKind::While,
                     condition: condition_id,
                     body: body_id,
@@ -279,7 +272,7 @@ loop {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let loop_id = parser.eat_loop(None).unwrap();
+        let loop_id = parser.eat_loop().unwrap();
         assert_node!(parser.tree, loop_id, Expression::Loop { body, .. } => {
             let _block = parser.tree.get(*body);
         });
@@ -297,7 +290,7 @@ for item in items {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
@@ -320,7 +313,7 @@ for (item in items) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, pattern, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Sync);
             // item
@@ -344,7 +337,7 @@ for await (item of items) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, pattern, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*kind, ForEachKind::Of);
@@ -369,7 +362,7 @@ for const item in items outer: {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(ScopedMutability::Unscoped { mutability }), name, pattern: None } => {
@@ -391,7 +384,7 @@ for (;;) {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body: _, .. } => {
             assert!(initialization.is_none());
             assert!(condition.is_none());
@@ -411,7 +404,7 @@ for (var x = 0; x < 10; x++) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let for_id = parser.eat_for(None).unwrap();
+        let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body: _, .. } => {
             // var x = 0
             assert_node!(parser.tree, initialization.unwrap(), Expression::Let { pattern, value, .. } => {
@@ -449,7 +442,7 @@ while x {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let while_id = parser.eat_while(None).unwrap();
+        let while_id = parser.eat_while().unwrap();
         assert_node!(parser.tree, while_id, Expression::While { condition, body: _, .. } => {
             assert_expr_path!(parser, parser.tree.get(*condition), "x");
         });
@@ -470,7 +463,7 @@ while x > y {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let while_id = parser.eat_while(None).unwrap();
+        let while_id = parser.eat_while().unwrap();
 
         // while x > y
         assert_node!(parser.tree, while_id, Expression::While { condition, body, .. } => {
@@ -515,7 +508,7 @@ do { x } while true
         parser.eat_newline().unwrap();
 
         // do { x } while true
-        let do_while_id = parser.eat_while(None).unwrap();
+        let do_while_id = parser.eat_while().unwrap();
         assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body: _, .. } => {
             assert_eq!(*kind, WhileKind::DoWhile);
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));

@@ -297,7 +297,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Call {
-            runtime: _,
             left,
             dynamic_arguments,
         } => {
@@ -422,7 +421,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::If {
-            runtime: _,
             kind: _,
             condition,
             then_expression,
@@ -438,7 +436,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Loop {
-            runtime: _,
             condition,
             body,
             source: _,
@@ -449,7 +446,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Expression::ForEach {
-            runtime: _,
             asynchrony: _,
             kind: _,
             pattern,
@@ -464,7 +460,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Expression::For {
-            runtime: _,
             initialization,
             condition,
             increment,
@@ -486,7 +481,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *body, body_block);
         }
         Expression::Match {
-            runtime: _,
             value,
             cases,
             source: _,

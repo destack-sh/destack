@@ -200,7 +200,6 @@ impl<'a> Compiler<'a> {
         &mut self,
         source_id: SourceId,
         ast: &ast::NodeTree,
-        runtime: ast::Runtime,
         abstraction: ast::FunctionAbstraction,
         asynchrony: ast::Asynchrony,
         cardinality: ast::FunctionCardinality,
@@ -210,7 +209,6 @@ impl<'a> Compiler<'a> {
         dynamic_parameters: &[ast::NodeId<ast::Parameter>],
         return_type: &Option<ast::NodeId<ast::Expression>>,
     ) -> FunctionSignature {
-        let runtime = self.lower_runtime(runtime);
         let abstraction = self.lower_function_abstraction(abstraction);
         let asynchrony = self.lower_asynchrony(asynchrony);
         let cardinality = self.lower_function_cardinality(cardinality);
@@ -227,7 +225,6 @@ impl<'a> Compiler<'a> {
             .as_ref()
             .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
         FunctionSignature {
-            runtime,
             abstraction,
             asynchrony,
             cardinality,
@@ -507,7 +504,6 @@ impl<'a> Compiler<'a> {
             // Function definition
             ast::Definition::Function {
                 meta,
-                runtime,
                 abstraction,
                 asynchrony,
                 cardinality,
@@ -532,7 +528,6 @@ impl<'a> Compiler<'a> {
                 let signature = self.lower_function_signature(
                     source_id,
                     ast,
-                    *runtime,
                     *abstraction,
                     *asynchrony,
                     *cardinality,

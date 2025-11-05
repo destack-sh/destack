@@ -23,10 +23,6 @@ pub trait NodeVisitor {
         // nothing to do
     }
 
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
-
     /// Visit an Expression.
     fn visit_expression(
         &mut self,
@@ -41,10 +37,6 @@ pub trait NodeVisitor {
     fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
         walk_block(self, tree, id, block);
     }
-
-    // ------------------------------------------------------------
-    // Definitions
-    // ------------------------------------------------------------
 
     /// Visit a Definition.
     fn visit_definition(
@@ -76,10 +68,6 @@ pub trait NodeVisitor {
         walk_union_field(self, tree, id, union_field);
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     /// Visit a WithClause.
     fn visit_with_clause(
         &mut self,
@@ -110,10 +98,6 @@ pub trait NodeVisitor {
         walk_dependency_item(self, tree, id, dependency_item);
     }
 
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     /// Visit a Parameter.
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
@@ -123,10 +107,6 @@ pub trait NodeVisitor {
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 
     /// Visit a MatchCase.
     fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
@@ -147,10 +127,6 @@ pub trait NodeVisitor {
     ) {
         walk_pattern_field(self, tree, id, pattern_field);
     }
-
-    // ------------------------------------------------------------
-    // Annotations
-    // ------------------------------------------------------------
 
     /// Visit an Annotation.
     fn visit_annotation(

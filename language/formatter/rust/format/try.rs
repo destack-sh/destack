@@ -8,7 +8,7 @@ mod tests {
         assert_format!(
             "try operation()",
             "try operation()",
-            |p| p.eat_try(None),
+            |p| p.eat_try(),
             DystFormatOptions::default()
         );
     }
@@ -18,7 +18,7 @@ mod tests {
         assert_format!(
             "try { const X = 1 }",
             "try {\n\tconst X = 1\n}",
-            |p| p.eat_try(None),
+            |p| p.eat_try(),
             DystFormatOptions::default_tab()
         );
     }
@@ -33,7 +33,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_try(None),
+            |p| p.eat_try(),
             DystFormatOptions::default()
         );
     }
@@ -50,7 +50,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_try(None),
+            |p| p.eat_try(),
             DystFormatOptions::default()
         );
     }

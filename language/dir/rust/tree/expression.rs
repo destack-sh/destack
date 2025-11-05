@@ -3,8 +3,8 @@ use dyst_ast::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
     DependencyItem, DependencyKind, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    NodeType, Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral, Type,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,7 +102,6 @@ pub enum Expression {
     },
     /// Call to a function.
     Call {
-        runtime: Option<Runtime>,
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -167,7 +166,6 @@ pub enum Expression {
 
     /// If expression.
     If {
-        runtime: Option<Runtime>,
         kind: IfKind,
         condition: NodeId<Expression>,
         then_expression: NodeId<Expression>,
@@ -175,14 +173,12 @@ pub enum Expression {
     },
     /// Loop expression.
     Loop {
-        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         body: NodeId<Block>,
         source: LoopSource,
     },
     /// For each loop.
     ForEach {
-        runtime: Option<Runtime>,
         asynchrony: Asynchrony,
         kind: ForEachKind,
         pattern: NodeId<Pattern>,
@@ -191,7 +187,6 @@ pub enum Expression {
     },
     /// For three-part loop.
     For {
-        runtime: Option<Runtime>,
         initialization: Option<NodeId<Expression>>,
         condition: Option<NodeId<Expression>>,
         increment: Option<NodeId<Expression>>,
@@ -199,7 +194,6 @@ pub enum Expression {
     },
     /// Match expression.
     Match {
-        runtime: Option<Runtime>,
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
         source: MatchSource,

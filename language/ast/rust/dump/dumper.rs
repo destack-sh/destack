@@ -835,30 +835,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::If {
-                runtime,
                 kind,
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
                 self.node("Expression::If", _id.id)
-                    .field_optional("runtime", runtime)
                     .field("kind", kind)
                     .end();
             }
             Expression::While {
-                runtime,
                 kind,
                 condition: _,
                 body: _,
             } => {
                 self.node("Expression::While", _id.id)
-                    .field_optional("runtime", runtime)
                     .field("kind", kind)
                     .end();
             }
             Expression::ForEach {
-                runtime,
                 asynchrony,
                 kind,
                 pattern: _,
@@ -866,46 +861,35 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Expression::ForEach", _id.id)
-                    .field_optional("runtime", runtime)
                     .field("asynchrony", asynchrony)
                     .field("kind", kind)
                     .end();
             }
             Expression::For {
-                runtime,
                 initialization: _,
                 condition: _,
                 increment: _,
                 body: _,
             } => {
-                self.node("Expression::For", _id.id)
-                    .field_optional("runtime", runtime)
-                    .end();
+                self.node("Expression::For", _id.id).end();
             }
-            Expression::Loop { runtime, body: _ } => {
-                self.node("Expression::Loop", _id.id)
-                    .field_optional("runtime", runtime)
-                    .end();
+            Expression::Loop { body: _ } => {
+                self.node("Expression::Loop", _id.id).end();
             }
             Expression::Try {
-                runtime,
                 try_expression: _,
                 catch_pattern: _,
                 catch_expression: _,
                 finally_expression: _,
             } => {
-                self.node("Expression::Try", _id.id)
-                    .field_optional("runtime", runtime)
-                    .end();
+                self.node("Expression::Try", _id.id).end();
             }
             Expression::Match {
-                runtime,
                 kind: style,
                 value: _,
                 cases: _,
             } => {
                 self.node("Expression::Match", _id.id)
-                    .field_optional("runtime", runtime)
                     .field("style", style)
                     .end();
             }
@@ -1046,13 +1030,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Call {
                 position,
-                runtime,
                 left: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", _id.id)
                     .field("position", position)
-                    .field_optional("runtime", runtime)
                     .end();
             }
             Expression::New {
@@ -1222,7 +1204,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Function {
                 meta,
-                runtime,
                 abstraction,
                 asynchrony,
                 cardinality,
@@ -1238,7 +1219,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
-                    .field("runtime", runtime)
                     .field("abstraction", abstraction)
                     .field("asynchrony", asynchrony)
                     .field("cardinality", cardinality)

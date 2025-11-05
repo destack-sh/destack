@@ -5,7 +5,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
     Definition, DystFormatContext, DystFormatter, Field, FormatNode, Keyword, ModuleFormat, NodeId,
-    Runtime, VariantFormat, empty_block_with_infix_annotations,
+    VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
     Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
@@ -781,7 +781,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // function
             Definition::Function {
                 meta,
-                runtime,
                 abstraction,
                 asynchrony,
                 cardinality,
@@ -871,9 +870,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // name / key (with @)
                 if *style == FunctionKind::Function {
-                    if *runtime == Runtime::Static {
-                        write!(f, [token("@")])?;
-                    }
                     if let Some(name) = meta.name {
                         write!(f, [name])?;
                     } else if let Some(key) = meta.key {

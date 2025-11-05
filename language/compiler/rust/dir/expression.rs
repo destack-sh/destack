@@ -348,18 +348,15 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Call {
                 position: _,
-                runtime,
                 left: receiver,
                 dynamic_arguments,
             } => {
-                let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
                 let receiver = self.lower_expression(source_id, ast, *receiver);
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(source_id, ast, *argument))
                     .collect();
                 Expression::Call {
-                    runtime,
                     left: receiver,
                     dynamic_arguments,
                 }
@@ -432,20 +429,17 @@ impl<'a> Compiler<'a> {
             }
 
             ast::Expression::If {
-                runtime,
                 kind,
                 condition,
                 then_expression,
                 else_expression,
             } => {
-                let runtime = runtime.map(|runtime| self.lower_runtime(runtime));
                 let kind = self.lower_if_kind(*kind);
                 let condition = self.lower_expression(source_id, ast, *condition);
                 let then_expression = self.lower_expression(source_id, ast, *then_expression);
                 let else_expression = else_expression
                     .map(|else_expression| self.lower_expression(source_id, ast, else_expression));
                 Expression::If {
-                    runtime,
                     kind,
                     condition,
                     then_expression,

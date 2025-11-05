@@ -109,12 +109,6 @@ mod tests {
     }
 
     #[test]
-    fn test_format_function_static_runtime() {
-        assert_format!("function @comptime() {}", "function @comptime() { }", |p| p
-            .eat_function(DefinitionMeta::default(), false, false));
-    }
-
-    #[test]
     fn test_format_function_with_with_and_return() {
         assert_format!(
             "function foo(): int32 with Disk {}",

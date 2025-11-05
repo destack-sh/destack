@@ -1,4 +1,4 @@
-use crate::{Expression, Keyword, NodeId, Parser, ParserResult, Runtime};
+use crate::{Expression, Keyword, NodeId, Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_try(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_try(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
 
@@ -84,7 +84,6 @@ impl<'a> Parser<'a> {
             // try
             let try_id = self.tree.insert(
                 Expression::Try {
-                    runtime,
                     try_expression,
                     catch_pattern,
                     catch_expression,
@@ -99,7 +98,6 @@ impl<'a> Parser<'a> {
             let expression_id = self.eat_expression()?;
             let try_id = self.tree.insert(
                 Expression::Try {
-                    runtime,
                     try_expression: expression_id,
                     catch_pattern: None,
                     catch_expression: None,
@@ -129,9 +127,9 @@ try foo()
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
-            assert_node!(parser.tree, *try_expression, Expression::Call { position: _, runtime: _, left, dynamic_arguments: _ } => {
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
+            assert_node!(parser.tree, *try_expression, Expression::Call { position: _, left, dynamic_arguments: _ } => {
                 assert_expr_path!(parser, parser.tree.get(*left), "foo");
             });
         });
@@ -149,12 +147,12 @@ try {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, runtime: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "foo");
                     });
                 });
@@ -178,13 +176,13 @@ try {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let try_id = parser.eat_try(None).unwrap();
-        assert_node!(parser.tree, try_id, Expression::Try { runtime: _, try_expression, catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), finally_expression: Some(finally_expression) } => {
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: Some(catch_pattern), catch_expression: Some(catch_expression), finally_expression: Some(finally_expression) } => {
             // try
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, runtime: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "foo");
                     });
                 });
@@ -197,7 +195,7 @@ try {
             assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, runtime: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "bar");
                     });
                 });
@@ -206,7 +204,7 @@ try {
             assert_node!(parser.tree, *finally_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, runtime: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "baz");
                     });
                 });

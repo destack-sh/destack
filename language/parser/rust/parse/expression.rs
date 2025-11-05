@@ -6,7 +6,7 @@ use dyst_ast::{
 use crate::parse::prelude::*;
 use crate::{
     Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, NodeType,
-    Parser, ParserError, ParserMark, ParserResult, Runtime, TokenSpan, TokenType, UnaryOperator,
+    Parser, ParserError, ParserMark, ParserResult, TokenSpan, TokenType, UnaryOperator,
 };
 
 pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
@@ -349,14 +349,6 @@ impl<'a> Parser<'a> {
             BindingScope::Static
         } else {
             BindingScope::Container
-        };
-
-        // runtime
-        let mut runtime = if self.peek_token(TokenType::At).is_ok() {
-            self.bump(); // eat @
-            Some(Runtime::Static)
-        } else {
-            None
         };
 
         //
@@ -743,27 +735,27 @@ impl<'a> Parser<'a> {
             }
             // if
             else if keyword == Some(Keyword::If) {
-                self.eat_if(runtime)?
+                self.eat_if()?
             }
             // while
             else if keyword == Some(Keyword::While) || keyword == Some(Keyword::Do) {
-                self.eat_while(runtime)?
+                self.eat_while()?
             }
             // for
             else if keyword == Some(Keyword::For) {
-                self.eat_for(runtime)?
+                self.eat_for()?
             }
             // loop
             else if keyword == Some(Keyword::Loop) && self.peek_next_block().is_ok() {
-                self.eat_loop(runtime)?
+                self.eat_loop()?
             }
             // try
             else if keyword == Some(Keyword::Try) {
-                self.eat_try(runtime)?
+                self.eat_try()?
             }
             // match / switch
             else if keyword == Some(Keyword::Match) || keyword == Some(Keyword::Switch) {
-                self.eat_match(runtime)?
+                self.eat_match()?
             }
             // break
             else if keyword == Some(Keyword::Break) {
@@ -902,24 +894,8 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        // implicitly call static functions without arguments (e.g., `@entity`)
-        if runtime.is_some()
-            && let Expression::Path { .. } = self.tree.get(left_expression_id)
-            && self.peek_token(TokenType::OpenParenthesis).is_err()
-        {
-            left_expression_id = self.tree.insert(
-                Expression::Call {
-                    position: PostfixPosition::Direct,
-                    runtime,
-                    left: left_expression_id,
-                    dynamic_arguments: vec![],
-                },
-                self.get_span_from(start),
-            );
-            runtime = None;
-        }
         // struct literal postfix with `{` (like `Vector2 { x: 0, y }`)
-        else if let Expression::Path { .. } = self.tree.get(left_expression_id)
+        if let Expression::Path { .. } = self.tree.get(left_expression_id)
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
         {
@@ -1055,7 +1031,7 @@ impl<'a> Parser<'a> {
                 } else {
                     PostfixPosition::Direct
                 };
-                left_expression_id = self.eat_call(left_expression_id, position, runtime)?;
+                left_expression_id = self.eat_call(left_expression_id, position)?;
             }
             // maybe or ternary if
             // (like `x?`, `x.?`, `x?.` or `cond ? then : else`)
@@ -1121,7 +1097,6 @@ impl<'a> Parser<'a> {
                         })?;
                     // ternary if
                     let expression = Expression::If {
-                        runtime,
                         kind: IfKind::Ternary,
                         condition: left_expression_id,
                         then_expression: then_expression_id,
@@ -1247,9 +1222,9 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, BinaryOperator, DependencyItem, Expression, Mutability, Pattern, Runtime,
-        ScalarLiteral, ScopedMutability, UnaryOperator, assert_expr_path, assert_name, assert_node,
-        assert_path, assert_string,
+        Argument, BinaryOperator, DependencyItem, Expression, Mutability, Pattern, ScalarLiteral,
+        ScopedMutability, UnaryOperator, assert_expr_path, assert_name, assert_node, assert_path,
+        assert_string,
     };
 
     /// Disambiguate using import as a path.
@@ -2220,8 +2195,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     *right,
-                    Expression::Call { runtime, left, .. } => {
-                        assert_eq!(*runtime, None);
+                    Expression::Call { left, .. } => {
                         // self.foo
                         assert_node!(
                             parser.tree,
@@ -2330,8 +2304,7 @@ const x =
                                 assert_node!(
                                     parser.tree,
                                     *left,
-                                    Expression::Call { runtime, left, .. } => {
-                                        assert_eq!(*runtime, None);
+                                    Expression::Call { left, .. } => {
                                         // foo.parse
                                         assert_node!(
                                             parser.tree,
@@ -2658,10 +2631,10 @@ self
     /// Postfix call has higher precedence than addition.
     #[test]
     fn test_parse_precedence_postfix_call_before_add() {
-        let mut test = TestParser::new("a() + @b() / c");
+        let mut test = TestParser::new("a() + b() / c");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        // a() + @b() / c
+        // a() + b() / c
         assert_node!(
             parser.tree,
             expr_id,
@@ -2671,24 +2644,22 @@ self
                 assert_node!(
                     parser.tree,
                     *left,
-                    Expression::Call { runtime, left, .. } => {
-                        assert_eq!(*runtime, None);
+                    Expression::Call { left, .. } => {
                         // a
                         assert_expr_path!(parser, parser.tree.get(*left), "a");
                     }
                 );
-                // @b() / c
+                // b() / c
                 assert_node!(
                     parser.tree,
                     *right,
                     Expression::Binary { left, operator, right, .. } => {
                         assert_eq!(*operator, BinaryOperator::Divide);
-                        // @b()
+                        // b()
                         assert_node!(
                             parser.tree,
                             *left,
-                            Expression::Call { runtime, left, .. } => {
-                                assert_eq!(*runtime, Some(Runtime::Static));
+                            Expression::Call { left, .. } => {
                                 // b
                                 assert_expr_path!(parser, parser.tree.get(*left), "b");
                             }

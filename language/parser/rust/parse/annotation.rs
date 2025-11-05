@@ -770,7 +770,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Field, Runtime,
+        Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Field,
         ScalarLiteral, Tag, assert_node, assert_path, assert_string,
     };
 
@@ -897,45 +897,6 @@ struct Test {}
             assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
                 assert_path!(parser, *receiver, "foo");
                 assert!(arguments.is_none());
-            });
-        });
-    }
-
-    /// If decorators should be distinguished from static ifs.
-    #[test]
-    fn test_attach_if_decorator_to_function_with_static_if_inside() {
-        let mut test = TestParser::new("@if\nfunction foo() { @if true { } }");
-        let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
-
-        assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 1);
-        // @if
-        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Decorator { receiver, arguments } => {
-                assert_path!(parser, *receiver, "if");
-                assert!(arguments.is_none());
-            });
-        });
-
-        // function foo()
-        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-            assert_node!(parser.tree, *node, Definition::Function { meta, body, .. } => {
-                // foo
-                assert_string!(parser, meta.name.unwrap().string(), "foo");
-                assert!(body.is_some());
-                assert_node!(parser.tree, body.unwrap(), Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                        assert_eq!(expressions.len(), 1);
-                        // @if
-                        assert_node!(parser.tree, expressions[0], Expression::If { runtime, ..} => {
-                            assert_eq!(*runtime, Some(Runtime::Static));
-                        });
-                    });
-                });
             });
         });
     }

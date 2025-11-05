@@ -46,6 +46,7 @@ export struct MeetupRegistration {
     user: Reference<User>
 }
 
+/// Register for a Meetup.
 @action(commit: true)
 export async function register(
     meetup: Reference<Meetup>,

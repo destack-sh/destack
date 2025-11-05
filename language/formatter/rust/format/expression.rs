@@ -15,7 +15,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
-    Keyword, NodeId, Runtime, UnaryOperator, empty_block_with_infix_annotations,
+    Keyword, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)
@@ -128,19 +128,11 @@ pub(crate) fn format_if_else_chain<'ast>(
         match if_node {
             // if or else if
             Expression::If {
-                runtime,
                 kind: _, // we turn everything into regular ifs
                 condition,
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
             } => {
-                // runtime
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-
                 // if <condition>
                 write!(f, [Keyword::If, space(), condition, space()])?;
 
@@ -263,22 +255,15 @@ fn format_call_expression<'ast>(
 ) -> FormatResult<()> {
     if let Expression::Call {
         position,
-        runtime,
         left,
         dynamic_arguments,
     } = f.context().tree.get(node_id)
     {
-        let runtime = runtime.unwrap_or(Runtime::Dynamic);
-        if runtime == Runtime::Static {
-            write!(f, [token("@")])?;
-        }
         write!(f, [*left])?;
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
         }
-        if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
-            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
-        }
+        write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
     } else {
         debug_assert!(false, "unexpected expression kind for call formatter");
     }
@@ -330,7 +315,6 @@ enum ChainExpression {
     },
     /// Call expression.
     Call {
-        runtime: Option<Runtime>,
         position: PostfixPosition,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -398,20 +382,13 @@ fn format_chain_expression<'ast>(
             }
         }
         ChainExpression::Call {
-            runtime,
             position,
             dynamic_arguments,
         } => {
-            let runtime = runtime.unwrap_or(Runtime::Dynamic);
-            if runtime == Runtime::Static {
-                write!(f, [token("@")])?;
-            }
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
-            if runtime == Runtime::Dynamic || !dynamic_arguments.is_empty() {
-                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
-            }
+            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
         }
         ChainExpression::Index { position, index } => {
             if *position == PostfixPosition::Indirect {
@@ -589,12 +566,10 @@ pub(crate) fn format_expression_chain<'ast>(
                 static_arguments: None,
             },
             Expression::Call {
-                runtime,
                 position,
                 dynamic_arguments,
                 ..
             } => ChainExpression::Call {
-                runtime: *runtime,
                 position: *position,
                 dynamic_arguments: dynamic_arguments.clone(),
             },
@@ -678,7 +653,6 @@ pub(crate) fn format_match<'ast>(
 ) -> FormatResult<()> {
     let match_node = f.context().tree.get(node_id);
     let Expression::Match {
-        runtime,
         kind: _,
         value,
         cases,
@@ -688,13 +662,6 @@ pub(crate) fn format_match<'ast>(
     };
 
     if include_prefix {
-        // runtime
-        if let Some(runtime) = runtime
-            && *runtime == Runtime::Static
-        {
-            write!(f, [token("@")])?;
-        }
-
         // match <expression>
         write!(f, [Keyword::Match, space()])?;
     }
@@ -1262,51 +1229,37 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // while
             Expression::While {
-                runtime,
                 kind,
                 condition,
                 body,
-            } => {
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
+            } => match *kind {
+                WhileKind::While => {
+                    write!(f, [Keyword::While, space(), condition, space(), body])?;
                 }
-                match *kind {
-                    WhileKind::While => {
-                        write!(f, [Keyword::While, space(), condition, space(), body])?;
-                    }
-                    WhileKind::DoWhile => {
-                        write!(
-                            f,
-                            [
-                                Keyword::Do,
-                                space(),
-                                body,
-                                space(),
-                                Keyword::While,
-                                space(),
-                                condition
-                            ]
-                        )?;
-                    }
+                WhileKind::DoWhile => {
+                    write!(
+                        f,
+                        [
+                            Keyword::Do,
+                            space(),
+                            body,
+                            space(),
+                            Keyword::While,
+                            space(),
+                            condition
+                        ]
+                    )?;
                 }
-            }
+            },
 
             // for each
             Expression::ForEach {
-                runtime,
                 asynchrony,
                 kind,
                 pattern,
                 iterator,
                 body,
             } => {
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
                 write!(f, [Keyword::For, space()])?;
                 if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Await, space()])?;
@@ -1322,17 +1275,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // for condition
             Expression::For {
-                runtime,
                 initialization,
                 condition,
                 increment,
                 body,
             } => {
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
                 write!(
                     f,
                     [
@@ -1354,30 +1301,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // loop
-            Expression::Loop { runtime, body } => {
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
+            Expression::Loop { body } => {
                 write!(f, [Keyword::Loop, space(), body])?;
             }
 
             // try
             Expression::Try {
-                runtime,
                 try_expression,
                 catch_pattern,
                 catch_expression,
                 finally_expression,
             } => {
-                // runtime
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-
                 // try <expression>
                 write!(f, [Keyword::Try, space(), try_expression])?;
 

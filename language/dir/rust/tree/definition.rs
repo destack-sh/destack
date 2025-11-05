@@ -1,7 +1,7 @@
 use crate::{
     Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Field, Generics,
-    Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability,
-    StringId, Type, Variant, Visibility,
+    Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, ScopedMutability, StringId, Type,
+    Variant, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -320,8 +320,6 @@ pub enum FunctionKind {
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
-    /// The runtime of the function.
-    pub runtime: Runtime,
     /// The abstraction level of the function.
     pub abstraction: FunctionAbstraction,
     /// The asynchrony of the function.

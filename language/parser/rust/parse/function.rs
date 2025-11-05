@@ -7,8 +7,7 @@ use crate::parse::prelude::*;
 use crate::{ReferenceType, ScopedMutability, TokenType};
 
 use crate::{
-    Definition, FunctionKind, Keyword, Mutability, NodeId, Parser, ParserResult, Runtime,
-    SelfParameter,
+    Definition, FunctionKind, Keyword, Mutability, NodeId, Parser, ParserResult, SelfParameter,
 };
 
 /// The keywords that can appear before a function definition.
@@ -134,7 +133,6 @@ impl<'a> Parser<'a> {
     /// Eat a function or "lambda" definition or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
     /// If no function keyword is provided, it is a shorthand regular function or a lambda.
-    /// (Lambda functions cannot have a name, runtime, or static parameters.)
     ///
     /// Examples:
     /// ```
@@ -174,10 +172,6 @@ impl<'a> Parser<'a> {
     /// // getter/setter style
     /// get foo() => int32
     /// set foo(value: int32)
-    ///
-    /// function @comptime() {
-    ///    ...
-    /// }
     ///
     /// // optional , if newline-delimited
     /// function longBar<Validate: boolean>(
@@ -301,17 +295,9 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // function style: runtime, name, static parameters
-        let (runtime, name_or_key, static_parameters) = {
+        // function style, name, static parameters
+        let (name_or_key, static_parameters) = {
             if kind == FunctionKind::Function {
-                // runtime
-                let runtime = if self.peek_token(TokenType::At).is_ok() {
-                    self.eat_token(TokenType::At)?;
-                    Runtime::Static
-                } else {
-                    Runtime::Dynamic
-                };
-
                 // name
                 let name_or_key = if self.peek_name_or_key().is_ok() {
                     Some(self.eat_name_or_key()?)
@@ -329,14 +315,14 @@ impl<'a> Parser<'a> {
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Definition)?;
 
-                (runtime, name_or_key, static_parameters)
+                (name_or_key, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Definition)?;
 
-                (Runtime::Dynamic, None, static_parameters)
+                (None, static_parameters)
             }
         };
         meta = meta.with_name_or_key_maybe(name_or_key);
@@ -492,7 +478,6 @@ impl<'a> Parser<'a> {
         let function_id = self.tree.insert(
             Definition::Function {
                 meta,
-                runtime,
                 abstraction,
                 asynchrony,
                 cardinality,

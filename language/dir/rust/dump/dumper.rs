@@ -40,6 +40,8 @@ pub struct Dumper<'a> {
     pub tree: &'a NodeTree,
     /// The dump options.
     pub options: DumperOptions,
+    /// The visitor options.
+    visitor_options: NodeVisitorOptions,
 
     /// The buffer we're writing to.
     buffer: String,
@@ -59,6 +61,7 @@ impl<'a> Dumper<'a> {
             strings,
             tree,
             options,
+            visitor_options: NodeVisitorOptions::default(),
             buffer: String::new(),
             depth: 0,
             branch_stack: Vec::new(),
@@ -495,7 +498,6 @@ impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("FunctionSignature")
-            .field("runtime", &self.runtime)
             .field("abstraction", &self.abstraction)
             .field("cardinality", &self.cardinality)
             .field_optional("kind", &self.mode)
@@ -871,6 +873,11 @@ impl Dump for TemplateLiteral {
 // ----------------------------------------------------------------------------
 
 impl<'a> NodeVisitor for Dumper<'a> {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.visitor_options
+    }
+
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
@@ -1019,13 +1026,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Call {
-                runtime,
                 left: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::Call", id.id)
-                    .field_optional("runtime", runtime)
-                    .end();
+                self.node("Expression::Call", id.id).end();
             }
             Expression::New {
                 left,
@@ -1098,30 +1102,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::If {
-                runtime,
                 kind,
                 condition: _,
                 then_expression: _,
                 else_expression: _,
             } => {
-                self.node("Expression::If", id.id)
-                    .field_optional("runtime", runtime)
-                    .field("kind", kind)
-                    .end();
+                self.node("Expression::If", id.id).field("kind", kind).end();
             }
             Expression::Loop {
-                runtime,
                 condition: _,
                 body: _,
                 source,
             } => {
                 self.node("Expression::Loop", id.id)
-                    .field_optional("runtime", runtime)
                     .field("source", source)
                     .end();
             }
             Expression::ForEach {
-                runtime,
                 asynchrony,
                 kind,
                 pattern: _,
@@ -1129,30 +1126,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Expression::ForEach", id.id)
-                    .field_optional("runtime", runtime)
                     .field("asynchrony", asynchrony)
                     .field("kind", kind)
                     .end();
             }
             Expression::For {
-                runtime,
                 initialization: _,
                 condition: _,
                 increment: _,
                 body: _,
             } => {
-                self.node("Expression::For", id.id)
-                    .field_optional("runtime", runtime)
-                    .end();
+                self.node("Expression::For", id.id).end();
             }
             Expression::Match {
-                runtime,
                 value: _,
                 cases: _,
                 source,
             } => {
                 self.node("Expression::Match", id.id)
-                    .field_optional("runtime", runtime)
                     .field("source", source)
                     .end();
             }
@@ -1428,12 +1419,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_variant(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Variant>,
-        variant: &Variant,
-    ) {
+    fn visit_variant(&mut self, tree: &NodeTree, id: NodeId<Variant>, variant: &Variant) {
         match variant {
             Variant::Struct {
                 name,
@@ -1530,7 +1516,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             walk_where_clause(dumper, tree, id, where_clause);
         });
     }
-    
+
     fn visit_with_clause(
         &mut self,
         tree: &NodeTree,

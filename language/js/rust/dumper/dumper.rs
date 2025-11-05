@@ -42,6 +42,8 @@ pub struct Dumper<'a> {
     /// The dump options.
     pub options: DumperOptions,
 
+    /// The visitor options.
+    visitor_options: NodeVisitorOptions,
     /// The buffer we're writing to.
     buffer: String,
     /// The current depth (see with_depth).
@@ -60,6 +62,7 @@ impl<'a> Dumper<'a> {
             strings,
             tree,
             options,
+            visitor_options: NodeVisitorOptions::default(),
             buffer: String::new(),
             depth: 0,
             branch_stack: Vec::new(),
@@ -517,6 +520,11 @@ impl Dump for DefinitionMeta {
 }
 
 impl<'a> NodeVisitor for Dumper<'a> {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.visitor_options
+    }
+
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
@@ -821,7 +829,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &Definition,
     ) {
         match definition {
-            Definition::Namespace { meta, definitions } => {
+            Definition::Namespace {
+                meta,
+                definitions: _,
+            } => {
                 self.node("Definition::Namespace", id.id)
                     .field("meta", meta)
                     .end();
