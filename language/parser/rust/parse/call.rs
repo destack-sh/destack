@@ -4,7 +4,7 @@ use dyst_ast::Keyword;
 
 use crate::TokenType;
 
-use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition, Runtime};
+use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -131,7 +131,6 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         position: PostfixPosition,
-        runtime: Option<Runtime>,
     ) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
@@ -142,7 +141,6 @@ impl<'a> Parser<'a> {
         let call_id = self.tree.insert(
             Expression::Call {
                 position,
-                runtime,
                 left: receiver_id,
                 dynamic_arguments,
             },
@@ -158,9 +156,7 @@ mod tests {
     use dyst_container::smallvec;
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, Expression, NodeId, Parser, Runtime, ScalarLiteral, assert_node, assert_string,
-    };
+    use crate::{Argument, Expression, NodeId, Parser, ScalarLiteral, assert_node, assert_string};
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let self_str = parser.intern_string("self");
@@ -197,14 +193,11 @@ mod tests {
         let mut test = TestParser::new("(1, x: 2)");
         let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
-        let call_id = parser
-            .eat_call(recv, PostfixPosition::Direct, Some(Runtime::Dynamic))
-            .unwrap();
+        let call_id = parser.eat_call(recv, PostfixPosition::Direct).unwrap();
 
-        assert_node!(parser.tree, call_id, Expression::Call { position, left, runtime, dynamic_arguments } => {
+        assert_node!(parser.tree, call_id, Expression::Call { position, left, dynamic_arguments } => {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_eq!(*left, recv);
-            assert_eq!(*runtime, Some(Runtime::Dynamic));
 
             // (1, x: 2)
             assert_eq!(dynamic_arguments.len(), 2);

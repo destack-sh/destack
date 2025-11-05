@@ -302,7 +302,7 @@ mod tests {
         assert_format!(
             "if y { z } else { w }",
             "if y {\n\tz\n} else {\n\tw\n}",
-            |p| p.eat_if(None),
+            |p| p.eat_if(),
             DystFormatOptions::default_tab()
         );
     }

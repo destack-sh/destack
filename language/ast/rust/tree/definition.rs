@@ -3,7 +3,7 @@ use dyst_source::StringId;
 use crate::tree::variant::{Field, VariantFormat};
 use crate::{
     Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node,
-    NodeId, NodeType, Parameter, ReferenceType, Runtime, ScopedMutability, Visibility, WhereClause,
+    NodeId, NodeType, Parameter, ReferenceType, ScopedMutability, Visibility, WhereClause,
     WithClause,
 };
 
@@ -368,10 +368,6 @@ pub enum Definition {
     ///    ...
     /// }
     ///
-    /// function @comptime() {
-    ///    ...
-    /// }
-    ///
     /// // optional , if newline-delimited
     /// function longBar<Validate: boolean>(
     ///   /// doc comment for `a`
@@ -391,7 +387,6 @@ pub enum Definition {
     /// ```
     Function {
         meta: DefinitionMeta,
-        runtime: Runtime,
         abstraction: FunctionAbstraction,
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,

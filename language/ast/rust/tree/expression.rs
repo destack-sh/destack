@@ -3,8 +3,8 @@ use dyst_source::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
     DependencyItem, DependencyKind, DependencyTarget, ExportType, Keyword, Mutability, Node,
-    NodeId, NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability,
-    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    NodeId, NodeType, Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 // TODO #Performance: reduce Expression size to <=64B
@@ -144,7 +144,7 @@ pub enum Expression {
     /// cond ? a : b
     ///
     /// // if
-    /// @if x > 0 {
+    /// if x > 0 {
     ///     print("positive")
     /// }
     ///
@@ -165,7 +165,6 @@ pub enum Expression {
     /// }
     /// ```
     If {
-        runtime: Option<Runtime>,
         kind: IfKind,
         condition: NodeId<Expression>,
         then_expression: NodeId<Expression>,
@@ -176,7 +175,7 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// @while x > 1 {
+    /// while x > 1 {
     ///     y = 2
     /// }
     ///
@@ -186,7 +185,6 @@ pub enum Expression {
     /// }
     /// ```
     While {
-        runtime: Option<Runtime>,
         kind: WhileKind,
         condition: NodeId<Expression>,
         body: NodeId<Block>,
@@ -196,7 +194,7 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// @for x in 1..10 {
+    /// for x in 1..10 {
     ///     y = 2
     /// }
     ///
@@ -208,7 +206,6 @@ pub enum Expression {
     /// }
     /// ```
     ForEach {
-        runtime: Option<Runtime>,
         asynchrony: Asynchrony,
         kind: ForEachKind,
         pattern: NodeId<Pattern>,
@@ -226,7 +223,6 @@ pub enum Expression {
     /// }
     /// ```
     For {
-        runtime: Option<Runtime>,
         initialization: Option<NodeId<Expression>>,
         condition: Option<NodeId<Expression>>,
         increment: Option<NodeId<Expression>>,
@@ -244,10 +240,7 @@ pub enum Expression {
     ///     }
     /// }
     /// ```
-    Loop {
-        runtime: Option<Runtime>,
-        body: NodeId<Block>,
-    },
+    Loop { body: NodeId<Block> },
 
     /// A Try is try/catch/finally statement.
     /// The try expression may be a single statement or a block of statements.
@@ -281,7 +274,6 @@ pub enum Expression {
     /// }
     /// ```
     Try {
-        runtime: Option<Runtime>,
         try_expression: NodeId<Expression>,
         catch_pattern: Option<NodeId<Pattern>>,
         catch_expression: Option<NodeId<Expression>>,
@@ -305,7 +297,6 @@ pub enum Expression {
     /// }
     /// ```
     Match {
-        runtime: Option<Runtime>,
         kind: MatchKind,
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
@@ -594,14 +585,13 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// foo()
-    /// @foo(1, 2, 3)
-    /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// foo(1, 2, 3)
+    /// foo(Vector2 {x: 1, y: 2}, (true, 3))
     /// Bar(1, 2, 3)
     /// MyUnion.Baz(2, 3)
     /// ```
     Call {
         position: PostfixPosition,
-        runtime: Option<Runtime>,
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },

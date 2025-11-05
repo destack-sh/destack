@@ -11,9 +11,9 @@ use crate::{AstNodeId, CompilerQueue};
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
     /// Default integer width.
-    pub default_int_width: u16 = 32,
+    pub default_int_width: u16 = 64,
     /// Default float width.
-    pub default_float_width: u16 = 32,
+    pub default_float_width: u16 = 64,
 }
 
 /// The mode the compiler is in.

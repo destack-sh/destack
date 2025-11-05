@@ -17,15 +17,6 @@
     "rust-analyzer.cargo.features": [],
     "rust-analyzer.cargo.noDefaultFeatures": true,
     "rust-analyzer.checkOnSave.allTargets": false,
-    "rust-analyzer.checkOnSave.overrideCommand": [
-        "cargo",
-        "clippy",
-        "--workspace",
-        "--exclude",
-        "destack_cli",
-        "--exclude",
-        "destack_lsp"
-    ],
     "editor.semanticHighlighting.enabled": true,
     "[dyst]": {
         "editor.tabSize": 4,

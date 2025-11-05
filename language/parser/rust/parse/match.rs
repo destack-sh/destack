@@ -3,7 +3,7 @@ use dyst_ast::{Block, BlockFormat, MatchKind, Pattern};
 use crate::TokenType;
 
 use crate::parse::prelude::*;
-use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult, Runtime};
+use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement. Tolerates switch-kind syntax for #Compatibility.
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self, runtime: Option<Runtime>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_match(&mut self) -> ParserResult<NodeId<Expression>> {
         // keyword
         // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
@@ -31,15 +31,11 @@ impl<'a> Parser<'a> {
         };
 
         // body
-        self.eat_match_body(runtime, kind)
+        self.eat_match_body(kind)
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(
-        &mut self,
-        runtime: Option<Runtime>,
-        kind: MatchKind,
-    ) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -56,7 +52,6 @@ impl<'a> Parser<'a> {
         // match
         let match_id = self.tree.insert(
             Expression::Match {
-                runtime,
                 kind,
                 value: value_id,
                 cases: cases_id,
@@ -273,9 +268,9 @@ match x {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match(None).unwrap();
+        let match_id = parser.eat_match().unwrap();
 
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, kind: MatchKind::Match, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
             // value: path x
             assert_expr_path!(parser, parser.tree.get(*value), "x");
 
@@ -328,8 +323,8 @@ match x {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match(None).unwrap();
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, kind: MatchKind::Match, value: _, cases } => {
+        let match_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value: _, cases } => {
             assert_eq!(cases.len(), 1);
 
             // case: 2 if true => 20
@@ -363,10 +358,10 @@ match self {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let match_id = parser.eat_match(None).unwrap();
+        let match_id = parser.eat_match().unwrap();
 
         // match self { ... }
-        assert_node!(parser.tree, match_id, Expression::Match { runtime: _, kind: MatchKind::Match, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
             // self
             assert_expr_path!(parser, parser.tree.get(*value), "self");
 
@@ -429,8 +424,8 @@ switch (left.type) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let switch_id = parser.eat_match(None).unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { runtime: _, kind: MatchKind::Switch, value: _, cases } => {
+        let switch_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, value: _, cases } => {
             assert_eq!(cases.len(), 4);
 
             // case 'static' (block)
