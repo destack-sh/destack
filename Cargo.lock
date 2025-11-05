@@ -2996,7 +2996,6 @@ dependencies = [
  "dyst_fir",
  "dyst_memory",
  "dyst_mir",
- "dyst_prelude",
  "dyst_session",
  "dyst_source",
  "dyst_string",
@@ -3032,7 +3031,6 @@ dependencies = [
  "destack_unicode",
  "dyst_container",
  "dyst_memory",
- "dyst_prelude",
  "dyst_session",
  "dyst_source",
  "dyst_string",
@@ -3052,7 +3050,6 @@ dependencies = [
  "dyst_memory",
  "dyst_mir",
  "dyst_module",
- "dyst_prelude",
  "dyst_session",
  "dyst_source",
  "dyst_string",
@@ -3070,7 +3067,6 @@ dependencies = [
  "dyst_fir",
  "dyst_memory",
  "dyst_mir",
- "dyst_prelude",
  "dyst_session",
  "dyst_source",
  "dyst_string",
@@ -3122,10 +3118,6 @@ dependencies = [
  "dyst_source",
  "pprof",
 ]
-
-[[package]]
-name = "dyst_prelude"
-version = "2025.11.5-0"
 
 [[package]]
 name = "dyst_session"

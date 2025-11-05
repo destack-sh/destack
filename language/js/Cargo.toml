@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 dyst_container = { workspace = true }
 dyst_memory = { workspace = true }
-dyst_prelude = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 dyst_string = { workspace = true }
