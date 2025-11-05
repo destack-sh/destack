@@ -1,6 +1,6 @@
 [package]
-name = "destack_rust"
-description = "Destack Rust Extension"
+name = "dyst_javascript_compiler"
+description = "Dyst JavaScript Compiler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,9 +13,16 @@ doctest = false
 
 [dependencies]
 dyst_ast = { workspace = true }
+dyst_diagnostic = { workspace = true }
+dyst_dir = { workspace = true }
 dyst_fir = { workspace = true }
+dyst_javascript_ast = { workspace = true }
+dyst_mir = { workspace = true }
+dyst_module = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
+
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
 

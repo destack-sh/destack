@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use dyst_jsm::v8;
+    use dyst_javascript_machine::v8;
 
     #[test]
     fn test_v8() {
