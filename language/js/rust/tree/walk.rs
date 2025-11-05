@@ -398,7 +398,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Member {
             left,
             path: _,
-            is_maybe: _,
+            kind: _,
             static_arguments,
         } => {
             let left_expr = tree.get(*left);
@@ -412,7 +412,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Index {
             left,
-            is_maybe: _,
+            kind: _,
             index,
         } => {
             let left_expr = tree.get(*left);
@@ -424,7 +424,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Call {
             left,
-            is_maybe: _,
+            kind: _,
             dynamic_arguments,
         } => {
             let left_expr = tree.get(*left);
@@ -467,10 +467,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
     }
 }
-
-// ----------------------------------------------------------------------------
-// Definitions
-// ----------------------------------------------------------------------------
 
 fn walk_definition_meta<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -627,10 +623,6 @@ pub fn walk_switch_case<V: NodeVisitor + ?Sized>(
     visitor.visit_block(tree, switch_case.body, body_block);
 }
 
-// ----------------------------------------------------------------------------
-// Bindings
-// ----------------------------------------------------------------------------
-
 /// Walk a parameter.
 pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -725,10 +717,6 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
     }
 }
 
-// ----------------------------------------------------------------------------
-// Patterns
-// ----------------------------------------------------------------------------
-
 /// Walk a pattern.
 pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -804,10 +792,6 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         }
     }
 }
-
-// ----------------------------------------------------------------------------
-// Metadata
-// ----------------------------------------------------------------------------
 
 /// Walk an annotation.
 pub fn walk_annotation<V: NodeVisitor + ?Sized>(

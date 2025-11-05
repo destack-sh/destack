@@ -453,13 +453,13 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Break { label, value } => {
-                let destination = label.map(|label| self.lower_label(source_id, ast, label));
+                let target = label.map(|label| self.lower_label(source_id, ast, label));
                 let value = value.map(|value| self.lower_expression(source_id, ast, value));
-                Expression::Break { destination, value }
+                Expression::Break { target, value }
             }
             ast::Expression::Continue { label } => {
-                let destination = label.map(|label| self.lower_label(source_id, ast, label));
-                Expression::Continue { destination }
+                let target = label.map(|label| self.lower_label(source_id, ast, label));
+                Expression::Continue { target }
             }
             ast::Expression::Return { value } => {
                 let value = value.map(|value| self.lower_expression(source_id, ast, value));

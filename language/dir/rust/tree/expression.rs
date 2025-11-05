@@ -1,8 +1,8 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, Destination, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
+    DependencyItem, DependencyKind, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
     NodeType, Parameter, Path, Pattern, Runtime, ScalarLiteral, ScopedMutability, TemplateLiteral,
     Type, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -206,11 +206,11 @@ pub enum Expression {
     },
     /// Break expression.
     Break {
-        destination: Option<Destination>,
+        target: Option<BlockTarget>,
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
-    Continue { destination: Option<Destination> },
+    Continue { target: Option<BlockTarget> },
     /// Defer expression.
     Defer { expression: NodeId<Expression> },
     /// Throw expression (for #Compatibility).
@@ -227,7 +227,7 @@ impl Node for Expression {
 }
 
 impl Expression {
-    // nocheckin #Broken: revisit Compiler is_resolve/resolve logic
+    // nocheckin TODO #Broken: revisit Compiler is_resolve/resolve logic
     /// Whether the expression is resolved (ignoring child nodes).
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {

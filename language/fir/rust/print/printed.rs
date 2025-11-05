@@ -118,7 +118,7 @@ impl Printed {
         //
         // NOTE: Source markers are often emitted sorted by their source position but it's not guaranteed
         // and depends on the emitted `IR`.
-        // They are only guaranteed to be sorted in increasing order by their destination position.
+        // They are only guaranteed to be sorted in increasing order by their target position.
         for marker in self.sourcemap {
             // take the closest start marker, but skip over start_markers that have the same start
             if marker.source <= source_span.start

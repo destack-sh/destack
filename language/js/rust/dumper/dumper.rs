@@ -451,29 +451,19 @@ impl Dump for TemplateLiteral {
                     .end();
             }
             TemplateLiteral::InterpolatedString {
-                template,
-                expressions,
+                template: _,
+                expressions: _,
             } => {
-                let string_count = template.len() as u32;
-                let expression_count = expressions.len() as u32;
-                dumper
-                    .object("TemplateLiteral::InterpolatedString")
-                    .field("string_count", &string_count)
-                    .field("expression_count", &expression_count)
-                    .end();
+                dumper.object("TemplateLiteral::InterpolatedString").end();
             }
             TemplateLiteral::TaggedInterpolatedString {
                 tag,
-                template,
-                expressions,
+                template: _,
+                expressions: _,
             } => {
-                let string_count = template.len() as u32;
-                let expression_count = expressions.len() as u32;
                 dumper
                     .object("TemplateLiteral::TaggedInterpolatedString")
                     .field("tag", tag)
-                    .field("string_count", &string_count)
-                    .field("expression_count", &expression_count)
                     .end();
             }
         }
@@ -769,36 +759,35 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Member {
+                left: _,
                 path,
-                is_maybe,
+                kind,
                 static_arguments,
-                ..
             } => {
                 let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
                 self.node("Expression::Member", id.id)
                     .field("path", path)
-                    .field("is_maybe", is_maybe)
+                    .field("kind", kind)
                     .field_optional("static_argument_count", &static_argument_count)
                     .end();
             }
             Expression::Index {
-                is_maybe, index, ..
+                kind,
+                index,
+                left: _,
             } => {
-                let has_index = index.is_some();
                 self.node("Expression::Index", id.id)
-                    .field("is_maybe", is_maybe)
-                    .field("has_index", &has_index)
+                    .field("kind", kind)
+                    .field_optional("index", index)
                     .end();
             }
             Expression::Call {
-                is_maybe,
-                dynamic_arguments,
-                ..
+                kind,
+                left: _,
+                dynamic_arguments: _,
             } => {
-                let argument_count = dynamic_arguments.len() as u32;
                 self.node("Expression::Call", id.id)
-                    .field("is_maybe", is_maybe)
-                    .field("argument_count", &argument_count)
+                    .field("kind", kind)
                     .end();
             }
             Expression::ImportCall { source } => {
@@ -808,24 +797,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::New {
                 left,
-                static_arguments,
-                dynamic_arguments,
+                static_arguments: _,
+                dynamic_arguments: _,
             } => {
-                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
-                let dynamic_argument_count = dynamic_arguments.len() as u32;
                 self.node("Expression::New", id.id)
                     .field("path", left)
-                    .field_optional("static_argument_count", &static_argument_count)
-                    .field("dynamic_argument_count", &dynamic_argument_count)
                     .end();
             }
             Expression::IfTernary {
-                else_expression, ..
+                condition: _,
+                then_expression: _,
+                else_expression: _,
             } => {
-                let has_else = else_expression.is_some();
-                self.node("Expression::IfTernary", id.id)
-                    .field("has_else", &has_else)
-                    .end();
+                self.node("Expression::IfTernary", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -853,67 +837,43 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Namespace { meta, definitions } => {
-                let definition_count = definitions.len() as u32;
                 self.node("Definition::Namespace", id.id)
                     .field("meta", meta)
-                    .field("definition_count", &definition_count)
                     .end();
             }
             Definition::Class {
                 meta,
-                static_parameters,
-                fields,
-                definitions,
+                static_parameters: _,
+                fields: _,
+                definitions: _,
             } => {
-                let static_parameter_count =
-                    static_parameters.as_ref().map(|params| params.len() as u32);
-                let field_count = fields.len() as u32;
-                let definition_count = definitions.len() as u32;
                 self.node("Definition::Class", id.id)
                     .field("meta", meta)
-                    .field_optional("static_parameter_count", &static_parameter_count)
-                    .field("field_count", &field_count)
-                    .field("definition_count", &definition_count)
                     .end();
             }
             Definition::Interface {
                 meta,
-                fields,
-                definitions,
+                fields: _,
+                definitions: _,
             } => {
-                let field_count = fields.len() as u32;
-                let definition_count = definitions.len() as u32;
                 self.node("Definition::Interface", id.id)
                     .field("meta", meta)
-                    .field("field_count", &field_count)
-                    .field("definition_count", &definition_count)
                     .end();
             }
-            Definition::Enum { meta, fields } => {
-                let field_count = fields.len() as u32;
+            Definition::Enum { meta, fields: _ } => {
                 self.node("Definition::Enum", id.id)
                     .field("meta", meta)
-                    .field("field_count", &field_count)
                     .end();
             }
             Definition::Function {
                 meta,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                body,
+                static_parameters: _,
+                dynamic_parameters: _,
+                return_type: _,
+                body: _,
             } => {
-                let static_parameter_count =
-                    static_parameters.as_ref().map(|params| params.len() as u32);
-                let dynamic_parameter_count = dynamic_parameters.len() as u32;
-                let has_return_type = return_type.is_some();
-                let has_body = body.is_some();
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
-                    .field_optional("static_parameter_count", &static_parameter_count)
-                    .field("dynamic_parameter_count", &dynamic_parameter_count)
-                    .field("has_return_type", &has_return_type)
-                    .field("has_body", &has_body)
                     .end();
             }
         }
@@ -959,20 +919,30 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         match parameter {
             Parameter::Named {
-                modifiers, name, ..
+                modifiers,
+                name,
+                ty: _,
+                default: _,
             } => {
                 self.node("Parameter::Named", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Parameter::Pattern { modifiers, .. } => {
+            Parameter::Pattern {
+                modifiers,
+                pattern: _,
+                ty: _,
+                default: _,
+            } => {
                 self.node("Parameter::Pattern", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
             Parameter::Variadic {
-                modifiers, name, ..
+                modifiers,
+                name,
+                ty: _,
             } => {
                 self.node("Parameter::Variadic", id.id)
                     .field_optional("modifiers", modifiers)

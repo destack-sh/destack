@@ -13,10 +13,6 @@ pub trait NodeVisitor {
     #[inline]
     fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {}
 
-    // ------------------------------------------------------------
-    // Groupings
-    // ------------------------------------------------------------
-
     /// Visit a block.
     fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
         walk_block(self, tree, id, block);
@@ -47,10 +43,6 @@ pub trait NodeVisitor {
         walk_switch_case(self, tree, id, switch_case);
     }
 
-    // ------------------------------------------------------------
-    // Definitions
-    // ------------------------------------------------------------
-
     /// Visit a definition.
     fn visit_definition(
         &mut self,
@@ -71,10 +63,6 @@ pub trait NodeVisitor {
         walk_enum_field(self, tree, id, field);
     }
 
-    // ------------------------------------------------------------
-    // Context
-    // ------------------------------------------------------------
-
     /// Visit a dependency item.
     fn visit_dependency_item(
         &mut self,
@@ -85,10 +73,6 @@ pub trait NodeVisitor {
         walk_dependency_item(self, tree, id, dependency_item);
     }
 
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     /// Visit a parameter.
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
@@ -98,10 +82,6 @@ pub trait NodeVisitor {
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
     }
-
-    // ------------------------------------------------------------
-    // Patterns
-    // ------------------------------------------------------------
 
     /// Visit a pattern.
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
@@ -117,10 +97,6 @@ pub trait NodeVisitor {
     ) {
         walk_pattern_field(self, tree, id, field);
     }
-
-    // ------------------------------------------------------------
-    // Metadata
-    // ------------------------------------------------------------
 
     /// Visit a type.
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
