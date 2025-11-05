@@ -2,7 +2,7 @@ use dyst_fir::format::FormatOptions;
 use dyst_fir::print::PrintOptions;
 use dyst_source::{IndentStyle, LineEnding};
 
-use crate::{EcmaScriptVersion, LanguageTarget, TypeScriptVersion};
+use crate::TranspilerOptions;
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -14,16 +14,12 @@ pub enum FormatMode {
 }
 
 /// JS/TS format options (mostly for testing).
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct LanguageFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
 	/// The target language.
-	pub target: LanguageTarget,
-	/// The ECMAScript level.
-	pub es_version: EcmaScriptVersion,
-	/// The TypeScript version.
-	pub ts_version: TypeScriptVersion,
+	pub options: TranspilerOptions,
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
