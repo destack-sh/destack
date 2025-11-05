@@ -515,7 +515,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionMode, FunctionKind,
+        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
         Parameter, ReferenceType,
     };
 

@@ -1,9 +1,10 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use crate::{Node, NodeId, NodeTree, NodeTreeImpl};
+use crate::*;
 use dyst_container::SmallVec;
 use dyst_source::{StringId, StringPool};
 use dyst_tree::{Color, rebuild_tree_output};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DumperOptions {
@@ -145,6 +146,18 @@ impl<'a> Dumper<'a> {
         self.write_char('"', Some(Color::White));
         self.write_str(self.strings.get(id), Some(Color::Yellow));
         self.write_char('"', Some(Color::White));
+    }
+
+    /// Write the path represented by a Path.
+    #[inline]
+    pub fn write_path(&mut self, path: &Path) {
+        for (index, segment) in path.segments.iter().enumerate() {
+            let segment_str = self.strings.get(*segment);
+            self.write_str(segment_str, Some(Color::Green));
+            if index + 1 < path.segments.len() {
+                self.write_str(".", Some(Color::White));
+            }
+        }
     }
 
     /// Helper for dumping a single node.
@@ -367,5 +380,757 @@ where
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);
         node.dump(dumper);
+    }
+}
+
+/// Dump a Path as a dotted string.
+impl Dump for Path {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_path(self);
+    }
+}
+
+/// Dump a Name as a string selector.
+impl Dump for Name {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Name::Identifier(id) => {
+                id.dump(dumper);
+            }
+            Name::String(id) => {
+                dumper.write_char('[', Some(Color::White));
+                id.dump(dumper);
+                dumper.write_char(']', Some(Color::White));
+            }
+        }
+    }
+}
+
+/// Dump a ScalarLiteral.
+impl Dump for ScalarLiteral {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ScalarLiteral::Boolean(value) => {
+                dumper.object("ScalarLiteral::Boolean").value(value).end();
+            }
+            ScalarLiteral::Number(value) => {
+                dumper.object("ScalarLiteral::Number").value(value).end();
+            }
+            ScalarLiteral::Bigint(value) => {
+                dumper.object("ScalarLiteral::Bigint").value(value).end();
+            }
+            ScalarLiteral::String(value) => {
+                dumper.object("ScalarLiteral::String").value(value).end();
+            }
+            ScalarLiteral::RegexString { content, flags } => {
+                dumper
+                    .object("ScalarLiteral::RegexString")
+                    .field("content", content)
+                    .field_optional("flags", flags)
+                    .end();
+            }
+        }
+    }
+}
+
+/// Dump a TemplateLiteral.
+impl Dump for TemplateLiteral {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TemplateLiteral::String { template } => {
+                dumper
+                    .object("TemplateLiteral::String")
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::TaggedString { tag, template } => {
+                dumper
+                    .object("TemplateLiteral::TaggedString")
+                    .field("tag", tag)
+                    .field("template", template)
+                    .end();
+            }
+            TemplateLiteral::InterpolatedString {
+                template,
+                expressions,
+            } => {
+                let string_count = template.len() as u32;
+                let expression_count = expressions.len() as u32;
+                dumper
+                    .object("TemplateLiteral::InterpolatedString")
+                    .field("string_count", &string_count)
+                    .field("expression_count", &expression_count)
+                    .end();
+            }
+            TemplateLiteral::TaggedInterpolatedString {
+                tag,
+                template,
+                expressions,
+            } => {
+                let string_count = template.len() as u32;
+                let expression_count = expressions.len() as u32;
+                dumper
+                    .object("TemplateLiteral::TaggedInterpolatedString")
+                    .field("tag", tag)
+                    .field("string_count", &string_count)
+                    .field("expression_count", &expression_count)
+                    .end();
+            }
+        }
+    }
+}
+
+macro_rules! impl_dump_display {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl Dump for $ty {
+                fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+                    dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+                }
+            }
+        )+
+    };
+}
+
+impl_dump_display! {
+    BindingKind,
+    BindingScope,
+    BindingOperator,
+    Mutability,
+    Visibility,
+    ExportType,
+    DependencyKind,
+    DeclarationKind,
+    UnaryOperator,
+    BinaryOperator,
+    AssignOperator,
+    TypeUnaryOperator,
+    TypeBinaryOperator,
+}
+
+/// Dump a BindingModifier.
+impl Dump for BindingModifier {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("BindingModifier")
+            .field_optional("kind", &self.kind)
+            .field_optional("scope", &self.scope)
+            .field_optional("mutability", &self.mutability)
+            .field_optional("visibility", &self.visibility)
+            .field_optional("operator", &self.operator)
+            .end();
+    }
+}
+
+/// Dump a DefinitionMeta.
+impl Dump for DefinitionMeta {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let has_key = self.key.is_some();
+        dumper
+            .object("DefinitionMeta")
+            .field("kind", &self.kind)
+            .field("scope", &self.scope)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
+            .field_optional("export", &self.export)
+            .field("has_key", &has_key)
+            .end();
+    }
+}
+
+impl<'a> NodeVisitor for Dumper<'a> {
+    fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
+        let annotations = tree.get_annotations(id);
+        for annotation_id in annotations {
+            let annotation = tree.get(annotation_id);
+            self.visit_annotation(tree, annotation_id, annotation);
+        }
+    }
+
+    fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
+        let statement_count = block.statements.len() as u32;
+        self.node("Block", id.id)
+            .field_optional("label", &block.label)
+            .field("statement_count", &statement_count)
+            .end();
+        self.with_depth(|dumper| {
+            walk_block(dumper, tree, id, block);
+        });
+    }
+
+    fn visit_statement(&mut self, tree: &NodeTree, id: NodeId<Statement>, statement: &Statement) {
+        match statement {
+            Statement::Import {
+                source,
+                items,
+                arguments,
+            } => {
+                let item_count = items.len() as u32;
+                let argument_count = arguments.as_ref().map(|args| args.len() as u32);
+                self.node("Statement::Import", id.id)
+                    .field("source", source)
+                    .field("item_count", &item_count)
+                    .field_optional("argument_count", &argument_count)
+                    .end();
+            }
+            Statement::Export { items } => {
+                let item_count = items.len() as u32;
+                self.node("Statement::Export", id.id)
+                    .field("item_count", &item_count)
+                    .end();
+            }
+            Statement::Block { label, statements } => {
+                let statement_count = statements.len() as u32;
+                self.node("Statement::Block", id.id)
+                    .field_optional("label", label)
+                    .field("statement_count", &statement_count)
+                    .end();
+            }
+            Statement::Let {
+                mutability,
+                ty,
+                value,
+            } => {
+                let has_type = ty.is_some();
+                let has_value = value.is_some();
+                self.node("Statement::Let", id.id)
+                    .field("mutability", mutability)
+                    .field("has_type", &has_type)
+                    .field("has_value", &has_value)
+                    .end();
+            }
+            Statement::LetType {
+                name,
+                static_parameters,
+                ..
+            } => {
+                let static_parameter_count =
+                    static_parameters.as_ref().map(|params| params.len() as u32);
+                self.node("Statement::LetType", id.id)
+                    .field("name", name)
+                    .field_optional("static_parameter_count", &static_parameter_count)
+                    .end();
+            }
+            Statement::Assign { operator, .. } => {
+                self.node("Statement::Assign", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Statement::Expression { .. } => {
+                self.node("Statement::Expression", id.id).end();
+            }
+            Statement::If { else_block, .. } => {
+                let has_else = else_block.is_some();
+                self.node("Statement::If", id.id)
+                    .field("has_else", &has_else)
+                    .end();
+            }
+            Statement::While { .. } => {
+                self.node("Statement::While", id.id).end();
+            }
+            Statement::For {
+                initialization,
+                increment,
+                ..
+            } => {
+                let has_initialization = initialization.is_some();
+                let has_increment = increment.is_some();
+                self.node("Statement::For", id.id)
+                    .field("has_initialization", &has_initialization)
+                    .field("has_increment", &has_increment)
+                    .end();
+            }
+            Statement::ForIn { name, .. } => {
+                self.node("Statement::ForIn", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Statement::ForOf { .. } => {
+                self.node("Statement::ForOf", id.id).end();
+            }
+            Statement::Try {
+                catch_pattern,
+                finally_block,
+                ..
+            } => {
+                let has_catch_pattern = catch_pattern.is_some();
+                let has_finally = finally_block.is_some();
+                self.node("Statement::Try", id.id)
+                    .field("has_catch_pattern", &has_catch_pattern)
+                    .field("has_finally", &has_finally)
+                    .end();
+            }
+            Statement::Await { .. } => {
+                self.node("Statement::Await", id.id).end();
+            }
+            Statement::Yield { .. } => {
+                self.node("Statement::Yield", id.id).end();
+            }
+            Statement::Throw { .. } => {
+                self.node("Statement::Throw", id.id).end();
+            }
+            Statement::Continue { label } => {
+                self.node("Statement::Continue", id.id)
+                    .field_optional("label", label)
+                    .end();
+            }
+            Statement::Break { label } => {
+                self.node("Statement::Break", id.id)
+                    .field_optional("label", label)
+                    .end();
+            }
+            Statement::Return { value } => {
+                let has_value = value.is_some();
+                self.node("Statement::Return", id.id)
+                    .field("has_value", &has_value)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_statement(dumper, tree, id, statement);
+        });
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Expression>,
+        expression: &Expression,
+    ) {
+        match expression {
+            Expression::Definition { .. } => {
+                self.node("Expression::Definition", id.id).end();
+            }
+            Expression::ArrowFunction {
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                let parameter_count = dynamic_parameters.len() as u32;
+                let has_return_type = return_type.is_some();
+                self.node("Expression::ArrowFunction", id.id)
+                    .field("parameter_count", &parameter_count)
+                    .field("has_return_type", &has_return_type)
+                    .end();
+            }
+            Expression::Path {
+                path,
+                static_arguments,
+            } => {
+                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
+                self.node("Expression::Path", id.id)
+                    .field("path", path)
+                    .field_optional("static_argument_count", &static_argument_count)
+                    .end();
+            }
+            Expression::ScalarLiteral { value } => {
+                self.node("Expression::ScalarLiteral", id.id)
+                    .value(value)
+                    .end();
+            }
+            Expression::TemplateLiteral { value } => {
+                self.node("Expression::TemplateLiteral", id.id)
+                    .value(value)
+                    .end();
+            }
+            Expression::ArrayLiteral { elements } => {
+                let element_count = elements.len() as u32;
+                self.node("Expression::ArrayLiteral", id.id)
+                    .field("element_count", &element_count)
+                    .end();
+            }
+            Expression::ObjectLiteral { fields } => {
+                let field_count = fields.len() as u32;
+                self.node("Expression::ObjectLiteral", id.id)
+                    .field("field_count", &field_count)
+                    .end();
+            }
+            Expression::Parenthesized { .. } => {
+                self.node("Expression::Parenthesized", id.id).end();
+            }
+            Expression::TypeUnary { operator, .. } => {
+                self.node("Expression::TypeUnary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::TypeBinary { operator, .. } => {
+                self.node("Expression::TypeBinary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::Unary { operator, .. } => {
+                self.node("Expression::Unary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::Binary { operator, .. } => {
+                self.node("Expression::Binary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::Member {
+                path,
+                is_maybe,
+                static_arguments,
+                ..
+            } => {
+                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
+                self.node("Expression::Member", id.id)
+                    .field("path", path)
+                    .field("is_maybe", is_maybe)
+                    .field_optional("static_argument_count", &static_argument_count)
+                    .end();
+            }
+            Expression::Index {
+                is_maybe, index, ..
+            } => {
+                let has_index = index.is_some();
+                self.node("Expression::Index", id.id)
+                    .field("is_maybe", is_maybe)
+                    .field("has_index", &has_index)
+                    .end();
+            }
+            Expression::Call {
+                is_maybe,
+                dynamic_arguments,
+                ..
+            } => {
+                let argument_count = dynamic_arguments.len() as u32;
+                self.node("Expression::Call", id.id)
+                    .field("is_maybe", is_maybe)
+                    .field("argument_count", &argument_count)
+                    .end();
+            }
+            Expression::ImportCall { source } => {
+                self.node("Expression::ImportCall", id.id)
+                    .field("source", source)
+                    .end();
+            }
+            Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
+                let dynamic_argument_count = dynamic_arguments.len() as u32;
+                self.node("Expression::New", id.id)
+                    .field("path", left)
+                    .field_optional("static_argument_count", &static_argument_count)
+                    .field("dynamic_argument_count", &dynamic_argument_count)
+                    .end();
+            }
+            Expression::IfTernary {
+                else_expression, ..
+            } => {
+                let has_else = else_expression.is_some();
+                self.node("Expression::IfTernary", id.id)
+                    .field("has_else", &has_else)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_expression(dumper, tree, id, expression);
+        });
+    }
+
+    fn visit_switch_case(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<SwitchCase>,
+        switch_case: &SwitchCase,
+    ) {
+        self.node("SwitchCase", id.id).end();
+        self.with_depth(|dumper| {
+            walk_switch_case(dumper, tree, id, switch_case);
+        });
+    }
+
+    fn visit_definition(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Definition>,
+        definition: &Definition,
+    ) {
+        match definition {
+            Definition::Namespace { meta, definitions } => {
+                let definition_count = definitions.len() as u32;
+                self.node("Definition::Namespace", id.id)
+                    .field("meta", meta)
+                    .field("definition_count", &definition_count)
+                    .end();
+            }
+            Definition::Class {
+                meta,
+                static_parameters,
+                fields,
+                definitions,
+            } => {
+                let static_parameter_count =
+                    static_parameters.as_ref().map(|params| params.len() as u32);
+                let field_count = fields.len() as u32;
+                let definition_count = definitions.len() as u32;
+                self.node("Definition::Class", id.id)
+                    .field("meta", meta)
+                    .field_optional("static_parameter_count", &static_parameter_count)
+                    .field("field_count", &field_count)
+                    .field("definition_count", &definition_count)
+                    .end();
+            }
+            Definition::Interface {
+                meta,
+                fields,
+                definitions,
+            } => {
+                let field_count = fields.len() as u32;
+                let definition_count = definitions.len() as u32;
+                self.node("Definition::Interface", id.id)
+                    .field("meta", meta)
+                    .field("field_count", &field_count)
+                    .field("definition_count", &definition_count)
+                    .end();
+            }
+            Definition::Enum { meta, fields } => {
+                let field_count = fields.len() as u32;
+                self.node("Definition::Enum", id.id)
+                    .field("meta", meta)
+                    .field("field_count", &field_count)
+                    .end();
+            }
+            Definition::Function {
+                meta,
+                static_parameters,
+                dynamic_parameters,
+                return_type,
+                body,
+            } => {
+                let static_parameter_count =
+                    static_parameters.as_ref().map(|params| params.len() as u32);
+                let dynamic_parameter_count = dynamic_parameters.len() as u32;
+                let has_return_type = return_type.is_some();
+                let has_body = body.is_some();
+                self.node("Definition::Function", id.id)
+                    .field("meta", meta)
+                    .field_optional("static_parameter_count", &static_parameter_count)
+                    .field("dynamic_parameter_count", &dynamic_parameter_count)
+                    .field("has_return_type", &has_return_type)
+                    .field("has_body", &has_body)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_definition(dumper, tree, id, definition);
+        });
+    }
+
+    fn visit_field(&mut self, tree: &NodeTree, id: NodeId<Field>, field: &Field) {
+        self.node("Field", id.id).field("name", &field.name).end();
+        self.with_depth(|dumper| {
+            walk_field(dumper, tree, id, field);
+        });
+    }
+
+    fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, field: &EnumField) {
+        let has_value = field.value.is_some();
+        self.node("EnumField", id.id)
+            .field("name", &field.name)
+            .field("has_value", &has_value)
+            .end();
+        self.with_depth(|dumper| {
+            walk_enum_field(dumper, tree, id, field);
+        });
+    }
+
+    fn visit_dependency_item(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<DependencyItem>,
+        dependency_item: &DependencyItem,
+    ) {
+        self.node("DependencyItem", id.id)
+            .field_optional("kind", &dependency_item.kind)
+            .field("name", &dependency_item.name)
+            .field_optional("alias", &dependency_item.alias)
+            .end();
+        self.with_depth(|dumper| {
+            walk_dependency_item(dumper, tree, id, dependency_item);
+        });
+    }
+
+    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+        match parameter {
+            Parameter::Named {
+                modifiers, name, ..
+            } => {
+                self.node("Parameter::Named", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("name", name)
+                    .end();
+            }
+            Parameter::Pattern { modifiers, .. } => {
+                self.node("Parameter::Pattern", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
+            Parameter::Variadic {
+                modifiers, name, ..
+            } => {
+                self.node("Parameter::Variadic", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("name", name)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_parameter(dumper, tree, id, parameter);
+        });
+    }
+
+    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
+        match argument {
+            Argument::Positional { modifiers, .. } => {
+                self.node("Argument::Positional", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
+            Argument::Spread {
+                modifiers, name, ..
+            } => {
+                self.node("Argument::Spread", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("name", name)
+                    .end();
+            }
+            Argument::Dynamic {
+                modifiers, name, ..
+            } => {
+                self.node("Argument::Dynamic", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("name", name)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_argument(dumper, tree, id, argument);
+        });
+    }
+
+    fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
+        match pattern {
+            Pattern::Binding { mutability, name } => {
+                self.node("Pattern::Binding", id.id)
+                    .field_optional("mutability", mutability)
+                    .field("name", name)
+                    .end();
+            }
+            Pattern::Array { elements } => {
+                let element_count = elements.len() as u32;
+                self.node("Pattern::Array", id.id)
+                    .field("element_count", &element_count)
+                    .end();
+            }
+            Pattern::Object { fields } => {
+                let field_count = fields.len() as u32;
+                self.node("Pattern::Object", id.id)
+                    .field("field_count", &field_count)
+                    .end();
+            }
+            Pattern::Rest { name } => {
+                self.node("Pattern::Rest", id.id)
+                    .field_optional("name", name)
+                    .end();
+            }
+            Pattern::Hole => {
+                self.node("Pattern::Hole", id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_pattern(dumper, tree, id, pattern);
+        });
+    }
+
+    fn visit_pattern_field(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<PatternField>,
+        field: &PatternField,
+    ) {
+        match field {
+            PatternField::Named {
+                mutability, name, ..
+            } => {
+                self.node("PatternField::Named", id.id)
+                    .field_optional("mutability", mutability)
+                    .field("name", name)
+                    .end();
+            }
+            PatternField::Alias {
+                mutability,
+                name,
+                alias,
+                ..
+            } => {
+                self.node("PatternField::Alias", id.id)
+                    .field_optional("mutability", mutability)
+                    .field("name", name)
+                    .field("alias", alias)
+                    .end();
+            }
+            PatternField::Positional { .. } => {
+                self.node("PatternField::Positional", id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_pattern_field(dumper, tree, id, field);
+        });
+    }
+
+    fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
+        self.node("Type", id.id).end();
+        self.with_depth(|dumper| {
+            walk_type(dumper, tree, id, ty);
+        });
+    }
+
+    fn visit_annotation(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Annotation>,
+        annotation: &Annotation,
+    ) {
+        match annotation {
+            Annotation::Doc { string } => {
+                let snippet = truncate_string(self.strings.get(*string), 40, " ");
+                let snippet_ref = snippet.as_ref();
+                self.node("Annotation::Doc", id.id)
+                    .field("string", &snippet_ref)
+                    .end();
+            }
+            Annotation::Comment { string } => {
+                let snippet = truncate_string(self.strings.get(*string), 40, " ");
+                let snippet_ref = snippet.as_ref();
+                self.node("Annotation::Comment", id.id)
+                    .field("string", &snippet_ref)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_annotation(dumper, tree, id, annotation);
+        });
+    }
+}
+
+fn truncate_string<'a>(string: &'a str, max_len: usize, newline_replacement: &str) -> Cow<'a, str> {
+    if string.len() > max_len || string.contains('\n') {
+        let truncated = if string.len() > max_len {
+            &string[..max_len]
+        } else {
+            string
+        };
+        Cow::Owned(format!(
+            "{} ...",
+            truncated.replace('\n', newline_replacement)
+        ))
+    } else {
+        Cow::Borrowed(string)
     }
 }

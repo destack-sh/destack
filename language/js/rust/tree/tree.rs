@@ -6,7 +6,7 @@ use dyst_tree::NodeArena;
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, Node,
-    NodeId, NodeType, Parameter, Statement, SwitchCase, Type,
+    NodeId, NodeType, Parameter, Pattern, PatternField, Statement, SwitchCase, Type,
 };
 
 /// The AST Node tree for a single source unit.
@@ -42,6 +42,8 @@ pub struct NodeTree {
     pub(crate) switch_cases: NodeArena<SwitchCase>,
     pub(crate) parameters: NodeArena<Parameter>,
     pub(crate) arguments: NodeArena<Argument>,
+    pub(crate) patterns: NodeArena<Pattern>,
+    pub(crate) pattern_fields: NodeArena<PatternField>,
     pub(crate) annotations: NodeArena<Annotation>,
 }
 
@@ -84,6 +86,8 @@ impl NodeTree {
             switch_cases: NodeArena::new(),
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
+            patterns: NodeArena::new(),
+            pattern_fields: NodeArena::new(),
             annotations: NodeArena::new(),
         }
     }
@@ -242,5 +246,7 @@ impl_node_tree_stores! {
     SwitchCase => switch_cases,
     Parameter => parameters,
     Argument => arguments,
+    Pattern => patterns,
+    PatternField => pattern_fields,
     Annotation => annotations,
 }

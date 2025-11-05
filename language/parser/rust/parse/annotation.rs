@@ -770,8 +770,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Runtime,
-        ScalarLiteral, Tag, Field, assert_node, assert_path, assert_string,
+        Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Field, Runtime,
+        ScalarLiteral, Tag, assert_node, assert_path, assert_string,
     };
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
@@ -1161,7 +1161,7 @@ over multiple lines with trailing space    */",
             assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 3);
-                    
+
                     // function a(): A
                     assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
                         assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {

@@ -13,6 +13,8 @@ mod pattern;
 mod statement;
 mod tree;
 mod r#type;
+mod visit;
+mod walk;
 
 pub use annotation::*;
 pub use argument::*;
@@ -31,3 +33,5 @@ pub use pattern::*;
 pub use statement::*;
 pub use tree::*;
 pub use r#type::*;
+pub use visit::*;
+pub use walk::*;

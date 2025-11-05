@@ -57,8 +57,8 @@ impl Node for Definition {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
-    name: StringId,
-    ty: NodeId<Type>,
+    pub name: StringId,
+    pub ty: NodeId<Type>,
 }
 
 impl Node for Field {
@@ -67,8 +67,8 @@ impl Node for Field {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
-    name: StringId,
-    value: Option<NodeId<Expression>>,
+    pub name: StringId,
+    pub value: Option<NodeId<Expression>>,
 }
 
 impl Node for EnumField {
