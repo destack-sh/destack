@@ -1,9 +1,0 @@
-<Package 
-    version="0.0.1"
-    license="proprietary"
-    authors=["Symbol Industries"]
-    name="entity"
-    description="Entity"
->
-    <Dependency name="uuid" />
-</Package>
