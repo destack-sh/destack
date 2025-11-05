@@ -3,7 +3,7 @@
 use crate::*;
 use dyst_container::SmallVec;
 use dyst_source::{StringId, StringPool};
-use dyst_tree::{Color, rebuild_tree_output};
+use dyst_tree::{Color, impl_dump_display, rebuild_tree_output};
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
@@ -406,6 +406,22 @@ impl Dump for Name {
     }
 }
 
+impl_dump_display! {
+    AssignOperator,
+    BinaryOperator,
+    BindingKind,
+    BindingOperator,
+    BindingScope,
+    DeclarationKind,
+    DependencyKind,
+    ExportType,
+    Mutability,
+    TypeBinaryOperator,
+    TypeUnaryOperator,
+    UnaryOperator,
+    Visibility,
+}
+
 /// Dump a ScalarLiteral.
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -468,34 +484,6 @@ impl Dump for TemplateLiteral {
             }
         }
     }
-}
-
-macro_rules! impl_dump_display {
-    ($($ty:ty),+ $(,)?) => {
-        $(
-            impl Dump for $ty {
-                fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-                    dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
-                }
-            }
-        )+
-    };
-}
-
-impl_dump_display! {
-    BindingKind,
-    BindingScope,
-    BindingOperator,
-    Mutability,
-    Visibility,
-    ExportType,
-    DependencyKind,
-    DeclarationKind,
-    UnaryOperator,
-    BinaryOperator,
-    AssignOperator,
-    TypeUnaryOperator,
-    TypeBinaryOperator,
 }
 
 /// Dump a BindingModifier.
@@ -762,23 +750,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 left: _,
                 path,
                 kind,
-                static_arguments,
+                static_arguments: _,
             } => {
-                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
                 self.node("Expression::Member", id.id)
                     .field("path", path)
                     .field("kind", kind)
-                    .field_optional("static_argument_count", &static_argument_count)
                     .end();
             }
             Expression::Index {
                 kind,
-                index,
+                index: _,
                 left: _,
             } => {
                 self.node("Expression::Index", id.id)
                     .field("kind", kind)
-                    .field_optional("index", index)
                     .end();
             }
             Expression::Call {
