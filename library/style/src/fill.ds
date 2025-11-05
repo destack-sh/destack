@@ -1,0 +1,61 @@
+/// Type of Fill.
+export enum FillType {
+    Solid = 10
+    Gradient = 11
+    Image = 12
+}
+
+/// Position for an image or gradient fill.
+export enum FillPosition {
+    TopLeft = 1
+    TopCenter = 2
+    TopRight = 3
+    Left = 10
+    Center = 11
+    Right = 12
+    BottomLeft = 20
+    BottomCenter = 21
+    BottomRight = 22
+}
+
+/// Render size for an image or gradient fill.
+export enum FillSize {
+    Fill = 1
+    Stretch = 2
+    Fit = 3
+    Tile = 4
+}
+
+/// A fill value for a styled surface.
+export struct Fill {
+    /// The fill type (solid, gradient, image).
+    type: FillType
+    /// Template for this fill, if referenced.
+    template?: FillStyle
+    /// Fill color.
+    color?: Color
+    /// Gradient fill.
+    gradient?: Gradient
+    /// Image fill.
+    image?: Image
+    /// Fill position.
+    position?: FillPosition
+    /// Fill sizing.
+    size?: FillSize
+}
+
+/// A reusable fill style.
+export struct FillStyle extends Style {
+    /// Fill type.
+    type: FillType
+    /// Fill color.
+    color?: Color
+    /// Gradient fill.
+    gradient?: Gradient
+    /// Image fill.
+    image?: Image
+    /// Fill position.
+    position?: FillPosition
+    /// Fill sizing.
+    size?: FillSize
+}

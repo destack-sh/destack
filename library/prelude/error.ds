@@ -1,2 +1,0 @@
-/// Marks a Type as an error.
-export interface Error { }
