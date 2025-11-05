@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
     use dyst_ast::{BindingScope, DeclarationKind, DefinitionMeta, Visibility};
 
     #[test]
@@ -40,7 +40,7 @@ mod tests {
             "function bar(x: int32, y: boolean, z: string) {}",
             "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
             |p| p.eat_function(DefinitionMeta::default(), false, false),
-            DystFormatOptions::default_tab_with_line_width(40)
+            LanguageFormatOptions::default_tab_with_line_width(40)
         );
     }
 
@@ -95,7 +95,7 @@ mod tests {
             "function foo() with Time, Place, Something, Foo, Baz {}",
             "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
             |p| p.eat_function(DefinitionMeta::default(), false, false),
-            DystFormatOptions::default_tab_with_line_width(40)
+            LanguageFormatOptions::default_tab_with_line_width(40)
         );
     }
 

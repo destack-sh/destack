@@ -11,10 +11,7 @@
             "extension/web"
         ]
     },
-    "scripts": {
-        "vscode:compile": "cd extension/vscode && bun run compile",
-        "vscode:watch": "cd extension/vscode && bun run watch"
-    },
+    "scripts": {},
     "catalog": {
         "temporal-polyfill": "^0.3.0"
     },

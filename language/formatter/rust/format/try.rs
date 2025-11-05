@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_try_expression() {
@@ -9,7 +9,7 @@ mod tests {
             "try operation()",
             "try operation()",
             |p| p.eat_try(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -19,7 +19,7 @@ mod tests {
             "try { const X = 1 }",
             "try {\n\tconst X = 1\n}",
             |p| p.eat_try(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -34,7 +34,7 @@ mod tests {
             source,
             source,
             |p| p.eat_try(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -51,7 +51,7 @@ mod tests {
             source,
             source,
             |p| p.eat_try(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 }

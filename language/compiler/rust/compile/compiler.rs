@@ -117,7 +117,6 @@ impl<'s> Compiler<'s> {
     /// Finalize the compiler.
     pub fn finalize(&mut self) {
         assert!(self.mode == CompilerMode::Compiled);
-        self.attach_all_annotations();
         self.mode = CompilerMode::Finalized;
     }
 }

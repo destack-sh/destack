@@ -1,11 +1,11 @@
-use crate::{DystFormatContext, DystFormatter, Keyword};
+use crate::{LanguageFormatContext, DystFormatter, Keyword};
 use dyst_ast::Name;
 use dyst_fir::format::text;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_source::StringId;
 
-impl<'ast> Format<DystFormatContext<'ast>> for StringId {
+impl<'ast> Format<LanguageFormatContext<'ast>> for StringId {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().get_string(*self).to_string();
@@ -13,7 +13,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for StringId {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Name {
+impl<'ast> Format<LanguageFormatContext<'ast>> for Name {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
@@ -28,7 +28,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Name {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Keyword {
+impl<'ast> Format<LanguageFormatContext<'ast>> for Keyword {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])

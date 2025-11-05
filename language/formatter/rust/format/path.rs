@@ -1,8 +1,8 @@
-use crate::{DystFormatContext, DystFormatter, Path};
+use crate::{LanguageFormatContext, DystFormatter, Path};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-impl<'ast> Format<DystFormatContext<'ast>> for Path {
+impl<'ast> Format<LanguageFormatContext<'ast>> for Path {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         // a.b.c
         write!(
@@ -18,7 +18,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Path {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_path_short() {
@@ -26,7 +26,7 @@ mod tests {
             "destack",
             "destack",
             |p| p.eat_path(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -36,7 +36,7 @@ mod tests {
             "destack.geometry.math",
             "destack.geometry.math",
             |p| p.eat_path(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -46,7 +46,7 @@ mod tests {
             "destack.geometry.math.vector.point",
             "destack.geometry.math.vector.point",
             |p| p.eat_path(),
-            DystFormatOptions::default().with_line_width(20)
+            LanguageFormatOptions::default().with_line_width(20)
         );
     }
 }

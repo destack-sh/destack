@@ -14,7 +14,7 @@ use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
-    AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
+    AssignOperator, BinaryOperator, LanguageFormatContext, DystFormatter, Expression, FormatNode,
     Keyword, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
@@ -24,7 +24,7 @@ struct TreeLiteralArgument {
     argument_id: NodeId<Argument>,
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
+impl<'ast> Format<LanguageFormatContext<'ast>> for TreeLiteralArgument {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
 
@@ -1683,7 +1683,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
+impl<'ast> Format<LanguageFormatContext<'ast>> for UnaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
@@ -1702,7 +1702,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
+impl<'ast> Format<LanguageFormatContext<'ast>> for TypeUnaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Type => token("type"),
@@ -1717,7 +1717,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
+impl<'ast> Format<LanguageFormatContext<'ast>> for BinaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
@@ -1770,7 +1770,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
+impl<'ast> Format<LanguageFormatContext<'ast>> for TypeBinaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
@@ -1784,7 +1784,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
+impl<'ast> Format<LanguageFormatContext<'ast>> for AssignOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
@@ -1829,7 +1829,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     /// Simple expressions should stay on one line.
     #[test]
@@ -1838,7 +1838,7 @@ mod tests {
             "1 + 2 * 3 - a / b % c",
             "1 + 2 * 3 - a / b % c",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -1849,7 +1849,7 @@ mod tests {
             "(((1 + 2) * 3) - a / (b % c))",
             "(((1 + 2) * 3) - a / (b % c))",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -1860,7 +1860,7 @@ mod tests {
             "(((())))",
             "(((())))",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1871,7 +1871,7 @@ mod tests {
             "foo<()>(((())))",
             "foo<()>(((())))",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1881,7 +1881,7 @@ mod tests {
             "{ a: 1, ...B }",
             "{ a: 1, ...B }",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1891,7 +1891,7 @@ mod tests {
             "Foo { ...B }",
             "Foo { ...B }",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1901,7 +1901,7 @@ mod tests {
             "true ? 1 : 2",
             "true ? 1 : 2",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1911,7 +1911,7 @@ mod tests {
             "x?.[f]?.[2]?.(a, b)",
             "x?.[f]?.[2]?.(a, b)",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1921,7 +1921,7 @@ mod tests {
             "call().followed().by().many().calls()",
             "call().followed().by().many().calls()",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(100)
+            LanguageFormatOptions::default_tab_with_line_width(100)
         );
     }
 
@@ -1931,7 +1931,7 @@ mod tests {
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(20)
+            LanguageFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1941,7 +1941,7 @@ mod tests {
             "call().followed().by().many().calls()\n",
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(20)
+            LanguageFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1951,7 +1951,7 @@ mod tests {
             "call().followed()?.by()[0]?.many()?.calls()\n",
             "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()\n",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(20)
+            LanguageFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1961,7 +1961,7 @@ mod tests {
             "long.base.path.followed().by().many().calls()\n",
             "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(20)
+            LanguageFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1971,7 +1971,7 @@ mod tests {
             "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]\n",
             "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]\n",
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab_with_line_width(20)
+            LanguageFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1981,7 +1981,7 @@ mod tests {
             "<Entity/>",
             "<Entity />",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -1991,7 +1991,7 @@ mod tests {
             "<Entity a=1, b = 2 />",
             "<Entity a=1 b=2 />",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -2006,7 +2006,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -2024,7 +2024,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -2040,7 +2040,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -2056,7 +2056,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -2075,7 +2075,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(40)
+            LanguageFormatOptions::default_with_line_width(40)
         );
     }
 }

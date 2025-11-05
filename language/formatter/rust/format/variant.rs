@@ -141,7 +141,7 @@ impl<'ast> FormatNode<'ast, Field> for Field {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     #[test]
@@ -150,7 +150,7 @@ mod tests {
             "struct { }",
             "struct { }",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -160,7 +160,7 @@ mod tests {
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32\n\tb: boolean\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -170,7 +170,7 @@ mod tests {
             "struct { readonly a: int32, private b: boolean }",
             "struct {\n\treadonly a: int32\n\tprivate b: boolean\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -180,7 +180,7 @@ mod tests {
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -190,7 +190,7 @@ mod tests {
             "struct(uint64) Foo { a: int32 }",
             "struct(uint64) Foo {\n\ta: int32\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -200,7 +200,7 @@ mod tests {
             "struct Foo(int32, boolean) { }",
             "struct Foo(int32, boolean) { }",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -210,7 +210,7 @@ mod tests {
             "struct Foo(int32) { const X = 2 }",
             "struct Foo(int32) {\n\tconst X = 2\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -220,7 +220,7 @@ mod tests {
             "struct { a?: int32 = 42, b: boolean? }",
             "struct {\n\ta?: int32 = 42\n\tb: boolean?\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -232,7 +232,7 @@ mod tests {
 	const X = 1
 }",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -242,7 +242,7 @@ mod tests {
             "struct { a: int32, const X = 1 }",
             "struct {\n\ta: int32\n\n\tconst X = 1\n}",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -252,7 +252,7 @@ mod tests {
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             |p| p.eat_struct(DefinitionMeta::default()),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 }

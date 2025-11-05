@@ -2,7 +2,7 @@ use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
+    Block, LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
     NodeType,
 };
 use dyst_fir::prelude::*;
@@ -14,13 +14,13 @@ pub struct EmptyBlockWithInfixAnnotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
+impl<'ast, T> Format<LanguageFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         write!(
             f,
             [group(&format_args![
@@ -225,7 +225,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     #[test]
     fn test_format_empty_block_with_comment() {
@@ -236,7 +236,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -251,7 +251,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -266,7 +266,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -281,7 +281,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            LanguageFormatOptions::default()
         );
     }
 
@@ -293,7 +293,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -303,7 +303,7 @@ mod tests {
             "if y { z } else { w }",
             "if y {\n\tz\n} else {\n\tw\n}",
             |p| p.eat_if(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 
@@ -315,7 +315,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default_tab()
+            LanguageFormatOptions::default_tab()
         );
     }
 }

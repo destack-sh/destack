@@ -6,7 +6,6 @@ mod cranelift;
 mod diagnostic;
 mod dir;
 mod execute;
-mod js;
 mod mir;
 mod resolve;
 mod validate;

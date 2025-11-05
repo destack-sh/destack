@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, DefinitionType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword,
+    Argument, DefinitionType, LanguageFormatContext, DystFormatter, FloatType, IntType, Keyword,
     NodeId, ScalarLiteral, TypeLiteral,
 };
 
@@ -134,7 +134,7 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
+impl<'ast> Format<LanguageFormatContext<'ast>> for TypeLiteral {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
@@ -161,8 +161,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for IntType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<LanguageFormatContext<'ast>> for IntType {
+    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         if self.is_signed {
             // signed
             if let Some(width) = self.width {
@@ -181,8 +181,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for IntType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<LanguageFormatContext<'ast>> for FloatType {
+    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         if let Some(width) = self.width {
             write!(f, [token("float"), text(&width.to_string())])
         } else {
@@ -191,8 +191,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for DefinitionType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<LanguageFormatContext<'ast>> for DefinitionType {
+    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             DefinitionType::Type => write!(f, [Keyword::Type]),
             DefinitionType::Module => write!(f, [Keyword::Module]),
@@ -326,7 +326,7 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{LanguageFormatOptions, assert_format};
 
     /// Strings parsed with single quotes should be rewritten with double quotes.
     #[test]

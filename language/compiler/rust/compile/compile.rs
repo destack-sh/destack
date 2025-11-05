@@ -22,7 +22,7 @@ pub enum CompilerMessage {
 }
 
 /// A result of compiling something.
-pub trait CompileResult {
+pub trait CompilerResult {
     /// The node that this result depends on.
     fn depends_on(&self) -> Option<NodeIdAny>;
 }
