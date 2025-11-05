@@ -4,7 +4,7 @@ use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
-use dyst_module::{FileContent, SourceFile, Workspace};
+use dyst_workspace::{FileContent, SourceFile, Workspace};
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, LanguageOptions, SourceFormat, Uri, annotate_source};
 

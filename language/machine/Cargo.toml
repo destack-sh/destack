@@ -17,8 +17,6 @@ dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_mir = { workspace = true }
-dyst_session = { workspace = true }
-dyst_diagnostic = { workspace = true }
 
 destack_unicode = { workspace = true }
 

@@ -8,27 +8,16 @@ const HIGHLIGHT: char = '^';
 const ELIDE: &str = "..";
 
 /// Options controlling how annotation is rendered.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct AnnotateOptions {
     /// Maximum number of characters to show from a source line. 0 disables clipping.
-    pub max_line_width: usize,
+    pub max_line_width: usize = 100,
     /// Number of context lines to show before the start line.
-    pub prefix_lines: u8,
+    pub prefix_lines: u8 = 1,
     /// Number of context lines to show after the end line.
-    pub suffix_lines: u8,
+    pub suffix_lines: u8 = 1,
     /// Whether to emit ANSI color escape sequences.
-    pub use_color: bool,
-}
-
-impl Default for AnnotateOptions {
-    fn default() -> Self {
-        Self {
-            max_line_width: 100,
-            prefix_lines: 1,
-            suffix_lines: 1,
-            use_color: false,
-        }
-    }
+    pub use_color: bool = false,
 }
 
 /// Annotate source lines around a labeled span.

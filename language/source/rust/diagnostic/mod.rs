@@ -1,7 +1,7 @@
 mod annotate;
 mod diagnostic;
-mod emitter;
 mod suggestion;
 
+pub use annotate::*;
 pub use diagnostic::*;
 pub use suggestion::*;

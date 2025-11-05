@@ -12,12 +12,8 @@ path = "rust/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_container = { workspace = true }
-dyst_diagnostic = { workspace = true }
 dyst_fir = { workspace = true }
-dyst_session = { workspace = true }
 dyst_source = { workspace = true }
-dyst_tree = { workspace = true }
 
 destack_file = { workspace = true }
 destack_unicode = { workspace = true }

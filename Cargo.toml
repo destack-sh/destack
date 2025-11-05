@@ -3,9 +3,7 @@ resolver = "2"
 members = [
 	# language
 	"language/ast",
-	"language/container",
 	"language/compiler",
-	"language/diagnostic",
 	"language/dir",
 	"language/machine",
 	"language/fir",
@@ -15,10 +13,8 @@ members = [
 	"language/javascript/machine",
 	"language/mir",
 	"language/parser",
-	"language/module",
 	"language/source",
 	"language/test",
-	"language/tree",
 	# platform
 	"platform/cli",
 	"platform/file",
@@ -45,8 +41,6 @@ rust-version = "1.88.0"
 # language
 dyst_ast = { path = "language/ast" }
 dyst_compiler = { path = "language/compiler" }
-dyst_container = { path = "language/container" }
-dyst_diagnostic = { path = "language/diagnostic" }
 dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
@@ -56,11 +50,9 @@ dyst_javascript_machine = { path = "language/javascript/machine" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
-dyst_module = { path = "language/module" }
-dyst_session = { path = "language/session" }
+dyst_workspace = { path = "language/workspace" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
-dyst_tree = { path = "language/tree" }
 # platform
 destack_cli = { path = "platform/cli" }
 destack_file = { path = "platform/file" }

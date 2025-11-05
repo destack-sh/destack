@@ -2642,13 +2642,10 @@ dependencies = [
  "destack_tokei",
  "dyst_ast",
  "dyst_compiler",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
  "dyst_formatter",
- "dyst_module",
  "dyst_parser",
- "dyst_session",
  "dyst_source",
  "tokio",
 ]
@@ -2667,12 +2664,9 @@ version = "2025.11.5-0"
 dependencies = [
  "destack_file",
  "dyst_ast",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
- "dyst_module",
  "dyst_parser",
- "dyst_session",
  "dyst_source",
  "libc",
  "serde",
@@ -2908,12 +2902,8 @@ dependencies = [
  "criterion",
  "destack_file",
  "destack_unicode",
- "dyst_container",
- "dyst_diagnostic",
  "dyst_fir",
- "dyst_session",
  "dyst_source",
- "dyst_tree",
  "pprof",
 ]
 
@@ -2922,25 +2912,10 @@ name = "dyst_compiler"
 version = "2025.11.5-0"
 dependencies = [
  "dyst_ast",
- "dyst_container",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
- "dyst_module",
  "dyst_parser",
- "dyst_session",
- "dyst_source",
-]
-
-[[package]]
-name = "dyst_container"
-version = "2025.11.5-0"
-
-[[package]]
-name = "dyst_diagnostic"
-version = "2025.11.5-0"
-dependencies = [
  "dyst_source",
 ]
 
@@ -2951,13 +2926,8 @@ dependencies = [
  "destack_file",
  "destack_unicode",
  "dyst_ast",
- "dyst_container",
- "dyst_diagnostic",
  "dyst_fir",
- "dyst_module",
- "dyst_session",
  "dyst_source",
- "dyst_tree",
 ]
 
 [[package]]
@@ -2965,8 +2935,6 @@ name = "dyst_fir"
 version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
- "dyst_diagnostic",
- "dyst_session",
  "dyst_source",
 ]
 
@@ -2975,11 +2943,8 @@ name = "dyst_formatter"
 version = "2025.11.5-0"
 dependencies = [
  "dyst_ast",
- "dyst_container",
- "dyst_diagnostic",
  "dyst_fir",
  "dyst_parser",
- "dyst_session",
  "dyst_source",
 ]
 
@@ -2988,10 +2953,7 @@ name = "dyst_javascript_ast"
 version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
- "dyst_container",
- "dyst_session",
  "dyst_source",
- "dyst_tree",
 ]
 
 [[package]]
@@ -3000,13 +2962,10 @@ version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
  "dyst_javascript_ast",
  "dyst_mir",
- "dyst_module",
- "dyst_session",
  "dyst_source",
 ]
 
@@ -3017,11 +2976,9 @@ dependencies = [
  "deno_runtime",
  "destack_unicode",
  "dyst_ast",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
- "dyst_session",
  "dyst_source",
  "v8 142.0.0",
 ]
@@ -3032,11 +2989,9 @@ version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
- "dyst_session",
  "dyst_source",
 ]
 
@@ -3046,24 +3001,8 @@ version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
- "dyst_diagnostic",
  "dyst_dir",
  "dyst_fir",
- "dyst_session",
- "dyst_source",
-]
-
-[[package]]
-name = "dyst_module"
-version = "2025.11.5-0"
-dependencies = [
- "destack_file",
- "dyst_ast",
- "dyst_diagnostic",
- "dyst_fir",
- "dyst_formatter",
- "dyst_parser",
- "dyst_session",
  "dyst_source",
 ]
 
@@ -3075,19 +3014,8 @@ dependencies = [
  "destack_file",
  "destack_unicode",
  "dyst_ast",
- "dyst_container",
- "dyst_diagnostic",
- "dyst_session",
  "dyst_source",
  "pprof",
-]
-
-[[package]]
-name = "dyst_session"
-version = "2025.11.5-0"
-dependencies = [
- "dyst_diagnostic",
- "dyst_source",
 ]
 
 [[package]]
@@ -3097,14 +3025,6 @@ version = "2025.11.5-0"
 [[package]]
 name = "dyst_test"
 version = "2025.11.5-0"
-
-[[package]]
-name = "dyst_tree"
-version = "2025.11.5-0"
-dependencies = [
- "destack_unicode",
- "dyst_source",
-]
 
 [[package]]
 name = "ecb"

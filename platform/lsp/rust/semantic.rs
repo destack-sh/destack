@@ -1,7 +1,7 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_module::{FileContent, SourceFile};
+use dyst_workspace::{FileContent, SourceFile};
 use dyst_source::{Source, Uri};
 use tower_lsp_server::lsp_types as lsp;
 

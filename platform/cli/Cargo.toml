@@ -18,13 +18,10 @@ path = "rust/main.rs"
 [dependencies]
 dyst_ast = { workspace = true }
 dyst_compiler = { workspace = true }
-dyst_diagnostic = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_formatter = { workspace = true }
 dyst_parser = { workspace = true }
-dyst_module = { workspace = true }
-dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 
 destack_tokei = { workspace = true }

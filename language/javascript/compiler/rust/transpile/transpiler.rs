@@ -1,5 +1,5 @@
 use dyst_javascript_ast::NodeTree;
-use dyst_module::{Package, Workspace};
+use dyst_workspace::{Package, Workspace};
 use dyst_session::Session;
 use dyst_source::{LanguageOptions, StringPool};
 
