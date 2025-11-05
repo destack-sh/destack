@@ -233,8 +233,8 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Definition, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral,
-        UnaryOperator, UnionField, Field, WhereClause, WithClause, assert_expr_path,
+        BinaryOperator, Definition, Expression, Field, IntType, Parameter, ScalarLiteral,
+        TypeLiteral, UnaryOperator, UnionField, WhereClause, WithClause, assert_expr_path,
         assert_node, assert_path, assert_string,
     };
 

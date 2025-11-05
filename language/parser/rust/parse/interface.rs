@@ -90,7 +90,7 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        Definition, DefinitionMeta, Expression, IntType, ScalarLiteral, TypeLiteral, Field,
+        Definition, DefinitionMeta, Expression, Field, IntType, ScalarLiteral, TypeLiteral,
         WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
     };
 

@@ -9,7 +9,7 @@ use crate::{
 };
 use dyst_ast::{
     Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionMode, FunctionKind, ModuleStyle, ReferenceType, StructKind,
+    FunctionCardinality, FunctionKind, FunctionMode, ModuleStyle, ReferenceType, StructKind,
     Visibility,
 };
 use dyst_fir::format::FormatResult;
@@ -485,7 +485,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
-                
+
                 // extends types
                 if let Some(extends_types) = &extends_types
                     && !extends_types.is_empty()

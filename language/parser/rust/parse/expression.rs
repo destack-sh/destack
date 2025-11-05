@@ -94,9 +94,7 @@ static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 8] = [
 ];
 
 // can't use `in` in for each expressions
-static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [
-    BinaryOperator::In,
-];
+static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [BinaryOperator::In];
 
 /// Make an infix operator (in context).
 #[inline]

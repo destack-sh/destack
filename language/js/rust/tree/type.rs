@@ -101,10 +101,8 @@ pub enum TypeBinaryOperator {
 
 /// A Type is a Typescript type.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-
-}
+pub enum Type {}
 
 impl Node for Type {
-	const TYPE: NodeType = NodeType::Type;
+    const TYPE: NodeType = NodeType::Type;
 }

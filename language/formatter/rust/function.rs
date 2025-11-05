@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::{DeclarationKind, BindingScope, DefinitionMeta, Visibility};
+    use dyst_ast::{BindingScope, DeclarationKind, DefinitionMeta, Visibility};
 
     #[test]
     fn test_format_function_lambda_empty() {

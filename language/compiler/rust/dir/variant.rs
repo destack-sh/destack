@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{NodeId, StringId, Type, Variant, Field};
+use dyst_dir::{Field, NodeId, StringId, Type, Variant};
 use dyst_source::SourceId;
 
 #[allow(clippy::too_many_arguments)]

@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use dyst_ast::{
-    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionKind, Keyword, Path, StringId, TemplateLiteral
+    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionKind, Keyword, Path,
+    StringId, TemplateLiteral,
 };
 use std::str::FromStr;
 
@@ -507,7 +508,7 @@ impl<'a> Parser<'a> {
                             && let Some(token_after) = self.tokens.get(closing_pos as usize + 1) && token_after.token.ty == TokenType::Colon {
                                 return Ok(None);
                             }
-                    }       
+                    }
                     // [ (dynamic field or function)
                     | (TokenType::OpenBracket, _, _) => {
                         // only if the closing bracket is followed by a colon or opening parenthesis
@@ -546,22 +547,24 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a named function shorthand argument (like `foo()`, only in certain contexts like struct literals).
-    fn eat_struct_named_function_shorthand(&mut self, modifiers: Option<BindingModifier>) -> ParserResult<NodeId<Argument>> {
+    fn eat_struct_named_function_shorthand(
+        &mut self,
+        modifiers: Option<BindingModifier>,
+    ) -> ParserResult<NodeId<Argument>> {
         let start = self.mark();
         debug_assert!(self.peek_token(TokenType::Identifier).is_ok());
         let is_maybe = self.peek_next_token(TokenType::Maybe).is_ok();
-        let function_id =
-            self.eat_function(DefinitionMeta::default(), is_maybe, false)?;
-        
+        let function_id = self.eat_function(DefinitionMeta::default(), is_maybe, false)?;
+
         // name
         let name = self.tree.get(function_id).name();
-        
+
         // value
         let value = self.tree.insert(
             Expression::Definition(function_id),
             self.get_span_from(start),
         );
-        
+
         // clear function name
         match self.tree.get_mut(function_id) {
             Definition::Function {
@@ -574,7 +577,7 @@ impl<'a> Parser<'a> {
             }
             _ => panic!("expected function for"),
         };
-        
+
         // maybe
         let modifiers = if is_maybe {
             Some(BindingModifier {
@@ -584,7 +587,7 @@ impl<'a> Parser<'a> {
         } else {
             modifiers
         };
-    
+
         // argument
         Ok(self.tree.insert(
             Argument::Function {
@@ -694,10 +697,13 @@ impl<'a> Parser<'a> {
                     // key
                     let key = self.eat_expression().for_node_type(NodeType::Argument)?;
                     self.eat_token(TokenType::CloseBracket)?;
-                    
+
                     // dynamic function argument
-                    if self.peek_token(TokenType::OpenParenthesis).is_ok() || self.peek_token(TokenType::LessThan).is_ok() {
-                        let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
+                    if self.peek_token(TokenType::OpenParenthesis).is_ok()
+                        || self.peek_token(TokenType::LessThan).is_ok()
+                    {
+                        let function_id =
+                            self.eat_function(DefinitionMeta::default(), false, false)?;
                         let function_id = self.tree.insert(
                             Expression::Definition(function_id),
                             self.get_span_from(start),
@@ -711,7 +717,7 @@ impl<'a> Parser<'a> {
                             },
                             self.get_span_from(start),
                         )
-                    } 
+                    }
                     // dynamic argument
                     else {
                         // value
@@ -745,7 +751,9 @@ impl<'a> Parser<'a> {
                     self.eat_struct_named_function_shorthand(modifiers)?
                 }
                 // anonymous call function shorthand argument
-                else if self.peek_token(TokenType::LessThan).is_ok() || self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                else if self.peek_token(TokenType::LessThan).is_ok()
+                    || self.peek_token(TokenType::OpenParenthesis).is_ok()
+                {
                     let function_id = self.eat_function(DefinitionMeta::default(), false, false)?;
                     let function_id = self.tree.insert(
                         Expression::Definition(function_id),
@@ -947,7 +955,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, FunctionMode, Mutability, Name, Parameter, TemplateLiteral
+        BindingKind, Definition, DefinitionMeta, FunctionMode, Mutability, Name, Parameter,
+        TemplateLiteral,
     };
 
     use crate::parse::tests::TestParser;

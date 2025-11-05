@@ -49,7 +49,6 @@ impl Color {
     }
 }
 
-
 /// Metadata for a dumped line.
 #[derive(Debug)]
 struct LineMetadata {
