@@ -185,27 +185,7 @@ impl File {
     ) -> Self {
         let source = Source::from_string(id, name.clone(), uri.clone(), format, content);
         let content = FileContent::parse_text(source, language, session);
-        let intent = match format {
-            SourceFormat::Dyst => {
-                if name.eq(MODULE_FILE_NAME) {
-                    FileMode::Module
-                } else if name.ends_with(SOURCE_DECLARATION_FILE_EXTENSION) {
-                    FileMode::SourceDeclaration
-                } else {
-                    FileMode::Source
-                }
-            }
-            SourceFormat::DystDeclaration => FileMode::SourceDeclaration,
-            SourceFormat::DystText => {
-                if name.eq(PACKAGE_FILE_NAME) {
-                    FileMode::Package
-                } else {
-                    FileMode::Data
-                }
-            }
-            SourceFormat::DystBinary => FileMode::Data,
-            SourceFormat::DystExecutable => FileMode::Data,
-        };
+        todo!("nocheckin");
 
         File {
             id,
