@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
-use crate::{DystFormatter, FormatNode, NodeId, UnionField};
+use crate::{LanguageFormatter, FormatNode, NodeId, UnionField};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -9,7 +9,7 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
     fn format_node(
         &self,
         node_id: NodeId<UnionField>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 

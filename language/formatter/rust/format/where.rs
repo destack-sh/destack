@@ -1,11 +1,11 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, NodeId, WhereClause};
+use crate::{LanguageFormatter, FormatNode, Keyword, NodeId, WhereClause};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 pub(crate) fn format_where_clause<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     clauses: &[NodeId<WhereClause>],
 ) -> FormatResult<()> {
     // keyword
@@ -32,7 +32,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
     fn format_node(
         &self,
         node_id: NodeId<WhereClause>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

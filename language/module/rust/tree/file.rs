@@ -10,44 +10,15 @@ use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, St
 
 use crate::PackageId;
 
-/// Generic source file (`ds`)
-pub const SOURCE_FILE_NAME: &str = "ds";
-/// Generic source file extension (`.ds`)
-pub const SOURCE_FILE_EXTENSION: &str = ".ds";
-
-/// Generic source declaration file (`d.ds`)
-pub const SOURCE_DECLARATION_FILE_NAME: &str = "d.ds";
-/// Generic source declaration file extension (`.d.ds`)
-pub const SOURCE_DECLARATION_FILE_EXTENSION: &str = ".d.ds";
-
-/// Generic data file (`dst`)
-pub const DATA_FILE_NAME: &str = "dst";
-/// Generic data file extension (`.dst`)
-pub const DATA_FILE_EXTENSION: &str = ".dst";
-
-/// Generic binary file (`dsb`)
-pub const BINARY_FILE_NAME: &str = "dsb";
-/// Generic binary file extension (`.dsb`)
-pub const BINARY_FILE_EXTENSION: &str = ".dsb";
-
-/// Package file (`.dst`)
-pub const PACKAGE_FILE_NAME: &str = "package.dst";
-/// Module file (`.ds`)
-pub const MODULE_FILE_NAME: &str = "module.ds";
-
 /// The special intent of a file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileIntent {
+pub enum FileMode {
     /// Generic source file (`.ds`)
     Source,
     /// Generic source declaration file (`.d.ds`)
     SourceDeclaration,
-    /// Generic data file (`.dst`, `.dsb`, `.dsx`)
+    /// Generic data file (`.dst`, `.dsb`)
     Data,
-    /// Package file (`package.dst`)
-    Package,
-    /// Module file (`module.ds`)
-    Module,
 }
 
 /// A source File (might be on disk, might also be virtual or in-memory).
@@ -63,8 +34,8 @@ pub struct File {
     pub uri: Uri,
     /// The format of the file.
     pub format: SourceFormat,
-    /// The special intent of the file.
-    pub intent: FileIntent,
+    /// The mode of the file.
+    pub mode: FileMode,
     /// Whether the file is currently open (in editor context).
     pub is_open: bool,
     /// The content of the file.
@@ -77,7 +48,7 @@ pub struct File {
 pub enum FileContent {
     /// The content of a (text) SourceFile (e.g., `.ds`, `.d.ds`, or `.dst`)
     Source(SourceFile),
-    /// The content of a BinaryFile (e.g., `.dsb` or `.dsx`)
+    /// The content of a BinaryFile (e.g., `.dsb`)
     Binary(BinaryFile),
 }
 
@@ -217,23 +188,23 @@ impl File {
         let intent = match format {
             SourceFormat::Dyst => {
                 if name.eq(MODULE_FILE_NAME) {
-                    FileIntent::Module
+                    FileMode::Module
                 } else if name.ends_with(SOURCE_DECLARATION_FILE_EXTENSION) {
-                    FileIntent::SourceDeclaration
+                    FileMode::SourceDeclaration
                 } else {
-                    FileIntent::Source
+                    FileMode::Source
                 }
             }
-            SourceFormat::DystDeclaration => FileIntent::SourceDeclaration,
+            SourceFormat::DystDeclaration => FileMode::SourceDeclaration,
             SourceFormat::DystText => {
                 if name.eq(PACKAGE_FILE_NAME) {
-                    FileIntent::Package
+                    FileMode::Package
                 } else {
-                    FileIntent::Data
+                    FileMode::Data
                 }
             }
-            SourceFormat::DystBinary => FileIntent::Data,
-            SourceFormat::DystExecutable => FileIntent::Data,
+            SourceFormat::DystBinary => FileMode::Data,
+            SourceFormat::DystExecutable => FileMode::Data,
         };
 
         File {
@@ -242,7 +213,7 @@ impl File {
             name,
             uri,
             format,
-            intent,
+            mode: intent,
             is_open,
             content,
         }
@@ -265,47 +236,10 @@ impl File {
             name,
             uri,
             format,
-            intent: FileIntent::Data,
+            mode: FileMode::Data,
             is_open,
             content: FileContent::wrap_binary(content),
         }
-    }
-
-    /// Format a (text) File.
-    /// If the file couldn't be formatted, returns `None`.
-    pub fn format(&self, session: &Session) -> Option<String> {
-        let FileContent::Source(SourceFile {
-            source,
-            tokens,
-            side_tokens,
-            side_span,
-            ast,
-            root_definition_id: module_id,
-            strings,
-            ..
-        }) = &self.content
-        else {
-            return None;
-        };
-
-        // format with default options
-        // NOTE #Incomplete: configure LSP formatting options from Workspace/Package
-        let options = LanguageFormatOptions::default();
-        let context = LanguageFormatContext {
-            options,
-            source,
-            tokens,
-            side_tokens,
-            side_span,
-            tree: ast,
-            spans: &ast.spans,
-            parents: NodeParentIndex::from_tree(ast),
-            session,
-            strings,
-        };
-        let formatted = format!(context, [module_id]).unwrap();
-        let printed = formatted.print();
-        Some(printed.unwrap().as_str().to_string())
     }
 }
 

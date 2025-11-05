@@ -2,7 +2,7 @@ use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, LanguageFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
+    Block, LanguageFormatter, FormatNode, LanguageFormatContext, Node, NodeId, NodeTree, NodeTreeImpl,
     NodeType,
 };
 use dyst_fir::prelude::*;
@@ -52,7 +52,7 @@ pub fn empty_block_with_infix_annotations<T: Node>(
 /// Format a block inline with zero or one expression (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -87,7 +87,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 /// Format a block multiline with multiple expressions (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -114,7 +114,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 
 /// Format a block of expressions (with appropriate empty annotations)
 pub(crate) fn format_block_of_expressions<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     expressions: &[NodeId<Expression>],
 ) -> FormatResult<()> {
     for (i, &expression_id) in expressions.iter().enumerate() {
@@ -141,7 +141,7 @@ pub(crate) fn format_block_of_expressions<'ast>(
 
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> bool {
     let block = f.context().tree.get(block_id);
@@ -184,7 +184,7 @@ pub(crate) fn should_inline_block<'ast>(
 
 /// Format a block (without a nested group!).
 pub fn format_block<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -201,7 +201,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         node_id: NodeId<Block>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         if should_inline_block(f, node_id) {

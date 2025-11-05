@@ -23,7 +23,7 @@ dyst_dir = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_formatter = { workspace = true }
 dyst_parser = { workspace = true }
-dyst_package = { workspace = true }
+dyst_module = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 

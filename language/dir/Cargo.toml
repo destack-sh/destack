@@ -16,7 +16,7 @@ dyst_ast = { workspace = true }
 dyst_container = { workspace = true }
 dyst_diagnostic = { workspace = true }
 dyst_fir = { workspace = true }
-dyst_package = { workspace = true }
+dyst_module = { workspace = true }
 dyst_session = { workspace = true }
 dyst_source = { workspace = true }
 dyst_string = { workspace = true }

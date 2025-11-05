@@ -14,8 +14,8 @@ use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
-    AssignOperator, BinaryOperator, LanguageFormatContext, DystFormatter, Expression, FormatNode,
-    Keyword, NodeId, UnaryOperator, empty_block_with_infix_annotations,
+    AssignOperator, BinaryOperator, LanguageFormatter, Expression, FormatNode, Keyword,
+    LanguageFormatContext, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)
@@ -25,7 +25,7 @@ struct TreeLiteralArgument {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for TreeLiteralArgument {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
 
         let argument = f.context().tree.get(self.argument_id);
@@ -118,7 +118,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TreeLiteralArgument {
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_else_chain<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     // walk the chain
@@ -201,7 +201,7 @@ pub(crate) fn format_if_else_chain<'ast>(
 /// Format a member expression without considering chaining.
 #[inline]
 fn format_member_expression<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Member {
@@ -223,7 +223,7 @@ fn format_member_expression<'ast>(
 /// Format an index expression without considering chaining.
 #[inline]
 fn format_index_expression<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Index {
@@ -250,7 +250,7 @@ fn format_index_expression<'ast>(
 /// Format a call expression without considering chaining.
 #[inline]
 fn format_call_expression<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Call {
@@ -273,7 +273,7 @@ fn format_call_expression<'ast>(
 /// Format a maybe expression without considering chaining.
 #[inline]
 fn format_maybe_expression<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
@@ -329,7 +329,7 @@ enum ChainExpression {
 
 /// Format the base portion of the chain.
 fn format_chain_base<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     base: &ChainExpressionBase,
 ) -> FormatResult<()> {
     match &base.head {
@@ -367,7 +367,7 @@ fn format_chain_base<'ast>(
 
 /// Format one chained operation.
 fn format_chain_expression<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     op: &ChainExpression,
 ) -> FormatResult<()> {
     match op {
@@ -412,7 +412,7 @@ fn format_chain_expression<'ast>(
 
 /// Format all operations for one chain line.
 fn format_chain_expression_line<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     ops: &[ChainExpression],
 ) -> FormatResult<()> {
     for op in ops {
@@ -483,7 +483,7 @@ fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
 
 /// Format a member/call/maybe/index chain with prettier-style breaking.
 pub(crate) fn format_expression_chain<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -647,7 +647,7 @@ pub(crate) fn format_expression_chain<'ast>(
 /// Format a match expression.
 #[inline]
 pub(crate) fn format_match<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
     include_prefix: bool,
 ) -> FormatResult<()> {
@@ -814,7 +814,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
 /// Format a struct literal.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     ty: &Option<NodeId<Expression>>,
     fields_ids: &Vec<NodeId<Argument>>,
@@ -852,7 +852,7 @@ pub(crate) fn format_struct_literal<'ast>(
 /// Format a tree literal.
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut LanguageFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     path: &Option<Path>,
     arguments: &Option<Vec<NodeId<Argument>>>,
@@ -942,7 +942,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
         node_id: NodeId<Expression>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut LanguageFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -1684,7 +1684,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for UnaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -1703,7 +1703,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for UnaryOperator {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for TypeUnaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Type => token("type"),
             TypeUnaryOperator::Readonly => token("readonly"),
@@ -1718,7 +1718,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TypeUnaryOperator {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for BinaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
             BinaryOperator::Multiply => token("*"),
@@ -1771,7 +1771,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for BinaryOperator {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for TypeBinaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
             TypeBinaryOperator::Is => token("is"),
@@ -1785,7 +1785,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TypeBinaryOperator {
 }
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for AssignOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
 
