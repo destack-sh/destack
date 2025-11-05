@@ -1,4 +1,4 @@
-/// The Destack Simulation Geometry Module.
+/// The Destack Geometry Module.
 
 export shape
 export point

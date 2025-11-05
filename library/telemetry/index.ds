@@ -1,7 +1,7 @@
 /// Observability Module
 
-import metric
-import counter
-import gauge
-import histogram
+export * from "./metric"
+export * from "./counter"
+export * from "./gauge"
+export * from "./histogram"
 

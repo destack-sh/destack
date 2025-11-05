@@ -14,8 +14,8 @@ use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
-    AssignOperator, BinaryOperator, LanguageFormatter, Expression, FormatNode, Keyword,
-    LanguageFormatContext, NodeId, UnaryOperator, empty_block_with_infix_annotations,
+    AssignOperator, BinaryOperator, Expression, FormatNode, Keyword, LanguageFormatContext,
+    LanguageFormatter, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)
@@ -1001,6 +1001,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     Some(target),
                     alias.as_ref().copied(),
                     items.as_ref(),
+                    false,
                 )?;
                 if let Some(arguments) = arguments {
                     write!(
@@ -1036,6 +1037,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         target.as_ref(),
                         alias.as_ref().copied(),
                         items.as_ref(),
+                        true,
                     )?;
                 }
             }
