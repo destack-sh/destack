@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
 use dyst_source::{
-    DiagnosticCollector, LanguageOptions, MultiSpan, File, FileId, Span, StringId, StringPool,
+    DiagnosticCollector, File, FileId, LanguageOptions, MultiSpan, Span, StringId, StringPool,
 };
 
 use crate::{
@@ -248,9 +248,9 @@ impl ParserOptions {
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
 pub struct Parser<'ast> {
     /// The source we're parsing.
-    pub source: &'ast File,
+    pub file: &'ast File,
     /// The source ID.
-    pub source_id: FileId,
+    pub file_id: FileId,
     /// The current main tokens to consider.
     pub tokens: Vec<TokenSpan>,
     /// The side tokens not in the main tokens.
@@ -288,27 +288,27 @@ impl<'a> Parser<'a> {
     /// Create a new parser from source and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     pub fn prepare(
-        source: &'a File,
+        file: &'a File,
         language: LanguageOptions,
         diagnostics: &'a mut DiagnosticCollector,
     ) -> Self {
         // tokenize
-        let (all_tokens, eof_token) = Lexer::lex(source.id, &source.content, language);
+        let (all_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
         let (tokens, side_tokens) = all_tokens
             .iter()
             .partition(|token| is_semantic(token.token.ty));
 
         // make parser
         let mut parser = Self {
-            source,
-            source_id: source.id,
+            file,
+            file_id: file.id,
             tokens,
             side_tokens,
             pos: 0,
             options: ParserOptions::default(),
             is_finalized: false,
             language,
-            tree: NodeTree::new(source.id),
+            tree: NodeTree::new(file.id),
             strings: StringPool::new(),
             diagnostics,
             eof_token,
@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn handle_error(&mut self, e: &ParserError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
-            let diagnostic = e.to_diagnostic(self.source, &self.tokens);
+            let diagnostic = e.to_diagnostic(self.file, &self.tokens);
             self.diagnostics.insert_diagnostic(diagnostic);
         }
     }
@@ -433,7 +433,7 @@ impl<'a> Parser<'a> {
             self.tokens[0]
         };
         Span {
-            source: self.source_id,
+            file: self.file_id,
             start: start_token.span.start,
             end: end_token.span.end,
         }
@@ -442,13 +442,13 @@ impl<'a> Parser<'a> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'a str {
-        &self.source.content[span.start as usize..span.end as usize]
+        self.file.get_span_str(span).unwrap_or_default()
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
-        &self.source.content[token.span.start as usize..token.span.end as usize]
+        self.file.get_span_str(token.span).unwrap_or_default()
     }
 
     /// Get the previous Token.
@@ -848,8 +848,8 @@ impl<'a> Parser<'a> {
 
     /// Check if two spans are on the same line.
     pub fn is_same_line(&self, left: Span, right: Span) -> bool {
-        let left_line = self.source.get_position(left.start).map(|(line, _)| line);
-        let right_line = self.source.get_position(right.end).map(|(line, _)| line);
+        let left_line = self.file.get_position(left.start).map(|(line, _)| line);
+        let right_line = self.file.get_position(right.end).map(|(line, _)| line);
         match (left_line, right_line) {
             (Some(lhs), Some(rhs)) => lhs == rhs,
             _ => false,

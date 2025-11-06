@@ -221,13 +221,13 @@ impl Node for Expression {
 }
 
 impl Expression {
-    // nocheckin TODO #Broken: revisit Compiler is_resolve/resolve logic
-    /// Whether the expression is resolved (ignoring child nodes).
+    // nocheckin TODO #Broken: revisit Compiler is_evaluate/evaluate logic
+    /// Whether the expression is evaluated (ignoring child nodes).
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    pub fn is_evaluated(&self) -> bool {
         match self {
             // values
-            Expression::Path { path } => path.is_resolved(),
+            Expression::Path { path } => path.is_evaluated(),
             Expression::ScalarLiteral { .. }
             | Expression::TemplateLiteral { .. }
             | Expression::TypeLiteral { .. }

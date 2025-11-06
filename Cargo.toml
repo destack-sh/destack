@@ -9,25 +9,25 @@ members = [
 	"language/fir",
 	"language/formatter",
 	"language/javascript/ast",
-	"language/javascript/compiler",
+	"language/javascript/transpiler",
 	"language/javascript/machine",
 	"language/mir",
 	"language/parser",
 	"language/source",
 	"language/test",
+	# extension
+	"extension/lsp",
+	"extension/vscode",
 	# platform
 	"platform/cli",
 	"platform/file",
-	"platform/lsp",
 	"platform/terminal",
-	"platform/test",
 	"platform/json",
 	"platform/order",
 	"platform/time",
 	"platform/unicode",
 	"platform/uuid",
 	"platform/tokei",
-	"platform/vscode",
 ]
 
 [workspace.package]
@@ -45,7 +45,7 @@ dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
 dyst_javascript_ast = { path = "language/javascript/ast" }
-dyst_javascript_compiler = { path = "language/javascript/compiler" }
+dyst_javascript_transpiler = { path = "language/javascript/transpiler" }
 dyst_javascript_machine = { path = "language/javascript/machine" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
@@ -54,19 +54,20 @@ dyst_workspace = { path = "language/workspace" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
 
+# extension
+destack_lsp = { path = "extension/lsp" }
+destack_vscode = { path = "extension/vscode" }
+
 # platform
 destack_cli = { path = "platform/cli" }
 destack_file = { path = "platform/file" }
 destack_json = { path = "platform/json" }
-destack_lsp = { path = "platform/lsp" }
 destack_order = { path = "platform/order" }
 destack_terminal = { path = "platform/terminal" }
-destack_test = { path = "platform/test" }
 destack_time = { path = "platform/time" }
 destack_tokei = { path = "platform/tokei" }
 destack_unicode = { path = "platform/unicode" }
 destack_uuid = { path = "platform/uuid" }
-destack_vscode = { path = "platform/vscode" }
 
 # general
 rayon = "1.11.0"

@@ -2,9 +2,7 @@
 
 use dyst_ast::Keyword;
 
-use crate::TokenType;
-
-use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition};
+use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -153,7 +151,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{Name, Path, PostfixPosition};
-    use dyst_container::smallvec;
+    use dyst_source::smallvec;
 
     use crate::parse::tests::TestParser;
     use crate::{Argument, Expression, NodeId, Parser, ScalarLiteral, assert_node, assert_string};

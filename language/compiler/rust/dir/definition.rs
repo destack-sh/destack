@@ -20,14 +20,14 @@ impl<'a> Compiler<'a> {
     /// (Like for a scalar literal)
     pub fn lower_expression_to_definition(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> Option<NodeId<Definition>> {
         let expression = ast.get(expression_id);
         let definition = match expression {
             ast::Expression::Definition(definition_id) => {
-                Some(self.lower_definition(source_id, ast, *definition_id))
+                Some(self.lower_definition(file_id, ast, *definition_id))
             }
             ast::Expression::Import {
                 kind,
@@ -39,7 +39,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let asynchrony = self.lower_asynchrony(*asynchrony);
                 let items = self.lower_dependency_binding(
-                    source_id,
+                    file_id,
                     ast,
                     expression_id,
                     *kind,
@@ -50,10 +50,10 @@ impl<'a> Compiler<'a> {
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(source_id, ast, *argument))
+                        .map(|argument| self.lower_argument(file_id, ast, *argument))
                         .collect()
                 });
-                let kind = self.lower_dependency_kind(source_id, ast, *kind);
+                let kind = self.lower_dependency_kind(file_id, ast, *kind);
                 let definition = Definition::Import {
                     kind,
                     asynchrony,
@@ -62,14 +62,14 @@ impl<'a> Compiler<'a> {
                 };
                 Some(
                     self.tree
-                        .insert_from_ast(definition, source_id, expression_id),
+                        .insert_from_ast(definition, file_id, expression_id),
                 )
             }
             _ => None,
         };
         if let Some(definition) = definition {
             self.tree
-                .alias_from_ast(source_id, expression_id.id, definition);
+                .alias_from_ast(file_id, expression_id.id, definition);
         }
         definition
     }
@@ -78,7 +78,7 @@ impl<'a> Compiler<'a> {
     /// Includes both super types and include types (with spread syntax).
     pub fn lower_embedded_definitions(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         _definition_id: ast::NodeId<ast::Definition>,
         extends_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
@@ -90,7 +90,7 @@ impl<'a> Compiler<'a> {
             embedded_definitions.extend(
                 extends_types
                     .iter()
-                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
+                    .map(|ty| self.lower_expression_to_type(file_id, ast, *ty))
                     .map(|ty| EmbeddedDefinition::Extends { ty }),
             );
         }
@@ -98,7 +98,7 @@ impl<'a> Compiler<'a> {
             embedded_definitions.extend(
                 implements_types
                     .iter()
-                    .map(|ty| self.lower_expression_to_type(source_id, ast, *ty))
+                    .map(|ty| self.lower_expression_to_type(file_id, ast, *ty))
                     .map(|ty| EmbeddedDefinition::Implements { ty }),
             );
         }
@@ -110,8 +110,8 @@ impl<'a> Compiler<'a> {
                     operator: ast::UnaryOperator::Spread,
                     expression: right,
                 } => {
-                    let right = self.lower_expression_to_type(source_id, ast, *right);
-                    self.tree.alias_from_ast(source_id, expression_id.id, right);
+                    let right = self.lower_expression_to_type(file_id, ast, *right);
+                    self.tree.alias_from_ast(file_id, expression_id.id, right);
                     Some(EmbeddedDefinition::Include { ty: right })
                 }
                 _ => None,
@@ -123,13 +123,13 @@ impl<'a> Compiler<'a> {
     /// Lower AST definition meta into DIR definition meta.
     pub fn lower_definition_meta(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         meta: &ast::DefinitionMeta,
     ) -> DefinitionMeta {
         let kind = self.lower_declaration_kind(meta.kind);
         let name = meta
             .name
-            .map(|name| self.intern_string(source_id, name.string()));
+            .map(|name| self.intern_string(file_id, name.string()));
         let visibility = meta
             .visibility
             .map(|visibility| self.lower_visibility(visibility));
@@ -145,7 +145,7 @@ impl<'a> Compiler<'a> {
     /// Lower AST definition generics into DIR definition generics.
     pub fn lower_generics(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         static_parameters: Option<&Vec<ast::NodeId<ast::Parameter>>>,
         with_clauses: Option<&Vec<ast::NodeId<ast::WithClause>>>,
@@ -158,7 +158,7 @@ impl<'a> Compiler<'a> {
             Some(
                 parameters
                     .iter()
-                    .map(|parameter| self.lower_parameter(source_id, ast, *parameter))
+                    .map(|parameter| self.lower_parameter(file_id, ast, *parameter))
                     .collect(),
             )
         });
@@ -169,7 +169,7 @@ impl<'a> Compiler<'a> {
             Some(
                 clauses
                     .iter()
-                    .map(|clause| self.lower_with_clause(source_id, ast, *clause))
+                    .map(|clause| self.lower_with_clause(file_id, ast, *clause))
                     .collect(),
             )
         });
@@ -180,7 +180,7 @@ impl<'a> Compiler<'a> {
             Some(
                 clauses
                     .iter()
-                    .map(|clause| self.lower_where_clause(source_id, ast, *clause))
+                    .map(|clause| self.lower_where_clause(file_id, ast, *clause))
                     .collect(),
             )
         });
@@ -198,7 +198,7 @@ impl<'a> Compiler<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn lower_function_signature(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         abstraction: ast::FunctionAbstraction,
         asynchrony: ast::Asynchrony,
@@ -216,14 +216,14 @@ impl<'a> Compiler<'a> {
         let mode = mode.map(|mode| self.lower_function_mode(mode));
         let self_parameter = self_parameter
             .as_ref()
-            .map(|self_parameter| self.lower_self_parameter(source_id, ast, self_parameter));
+            .map(|self_parameter| self.lower_self_parameter(file_id, ast, self_parameter));
         let dynamic_parameters = dynamic_parameters
             .iter()
-            .map(|parameter| self.lower_parameter(source_id, ast, *parameter))
+            .map(|parameter| self.lower_parameter(file_id, ast, *parameter))
             .collect();
         let return_type = return_type
             .as_ref()
-            .map(|ty| self.lower_expression_to_type(source_id, ast, *ty));
+            .map(|ty| self.lower_expression_to_type(file_id, ast, *ty));
         FunctionSignature {
             abstraction,
             asynchrony,
@@ -241,7 +241,7 @@ impl<'a> Compiler<'a> {
     /// Handles modules, structs, and enums.
     pub fn lower_definition(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         definition_id: ast::NodeId<ast::Definition>,
     ) -> NodeId<Definition> {
@@ -256,9 +256,9 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     None,
                     with_clauses.as_ref(),
@@ -266,7 +266,7 @@ impl<'a> Compiler<'a> {
                 );
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Module {
@@ -274,7 +274,7 @@ impl<'a> Compiler<'a> {
                         generics,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -293,20 +293,20 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let style = match style {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
                 };
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
                 let embedded_definitions = self.lower_embedded_definitions(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     extends_types,
@@ -315,10 +315,10 @@ impl<'a> Compiler<'a> {
                 );
                 let representation_type = representation_type
                     .as_ref()
-                    .map(|repr| self.lower_expression_to_type(source_id, ast, *repr));
+                    .map(|repr| self.lower_expression_to_type(file_id, ast, *repr));
                 let struct_name = meta.name;
                 let variant = self.lower_struct_to_variant(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     struct_name,
@@ -328,7 +328,7 @@ impl<'a> Compiler<'a> {
                 );
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Struct {
@@ -339,7 +339,7 @@ impl<'a> Compiler<'a> {
                         variant,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -356,16 +356,16 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
                 let embedded_definitions = self.lower_embedded_definitions(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     extends_types,
@@ -374,12 +374,12 @@ impl<'a> Compiler<'a> {
                 );
                 let tag_type = tag_type
                     .as_ref()
-                    .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
+                    .map(|tag| self.lower_expression_to_type(file_id, ast, *tag));
                 let variants =
-                    self.lower_enum_to_variant(source_id, ast, definition_id, tag_type, fields);
+                    self.lower_enum_to_variant(file_id, ast, definition_id, tag_type, fields);
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Enum {
@@ -389,7 +389,7 @@ impl<'a> Compiler<'a> {
                         variants,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -407,16 +407,16 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
                 let embedded_definitions = self.lower_embedded_definitions(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     extends_types,
@@ -425,12 +425,12 @@ impl<'a> Compiler<'a> {
                 );
                 let tag_type = tag_type
                     .as_ref()
-                    .map(|tag| self.lower_expression_to_type(source_id, ast, *tag));
+                    .map(|tag| self.lower_expression_to_type(file_id, ast, *tag));
                 let representation_type = representation_type
                     .as_ref()
-                    .map(|repr| self.lower_expression_to_type(source_id, ast, *repr));
+                    .map(|repr| self.lower_expression_to_type(file_id, ast, *repr));
                 let variants = self.lower_union_to_variant(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     representation_type,
@@ -439,7 +439,7 @@ impl<'a> Compiler<'a> {
                 );
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Union {
@@ -449,7 +449,7 @@ impl<'a> Compiler<'a> {
                         variants,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -464,16 +464,16 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
                 let embedded_definitions = self.lower_embedded_definitions(
-                    source_id,
+                    file_id,
                     ast,
                     definition_id,
                     extends_types,
@@ -482,11 +482,11 @@ impl<'a> Compiler<'a> {
                 );
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_field(source_id, ast, *field))
+                    .map(|field| self.lower_field(file_id, ast, *field))
                     .collect();
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Interface {
@@ -496,7 +496,7 @@ impl<'a> Compiler<'a> {
                         fields,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -517,16 +517,16 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 body,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
                 let signature = self.lower_function_signature(
-                    source_id,
+                    file_id,
                     ast,
                     *abstraction,
                     *asynchrony,
@@ -540,7 +540,7 @@ impl<'a> Compiler<'a> {
                 let definitions = Vec::new();
                 let body = body
                     .as_ref()
-                    .map(|body| self.lower_expression(source_id, ast, *body));
+                    .map(|body| self.lower_expression(file_id, ast, *body));
                 self.tree.insert_from_ast(
                     Definition::Function {
                         meta,
@@ -549,7 +549,7 @@ impl<'a> Compiler<'a> {
                         definitions,
                         body,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }
@@ -564,26 +564,26 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
-                let meta = self.lower_definition_meta(source_id, meta);
+                let meta = self.lower_definition_meta(file_id, meta);
                 let generics = self.lower_generics(
-                    source_id,
+                    file_id,
                     ast,
                     static_parameters.as_ref(),
                     with_clauses.as_ref(),
                     where_clauses.as_ref(),
                 );
-                let target_type = self.lower_expression_to_type(source_id, ast, *target_type);
+                let target_type = self.lower_expression_to_type(file_id, ast, *target_type);
                 let implements_types = implements_types.as_ref().map(|implements_types| {
                     implements_types
                         .iter()
                         .map(|implements_type| {
-                            self.lower_expression_to_type(source_id, ast, *implements_type)
+                            self.lower_expression_to_type(file_id, ast, *implements_type)
                         })
                         .collect()
                 });
                 let definitions = expressions
                     .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(source_id, ast, *expr))
+                    .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
                     Definition::Extension {
@@ -593,7 +593,7 @@ impl<'a> Compiler<'a> {
                         implements_types,
                         definitions,
                     },
-                    source_id,
+                    file_id,
                     definition_id,
                 )
             }

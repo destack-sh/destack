@@ -1,5 +1,5 @@
 [package]
-name = "dyst_javascript_compiler"
+name = "dyst_javascript_transpiler"
 description = "Dyst JavaScript Compiler"
 version.workspace = true
 edition.workspace = true

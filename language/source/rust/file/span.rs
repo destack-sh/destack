@@ -1,10 +1,10 @@
 use crate::FileId;
 
-/// A source range in bytes (in some FileFile).
+/// A source range in bytes (in some File).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Span {
     /// The file that the Span belongs to.
-    pub source: FileId,
+    pub file: FileId,
     /// The start position of the Span in bytes (absolute, inclusive).
     pub start: u32,
     /// The end position of the Span in bytes (absolute, exclusive).
@@ -13,23 +13,23 @@ pub struct Span {
 
 impl Span {
     /// Create a new Span.
-    pub fn new(source: FileId, start: u32, end: u32) -> Self {
-        Self { source, start, end }
+    pub fn new(file: FileId, start: u32, end: u32) -> Self {
+        Self { file, start, end }
     }
 
     /// Create a new Span from a position and length.
-    pub fn at(source: FileId, start: u32, length: u32) -> Self {
+    pub fn at(file: FileId, start: u32, length: u32) -> Self {
         Self {
-            source,
+            file,
             start,
             end: start + length,
         }
     }
 
     /// Create an empty Span.
-    pub fn empty(source: FileId) -> Self {
+    pub fn empty(file: FileId) -> Self {
         Self {
-            source,
+            file,
             start: 0,
             end: 0,
         }
@@ -39,11 +39,11 @@ impl Span {
     /// The resulting Span will be the smallest Span that contains both.
     pub fn merge(self, other: Self) -> Self {
         debug_assert_eq!(
-            self.source, other.source,
-            "span {self:?} and {other:?} are from different sources"
+            self.file, other.file,
+            "span {self:?} and {other:?} are from different files"
         );
         Self {
-            source: self.source,
+            file: self.file,
             start: self.start.min(other.start),
             end: self.end.max(other.end),
         }
@@ -52,7 +52,7 @@ impl Span {
     /// Enlarge the Span to include the given position.
     pub fn extend(self, position: u32) -> Self {
         Self {
-            source: self.source,
+            file: self.file,
             start: self.start.min(position),
             end: self.end.max(position),
         }
@@ -76,25 +76,25 @@ impl Span {
         position >= self.start && position < self.end
     }
 
-    /// Check whether the two spans overlap (on the same source).
+    /// Check whether the two spans overlap (on the same file).
     #[inline]
     pub fn intersects(self, other: Self) -> bool {
-        if self.source != other.source {
+        if self.file != other.file {
             return false;
         }
         self.start < other.end && other.start < self.end
     }
 
-    /// Compute the intersection of two spans (on the same source).
+    /// Compute the intersection of two spans (on the same file).
     pub fn intersection(self, other: Self) -> Option<Self> {
-        if self.source != other.source {
+        if self.file != other.file {
             return None;
         }
         let start = self.start.max(other.start);
         let end = self.end.min(other.end);
         if start < end {
             Some(Self {
-                source: self.source,
+                file: self.file,
                 start,
                 end,
             })

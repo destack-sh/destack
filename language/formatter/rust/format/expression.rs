@@ -2,11 +2,10 @@ use dyst_ast::{
     Argument, Asynchrony, DependencyKind, ForEachKind, IfKind, Mutability, NodeTree, Path,
     PostfixPosition, TypeBinaryOperator, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
-use dyst_container::{SmallVec, smallvec};
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
-use dyst_source::StringId;
+use dyst_source::{SmallVec, StringId, smallvec};
 
 use crate::argument::list_like;
 use crate::block::format_block;

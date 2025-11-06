@@ -1144,7 +1144,7 @@ pub(crate) const HTML_NAMED_ENTITIES: [(&str, char); 2032] = [
     ("jfr", '\u{1D527}'),
     ("jmath", '\u{237}'),
     ("jopf", '\u{1D55B}'),
-    ("javascript_compilerr", '\u{1D4BF}'),
+    ("javascript_transpilerr", '\u{1D4BF}'),
     ("jsercy", '\u{458}'),
     ("jukcy", '\u{454}'),
     ("kappa", '\u{3BA}'),

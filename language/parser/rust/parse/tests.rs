@@ -18,9 +18,9 @@ impl TestParser {
 
     /// Create a new TestParser with custom options.
     pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
-        let source_id = FileId::new(0);
+        let file_id = FileId::new(0);
         let source = File::from_string(
-            source_id,
+            file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
             FileType::Dyst,
@@ -286,7 +286,7 @@ mod tests {
 
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
-            let source_id = FileId::new(i as u32);
+            let file_id = FileId::new(i as u32);
             let name = ds_file
                 .iter()
                 .next_back()
@@ -294,15 +294,15 @@ mod tests {
                 .unwrap_or("<file>".to_string());
             let path = ds_file.to_string_lossy().into_owned();
             let source = File::from_string(
-                source_id,
+                file_id,
                 name,
                 Uri::from_string(path),
                 FileType::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );
-            sources.insert(source_id, source);
+            sources.insert(file_id, source);
             let mut parser =
-                Parser::prepare(sources.get(&source_id).unwrap(), language, &mut diagnostics);
+                Parser::prepare(sources.get(&file_id).unwrap(), language, &mut diagnostics);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),

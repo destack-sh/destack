@@ -48,11 +48,11 @@ pub fn is_semantic(token_type: TokenType) -> bool {
 impl Lexer<'_> {
     /// Lex the input string into TokenSpans and the end-of-sequence Token.
     pub fn lex(
-        source_id: FileId,
+        file_id: FileId,
         input: &str,
         language: LanguageOptions,
     ) -> (Vec<TokenSpan>, TokenSpan) {
-        let mut lexer = Lexer::new(source_id, input, language);
+        let mut lexer = Lexer::new(file_id, input, language);
         let eof_token = lexer.run();
         (lexer.tokens, eof_token)
     }
@@ -67,7 +67,7 @@ impl Lexer<'_> {
             let token_span = TokenSpan {
                 token,
                 span: Span {
-                    source: self.source_id,
+                    file: self.file_id,
                     start,
                     end: (start + token.len),
                 },
@@ -81,7 +81,7 @@ impl Lexer<'_> {
         // eof token
         *self.tokens.last().unwrap_or(&TokenSpan {
             span: Span {
-                source: self.source_id,
+                file: self.file_id,
                 start: 0,
                 end: 0,
             },

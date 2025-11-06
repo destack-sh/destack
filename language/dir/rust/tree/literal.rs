@@ -47,12 +47,12 @@ pub enum TemplateLiteral {
 }
 
 impl TemplateLiteral {
-    /// Whether the template literal is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    /// Whether the template literal is evaluated (ignoring child nodes).
+    pub fn is_evaluated(&self) -> bool {
         match self {
             TemplateLiteral::String { .. } | TemplateLiteral::InterpolatedString { .. } => true,
             TemplateLiteral::TaggedString { tag, .. }
-            | TemplateLiteral::TaggedInterpolatedString { tag, .. } => tag.is_resolved(),
+            | TemplateLiteral::TaggedInterpolatedString { tag, .. } => tag.is_evaluated(),
         }
     }
 }

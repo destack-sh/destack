@@ -1,5 +1,4 @@
-use dyst_container::SmallVec;
-use dyst_source::StringId;
+use dyst_source::{SmallVec, StringId};
 
 use crate::{Parser, ParserResult, Path, TokenType};
 

@@ -2684,10 +2684,6 @@ name = "destack_terminal"
 version = "2025.11.5-0"
 
 [[package]]
-name = "destack_test"
-version = "2025.11.5-0"
-
-[[package]]
 name = "destack_time"
 version = "2025.11.5-0"
 dependencies = [
@@ -2958,20 +2954,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_javascript_compiler"
-version = "2025.11.5-0"
-dependencies = [
- "destack_unicode",
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_javascript_ast",
- "dyst_mir",
- "dyst_source",
- "rayon",
-]
-
-[[package]]
 name = "dyst_javascript_machine"
 version = "2025.11.5-0"
 dependencies = [
@@ -2984,6 +2966,20 @@ dependencies = [
  "dyst_source",
  "rayon",
  "v8 142.0.0",
+]
+
+[[package]]
+name = "dyst_javascript_transpiler"
+version = "2025.11.5-0"
+dependencies = [
+ "destack_unicode",
+ "dyst_ast",
+ "dyst_dir",
+ "dyst_fir",
+ "dyst_javascript_ast",
+ "dyst_mir",
+ "dyst_source",
+ "rayon",
 ]
 
 [[package]]

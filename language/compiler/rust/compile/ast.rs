@@ -10,7 +10,7 @@ pub struct AstNodeId<T: ast::Node> {
     /// The underlying AST node id.
     pub id: ast::NodeId<T>,
     /// The source id of the underlying AST node.
-    pub source_id: FileId,
+    pub file_id: FileId,
     /// The type of the underlying AST node.
     _ty: PhantomData<fn() -> T>,
 }
@@ -19,17 +19,17 @@ impl<T: ast::Node> Debug for AstNodeId<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AstNodeId")
             .field("id", &self.id)
-            .field("source_id", &self.source_id)
+            .field("file_id", &self.file_id)
             .finish()
     }
 }
 
 impl<T: ast::Node> AstNodeId<T> {
     /// Create a new AST node id.
-    pub fn new(id: ast::NodeId<T>, source_id: FileId) -> Self {
+    pub fn new(id: ast::NodeId<T>, file_id: FileId) -> Self {
         Self {
             id,
-            source_id,
+            file_id,
             _ty: PhantomData,
         }
     }
@@ -41,21 +41,21 @@ pub struct AstNodeIdAny {
     /// The underlying AST node id.
     pub id: ast::NodeIdAny,
     /// The source id of the underlying AST node.
-    pub source_id: FileId,
+    pub file_id: FileId,
 }
 
 impl Debug for AstNodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AstNodeIdAny")
             .field("id", &self.id)
-            .field("source_id", &self.source_id)
+            .field("file_id", &self.file_id)
             .finish()
     }
 }
 
 impl AstNodeIdAny {
     /// Create a new AST node id.
-    pub fn new(id: ast::NodeIdAny, source_id: FileId) -> Self {
-        Self { id, source_id }
+    pub fn new(id: ast::NodeIdAny, file_id: FileId) -> Self {
+        Self { id, file_id }
     }
 }

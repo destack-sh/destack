@@ -18,7 +18,7 @@ pub(super) struct LexerOptions {
 /// Lexer over a source string.
 pub struct Lexer<'a> {
     /// The source ID.
-    pub source_id: FileId,
+    pub file_id: FileId,
     /// The string to tokenize.
     pub source: &'a str,
     /// The character iterator over the string.
@@ -54,9 +54,9 @@ pub const EOF_CHAR: char = '\0';
 
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
-    pub fn new(source_id: FileId, source: &'a str, language: LanguageOptions) -> Lexer<'a> {
+    pub fn new(file_id: FileId, source: &'a str, language: LanguageOptions) -> Lexer<'a> {
         Lexer {
-            source_id,
+            file_id,
             source,
             pos: 0,
             options: LexerOptions::default(),

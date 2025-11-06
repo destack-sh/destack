@@ -542,7 +542,7 @@ impl<'a> Parser<'a> {
         let start_token = group[0];
         let end_token = group[group.len() - 1];
         let span = Span::new(
-            start_token.span.source,
+            start_token.span.file,
             start_token.span.start,
             end_token.span.end,
         );
@@ -673,7 +673,7 @@ impl<'a> Parser<'a> {
 
         for token in group {
             // strip comment prefixes and suffixes
-            let raw_str = self.source.get_span_str(token.span);
+            let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
             let mut inner_str = match token_type {
                 TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
                 TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),

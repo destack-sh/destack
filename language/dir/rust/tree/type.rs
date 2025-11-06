@@ -123,7 +123,7 @@ pub enum TypeBinaryOperator {
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
-    /// Resolved definition type.
+    /// Evaluated definition type.
     /// NOTE #Incomplete: shouldn't Type::Definition be an instance (statically parameterized)?
     ///  (same with all statically parameterized instantiations like Functions etc.?)
     Definition(NodeId<Definition>),
@@ -178,9 +178,9 @@ pub enum Type {
     Intersection(Vec<NodeId<Type>>),
 
     /// Expression yet to be evaluated into a Type (like a Path).
-    UnresolvedExpression(NodeId<Expression>),
-    /// Unresolved Self type.
-    UnresolvedSelf,
+    UnevaluatedExpression(NodeId<Expression>),
+    /// Unevaluated Self type.
+    UnevaluatedSelf,
 
     /// Error type that could not be evaluated.
     Error,
@@ -191,11 +191,11 @@ impl Node for Type {
 }
 
 impl Type {
-    /// Whether the type is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    /// Whether the type is evaluated (ignoring child nodes).
+    pub fn is_evaluated(&self) -> bool {
         !matches!(
             self,
-            Type::UnresolvedExpression(_) | Type::UnresolvedSelf | Type::Error
+            Type::UnevaluatedExpression(_) | Type::UnevaluatedSelf | Type::Error
         )
     }
 }

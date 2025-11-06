@@ -7,18 +7,18 @@ impl<'a> Compiler<'a> {
     /// Lower a an expression into a type (without evaluating it at all).
     pub fn lower_expression_to_type(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
-        let expression = self.lower_expression(source_id, ast, expression_id);
+        let expression = self.lower_expression(file_id, ast, expression_id);
         let type_id = self.tree.insert_from_ast(
-            Type::UnresolvedExpression(expression),
-            source_id,
+            Type::UnevaluatedExpression(expression),
+            file_id,
             expression_id,
         );
         self.tree
-            .alias_from_ast(source_id, expression_id.id, type_id);
+            .alias_from_ast(file_id, expression_id.id, type_id);
         type_id
     }
 
