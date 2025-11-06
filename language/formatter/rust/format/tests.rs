@@ -2,7 +2,9 @@ use crate::TokenSpan;
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
-use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, MultiSpan, StringPool, Uri};
+use dyst_source::{
+    DiagnosticCollector, File, FileId, FileType, LanguageOptions, MultiSpan, StringPool, Uri,
+};
 
 use crate::{LanguageFormatContext, LanguageFormatOptions, NodeParentIndex, NodeTree};
 

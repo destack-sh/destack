@@ -1,4 +1,4 @@
-use crate::{LanguageFormatter, LanguageFormatContext, Path};
+use crate::{LanguageFormatContext, LanguageFormatter, Path};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 

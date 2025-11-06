@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
-use crate::{LanguageFormatter, FormatNode, NodeId, UnionField};
+use crate::{FormatNode, LanguageFormatter, NodeId, UnionField};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 

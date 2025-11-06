@@ -1,7 +1,7 @@
 use destack_terminal::{CommandArguments, console, table};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::{LanguageOptions, File};
+use dyst_source::{File, LanguageOptions};
 
 use crate::source::read_source;
 
@@ -198,12 +198,7 @@ fn get_token_color(source: &File, token: &TokenSpan) -> &'static str {
     }
 }
 
-fn truncate_tokeneme(
-    source: &File,
-    token: &TokenSpan,
-    max_len: usize,
-    use_color: bool,
-) -> String {
+fn truncate_tokeneme(source: &File, token: &TokenSpan, max_len: usize, use_color: bool) -> String {
     let mut out = String::new();
     for ch in source.get_span_str(token.span).chars() {
         match ch {

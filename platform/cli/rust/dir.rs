@@ -4,8 +4,8 @@ use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
+use dyst_source::{AnnotateOptions, Color, FileType, LanguageOptions, Uri, annotate_source};
 use dyst_workspace::{FileContent, FileFile, Workspace};
-use dyst_source::{AnnotateOptions, Color, LanguageOptions, FileType, Uri, annotate_source};
 
 use crate::source::read_source;
 
@@ -86,12 +86,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
         // add source to workspace if file is not in workspace
         else {
             let uri = Uri::from_string(source.name.clone());
-            let file_id = workspace.upsert_text_file(
-                &uri,
-                FileType::DystText,
-                true,
-                source.content.clone(),
-            );
+            let file_id =
+                workspace.upsert_text_file(&uri, FileType::DystText, true, source.content.clone());
             let document = workspace.get_file_by_file_id(file_id).unwrap();
             match &document.content {
                 FileContent::File(FileFile {

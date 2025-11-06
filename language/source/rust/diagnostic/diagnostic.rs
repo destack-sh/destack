@@ -1,5 +1,4 @@
-use crate::Suggestion;
-use crate::{LabeledSpan, FileId};
+use crate::{FileId, LabeledSpan, Suggestion};
 
 /// The kind of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]

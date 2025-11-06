@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{LanguageFormatter, FormatNode, Keyword, NodeId, WithClause};
+use crate::{FormatNode, Keyword, LanguageFormatter, NodeId, WithClause};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 

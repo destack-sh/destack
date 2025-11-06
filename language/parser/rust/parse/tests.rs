@@ -1,4 +1,4 @@
-use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
+use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 
 use crate::Parser;
 
@@ -261,7 +261,7 @@ mod tests {
 
     use crate::TokenType;
     use destack_file::glob;
-    use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
+    use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 
     use crate::{BlockFormat, Parser};
 

@@ -15,7 +15,7 @@ use dyst_fir::format_args;
 use dyst_formatter::LanguageFormatContext;
 use dyst_parser::Parser;
 use dyst_source::{
-    AnnotateOptions, Color, LanguageOptions, File, FileType, FileId, Uri, annotate_source,
+    AnnotateOptions, Color, File, FileId, FileType, LanguageOptions, Uri, annotate_source,
 };
 
 use crate::source::{get_semantic_spans_from_text, render_semantic_spans};
@@ -341,8 +341,8 @@ fn format_source(
         strings: &strings,
     };
     let printed = {
-        let formatted = format_fir(context, format_args![definition_id])
-            .map_err(FormatFileError::Formatter)?;
+        let formatted =
+            format_fir(context, format_args![definition_id]).map_err(FormatFileError::Formatter)?;
         formatted.print().map_err(FormatFileError::Printer)?
     };
 

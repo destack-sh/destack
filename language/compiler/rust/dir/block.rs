@@ -24,9 +24,7 @@ impl<'a> Compiler<'a> {
         block_id: ast::NodeId<ast::Block>,
     ) -> NodeId<Block> {
         let block = ast.get(block_id);
-        let label = block
-            .label
-            .map(|label| self.intern_string(file_id, label));
+        let label = block.label.map(|label| self.intern_string(file_id, label));
         let expressions = block
             .expressions
             .iter()

@@ -21,14 +21,14 @@ pub use buffer::{
     VecBuffer,
 };
 pub use builder::{
-    Align, BestFitParenthesize, BestFitting, BlockIndent, Dedent, ExpandParent, FillBuilder,
-    FormatOnce, FormatWith, IfGroupBreaks, Indent, IndentIfGroupBreaks, JoinBuilder, Line,
-    LinePostfix, LinePostfixBoundary, FileSliceBuilder, Space, Text, Token, align,
-    best_fit_parenthesize, block_indent, conditional_group, dedent, dedent_to_root, empty_line,
-    expand_parent, fits_expanded, format_once, format_with, group, hard_line_break,
-    if_group_breaks, if_group_fits_on_line, indent, indent_if_group_breaks, line_postfix,
-    line_postfix_boundary, soft_block_indent, soft_line_break, soft_line_break_or_space,
-    soft_line_indent_or_space, soft_space_or_block_indent, source_text_slice, space, text, token,
+    Align, BestFitParenthesize, BestFitting, BlockIndent, Dedent, ExpandParent, FileSliceBuilder,
+    FillBuilder, FormatOnce, FormatWith, IfGroupBreaks, Indent, IndentIfGroupBreaks, JoinBuilder,
+    Line, LinePostfix, LinePostfixBoundary, Space, Text, Token, align, best_fit_parenthesize,
+    block_indent, conditional_group, dedent, dedent_to_root, empty_line, expand_parent,
+    fits_expanded, format_once, format_with, group, hard_line_break, if_group_breaks,
+    if_group_fits_on_line, indent, indent_if_group_breaks, line_postfix, line_postfix_boundary,
+    soft_block_indent, soft_line_break, soft_line_break_or_space, soft_line_indent_or_space,
+    soft_space_or_block_indent, source_text_slice, space, text, token,
 };
 pub use context::{FormatContext, FormatState, SimpleFormatContext};
 pub use document::Document;
@@ -44,7 +44,7 @@ pub use sizing::{
     BestFittingMode, BestFittingVariants, BestFittingVariantsIter, FormatNodes, TextLen, TextWidth,
     Width,
 };
-pub use source::{LINE_TERMINATORS, FileMarker, normalize_newlines};
+pub use source::{FileMarker, LINE_TERMINATORS, normalize_newlines};
 pub use spacing::{IndentStyle, Indentation, LineEnding};
 pub use tag::{
     Condition, DedentMode, FitsExpanded, FormatTag, FormatTagKind, PrintMode, VerbatimKind,

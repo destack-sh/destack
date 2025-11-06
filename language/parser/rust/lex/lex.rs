@@ -6,7 +6,7 @@ use super::lexer::{EOF_CHAR, Lexer};
 use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenType};
 
 use destack_unicode::UnicodeEmoji;
-use dyst_source::{LanguageOptions, FileId, Span};
+use dyst_source::{FileId, LanguageOptions, Span};
 
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {

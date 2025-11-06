@@ -4,7 +4,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, LanguageFormatter, Field, FormatNode, Keyword, LanguageFormatContext, ModuleFormat,
+    Definition, Field, FormatNode, Keyword, LanguageFormatContext, LanguageFormatter, ModuleFormat,
     NodeId, VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use dyst_ast::{BlockFormat, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan, TokenType};
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
+use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 
 use destack_terminal::{CommandArguments, console};
 

@@ -3,7 +3,7 @@ use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
 use crate::{
-    LanguageFormatter, FormatNode, LanguageFormatContext, Mutability, NodeId, Pattern, PatternField,
+    FormatNode, LanguageFormatContext, LanguageFormatter, Mutability, NodeId, Pattern, PatternField,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::str::Chars;
 
 use dyst_ast::TokenSpan;
-use dyst_source::{LanguageOptions, FileId, Span};
+use dyst_source::{FileId, LanguageOptions, Span};
 
 use super::memchr::find_byte;
 

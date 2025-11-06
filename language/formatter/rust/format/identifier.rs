@@ -1,4 +1,4 @@
-use crate::{LanguageFormatter, Keyword, LanguageFormatContext};
+use crate::{Keyword, LanguageFormatContext, LanguageFormatter};
 use dyst_ast::Name;
 use dyst_fir::format::text;
 use dyst_fir::prelude::*;
