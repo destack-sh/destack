@@ -4,7 +4,7 @@ use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    LanguageFormatter, FormatNode, LanguageFormatContext, Node, NodeId, NodeTree, NodeTreeImpl,
+    FormatNode, LanguageFormatContext, LanguageFormatter, Node, NodeId, NodeTree, NodeTreeImpl,
     NodeType, Tag,
 };
 

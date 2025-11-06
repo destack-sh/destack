@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{LanguageFormatter, LanguageFormatContext, Mutability, ScopedMutability};
+use crate::{LanguageFormatContext, LanguageFormatter, Mutability, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 

@@ -2,9 +2,9 @@
 #![feature(if_let_guard)]
 
 pub mod diagnostic;
-pub mod server;
 pub mod lifecycle;
 pub mod semantic;
+pub mod server;
 pub mod source;
 pub mod workspace;
 

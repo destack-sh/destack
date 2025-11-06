@@ -1,4 +1,3 @@
-
 /// The formatting options.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct FormattingOptions {

@@ -1238,7 +1238,7 @@
   "&jfr;": { "codepoints": [120103], "characters": "\uD835\uDD27" },
   "&jmath;": { "codepoints": [567], "characters": "\u0237" },
   "&jopf;": { "codepoints": [120155], "characters": "\uD835\uDD5B" },
-  "&javascript_transpilerr;": { "codepoints": [119999], "characters": "\uD835\uDCBF" },
+  "&jsc;": { "codepoints": [119999], "characters": "\uD835\uDCBF" },
   "&jsercy;": { "codepoints": [1112], "characters": "\u0458" },
   "&jukcy;": { "codepoints": [1108], "characters": "\u0454" },
   "&kappa;": { "codepoints": [954], "characters": "\u03BA" },

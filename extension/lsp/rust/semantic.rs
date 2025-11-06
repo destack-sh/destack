@@ -1,8 +1,8 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_workspace::{FileContent, FileFile};
 use dyst_source::{File, Uri};
+use dyst_workspace::{FileContent, FileFile};
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::{DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span};
@@ -125,11 +125,7 @@ pub fn collect_semantic_tokens(
 
 /// Split a byte span into per-line UTF-16 segments.
 #[inline]
-fn line_segments_utf16<'a>(
-    source: &'a File,
-    start: u32,
-    end: u32,
-) -> Option<SpanSegmentsIter<'a>> {
+fn line_segments_utf16<'a>(source: &'a File, start: u32, end: u32) -> Option<SpanSegmentsIter<'a>> {
     if start > end || end > source.len {
         return None;
     }
@@ -279,7 +275,7 @@ impl DestackLanguageServer {
 #[cfg(test)]
 mod tests {
     use dyst_parser::Lexer;
-    use dyst_source::{LanguageOptions, File, FileType, FileId};
+    use dyst_source::{File, FileId, FileType, LanguageOptions};
     use tower_lsp_server::lsp_types as lsp;
 
     use super::*;

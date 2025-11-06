@@ -2,8 +2,8 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_workspace::{FileContent, FileFile, Workspace};
 use dyst_source::FileType;
+use dyst_workspace::{FileContent, FileFile, Workspace};
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 

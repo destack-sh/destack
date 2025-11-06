@@ -6,7 +6,7 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{
-    Argument, LanguageFormatter, FormatNode, LanguageFormatContext, Node, NodeId, NodeTree,
+    Argument, FormatNode, LanguageFormatContext, LanguageFormatter, Node, NodeId, NodeTree,
     NodeTreeImpl, Parameter,
 };
 use dyst_fir::prelude::*;

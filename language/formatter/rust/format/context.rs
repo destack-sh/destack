@@ -5,7 +5,7 @@ use crate::{
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_source::{
-    IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, File, Span,
+    File, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, Span,
     StringId, StringPool,
 };
 
@@ -426,7 +426,11 @@ where
     LanguageFormatContext<'ast>: FormatContext,
 {
     /// Format a node.
-    fn format_node(&self, node_id: NodeId<T>, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()>;
+    fn format_node(
+        &self,
+        node_id: NodeId<T>,
+        f: &mut LanguageFormatter<'ast, '_>,
+    ) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode via context.

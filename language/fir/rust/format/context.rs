@@ -71,7 +71,10 @@ pub struct SimpleFormatContext {
 impl SimpleFormatContext {
     /// Create a new SimpleFormatContext with the given options and source.
     pub fn new(options: SimpleFormatOptions, source: File) -> Self {
-        Self { options, file: source }
+        Self {
+            options,
+            file: source,
+        }
     }
 
     /// Create an empty SimpleFormatContext.

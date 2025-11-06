@@ -5,7 +5,7 @@ use dyst_dir::{
 };
 
 use crate::{
-    Compiler, CompilerStatus, ExecuteRequest, LoadRequest, LowerRequest, EvaluateRequest,
+    Compiler, CompilerStatus, EvaluateRequest, ExecuteRequest, LoadRequest, LowerRequest,
     ValidateRequest,
 };
 
@@ -178,7 +178,9 @@ impl<'s> Compiler<'s> {
                         self.evaluate_expression(expression)
                     }
                     EvaluateRequest::EvaluateType { ty } => self.evaluate_type(ty),
-                    EvaluateRequest::EvaluateArgument { argument } => self.evaluate_argument(argument),
+                    EvaluateRequest::EvaluateArgument { argument } => {
+                        self.evaluate_argument(argument)
+                    }
                     EvaluateRequest::EvaluateAnnotation { annotation } => {
                         self.evaluate_annotation(annotation)
                     }

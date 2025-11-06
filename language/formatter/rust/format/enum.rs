@@ -1,4 +1,4 @@
-use crate::{LanguageFormatter, EnumField, FormatNode, NodeId};
+use crate::{EnumField, FormatNode, LanguageFormatter, NodeId};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
