@@ -2,15 +2,14 @@ use crate::TokenSpan;
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
-use dyst_session::Session;
-use dyst_source::{LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
 
 use crate::{LanguageFormatContext, LanguageFormatOptions, NodeParentIndex, NodeTree};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
 pub(crate) struct TestFormatter {
-    pub session: Session,
+    pub diagnostics: DiagnosticCollector,
     pub source: Source,
     pub tokens: Vec<TokenSpan>,
     pub side_tokens: Vec<TokenSpan>,
@@ -36,9 +35,9 @@ impl TestFormatter {
         );
 
         // parse
-        let mut session = Session::new();
+        let mut diagnostics = DiagnosticCollector::new();
         let language = LanguageOptions::default();
-        let mut parser = Parser::prepare(&source, language, &mut session);
+        let mut parser = Parser::prepare(&source, language, &mut diagnostics);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
 
@@ -50,7 +49,7 @@ impl TestFormatter {
         let strings = parser.strings;
 
         let formatter = Self {
-            session,
+            diagnostics,
             source,
             tokens,
             side_tokens,
@@ -70,7 +69,6 @@ impl TestFormatter {
         let context = LanguageFormatContext {
             options,
             source: &self.source,
-            session: &self.session,
             tree: &self.tree,
             spans: &self.tree.spans,
             parents: NodeParentIndex::from_tree(&self.tree),

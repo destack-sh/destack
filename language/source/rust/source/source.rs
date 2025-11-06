@@ -128,7 +128,7 @@ impl Source {
         Some(byte_pos)
     }
 
-    /// Compute the number of lines in the source (at least 1 for empty content).
+    /// Get the number of lines in the source (at least 1 for empty content).
     pub fn line_count(&self) -> u32 {
         self.line_start_offsets.len() as u32
     }

@@ -21,6 +21,8 @@ dyst_source = { workspace = true }
 
 destack_unicode = { workspace = true }
 
+rayon = { workspace = true }
+
 [dev-dependencies]
 
 [lints]

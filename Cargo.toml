@@ -53,6 +53,7 @@ dyst_parser = { path = "language/parser" }
 dyst_workspace = { path = "language/workspace" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
+
 # platform
 destack_cli = { path = "platform/cli" }
 destack_file = { path = "platform/file" }
@@ -67,10 +68,13 @@ destack_unicode = { path = "platform/unicode" }
 destack_uuid = { path = "platform/uuid" }
 destack_vscode = { path = "platform/vscode" }
 
-# build dependencies
+# general
+rayon = "1.11.0"
+
+# build
 wasm-bindgen = "0.2.100"
 
-# dev dependencies
+# dev
 arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 pretty_assertions = "1.4.1"

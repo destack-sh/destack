@@ -2,12 +2,13 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
-use dyst_source::{LanguageOptions, MultiSpan, Source, SourceId, Span, StringId, StringPool};
+use dyst_source::{
+    DiagnosticCollector, LanguageOptions, MultiSpan, Source, SourceId, Span, StringId, StringPool,
+};
 
 use crate::{
     Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult,
 };
-use dyst_session::Session;
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -271,8 +272,8 @@ pub struct Parser<'ast> {
 
     /// The language options.
     pub language: LanguageOptions,
-    /// The session.
-    pub session: &'ast mut Session,
+    /// The diagnostic collector.
+    pub diagnostics: &'ast mut DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParserError>,
 }
@@ -289,7 +290,7 @@ impl<'a> Parser<'a> {
     pub fn prepare(
         source: &'a Source,
         language: LanguageOptions,
-        session: &'a mut Session,
+        diagnostics: &'a mut DiagnosticCollector,
     ) -> Self {
         // tokenize
         let (all_tokens, eof_token) = Lexer::lex(source.id, &source.content, language);
@@ -309,7 +310,7 @@ impl<'a> Parser<'a> {
             language,
             tree: NodeTree::new(source.id),
             strings: StringPool::new(),
-            session,
+            diagnostics,
             eof_token,
             errors: Vec::new(),
         };
@@ -385,7 +386,7 @@ impl<'a> Parser<'a> {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.source, &self.tokens);
-            self.session.handle_diagnostic(diagnostic);
+            self.diagnostics.handle_diagnostic(diagnostic);
         }
     }
 

@@ -1,6 +1,5 @@
 use dyst_ast::{self as ast, StringId, StringPool};
 use dyst_workspace::{FileContent, Package, SourceFile, Workspace};
-use dyst_session::Session;
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
 use dyst_source::{LanguageOptions, SourceId};
@@ -30,8 +29,8 @@ pub enum CompilerStatus {
 pub struct Compiler<'s> {
     /// The workspace we're in.
     pub workspace: &'s Workspace,
-    /// The session we're in.
-    pub session: &'s Session,
+    /// The diagnostic collector.
+    pub diagnostics: &'s DiagnosticCollector,
     /// The package we're compiling.
     pub package: &'s Package,
     /// The language options.
@@ -60,7 +59,7 @@ impl<'s> Compiler<'s> {
     ) -> Self {
         Self {
             workspace,
-            session: &workspace.session,
+            diagnostics: &workspace.diagnostics,
             package,
             language,
             tree: NodeTree::new(),

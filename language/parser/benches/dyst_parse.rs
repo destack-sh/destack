@@ -2,7 +2,6 @@ use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, 
 use destack_file::glob;
 use dyst_ast::{DefinitionMeta, ModuleFormat, ModuleStyle, TokenType};
 use dyst_parser::Parser;
-use dyst_session::Session;
 use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;

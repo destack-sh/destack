@@ -1,4 +1,5 @@
 mod annotate;
+mod collector;
 mod diagnostic;
 mod suggestion;
 
