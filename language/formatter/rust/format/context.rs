@@ -5,7 +5,7 @@ use crate::{
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_source::{
-    IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, Source, Span,
+    IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, File, Span,
     StringId, StringPool,
 };
 
@@ -127,7 +127,7 @@ pub struct LanguageFormatContext<'ast> {
     /// The format options.
     pub options: LanguageFormatOptions,
     /// The source.
-    pub source: &'ast Source,
+    pub source: &'ast File,
     /// The main tokens.
     pub tokens: &'ast Vec<TokenSpan>,
     /// The side tokens.
@@ -415,7 +415,7 @@ impl FormatContext for LanguageFormatContext<'_> {
     }
 
     #[inline]
-    fn source(&self) -> &Source {
+    fn file(&self) -> &File {
         self.source
     }
 }

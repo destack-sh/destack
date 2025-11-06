@@ -3,7 +3,7 @@ use dyst_dir::{
     Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     IfKind, NodeId, Path, PathBase, Runtime, Visibility,
 };
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 use crate::Compiler;
 
@@ -95,7 +95,7 @@ impl<'a> Compiler<'a> {
     /// Lower an expression to a DIR expression.
     pub fn lower_expression(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Expression> {

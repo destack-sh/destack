@@ -84,7 +84,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 where_clauses,
                 expressions,
             } => {
-                if format == &ModuleFormat::Source {
+                if format == &ModuleFormat::File {
                     // print expressions only for source modules (?)
                     format_block_of_expressions(f, expressions)?;
                     return Ok(());
@@ -163,7 +163,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                             )?;
                         }
                     }
-                    ModuleFormat::Source => unreachable!(),
+                    ModuleFormat::File => unreachable!(),
                 }
             }
 

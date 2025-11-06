@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast::{self as ast, StringId};
 use dyst_container::SmallVec;
 use dyst_dir::{Path, PathBase};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     fn lower_path_base(&self, string_id: StringId) -> Option<PathBase> {
@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
     /// Lower a path to a DIR path.
     pub fn lower_path(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         _ast: &ast::NodeTree,
         path: &ast::Path,
     ) -> Path {

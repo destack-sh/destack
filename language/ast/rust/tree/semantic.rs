@@ -5,7 +5,7 @@ use crate::{
     Parameter, ScalarLiteral, TokenSpan, TokenType, UnionField, walk_expression, walk_parameter,
     walk_union_field,
 };
-use dyst_source::Source;
+use dyst_source::File;
 
 /// The semantic type of a Span or Token.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -33,7 +33,7 @@ pub enum SemanticType {
 
 impl SemanticType {
     /// Map TokenType to *lexical* SemanticType.
-    pub fn from_token(source: &Source, token: &TokenSpan) -> Self {
+    pub fn from_token(source: &File, token: &TokenSpan) -> Self {
         match token.token.ty {
             // --------------------------------------------------
             // Structural
@@ -58,7 +58,8 @@ impl SemanticType {
             TokenType::Identifier
             | TokenType::InvalidIdentifier
             | TokenType::UnknownLiteralPrefix => {
-                if Keyword::from_str(source.get_span_str(token.span)).is_ok() {
+                let span_str = source.get_span_str(token.span).unwrap_or_default();
+                if Keyword::from_str(span_str).is_ok() {
                     SemanticType::Keyword
                 } else {
                     SemanticType::Identifier
@@ -241,7 +242,7 @@ pub struct SemanticTokenIndex<'a> {
 impl<'a> SemanticTokenIndex<'a> {
     /// Create a new SemanticTokenIndex from a list of tokens.
     /// Immediately walks tokens and initialies to lexical semantic types.
-    pub fn from_lexical_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
+    pub fn from_lexical_tokens(source: &File, tokens: &'a Vec<TokenSpan>) -> Self {
         // initialize with lexical types
         let mut semantic_types = vec![None; tokens.len()];
         for (i, token) in tokens.iter().enumerate() {
@@ -255,7 +256,7 @@ impl<'a> SemanticTokenIndex<'a> {
     }
 
     /// Create a new SemanticTokenIndex from a list of tokens.
-    pub fn from_empty_tokens(_source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
+    pub fn from_empty_tokens(_source: &File, tokens: &'a Vec<TokenSpan>) -> Self {
         Self {
             tokens,
             semantic_types: vec![None; tokens.len()],

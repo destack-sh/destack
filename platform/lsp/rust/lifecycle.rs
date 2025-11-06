@@ -2,8 +2,8 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use dyst_workspace::{FileContent, SourceFile, Workspace};
-use dyst_source::SourceFormat;
+use dyst_workspace::{FileContent, FileFile, Workspace};
+use dyst_source::FileType;
 use tokio::sync::RwLock;
 use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
 
@@ -235,7 +235,7 @@ impl DestackLanguageServer {
         let Some(document) = workspace.get_file(uri) else {
             return Vec::new();
         };
-        let FileContent::Source(SourceFile { source, .. }) = &document.content else {
+        let FileContent::File(FileFile { source, .. }) = &document.content else {
             return Vec::new();
         };
         workspace
@@ -249,7 +249,7 @@ impl DestackLanguageServer {
     pub(crate) async fn upsert_open_text_document(
         &self,
         lsp_uri: &lsp::Uri,
-        format: SourceFormat,
+        format: FileType,
         content: String,
     ) {
         // update the document

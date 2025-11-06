@@ -1,7 +1,7 @@
 use destack_terminal::{CommandArguments, console, table};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::{LanguageOptions, Source};
+use dyst_source::{LanguageOptions, File};
 
 use crate::source::read_source;
 
@@ -143,7 +143,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     0
 }
 
-fn format_token(source: &Source, token: &TokenSpan, use_color: bool) -> String {
+fn format_token(source: &File, token: &TokenSpan, use_color: bool) -> String {
     let base = format_token_kind(token.token.ty);
     if !use_color {
         return base;
@@ -159,7 +159,7 @@ fn format_token_kind(kind: TokenType) -> String {
 /// Compute the appropriate ANSI color code for a token's semantic type.
 /// Use None for semantic types we do not wish to color.
 /// Pick visually distinct colors for each semantic class where possible.
-fn get_token_color(source: &Source, token: &TokenSpan) -> &'static str {
+fn get_token_color(source: &File, token: &TokenSpan) -> &'static str {
     let semantic_type = SemanticType::from_token(source, token);
     match semantic_type {
         // whitespace and identifier get no color
@@ -199,7 +199,7 @@ fn get_token_color(source: &Source, token: &TokenSpan) -> &'static str {
 }
 
 fn truncate_tokeneme(
-    source: &Source,
+    source: &File,
     token: &TokenSpan,
     max_len: usize,
     use_color: bool,

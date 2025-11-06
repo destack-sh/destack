@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{NodeId, WithClause};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 use crate::Compiler;
 
@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
     /// Lower a with clause to a DIR with clause.
     pub fn lower_with_clause(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         with_clause_id: ast::NodeId<ast::WithClause>,
     ) -> NodeId<WithClause> {

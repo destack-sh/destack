@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
-    DependencyItem, DependencyKind, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
+    DependencyItem, DependencyKind, ExportType, MatchCase, MatchFile, Mutability, Node, NodeId,
     NodeType, Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral, Type,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -175,7 +175,7 @@ pub enum Expression {
     Loop {
         condition: NodeId<Expression>,
         body: NodeId<Block>,
-        source: LoopSource,
+        source: LoopFile,
     },
     /// For each loop.
     ForEach {
@@ -196,7 +196,7 @@ pub enum Expression {
     Match {
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
-        source: MatchSource,
+        source: MatchFile,
     },
     /// Break expression.
     Break {
@@ -281,9 +281,9 @@ impl Expression {
     }
 }
 
-/// A LoopSource is where the loop was lowered from.
+/// A LoopFile is where the loop was lowered from.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum LoopSource {
+pub enum LoopFile {
     /// For loop.
     For,
     /// For loop.

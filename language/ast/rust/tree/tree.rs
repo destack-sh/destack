@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{SourceId, Span};
+use dyst_source::{FileId, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone)]
 pub struct NodeTree {
     /// The source id of the source unit.
-    pub(crate) source_id: SourceId,
+    pub(crate) source_id: FileId,
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
@@ -61,12 +61,12 @@ impl Debug for NodeTree {
 
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new(source_id: SourceId) -> Self {
+    pub fn new(source_id: FileId) -> Self {
         Self::with_capacity(source_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(source_id: SourceId, capacity: usize) -> Self {
+    pub fn with_capacity(source_id: FileId, capacity: usize) -> Self {
         Self {
             source_id,
             next_global_id: 0,

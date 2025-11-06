@@ -1,7 +1,6 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use dyst_container::SmallVec;
-use dyst_tree::{Color, impl_dump_display, rebuild_tree_output};
+use dyst_source::{Color, SmallVec, impl_dump_display, rebuild_tree_output};
 
 use crate::*;
 
@@ -402,8 +401,8 @@ impl_dump_display! {
     FunctionKind,
     FunctionMode,
     IfKind,
-    LoopSource,
-    MatchSource,
+    LoopFile,
+    MatchFile,
     Mutability,
     ReferenceType,
     Runtime,

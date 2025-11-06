@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
 use dyst_source::{
-    DiagnosticCollector, LanguageOptions, MultiSpan, Source, SourceId, Span, StringId, StringPool,
+    DiagnosticCollector, LanguageOptions, MultiSpan, File, FileId, Span, StringId, StringPool,
 };
 
 use crate::{
@@ -248,9 +248,9 @@ impl ParserOptions {
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
 pub struct Parser<'ast> {
     /// The source we're parsing.
-    pub source: &'ast Source,
+    pub source: &'ast File,
     /// The source ID.
-    pub source_id: SourceId,
+    pub source_id: FileId,
     /// The current main tokens to consider.
     pub tokens: Vec<TokenSpan>,
     /// The side tokens not in the main tokens.
@@ -288,7 +288,7 @@ impl<'a> Parser<'a> {
     /// Create a new parser from source and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     pub fn prepare(
-        source: &'a Source,
+        source: &'a File,
         language: LanguageOptions,
         diagnostics: &'a mut DiagnosticCollector,
     ) -> Self {
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.source, &self.tokens);
-            self.diagnostics.handle_diagnostic(diagnostic);
+            self.diagnostics.insert_diagnostic(diagnostic);
         }
     }
 

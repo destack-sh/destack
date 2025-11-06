@@ -2,17 +2,15 @@
 #![feature(if_let_guard)]
 
 mod diagnostic;
-mod session;
+mod language;
 mod smallvec;
-mod source;
+mod file;
 mod string;
 mod tree;
-mod workspace;
 
 pub use diagnostic::*;
-pub use session::*;
+pub use language::*;
 pub use smallvec::*;
-pub use source::*;
+pub use file::*;
 pub use string::*;
 pub use tree::*;
-pub use workspace::*;

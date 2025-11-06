@@ -1,9 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::*;
-use dyst_container::SmallVec;
-use dyst_source::{StringId, StringPool};
-use dyst_tree::{Color, impl_dump_display, rebuild_tree_output};
+use dyst_source::{Color, SmallVec, StringId, StringPool, impl_dump_display, rebuild_tree_output};
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]

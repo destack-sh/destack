@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::sync::atomic::Ordering;
 
-use dyst_source::{Source, SourceFormat};
+use dyst_source::{File, FileType};
 
 use crate::format::{FormatOptions, GroupId, SimpleFormatOptions};
 
@@ -58,27 +58,27 @@ pub trait FormatContext {
     /// Get the formatting options.
     fn options(&self) -> &Self::Options;
 
-    /// Get the source code from the document that gets formatted.
-    fn source(&self) -> &Source;
+    /// Get the file that gets formatted.
+    fn file(&self) -> &File;
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SimpleFormatContext {
     options: SimpleFormatOptions,
-    source: Source,
+    file: File,
 }
 
 impl SimpleFormatContext {
     /// Create a new SimpleFormatContext with the given options and source.
-    pub fn new(options: SimpleFormatOptions, source: Source) -> Self {
-        Self { options, source }
+    pub fn new(options: SimpleFormatOptions, source: File) -> Self {
+        Self { options, file: source }
     }
 
     /// Create an empty SimpleFormatContext.
     pub fn empty_dyst() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
-            source: Source::empty(SourceFormat::Dyst),
+            file: File::empty(FileType::Dyst),
         }
     }
 }
@@ -90,7 +90,7 @@ impl FormatContext for SimpleFormatContext {
         &self.options
     }
 
-    fn source(&self) -> &Source {
-        &self.source
+    fn file(&self) -> &File {
+        &self.file
     }
 }

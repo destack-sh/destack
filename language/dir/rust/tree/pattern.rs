@@ -73,9 +73,9 @@ impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
 }
 
-/// A MatchSource is where the match was lowered from.
+/// A MatchFile is where the match was lowered from.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum MatchSource {
+pub enum MatchFile {
     /// Match expression (regular match with cases).
     Match,
     /// Explicit try expression or block (`try { ... }` with optional catch).

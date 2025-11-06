@@ -2,7 +2,7 @@ use dyst_ast as ast;
 use dyst_dir::{
     DependencyItem, DependencyKind, DependencyTarget as DirDependencyTarget, ExportType, NodeId,
 };
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 use crate::Compiler;
 
@@ -20,7 +20,7 @@ impl<'a> Compiler<'a> {
     /// Lower a dependency type into a DIR dependency type.
     pub fn lower_dependency_kind(
         &mut self,
-        _source_id: SourceId,
+        _source_id: FileId,
         _ast: &ast::NodeTree,
         dependency_type: ast::DependencyKind,
     ) -> DependencyKind {
@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
     /// Expressions with grouped items are flattened into scalar import items.
     pub fn lower_dependency_binding(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         origin_id: ast::NodeId<ast::Expression>,
         kind: ast::DependencyKind,
@@ -93,7 +93,7 @@ impl<'a> Compiler<'a> {
     /// Lower a dependency target into a DIR dependency target.
     fn lower_dependency_target(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         target: &ast::DependencyTarget,
     ) -> DirDependencyTarget {
@@ -112,7 +112,7 @@ impl<'a> Compiler<'a> {
     /// Lower a string id into a DIR string id.
     fn lower_string_id(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         string_id: dyst_source::StringId,
     ) -> dyst_source::StringId {
         self.intern_string(source_id, string_id)

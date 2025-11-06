@@ -3,6 +3,8 @@ use dyst_dir::{Annotation, Argument, Expression, NodeId, NodeIdAny, Type};
 /// Request to statically resolve something in-place.
 #[derive(Debug, Clone)]
 pub enum ResolveRequest {
+    /// Resolve an Import fully (in-place).
+    ResolveImport { import: NodeId<Expression> },
     /// Resolve an Expression fully (in-place).
     ResolveExpression { expression: NodeId<Expression> },
     /// Resolve a Type to its Type value (in-place).

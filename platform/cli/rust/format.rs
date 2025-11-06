@@ -15,7 +15,7 @@ use dyst_fir::format_args;
 use dyst_formatter::LanguageFormatContext;
 use dyst_parser::Parser;
 use dyst_source::{
-    AnnotateOptions, Color, LanguageOptions, Source, SourceFormat, SourceId, Uri, annotate_source,
+    AnnotateOptions, Color, LanguageOptions, File, FileType, FileId, Uri, annotate_source,
 };
 
 use crate::source::{get_semantic_spans_from_text, render_semantic_spans};
@@ -63,7 +63,7 @@ const DEFAULT_IGNORE_PATHS: &[&str] = &[
 
 /// Outcome of formatting some source.
 #[derive(Debug)]
-struct FormattedSource {
+struct FormattedFile {
     formatted: String,
     session: Session,
 }
@@ -76,7 +76,7 @@ struct FormattedFlags {
 }
 
 #[derive(Debug)]
-enum FormatSourceError {
+enum FormatFileError {
     Diagnostics(Session),
     Formatter(FirFormatError),
     Printer(FirPrintError),
@@ -165,17 +165,17 @@ fn run_for_files(paths: &[PathBuf], language: LanguageOptions, dry_run: bool) ->
 /// Format inline source provided via --string.
 fn run_for_string(string: &str, language: LanguageOptions) -> i32 {
     // create source from string input
-    let source = Source::from_string(
-        SourceId::new(0),
+    let source = File::from_string(
+        FileId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),
-        SourceFormat::Dyst,
+        FileType::Dyst,
         string.to_string(),
     );
 
     // format and output result
     match format_source(&source, language) {
-        Ok(FormattedSource { formatted, session }) => {
+        Ok(FormattedFile { formatted, session }) => {
             print_formatted_output("<formatted>", &formatted);
             print_diagnostics(&source, &session);
             if session.has_diagnostics_of_severity(Severity::Error) {
@@ -220,8 +220,8 @@ fn format_file(
     let format = path
         .extension()
         .and_then(|ext| ext.to_str())
-        .and_then(SourceFormat::from_extension)
-        .unwrap_or(SourceFormat::Dyst);
+        .and_then(FileType::from_extension)
+        .unwrap_or(FileType::Dyst);
 
     // read original file content
     let original_text = match fs::read_to_string(&path_buf) {
@@ -242,7 +242,7 @@ fn format_file(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "<file>".to_string());
     let uri = Uri::from(&path_buf);
-    let source = Source::from_string(SourceId::new(0), name, uri, format, original_text.clone());
+    let source = File::from_string(FileId::new(0), name, uri, format, original_text.clone());
     let formatted_source = match format_source(&source, options) {
         Ok(result) => result,
         Err(error) => {
@@ -255,7 +255,7 @@ fn format_file(
     };
 
     // print
-    let FormattedSource { formatted, session } = formatted_source;
+    let FormattedFile { formatted, session } = formatted_source;
     print_diagnostics(&source, &session);
     if emit_output {
         print_formatted_output(&display_path, &formatted);
@@ -283,9 +283,9 @@ fn format_file(
 
 /// Format the provided source into a string along with diagnostics.
 fn format_source(
-    source: &Source,
+    source: &File,
     language: LanguageOptions,
-) -> Result<FormattedSource, FormatSourceError> {
+) -> Result<FormattedFile, FormatFileError> {
     let mut session = Session::new();
     let module_name = source.uri.last_segment().unwrap_or("<string>");
 
@@ -299,7 +299,7 @@ fn format_source(
                 parser
                     .eat_module_body(
                         DefinitionMeta::new(Name::Identifier(module_name_id)),
-                        ModuleFormat::Source,
+                        ModuleFormat::File,
                         ModuleStyle::Module,
                     )
                     .map(Some)
@@ -320,10 +320,10 @@ fn format_source(
 
     // bail on errors
     if session.has_diagnostics_of_severity(Severity::Error) {
-        return Err(FormatSourceError::Diagnostics(session));
+        return Err(FormatFileError::Diagnostics(session));
     }
     let Some(definition_id) = module_id else {
-        return Err(FormatSourceError::Diagnostics(session));
+        return Err(FormatFileError::Diagnostics(session));
     };
 
     // format the AST
@@ -342,11 +342,11 @@ fn format_source(
     };
     let printed = {
         let formatted = format_fir(context, format_args![definition_id])
-            .map_err(FormatSourceError::Formatter)?;
-        formatted.print().map_err(FormatSourceError::Printer)?
+            .map_err(FormatFileError::Formatter)?;
+        formatted.print().map_err(FormatFileError::Printer)?
     };
 
-    Ok(FormattedSource {
+    Ok(FormattedFile {
         formatted: printed.into_str(),
         session,
     })
@@ -365,7 +365,7 @@ fn print_formatted_output(label: &str, formatted: &str) {
 }
 
 /// Print diagnostics collected during formatting.
-fn print_diagnostics(source: &Source, session: &Session) {
+fn print_diagnostics(source: &File, session: &Session) {
     for diagnostic in &session.diagnostics {
         let annotated = annotate_source(
             source,
@@ -384,18 +384,18 @@ fn print_diagnostics(source: &Source, session: &Session) {
 }
 
 /// Print a format source error.
-fn print_format_source_error(path_label: &str, source: &Source, error: FormatSourceError) {
+fn print_format_source_error(path_label: &str, source: &File, error: FormatFileError) {
     match error {
-        FormatSourceError::Diagnostics(session) => {
+        FormatFileError::Diagnostics(session) => {
             print_diagnostics(source, &session);
             console::error(&format!("failed to format {path_label}"));
         }
-        FormatSourceError::Formatter(inner) => {
+        FormatFileError::Formatter(inner) => {
             console::error(&format!(
                 "formatter error while formatting {path_label}: {inner}"
             ));
         }
-        FormatSourceError::Printer(inner) => {
+        FormatFileError::Printer(inner) => {
             console::error(&format!(
                 "printer error while formatting {path_label}: {inner}"
             ));

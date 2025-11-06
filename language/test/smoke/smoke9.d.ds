@@ -53,7 +53,7 @@ const LazyGuardDispatcher: {[key: string]: (...args: Array<any>) => any} = {};
   'useDebugValue',
   'useDeferredValue',
   'useTransition',
-  'useMutableSource',
+  'useMutableFile',
   'useSyncExternalStore',
   'useId',
   'unstable_isNewReconciler',

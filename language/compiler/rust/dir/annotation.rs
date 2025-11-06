@@ -1,14 +1,14 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{Annotation, AnnotationPosition, NodeId};
-use dyst_workspace::{FileContent, SourceFile};
-use dyst_source::SourceId;
+use dyst_workspace::{FileContent, FileFile};
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Attach all annotations.
     pub fn attach_all_annotations(&mut self) {
         for document in self.workspace.files() {
-            let FileContent::Source(SourceFile { ast, .. }) = &document.content else {
+            let FileContent::File(FileFile { ast, .. }) = &document.content else {
                 continue;
             };
             self.attach_annotations(document.id, ast);
@@ -16,7 +16,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower and attach all annotations for a source.
-    pub fn attach_annotations(&mut self, source_id: SourceId, ast: &ast::NodeTree) {
+    pub fn attach_annotations(&mut self, source_id: FileId, ast: &ast::NodeTree) {
         // lower them
         for ast_annotation_id in ast.get_nodes::<ast::Annotation>() {
             self.lower_annotation(source_id, ast, ast_annotation_id);
@@ -58,7 +58,7 @@ impl<'a> Compiler<'a> {
     /// Lower an annotation to a DIR annotation.
     fn lower_annotation(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         annotation_id: ast::NodeId<ast::Annotation>,
     ) -> Option<NodeId<Annotation>> {

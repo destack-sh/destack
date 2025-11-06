@@ -1,11 +1,11 @@
 use dyst_diagnostic::{Diagnostic, Severity};
-use dyst_source::Source;
+use dyst_source::File;
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::source::byte_span_to_range;
 
 /// Convert a Dyst diagnostic to an LSP diagnostic.
-pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &Source) -> lsp::Diagnostic {
+pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> lsp::Diagnostic {
     // span
     let range = byte_span_to_range(source, diagnostic.primary_span.span);
 

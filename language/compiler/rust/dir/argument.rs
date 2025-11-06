@@ -5,13 +5,13 @@ use dyst_dir::{
     Argument, BindingKind, BindingModifier, BindingOperator, Expression, Mutability, NodeId,
     Parameter, Path, Visibility,
 };
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Lower a binding modifiers into a DIR binding modifiers.
     pub fn lower_binding_modifiers(
         &mut self,
-        _source_id: SourceId,
+        _source_id: FileId,
         _ast: &ast::NodeTree,
         modifiers: ast::BindingModifier,
     ) -> BindingModifier {
@@ -42,7 +42,7 @@ impl<'a> Compiler<'a> {
     /// Lower a parameter into a DIR parameter.
     pub fn lower_parameter(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         parameter_id: ast::NodeId<ast::Parameter>,
     ) -> NodeId<Parameter> {
@@ -117,7 +117,7 @@ impl<'a> Compiler<'a> {
     /// Lower an argument into a DIR argument.
     pub fn lower_argument(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         argument_id: ast::NodeId<ast::Argument>,
     ) -> NodeId<Argument> {

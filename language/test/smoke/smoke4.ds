@@ -970,7 +970,7 @@ declare module "bun" {
      * Atomically moves an element from source to destination list, blocking until an element is available
      * or the timeout expires. Allows specifying which end to pop from (LEFT/RIGHT) and which end to push to (LEFT/RIGHT).
      *
-     * @param source Source list key
+     * @param source File list key
      * @param destination BlockTarget list key
      * @param from Direction to pop from source: "LEFT" or "RIGHT"
      * @param to Direction to push to destination: "LEFT" or "RIGHT"
@@ -1030,7 +1030,7 @@ declare module "bun" {
      * Atomically pops an element from the tail of source list and pushes it to the head of destination list,
      * blocking until an element is available or the timeout expires. This is the blocking version of RPOPLPUSH.
      *
-     * @param source Source list key
+     * @param source File list key
      * @param destination BlockTarget list key
      * @param timeout Timeout in seconds (can be fractional, 0 = block indefinitely)
      * @returns Promise that resolves with the moved element or null on timeout

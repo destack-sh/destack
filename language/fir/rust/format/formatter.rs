@@ -96,7 +96,7 @@ where
     }
 
     fn create_printer(&self) -> Printer<'_> {
-        let source = self.context.source();
+        let source = self.context.file();
         let print_options = self.context.options().as_print_options();
 
         Printer::new(source, print_options)
@@ -124,13 +124,10 @@ pub fn format<Context>(
 where
     Context: FormatContext,
 {
-    let source_length = context.source().content.len();
-    // Use a simple heuristic to guess the number of expected format nodes.
-    // See [#6612](https://github.com/astral-sh/ruff/pull/6612) for more details on how the formula was determined. Changes to our formatter, or supporting
-    // more languages may require fine tuning the formula.
+    let source_length = context.file().len;
     let estimated_buffer_size = source_length / 2;
     let mut state = FormatState::new(context);
-    let mut buffer = VecBuffer::with_capacity(estimated_buffer_size, &mut state);
+    let mut buffer = VecBuffer::with_capacity(estimated_buffer_size as usize, &mut state);
 
     buffer.write_format(arguments)?;
 
@@ -295,7 +292,7 @@ pub struct FormatterSnapshot {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::SourceFormat;
+    use dyst_source::FileType;
 
     use crate::format::{
         FormatState, Formatted, IndentStyle, SimpleFormatContext, SimpleFormatOptions, VecBuffer,
@@ -352,7 +349,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [format_with(|f| {
                 f.fill()
@@ -402,7 +399,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [format_with(|f| {
                 f.fill()

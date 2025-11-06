@@ -1,12 +1,10 @@
-//! Spans and Multi-Spans into SourceFiles.
+use crate::FileId;
 
-use crate::{Source, SourceId};
-
-/// A source range in bytes (in some SourceFile).
+/// A source range in bytes (in some FileFile).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Span {
     /// The file that the Span belongs to.
-    pub source: SourceId,
+    pub source: FileId,
     /// The start position of the Span in bytes (absolute, inclusive).
     pub start: u32,
     /// The end position of the Span in bytes (absolute, exclusive).
@@ -15,12 +13,12 @@ pub struct Span {
 
 impl Span {
     /// Create a new Span.
-    pub fn new(source: SourceId, start: u32, end: u32) -> Self {
+    pub fn new(source: FileId, start: u32, end: u32) -> Self {
         Self { source, start, end }
     }
 
     /// Create a new Span from a position and length.
-    pub fn at(source: SourceId, start: u32, length: u32) -> Self {
+    pub fn at(source: FileId, start: u32, length: u32) -> Self {
         Self {
             source,
             start,
@@ -29,17 +27,12 @@ impl Span {
     }
 
     /// Create an empty Span.
-    pub fn empty(source: SourceId) -> Self {
+    pub fn empty(source: FileId) -> Self {
         Self {
             source,
             start: 0,
             end: 0,
         }
-    }
-
-    /// Get the text of the Span from some Source.
-    pub fn text(self, source: &Source) -> &str {
-        source.get_span_str(self)
     }
 
     /// Merge two Spans.

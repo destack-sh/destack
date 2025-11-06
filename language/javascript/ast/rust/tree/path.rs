@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::StringId;
-use dyst_container::SmallVec;
+use dyst_source::SmallVec;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {

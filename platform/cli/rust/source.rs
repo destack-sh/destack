@@ -3,12 +3,12 @@ use std::path::Path;
 
 use dyst_ast::{BlockFormat, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan, TokenType};
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
 
 use destack_terminal::{CommandArguments, console};
 
 /// Read a source either from a file or inline string argument.
-pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
+pub(crate) fn read_source(ctx: &CommandArguments) -> Result<File, String> {
     if let Some(path) = ctx.option("file") {
         let path_ref = Path::new(path);
         fs::read_to_string(path_ref)
@@ -20,14 +20,14 @@ pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
                     .map(|s| s.to_string_lossy().into_owned())
                     .unwrap_or("<file>".to_string());
                 let uri = Uri::from_string(path);
-                Source::from_string(SourceId::new(0), name, uri, SourceFormat::Dyst, content)
+                File::from_string(FileId::new(0), name, uri, FileType::Dyst, content)
             })
     } else if let Some(string) = ctx.option("string") {
-        Ok(Source::from_string(
-            SourceId::new(0),
+        Ok(File::from_string(
+            FileId::new(0),
             "<string>".to_string(),
             Uri::from_string("<string>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             string.to_string(),
         ))
     } else {
@@ -46,18 +46,18 @@ pub(crate) fn get_semantic_spans_from_text(
     label: &str,
     text: &str,
 ) -> Result<Vec<SemanticSpan>, String> {
-    let source = Source::from_string(
-        SourceId::new(1),
+    let source = File::from_string(
+        FileId::new(1),
         label.to_string(),
         Uri::from_string("<string>"),
-        SourceFormat::Dyst,
+        FileType::Dyst,
         text.to_string(),
     );
     get_semantic_spans_from_source(&source)
 }
 
-/// Compute semantic spans directly from a Source value.
-pub(crate) fn get_semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
+/// Compute semantic spans directly from a File value.
+pub(crate) fn get_semantic_spans_from_source(source: &File) -> Result<Vec<SemanticSpan>, String> {
     let mut diagnostics = DiagnosticCollector::new();
     let language = LanguageOptions::default();
     let mut parser = Parser::prepare(source, language, &mut diagnostics);

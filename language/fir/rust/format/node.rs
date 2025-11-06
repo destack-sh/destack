@@ -34,7 +34,7 @@ pub enum FormatNode {
     /// An arbitrary text that can contain tabs, newlines, and unicode characters.
     Text { text: Box<str>, width: TextWidth },
     /// Text that gets emitted as it is in the source code.
-    SourceSlice { slice: Span, width: TextWidth },
+    FileSlice { slice: Span, width: TextWidth },
     /// Prevents that line suffixes move past this boundary.
     /// Forces the printer to print any pending line suffixes, potentially by inserting a hard line break.
     LinePostfixBoundary,
@@ -71,7 +71,7 @@ impl std::fmt::Debug for FormatNode {
             FormatNode::ExpandParent => write!(fmt, "ExpandParent"),
             FormatNode::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
             FormatNode::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
-            FormatNode::SourceSlice {
+            FormatNode::FileSlice {
                 slice,
                 width: text_width,
             } => fmt

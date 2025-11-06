@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use dyst_container::SmallVec;
+use dyst_source::SmallVec;
 
 use crate::StringId;
 

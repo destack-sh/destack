@@ -59,7 +59,7 @@ export namespace JSC {
     /**
      * Channels for different types of log messages.
      */
-    export type ChannelSource =
+    export type ChannelFile =
       | "xml"
       | "javascript"
       | "network"
@@ -89,14 +89,14 @@ export namespace JSC {
      * Logging channel.
      */
     export type Channel = {
-      source: ChannelSource;
+      source: ChannelFile;
       level: ChannelLevel;
     };
     /**
      * Console message.
      */
     export type ConsoleMessage = {
-      source: ChannelSource;
+      source: ChannelFile;
       /**
        * Message severity.
        */
@@ -314,7 +314,7 @@ export namespace JSC {
       /**
        * Logging channel to modify.
        */
-      source: ChannelSource;
+      source: ChannelFile;
       /**
        * New level.
        */
@@ -590,9 +590,9 @@ export namespace JSC {
        */
       url: string;
       /**
-       * Source text of the script that failed to parse.
+       * File text of the script that failed to parse.
        */
-      scriptSource: string;
+      scriptFile: string;
       /**
        * Line offset of the script within the resource.
        */
@@ -982,9 +982,9 @@ export namespace JSC {
     };
     /**
      * Returns source for the script with given id.
-     * @request `Debugger.getScriptSource`
+     * @request `Debugger.getScriptFile`
      */
-    export type GetScriptSourceRequest = {
+    export type GetScriptFileRequest = {
       /**
        * Id of the script to get source for.
        */
@@ -992,13 +992,13 @@ export namespace JSC {
     };
     /**
      * Returns source for the script with given id.
-     * @response `Debugger.getScriptSource`
+     * @response `Debugger.getScriptFile`
      */
-    export type GetScriptSourceResponse = {
+    export type GetScriptFileResponse = {
       /**
        * Script source.
        */
-      scriptSource: string;
+      scriptFile: string;
     };
     /**
      * Returns detailed information on given function.
@@ -1457,7 +1457,7 @@ export namespace JSC {
        */
       lineColumns: number[];
       /**
-       * Source code preview associated with the error for up to 5 lines before the error, relative to the first non-internal stack frame.
+       * File code preview associated with the error for up to 5 lines before the error, relative to the first non-internal stack frame.
        */
       sourceLines: string[];
     };
@@ -1945,7 +1945,7 @@ export namespace JSC {
      */
     export type ParseRequest = {
       /**
-       * Source code to parse.
+       * File code to parse.
        */
       source: string;
     };
@@ -2648,7 +2648,7 @@ export namespace JSC {
     "Debugger.pause": Debugger.PauseRequest;
     "Debugger.resume": Debugger.ResumeRequest;
     "Debugger.searchInContent": Debugger.SearchInContentRequest;
-    "Debugger.getScriptSource": Debugger.GetScriptSourceRequest;
+    "Debugger.getScriptFile": Debugger.GetScriptFileRequest;
     "Debugger.getFunctionDetails": Debugger.GetFunctionDetailsRequest;
     "Debugger.getBreakpointLocations": Debugger.GetBreakpointLocationsRequest;
     "Debugger.setPauseOnDebuggerStatements": Debugger.SetPauseOnDebuggerStatementsRequest;
@@ -2727,7 +2727,7 @@ export namespace JSC {
     "Debugger.pause": Debugger.PauseResponse;
     "Debugger.resume": Debugger.ResumeResponse;
     "Debugger.searchInContent": Debugger.SearchInContentResponse;
-    "Debugger.getScriptSource": Debugger.GetScriptSourceResponse;
+    "Debugger.getScriptFile": Debugger.GetScriptFileResponse;
     "Debugger.getFunctionDetails": Debugger.GetFunctionDetailsResponse;
     "Debugger.getBreakpointLocations": Debugger.GetBreakpointLocationsResponse;
     "Debugger.setPauseOnDebuggerStatements": Debugger.SetPauseOnDebuggerStatementsResponse;

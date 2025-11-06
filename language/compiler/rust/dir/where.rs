@@ -1,6 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{NodeId, WhereClause};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 use crate::Compiler;
 
@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
     /// Lower a where clause to a DIR where clause.
     pub fn lower_where_clause(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         where_clause_id: ast::NodeId<ast::WhereClause>,
     ) -> NodeId<WhereClause> {

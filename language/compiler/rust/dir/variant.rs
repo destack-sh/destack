@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{Field, NodeId, StringId, Type, Variant};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
@@ -9,7 +9,7 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_field(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         field_id: ast::NodeId<ast::Field>,
     ) -> NodeId<Field> {
@@ -76,7 +76,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST struct to a DIR variant.
     pub fn lower_struct_to_variant(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         definition_id: ast::NodeId<ast::Definition>,
         name: Option<StringId>,
@@ -108,7 +108,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST enum to a DIR variant.
     pub fn lower_enum_to_variant(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         _definition_id: ast::NodeId<ast::Definition>,
         tag_type: Option<NodeId<Type>>,
@@ -124,7 +124,7 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_enum_field_to_variant(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         representation_type: Option<NodeId<Type>>,
         field_id: ast::NodeId<ast::EnumField>,
@@ -148,7 +148,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST union to DIR variants.
     pub fn lower_union_to_variant(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         _definition_id: ast::NodeId<ast::Definition>,
         tag_type: Option<NodeId<Type>>,
@@ -173,7 +173,7 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_union_field_to_variant(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         // NOTE #Incomplete: consider union field tag type?
         _tag_type: Option<NodeId<Type>>,
