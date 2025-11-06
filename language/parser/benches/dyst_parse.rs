@@ -2,7 +2,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, 
 use destack_file::glob;
 use dyst_ast::{DefinitionMeta, ModuleFormat, ModuleStyle, TokenType};
 use dyst_parser::Parser;
-use dyst_source::{LanguageOptions, File, FileType, FileId, Uri};
+use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
-    let source = File::from_string(
+    let file = File::from_string(
         FileId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),
@@ -52,14 +52,14 @@ fn bench_parse(c: &mut Criterion) {
     );
 
     // single benchmark over the whole workspace content
-    let mut session = Session::new();
     let mut group = c.benchmark_group("dyst_ast");
-    let line_count = source.content.lines().count() as u64;
+    let line_count = file.text().lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("parse", "all"), &source, |b, source| {
+    group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {
         b.iter(|| {
             let language = LanguageOptions::default();
-            let mut parser = Parser::prepare(source, language, &mut session);
+            let mut diagnostics = DiagnosticCollector::new();
+            let mut parser = Parser::prepare(file, language, &mut diagnostics);
             let module = parser.with_recovery(
                 parser.mark(),
                 |parser| {

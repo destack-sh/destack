@@ -148,13 +148,13 @@ impl<'ast> LanguageFormatContext<'ast> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'ast str {
-        &self.source.content[span.start as usize..span.end as usize]
+        self.source.get_span_str(span).unwrap_or_default()
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'ast str {
-        &self.source.content[token.span.start as usize..token.span.end as usize]
+        self.source.get_span_str(token.span).unwrap_or_default()
     }
 
     /// Get an interned string.

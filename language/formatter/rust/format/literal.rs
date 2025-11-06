@@ -18,7 +18,7 @@ pub(crate) fn format_scalar_literal<'ast>(
     span: Span,
     f: &mut LanguageFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let span_str = f.context().source.get_span_str(span);
+    let span_str = f.context().source.get_span_str(span).unwrap_or_default();
     match scalar {
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(_) => {

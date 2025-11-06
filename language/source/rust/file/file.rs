@@ -89,6 +89,7 @@ impl File {
     }
 
     /// Get the string slice for a given span.
+    #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
         match &self.content {
             FileContent::Text(content) => Some(&content[span.start as usize..span.end as usize]),
@@ -98,6 +99,7 @@ impl File {
     }
 
     /// Get a line as a string slice by 0-based index.
+    #[inline]
     pub fn get_line_str(&self, line_index: u32) -> Option<&str> {
         self.get_line_span(line_index)
             .and_then(|span| self.get_span_str(span))
@@ -105,6 +107,7 @@ impl File {
 
     /// Get the byte bounds (start, end-exclusive) for a line by 0-based index.
     /// Uses precomputed offsets for O(1) performance.
+    #[inline]
     pub fn get_line_span(&self, line_index: u32) -> Option<Span> {
         let Some(line_start_offsets) = &self.line_start_offsets else {
             return None;

@@ -20,7 +20,7 @@ impl<'a> Compiler<'a> {
     /// Lower a dependency type into a DIR dependency type.
     pub fn lower_dependency_kind(
         &mut self,
-        _source_id: FileId,
+        _file_id: FileId,
         _ast: &ast::NodeTree,
         dependency_type: ast::DependencyKind,
     ) -> DependencyKind {
@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
     /// Expressions with grouped items are flattened into scalar import items.
     pub fn lower_dependency_binding(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         origin_id: ast::NodeId<ast::Expression>,
         kind: ast::DependencyKind,
@@ -42,9 +42,9 @@ impl<'a> Compiler<'a> {
         alias: Option<dyst_source::StringId>,
         items: Option<&[ast::NodeId<ast::DependencyItem>]>,
     ) -> Vec<NodeId<DependencyItem>> {
-        let kind = self.lower_dependency_kind(source_id, ast, kind);
-        let target = target.map(|target| self.lower_dependency_target(source_id, ast, target));
-        let alias = alias.map(|alias| self.lower_string_id(source_id, alias));
+        let kind = self.lower_dependency_kind(file_id, ast, kind);
+        let target = target.map(|target| self.lower_dependency_target(file_id, ast, target));
+        let alias = alias.map(|alias| self.lower_string_id(file_id, alias));
 
         let mut items = if let Some(items) = items {
             items
@@ -53,12 +53,12 @@ impl<'a> Compiler<'a> {
                     let dependency_item = ast.get(*item);
                     let kind = dependency_item
                         .kind
-                        .map(|kind| self.lower_dependency_kind(source_id, ast, kind))
+                        .map(|kind| self.lower_dependency_kind(file_id, ast, kind))
                         .unwrap_or(kind);
-                    let name = self.lower_string_id(source_id, dependency_item.name);
+                    let name = self.lower_string_id(file_id, dependency_item.name);
                     let alias = dependency_item
                         .alias
-                        .map(|alias| self.lower_string_id(source_id, alias));
+                        .map(|alias| self.lower_string_id(file_id, alias));
                     let dependency_item = DependencyItem::Scalar {
                         kind,
                         target: target.clone(),
@@ -66,7 +66,7 @@ impl<'a> Compiler<'a> {
                         alias,
                     };
                     self.tree
-                        .insert_from_ast(dependency_item, source_id, origin_id)
+                        .insert_from_ast(dependency_item, file_id, origin_id)
                 })
                 .collect()
         } else {
@@ -83,7 +83,7 @@ impl<'a> Compiler<'a> {
             };
             items.push(
                 self.tree
-                    .insert_from_ast(dependency_item, source_id, origin_id),
+                    .insert_from_ast(dependency_item, file_id, origin_id),
             );
         }
 
@@ -93,17 +93,17 @@ impl<'a> Compiler<'a> {
     /// Lower a dependency target into a DIR dependency target.
     fn lower_dependency_target(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         ast: &ast::NodeTree,
         target: &ast::DependencyTarget,
     ) -> DirDependencyTarget {
         match target {
             ast::DependencyTarget::Path(path) => {
-                let path = self.lower_path(source_id, ast, path);
+                let path = self.lower_path(file_id, ast, path);
                 DirDependencyTarget::Path(path)
             }
             ast::DependencyTarget::String(string_id) => {
-                let string_id = self.lower_string_id(source_id, *string_id);
+                let string_id = self.lower_string_id(file_id, *string_id);
                 DirDependencyTarget::String(string_id)
             }
         }
@@ -112,9 +112,9 @@ impl<'a> Compiler<'a> {
     /// Lower a string id into a DIR string id.
     fn lower_string_id(
         &mut self,
-        source_id: FileId,
+        file_id: FileId,
         string_id: dyst_source::StringId,
     ) -> dyst_source::StringId {
-        self.intern_string(source_id, string_id)
+        self.intern_string(file_id, string_id)
     }
 }

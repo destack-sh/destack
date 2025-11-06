@@ -41,25 +41,25 @@ pub enum ArgumentSlot {
 /// An Argument is a named or positional argument to a function or method call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Unresolved named argument.
-    UnresolvedNamed {
+    /// Unevaluated named argument.
+    UnevaluatedNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
         value: NodeId<Expression>,
     },
-    /// Unresolved positional argument.
-    UnresolvedPositional {
+    /// Unevaluated positional argument.
+    UnevaluatedPositional {
         modifiers: Option<BindingModifier>,
         value: NodeId<Expression>,
     },
-    /// Unresolved positional spread argument.
-    UnresolvedSpread {
+    /// Unevaluated positional spread argument.
+    UnevaluatedSpread {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
-    /// Unresolved dynamic argument.
-    UnresolvedDynamic {
+    /// Unevaluated dynamic argument.
+    UnevaluatedDynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
@@ -93,8 +93,8 @@ impl Node for Argument {
 }
 
 impl Argument {
-    /// Whether the argument is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    /// Whether the argument is evaluated (ignoring child nodes).
+    pub fn is_evaluated(&self) -> bool {
         matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
     }
 }

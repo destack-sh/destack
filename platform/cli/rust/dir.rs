@@ -70,7 +70,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // get the document & definition
-    let (source_id, definition_id) = {
+    let (file_id, definition_id) = {
         // get the definition from the workspace
         if let Some(file) = file
             && workspace.has_file(&Uri::from_string(file))
@@ -86,17 +86,17 @@ pub fn run(ctx: CommandArguments) -> i32 {
         // add source to workspace if file is not in workspace
         else {
             let uri = Uri::from_string(source.name.clone());
-            let source_id = workspace.upsert_text_file(
+            let file_id = workspace.upsert_text_file(
                 &uri,
                 FileType::DystText,
                 true,
                 source.content.clone(),
             );
-            let document = workspace.get_file_by_source_id(source_id).unwrap();
+            let document = workspace.get_file_by_file_id(file_id).unwrap();
             match &document.content {
                 FileContent::File(FileFile {
                     root_definition_id, ..
-                }) => (source_id, *root_definition_id),
+                }) => (file_id, *root_definition_id),
                 FileContent::Binary { .. } => panic!("binary document not supported"),
             }
         }
@@ -104,14 +104,14 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile the AST to DIR
     let package = workspace
-        .get_package_containing_source_id(source_id)
-        .unwrap_or_else(|| panic!("package not found: {source_id:?} in {workspace:?}"));
+        .get_package_containing_file_id(file_id)
+        .unwrap_or_else(|| panic!("package not found: {file_id:?} in {workspace:?}"));
     let language = LanguageOptions::default();
     let mut compiler = Compiler::new(&workspace, package, language, CompilerOptions::default());
     let dir_tree = workspace
-        .get_ast_by_source_id(source_id)
-        .unwrap_or_else(|| panic!("document ast not found: {source_id:?} in {workspace:?}"));
-    let definition_id = compiler.lower_definition(source_id, dir_tree, definition_id);
+        .get_ast_by_file_id(file_id)
+        .unwrap_or_else(|| panic!("document ast not found: {file_id:?} in {workspace:?}"));
+    let definition_id = compiler.lower_definition(file_id, dir_tree, definition_id);
     compiler.compile();
     compiler.finalize();
 

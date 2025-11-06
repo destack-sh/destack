@@ -8,8 +8,8 @@ pub use machine::*;
 pub mod bun;
 #[cfg(feature = "deno")]
 pub mod deno;
-#[cfg(feature = "javascript_compiler")]
-pub mod javascript_compiler;
+#[cfg(feature = "javascript_transpiler")]
+pub mod javascript_transpiler;
 #[cfg(feature = "node")]
 pub mod node;
 #[cfg(feature = "v8")]
@@ -22,8 +22,8 @@ pub use bun::*;
 #[cfg(feature = "deno")]
 pub use deno::*;
 #[allow(unused_imports)]
-#[cfg(feature = "javascript_compiler")]
-pub use javascript_compiler::*;
+#[cfg(feature = "javascript_transpiler")]
+pub use javascript_transpiler::*;
 #[allow(unused_imports)]
 #[cfg(feature = "node")]
 pub use node::*;

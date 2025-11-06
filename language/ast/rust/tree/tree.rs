@@ -13,8 +13,8 @@ use crate::{
 /// The AST Node tree for a single source unit.
 #[derive(Clone)]
 pub struct NodeTree {
-    /// The source id of the source unit.
-    pub(crate) source_id: FileId,
+    /// The file id of the source unit.
+    pub(crate) file_id: FileId,
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
@@ -52,7 +52,7 @@ pub struct NodeTree {
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("source_id", &self.source_id)
+            .field("file_id", &self.file_id)
             .field("next_global_id", &self.next_global_id)
             .field("node_count", &self.local_id_by_node_id.len())
             .finish()
@@ -61,14 +61,14 @@ impl Debug for NodeTree {
 
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new(source_id: FileId) -> Self {
-        Self::with_capacity(source_id, 0)
+    pub fn new(file_id: FileId) -> Self {
+        Self::with_capacity(file_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(source_id: FileId, capacity: usize) -> Self {
+    pub fn with_capacity(file_id: FileId, capacity: usize) -> Self {
         Self {
-            source_id,
+            file_id,
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),

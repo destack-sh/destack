@@ -20,6 +20,11 @@ impl DiagnosticCollector {
         }
     }
 
+    /// Whether the collector has any diagnostics.
+    pub fn is_empty(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
     /// Add a Diagnostic.
     pub fn insert_diagnostic(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
@@ -33,5 +38,15 @@ impl DiagnosticCollector {
     /// Add a Suggestion.
     pub fn insert_suggestion(&mut self, suggestion: Suggestion) {
         self.suggestions.push(suggestion);
+    }
+
+    /// Convert the Collector into its diagnostics.
+    pub fn into_vec(self) -> Vec<Diagnostic> {
+        self.diagnostics
+    }
+
+    /// Get an iterator over diagnostics.
+    pub fn iter(&self) -> std::slice::Iter<'_, Diagnostic> {
+        self.diagnostics.iter()
     }
 }

@@ -41,7 +41,7 @@ pub struct AnnotateOptions {
 /// after the highlighted region.
 /// Lines longer than `max_line_width` are clipped to keep the highlight visible.
 pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptions) -> String {
-    debug_assert_eq!(source.id, span.span.source);
+    debug_assert_eq!(source.id, span.span.file);
 
     // compute span bounds
     let (span_start_line, start_col) = match source.get_position(span.span.start) {

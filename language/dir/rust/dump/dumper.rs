@@ -232,16 +232,16 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let (source_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let source_id = source_id.0;
+            let (file_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+            let file_id = file_id.0;
             if let Some(source_ast_id) = source_ast_id {
                 self.dumper.write_str(
-                    format!(" :{node_id} [{source_id:?}/{source_ast_id}]").as_str(),
+                    format!(" :{node_id} [{file_id:?}/{source_ast_id}]").as_str(),
                     Some(Color::White),
                 );
             } else {
                 self.dumper.write_str(
-                    format!(" :{node_id} [{source_id:?}]").as_str(),
+                    format!(" :{node_id} [{file_id:?}]").as_str(),
                     Some(Color::White),
                 );
             }
@@ -510,9 +510,9 @@ impl Dump for FunctionSignature {
 impl Dump for BlockTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            BlockTarget::UnresolvedString { label } => {
+            BlockTarget::UnevaluatedString { label } => {
                 dumper
-                    .object("BlockTarget::UnresolvedString")
+                    .object("BlockTarget::UnevaluatedString")
                     .field("label", label)
                     .end();
             }
@@ -544,22 +544,22 @@ impl Dump for PathBase {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::UnresolvedBase { base } => {
+            Path::UnevaluatedBase { base } => {
                 dumper
-                    .object("Path::UnresolvedBase")
+                    .object("Path::UnevaluatedBase")
                     .field("base", base)
                     .end();
             }
-            Path::UnresolvedRelativeString { base, segments } => {
+            Path::UnevaluatedRelativeString { base, segments } => {
                 dumper
-                    .object("Path::UnresolvedRelativeString")
+                    .object("Path::UnevaluatedRelativeString")
                     .field("base", base)
                     .value(segments)
                     .end();
             }
-            Path::UnresolvedAbsoluteString { segments } => {
+            Path::UnevaluatedAbsoluteString { segments } => {
                 dumper
-                    .object("Path::UnresolvedAbsoluteString")
+                    .object("Path::UnevaluatedAbsoluteString")
                     .value(segments)
                     .end();
             }
@@ -1402,11 +1402,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Type::Intersection", id.id).end();
             }
 
-            Type::UnresolvedExpression(_) => {
-                self.node("Type::UnresolvedExpression", id.id).end();
+            Type::UnevaluatedExpression(_) => {
+                self.node("Type::UnevaluatedExpression", id.id).end();
             }
-            Type::UnresolvedSelf => {
-                self.node("Type::UnresolvedSelf", id.id).end();
+            Type::UnevaluatedSelf => {
+                self.node("Type::UnevaluatedSelf", id.id).end();
             }
 
             Type::Error => {
@@ -1608,41 +1608,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::UnresolvedNamed {
+            Argument::UnevaluatedNamed {
                 modifiers,
                 name,
                 value: _,
             } => {
-                self.node("Argument::UnresolvedNamed", id.id)
+                self.node("Argument::UnevaluatedNamed", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::UnresolvedPositional {
+            Argument::UnevaluatedPositional {
                 modifiers,
                 value: _,
             } => {
-                self.node("Argument::UnresolvedPositional", id.id)
+                self.node("Argument::UnevaluatedPositional", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
-            Argument::UnresolvedSpread {
+            Argument::UnevaluatedSpread {
                 modifiers,
                 name,
                 value: _,
             } => {
-                self.node("Argument::UnresolvedSpread", id.id)
+                self.node("Argument::UnevaluatedSpread", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
-            Argument::UnresolvedDynamic {
+            Argument::UnevaluatedDynamic {
                 modifiers,
                 name,
                 key: _,
                 value: _,
             } => {
-                self.node("Argument::UnresolvedDynamic", id.id)
+                self.node("Argument::UnevaluatedDynamic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();

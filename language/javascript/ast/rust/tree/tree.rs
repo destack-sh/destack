@@ -12,7 +12,7 @@ use crate::{
 #[derive(Clone)]
 pub struct NodeTree {
     /// The source id of the source unit.
-    pub(crate) source_id: FileId,
+    pub(crate) file_id: FileId,
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
@@ -49,7 +49,7 @@ pub struct NodeTree {
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("source_id", &self.source_id)
+            .field("file_id", &self.file_id)
             .field("next_global_id", &self.next_global_id)
             .field("node_count", &self.local_id_by_node_id.len())
             .finish()
@@ -58,14 +58,14 @@ impl Debug for NodeTree {
 
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new(source_id: FileId) -> Self {
-        Self::with_capacity(source_id, 0)
+    pub fn new(file_id: FileId) -> Self {
+        Self::with_capacity(file_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(source_id: FileId, capacity: usize) -> Self {
+    pub fn with_capacity(file_id: FileId, capacity: usize) -> Self {
         Self {
-            source_id,
+            file_id,
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
@@ -92,7 +92,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, source_id: FileId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, file_id: FileId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -102,7 +102,7 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.source_by_node_id.push(source_id);
+        self.source_by_node_id.push(file_id);
         NodeId::new(global_id)
     }
 
@@ -114,8 +114,8 @@ impl NodeTree {
         U: Node,
         Self: NodeTreeImpl<U>,
     {
-        let source_id = self.source_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, source_id);
+        let file_id = self.source_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, file_id);
         self.ast_id_by_node_id.push(None);
         self.dir_id_by_node_id.push(Some(dir_node_id.id));
         node_id

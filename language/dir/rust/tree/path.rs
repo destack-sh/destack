@@ -1,4 +1,4 @@
-use dyst_container::SmallVec;
+use dyst_source::SmallVec;
 
 use crate::{Definition, Intrinsic, NodeId, StringId};
 
@@ -19,30 +19,30 @@ pub enum PathBase {
     Package,
 }
 
-/// A resolved path.
+/// A evaluated path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
-    /// Unresolved base.
-    UnresolvedBase { base: PathBase },
-    /// Unresolved relative string path.
-    UnresolvedRelativeString {
+    /// Unevaluated base.
+    UnevaluatedBase { base: PathBase },
+    /// Unevaluated relative string path.
+    UnevaluatedRelativeString {
         base: PathBase,
         segments: SmallVec<StringId, 3>,
     },
-    /// Unresolved absolute string path.
-    UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
+    /// Unevaluated absolute string path.
+    UnevaluatedAbsoluteString { segments: SmallVec<StringId, 3> },
 
-    /// Resolved Path to an intrinsic.
+    /// Evaluated Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
-    /// Resolved to a Definition.
+    /// Evaluated to a Definition.
     Definition { definition: NodeId<Definition> },
     /// Error path.
     Error,
 }
 
 impl Path {
-    /// Whether the path is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    /// Whether the path is evaluated (ignoring child nodes).
+    pub fn is_evaluated(&self) -> bool {
         matches!(self, Path::Intrinsic { .. } | Path::Definition { .. })
     }
 }
@@ -50,17 +50,17 @@ impl Path {
 /// A block target for a control flow statement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockTarget {
-    /// Unresolved block target with a string label.
-    UnresolvedString { label: StringId },
-    /// Resolved block target to a Definition.
+    /// Unevaluated block target with a string label.
+    UnevaluatedString { label: StringId },
+    /// Evaluated block target to a Definition.
     Definition { definition: NodeId<Definition> },
     /// Error target.
     Error,
 }
 
 impl BlockTarget {
-    /// Whether the target is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    /// Whether the target is evaluated (ignoring child nodes).
+    pub fn is_evaluated(&self) -> bool {
         matches!(self, BlockTarget::Definition { .. })
     }
 }

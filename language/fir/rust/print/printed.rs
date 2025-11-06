@@ -143,8 +143,8 @@ impl Printed {
                 (marker.source, marker.dest)
             });
 
-        let source_span = Span::new(source_span.source, source_start, source_end);
-        let formatted_span = Span::new(source_span.source, formatted_start, formatted_end);
+        let source_span = Span::new(source_span.file, source_start, source_end);
+        let formatted_span = Span::new(source_span.file, formatted_start, formatted_end);
 
         // extend both ranges to include the indentation
         let source_span = extend_range_to_include_indent(source_span, source);
@@ -169,7 +169,7 @@ fn extend_range_to_include_indent(range: Span, source: &str) -> Span {
         .map(TextLen::text_len)
         .sum();
 
-    Span::new(range.source, range.start - whitespace_len, range.end)
+    Span::new(range.file, range.start - whitespace_len, range.end)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

@@ -2,13 +2,11 @@
 #![feature(if_let_guard)]
 
 mod compile;
-mod cranelift;
 mod diagnostic;
 mod dir;
+mod evaluate;
 mod execute;
 mod mir;
-mod resolve;
 mod validate;
-mod wasm;
 
 pub use compile::*;

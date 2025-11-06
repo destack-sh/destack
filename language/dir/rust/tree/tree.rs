@@ -100,7 +100,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, source_id: FileId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, file_id: FileId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -110,7 +110,7 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.source_by_node_id.push(source_id);
+        self.source_by_node_id.push(file_id);
         NodeId::new(global_id)
     }
 
@@ -118,7 +118,7 @@ impl NodeTree {
     pub fn insert_from_ast<T, U>(
         &mut self,
         node: T,
-        source_id: FileId,
+        file_id: FileId,
         ast_node_id: ast::NodeId<U>,
     ) -> NodeId<T>
     where
@@ -127,10 +127,10 @@ impl NodeTree {
         U: ast::Node,
         ast::NodeTree: ast::NodeTreeImpl<U>,
     {
-        let node_id = self.insert(node, source_id);
+        let node_id = self.insert(node, file_id);
         self.ast_id_by_node_id.push(Some(ast_node_id.id));
         self.alias_node_id_by_ast_id
-            .insert((source_id, ast_node_id.id), node_id.id);
+            .insert((file_id, ast_node_id.id), node_id.id);
         node_id
     }
 
@@ -142,21 +142,21 @@ impl NodeTree {
         U: Node,
         Self: NodeTreeImpl<U>,
     {
-        let source_id = self.source_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, source_id);
+        let file_id = self.source_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, file_id);
         self.ast_id_by_node_id.push(None);
         self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
         node_id
     }
 
     /// Add an alias node for a lowered AST id.
-    pub fn alias_from_ast<T>(&mut self, source_id: FileId, ast_id: u32, alias: NodeId<T>)
+    pub fn alias_from_ast<T>(&mut self, file_id: FileId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
     {
         self.alias_node_id_by_ast_id
-            .insert((source_id, ast_id), alias.id);
+            .insert((file_id, ast_id), alias.id);
     }
 
     /// Add an alias node for a derived DIR id.
@@ -228,9 +228,9 @@ impl NodeTree {
 
     // Get the node id by its source / AST id.
     #[inline]
-    pub fn get_node_id_by_ast_id(&self, source_id: FileId, ast_id: u32) -> Option<u32> {
+    pub fn get_node_id_by_ast_id(&self, file_id: FileId, ast_id: u32) -> Option<u32> {
         self.alias_node_id_by_ast_id
-            .get(&(source_id, ast_id))
+            .get(&(file_id, ast_id))
             .copied()
     }
 

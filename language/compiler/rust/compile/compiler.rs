@@ -1,10 +1,9 @@
-use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_workspace::{FileContent, Package, FileFile, Workspace};
+use dyst_ast::{StringId, StringPool};
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
-use dyst_source::{LanguageOptions, FileId};
+use dyst_source::{DiagnosticCollector, FileId, LanguageOptions};
 
-use crate::{AstNodeId, CompilerQueue};
+use crate::CompilerQueue;
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -27,12 +26,8 @@ pub enum CompilerStatus {
 /// A compiler for a Dyst package containing related Dyst sources.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
-    /// The workspace we're in.
-    pub workspace: &'s Workspace,
     /// The diagnostic collector.
     pub diagnostics: &'s DiagnosticCollector,
-    /// The package we're compiling.
-    pub package: &'s Package,
     /// The language options.
     pub language: LanguageOptions,
 
@@ -52,15 +47,12 @@ pub struct Compiler<'s> {
 impl<'s> Compiler<'s> {
     /// Create a new compiler.
     pub fn new(
-        workspace: &'s Workspace,
-        package: &'s Package,
+        diagnostics: &'s mut DiagnosticCollector,
         language: LanguageOptions,
         options: CompilerOptions,
     ) -> Self {
         Self {
-            workspace,
-            diagnostics: &workspace.diagnostics,
-            package,
+            diagnostics,
             language,
             tree: NodeTree::new(),
             strings: StringPool::new(),
@@ -75,37 +67,20 @@ impl<'s> Compiler<'s> {
         Dumper::new(&self.strings, &self.tree, options)
     }
 
-    /// Resolve an AST node.
-    pub fn get_ast_node<T>(&self, node: AstNodeId<T>) -> (&ast::NodeTree, &T)
-    where
-        T: ast::Node,
-        ast::NodeTree: ast::NodeTreeImpl<T>,
-    {
-        let document = self
-            .workspace
-            .get_file_by_source_id(node.source_id)
-            .unwrap_or_else(|| panic!("document not found: {node:?}"));
-        if let FileContent::File(FileFile { ast, .. }) = &document.content {
-            let node = ast.get(node.id);
-            (ast, node)
-        } else {
-            panic!("node is not in a text document: {node:?}");
-        }
-    }
-
     // Intern an AST string for a certain source.
-    pub fn intern_string(&mut self, source_id: FileId, string_id: StringId) -> StringId {
-        let document = self
-            .workspace
-            .get_file_by_source_id(source_id)
-            .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
-        match &document.content {
-            FileContent::File(FileFile { strings, .. }) => {
-                let string = strings.get(string_id);
-                self.strings.intern(string)
-            }
-            FileContent::Binary { .. } => panic!("binary document not supported"),
-        }
+    pub fn intern_string(&mut self, file_id: FileId, string_id: StringId) -> StringId {
+        // let document = self
+        //     .workspace
+        //     .get_file_by_file_id(file_id)
+        //     .unwrap_or_else(|| panic!("document not found: {file_id:?}"));
+        // match &document.content {
+        //     FileContent::File(FileFile { strings, .. }) => {
+        //         let string = strings.get(string_id);
+        //         self.strings.intern(string)
+        //     }
+        //     FileContent::Binary { .. } => panic!("binary document not supported"),
+        // }
+        todo!("intern_string({file_id:?}, {string_id:?})")
     }
 
     /// Get an interned string.

@@ -1,5 +1,4 @@
 use dyst_javascript_ast::NodeTree;
-use dyst_workspace::{Package, Workspace};
 use dyst_source::{LanguageOptions, StringPool};
 
 /// The options for transpiling a Workspace.
@@ -42,11 +41,7 @@ pub enum TypeScriptVersion {
 
 /// A transpiler for a Dyst package containing related Dyst sources.
 #[derive(Debug, Clone)]
-pub struct Transpiler<'s> {
-    /// The workspace we're in.
-    pub workspace: &'s Workspace,
-    /// The package we're transpiling.
-    pub package: &'s Package,
+pub struct Transpiler {
     /// The language options.
     pub language: LanguageOptions,
 
