@@ -1,13 +1,14 @@
 use crate::format::sizing::CharWidth;
 use crate::print::{PrintOptions, Printed};
 
-use dyst_source::{Source, Span};
+use dyst_source::{File, Span};
 
 use super::bomb::DebugDropBomb;
 use crate::format::{
-    ActualStart, BestFittingMode, BestFittingVariants, Condition, DedentMode, Document, FormatNode,
-    FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle, Indentation, InvalidDocumentError,
-    LineMode, PrintError, PrintMode, PrintResult, SourceMarker, TextWidth, VerbatimKind, tag,
+    ActualStart, BestFittingMode, BestFittingVariants, Condition, DedentMode, Document, FileMarker,
+    FormatNode, FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle, Indentation,
+    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintResult, TextWidth, VerbatimKind,
+    tag,
 };
 use crate::print::call::{CallStack, FitsCallStack, PrintCallStack, PrintNodeArgs, StackFrame};
 use crate::print::line::{LinePostfixEntry, LinePostfixes};
@@ -20,16 +21,17 @@ use crate::print::queue::{
 #[derive(Debug)]
 pub struct Printer<'a> {
     options: PrintOptions,
-    source: &'a Source,
+    source: &'a File,
     state: PrinterState<'a>,
 }
 
 impl<'a> Printer<'a> {
-    pub fn new(source: &'a Source, options: PrintOptions) -> Self {
+    pub fn new(source: &'a File, options: PrintOptions) -> Self {
         Self {
             source,
             options,
-            state: PrinterState::with_capacity(source.content.len()),
+            // NOTE #Performance: calibrate initial capacity for PrinterState
+            state: PrinterState::with_capacity(source.len as usize),
         }
     }
 
@@ -92,11 +94,11 @@ impl<'a> Printer<'a> {
                 text,
                 text_width: *text_width,
             }),
-            FormatNode::SourceSlice {
+            FormatNode::FileSlice {
                 slice,
                 width: text_width,
             } => {
-                let text = slice.text(self.source);
+                let text = self.source.get_span_str(*slice).unwrap_or_default();
                 self.print_text(Text::Text {
                     text,
                     text_width: *text_width,
@@ -477,7 +479,7 @@ impl<'a> Printer<'a> {
             return;
         };
 
-        let marker = SourceMarker {
+        let marker = FileMarker {
             source: source_position,
             dest: self.state.buffer.len() as u32,
         };
@@ -853,7 +855,7 @@ struct PrinterState<'a> {
     buffer: String,
 
     /// The source markers that map source positions to formatted positions.
-    source_markers: Vec<SourceMarker>,
+    source_markers: Vec<FileMarker>,
 
     /// The next source position that should be flushed when writing the next text.
     pending_source_position: Option<u32>,
@@ -1092,11 +1094,11 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     args,
                 ));
             }
-            FormatNode::SourceSlice {
+            FormatNode::FileSlice {
                 slice,
                 width: text_width,
             } => {
-                let text = slice.text(self.printer.source);
+                let text = self.printer.source.get_span_str(*slice).unwrap_or_default();
                 return Ok(self.fits_text(
                     Text::Text {
                         text,
@@ -1514,7 +1516,7 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::{Source, SourceFormat};
+    use dyst_source::{File, FileType};
 
     use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
     use crate::prelude::*;
@@ -1531,7 +1533,7 @@ mod tests {
     ) -> Printed {
         let formatted = crate::format!(SimpleFormatContext::empty_dyst(), [root]).unwrap();
 
-        Printer::new(&Source::empty(SourceFormat::Dyst), options)
+        Printer::new(&File::empty(FileType::Dyst), options)
             .print(formatted.document())
             .expect("Document to be valid")
     }
@@ -1785,7 +1787,7 @@ two lines`,
         let document = Document::from(buffer.into_vec());
 
         let printed = Printer::new(
-            &Source::empty(SourceFormat::Dyst),
+            &File::empty(FileType::Dyst),
             PrintOptions::default().with_line_width(10),
         )
         .print(&document)

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::SourceId;
-use dyst_tree::NodeArena;
+use dyst_source::{FileId, NodeArena};
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, Node,
@@ -13,7 +12,7 @@ use crate::{
 #[derive(Clone)]
 pub struct NodeTree {
     /// The source id of the source unit.
-    pub(crate) source_id: SourceId,
+    pub(crate) source_id: FileId,
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
@@ -21,7 +20,7 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
-    pub(crate) source_by_node_id: Vec<SourceId>,
+    pub(crate) source_by_node_id: Vec<FileId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
@@ -59,12 +58,12 @@ impl Debug for NodeTree {
 
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new(source_id: SourceId) -> Self {
+    pub fn new(source_id: FileId) -> Self {
         Self::with_capacity(source_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(source_id: SourceId, capacity: usize) -> Self {
+    pub fn with_capacity(source_id: FileId, capacity: usize) -> Self {
         Self {
             source_id,
             next_global_id: 0,
@@ -93,7 +92,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, source_id: SourceId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, source_id: FileId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -173,7 +172,7 @@ impl NodeTree {
 
     /// Get the source and AST id of a node by its global id.
     /// Every DIR node has a source, but only some come directly from AST nodes.
-    pub fn get_source_ast(&self, node_id: u32) -> (SourceId, Option<u32>) {
+    pub fn get_source_ast(&self, node_id: u32) -> (FileId, Option<u32>) {
         (
             self.source_by_node_id[node_id as usize],
             self.ast_id_by_node_id[node_id as usize],
@@ -181,7 +180,7 @@ impl NodeTree {
     }
 
     /// Get the source and DIR id of a node by its global id.
-    pub fn get_source_dir(&self, node_id: u32) -> (SourceId, Option<u32>) {
+    pub fn get_source_dir(&self, node_id: u32) -> (FileId, Option<u32>) {
         (
             self.source_by_node_id[node_id as usize],
             self.dir_id_by_node_id[node_id as usize],

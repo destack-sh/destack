@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::{Color, LabeledSpan, Source};
+use crate::{Color, File, LabeledSpan, Span};
 
 const HEADER_PREFIX: &str = "==>";
 const BODY_PREFIX: &str = " | ";
@@ -11,7 +11,7 @@ const ELIDE: &str = "..";
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnnotateOptions {
     /// Maximum number of characters to show from a source line. 0 disables clipping.
-    pub max_line_width: usize = 100,
+    pub max_line_width: u32 = 100,
     /// Number of context lines to show before the start line.
     pub prefix_lines: u8 = 1,
     /// Number of context lines to show after the end line.
@@ -40,7 +40,7 @@ pub struct AnnotateOptions {
 /// Prefix and suffix line counts control how many lines are shown before and
 /// after the highlighted region.
 /// Lines longer than `max_line_width` are clipped to keep the highlight visible.
-pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOptions) -> String {
+pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptions) -> String {
     debug_assert_eq!(source.id, span.span.source);
 
     // compute span bounds
@@ -61,7 +61,7 @@ pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOpt
         options.prefix_lines,
         options.suffix_lines,
     );
-    let width = (window_end_line + 1).to_string().len();
+    let width = (window_end_line + 1).to_string().len() as u32;
 
     // build string
     let mut buffer = String::new();
@@ -116,7 +116,7 @@ pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOpt
 
 /// Write the header line: `==> name:line:col`.
 #[inline]
-fn write_header(buffer: &mut String, source: &Source, line: u32, col: u32, use_color: bool) {
+fn write_header(buffer: &mut String, source: &File, line: u32, col: u32, use_color: bool) {
     if use_color {
         // prefix
         buffer.push_str(&Color::White.apply(HEADER_PREFIX));
@@ -161,7 +161,7 @@ fn write_body_separator(buffer: &mut String, use_color: bool) {
 fn write_source_line(
     buffer: &mut String,
     line: u32,
-    width: usize,
+    width: u32,
     line_str: &str,
     is_in_span: bool,
     truncate_left: bool,
@@ -175,7 +175,7 @@ fn write_source_line(
         buffer.push_str(BODY_PREFIX);
     }
     let line = line.saturating_add(1).to_string();
-    for _ in 0..(width - line.len()) {
+    for _ in 0..(width - line.len() as u32) {
         buffer.push(' ');
     }
     // line number
@@ -214,9 +214,9 @@ fn write_source_line(
 /// Write the highlight line containing carets and the optional label.
 fn write_highlight_line(
     buffer: &mut String,
-    width: usize,
-    offset_spaces: usize,
-    highlight_count: usize,
+    width: u32,
+    offset_spaces: u32,
+    highlight_count: u32,
     is_first: bool,
     label: &str,
     truncate_left: bool,
@@ -273,7 +273,7 @@ fn write_highlight_line(
 /// Get the first and last line indices to display (inclusive).
 #[inline]
 fn get_source_window(
-    source: &Source,
+    source: &File,
     start_line: u32,
     end_line: u32,
     prefix_lines: u8,
@@ -289,31 +289,33 @@ fn get_source_window(
 ///
 /// Bounds are (absolute_visible_start, absolute_visible_end, line_start, line_end).
 fn get_visible_source_slice<'a>(
-    source: &'a Source,
+    source: &'a File,
     current_line: u32,
     span: &LabeledSpan,
     start_line: u32,
     end_line: u32,
-    max_line_width: usize,
-) -> (&'a str, (usize, usize, usize, usize), bool, bool) {
-    let line_text = source.get_line(current_line).unwrap_or_default();
-    let (line_start_byte, line_end_byte) = source.get_line_bounds(current_line).unwrap_or((0, 0));
-    let line_len_bytes = line_end_byte.saturating_sub(line_start_byte);
+    max_line_width: u32,
+) -> (&'a str, (u32, u32, u32, u32), bool, bool) {
+    let line_text = source.get_line_str(current_line).unwrap_or_default();
+    let line_span = source
+        .get_line_span(current_line)
+        .unwrap_or(Span::empty(source.id));
+    let line_len_bytes = line_span.len();
 
     // determine slice bounds within the line
-    let mut slice_start_in_line: usize = 0;
-    let mut slice_end_in_line: usize = line_len_bytes;
+    let mut slice_start_in_line: u32 = 0;
+    let mut slice_end_in_line: u32 = line_len_bytes;
 
     // truncate long lines to fit within max_line_width
     if max_line_width > 0 && line_len_bytes > max_line_width {
         // calculate where the highlight appears within this line
         let highlight_start_in_line = if current_line == start_line {
-            (span.span.start as usize).saturating_sub(line_start_byte)
+            (span.span.start).saturating_sub(line_span.start)
         } else {
             0
         };
         let highlight_end_in_line = if current_line == end_line {
-            (span.span.end as usize).saturating_sub(line_start_byte)
+            (span.span.end).saturating_sub(line_span.start)
         } else if current_line >= start_line && current_line <= end_line {
             line_len_bytes
         } else {
@@ -331,26 +333,26 @@ fn get_visible_source_slice<'a>(
         }
 
         // adjust slice bounds to respect UTF-8 character boundaries
-        let abs_slice_start = line_start_byte + slice_start_in_line;
-        let abs_slice_end = line_start_byte + slice_end_in_line;
+        let abs_slice_start = line_span.start + slice_start_in_line;
+        let abs_slice_end = line_span.start + slice_end_in_line;
         let mut start_b = abs_slice_start;
-        while start_b > line_start_byte && !source.content.is_char_boundary(start_b) {
+        while start_b > line_span.start && !source.text().is_char_boundary(start_b as usize) {
             start_b -= 1;
         }
         let mut end_b = abs_slice_end;
-        while end_b < line_end_byte && !source.content.is_char_boundary(end_b) {
+        while end_b < line_span.end && !source.text().is_char_boundary(end_b as usize) {
             end_b += 1;
         }
-        slice_start_in_line = start_b - line_start_byte;
-        slice_end_in_line = (end_b - line_start_byte).min(line_len_bytes);
+        slice_start_in_line = start_b - line_span.start;
+        slice_end_in_line = (end_b - line_span.start).min(line_len_bytes);
     }
 
     // extract the visible portion and compute absolute bounds
     let visible = line_text
-        .get(slice_start_in_line..slice_end_in_line)
+        .get(slice_start_in_line as usize..slice_end_in_line as usize)
         .unwrap_or(line_text);
-    let absolute_visible_start = line_start_byte + slice_start_in_line;
-    let absolute_visible_end = line_start_byte + slice_end_in_line;
+    let absolute_visible_start = line_span.start + slice_start_in_line;
+    let absolute_visible_end = line_span.start + slice_end_in_line;
     let truncate_left = slice_start_in_line > 0;
     let truncate_right = slice_end_in_line < line_len_bytes;
     (
@@ -358,8 +360,8 @@ fn get_visible_source_slice<'a>(
         (
             absolute_visible_start,
             absolute_visible_end,
-            line_start_byte,
-            line_end_byte,
+            line_span.start,
+            line_span.end,
         ),
         truncate_left,
         truncate_right,
@@ -368,22 +370,22 @@ fn get_visible_source_slice<'a>(
 
 /// Get the offset and length of the highlight within the visible slice.
 fn get_highlight_offset(
-    bounds: (usize, usize, usize, usize),
+    bounds: (u32, u32, u32, u32),
     span: &LabeledSpan,
     current_line: u32,
     start_line: u32,
     end_line: u32,
-) -> (usize, usize, bool, bool) {
+) -> (u32, u32, bool, bool) {
     let (absolute_visible_start, absolute_visible_end, line_start_byte, line_end_byte) = bounds;
 
     // determine the absolute span of the highlight on this line
     let segment_start_abs = if current_line == start_line {
-        span.span.start as usize
+        span.span.start
     } else {
         line_start_byte
     };
     let segment_end_abs = if current_line == end_line {
-        span.span.end as usize
+        span.span.end
     } else {
         line_end_byte
     };
@@ -416,23 +418,23 @@ fn get_highlight_offset(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SourceFormat, SourceId, Span, Uri};
+    use crate::{FileId, FileType, Span, Uri};
 
     #[test]
     fn test_annotate_single_line() {
-        let id = SourceId::new(0);
+        let id = FileId::new(0);
         let content = r#"fn main() {
     let variable = 42;
 }"#
         .to_string();
-        let source = Source::from_string(
+        let source = File::from_string(
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             content.clone(),
         );
-        let start = source.content.find("variable").unwrap();
+        let start = content.find("variable").unwrap();
         let end = start + "variable".len();
         let span = LabeledSpan {
             span: Span::new(id, start as u32, end as u32),
@@ -461,12 +463,12 @@ mod tests {
     #[test]
     fn test_annotate_wrapped_line() {
         let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
-        let id = SourceId::new(0);
-        let source = Source::from_string(
+        let id = FileId::new(0);
+        let source = File::from_string(
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             content.to_string(),
         );
         let start = 150usize;

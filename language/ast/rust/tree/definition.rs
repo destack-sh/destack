@@ -494,7 +494,7 @@ pub enum FunctionAbstraction {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ModuleFormat {
     /// Implicit module source (e.g., whole file).
-    Source,
+    File,
     /// Forward declaration for a module (e.g., `module x;)
     Forward,
     /// Inline module with explicit braces (e.g., `module x { ... }`).

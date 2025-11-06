@@ -1,13 +1,13 @@
-use dyst_source::{SourceId, Span};
+use dyst_source::{FileId, Span};
 
-use crate::format::{SourceMarker, TextLen};
+use crate::format::{FileMarker, TextLen};
 
 /// The result of printing with the printer.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Printed {
     code: String,
     range: Option<Span>,
-    sourcemap: Vec<SourceMarker>,
+    sourcemap: Vec<FileMarker>,
     verbatim_ranges: Vec<Span>,
 }
 
@@ -16,7 +16,7 @@ impl Printed {
     pub fn new(
         code: String,
         range: Option<Span>,
-        sourcemap: Vec<SourceMarker>,
+        sourcemap: Vec<FileMarker>,
         verbatim_source: Vec<Span>,
     ) -> Self {
         Self {
@@ -43,19 +43,19 @@ impl Printed {
         self.range
     }
 
-    /// Get a list of SourceMarkers mapping byte positions in the output string to the input source code.
+    /// Get a list of FileMarkers mapping byte positions in the output string to the input source code.
     /// It's not guaranteed that the markers are sorted by source position.
-    pub fn sourcemap(&self) -> &[SourceMarker] {
+    pub fn sourcemap(&self) -> &[FileMarker] {
         &self.sourcemap
     }
 
-    /// Take the list of SourceMarkers mapping byte positions in the output string to the input source code.
-    pub fn into_sourcemap(self) -> Vec<SourceMarker> {
+    /// Take the list of FileMarkers mapping byte positions in the output string to the input source code.
+    pub fn into_sourcemap(self) -> Vec<FileMarker> {
         self.sourcemap
     }
 
-    /// Take the list of SourceMarkers mapping byte positions in the output string to the input source code.
-    pub fn take_sourcemap(&mut self) -> Vec<SourceMarker> {
+    /// Take the list of FileMarkers mapping byte positions in the output string to the input source code.
+    pub fn take_sourcemap(&mut self) -> Vec<FileMarker> {
         std::mem::take(&mut self.sourcemap)
     }
 
@@ -90,7 +90,7 @@ impl Printed {
     ///
     /// The implementation uses the source map generated during formatting to find the closest range
     /// in the formatted document that covers `source_span` or more.
-    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatNode::SourcePosition for the range's offsets.
+    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatNode::FilePosition for the range's offsets.
     ///
     /// ## Indentation
     /// The indentation before `source_span.start` is replaced with the indentation returned by the formatter to fix up incorrectly intended code.
@@ -101,8 +101,8 @@ impl Printed {
     /// If `source_span` points to offsets that are not in the bounds of `source`.
     #[must_use]
     pub fn slice_range(self, source_span: Span, source: &str) -> PrintedSpan {
-        let mut start_marker: Option<SourceMarker> = None;
-        let mut end_marker: Option<SourceMarker> = None;
+        let mut start_marker: Option<FileMarker> = None;
+        let mut end_marker: Option<FileMarker> = None;
 
         // NOTE: The printer can generate multiple source map entries for the same source position
         // For example if you have:
@@ -116,7 +116,7 @@ impl Printed {
         // This can happen if multiple nodes start or end at the same position.
         // A common example for this are expressions and expression statement that always end at the same offset.
         //
-        // NOTE: Source markers are often emitted sorted by their source position but it's not guaranteed
+        // NOTE: File markers are often emitted sorted by their source position but it's not guaranteed
         // and depends on the emitted `IR`.
         // They are only guaranteed to be sorted in increasing order by their target position.
         for marker in self.sourcemap {
@@ -188,7 +188,7 @@ impl PrintedSpan {
     pub fn empty() -> Self {
         Self {
             code: String::new(),
-            source_span: Span::empty(SourceId::new(0)),
+            source_span: Span::empty(FileId::new(0)),
         }
     }
 

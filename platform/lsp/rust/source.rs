@@ -3,11 +3,11 @@
 use std::cmp;
 
 use dyst_ast::TokenSpan;
-use dyst_source::{Source, Span};
+use dyst_source::{File, Span};
 use tower_lsp_server::lsp_types as lsp;
 
 /// Convert byte span to LSP range.
-pub fn byte_span_to_range(source: &Source, span: Span) -> lsp::Range {
+pub fn byte_span_to_range(source: &File, span: Span) -> lsp::Range {
     let (start_line, start_column) = byte_to_utf16_position(source, span.start).unwrap_or_default();
     let (end_line, end_column) = byte_to_utf16_position(source, span.end).unwrap_or_default();
     lsp::Range {
@@ -23,7 +23,7 @@ pub fn byte_span_to_range(source: &Source, span: Span) -> lsp::Range {
 }
 
 /// Convert LSP range to byte span in source.
-pub fn range_to_byte_span(source: &Source, range: &lsp::Range) -> Option<(u32, u32)> {
+pub fn range_to_byte_span(source: &File, range: &lsp::Range) -> Option<(u32, u32)> {
     let start = position_to_byte(source, &range.start)?;
     let end = position_to_byte(source, &range.end)?;
     let start = cmp::min(start, source.len);
@@ -32,7 +32,7 @@ pub fn range_to_byte_span(source: &Source, range: &lsp::Range) -> Option<(u32, u
 }
 
 /// Convert LSP position (line/character) to byte offset in source.
-pub fn position_to_byte(source: &Source, position: &lsp::Position) -> Option<u32> {
+pub fn position_to_byte(source: &File, position: &lsp::Position) -> Option<u32> {
     let line_index = position.line as usize;
     let line_start = *source
         .line_start_offsets
@@ -69,7 +69,7 @@ pub fn position_to_byte(source: &Source, position: &lsp::Position) -> Option<u32
 }
 
 /// Convert byte offset to LSP position (line/character in UTF-16).
-pub fn byte_to_utf16_position(source: &Source, byte_index: u32) -> Option<(u32, u32)> {
+pub fn byte_to_utf16_position(source: &File, byte_index: u32) -> Option<(u32, u32)> {
     if byte_index > source.len {
         return None;
     }
@@ -106,7 +106,7 @@ pub fn byte_to_utf16_position(source: &Source, byte_index: u32) -> Option<(u32, 
 }
 
 /// Compute UTF-16 length of a token span.
-pub fn token_length_utf16(source: &Source, token: &TokenSpan) -> u32 {
+pub fn token_length_utf16(source: &File, token: &TokenSpan) -> u32 {
     let start = token.span.start as usize;
     let end = token.span.end as usize;
     source.content[start..end].encode_utf16().count() as u32

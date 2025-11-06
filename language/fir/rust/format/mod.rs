@@ -23,7 +23,7 @@ pub use buffer::{
 pub use builder::{
     Align, BestFitParenthesize, BestFitting, BlockIndent, Dedent, ExpandParent, FillBuilder,
     FormatOnce, FormatWith, IfGroupBreaks, Indent, IndentIfGroupBreaks, JoinBuilder, Line,
-    LinePostfix, LinePostfixBoundary, SourceSliceBuilder, Space, Text, Token, align,
+    LinePostfix, LinePostfixBoundary, FileSliceBuilder, Space, Text, Token, align,
     best_fit_parenthesize, block_indent, conditional_group, dedent, dedent_to_root, empty_line,
     expand_parent, fits_expanded, format_once, format_with, group, hard_line_break,
     if_group_breaks, if_group_fits_on_line, indent, indent_if_group_breaks, line_postfix,
@@ -44,7 +44,7 @@ pub use sizing::{
     BestFittingMode, BestFittingVariants, BestFittingVariantsIter, FormatNodes, TextLen, TextWidth,
     Width,
 };
-pub use source::{LINE_TERMINATORS, SourceMarker, normalize_newlines};
+pub use source::{LINE_TERMINATORS, FileMarker, normalize_newlines};
 pub use spacing::{IndentStyle, Indentation, LineEnding};
 pub use tag::{
     Condition, DedentMode, FitsExpanded, FormatTag, FormatTagKind, PrintMode, VerbatimKind,

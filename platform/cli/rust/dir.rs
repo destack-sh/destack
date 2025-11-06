@@ -4,8 +4,8 @@ use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_diagnostic::Severity;
 use dyst_dir::{DumperOptions, NodeVisitor};
-use dyst_workspace::{FileContent, SourceFile, Workspace};
-use dyst_source::{AnnotateOptions, Color, LanguageOptions, SourceFormat, Uri, annotate_source};
+use dyst_workspace::{FileContent, FileFile, Workspace};
+use dyst_source::{AnnotateOptions, Color, LanguageOptions, FileType, Uri, annotate_source};
 
 use crate::source::read_source;
 
@@ -77,7 +77,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         {
             let document = workspace.get_file(&Uri::from_string(file)).unwrap();
             match &document.content {
-                FileContent::Source(SourceFile {
+                FileContent::File(FileFile {
                     root_definition_id, ..
                 }) => (document.id, *root_definition_id),
                 FileContent::Binary { .. } => panic!("binary document not supported"),
@@ -88,13 +88,13 @@ pub fn run(ctx: CommandArguments) -> i32 {
             let uri = Uri::from_string(source.name.clone());
             let source_id = workspace.upsert_text_file(
                 &uri,
-                SourceFormat::DystText,
+                FileType::DystText,
                 true,
                 source.content.clone(),
             );
             let document = workspace.get_file_by_source_id(source_id).unwrap();
             match &document.content {
-                FileContent::Source(SourceFile {
+                FileContent::File(FileFile {
                     root_definition_id, ..
                 }) => (source_id, *root_definition_id),
                 FileContent::Binary { .. } => panic!("binary document not supported"),

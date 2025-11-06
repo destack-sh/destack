@@ -1,5 +1,5 @@
 use crate::Suggestion;
-use crate::{LabeledSpan, SourceId};
+use crate::{LabeledSpan, FileId};
 
 /// The kind of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
@@ -34,7 +34,7 @@ pub struct Diagnostic {
     /// The message of the diagnostic.
     pub message: String,
     /// The primary source of the diagnostic.
-    pub source: SourceId,
+    pub source: FileId,
     /// The primary span of the diagnostic.
     pub primary_span: LabeledSpan,
     /// The secondary spans of the diagnostic.

@@ -4,7 +4,7 @@ use dyst_dir::{
     DeclarationKind, Definition, DefinitionMeta, EmbeddedDefinition, FunctionSignature, Generics,
     NodeId, StructKind,
 };
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Lower declaration kind to DIR declaration kind.
@@ -20,7 +20,7 @@ impl<'a> Compiler<'a> {
     /// (Like for a scalar literal)
     pub fn lower_expression_to_definition(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> Option<NodeId<Definition>> {
@@ -78,7 +78,7 @@ impl<'a> Compiler<'a> {
     /// Includes both super types and include types (with spread syntax).
     pub fn lower_embedded_definitions(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         _definition_id: ast::NodeId<ast::Definition>,
         extends_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
@@ -123,7 +123,7 @@ impl<'a> Compiler<'a> {
     /// Lower AST definition meta into DIR definition meta.
     pub fn lower_definition_meta(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         meta: &ast::DefinitionMeta,
     ) -> DefinitionMeta {
         let kind = self.lower_declaration_kind(meta.kind);
@@ -145,7 +145,7 @@ impl<'a> Compiler<'a> {
     /// Lower AST definition generics into DIR definition generics.
     pub fn lower_generics(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         static_parameters: Option<&Vec<ast::NodeId<ast::Parameter>>>,
         with_clauses: Option<&Vec<ast::NodeId<ast::WithClause>>>,
@@ -198,7 +198,7 @@ impl<'a> Compiler<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn lower_function_signature(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         abstraction: ast::FunctionAbstraction,
         asynchrony: ast::Asynchrony,
@@ -241,7 +241,7 @@ impl<'a> Compiler<'a> {
     /// Handles modules, structs, and enums.
     pub fn lower_definition(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         definition_id: ast::NodeId<ast::Definition>,
     ) -> NodeId<Definition> {

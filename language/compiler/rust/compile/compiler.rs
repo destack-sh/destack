@@ -1,8 +1,8 @@
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_workspace::{FileContent, Package, SourceFile, Workspace};
+use dyst_workspace::{FileContent, Package, FileFile, Workspace};
 
 use dyst_dir::{Dumper, DumperOptions, NodeTree};
-use dyst_source::{LanguageOptions, SourceId};
+use dyst_source::{LanguageOptions, FileId};
 
 use crate::{AstNodeId, CompilerQueue};
 
@@ -85,7 +85,7 @@ impl<'s> Compiler<'s> {
             .workspace
             .get_file_by_source_id(node.source_id)
             .unwrap_or_else(|| panic!("document not found: {node:?}"));
-        if let FileContent::Source(SourceFile { ast, .. }) = &document.content {
+        if let FileContent::File(FileFile { ast, .. }) = &document.content {
             let node = ast.get(node.id);
             (ast, node)
         } else {
@@ -94,13 +94,13 @@ impl<'s> Compiler<'s> {
     }
 
     // Intern an AST string for a certain source.
-    pub fn intern_string(&mut self, source_id: SourceId, string_id: StringId) -> StringId {
+    pub fn intern_string(&mut self, source_id: FileId, string_id: StringId) -> StringId {
         let document = self
             .workspace
             .get_file_by_source_id(source_id)
             .unwrap_or_else(|| panic!("document not found: {source_id:?}"));
         match &document.content {
-            FileContent::Source(SourceFile { strings, .. }) => {
+            FileContent::File(FileFile { strings, .. }) => {
                 let string = strings.get(string_id);
                 self.strings.intern(string)
             }

@@ -33,7 +33,7 @@ pub fn normalize_newlines<const N: usize>(text: &str, terminators: [char; N]) ->
 
 /// Lightweight sourcemap marker between source and output tokens.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct SourceMarker {
+pub struct FileMarker {
     /// Position of the marker in the original source.
     pub source: u32,
     /// Position of the marker in the output code.

@@ -52,7 +52,7 @@ const LazyGuardDispatcher: {
     "useDebugValue",
     "useDeferredValue",
     "useTransition",
-    "useMutableSource",
+    "useMutableFile",
     "useSyncExternalStore",
     "useId",
     "unstable_isNewReconciler",

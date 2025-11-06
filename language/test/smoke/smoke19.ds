@@ -1,10 +1,10 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import type { SFCBlock, SFCDescriptor } from 'vue/compiler-sfc'
-import type { RawSourceMap } from 'source-map-js'
-import type { EncodedSourceMap as TraceEncodedSourceMap } from '@jridgewell/trace-mapping'
+import type { RawFileMap } from 'source-map-js'
+import type { EncodedFileMap as TraceEncodedFileMap } from '@jridgewell/trace-mapping'
 import { TraceMap, eachMapping } from '@jridgewell/trace-mapping'
-import type { EncodedSourceMap as GenEncodedSourceMap } from '@jridgewell/gen-mapping'
+import type { EncodedFileMap as GenEncodedFileMap } from '@jridgewell/gen-mapping'
 import { addMapping, fromMap, toEncodedMap } from '@jridgewell/gen-mapping'
 import type { Rollup } from 'vite'
 import { normalizePath, transformWithEsbuild } from 'vite'
@@ -82,7 +82,7 @@ export async function transformMain(
     descriptor.template && !isUseInlineTemplate(descriptor, options)
 
   let templateCode = ''
-  let templateMap: RawSourceMap | undefined = undefined
+  let templateMap: RawFileMap | undefined = undefined
   if (hasTemplateImport) {
     ;({ code: templateCode, map: templateMap } = await genTemplateCode(
       descriptor,
@@ -194,7 +194,7 @@ export async function transformMain(
     )
   }
 
-  let resolvedMap: RawSourceMap | undefined = undefined
+  let resolvedMap: RawFileMap | undefined = undefined
   if (options.sourceMap) {
     // the mappings of the source map for the inlined template should be moved
     // because the position does not include the script tag part.
@@ -212,11 +212,11 @@ export async function transformMain(
       const gen = fromMap(
         // version property of result.map is declared as string
         // but actually it is `3`
-        from as Omit<RawSourceMap, 'version'> as TraceEncodedSourceMap,
+        from as Omit<RawFileMap, 'version'> as TraceEncodedFileMap,
       )
       const tracer = new TraceMap(
         // same above
-        templateMap as Omit<RawSourceMap, 'version'> as TraceEncodedSourceMap,
+        templateMap as Omit<RawFileMap, 'version'> as TraceEncodedFileMap,
       )
       const offset = (scriptCode.match(/\r?\n/g)?.length ?? 0) + 1
       eachMapping(tracer, (m) => {
@@ -233,9 +233,9 @@ export async function transformMain(
 
       // same above
       resolvedMap = toEncodedMap(gen) as Omit<
-        GenEncodedSourceMap,
+        GenEncodedFileMap,
         'version'
-      > as RawSourceMap
+      > as RawFileMap
       // if this is a template only update, we will be reusing a cached version
       // of the main module compile result, which has outdated sourcesContent.
       resolvedMap.sourcesContent = templateMap.sourcesContent
@@ -372,11 +372,11 @@ async function genScriptCode(
   customElement: boolean,
 ): Promise<{
   code: string
-  map: RawSourceMap | undefined
+  map: RawFileMap | undefined
 }> {
   const vaporFlag = descriptor.vapor ? '__vapor: true' : ''
   let scriptCode = `const ${scriptIdentifier} = { ${vaporFlag} }`
-  let map: RawSourceMap | undefined
+  let map: RawFileMap | undefined
 
   const script = resolveScript(descriptor, options, ssr, customElement)
   if (script) {

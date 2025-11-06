@@ -1,13 +1,13 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::SelfParameter;
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Lower the self parameter of a function.
     pub fn lower_self_parameter(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         self_parameter: &ast::SelfParameter,
     ) -> SelfParameter {

@@ -1,8 +1,8 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_workspace::{FileContent, SourceFile};
-use dyst_source::{Source, Uri};
+use dyst_workspace::{FileContent, FileFile};
+use dyst_source::{File, Uri};
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::{DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span};
@@ -44,7 +44,7 @@ pub fn legend() -> lsp::SemanticTokensLegend {
 
 /// Collect semantic tokens from source, optionally filtered by range.
 pub fn collect_semantic_tokens(
-    source: &Source,
+    source: &File,
     tokens: &Vec<TokenSpan>,
     tree: &NodeTree,
     root_definition_id: NodeId<Definition>,
@@ -126,7 +126,7 @@ pub fn collect_semantic_tokens(
 /// Split a byte span into per-line UTF-16 segments.
 #[inline]
 fn line_segments_utf16<'a>(
-    source: &'a Source,
+    source: &'a File,
     start: u32,
     end: u32,
 ) -> Option<SpanSegmentsIter<'a>> {
@@ -143,7 +143,7 @@ fn line_segments_utf16<'a>(
 /// An iterator over the per-line segments of a TokenSpan.
 #[derive(Debug, Clone, Copy)]
 struct SpanSegmentsIter<'a> {
-    source: &'a Source,
+    source: &'a File,
     next_byte: u32,
     end_byte: u32,
 }
@@ -244,7 +244,7 @@ impl DestackLanguageServer {
     ) -> Option<Vec<lsp::SemanticToken>> {
         let doc = workspace.get_file(uri)?;
         match &doc.content {
-            FileContent::Source(SourceFile {
+            FileContent::File(FileFile {
                 source,
                 all_tokens,
                 ast,
@@ -264,7 +264,7 @@ impl DestackLanguageServer {
     ) -> Option<Vec<lsp::SemanticToken>> {
         let doc = workspace.get_file(uri)?;
         match &doc.content {
-            FileContent::Source(SourceFile {
+            FileContent::File(FileFile {
                 source,
                 all_tokens,
                 ast,
@@ -279,7 +279,7 @@ impl DestackLanguageServer {
 #[cfg(test)]
 mod tests {
     use dyst_parser::Lexer;
-    use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId};
+    use dyst_source::{LanguageOptions, File, FileType, FileId};
     use tower_lsp_server::lsp_types as lsp;
 
     use super::*;
@@ -291,16 +291,16 @@ mod tests {
         filter: impl Fn(&TokenSpan) -> bool,
     ) -> Option<Vec<lsp::SemanticToken>> {
         let mut session = Session::new();
-        let source = Source::from_string(
-            SourceId::new(0),
+        let source = File::from_string(
+            FileId::new(0),
             "<test>".to_string(),
             Uri::from_string("<test>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             content.to_string(),
         );
         let language = LanguageOptions::default();
         let (tokens, _) = Lexer::lex(source.id, &source.content, language);
-        let source_file = SourceFile::parse(source, language, &mut session);
+        let source_file = FileFile::parse(source, language, &mut session);
         collect_semantic_tokens(
             &source_file.source,
             &tokens.into_iter().filter(filter).collect(),

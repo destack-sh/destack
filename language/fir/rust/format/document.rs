@@ -117,7 +117,7 @@ impl Document {
                         text: _,
                         width: text_width,
                     } => text_width.is_multiline(),
-                    FormatNode::SourceSlice {
+                    FormatNode::FileSlice {
                         width: text_width, ..
                     } => text_width.is_multiline(),
                     FormatNode::ExpandParent

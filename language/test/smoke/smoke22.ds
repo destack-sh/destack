@@ -48,7 +48,7 @@ declare module "bun" {
 
     type LibEmptyOrNodeMessagePort = LibDomIsLoaded extends true ? {} : import("node:worker_threads").MessagePort;
     type LibEmptyOrBroadcastChannel = LibDomIsLoaded extends true ? {} : import("node:worker_threads").BroadcastChannel;
-    type LibEmptyOrEventSource = LibDomIsLoaded extends true ? {} : import("undici-types").EventSource;
+    type LibEmptyOrEventFile = LibDomIsLoaded extends true ? {} : import("undici-types").EventFile;
 
     type LibEmptyOrReadableByteStreamController = LibDomIsLoaded extends true
       ? {}
@@ -69,8 +69,8 @@ declare var ReadableStream: Bun.__internal.UseLibDomIfAvailable<
   "ReadableStream",
   {
     prototype: ReadableStream;
-    new <R = any>(underlyingSource?: Bun.UnderlyingSource<R>, strategy?: QueuingStrategy<R>): ReadableStream<R>;
-    new <R = any>(underlyingSource?: Bun.DirectUnderlyingSource<R>, strategy?: QueuingStrategy<R>): ReadableStream<R>;
+    new <R = any>(underlyingFile?: Bun.UnderlyingFile<R>, strategy?: QueuingStrategy<R>): ReadableStream<R>;
+    new <R = any>(underlyingFile?: Bun.DirectUnderlyingFile<R>, strategy?: QueuingStrategy<R>): ReadableStream<R>;
   }
 >;
 
@@ -206,7 +206,7 @@ interface TextEncoder extends Bun.__internal.LibEmptyOrNodeUtilTextEncoder {
    * @param src The text to encode.
    * @param dest The array to hold the encode result.
    */
-  encodeInto(src?: string, dest?: Bun.BufferSource): import("util").EncodeIntoResult;
+  encodeInto(src?: string, dest?: Bun.BufferFile): import("util").EncodeIntoResult;
 }
 declare var TextEncoder: Bun.__internal.UseLibDomIfAvailable<
   "TextEncoder",
@@ -342,7 +342,7 @@ declare var File: Bun.__internal.UseLibDomIfAvailable<
     /**
      * Create a new [File](https://developer.mozilla.org/en-US/docs/Web/API/File)
      *
-     * @param `parts` - An array of strings, numbers, BufferSource, or [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) objects
+     * @param `parts` - An array of strings, numbers, BufferFile, or [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) objects
      * @param `name` - The name of the file
      * @param `options` - An object containing properties to be added to the [File](https://developer.mozilla.org/en-US/docs/Web/API/File)
      */
@@ -706,7 +706,7 @@ interface QueuingStrategyInit {
 /** This Streams API interface provides a built-in byte length queuing strategy that can be used when constructing streams. */
 interface ByteLengthQueuingStrategy extends QueuingStrategy<ArrayBufferView> {
   readonly highWaterMark: number;
-  // changed from QueuingStrategySize<BufferSource>
+  // changed from QueuingStrategySize<BufferFile>
   // to avoid conflict with lib.dom.d.ts
   readonly size: QueuingStrategySize<ArrayBufferView>;
 }
@@ -725,7 +725,7 @@ interface ReadableStreamDefaultController<R = any> {
 
 interface ReadableStreamDirectController {
   close(error?: Error): void;
-  write(data: Bun.BufferSource | ArrayBuffer | string): number | Promise<number>;
+  write(data: Bun.BufferFile | ArrayBuffer | string): number | Promise<number>;
   end(): number | Promise<number>;
   flush(): number | Promise<number>;
   start(): void;
@@ -1379,7 +1379,7 @@ declare function structuredClone<T>(value: T, options?: Bun.StructuredSerializeO
  */
 declare function postMessage(message: any, transfer?: Bun.Transferable[]): void;
 
-interface EventSourceInit {
+interface EventFileInit {
   withCredentials?: boolean;
 }
 
@@ -1685,10 +1685,10 @@ interface FormData {
 }
 declare var FormData: Bun.__internal.UseLibDomIfAvailable<"FormData", { prototype: FormData; new (): FormData }>;
 
-interface EventSource extends Bun.__internal.LibEmptyOrEventSource {}
-declare var EventSource: Bun.__internal.UseLibDomIfAvailable<
-  "EventSource",
-  { prototype: EventSource; new (): EventSource }
+interface EventFile extends Bun.__internal.LibEmptyOrEventFile {}
+declare var EventFile: Bun.__internal.UseLibDomIfAvailable<
+  "EventFile",
+  { prototype: EventFile; new (): EventFile }
 >;
 
 interface Performance extends Bun.__internal.LibPerformanceOrNodePerfHooksPerformance {}

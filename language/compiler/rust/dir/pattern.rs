@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{Mutability, NodeId, Pattern, PatternField, ReferenceType, ScopedMutability};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Lower reference type into a DIR reference type.
@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub fn lower_scoped_mutability(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         scoped_mutability: &ast::ScopedMutability,
     ) -> ScopedMutability {
@@ -47,7 +47,7 @@ impl<'a> Compiler<'a> {
     /// Lower a pattern to a DIR pattern.
     pub fn lower_pattern(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         pattern_id: ast::NodeId<ast::Pattern>,
     ) -> NodeId<Pattern> {
@@ -142,7 +142,7 @@ impl<'a> Compiler<'a> {
     /// Lower a pattern field to a DIR pattern field.
     pub fn lower_pattern_field(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         ast: &ast::NodeTree,
         pattern_field_id: ast::NodeId<ast::PatternField>,
     ) -> NodeId<PatternField> {

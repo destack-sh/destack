@@ -6,6 +6,6 @@ use dyst_source::Span;
 pub struct TokenSpan {
     /// The Token.
     pub token: Token,
-    /// The Span of the Token in its SourceFile.
+    /// The Span of the Token in its FileFile.
     pub span: Span,
 }

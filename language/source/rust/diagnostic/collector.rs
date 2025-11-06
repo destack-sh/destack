@@ -1,6 +1,6 @@
 #![allow(clippy::new_without_default)]
 
-use crate::{Diagnostic, Severity, SourceId, Suggestion};
+use crate::{Diagnostic, Severity, Suggestion};
 
 /// A collector for diagnostics and suggestions.
 #[derive(Debug)]
@@ -20,13 +20,18 @@ impl DiagnosticCollector {
         }
     }
 
-    /// Handle a Diagnostic.
-    pub fn handle_diagnostic(&mut self, diagnostic: Diagnostic) {
+    /// Add a Diagnostic.
+    pub fn insert_diagnostic(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
     }
 
     /// Has diagnostics of the given severity.
     pub fn has_diagnostics_of_severity(&self, severity: Severity) -> bool {
         self.diagnostics.iter().any(|d| d.severity == severity)
+    }
+
+    /// Add a Suggestion.
+    pub fn insert_suggestion(&mut self, suggestion: Suggestion) {
+        self.suggestions.push(suggestion);
     }
 }

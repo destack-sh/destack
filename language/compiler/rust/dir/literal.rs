@@ -1,13 +1,13 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{DefinitionType, FloatType, IntType, PrimitiveType, ScalarLiteral, TypeLiteral};
-use dyst_source::SourceId;
+use dyst_source::FileId;
 
 impl<'a> Compiler<'a> {
     /// Lower a path to a DIR path.
     pub fn lower_scalar_literal(
         &mut self,
-        source_id: SourceId,
+        source_id: FileId,
         _ast: &ast::NodeTree,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {

@@ -1,11 +1,11 @@
-use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
 
 use crate::Parser;
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
 pub(crate) struct TestParser {
-    pub source: Source,
+    pub source: File,
     pub diagnostics: DiagnosticCollector,
     pub language: LanguageOptions,
 }
@@ -18,12 +18,12 @@ impl TestParser {
 
     /// Create a new TestParser with custom options.
     pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
-        let source_id = SourceId::new(0);
-        let source = Source::from_string(
+        let source_id = FileId::new(0);
+        let source = File::from_string(
             source_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             input.to_string(),
         );
         Self {
@@ -261,7 +261,7 @@ mod tests {
 
     use crate::TokenType;
     use destack_file::glob;
-    use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
+    use dyst_source::{DiagnosticCollector, LanguageOptions, File, FileType, FileId, Uri};
 
     use crate::{BlockFormat, Parser};
 
@@ -280,24 +280,24 @@ mod tests {
         // glob all .ds files under the workspace root
         let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
 
-        let mut sources: HashMap<SourceId, Source> = HashMap::new();
+        let mut sources: HashMap<FileId, File> = HashMap::new();
         let mut diagnostics = DiagnosticCollector::new();
         let language = LanguageOptions::default();
 
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
-            let source_id = SourceId::new(i as u32);
+            let source_id = FileId::new(i as u32);
             let name = ds_file
                 .iter()
                 .next_back()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or("<file>".to_string());
             let path = ds_file.to_string_lossy().into_owned();
-            let source = Source::from_string(
+            let source = File::from_string(
                 source_id,
                 name,
                 Uri::from_string(path),
-                SourceFormat::Dyst,
+                FileType::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );
             sources.insert(source_id, source);

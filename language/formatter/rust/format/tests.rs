@@ -2,7 +2,7 @@ use crate::TokenSpan;
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
-use dyst_source::{DiagnosticCollector, LanguageOptions, MultiSpan, Source, SourceFormat, SourceId, StringPool, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, MultiSpan, File, FileType, FileId, StringPool, Uri};
 
 use crate::{LanguageFormatContext, LanguageFormatOptions, NodeParentIndex, NodeTree};
 
@@ -10,7 +10,7 @@ use crate::{LanguageFormatContext, LanguageFormatOptions, NodeParentIndex, NodeT
 #[derive(Debug)]
 pub(crate) struct TestFormatter {
     pub diagnostics: DiagnosticCollector,
-    pub source: Source,
+    pub source: File,
     pub tokens: Vec<TokenSpan>,
     pub side_tokens: Vec<TokenSpan>,
     pub side_span: MultiSpan,
@@ -25,12 +25,12 @@ impl TestFormatter {
         F: FnOnce(&mut Parser<'_>) -> ParserResult<N>,
     {
         // tokenize source
-        let source_id = SourceId::new(0);
-        let source = Source::from_string(
+        let source_id = FileId::new(0);
+        let source = File::from_string(
             source_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
-            SourceFormat::Dyst,
+            FileType::Dyst,
             input.to_string(),
         );
 

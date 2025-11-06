@@ -2,7 +2,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, 
 use destack_file::glob;
 use dyst_ast::{DefinitionMeta, ModuleFormat, ModuleStyle, TokenType};
 use dyst_parser::Parser;
-use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{LanguageOptions, File, FileType, FileId, Uri};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -43,11 +43,11 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
-    let source = Source::from_string(
-        SourceId::new(0),
+    let source = File::from_string(
+        FileId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),
-        SourceFormat::Dyst,
+        FileType::Dyst,
         ds_str,
     );
 
@@ -66,7 +66,7 @@ fn bench_parse(c: &mut Criterion) {
                     parser
                         .eat_module_body(
                             DefinitionMeta::default(),
-                            ModuleFormat::Source,
+                            ModuleFormat::File,
                             ModuleStyle::Module,
                         )
                         .map(Some)

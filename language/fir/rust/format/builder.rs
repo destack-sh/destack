@@ -131,27 +131,26 @@ impl std::fmt::Debug for Text<'_> {
 }
 
 /// Emits a text as it is written in the source document. Optimized to avoid allocations.
-pub const fn source_text_slice(range: Span) -> SourceSliceBuilder {
-    SourceSliceBuilder { span: range }
+pub const fn source_text_slice(range: Span) -> FileSliceBuilder {
+    FileSliceBuilder { span: range }
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct SourceSliceBuilder {
+pub struct FileSliceBuilder {
     span: Span,
 }
 
-impl<Context> Format<Context> for SourceSliceBuilder
+impl<Context> Format<Context> for FileSliceBuilder
 where
     Context: FormatContext,
 {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        let source = f.context().source();
-        debug_assert_no_newlines(self.span.text(source));
+        let source = f.context().file();
 
-        let text_width =
-            TextWidth::from_text(self.span.text(source), f.context().options().indent_width());
+        let text = source.get_span_str(self.span).unwrap_or_default();
+        let text_width = TextWidth::from_text(text, f.context().options().indent_width());
 
-        f.write_node(FormatNode::SourceSlice {
+        f.write_node(FormatNode::FileSlice {
             slice: self.span,
             width: text_width,
         });
@@ -1128,7 +1127,7 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::SourceFormat;
+    use dyst_source::FileType;
 
     use crate::format::{IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
@@ -1158,7 +1157,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::empty(SourceFormat::Dyst),
+            File::empty(FileType::Dyst),
         );
 
         let nodes = format!(
@@ -1235,7 +1234,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::empty(SourceFormat::Dyst),
+            File::empty(FileType::Dyst),
         );
 
         let nodes = format!(
@@ -1294,7 +1293,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::empty(SourceFormat::Dyst),
+            File::empty(FileType::Dyst),
         );
 
         let nodes = format!(
@@ -1433,7 +1432,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            Source::empty(SourceFormat::Dyst),
+            File::empty(FileType::Dyst),
         );
 
         let formatted = format!(
@@ -1516,7 +1515,7 @@ mod tests {
                 line_width: 20,
                 ..SimpleFormatOptions::default()
             },
-            Source::empty(SourceFormat::Dyst),
+            File::empty(FileType::Dyst),
         );
 
         let formatted = format!(context, [content]).unwrap();
@@ -1564,7 +1563,7 @@ mod tests {
                     line_width: 21,
                     ..SimpleFormatOptions::default()
                 },
-                Source::empty(SourceFormat::Dyst),
+                File::empty(FileType::Dyst),
             ),
             [content]
         )
@@ -1616,7 +1615,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [document.clone()]
         )
@@ -1632,7 +1631,7 @@ mod tests {
                     line_width: 8,
                     ..SimpleFormatOptions::default()
                 },
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [document]
         )
@@ -1670,7 +1669,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [format_with(|f| {
                 write!(
@@ -1698,7 +1697,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                Source::empty(SourceFormat::Dyst)
+                File::empty(FileType::Dyst)
             ),
             [format_with(|f| {
                 write!(

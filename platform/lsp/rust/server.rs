@@ -8,8 +8,8 @@ use tokio::sync::RwLock;
 use tower_lsp_server::{Client, LanguageServer, jsonrpc, lsp_types as lsp};
 
 use dyst_diagnostic::Severity;
-use dyst_source::SourceFormat;
-use dyst_workspace::{FileContent, SourceFile, Workspace};
+use dyst_source::FileType;
+use dyst_workspace::{FileContent, FileFile, Workspace};
 
 use crate::workspace::{TRACKED_FORMATS, infer_source_format_from_lsp_uri, lsp_uri_to_uri};
 use crate::{DestackLanguageServer, semantic};
@@ -147,7 +147,7 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal that a new text document has been opened by the client.
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
-        let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(SourceFormat::Dyst);
+        let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(FileType::Dyst);
         self.upsert_open_text_document(&uri, format, params.text_document.text)
             .await;
         self.client
@@ -162,7 +162,7 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().last() {
-            let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(SourceFormat::Dyst);
+            let format = infer_source_format_from_lsp_uri(&uri).unwrap_or(FileType::Dyst);
             self.upsert_open_text_document(&uri, format, change.text)
                 .await;
         }
@@ -549,7 +549,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(document) = workspace.get_file(&lsp_uri_to_uri(&uri)) else {
             return Ok(None);
         };
-        let FileContent::Source(SourceFile { source, .. }) = &document.content else {
+        let FileContent::File(FileFile { source, .. }) = &document.content else {
             return Ok(None);
         };
 

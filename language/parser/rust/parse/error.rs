@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{NodeType, TokenSpan, TokenType};
 use dyst_diagnostic::{Diagnostic, DiagnosticKind, Severity};
-use dyst_source::{LabeledSpan, Source, Span};
+use dyst_source::{LabeledSpan, File, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone)]
@@ -167,7 +167,7 @@ impl std::error::Error for ParserError {
 }
 
 impl ParserError {
-    pub fn to_diagnostic(&self, _source: &Source, tokens: &[TokenSpan]) -> Diagnostic {
+    pub fn to_diagnostic(&self, _source: &File, tokens: &[TokenSpan]) -> Diagnostic {
         let (span, node_type, expected) = self.leaf_content();
 
         let token_at_primary_span = tokens

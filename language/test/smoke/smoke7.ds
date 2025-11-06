@@ -1,7 +1,7 @@
 import { AudioQuality, IOSOutputFormat } from "./RecordingConstants"
 
 // @docsMissing
-export type AudioSource = string | number | null | {
+export type AudioFile = string | number | null | {
     /**
      * A string representing the resource identifier for the audio,
      * which could be an HTTPS address, a local file path, or the name of a static audio file resource.
@@ -430,9 +430,9 @@ export type RecordingOptionsAndroid = {
      */
     maxFileSize?: number,
     /**
-     * The desired audio Source. See the [`AndroidAudioSource`](#androidaudiosource) enum for all valid values.
+     * The desired audio File. See the [`AndroidAudioFile`](#androidaudiosource) enum for all valid values.
      */
-    audioSource?: RecordingSource,
+    audioFile?: RecordingFile,
 }
 
 export type AudioMode = {
@@ -503,13 +503,13 @@ export type InterruptionModeAndroid = "doNotMix" | "duckOthers"
  * - `mic`: Microphone audio source.
  * - `unprocessed`: Microphone audio source tuned for unprocessed (raw) sound if available, behaves like `default` otherwise.
  * - `voice_communication`: Microphone audio source tuned for voice communications such as VoIP. It will for instance take advantage of echo cancellation or automatic gain control if available.
- * - `voice_performance`: Source for capturing audio meant to be processed in real time and played back for live performance (e.g karaoke). The capture path will minimize latency and coupling with playback path.
+ * - `voice_performance`: File for capturing audio meant to be processed in real time and played back for live performance (e.g karaoke). The capture path will minimize latency and coupling with playback path.
  * - `voice_recognition`: Microphone audio source tuned for voice recognition.
  *
- * @see https://developer.android.com/reference/android/media/MediaRecorder.AudioSource
+ * @see https://developer.android.com/reference/android/media/MediaRecorder.AudioFile
  * @platform android
  */
-export type RecordingSource = "camcorder" | "default" | "mic" | "remote_submix" | "unprocessed" | "voice_communication" | "voice_performance" | "voice_recognition"
+export type RecordingFile = "camcorder" | "default" | "mic" | "remote_submix" | "unprocessed" | "voice_communication" | "voice_performance" | "voice_recognition"
 
 // @docsMissing
 export type AudioMetadata = {

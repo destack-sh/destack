@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::str::Chars;
 
 use dyst_ast::TokenSpan;
-use dyst_source::{LanguageOptions, SourceId, Span};
+use dyst_source::{LanguageOptions, FileId, Span};
 
 use super::memchr::find_byte;
 
@@ -18,7 +18,7 @@ pub(super) struct LexerOptions {
 /// Lexer over a source string.
 pub struct Lexer<'a> {
     /// The source ID.
-    pub source_id: SourceId,
+    pub source_id: FileId,
     /// The string to tokenize.
     pub source: &'a str,
     /// The character iterator over the string.
@@ -54,7 +54,7 @@ pub const EOF_CHAR: char = '\0';
 
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
-    pub fn new(source_id: SourceId, source: &'a str, language: LanguageOptions) -> Lexer<'a> {
+    pub fn new(source_id: FileId, source: &'a str, language: LanguageOptions) -> Lexer<'a> {
         Lexer {
             source_id,
             source,
