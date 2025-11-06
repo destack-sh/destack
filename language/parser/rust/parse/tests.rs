@@ -35,7 +35,7 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser<'_> {
-        Parser::prepare(&self.source, self.language, &mut self.diagnostics)
+        Parser::from_file(&self.source, self.language, &mut self.diagnostics)
     }
 }
 
@@ -302,7 +302,7 @@ mod tests {
             );
             sources.insert(file_id, source);
             let mut parser =
-                Parser::prepare(sources.get(&file_id).unwrap(), language, &mut diagnostics);
+                Parser::from_file(sources.get(&file_id).unwrap(), language, &mut diagnostics);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),

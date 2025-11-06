@@ -285,9 +285,9 @@ impl Debug for Parser<'_> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser from source and tokenize it.
+    /// Create a new parser from a text File and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
-    pub fn prepare(
+    pub fn from_file(
         file: &'a File,
         language: LanguageOptions,
         diagnostics: &'a mut DiagnosticCollector,

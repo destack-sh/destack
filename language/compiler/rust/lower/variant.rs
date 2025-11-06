@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
                 default,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = self.intern_string(file_id, name.string());
                 let ty = self.lower_expression_to_type(file_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(file_id, ast, default));
@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
                 default,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let ty = self.lower_expression_to_type(file_id, ast, *ty);
                 let default = default.map(|default| self.lower_expression(file_id, ast, default));
                 Field::Positional {
@@ -55,7 +55,7 @@ impl<'a> Compiler<'a> {
                 default,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = name.map(|name| self.intern_string(file_id, name));
                 let ty = self.lower_expression_to_type(file_id, ast, *ty);
                 let key = self.lower_expression_to_type(file_id, ast, *key);

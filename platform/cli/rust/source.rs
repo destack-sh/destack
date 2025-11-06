@@ -60,7 +60,7 @@ pub(crate) fn get_semantic_spans_from_text(
 pub(crate) fn get_semantic_spans_from_source(source: &File) -> Result<Vec<SemanticSpan>, String> {
     let mut diagnostics = DiagnosticCollector::new();
     let language = LanguageOptions::default();
-    let mut parser = Parser::prepare(source, language, &mut diagnostics);
+    let mut parser = Parser::from_file(source, language, &mut diagnostics);
     let expressions = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),

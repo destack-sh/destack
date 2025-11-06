@@ -5,23 +5,22 @@ use dyst_dir::{
 };
 
 use crate::{
-    Compiler, CompilerStatus, EvaluateRequest, ExecuteRequest, LoadRequest, LowerRequest,
-    ValidateRequest,
+    BuildRequest, Compiler, CompilerStatus, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest
 };
 
 /// Message from the compiler during compilation.
 #[derive(Debug, Clone)]
 pub enum CompilerMessage {
-    /// Request to load something.
+    /// Request to load (and parse) something. Schedules lower, evaluation and validation.
     LoadRequest(LoadRequest),
-    /// Request to evaluate something.
+    /// Request to evaluate something. Schedules validation and static execution.
     EvaluateRequest(EvaluateRequest),
     /// Request to validate something.
     ValidateRequest(ValidateRequest),
-    /// Execute something at compile time.
+    /// Execute something at compile time (static execution).
     ExecuteRequest(ExecuteRequest),
-    /// Lower something to DIR/MIR.
-    LowerRequest(LowerRequest),
+    /// Build something into an artifact.
+    BuildRequest(BuildRequest),
 }
 
 /// A result of compiling something.
@@ -60,7 +59,7 @@ impl CompilerQueue {
         self.messages.pop_front()
     }
 
-    /// Check if the queue is empty.
+    /// Check if the queue is empty. 
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
     }
@@ -68,14 +67,13 @@ impl CompilerQueue {
 
 #[allow(dead_code)]
 impl<'s> Compiler<'s> {
-    /// Evaluate compile time constructs and check compile time invariants.
-    /// Runs until there is nothing left to evaluate.
+    /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&mut self) {
         assert!(self.status == CompilerStatus::Parsed);
         self.status = CompilerStatus::Compiling;
 
         // process all unevaluated nodes
-        self.queue_all_unevaluated_nodes();
+        self.queue_all_unevaluated();
         while let Some(message) = self.queue.pop_front() {
             self.process_message(message);
         }
@@ -84,7 +82,7 @@ impl<'s> Compiler<'s> {
     }
 
     // Generate messages for all unevaluated nodes.
-    fn queue_all_unevaluated_nodes(&mut self) {
+    fn queue_all_unevaluated(&mut self) {
         assert!(self.queue.is_empty());
 
         // expressions
@@ -130,8 +128,8 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    // Queue a node to be evaluated.
-    pub(crate) fn queue_evaluate_node<T>(&mut self, node_id: NodeId<T>)
+    // Queue a node to be evaluated as needed.
+    pub(crate) fn queue_evaluate<T>(&mut self, node_id: NodeId<T>)
     where
         Self: NodeTreeImpl<T>,
         T: Node,
@@ -165,7 +163,9 @@ impl<'s> Compiler<'s> {
                     },
                 ));
             }
-            _ => panic!("unexpected node to evaluate: {node_id:?}"),
+            _ => {
+                // nothing to do
+            },
         }
     }
 

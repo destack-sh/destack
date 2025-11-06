@@ -38,7 +38,7 @@ impl TestFormatter {
         // parse
         let mut diagnostics = DiagnosticCollector::new();
         let language = LanguageOptions::default();
-        let mut parser = Parser::prepare(&source, language, &mut diagnostics);
+        let mut parser = Parser::from_file(&source, language, &mut diagnostics);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
 

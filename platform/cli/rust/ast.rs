@@ -32,7 +32,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // parse as implicit module
     let language = LanguageOptions::default();
-    let mut parser = Parser::prepare(&source, language, &mut session);
+    let mut parser = Parser::from_file(&source, language, &mut session);
     let module_name = source
         .uri
         .last_segment()
