@@ -1,7 +1,4 @@
-/// Observability Module
-
 export * from "./metric"
-export * from "./counter"
-export * from "./gauge"
-export * from "./histogram"
+export * from "./log"
+export * from "./trace"
 

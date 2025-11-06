@@ -1,8 +1,2 @@
-/// Core Universe Module.
-
-export * from "./client"
-export * from "./organization"
-export * from "./team"
-export * from "./universe"
+export * from "./space"
 export * from "./user"
-
