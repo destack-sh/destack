@@ -4,7 +4,7 @@ use dyst_source::{FileType, Uri};
 use std::str::FromStr;
 use tower_lsp_server::{UriExt, lsp_types as lsp};
 
-pub const TRACKED_FORMATS: [FileType; 4] = [
+pub const TRACKED_FILE_TYPES: [FileType; 4] = [
     FileType::Dyst,
     FileType::DystText,
     FileType::DystBinary,

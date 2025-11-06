@@ -24,10 +24,8 @@ dyst_formatter = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 
-destack_tokei = { workspace = true }
 destack_file = { workspace = true }
 destack_terminal = { workspace = true }
-destack_lsp = { workspace = true }
 
 tokio = { version = "1.47.1" }
 

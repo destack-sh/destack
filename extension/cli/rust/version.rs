@@ -1,5 +1,3 @@
-//! Version bump CLI ported from Python.
-
 use destack_terminal::{CommandApp, CommandArguments, console};
 use std::fs;
 use std::path::PathBuf;

@@ -16,10 +16,11 @@ members = [
 	"language/source",
 	"language/test",
 	# extension
+	"extension/cli",
 	"extension/lsp",
+	"extension/napi",
 	"extension/vscode",
 	# platform
-	"platform/cli",
 	"platform/file",
 	"platform/terminal",
 	"platform/json",
@@ -27,7 +28,6 @@ members = [
 	"platform/time",
 	"platform/unicode",
 	"platform/uuid",
-	"platform/tokei",
 ]
 
 [workspace.package]
@@ -57,15 +57,15 @@ dyst_test = { path = "language/test" }
 # extension
 destack_lsp = { path = "extension/lsp" }
 destack_vscode = { path = "extension/vscode" }
+destack_napi = { path = "extension/napi" }
 
 # platform
-destack_cli = { path = "platform/cli" }
+destack_cli = { path = "extension/cli" }
 destack_file = { path = "platform/file" }
 destack_json = { path = "platform/json" }
 destack_order = { path = "platform/order" }
 destack_terminal = { path = "platform/terminal" }
 destack_time = { path = "platform/time" }
-destack_tokei = { path = "platform/tokei" }
 destack_unicode = { path = "platform/unicode" }
 destack_uuid = { path = "platform/uuid" }
 

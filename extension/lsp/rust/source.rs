@@ -34,16 +34,15 @@ pub fn range_to_byte_span(source: &File, range: &lsp::Range) -> Option<(u32, u32
 /// Convert LSP position (line/character) to byte offset in source.
 pub fn position_to_byte(source: &File, position: &lsp::Position) -> Option<u32> {
     let line_index = position.line as usize;
-    let line_start = *source
-        .line_start_offsets
-        .get(line_index)
-        .unwrap_or(&source.len);
-    let next_start = source
-        .line_start_offsets
+    let Some(line_start_offsets) = &source.line_start_offsets else {
+        return None;
+    };
+    let line_start = *line_start_offsets.get(line_index).unwrap_or(&source.len);
+    let next_start = line_start_offsets
         .get(line_index + 1)
         .copied()
         .unwrap_or(source.len);
-    let slice = &source.content[line_start as usize..next_start as usize];
+    let slice = &source.text()[line_start as usize..next_start as usize];
 
     // walk characters counting UTF-16 units until we reach target
     let mut utf16_units = 0u32;
@@ -74,17 +73,19 @@ pub fn byte_to_utf16_position(source: &File, byte_index: u32) -> Option<(u32, u3
         return None;
     }
 
-    let line_index = match source.line_start_offsets.binary_search(&byte_index) {
+    let Some(line_start_offsets) = &source.line_start_offsets else {
+        return None;
+    };
+    let line_index = match line_start_offsets.binary_search(&byte_index) {
         Ok(idx) => idx as u32,
         Err(idx) => idx.saturating_sub(1) as u32,
     };
-    let line_start = source.line_start_offsets[line_index as usize];
-    let next_start = source
-        .line_start_offsets
+    let line_start = line_start_offsets[line_index as usize];
+    let next_start = line_start_offsets
         .get(line_index as usize + 1)
         .copied()
         .unwrap_or(source.len);
-    let slice = &source.content[line_start as usize..next_start as usize];
+    let slice = &source.text()[line_start as usize..next_start as usize];
 
     // walk characters counting UTF-16 units until we reach target byte
     let target_offset = (byte_index - line_start) as usize;
@@ -109,5 +110,5 @@ pub fn byte_to_utf16_position(source: &File, byte_index: u32) -> Option<(u32, u3
 pub fn token_length_utf16(source: &File, token: &TokenSpan) -> u32 {
     let start = token.span.start as usize;
     let end = token.span.end as usize;
-    source.content[start..end].encode_utf16().count() as u32
+    source.text()[start..end].encode_utf16().count() as u32
 }

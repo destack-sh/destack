@@ -3,7 +3,7 @@ use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
 use dyst_source::{File, LanguageOptions};
 
-use crate::source::read_source;
+use crate::source::get_file_from_arguments;
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
@@ -18,13 +18,14 @@ pub const HELP: &str = r"Tokenize source with spans.
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(ctx: CommandArguments) -> i32 {
-    let source = match read_source(&ctx) {
+    let file = match get_file_from_arguments(&ctx) {
         Ok(source) => source,
         Err(error) => {
             console::error(&format!("Read input error: {error}"));
             return 1;
         }
     };
+    let text = file.text();
 
     let use_color = !ctx.flag("no-color");
     let use_pager = !ctx.flag("no-pager");
@@ -52,7 +53,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         |_| true
     };
     let language = LanguageOptions::default();
-    let (tokens, _) = Lexer::lex(source.id, &source.content, language);
+    let (tokens, _) = Lexer::lex(file.id, text, language);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.ty))
@@ -65,7 +66,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
         let mut line = 1;
         let mut col = 1;
-        for ch in source.content[..start_offset].chars() {
+        for ch in text[..start_offset].chars() {
             if ch == '\n' {
                 line += 1;
                 col = 1;
@@ -74,8 +75,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
             }
         }
 
-        let kind_str = format_token(&source, token, use_color);
-        let lexeme_preview = truncate_tokeneme(&source, token, max_tokeneme_len, use_color);
+        let kind_str = format_token(&file, token, use_color);
+        let lexeme_preview = truncate_tokeneme(&file, token, max_tokeneme_len, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {
@@ -198,9 +199,9 @@ fn get_token_color(source: &File, token: &TokenSpan) -> &'static str {
     }
 }
 
-fn truncate_tokeneme(source: &File, token: &TokenSpan, max_len: usize, use_color: bool) -> String {
+fn truncate_tokeneme(file: &File, token: &TokenSpan, max_len: usize, use_color: bool) -> String {
     let mut out = String::new();
-    for ch in source.get_span_str(token.span).chars() {
+    for ch in file.get_span_str(token.span).unwrap_or_default().chars() {
         match ch {
             '\n' => out.push_str("\\n"),
             '\t' => out.push_str("\\t"),
@@ -226,6 +227,6 @@ fn truncate_tokeneme(source: &File, token: &TokenSpan, max_len: usize, use_color
         return visible;
     }
 
-    let color = get_token_color(source, token);
+    let color = get_token_color(file, token);
     console::color(&visible, color)
 }

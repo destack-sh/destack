@@ -1,0 +1,29 @@
+[package]
+name = "destack_napi"
+description = "Destack Node-API bindings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+path = "rust/lib.rs"
+
+[dependencies]
+dyst_compiler = { workspace = true }
+dyst_javascript_transpiler = { workspace = true }
+
+napi = { version = "3", features = ["napi8"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true
+
+[package.metadata.napi]
+name = "destack-napi"
+features = ["napi8"]
