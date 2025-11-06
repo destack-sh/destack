@@ -331,6 +331,7 @@ impl<'a> Parser<'a> {
                     self.tree.spans.get(function_id),
                 );
                 // TODO #Incomplete: merge StructLiteral/Block, shorthands are just member functions, ..
+                //  (also support declare modifier on bindings/fields?)
                 expressions.push(function_id);
             }
             // eat any other expressions

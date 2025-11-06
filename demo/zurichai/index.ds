@@ -4,7 +4,7 @@ import { DateTime } from "destack.time"
 /// The status of a Meetup.
 export enum MeetupStatus {
     /// The Meetup is a draft.
-    @default
+    #default 
     Draft = 1
     /// The Meetup is upcoming.
     Upcoming
