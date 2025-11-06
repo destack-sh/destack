@@ -1,4 +1,4 @@
-import destack
+import { Vector2, Vector3 } from "@destack/geometry"
 
 /// Motion mode of a rigid body
 export enum RigidMotionMode {
