@@ -6,7 +6,6 @@ use dyst_ast::{
 };
 use dyst_diagnostic::Severity;
 use dyst_parser::Parser;
-use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, LanguageOptions, annotate_source};
 
 use crate::source::read_source;

@@ -2917,6 +2917,7 @@ dependencies = [
  "dyst_mir",
  "dyst_parser",
  "dyst_source",
+ "rayon",
 ]
 
 [[package]]
@@ -2967,6 +2968,7 @@ dependencies = [
  "dyst_javascript_ast",
  "dyst_mir",
  "dyst_source",
+ "rayon",
 ]
 
 [[package]]
@@ -2980,6 +2982,7 @@ dependencies = [
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
+ "rayon",
  "v8 142.0.0",
 ]
 
@@ -2993,6 +2996,7 @@ dependencies = [
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
+ "rayon",
 ]
 
 [[package]]

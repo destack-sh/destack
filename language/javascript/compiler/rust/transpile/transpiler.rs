@@ -1,6 +1,5 @@
 use dyst_javascript_ast::NodeTree;
 use dyst_workspace::{Package, Workspace};
-use dyst_session::Session;
 use dyst_source::{LanguageOptions, StringPool};
 
 /// The options for transpiling a Workspace.
@@ -46,8 +45,6 @@ pub enum TypeScriptVersion {
 pub struct Transpiler<'s> {
     /// The workspace we're in.
     pub workspace: &'s Workspace,
-    /// The session we're in.
-    pub session: &'s Session,
     /// The package we're transpiling.
     pub package: &'s Package,
     /// The language options.

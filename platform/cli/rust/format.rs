@@ -14,7 +14,6 @@ use dyst_fir::format::{
 use dyst_fir::format_args;
 use dyst_formatter::LanguageFormatContext;
 use dyst_parser::Parser;
-use dyst_session::Session;
 use dyst_source::{
     AnnotateOptions, Color, LanguageOptions, Source, SourceFormat, SourceId, Uri, annotate_source,
 };

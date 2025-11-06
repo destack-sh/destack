@@ -3,8 +3,7 @@ use std::path::Path;
 
 use dyst_ast::{BlockFormat, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan, TokenType};
 use dyst_parser::Parser;
-use dyst_session::Session;
-use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
 use destack_terminal::{CommandArguments, console};
 
@@ -59,9 +58,9 @@ pub(crate) fn get_semantic_spans_from_text(
 
 /// Compute semantic spans directly from a Source value.
 pub(crate) fn get_semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
-    let mut session = Session::new();
+    let mut diagnostics = DiagnosticCollector::new();
     let language = LanguageOptions::default();
-    let mut parser = Parser::prepare(source, language, &mut session);
+    let mut parser = Parser::prepare(source, language, &mut diagnostics);
     let expressions = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),

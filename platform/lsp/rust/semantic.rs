@@ -279,7 +279,6 @@ impl DestackLanguageServer {
 #[cfg(test)]
 mod tests {
     use dyst_parser::Lexer;
-    use dyst_session::Session;
     use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId};
     use tower_lsp_server::lsp_types as lsp;
 

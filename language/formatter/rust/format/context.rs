@@ -4,7 +4,6 @@ use crate::{
 };
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
-use dyst_session::Session;
 use dyst_source::{
     IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, Source, Span,
     StringId, StringPool,
@@ -143,8 +142,6 @@ pub struct LanguageFormatContext<'ast> {
     pub parents: NodeParentIndex,
     /// The string pool.
     pub strings: &'ast StringPool,
-    /// The session.
-    pub session: &'ast Session,
 }
 
 impl<'ast> LanguageFormatContext<'ast> {

@@ -1,5 +1,4 @@
-use dyst_session::Session;
-use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
+use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
 use crate::Parser;
 
@@ -7,7 +6,7 @@ use crate::Parser;
 #[derive(Debug)]
 pub(crate) struct TestParser {
     pub source: Source,
-    pub session: Session,
+    pub diagnostics: DiagnosticCollector,
     pub language: LanguageOptions,
 }
 
@@ -29,14 +28,14 @@ impl TestParser {
         );
         Self {
             source,
-            session: Session::new(),
+            diagnostics: DiagnosticCollector::new(),
             language: options,
         }
     }
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser<'_> {
-        Parser::prepare(&self.source, self.language, &mut self.session)
+        Parser::prepare(&self.source, self.language, &mut self.diagnostics)
     }
 }
 
@@ -262,8 +261,7 @@ mod tests {
 
     use crate::TokenType;
     use destack_file::glob;
-    use dyst_session::Session;
-    use dyst_source::{LanguageOptions, Source, SourceFormat, SourceId, Uri};
+    use dyst_source::{DiagnosticCollector, LanguageOptions, Source, SourceFormat, SourceId, Uri};
 
     use crate::{BlockFormat, Parser};
 
@@ -283,7 +281,7 @@ mod tests {
         let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
 
         let mut sources: HashMap<SourceId, Source> = HashMap::new();
-        let mut session = Session::new();
+        let mut diagnostics = DiagnosticCollector::new();
         let language = LanguageOptions::default();
 
         // parse every ds file
@@ -304,7 +302,7 @@ mod tests {
             );
             sources.insert(source_id, source);
             let mut parser =
-                Parser::prepare(sources.get(&source_id).unwrap(), language, &mut session);
+                Parser::prepare(sources.get(&source_id).unwrap(), language, &mut diagnostics);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -314,8 +312,8 @@ mod tests {
         }
 
         // dump diagnostics
-        if !session.diagnostics.is_empty() {
-            for diagnostic in session.diagnostics.iter() {
+        if !diagnostics.is_empty() {
+            for diagnostic in diagnostics.iter() {
                 let source = sources.get(&diagnostic.source).unwrap();
                 let annotated = dyst_source::annotate_source(
                     source,
