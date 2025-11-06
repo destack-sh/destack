@@ -1,14 +1,11 @@
-//! AST parsing subcommand.
-
 use destack_terminal::{CommandArguments, console};
-use dyst_ast::{
-    DefinitionMeta, DumperOptions, ModuleFormat, ModuleStyle, Name, NodeVisitor, TokenType,
-};
-use dyst_diagnostic::Severity;
+use dyst_ast::{DefinitionMeta, Dumper, DumperOptions, Name, NodeVisitor};
 use dyst_parser::Parser;
-use dyst_source::{AnnotateOptions, Color, LanguageOptions, annotate_source};
+use dyst_source::{
+    AnnotateOptions, Color, DiagnosticCollector, LanguageOptions, Severity, annotate_source,
+};
 
-use crate::source::read_source;
+use crate::source::get_file_from_arguments;
 
 pub const HELP: &str = r"Parse source into AST (implicit module).
 	--file <path>      Read input from file
@@ -19,10 +16,10 @@ pub const HELP: &str = r"Parse source into AST (implicit module).
 /// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {
     let silent = ctx.flag("silent");
-    let mut session = Session::new();
+    let mut diagnostics = DiagnosticCollector::new();
 
     // read input source
-    let source = match read_source(&ctx) {
+    let source = match get_file_from_arguments(&ctx) {
         Ok(source) => source,
         Err(error) => {
             console::error(&format!("Read input error: {error}"));
@@ -32,32 +29,19 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // parse as implicit module
     let language = LanguageOptions::default();
-    let mut parser = Parser::from_file(&source, language, &mut session);
+    let mut parser = Parser::from_file(&source, language, &mut diagnostics);
     let module_name = source
         .uri
         .last_segment()
         .map(|s| Name::Identifier(parser.intern_string(s)))
         .unwrap_or(Name::String(parser.intern_string("<string>")));
-    let definition_id = parser.with_recovery(
-        parser.mark(),
-        |parser| {
-            parser
-                .eat_module_body(
-                    DefinitionMeta::new(module_name),
-                    ModuleFormat::Inline,
-                    ModuleStyle::Module,
-                )
-                .map(Some)
-        },
-        None,
-        TokenType::End,
-    );
-    parser.finalize();
+    let definition_id = parser.eat_implicit_module_with_recovery(DefinitionMeta::new(module_name));
+    parser.finish();
 
-    // dump AST module to output
+    // dump module to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let mut dumper = parser.dumper(dump_options);
+        let mut dumper = Dumper::new(&parser.strings, &parser.tree, dump_options);
         if let Some(definition_id) = definition_id {
             dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
         }
@@ -65,7 +49,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // print diagnostics
-    for diagnostic in &session.diagnostics {
+    for diagnostic in diagnostics.iter() {
         let annotated = annotate_source(
             &source,
             &diagnostic.primary_span,
@@ -83,11 +67,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // return error if any error diagnostics
-    let has_errors = session
-        .diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error);
-    if has_errors {
+    if diagnostics.has_diagnostics_of_severity(Severity::Error) {
         return 1;
     }
     0

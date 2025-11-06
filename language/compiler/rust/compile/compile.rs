@@ -5,7 +5,7 @@ use dyst_dir::{
 };
 
 use crate::{
-    BuildRequest, Compiler, CompilerStatus, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest
+    BuildRequest, Compiler, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest
 };
 
 /// Message from the compiler during compilation.
@@ -69,16 +69,11 @@ impl CompilerQueue {
 impl<'s> Compiler<'s> {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&mut self) {
-        assert!(self.status == CompilerStatus::Parsed);
-        self.status = CompilerStatus::Compiling;
-
         // process all unevaluated nodes
         self.queue_all_unevaluated();
         while let Some(message) = self.queue.pop_front() {
             self.process_message(message);
         }
-
-        self.status = CompilerStatus::Compiled;
     }
 
     // Generate messages for all unevaluated nodes.

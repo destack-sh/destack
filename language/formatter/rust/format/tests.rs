@@ -40,10 +40,10 @@ impl TestFormatter {
         let language = LanguageOptions::default();
         let mut parser = Parser::from_file(&source, language, &mut diagnostics);
         let n = parse_fn(&mut parser)?;
-        parser.finalize();
+        parser.finish();
 
         // take out results
-        let side_span = parser.get_side_span();
+        let side_span = parser.compute_side_span();
         let tree = parser.tree;
         let tokens = parser.tokens;
         let side_tokens = parser.side_tokens;

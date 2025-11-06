@@ -184,9 +184,9 @@ impl<'a> Parser<'a> {
         let tokens = tokens;
 
         // attach annotations
-        let ignore_span = self.get_side_span();
-        self.attach_side_annotations(&tokens, &ignore_span);
-        self.attach_main_annotations(&tokens, &ignore_span);
+        let side_span = self.compute_side_span();
+        self.attach_side_annotations(&tokens, &side_span);
+        self.attach_main_annotations(&tokens, &side_span);
 
         // sort annotations per node
         self.tree.sort_annotations();
@@ -793,7 +793,7 @@ let y;
         );
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_eq!(expressions.len(), 2);
 
@@ -834,7 +834,7 @@ struct Test {}
         );
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -886,7 +886,7 @@ struct Test {}
         let mut test = TestParser::new("@foo\nfunction foo() { }");
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -908,7 +908,7 @@ struct Test {}
         let mut test = TestParser::new("#A\n#B struct #C Test #D { #E } #F\n#G");
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -983,7 +983,7 @@ struct Test {}
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
@@ -1008,7 +1008,7 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
@@ -1037,7 +1037,7 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let block = parser.eat_block().unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 1);
@@ -1066,7 +1066,7 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // interface X
         assert_node!(parser.tree, interface_id, Definition::Interface { expressions, .. } => {
@@ -1115,7 +1115,7 @@ over multiple lines with trailing space    */",
         let function = parser
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
-        parser.finalize();
+        parser.finish();
 
         // function foo()
         assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
@@ -1182,7 +1182,7 @@ over multiple lines with trailing space    */",
             TestParser::new("let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */");
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_eq!(expressions.len(), 1);
 
@@ -1244,7 +1244,7 @@ let A = 1 // line suffix comment
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
@@ -1284,7 +1284,7 @@ let A = 1 // line suffix comment
         let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
         assert_eq!(expressions.len(), 2);
 
         // A has one prefix block blank
@@ -1330,7 +1330,7 @@ function main() {
         let function = parser
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
-        parser.finalize();
+        parser.finish();
 
         // (annotation should be infix to innermost node, i.e. the block)
         assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
@@ -1372,7 +1372,7 @@ struct Floof {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // struct Floof
         assert_eq!(expressions.len(), 1);
@@ -1470,7 +1470,7 @@ export module Outer {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finalize();
+        parser.finish();
 
         // Outer
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
@@ -1550,7 +1550,7 @@ export module Outer {
         );
         let mut parser = test.prepare();
         let block = parser.eat_block().unwrap();
-        parser.finalize();
+        parser.finish();
 
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 2);

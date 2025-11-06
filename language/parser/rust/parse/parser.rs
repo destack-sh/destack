@@ -6,9 +6,7 @@ use dyst_source::{
     DiagnosticCollector, File, FileId, LanguageOptions, MultiSpan, Span, StringId, StringPool,
 };
 
-use crate::{
-    Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult,
-};
+use crate::{EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult};
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -262,8 +260,6 @@ pub struct Parser<'ast> {
     pos: usize,
     /// The parser options.
     pub(crate) options: ParserOptions,
-    /// Whether the Parser has been finalized.
-    pub(crate) is_finalized: bool,
 
     /// The Node AST tree.
     pub tree: NodeTree,
@@ -306,7 +302,6 @@ impl<'a> Parser<'a> {
             side_tokens,
             pos: 0,
             options: ParserOptions::default(),
-            is_finalized: false,
             language,
             tree: NodeTree::new(file.id),
             strings: StringPool::new(),
@@ -318,7 +313,7 @@ impl<'a> Parser<'a> {
         // pre-parse side annotations
         parser.eat_side_annotations();
         // and then partition tokens
-        let side_span = parser.get_side_span();
+        let side_span = parser.compute_side_span();
         let (tokens, side_tokens) = all_tokens
             .iter()
             .partition(|token| is_semantic(token.token.ty) && !side_span.contains(&token.span));
@@ -332,7 +327,7 @@ impl<'a> Parser<'a> {
 
     /// Get the span of all side annotations.
     #[inline]
-    pub fn get_side_span(&self) -> MultiSpan {
+    pub fn compute_side_span(&self) -> MultiSpan {
         let tag_spans = self.tree.get_spans_for(NodeType::Tag);
         let decorator_spans = self.tree.get_spans_for(NodeType::Decorator);
         MultiSpan::new(tag_spans.into_iter().chain(decorator_spans).collect())
@@ -342,20 +337,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn reset(&mut self) {
         self.pos = 0;
         self.options = ParserOptions::default();
-        self.is_finalized = false;
         self.errors.clear();
     }
 
-    /// Finalize the parser.
-    pub fn finalize(&mut self) {
-        assert!(!self.is_finalized, "already finalized");
+    /// Finish parsing.
+    #[inline]
+    pub fn finish(&mut self) {
         self.attach_annotations();
-        self.is_finalized = true;
-    }
-
-    /// Create a new Dumper.
-    pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
-        Dumper::new(&self.strings, &self.tree, options)
     }
 
     /// Get the current position in the tokens.
@@ -517,7 +505,6 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn bump(&mut self) {
         debug_assert!(self.pos < self.tokens.len(), "bump past end of tokens");
-        debug_assert!(!self.is_finalized, "bump after parser is finalized");
         self.pos += 1;
     }
 
@@ -528,7 +515,6 @@ impl<'a> Parser<'a> {
             self.pos + (distance as usize) < self.tokens.len(),
             "bump past end of tokens"
         );
-        debug_assert!(!self.is_finalized, "bump after parser is finalized");
         self.pos += distance as usize;
     }
 

@@ -1,11 +1,10 @@
 use dyst_ast::{
     Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
-use dyst_source::{File, Uri};
-use dyst_workspace::{FileContent, FileFile};
+use dyst_source::File;
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::{DestackLanguageServer, Workspace, byte_to_utf16_position, range_to_byte_span};
+use crate::{DestackLanguageServer, byte_to_utf16_position, range_to_byte_span};
 
 /// All semantic token types supported by the LSP server.
 pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 23] = [
@@ -164,7 +163,7 @@ impl<'a> Iterator for SpanSegmentsIter<'a> {
             };
 
             // find next line break or end of span
-            let bytes = self.source.content.as_bytes();
+            let bytes = self.source.text().as_bytes();
             let mut line_end = self.next_byte;
             while line_end < self.end_byte {
                 let index = line_end as usize;
@@ -182,7 +181,7 @@ impl<'a> Iterator for SpanSegmentsIter<'a> {
             }
 
             // compute length in UTF-16 code units for this segment
-            let length = self.source.content[self.next_byte as usize..segment_end as usize]
+            let length = self.source.text()[self.next_byte as usize..segment_end as usize]
                 .encode_utf16()
                 .count() as u32;
 
@@ -231,79 +230,4 @@ fn get_semantic_type_index(semantic_type: SemanticType) -> Option<u32> {
         .map(|idx| idx as u32)
 }
 
-impl DestackLanguageServer {
-    /// Compute semantic tokens for a document.
-    pub fn get_semantic_tokens_full(
-        &self,
-        workspace: &Workspace,
-        uri: &Uri,
-    ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = workspace.get_file(uri)?;
-        match &doc.content {
-            FileContent::File(FileFile {
-                source,
-                all_tokens,
-                ast,
-                root_definition_id: module_id,
-                ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, None, false),
-            _ => None,
-        }
-    }
-
-    /// Compute semantic tokens for a document within a range.
-    pub fn get_semantic_tokens_range(
-        &self,
-        workspace: &Workspace,
-        uri: &Uri,
-        range: &lsp::Range,
-    ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = workspace.get_file(uri)?;
-        match &doc.content {
-            FileContent::File(FileFile {
-                source,
-                all_tokens,
-                ast,
-                root_definition_id: module_id,
-                ..
-            }) => collect_semantic_tokens(source, all_tokens, ast, *module_id, Some(range), false),
-            _ => None,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use dyst_parser::Lexer;
-    use dyst_source::{File, FileId, FileType, LanguageOptions};
-    use tower_lsp_server::lsp_types as lsp;
-
-    use super::*;
-
-    /// Parse the source content string and return collected semantic tokens.
-    #[allow(dead_code)]
-    fn get_semantic_tokens_for_content(
-        content: &str,
-        filter: impl Fn(&TokenSpan) -> bool,
-    ) -> Option<Vec<lsp::SemanticToken>> {
-        let mut session = Session::new();
-        let source = File::from_string(
-            FileId::new(0),
-            "<test>".to_string(),
-            Uri::from_string("<test>"),
-            FileType::Dyst,
-            content.to_string(),
-        );
-        let language = LanguageOptions::default();
-        let (tokens, _) = Lexer::lex(source.id, &source.content, language);
-        let source_file = FileFile::parse(source, language, &mut session);
-        collect_semantic_tokens(
-            &source_file.source,
-            &tokens.into_iter().filter(filter).collect(),
-            &source_file.ast,
-            source_file.root_definition_id,
-            None,
-            true,
-        )
-    }
-}
+impl DestackLanguageServer {}

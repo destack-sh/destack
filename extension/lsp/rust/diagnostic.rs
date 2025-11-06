@@ -1,5 +1,4 @@
-use dyst_diagnostic::{Diagnostic, Severity};
-use dyst_source::File;
+use dyst_source::{Diagnostic, File, Severity};
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::source::byte_span_to_range;

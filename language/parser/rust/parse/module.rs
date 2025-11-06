@@ -98,6 +98,23 @@ impl<'a> Parser<'a> {
         let module_id = self.tree.insert(module, self.get_span_from(start));
         Ok(module_id)
     }
+
+    /// Eat an implicit module body (without `module` keyword or braces).
+    pub fn eat_implicit_module_with_recovery(
+        &mut self,
+        meta: DefinitionMeta,
+    ) -> Option<NodeId<Definition>> {
+        self.with_recovery(
+            self.mark(),
+            |parser| {
+                parser
+                    .eat_module_body(meta, ModuleFormat::Inline, ModuleStyle::Module)
+                    .map(Some)
+            },
+            None,
+            TokenType::End,
+        )
+    }
 }
 
 #[cfg(test)]
