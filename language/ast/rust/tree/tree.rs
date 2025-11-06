@@ -223,6 +223,24 @@ impl NodeTree {
         nodes
     }
 
+    /// Get the nodes for a given type.
+    #[inline]
+    pub fn get_nodes_for<T>(&self) -> Vec<NodeId<T>>
+    where
+        T: Node,
+    {
+        self.local_id_by_node_id
+            .iter()
+            .filter_map(|id| {
+                if self.type_by_node_id[*id as usize] == T::TYPE {
+                    Some(NodeId::new(*id))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// Remove a given local node.
     #[inline]
     fn delete(&mut self, node_type: NodeType, local_ids: Vec<u32>) {

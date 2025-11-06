@@ -1,7 +1,6 @@
 use dyst_ast::{StringId, StringPool};
-
 use dyst_dir::NodeTree;
-use dyst_source::{DiagnosticCollector, FileId, LanguageOptions};
+use dyst_source::{DiagnosticCollector, File, FileId, LanguageOptions};
 
 use crate::CompilerQueue;
 
@@ -16,17 +15,17 @@ pub struct CompilerOptions {
 
 /// Compile files and sources into something (via DIR).
 /// Includes module loading, parsing, evaluation, validation, execution, and building.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Compiler<'s> {
     /// The language options.
     pub language: LanguageOptions,
     /// The options for compiling the Package.
     pub options: CompilerOptions,
-    /// The diagnostic collector.
-    pub diagnostics: &'s DiagnosticCollector,
 
+    /// The diagnostic collector.
+    pub diagnostics: &'s mut DiagnosticCollector,
     /// The source files.
-    // pub files: FileCache,
+    // pub source: SourceCache,
     /// The compiled DIR node tree.
     pub tree: NodeTree,
     /// The combined string pool.
@@ -37,6 +36,14 @@ pub struct Compiler<'s> {
 
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
+    pub fn from_source(
+        source: File,
+        language: LanguageOptions,
+        diagnostics: &'s mut DiagnosticCollector,
+    ) -> Self {
+        todo!("from_source({source:?})")
+    }
+
     // Intern an AST string for a certain source.
     pub fn intern_string(&mut self, file_id: FileId, string_id: StringId) -> StringId {
         // let document = self

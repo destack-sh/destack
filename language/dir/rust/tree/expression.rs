@@ -221,8 +221,7 @@ impl Node for Expression {
 }
 
 impl Expression {
-    // nocheckin TODO #Broken: revisit Compiler is_evaluate/evaluate logic
-    /// Whether the expression is evaluated (ignoring child nodes).
+    // nocheckin TODO #Broken: revisit Compiler is_evaluated/evaluate logic
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
     pub fn is_evaluated(&self) -> bool {
         match self {
