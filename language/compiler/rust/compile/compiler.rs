@@ -23,20 +23,21 @@ pub enum CompilerStatus {
     Finalized,
 }
 
-/// A compiler for a Dyst package containing related Dyst sources.
+/// Compile files and sources into something (via DIR).
+/// Includes module loading, parsing, evaluation, validation, execution, and building.
 #[derive(Debug, Clone)]
 pub struct Compiler<'s> {
-    /// The diagnostic collector.
-    pub diagnostics: &'s DiagnosticCollector,
     /// The language options.
     pub language: LanguageOptions,
+    /// The options for compiling the Package.
+    pub options: CompilerOptions,
+    /// The diagnostic collector.
+    pub diagnostics: &'s DiagnosticCollector,
 
     /// The node tree of the compiled DIR.
     pub tree: NodeTree,
     /// The string pool.
     pub strings: StringPool,
-    /// The options for compiling the Package.
-    pub options: CompilerOptions,
     /// The status the compiler is in.
     pub status: CompilerStatus,
     /// The queue of compiler messages.

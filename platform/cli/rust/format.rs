@@ -291,7 +291,7 @@ fn format_source(
 
     // parse the source into an AST
     let (module_id, tokens, side_tokens, side_span, tree, strings) = {
-        let mut parser = Parser::prepare(source, language, &mut session);
+        let mut parser = Parser::from_file(source, language, &mut session);
         let module_name_id = parser.intern_string(module_name);
         let module_id = parser.with_recovery(
             parser.mark(),

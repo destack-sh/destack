@@ -8,7 +8,7 @@ use dyst_source::{FileId, smallvec};
 
 impl<'a> Compiler<'a> {
     /// Lower a binding modifiers into a DIR binding modifiers.
-    pub fn lower_binding_modifiers(
+    pub fn lower_binding_modifier(
         &mut self,
         _file_id: FileId,
         _ast: &ast::NodeTree,
@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
                 default,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = self.intern_string(file_id, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
                 let default = default.map(|default| self.lower_expression(file_id, ast, default));
@@ -76,7 +76,7 @@ impl<'a> Compiler<'a> {
                 default,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let pattern = self.lower_pattern(file_id, ast, *pattern);
                 let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
                 let default = default.map(|default| self.lower_expression(file_id, ast, default));
@@ -97,7 +97,7 @@ impl<'a> Compiler<'a> {
                 ty,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = self.intern_string(file_id, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
                 self.tree.insert_from_ast(
@@ -128,7 +128,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = self.intern_string(file_id, name.string());
                 let value = self.lower_expression(file_id, ast, *value);
                 self.tree.insert_from_ast(
@@ -143,7 +143,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Argument::Shorthand { modifiers, name } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = self.intern_string(file_id, *name);
                 let path = Path::UnevaluatedAbsoluteString {
                     segments: smallvec![name],
@@ -163,7 +163,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let value = self.lower_expression(file_id, ast, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedPositional { modifiers, value },
@@ -177,7 +177,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = name.map(|name| self.intern_string(file_id, name));
                 let value = self.lower_expression(file_id, ast, *value);
                 self.tree.insert_from_ast(
@@ -197,7 +197,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifiers(file_id, ast, modifiers));
+                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
                 let name = name.map(|name| self.intern_string(file_id, name));
                 let key = self.lower_expression(file_id, ast, *key);
                 let value = self.lower_expression(file_id, ast, *value);
