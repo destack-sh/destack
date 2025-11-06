@@ -3,7 +3,7 @@
 use crate::{Diagnostic, Severity, Suggestion};
 
 /// A collector for diagnostics and suggestions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DiagnosticCollector {
     /// The collected diagnostics.
     pub diagnostics: Vec<Diagnostic>,

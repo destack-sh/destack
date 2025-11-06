@@ -1,26 +1,58 @@
-use destack_terminal::{CommandArguments, console};
+use std::collections::HashMap;
 
-use crate::source::get_file_from_arguments;
+use destack_terminal::{CommandArguments, console};
+use dyst_compiler::Compiler;
+use dyst_dir::{Dumper, DumperOptions};
+use dyst_source::{DiagnosticCollector, LanguageOptions, Severity};
+
+use crate::diagnostic::print_diagnostics;
+use crate::source::get_string_or_file;
 
 pub const HELP: &str = r"Compile source files.
-	--file <path>      Read input from file
-	--string <string>  Read input from provided string
+    --package <path>   Compile a package
+	--file <path>      Compile a single file
+	--string <string>  Compile a string
+    --type <format>  Compile a file with the given format (default: ds)
     --silent           Don't print anything to the console (except errors)
     ";
 
 /// Compile source into its final DIR.
 pub fn run(ctx: CommandArguments) -> i32 {
-    let _silent = ctx.flag("silent");
+    let silent = ctx.flag("silent");
 
     // read input source
-    let _source = match get_file_from_arguments(&ctx) {
-        Ok(source) => source,
-        Err(error) => {
-            console::error(&format!("Read input error: {error}"));
+    let file = match get_string_or_file(&ctx) {
+        Ok(Some(file)) => file,
+        Ok(None) => {
+            console::error("no source provided");
+            return 1;
+        }
+        Err(e) => {
+            console::error(&format!("failed to read file {e}"));
             return 1;
         }
     };
 
     // compile source
-    todo!("compile source")
+    let language = LanguageOptions::default();
+    let mut diagnostics = DiagnosticCollector::new();
+    let mut compiler = Compiler::from_source(file.clone(), language, &mut diagnostics);
+    compiler.compile();
+
+    // dump DIR to output
+    if !silent {
+        let dump_options = DumperOptions::default();
+        // nocheckin
+        let mut dumper = Dumper::new(&compiler.strings, &compiler.tree, dump_options);
+        // let modules = compiler.tree;
+        console::info(&dumper.finish());
+    }
+
+    // handle diagnostics
+    let source_by_id = HashMap::from([(file.id, &file)]);
+    print_diagnostics(&source_by_id, language, &diagnostics);
+    if diagnostics.has_diagnostics_of_severity(Severity::Error) {
+        return 1;
+    }
+    0
 }

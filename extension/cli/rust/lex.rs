@@ -3,32 +3,33 @@ use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
 use dyst_source::{File, LanguageOptions};
 
-use crate::source::get_file_from_arguments;
+use crate::source::get_string_or_file;
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
-pub const HELP: &str = r"Tokenize source with spans.
+pub const HELP: &str = r"Tokenize source into Tokens.
 	--file <path>      Read input from file
 	--string <string>  Read input from provided string
-	--no-color         Disable ANSI colors
-	--no-pager         Print directly instead of use less -R
     --only-semantic    Only show semantic tokens
     --no-whitespace    Don't show whitespace tokens
 	--max-lexeme <n>   Truncate lexeme preview to n chars";
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(ctx: CommandArguments) -> i32 {
-    let file = match get_file_from_arguments(&ctx) {
-        Ok(source) => source,
-        Err(error) => {
-            console::error(&format!("Read input error: {error}"));
+    let file = match get_string_or_file(&ctx) {
+        Ok(Some(file)) => file,
+        Ok(None) => {
+            console::error("no source provided");
+            return 1;
+        }
+        Err(e) => {
+            console::error(&format!("failed to read file: {e}"));
             return 1;
         }
     };
     let text = file.text();
 
-    let use_color = !ctx.flag("no-color");
-    let use_pager = !ctx.flag("no-pager");
+    let use_color = true;
     let max_tokeneme_len = ctx
         .option("max-lexeme")
         .and_then(|value| value.parse::<usize>().ok())
@@ -120,27 +121,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     let table_str = table::render_table(&headers, &rows, true, 2, secondary);
     let framed_table_str = console::frame(&table_str, Some("Lexer Tokens"), 2);
-
-    let previous_mode = console::color_mode();
-    if !use_color {
-        console::disable_color();
-    }
-
-    let display_result = if use_pager {
-        console::page_or_print(&framed_table_str)
-    } else {
-        console::print(&framed_table_str);
-        Ok(())
-    };
-
-    if let Err(error) = display_result {
-        console::error(&format!("failed to display tokens: {error}"));
-    }
-
-    if !use_color {
-        console::set_color_mode(previous_mode);
-    }
-
+    console::print(&framed_table_str);
     0
 }
 
