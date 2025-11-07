@@ -125,7 +125,9 @@ impl<'a> Compiler<'a> {
         field_id: ast::NodeId<ast::EnumField>,
     ) -> NodeId<Variant> {
         let field = module.get(field_id);
-        let name = self.strings.intern_from(&module.strings, field.name.string());
+        let name = self
+            .strings
+            .intern_from(&module.strings, field.name.string());
         let value = field
             .value
             .map(|value| self.lower_expression(module, value));

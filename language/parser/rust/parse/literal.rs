@@ -955,7 +955,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, FloatType, FunctionMode, IntType, Mutability, Name, Parameter, TemplateLiteral
+        BindingKind, Definition, DefinitionMeta, FloatType, FunctionMode, IntType, Mutability,
+        Name, Parameter, TemplateLiteral,
     };
 
     use crate::parse::tests::TestParser;
@@ -1203,15 +1204,24 @@ mod tests {
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
-        assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }))
-        );
-        assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false }))
-        );
-        assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Float(FloatType { width: None }))
-        );
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::Int(IntType::Arbitrary {
+                width: Some(32),
+                is_signed: true
+            })
+        ));
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::Int(IntType::Arbitrary {
+                width: Some(8),
+                is_signed: false
+            })
+        ));
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::Float(FloatType { width: None })
+        ));
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
             TypeLiteral::Boolean

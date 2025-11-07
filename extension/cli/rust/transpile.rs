@@ -1,6 +1,6 @@
 use destack_terminal::{CommandArguments, console};
-use dyst_compiler::Compiler;
-use dyst_javascript_transpiler::Transpiler;
+use dyst_compiler::{Compiler, CompilerOptions};
+use dyst_javascript_transpiler::{Transpiler, TranspilerOptions};
 use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
@@ -32,8 +32,10 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile source
     let language = LanguageOptions::default();
+    let compiler_options = CompilerOptions::default();
     let mut diagnostics = DiagnosticCollector::new();
-    let mut compiler = Compiler::from_file(file.clone(), language, &mut diagnostics);
+    let mut compiler =
+        Compiler::from_file(file.clone(), language, compiler_options, &mut diagnostics);
     compiler.compile();
     let diagnostics = compiler.diagnostics.clone();
 
@@ -49,7 +51,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // transpile source
-    let mut transpiler = Transpiler::from_compiler(&compiler);
+    let transpiler_options = TranspilerOptions::default();
+    let mut transpiler = Transpiler::from_compiler(&compiler, transpiler_options);
     transpiler.transpile();
 
     todo!("print/write transpiler artifacts");

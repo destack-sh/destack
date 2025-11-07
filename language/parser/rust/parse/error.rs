@@ -1,7 +1,7 @@
 use core::fmt;
 
 use crate::{NodeType, TokenSpan, TokenType};
-use dyst_source::{Diagnostic, DiagnosticKind, File, LabeledSpan, DiagnosticSeverity, Span};
+use dyst_source::{Diagnostic, DiagnosticKind, DiagnosticSeverity, File, LabeledSpan, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone)]

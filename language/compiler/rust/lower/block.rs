@@ -18,7 +18,9 @@ impl<'a> Compiler<'a> {
         block_id: ast::NodeId<ast::Block>,
     ) -> NodeId<Block> {
         let block = module.get(block_id);
-        let label = block.label.map(|label| self.strings.intern_from(&module.strings, label));
+        let label = block
+            .label
+            .map(|label| self.strings.intern_from(&module.strings, label));
         let expressions = block
             .expressions
             .iter()

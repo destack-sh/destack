@@ -1,8 +1,8 @@
-use dyst_ast::{StringId, StringPool};
-use dyst_dir::{Module, ModuleGraph, NodeTree};
-use dyst_source::{DiagnosticCollector, File, FileId, LanguageOptions};
+use dyst_ast::StringPool;
+use dyst_dir::{ModuleGraph, NodeTree};
+use dyst_source::{DiagnosticCollector, File, LanguageOptions};
 
-use crate::CompilerQueue;
+use crate::{CompilerQueue, CompilerTask, LoadTask};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -30,25 +30,31 @@ pub struct Compiler<'s> {
     pub tree: NodeTree,
     /// The combined string pool.
     pub strings: StringPool,
-    /// The queue of compiler messages.
-    pub queue: CompilerQueue,
+    /// The queue of compiler tasks.
+    pub(super) queue: CompilerQueue,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
+    /// Create a new Compiler from a single file.
     pub fn from_file(
         file: File,
         language: LanguageOptions,
+        options: CompilerOptions,
         diagnostics: &'s mut DiagnosticCollector,
     ) -> Self {
-        todo!("from_file({file:?})")
-    }
-
-    pub fn from_module(
-        module: Module,
-        language: LanguageOptions,
-        diagnostics: &'s mut DiagnosticCollector,
-    ) -> Self {
-        todo!("from_module({module:?})")
+        let mut compiler = Self {
+            language,
+            options,
+            diagnostics,
+            modules: ModuleGraph::new(),
+            tree: NodeTree::new(),
+            strings: StringPool::new(),
+            queue: CompilerQueue::new(),
+        };
+        compiler
+            .queue
+            .push_back(CompilerTask::Load(LoadTask::LoadFile { file }));
+        compiler
     }
 }

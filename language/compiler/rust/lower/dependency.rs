@@ -52,7 +52,9 @@ impl<'a> Compiler<'a> {
                         .kind
                         .map(|kind| self.lower_dependency_kind(kind))
                         .unwrap_or(kind);
-                    let name = self.strings.intern_from(&module.strings, dependency_item.name);
+                    let name = self
+                        .strings
+                        .intern_from(&module.strings, dependency_item.name);
                     let alias = dependency_item
                         .alias
                         .map(|alias| self.strings.intern_from(&module.strings, alias));

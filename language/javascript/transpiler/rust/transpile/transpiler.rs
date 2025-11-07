@@ -87,7 +87,7 @@ pub struct Transpiler<'a> {
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
-    pub fn from_compiler(compiler: &'a Compiler) -> Self {
+    pub fn from_compiler(compiler: &'a Compiler, options: TranspilerOptions) -> Self {
         todo!("from_compiler({compiler:?})")
     }
 }
