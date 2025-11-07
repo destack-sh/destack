@@ -58,7 +58,7 @@ fn bench_parse(c: &mut Criterion) {
         b.iter(|| {
             let language = LanguageOptions::default();
             let mut diagnostics = DiagnosticCollector::new();
-            let mut parser = Parser::from_file(file, language, &mut diagnostics);
+            let mut parser = Parser::lex_file(file, language, &mut diagnostics);
             parser.parse();
             black_box(parser);
         });

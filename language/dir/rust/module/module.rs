@@ -36,13 +36,29 @@ pub struct Module {
 
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
-    /// The string pool of the Module.
-    pub strings: StringPool,
+    /// The AST parent index
+    pub parents: ast::NodeParentIndex,
     /// The top-level expressions of the Module.
     pub expressions: Vec<NodeId<Expression>>,
+    /// The string pool of the Module.
+    pub strings: StringPool,
 }
 
 impl Module {
+    /// Create a new Module from a file and expressions.
+    pub fn from_file(file: File, ast: ast::NodeTree, strings: StringPool) -> Self {
+        let parents = ast::NodeParentIndex::from_tree(&ast);
+        Self {
+            id: ModuleId::new(file.id),
+            kind: ModuleKind::Script,
+            file,
+            ast,
+            parents,
+            strings,
+            expressions: Vec::new(),
+        }
+    }
+
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
     pub fn get<T>(&self, id: ast::NodeId<T>) -> &T

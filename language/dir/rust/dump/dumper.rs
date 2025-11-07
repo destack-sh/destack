@@ -233,7 +233,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         }
         if let Some(node_id) = self.node_id {
             let (file_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let file_id = file_id.0;
+            let file_id = file_id.0.0;
             if let Some(source_ast_id) = source_ast_id {
                 self.dumper.write_str(
                     format!(" :{node_id} [{file_id:?}/{source_ast_id}]").as_str(),

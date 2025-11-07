@@ -25,6 +25,11 @@ impl ModuleGraph {
         }
     }
 
+    /// Insert a module into the graph.
+    pub fn insert(&mut self, module: Module) {
+        self.modules_by_id.insert(module.id, module);
+    }
+
     /// Iterate over the modules in the graph.
     pub fn iter(&self) -> impl Iterator<Item = &Module> {
         self.modules_by_id.values()

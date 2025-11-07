@@ -30,6 +30,12 @@ impl DiagnosticCollector {
         self.diagnostics.push(diagnostic);
     }
 
+    /// Merge another diagnostic collector into this one.
+    pub fn merge_from(&mut self, other: &DiagnosticCollector) {
+        self.diagnostics.extend(other.diagnostics.iter().cloned());
+        self.suggestions.extend(other.suggestions.iter().cloned());
+    }
+
     /// Has diagnostics of the given DiagnosticSeverity.
     pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
         self.diagnostics.iter().any(|d| d.severity == severity)
