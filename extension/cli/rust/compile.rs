@@ -1,5 +1,5 @@
 use destack_terminal::{CommandArguments, console};
-use dyst_compiler::Compiler;
+use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
 use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 
@@ -35,7 +35,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // compile source
     let language = LanguageOptions::default();
     let mut diagnostics = DiagnosticCollector::new();
-    let mut compiler = Compiler::from_file(file.clone(), language, &mut diagnostics);
+    let options = CompilerOptions::default();
+    let mut compiler = Compiler::from_file(file.clone(), language, options, &mut diagnostics);
     compiler.compile();
     let diagnostics = compiler.diagnostics.clone();
 

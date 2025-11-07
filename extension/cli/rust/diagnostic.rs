@@ -1,6 +1,6 @@
 use destack_terminal::console;
 use dyst_source::{
-    AnnotateOptions, Color, DiagnosticCollector, File, FileId, LanguageOptions, DiagnosticSeverity,
+    AnnotateOptions, Color, DiagnosticCollector, DiagnosticSeverity, File, FileId, LanguageOptions,
     annotate_source,
 };
 

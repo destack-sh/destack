@@ -1,68 +1,13 @@
-use std::collections::VecDeque;
-
 use dyst_dir::{
     Annotation, Argument, Expression, Node, NodeId, NodeIdAny, NodeTreeImpl, NodeType, Type,
 };
 
-use crate::{
-    BuildRequest, Compiler, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest,
-};
-
-/// Message from the compiler during compilation.
-#[derive(Debug, Clone)]
-pub enum CompilerMessage {
-    /// Request to load (and parse) something. Schedules lower, evaluation and validation.
-    LoadRequest(LoadRequest),
-    /// Request to evaluate something. Schedules validation and static execution.
-    EvaluateRequest(EvaluateRequest),
-    /// Request to validate something.
-    ValidateRequest(ValidateRequest),
-    /// Execute something at compile time (static execution).
-    ExecuteRequest(ExecuteRequest),
-    /// Build something into an artifact.
-    BuildRequest(BuildRequest),
-}
+use crate::{Compiler, CompilerTask, EvaluateTask};
 
 /// A result of compiling something.
 pub trait CompilerResult {
     /// The node that this result depends on.
     fn depends_on(&self) -> Option<NodeIdAny>;
-}
-
-/// Queue of compiler messages.
-#[derive(Debug, Clone)]
-pub struct CompilerQueue {
-    messages: VecDeque<CompilerMessage>,
-}
-
-impl Default for CompilerQueue {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CompilerQueue {
-    /// Create a new empty queue.
-    pub fn new() -> Self {
-        Self {
-            messages: VecDeque::new(),
-        }
-    }
-
-    /// Push a message to the back of the queue.
-    pub fn push_back(&mut self, message: CompilerMessage) {
-        self.messages.push_back(message);
-    }
-
-    /// Pop a message from the front of the queue.
-    pub fn pop_front(&mut self) -> Option<CompilerMessage> {
-        self.messages.pop_front()
-    }
-
-    /// Check if the queue is empty.
-    pub fn is_empty(&self) -> bool {
-        self.messages.is_empty()
-    }
 }
 
 #[allow(dead_code)]
@@ -71,59 +16,60 @@ impl<'s> Compiler<'s> {
     pub fn compile(&mut self) {
         // process all unevaluated nodes
         self.queue_all_unevaluated();
-        while let Some(message) = self.queue.pop_front() {
-            self.process_message(message);
+        while let Some(task) = self.queue.pop_front() {
+            self.process(task);
         }
     }
 
-    // Generate messages for all unevaluated nodes.
-    fn queue_all_unevaluated(&mut self) {
-        assert!(self.queue.is_empty());
+    /// Queue a task to the compiler.
+    pub(super) fn queue(&mut self, task: CompilerTask) {
+        self.queue.push_back(task);
+    }
 
+    /// Generate tasks for all unevaluated nodes.
+    pub(super) fn queue_all_unevaluated(&mut self) {
         // expressions
         for (expression_id, expression) in self.tree.iter_nodes::<Expression>() {
             if !expression.is_evaluated() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateExpression {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateExpression {
                         expression: expression_id,
-                    },
-                ));
+                    }));
             }
         }
 
         // types
         for (type_id, type_) in self.tree.iter_nodes::<Type>() {
             if !type_.is_evaluated() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateType { ty: type_id },
-                ));
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateType {
+                        ty: type_id,
+                    }));
             }
         }
 
         // arguments
         for (argument_id, argument) in self.tree.iter_nodes::<Argument>() {
             if !argument.is_evaluated() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateArgument {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateArgument {
                         argument: argument_id,
-                    },
-                ));
+                    }));
             }
         }
 
         // annotations
         for (annotation_id, annotation) in self.tree.iter_nodes::<Annotation>() {
             if !annotation.is_evaluated() {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateAnnotation {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateAnnotation {
                         annotation: annotation_id,
-                    },
-                ));
+                    }));
             }
         }
     }
 
-    // Queue a node to be evaluated as needed.
+    /// Queue a node to be evaluated as needed.
     pub(crate) fn queue_evaluate<T>(&mut self, node_id: NodeId<T>)
     where
         Self: NodeTreeImpl<T>,
@@ -131,32 +77,28 @@ impl<'s> Compiler<'s> {
     {
         match T::TYPE {
             NodeType::Expression => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateExpression {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateExpression {
                         expression: NodeId::new(node_id.id),
-                    },
-                ));
+                    }));
             }
             NodeType::Type => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateType {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateType {
                         ty: NodeId::new(node_id.id),
-                    },
-                ));
+                    }));
             }
             NodeType::Argument => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateArgument {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateArgument {
                         argument: NodeId::new(node_id.id),
-                    },
-                ));
+                    }));
             }
             NodeType::Annotation => {
-                self.queue.push_back(CompilerMessage::EvaluateRequest(
-                    EvaluateRequest::EvaluateAnnotation {
+                self.queue
+                    .push_back(CompilerTask::Evaluate(EvaluateTask::EvaluateAnnotation {
                         annotation: NodeId::new(node_id.id),
-                    },
-                ));
+                    }));
             }
             _ => {
                 // nothing to do
@@ -164,24 +106,16 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    /// Process a compiler message.
-    fn process_message(&mut self, message: CompilerMessage) {
-        match message {
-            CompilerMessage::EvaluateRequest(request) => {
-                let _result = match request {
-                    EvaluateRequest::EvaluateExpression { expression } => {
-                        self.evaluate_expression(expression)
-                    }
-                    EvaluateRequest::EvaluateType { ty } => self.evaluate_type(ty),
-                    EvaluateRequest::EvaluateArgument { argument } => {
-                        self.evaluate_argument(argument)
-                    }
-                    EvaluateRequest::EvaluateAnnotation { annotation } => {
-                        self.evaluate_annotation(annotation)
-                    }
-                };
-            }
-            _ => todo!("process_message({message:?})"),
+    /// Process a compiler task.
+    #[inline]
+    pub(super) fn process(&mut self, task: CompilerTask) {
+        match task {
+            CompilerTask::Load(task) => self.process_load(task),
+            CompilerTask::Evaluate(task) => self.process_evaluate(task),
+            CompilerTask::Validate(task) => self.process_validate(task),
+            CompilerTask::Execute(task) => self.process_execute(task),
+            CompilerTask::Optimize(task) => self.process_optimize(task),
+            CompilerTask::Build(task) => self.process_build(task),
         }
     }
 }

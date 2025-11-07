@@ -6,9 +6,16 @@ mod compile;
 mod diagnostic;
 mod evaluate;
 mod execute;
+mod load;
 mod lower;
 mod optimize;
 mod validate;
 
+pub use build::*;
 pub use compile::*;
 pub use diagnostic::*;
+pub use evaluate::*;
+pub use execute::*;
+pub use load::*;
+pub use optimize::*;
+pub use validate::*;

@@ -48,12 +48,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // handle diagnostics
-    print_diagnostics(
-        &diagnostics,
-        language,
-        DiagnosticSeverity::Error,
-        |_| Some(&file),
-    );
+    print_diagnostics(&diagnostics, language, DiagnosticSeverity::Error, |_| {
+        Some(&file)
+    });
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
