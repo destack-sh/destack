@@ -46,43 +46,6 @@ impl<'a> Parser<'a> {
         let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
         Ok(namespace_id)
     }
-
-    // Eat a namespace body (aka a namespace file, without `namespace` keyword or braces).
-    pub fn eat_namespace_body(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
-        let start = self.mark();
-
-        // with
-        let with_clauses = self.eat_with_header_maybe()?;
-
-        // where
-        let where_clauses = self.eat_where_maybe()?;
-
-        // body
-        let expressions = self
-            .eat_block_body(BlockFormat::Implicit)
-            .for_node_type(NodeType::Block)?;
-        let namespace = Definition::Namespace {
-            meta,
-            with_clauses,
-            where_clauses,
-            expressions,
-        };
-        let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
-        Ok(namespace_id)
-    }
-
-    /// Eat an implicit namespace body (without `namespace` keyword or braces).
-    pub fn eat_implicit_namespace_with_recovery(
-        &mut self,
-        meta: DefinitionMeta,
-    ) -> Option<NodeId<Definition>> {
-        self.with_recovery(
-            self.mark(),
-            |parser| parser.eat_namespace_body(meta).map(Some),
-            None,
-            TokenType::End,
-        )
-    }
 }
 
 #[cfg(test)]

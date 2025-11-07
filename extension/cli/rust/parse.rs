@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use destack_terminal::{CommandArguments, console};
-use dyst_ast::{DefinitionMeta, Dumper, DumperOptions, Name, NodeVisitor};
+use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, LanguageOptions, Severity};
+use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
@@ -36,29 +34,26 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let language = LanguageOptions::default();
     let mut diagnostics = DiagnosticCollector::new();
     let mut parser = Parser::from_file(&file, language, &mut diagnostics);
-    let module_name = file
-        .uri
-        .last_segment()
-        .map(|s| Name::Identifier(parser.intern_string(s)))
-        .unwrap_or(Name::String(parser.intern_string("<string>")));
-    let definition_id =
-        parser.eat_implicit_namespace_with_recovery(DefinitionMeta::new(module_name));
-    parser.finish();
+    let expressions = parser.parse();
 
     // dump AST to output
     if !silent {
         let dump_options = DumperOptions::default();
         let mut dumper = Dumper::new(&parser.strings, &parser.tree, dump_options);
-        if let Some(definition_id) = definition_id {
-            dumper.visit_definition(&parser.tree, definition_id, parser.tree.get(definition_id));
+        for expression in expressions {
+            dumper.visit_expression(&parser.tree, expression, parser.tree.get(expression));
         }
         console::info(&dumper.finish());
     }
 
     // handle diagnostics
-    let source_by_id = HashMap::from([(file.id, &file)]);
-    print_diagnostics(&source_by_id, language, &diagnostics);
-    if diagnostics.has_diagnostics_of_severity(Severity::Error) {
+    print_diagnostics(
+        &diagnostics,
+        language,
+        DiagnosticSeverity::Error,
+        |_| Some(&file),
+    );
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
     0

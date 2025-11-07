@@ -833,8 +833,7 @@ struct Test {}
 "#,
         );
         let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finish();
+        let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -885,8 +884,7 @@ struct Test {}
     fn test_attach_decorator_to_function() {
         let mut test = TestParser::new("@foo\nfunction foo() { }");
         let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finish();
+        let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -907,8 +905,7 @@ struct Test {}
         // C and D are not in "valid" positions and should fall back to infix
         let mut test = TestParser::new("#A\n#B struct #C Test #D { #E } #F\n#G");
         let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finish();
+        let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -982,8 +979,7 @@ struct Test {}
     fn test_attach_line_postfix_to_expression() {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finish();
+        let expressions = parser.parse();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
@@ -1007,8 +1003,7 @@ struct Test {}
 over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
-        let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.finish();
+        let expressions = parser.parse();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);

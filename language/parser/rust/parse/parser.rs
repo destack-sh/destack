@@ -2,6 +2,7 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
+use dyst_ast::{BlockFormat, Expression, NodeId};
 use dyst_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
     StringId, StringPool,
@@ -259,6 +260,8 @@ pub struct Parser<'ast> {
 
     /// The current position in the tokens.
     pos: usize,
+    /// Whether the parser is finished.
+    is_finished: bool,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -302,6 +305,7 @@ impl<'a> Parser<'a> {
             tokens,
             side_tokens,
             pos: 0,
+            is_finished: false,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::new(file.id),
@@ -336,15 +340,31 @@ impl<'a> Parser<'a> {
 
     /// Reset the parser.
     pub(crate) fn reset(&mut self) {
+        debug_assert!(!self.is_finished, "parser is already finished");
         self.pos = 0;
         self.options = ParserOptions::default();
         self.errors.clear();
     }
 
-    /// Finish parsing.
+    /// Parse everything as an implicit namespace (without creating the namespace).
+    pub fn parse(&mut self) -> Vec<NodeId<Expression>> {
+        let expressions = self.with_recovery(
+            self.mark(),
+            |parser| parser.eat_block_body(BlockFormat::Implicit),
+            Vec::new(),
+            TokenType::End,
+        );
+        self.finish();
+        expressions
+    }
+
+    /// Finish parsing. You don't need to call this manually if using Parser::parse().
     #[inline]
     pub fn finish(&mut self) {
-        self.attach_annotations();
+        if !self.is_finished {
+            self.attach_annotations();
+            self.is_finished = true;
+        }
     }
 
     /// Get the current position in the tokens.
@@ -505,6 +525,7 @@ impl<'a> Parser<'a> {
     /// Bump the Token position.
     #[inline]
     pub fn bump(&mut self) {
+        debug_assert!(!self.is_finished, "parser is already finished");
         debug_assert!(self.pos < self.tokens.len(), "bump past end of tokens");
         self.pos += 1;
     }
@@ -512,6 +533,7 @@ impl<'a> Parser<'a> {
     /// Bump the Token position by a given distance.
     #[inline]
     pub fn bump_by(&mut self, distance: u8) {
+        debug_assert!(!self.is_finished, "parser is already finished");
         debug_assert!(
             self.pos + (distance as usize) < self.tokens.len(),
             "bump past end of tokens"

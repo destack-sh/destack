@@ -314,7 +314,7 @@ mod tests {
         // dump diagnostics
         if !diagnostics.is_empty() {
             for diagnostic in diagnostics.iter() {
-                let source = sources.get(&diagnostic.source).unwrap();
+                let source = sources.get(&diagnostic.file_id).unwrap();
                 let annotated = dyst_source::annotate_source(
                     source,
                     &diagnostic.primary_span,
