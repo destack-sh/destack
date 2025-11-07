@@ -2,6 +2,7 @@
 #![feature(if_let_guard)]
 
 pub mod dump;
+pub mod formatter;
 pub mod module;
 pub mod tree;
 

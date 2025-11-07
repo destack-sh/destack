@@ -57,7 +57,6 @@ impl StringPool {
     }
 
     /// Intern a string, storing only one owned copy of bytes.
-    ///
     /// Returns the same StringId for identical strings.
     pub fn intern<S: AsRef<str>>(&mut self, some_str: S) -> StringId {
         let input = some_str.as_ref();
@@ -78,6 +77,13 @@ impl StringPool {
         self.strings.push(input.to_owned().into_boxed_str());
         self.index.entry(hash).or_default().push(id);
         id
+    }
+
+    /// Intern a string from another pool.
+    
+    pub fn intern_from(&mut self, other: &StringPool, string_id: StringId) -> StringId {
+        let string = other.get(string_id);
+        self.intern(string)
     }
 
     /// Get the number of unique strings stored in this pool.

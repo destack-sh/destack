@@ -1,4 +1,5 @@
 mod analyze;
+mod artifact;
 mod ast;
 mod build;
 mod compile;
@@ -9,6 +10,7 @@ mod lower;
 mod validate;
 
 pub use analyze::*;
+pub use artifact::*;
 pub use ast::*;
 pub use build::*;
 pub use compile::*;

@@ -54,8 +54,7 @@ impl<'s> Compiler<'s> {
 
     // Intern an AST string for a certain source.
     pub fn intern_string(&mut self, module: &Module, string_id: StringId) -> StringId {
-        let string = module.strings.get(string_id);
-        self.strings.intern(string)
+        self.strings.intern_from(&module.strings, string_id)
     }
 
     /// Get an interned string.

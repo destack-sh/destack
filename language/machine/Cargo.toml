@@ -20,8 +20,6 @@ dyst_mir = { workspace = true }
 
 destack_unicode = { workspace = true }
 
-rayon = { workspace = true }
-
 [dev-dependencies]
 
 [lints]

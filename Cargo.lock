@@ -2668,6 +2668,9 @@ dependencies = [
  "dyst_dir",
  "dyst_fir",
  "dyst_formatter",
+ "dyst_javascript_ast",
+ "dyst_javascript_machine",
+ "dyst_javascript_transpiler",
  "dyst_parser",
  "dyst_source",
  "tokio",
@@ -2955,7 +2958,6 @@ dependencies = [
  "dyst_mir",
  "dyst_parser",
  "dyst_source",
- "rayon",
 ]
 
 [[package]]
@@ -3006,7 +3008,6 @@ dependencies = [
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
- "rayon",
  "v8 142.0.0",
 ]
 
@@ -3016,12 +3017,13 @@ version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
  "dyst_ast",
+ "dyst_compiler",
  "dyst_dir",
  "dyst_fir",
  "dyst_javascript_ast",
  "dyst_mir",
+ "dyst_parser",
  "dyst_source",
- "rayon",
 ]
 
 [[package]]
@@ -3034,7 +3036,6 @@ dependencies = [
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
- "rayon",
 ]
 
 [[package]]
