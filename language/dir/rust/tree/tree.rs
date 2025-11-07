@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use dyst_ast as ast;
-use dyst_source::FileId;
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase, Node,
-    NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant, WhereClause,
-    WithClause,
+    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase,
+    ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant,
+    WhereClause, WithClause,
 };
 
 /// The DIR Node tree across a set of related source units.
@@ -20,14 +19,14 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
-    pub(crate) source_by_node_id: Vec<FileId>,
+    pub(crate) source_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The source AST ids of all nodes. Index is the global node id.
     pub(crate) ast_id_by_node_id: Vec<Option<u32>>,
     /// The alias node id by AST source / node id.
-    pub(crate) alias_node_id_by_ast_id: HashMap<(FileId, u32), u32>,
+    pub(crate) alias_node_id_by_ast_id: HashMap<(ModuleId, u32), u32>,
     /// The alias node id by DIR source / node id.
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
 
@@ -100,7 +99,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, file_id: FileId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -110,7 +109,7 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.source_by_node_id.push(file_id);
+        self.source_by_node_id.push(module_id);
         NodeId::new(global_id)
     }
 
@@ -118,7 +117,7 @@ impl NodeTree {
     pub fn insert_from_ast<T, U>(
         &mut self,
         node: T,
-        file_id: FileId,
+        module_id: ModuleId,
         ast_node_id: ast::NodeId<U>,
     ) -> NodeId<T>
     where
@@ -127,10 +126,10 @@ impl NodeTree {
         U: ast::Node,
         ast::NodeTree: ast::NodeTreeImpl<U>,
     {
-        let node_id = self.insert(node, file_id);
+        let node_id = self.insert(node, module_id);
         self.ast_id_by_node_id.push(Some(ast_node_id.id));
         self.alias_node_id_by_ast_id
-            .insert((file_id, ast_node_id.id), node_id.id);
+            .insert((module_id, ast_node_id.id), node_id.id);
         node_id
     }
 
@@ -142,21 +141,21 @@ impl NodeTree {
         U: Node,
         Self: NodeTreeImpl<U>,
     {
-        let file_id = self.source_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, file_id);
+        let module_id = self.source_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, module_id);
         self.ast_id_by_node_id.push(None);
         self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
         node_id
     }
 
     /// Add an alias node for a lowered AST id.
-    pub fn alias_from_ast<T>(&mut self, file_id: FileId, ast_id: u32, alias: NodeId<T>)
+    pub fn alias_from_ast<T>(&mut self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
     {
         self.alias_node_id_by_ast_id
-            .insert((file_id, ast_id), alias.id);
+            .insert((module_id, ast_id), alias.id);
     }
 
     /// Add an alias node for a derived DIR id.
@@ -219,7 +218,7 @@ impl NodeTree {
 
     /// Get the source and AST id of a node by its global id.
     /// Every DIR node has a source, but only some come directly from AST nodes.
-    pub fn get_source(&self, node_id: u32) -> (FileId, Option<u32>) {
+    pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         (
             self.source_by_node_id[node_id as usize],
             self.ast_id_by_node_id[node_id as usize],
@@ -228,9 +227,9 @@ impl NodeTree {
 
     // Get the node id by its source / AST id.
     #[inline]
-    pub fn get_node_id_by_ast_id(&self, file_id: FileId, ast_id: u32) -> Option<u32> {
+    pub fn get_node_id_by_ast_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
         self.alias_node_id_by_ast_id
-            .get(&(file_id, ast_id))
+            .get(&(module_id, ast_id))
             .copied()
     }
 

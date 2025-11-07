@@ -8,7 +8,7 @@ mod evaluate;
 mod execute;
 mod lower;
 mod optimize;
-mod validate; 
+mod validate;
 
-pub use diagnostic::*;
 pub use compile::*;
+pub use diagnostic::*;

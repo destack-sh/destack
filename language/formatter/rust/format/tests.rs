@@ -70,7 +70,7 @@ impl TestFormatter {
             options,
             source: &self.source,
             tree: &self.tree,
-            spans: &self.tree.spans,
+            source_map: &self.tree.source_map,
             parents: NodeParentIndex::from_tree(&self.tree),
             tokens: &self.tokens,
             side_tokens: &self.side_tokens,

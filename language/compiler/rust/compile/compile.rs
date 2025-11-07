@@ -5,7 +5,7 @@ use dyst_dir::{
 };
 
 use crate::{
-    BuildRequest, Compiler, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest
+    BuildRequest, Compiler, EvaluateRequest, ExecuteRequest, LoadRequest, ValidateRequest,
 };
 
 /// Message from the compiler during compilation.
@@ -59,7 +59,7 @@ impl CompilerQueue {
         self.messages.pop_front()
     }
 
-    /// Check if the queue is empty. 
+    /// Check if the queue is empty.
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
     }
@@ -160,7 +160,7 @@ impl<'s> Compiler<'s> {
             }
             _ => {
                 // nothing to do
-            },
+            }
         }
     }
 

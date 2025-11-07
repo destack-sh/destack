@@ -1,12 +1,12 @@
 use crate::{
-    Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,
-    NodeTreeImpl, NodeType, TokenSpan, TokenType,
+    Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeTree, NodeTreeImpl,
+    NodeType, TokenSpan, TokenType,
 };
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_source::{
-    File, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding, MultiSpan, Span,
-    StringId, StringPool,
+    File, FileSourceMap, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding,
+    MultiSpan, Span, StringId, StringPool,
 };
 
 pub type LanguageFormatter<'ast, 'buf> = Formatter<'buf, LanguageFormatContext<'ast>>;
@@ -136,8 +136,8 @@ pub struct LanguageFormatContext<'ast> {
     pub side_span: &'ast MultiSpan,
     /// The tree.
     pub tree: &'ast NodeTree,
-    /// The span index.
-    pub spans: &'ast NodeSpanIndex,
+    /// The source map.
+    pub source_map: &'ast FileSourceMap,
     /// The parent index.
     pub parents: NodeParentIndex,
     /// The string pool.
@@ -240,7 +240,7 @@ impl<'ast> LanguageFormatContext<'ast> {
     /// Get a Span from the tree.
     #[inline]
     pub fn get_span_by_id(&self, node_id: u32) -> Span {
-        self.spans.get_by_id(node_id)
+        self.source_map.get(node_id)
     }
 
     /// Whether the given span has a newline.

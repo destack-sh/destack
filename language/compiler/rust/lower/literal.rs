@@ -1,14 +1,14 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{DefinitionType, FloatType, IntType, PrimitiveType, ScalarLiteral, TypeLiteral};
-use dyst_source::FileId;
+use dyst_dir::{
+    DefinitionType, FloatType, IntType, Module, PrimitiveType, ScalarLiteral, TypeLiteral,
+};
 
 impl<'a> Compiler<'a> {
     /// Lower a path to a DIR path.
     pub fn lower_scalar_literal(
         &mut self,
-        file_id: FileId,
-        _ast: &ast::NodeTree,
+        module: &Module,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
         match scalar_literal {
@@ -19,12 +19,12 @@ impl<'a> Compiler<'a> {
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
             ast::ScalarLiteral::Character(character) => ScalarLiteral::Character(*character),
             ast::ScalarLiteral::String(string) => {
-                let string = self.intern_string(file_id, *string);
+                let string = self.intern_string(module, *string);
                 ScalarLiteral::String(string)
             }
             ast::ScalarLiteral::RegexString { content, flags } => {
-                let content = self.intern_string(file_id, *content);
-                let flags = flags.map(|flag| self.intern_string(file_id, flag));
+                let content = self.intern_string(module, *content);
+                let flags = flags.map(|flag| self.intern_string(module, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
             ast::ScalarLiteral::ByteString(byte_string) => {

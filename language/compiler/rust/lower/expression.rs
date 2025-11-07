@@ -1,9 +1,8 @@
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    IfKind, NodeId, Path, PathBase, Runtime, Visibility,
+    IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
 };
-use dyst_source::FileId;
 
 use crate::Compiler;
 
@@ -95,18 +94,17 @@ impl<'a> Compiler<'a> {
     /// Lower an expression to a DIR expression.
     pub fn lower_expression(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Expression> {
-        let expression = ast.get(expression_id);
+        let expression = module.get(expression_id);
         let expression = match expression {
             ast::Expression::Block(block_id) => {
-                let block_id = self.lower_block(file_id, ast, *block_id);
+                let block_id = self.lower_block(module, *block_id);
                 Expression::Block { block: block_id }
             }
             ast::Expression::Definition(definition_id) => {
-                let definition_id = self.lower_definition(file_id, ast, *definition_id);
+                let definition_id = self.lower_definition(module, *definition_id);
                 Expression::Definition {
                     definition: definition_id,
                 }
@@ -115,9 +113,9 @@ impl<'a> Compiler<'a> {
             ast::Expression::With { clauses, body } => {
                 let clauses = clauses
                     .iter()
-                    .map(|clause| self.lower_with_clause(file_id, ast, *clause))
+                    .map(|clause| self.lower_with_clause(module, *clause))
                     .collect();
-                let body = body.map(|body| self.lower_block(file_id, ast, body));
+                let body = body.map(|body| self.lower_block(module, body));
                 Expression::With { clauses, body }
             }
             ast::Expression::Import {
@@ -129,9 +127,8 @@ impl<'a> Compiler<'a> {
                 arguments,
             } => {
                 let asynchrony = self.lower_asynchrony(*asynchrony);
-                let items = self.lower_dependency_binding(
-                    file_id,
-                    ast,
+                let items = self.lower_dependency_items(
+                    module,
                     expression_id,
                     *kind,
                     Some(target),
@@ -141,10 +138,10 @@ impl<'a> Compiler<'a> {
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(file_id, ast, *argument))
+                        .map(|argument| self.lower_argument(module, *argument))
                         .collect()
                 });
-                let kind = self.lower_dependency_kind(file_id, ast, *kind);
+                let kind = self.lower_dependency_kind(*kind);
                 Expression::Import {
                     kind,
                     asynchrony,
@@ -160,17 +157,16 @@ impl<'a> Compiler<'a> {
                 items,
                 value,
             } => {
-                let items = self.lower_dependency_binding(
-                    file_id,
-                    ast,
+                let items = self.lower_dependency_items(
+                    module,
                     expression_id,
                     *kind,
                     target.as_ref(),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
-                let kind = self.lower_dependency_kind(file_id, ast, *kind);
+                let value = value.map(|value| self.lower_expression(module, value));
+                let kind = self.lower_dependency_kind(*kind);
                 Expression::Export {
                     mode: self.lower_export_type(*mode),
                     kind,
@@ -185,10 +181,10 @@ impl<'a> Compiler<'a> {
                 ty,
                 value,
             } => {
-                let mutability = self.lower_scoped_mutability(file_id, ast, mutability);
-                let pattern = self.lower_pattern(file_id, ast, *pattern);
-                let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let mutability = self.lower_scoped_mutability(module, mutability);
+                let pattern = self.lower_pattern(module, *pattern);
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
+                let value = value.map(|value| self.lower_expression(module, value));
                 Expression::Let {
                     mutability,
                     pattern,
@@ -203,7 +199,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let name = self.intern_string(
-                    file_id,
+                    module,
                     meta.name.expect("LetType must have a name").string(),
                 );
                 let mutability = mutability
@@ -212,10 +208,10 @@ impl<'a> Compiler<'a> {
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
-                        .map(|param| self.lower_parameter(file_id, ast, *param))
+                        .map(|param| self.lower_parameter(module, *param))
                         .collect()
                 });
-                let value = self.lower_expression(file_id, ast, *value);
+                let value = self.lower_expression(module, *value);
                 Expression::LetType {
                     mutability,
                     name,
@@ -228,7 +224,7 @@ impl<'a> Compiler<'a> {
                 operator,
                 expression: right,
             } => {
-                let right = self.lower_expression(file_id, ast, *right);
+                let right = self.lower_expression(module, *right);
                 let operator = self.lower_unary_operator(*operator);
                 Expression::Unary {
                     operator,
@@ -240,7 +236,7 @@ impl<'a> Compiler<'a> {
                 operator,
                 expression: right,
             } => {
-                let right = self.lower_expression(file_id, ast, *right);
+                let right = self.lower_expression(module, *right);
                 let operator = self.lower_type_unary_operator(*operator);
                 Expression::TypeUnary {
                     operator,
@@ -255,9 +251,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability
                     .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(file_id, ast, mutability));
+                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
-                let right = self.lower_expression(file_id, ast, *right);
+                let right = self.lower_expression(module, *right);
                 Expression::Value {
                     mutability,
                     variance,
@@ -271,9 +267,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability
                     .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(file_id, ast, mutability));
+                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
-                let right = self.lower_expression(file_id, ast, *right);
+                let right = self.lower_expression(module, *right);
                 Expression::Reference {
                     mutability,
                     variance,
@@ -285,8 +281,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.lower_expression(file_id, ast, *left);
-                let right = self.lower_expression(file_id, ast, *right);
+                let left = self.lower_expression(module, *left);
+                let right = self.lower_expression(module, *right);
                 let operator = self.lower_binary_operator(*operator);
                 Expression::Binary {
                     left,
@@ -299,8 +295,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.lower_expression(file_id, ast, *left);
-                let right = self.lower_expression(file_id, ast, *right);
+                let left = self.lower_expression(module, *left);
+                let right = self.lower_expression(module, *right);
                 let operator = self.lower_type_binary_operator(*operator);
                 Expression::TypeBinary {
                     left,
@@ -313,8 +309,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.lower_expression(file_id, ast, *left);
-                let right = self.lower_expression(file_id, ast, *right);
+                let left = self.lower_expression(module, *left);
+                let right = self.lower_expression(module, *right);
                 let operator = self.lower_assign_operator(*operator);
                 if let Some(operator) = operator {
                     Expression::AssignBinary {
@@ -332,12 +328,12 @@ impl<'a> Compiler<'a> {
                 path,
                 static_arguments,
             } => {
-                let left = self.lower_expression(file_id, ast, *receiver);
-                let path = self.lower_path(file_id, ast, path);
+                let left = self.lower_expression(module, *receiver);
+                let path = self.lower_path(module, path);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(file_id, ast, *argument))
+                        .map(|argument| self.lower_argument(module, *argument))
                         .collect()
                 });
                 Expression::Member {
@@ -351,10 +347,10 @@ impl<'a> Compiler<'a> {
                 left: receiver,
                 dynamic_arguments,
             } => {
-                let receiver = self.lower_expression(file_id, ast, *receiver);
+                let receiver = self.lower_expression(module, *receiver);
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.lower_argument(file_id, ast, *argument))
+                    .map(|argument| self.lower_argument(module, *argument))
                     .collect();
                 Expression::Call {
                     left: receiver,
@@ -366,19 +362,19 @@ impl<'a> Compiler<'a> {
                 left: receiver,
                 index,
             } => {
-                let receiver = self.lower_expression(file_id, ast, *receiver);
-                let index = index.map(|index| self.lower_expression(file_id, ast, index));
+                let receiver = self.lower_expression(module, *receiver);
+                let index = index.map(|index| self.lower_expression(module, index));
                 Expression::Index {
                     left: receiver,
                     right: index,
                 }
             }
             ast::Expression::Maybe { position: _, left } => {
-                let left = self.lower_expression(file_id, ast, *left);
+                let left = self.lower_expression(module, *left);
                 Expression::Maybe { left }
             }
             ast::Expression::Must { position: _, left } => {
-                let left = self.lower_expression(file_id, ast, *left);
+                let left = self.lower_expression(module, *left);
                 Expression::Must { left }
             }
 
@@ -386,11 +382,11 @@ impl<'a> Compiler<'a> {
                 path,
                 static_arguments: _,
             } => {
-                let path = self.lower_path(file_id, ast, path);
+                let path = self.lower_path(module, path);
                 Expression::Path { path }
             }
             ast::Expression::ScalarLiteral(value) => {
-                let value = self.lower_scalar_literal(file_id, ast, value);
+                let value = self.lower_scalar_literal(module, value);
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TypeLiteral(value) => {
@@ -406,24 +402,24 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::StructLiteral { ty, fields } => {
-                let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_argument(file_id, ast, *field))
+                    .map(|field| self.lower_argument(module, *field))
                     .collect();
                 Expression::StructLiteral { ty, fields }
             }
             ast::Expression::TupleLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_argument(file_id, ast, *element))
+                    .map(|element| self.lower_argument(module, *element))
                     .collect();
                 Expression::TupleLiteral { ty: None, elements }
             }
             ast::Expression::ArrayLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_argument(file_id, ast, *element))
+                    .map(|element| self.lower_argument(module, *element))
                     .collect();
                 Expression::ArrayLiteral { elements }
             }
@@ -435,10 +431,10 @@ impl<'a> Compiler<'a> {
                 else_expression,
             } => {
                 let kind = self.lower_if_kind(*kind);
-                let condition = self.lower_expression(file_id, ast, *condition);
-                let then_expression = self.lower_expression(file_id, ast, *then_expression);
+                let condition = self.lower_expression(module, *condition);
+                let then_expression = self.lower_expression(module, *then_expression);
                 let else_expression = else_expression
-                    .map(|else_expression| self.lower_expression(file_id, ast, else_expression));
+                    .map(|else_expression| self.lower_expression(module, else_expression));
                 Expression::If {
                     kind,
                     condition,
@@ -447,16 +443,16 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Break { label, value } => {
-                let target = label.map(|label| self.lower_label(file_id, ast, label));
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let target = label.map(|label| self.lower_label(module, label));
+                let value = value.map(|value| self.lower_expression(module, value));
                 Expression::Break { target, value }
             }
             ast::Expression::Continue { label } => {
-                let target = label.map(|label| self.lower_label(file_id, ast, label));
+                let target = label.map(|label| self.lower_label(module, label));
                 Expression::Continue { target }
             }
             ast::Expression::Return { value } => {
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let value = value.map(|value| self.lower_expression(module, value));
                 Expression::Return { value }
             }
 
@@ -465,6 +461,6 @@ impl<'a> Compiler<'a> {
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
         self.tree
-            .insert_from_ast(expression, file_id, expression_id)
+            .insert_from_ast(expression, module.id, expression_id)
     }
 }
