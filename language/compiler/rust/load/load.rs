@@ -2,7 +2,7 @@ use crate::Compiler;
 
 use dyst_source::{File, Uri};
 
-/// Request to load a file into the compiler.
+/// Task to load a file into the compiler.
 #[derive(Debug, Clone)]
 pub enum LoadTask {
     /// Feed a preloaded file.
@@ -12,8 +12,8 @@ pub enum LoadTask {
 }
 
 impl<'a> Compiler<'a> {
-    /// Process a load request.
-    pub fn process_load(&mut self, request: LoadTask) {
-        todo!("process_load({request:?})")
+    /// Process a load task.
+    pub fn process_load(&mut self, task: LoadTask) {
+        todo!("process_load({task:?})")
     }
 }

@@ -2,7 +2,7 @@ use crate::Compiler;
 
 use dyst_dir::{Annotation, Argument, Expression, NodeId, NodeIdAny, Type};
 
-/// Request to statically evaluate something in-place.
+/// Task to statically evaluate something in-place.
 #[derive(Debug, Clone)]
 pub enum EvaluateTask {
     /// Evaluate an Expression fully (in-place).
@@ -34,8 +34,8 @@ pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
 impl<'a> Compiler<'a> {
     /// Evaluate a node.
-    pub fn process_evaluate(&mut self, request: EvaluateTask) {
-        let result = match request {
+    pub fn process_evaluate(&mut self, task: EvaluateTask) {
+        let result = match task {
             EvaluateTask::EvaluateExpression { expression } => self.evaluate_expression(expression),
             EvaluateTask::EvaluateType { ty } => self.evaluate_type(ty),
             EvaluateTask::EvaluateArgument { argument } => self.evaluate_argument(argument),
