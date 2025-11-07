@@ -54,7 +54,7 @@ impl<'s> Compiler<'s> {
         };
         compiler
             .queue
-            .push_back(CompilerTask::Load(LoadTask::LoadFile { file }));
+            .push_back(CompilerTask::Load(LoadTask::LoadFileFromMemory { file }));
         compiler
     }
 }

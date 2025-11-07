@@ -34,7 +34,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // parse as implicit module
     let language = LanguageOptions::default();
     let mut diagnostics = DiagnosticCollector::new();
-    let mut parser = Parser::from_file(&file, language, &mut diagnostics);
+    let mut parser = Parser::lex_file(&file, language, &mut diagnostics);
     let expressions = parser.parse();
 
     // dump AST to output
