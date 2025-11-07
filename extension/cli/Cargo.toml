@@ -21,6 +21,9 @@ dyst_compiler = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_formatter = { workspace = true }
+dyst_javascript_ast = { workspace = true }
+dyst_javascript_transpiler = { workspace = true }
+dyst_javascript_machine = { workspace = true, optional = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 

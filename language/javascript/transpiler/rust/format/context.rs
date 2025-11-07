@@ -9,8 +9,8 @@ use crate::TranspilerOptions;
 pub enum FormatMode {
     /// Pretty.
     Pretty,
-    /// Minified.
-    Minified,
+    /// Minimal.
+    Minimal,
 }
 
 /// JS/TS format options (mostly for testing).
@@ -57,28 +57,28 @@ impl LanguageFormatOptions {
         }
     }
 
-    /// Minified options.
-    pub fn minified() -> Self {
+    /// Minimal options.
+    pub fn minimal() -> Self {
         Self {
-            mode: FormatMode::Minified,
-            indent_width: 1,
+            mode: FormatMode::Minimal,
+            indent_width: 0,
             ..Self::default()
         }
     }
 
-    /// Minified options with a given line width.
-    pub fn minified_with_line_width(line_width: u8) -> Self {
+    /// Minimal options with a given line width.
+    pub fn minimal_with_line_width(line_width: u8) -> Self {
         Self {
-            mode: FormatMode::Minified,
+            mode: FormatMode::Minimal,
             line_width,
             ..Self::default()
         }
     }
 
-    /// Minified options with tab indent style.
-    pub fn minified_tab() -> Self {
+    /// Minimal options with tab indent style.
+    pub fn minimal_tab() -> Self {
         Self {
-            mode: FormatMode::Minified,
+            mode: FormatMode::Minimal,
             indent_style: IndentStyle::Tab,
             ..Self::default()
         }
@@ -116,6 +116,18 @@ impl LanguageFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
         }
+    }
+
+    /// Whether this includes type annotations.
+    #[inline]
+    pub fn includes_type_annotations(&self) -> bool {
+        self.transpiler.target.includes_type_annotations()
+    }
+
+    /// Whether this includes XML.
+    #[inline]
+    pub fn includes_xml(&self) -> bool {
+        self.transpiler.target.includes_xml()
     }
 }
 

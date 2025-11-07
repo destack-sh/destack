@@ -19,8 +19,6 @@ dyst_mir = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 
-rayon = { workspace = true }
-
 [dev-dependencies]
 
 [lints]
