@@ -14,7 +14,9 @@ pub(crate) fn get_string_or_file(ctx: &CommandArguments) -> Result<Option<File>,
     if let Some(path_str) = ctx.option("file") {
         let path = Path::new(path_str);
         if path.extension().unwrap_or_default() != extension {
-            return Err(format!("{path_str}: invalid file extension, expected {extension}"));
+            return Err(format!(
+                "{path_str}: invalid file extension, expected {extension}"
+            ));
         }
         let name = path
             .iter()

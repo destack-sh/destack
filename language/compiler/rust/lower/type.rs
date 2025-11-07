@@ -1,23 +1,22 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{NodeId, Type, TypeLiteral};
-use dyst_source::FileId;
+use dyst_dir::{Module, NodeId, Type, TypeLiteral};
 
 impl<'a> Compiler<'a> {
     /// Lower a an expression into a type (without evaluating it at all).
     pub fn lower_expression_to_type(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
-        let expression = self.lower_expression(file_id, ast, expression_id);
+        let expression = self.lower_expression(module, expression_id);
         let type_id = self.tree.insert_from_ast(
             Type::UnevaluatedExpression(expression),
-            file_id,
+            module.id,
             expression_id,
         );
-        self.tree.alias_from_ast(file_id, expression_id.id, type_id);
+        self.tree
+            .alias_from_ast(module.id, expression_id.id, type_id);
         type_id
     }
 

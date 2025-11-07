@@ -1,17 +1,16 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Argument, BindingKind, BindingModifier, BindingOperator, Expression, Mutability, NodeId,
-    Parameter, Path, Visibility,
+    Argument, BindingKind, BindingModifier, BindingOperator, Expression, Module, Mutability,
+    NodeId, Parameter, Path, Visibility,
 };
-use dyst_source::{FileId, smallvec};
+use dyst_source::smallvec;
 
 impl<'a> Compiler<'a> {
     /// Lower a binding modifiers into a DIR binding modifiers.
     pub fn lower_binding_modifier(
         &mut self,
-        _file_id: FileId,
-        _ast: &ast::NodeTree,
+        _module: &Module,
         modifiers: ast::BindingModifier,
     ) -> BindingModifier {
         let kind = modifiers.kind.map(|kind| match kind {
@@ -41,11 +40,10 @@ impl<'a> Compiler<'a> {
     /// Lower a parameter into a DIR parameter.
     pub fn lower_parameter(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         parameter_id: ast::NodeId<ast::Parameter>,
     ) -> NodeId<Parameter> {
-        let parameter = ast.get(parameter_id);
+        let parameter = module.get(parameter_id);
         match parameter {
             ast::Parameter::Named {
                 modifiers,
@@ -53,11 +51,11 @@ impl<'a> Compiler<'a> {
                 ty,
                 default,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = self.intern_string(file_id, *name);
-                let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
-                let default = default.map(|default| self.lower_expression(file_id, ast, default));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = self.intern_string(module, *name);
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
+                let default = default.map(|default| self.lower_expression(module, default));
                 self.tree.insert_from_ast(
                     Parameter::Named {
                         modifiers,
@@ -65,7 +63,7 @@ impl<'a> Compiler<'a> {
                         ty,
                         default,
                     },
-                    file_id,
+                    module.id,
                     parameter_id,
                 )
             }
@@ -75,11 +73,11 @@ impl<'a> Compiler<'a> {
                 ty,
                 default,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let pattern = self.lower_pattern(file_id, ast, *pattern);
-                let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
-                let default = default.map(|default| self.lower_expression(file_id, ast, default));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let pattern = self.lower_pattern(module, *pattern);
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
+                let default = default.map(|default| self.lower_expression(module, default));
                 self.tree.insert_from_ast(
                     Parameter::Pattern {
                         modifiers,
@@ -87,7 +85,7 @@ impl<'a> Compiler<'a> {
                         ty,
                         default,
                     },
-                    file_id,
+                    module.id,
                     parameter_id,
                 )
             }
@@ -96,17 +94,17 @@ impl<'a> Compiler<'a> {
                 name,
                 ty,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = self.intern_string(file_id, *name);
-                let ty = ty.map(|ty| self.lower_expression_to_type(file_id, ast, ty));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = self.intern_string(module, *name);
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 self.tree.insert_from_ast(
                     Parameter::Variadic {
                         modifiers,
                         name,
                         ty,
                     },
-                    file_id,
+                    module.id,
                     parameter_id,
                 )
             }
@@ -116,58 +114,57 @@ impl<'a> Compiler<'a> {
     /// Lower an argument into a DIR argument.
     pub fn lower_argument(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         argument_id: ast::NodeId<ast::Argument>,
     ) -> NodeId<Argument> {
-        let argument = ast.get(argument_id);
+        let argument = module.get(argument_id);
         match argument {
             ast::Argument::Named {
                 modifiers,
                 name,
                 value,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = self.intern_string(file_id, name.string());
-                let value = self.lower_expression(file_id, ast, *value);
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = self.intern_string(module, name.string());
+                let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
                         modifiers,
                         name,
                         value,
                     },
-                    file_id,
+                    module.id,
                     argument_id,
                 )
             }
             ast::Argument::Shorthand { modifiers, name } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = self.intern_string(file_id, *name);
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = self.intern_string(module, *name);
                 let path = Path::UnevaluatedAbsoluteString {
                     segments: smallvec![name],
                 };
                 let value =
                     self.tree
-                        .insert_from_ast(Expression::Path { path }, file_id, argument_id);
+                        .insert_from_ast(Expression::Path { path }, module.id, argument_id);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
                         modifiers,
                         name,
                         value,
                     },
-                    file_id,
+                    module.id,
                     argument_id,
                 )
             }
             ast::Argument::Positional { modifiers, value } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let value = self.lower_expression(file_id, ast, *value);
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedPositional { modifiers, value },
-                    file_id,
+                    module.id,
                     argument_id,
                 )
             }
@@ -176,17 +173,17 @@ impl<'a> Compiler<'a> {
                 name,
                 value,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = name.map(|name| self.intern_string(file_id, name));
-                let value = self.lower_expression(file_id, ast, *value);
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = name.map(|name| self.intern_string(module, name));
+                let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedSpread {
                         modifiers,
                         name,
                         value,
                     },
-                    file_id,
+                    module.id,
                     argument_id,
                 )
             }
@@ -196,11 +193,11 @@ impl<'a> Compiler<'a> {
                 key,
                 value,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = name.map(|name| self.intern_string(file_id, name));
-                let key = self.lower_expression(file_id, ast, *key);
-                let value = self.lower_expression(file_id, ast, *value);
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = name.map(|name| self.intern_string(module, name));
+                let key = self.lower_expression(module, *key);
+                let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedDynamic {
                         modifiers,
@@ -208,7 +205,7 @@ impl<'a> Compiler<'a> {
                         key,
                         value,
                     },
-                    file_id,
+                    module.id,
                     argument_id,
                 )
             }

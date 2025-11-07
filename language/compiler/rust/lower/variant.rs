@@ -1,7 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Field, NodeId, StringId, Type, Variant};
-use dyst_source::FileId;
+use dyst_dir::{Field, Module, NodeId, StringId, Type, Variant};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
@@ -9,22 +8,21 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_field(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         field_id: ast::NodeId<ast::Field>,
     ) -> NodeId<Field> {
-        let field = match ast.get(field_id) {
+        let field = match module.get(field_id) {
             ast::Field::Named {
                 modifiers,
                 name,
                 ty,
                 default,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = self.intern_string(file_id, name.string());
-                let ty = self.lower_expression_to_type(file_id, ast, *ty);
-                let default = default.map(|default| self.lower_expression(file_id, ast, default));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = self.intern_string(module, name.string());
+                let ty = self.lower_expression_to_type(module, *ty);
+                let default = default.map(|default| self.lower_expression(module, default));
                 Field::Named {
                     modifiers,
                     name,
@@ -37,10 +35,10 @@ impl<'a> Compiler<'a> {
                 ty,
                 default,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let ty = self.lower_expression_to_type(file_id, ast, *ty);
-                let default = default.map(|default| self.lower_expression(file_id, ast, default));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let ty = self.lower_expression_to_type(module, *ty);
+                let default = default.map(|default| self.lower_expression(module, default));
                 Field::Positional {
                     modifiers,
                     ty,
@@ -54,12 +52,12 @@ impl<'a> Compiler<'a> {
                 key,
                 default,
             } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(file_id, ast, modifiers));
-                let name = name.map(|name| self.intern_string(file_id, name));
-                let ty = self.lower_expression_to_type(file_id, ast, *ty);
-                let key = self.lower_expression_to_type(file_id, ast, *key);
-                let default = default.map(|default| self.lower_expression(file_id, ast, default));
+                let modifiers =
+                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
+                let name = name.map(|name| self.intern_string(module, name));
+                let ty = self.lower_expression_to_type(module, *ty);
+                let key = self.lower_expression_to_type(module, *key);
+                let default = default.map(|default| self.lower_expression(module, default));
                 Field::Dynamic {
                     modifiers,
                     name,
@@ -70,14 +68,13 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        self.tree.insert_from_ast(field, file_id, field_id)
+        self.tree.insert_from_ast(field, module.id, field_id)
     }
 
     /// Lower an AST struct to a DIR variant.
     pub fn lower_struct_to_variant(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         definition_id: ast::NodeId<ast::Definition>,
         name: Option<StringId>,
         format: ast::VariantFormat,
@@ -86,7 +83,7 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Variant> {
         let fields = fields
             .iter()
-            .map(|field| self.lower_field(file_id, ast, *field))
+            .map(|field| self.lower_field(module, *field))
             .collect();
         let variant = match format {
             ast::VariantFormat::Tuple => Variant::Tuple {
@@ -102,21 +99,20 @@ impl<'a> Compiler<'a> {
                 value: None,
             },
         };
-        self.tree.insert_from_ast(variant, file_id, definition_id)
+        self.tree.insert_from_ast(variant, module.id, definition_id)
     }
 
     /// Lower an AST enum to a DIR variant.
     pub fn lower_enum_to_variant(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         _definition_id: ast::NodeId<ast::Definition>,
         tag_type: Option<NodeId<Type>>,
         fields: &[ast::NodeId<ast::EnumField>],
     ) -> Vec<NodeId<Variant>> {
         fields
             .iter()
-            .map(|field| self.lower_enum_field_to_variant(file_id, ast, tag_type, *field))
+            .map(|field| self.lower_enum_field_to_variant(module, tag_type, *field))
             .collect()
     }
 
@@ -124,23 +120,22 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_enum_field_to_variant(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         representation_type: Option<NodeId<Type>>,
         field_id: ast::NodeId<ast::EnumField>,
     ) -> NodeId<Variant> {
-        let field = ast.get(field_id);
-        let name = self.intern_string(file_id, field.name.string());
+        let field = module.get(field_id);
+        let name = self.intern_string(module, field.name.string());
         let value = field
             .value
-            .map(|value| self.lower_expression(file_id, ast, value));
+            .map(|value| self.lower_expression(module, value));
         self.tree.insert_from_ast(
             Variant::Unit {
                 name: Some(name),
                 ty: representation_type,
                 value,
             },
-            file_id,
+            module.id,
             field_id,
         )
     }
@@ -148,8 +143,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST union to DIR variants.
     pub fn lower_union_to_variant(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         _definition_id: ast::NodeId<ast::Definition>,
         tag_type: Option<NodeId<Type>>,
         representation_type: Option<NodeId<Type>>,
@@ -158,13 +152,7 @@ impl<'a> Compiler<'a> {
         fields
             .iter()
             .map(|field| {
-                self.lower_union_field_to_variant(
-                    file_id,
-                    ast,
-                    tag_type,
-                    representation_type,
-                    *field,
-                )
+                self.lower_union_field_to_variant(module, tag_type, representation_type, *field)
             })
             .collect()
     }
@@ -173,18 +161,17 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub(super) fn lower_union_field_to_variant(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         // NOTE #Incomplete: consider union field tag type?
         _tag_type: Option<NodeId<Type>>,
         representation_type: Option<NodeId<Type>>,
         field_id: ast::NodeId<ast::UnionField>,
     ) -> NodeId<Variant> {
-        let field = ast.get(field_id);
+        let field = module.get(field_id);
         let variant = match field {
             ast::UnionField::Unit { name, value } => {
-                let name = self.intern_string(file_id, *name);
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let name = self.intern_string(module, *name);
+                let value = value.map(|value| self.lower_expression(module, value));
                 Variant::Unit {
                     name: Some(name),
                     ty: representation_type,
@@ -196,12 +183,12 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.intern_string(file_id, *name);
+                let name = self.intern_string(module, *name);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_field(file_id, ast, *field))
+                    .map(|field| self.lower_field(module, *field))
                     .collect();
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let value = value.map(|value| self.lower_expression(module, value));
                 Variant::Tuple {
                     name: Some(name),
                     ty: representation_type,
@@ -214,12 +201,12 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.intern_string(file_id, *name);
+                let name = self.intern_string(module, *name);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_field(file_id, ast, *field))
+                    .map(|field| self.lower_field(module, *field))
                     .collect();
-                let value = value.map(|value| self.lower_expression(file_id, ast, value));
+                let value = value.map(|value| self.lower_expression(module, value));
                 Variant::Struct {
                     name: Some(name),
                     ty: representation_type,
@@ -228,6 +215,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.tree.insert_from_ast(variant, file_id, field_id)
+        self.tree.insert_from_ast(variant, module.id, field_id)
     }
 }

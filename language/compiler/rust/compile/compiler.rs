@@ -53,19 +53,9 @@ impl<'s> Compiler<'s> {
     }
 
     // Intern an AST string for a certain source.
-    pub fn intern_string(&mut self, file_id: FileId, string_id: StringId) -> StringId {
-        // let document = self
-        //     .workspace
-        //     .get_file_by_file_id(file_id)
-        //     .unwrap_or_else(|| panic!("document not found: {file_id:?}"));
-        // match &document.content {
-        //     FileContent::File(FileFile { strings, .. }) => {
-        //         let string = strings.get(string_id);
-        //         self.strings.intern(string)
-        //     }
-        //     FileContent::Binary { .. } => panic!("binary document not supported"),
-        // }
-        todo!("intern_string({file_id:?}, {string_id:?})")
+    pub fn intern_string(&mut self, module: &Module, string_id: StringId) -> StringId {
+        let string = module.strings.get(string_id);
+        self.strings.intern(string)
     }
 
     /// Get an interned string.

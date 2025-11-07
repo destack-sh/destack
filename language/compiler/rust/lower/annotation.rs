@@ -1,36 +1,24 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, NodeId};
-use dyst_source::FileId;
+use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId};
 
 impl<'a> Compiler<'a> {
-    /// Attach all annotations.
-    pub fn attach_all_annotations(&mut self) {
-        todo!()
-        // for document in self.workspace.files() {
-        //     let FileContent::File(FileFile { ast, .. }) = &document.content else {
-        //         continue;
-        //     };
-        //     self.attach_annotations(document.id, ast);
-        // }
-    }
-
-    /// Lower and attach all annotations for a source.
-    pub fn attach_annotations(&mut self, file_id: FileId, ast: &ast::NodeTree) {
+    /// Lower and attach all annotations for a module.
+    pub fn attach_annotations(&mut self, module: &Module) {
         // lower them
-        for ast_annotation_id in ast.get_nodes::<ast::Annotation>() {
-            self.lower_annotation(file_id, ast, ast_annotation_id);
+        for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
+            self.lower_annotation(module, ast_annotation_id);
         }
 
         // attach them
-        for (ast_node_id, ast_annotations) in ast.get_all_annotations() {
-            let Some(dir_node_id) = self.tree.get_node_id_by_ast_id(file_id, *ast_node_id) else {
+        for (ast_node_id, ast_annotations) in module.ast.get_all_annotations() {
+            let Some(dir_node_id) = self.tree.get_node_id_by_ast_id(module.id, *ast_node_id) else {
                 continue;
             };
             for ast_annotation_id in ast_annotations {
                 let Some(dir_annotation_id) = self
                     .tree
-                    .get_node_id_by_ast_id(file_id, ast_annotation_id.id)
+                    .get_node_id_by_ast_id(module.id, ast_annotation_id.id)
                 else {
                     continue; // skipped by lower_annotation
                 };
@@ -58,35 +46,34 @@ impl<'a> Compiler<'a> {
     /// Lower an annotation to a DIR annotation.
     fn lower_annotation(
         &mut self,
-        file_id: FileId,
-        ast: &ast::NodeTree,
+        module: &Module,
         annotation_id: ast::NodeId<ast::Annotation>,
     ) -> Option<NodeId<Annotation>> {
-        let annotation = ast.get(annotation_id);
+        let annotation = module.get(annotation_id);
         let annotation = match annotation {
             ast::Annotation::Blank { .. } => {
                 return None;
             }
             ast::Annotation::Doc { node, position } => {
-                let doc = ast.get(*node);
+                let doc = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.intern_string(file_id, doc.string);
+                let string = self.intern_string(module, doc.string);
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Comment { node, position } => {
-                let comment = ast.get(*node);
+                let comment = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.intern_string(file_id, comment.string);
+                let string = self.intern_string(module, comment.string);
                 Annotation::Comment { position, string }
             }
             ast::Annotation::Tag { node, position } => {
-                let tag = ast.get(*node);
+                let tag = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(file_id, ast, &tag.receiver);
+                let receiver = self.lower_path(module, &tag.receiver);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(file_id, ast, *argument))
+                        .map(|argument| self.lower_argument(module, *argument))
                         .collect()
                 });
                 Annotation::Tag {
@@ -96,13 +83,13 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Annotation::Decorator { node, position } => {
-                let decorator = ast.get(*node);
+                let decorator = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(file_id, ast, &decorator.receiver);
+                let receiver = self.lower_path(module, &decorator.receiver);
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(file_id, ast, *argument))
+                        .map(|argument| self.lower_argument(module, *argument))
                         .collect()
                 });
                 Annotation::Decorator {
@@ -114,7 +101,7 @@ impl<'a> Compiler<'a> {
         };
         Some(
             self.tree
-                .insert_from_ast(annotation, file_id, annotation_id),
+                .insert_from_ast(annotation, module.id, annotation_id),
         )
     }
 }

@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{FileId, Span};
+use dyst_source::{FileId, FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
     DependencyItem, Doc, EnumField, Expression, Field, MatchCase, Node, NodeArena, NodeId,
-    NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, Tag, UnionField, WhereClause,
-    WithClause,
+    NodeType, Parameter, Pattern, PatternField, Tag, UnionField, WhereClause, WithClause,
 };
 
 /// The AST Node tree for a single source unit.
@@ -24,7 +23,7 @@ pub struct NodeTree {
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
     /// The spans of the NodeTree.
-    pub spans: NodeSpanIndex,
+    pub source_map: FileSourceMap,
 
     // per-node arenas
     pub(crate) expressions: NodeArena<Expression>,
@@ -73,7 +72,7 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
             annotations_per_node_id: HashMap::new(),
-            spans: NodeSpanIndex::new(),
+            source_map: FileSourceMap::new(),
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
             definitions: NodeArena::new(),
@@ -116,7 +115,7 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.spans.append(span);
+        self.source_map.append(span);
         NodeId::new(global_id)
     }
 
@@ -140,7 +139,7 @@ impl NodeTree {
         self.type_by_node_id.truncate(from_idx as usize);
         self.local_id_by_node_id.truncate(from_idx as usize);
         // reset spans & next_id
-        self.spans.prune_from(from_idx);
+        self.source_map.prune_from(from_idx);
         self.next_global_id = from_idx;
     }
 
@@ -178,13 +177,13 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.spans.get(node_id)
+        self.source_map.get(node_id.id)
     }
 
     /// Get the span for a node by its id.
     #[inline]
     pub fn get_span_by_id(&self, node_id: u32) -> Span {
-        self.spans.get_by_id(node_id)
+        self.source_map.get(node_id)
     }
 
     /// Set the span for a node.
@@ -193,7 +192,7 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.spans.set(node_id, span);
+        self.source_map.set(node_id.id, span);
     }
 
     /// Get the spans for all nodes of a given type.
@@ -202,7 +201,7 @@ impl NodeTree {
         let mut spans = Vec::new();
         for (idx, ty) in self.type_by_node_id.iter().enumerate() {
             if *ty == node_type {
-                spans.push(self.spans.get_by_id(idx as u32));
+                spans.push(self.source_map.get(idx as u32));
             }
         }
         spans
@@ -247,15 +246,13 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.local_id_by_node_id
-            .iter()
-            .filter_map(|id| {
-                if self.type_by_node_id[*id as usize] == T::TYPE {
-                    Some(NodeId::new(*id))
-                } else {
-                    None
-                }
-            })
+        self.local_id_by_node_id.iter().filter_map(|id| {
+            if self.type_by_node_id[*id as usize] == T::TYPE {
+                Some(NodeId::new(*id))
+            } else {
+                None
+            }
+        })
     }
 
     /// Remove a given local node.
@@ -322,7 +319,7 @@ impl NodeTree {
         self.annotations_per_node_id
             .values_mut()
             .for_each(|annotations| {
-                annotations.sort_by_key(|annotation| self.spans.get(*annotation).start)
+                annotations.sort_by_key(|annotation| self.source_map.get(annotation.id).start)
             });
     }
 

@@ -3,9 +3,9 @@
 use crate::parse::prelude::*;
 use crate::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, NodeId, NodeSearch, NodeType, Parser, ParserResult, Tag, TokenSpan, TokenType,
+    Doc, DocStyle, NodeId, NodeType, Parser, ParserResult, Tag, TokenSpan, TokenType,
 };
-use dyst_source::{MultiSpan, Span};
+use dyst_source::{MultiSpan, NodeSearch, Span};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,

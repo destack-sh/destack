@@ -3,10 +3,11 @@ use std::fmt::Debug;
 
 use crate::{Lexer, TokenSpan, TokenType, is_semantic};
 use dyst_source::{
-    DiagnosticCollector, File, FileId, LanguageOptions, MultiSpan, Span, StringId, StringPool,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
+    StringId, StringPool,
 };
 
-use crate::{EnclosingSpan, NodeSearch, NodeTree, NodeType, ParserError, ParserResult};
+use crate::{NodeTree, NodeType, ParserError, ParserResult};
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -759,7 +760,7 @@ impl<'a> Parser<'a> {
     pub fn find_node_starting_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .spans
+            .source_map
             .get_enclosing_spans(span.start, span.end.saturating_sub(1))
             .into_iter()
             .filter(|s| s.span.start == span.start)
@@ -782,7 +783,7 @@ impl<'a> Parser<'a> {
     pub fn find_node_ending_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .spans
+            .source_map
             .get_enclosing_spans(span.start, span.end.saturating_sub(1))
             .into_iter()
             .filter(|s| s.span.end == span.end)
@@ -810,7 +811,7 @@ impl<'a> Parser<'a> {
     ) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .spans
+            .source_map
             .get_enclosing_spans(span.start, span.end.saturating_sub(1))
             .into_iter()
             .filter(filter)

@@ -301,7 +301,7 @@ impl<'a> Parser<'a> {
                 let function_id = self.eat_function(meta, false, false)?;
                 let function_id = self.tree.insert(
                     Expression::Definition(function_id),
-                    self.tree.spans.get(function_id),
+                    self.tree.source_map.get(function_id.id),
                 );
 
                 expressions.push(function_id);
@@ -328,7 +328,7 @@ impl<'a> Parser<'a> {
                 let function_id = self.eat_function(meta, true, false)?;
                 let function_id = self.tree.insert(
                     Expression::Definition(function_id),
-                    self.tree.spans.get(function_id),
+                    self.tree.source_map.get(function_id.id),
                 );
                 // TODO #Incomplete: merge StructLiteral/Block, shorthands are just member functions, ..
                 //  (also support declare modifier on bindings/fields?)
