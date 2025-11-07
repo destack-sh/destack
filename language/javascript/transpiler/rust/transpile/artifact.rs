@@ -1,5 +1,5 @@
 use dyst_javascript_ast as ast;
-use dyst_source::{File, FileId, FileType};
+use dyst_source::{FileContent, FileId, FileType};
 
 #[derive(Debug, Clone)]
 pub struct TranspilerArtifact {
@@ -9,6 +9,10 @@ pub struct TranspilerArtifact {
     pub ty: FileType,
     /// The AST of the transpiled file.
     pub ast: ast::NodeTree,
+    /// The source files.
+    pub sources: Vec<FileId>,
+    /// The content of the generated artifact.
+    pub content: FileContent,
 }
 
 impl TranspilerArtifact {}

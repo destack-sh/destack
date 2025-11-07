@@ -1,7 +1,7 @@
 use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
-use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
+use dyst_source::{DiagnosticSeverity, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
@@ -34,11 +34,10 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile source
     let language = LanguageOptions::default();
-    let mut diagnostics = DiagnosticCollector::new();
-    let options = CompilerOptions::default();
-    let mut compiler = Compiler::from_file(file.clone(), language, options, &mut diagnostics);
+    let compiler_options = CompilerOptions::default();
+    let mut compiler = Compiler::from_file(file.clone(), language, compiler_options);
     compiler.compile();
-    let diagnostics = compiler.diagnostics.clone();
+    let compiler_diagnostics = compiler.diagnostics.clone();
 
     // dump DIR to output
     if !silent {
@@ -58,12 +57,12 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // handle diagnostics
     print_diagnostics(
-        &diagnostics,
+        &compiler_diagnostics,
         language,
         DiagnosticSeverity::Note,
         |file_id| compiler.modules.get_file_by_file_id(file_id),
     );
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+    if compiler_diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
     0
