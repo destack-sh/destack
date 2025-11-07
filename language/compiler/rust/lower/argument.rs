@@ -53,7 +53,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 let default = default.map(|default| self.lower_expression(module, default));
                 self.tree.insert_from_ast(
@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 self.tree.insert_from_ast(
                     Parameter::Variadic {
@@ -126,7 +126,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.intern_string(module, name.string());
+                let name = self.strings.intern_from(&module.strings, name.string());
                 let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
@@ -141,7 +141,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::Shorthand { modifiers, name } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let path = Path::UnevaluatedAbsoluteString {
                     segments: smallvec![name],
                 };
@@ -175,7 +175,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.intern_string(module, name));
+                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
                 let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedSpread {
@@ -195,7 +195,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.intern_string(module, name));
+                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
                 let key = self.lower_expression(module, *key);
                 let value = self.lower_expression(module, *value);
                 self.tree.insert_from_ast(

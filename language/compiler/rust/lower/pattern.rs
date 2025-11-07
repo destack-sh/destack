@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Rest { name } => Pattern::Rest {
-                name: name.map(|name| self.intern_string(module, name)),
+                name: name.map(|name| self.strings.intern_from(&module.strings, name)),
             },
             ast::Pattern::Maybe(pattern_id) => {
                 Pattern::Maybe(self.lower_pattern(module, *pattern_id))
@@ -77,7 +77,7 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(module, pattern));
                 Pattern::Binding {
                     mutability,
@@ -155,7 +155,7 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.intern_string(module, name.string());
+                let name = self.strings.intern_from(&module.strings, name.string());
                 let pattern = pattern.map(|pattern| self.lower_pattern(module, pattern));
                 let default = default.map(|default| self.lower_expression(module, default));
                 PatternField::Named {
@@ -174,8 +174,8 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.intern_string(module, name.string());
-                let alias = self.intern_string(module, *alias);
+                let name = self.strings.intern_from(&module.strings, name.string());
+                let alias = self.strings.intern_from(&module.strings, *alias);
                 let default = default.map(|default| self.lower_expression(module, default));
                 PatternField::Alias {
                     mutability,

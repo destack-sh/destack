@@ -13,7 +13,7 @@ impl<'a> Compiler<'a> {
         let with_clause = module.get(with_clause_id);
         let alias = with_clause
             .alias
-            .map(|alias| self.intern_string(module, alias));
+            .map(|alias| self.strings.intern_from(&module.strings, alias));
         let right = self.lower_expression(module, with_clause.right);
         self.tree
             .insert_from_ast(WithClause { alias, right }, module.id, with_clause_id)

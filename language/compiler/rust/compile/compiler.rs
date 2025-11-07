@@ -51,14 +51,4 @@ impl<'s> Compiler<'s> {
     ) -> Self {
         todo!("from_module({module:?})")
     }
-
-    // Intern an AST string for a certain source.
-    pub fn intern_string(&mut self, module: &Module, string_id: StringId) -> StringId {
-        self.strings.intern_from(&module.strings, string_id)
-    }
-
-    /// Get an interned string.
-    pub fn get_string(&self, string_id: StringId) -> &str {
-        self.strings.get(string_id)
-    }
 }

@@ -157,7 +157,7 @@ mod tests {
     use crate::{Argument, Expression, NodeId, Parser, ScalarLiteral, assert_node, assert_string};
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
-        let self_str = parser.intern_string("self");
+        let self_str = parser.strings.intern("self");
         let self_path = Path {
             segments: smallvec![self_str],
         };
