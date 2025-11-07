@@ -259,13 +259,30 @@ impl CommandApp {
             super::info("Commands:");
             let mut names: Vec<_> = self.commands.keys().cloned().collect();
             names.sort();
-            for n in names {
-                let help = self
-                    .commands
-                    .get(&n)
-                    .and_then(|(_, h)| h.as_deref())
-                    .unwrap_or("");
-                println!("  {n}  {help}");
+            let width = names.iter().map(|name| name.len()).max().unwrap_or(0);
+            let inner_width = width + 4;
+            for name in names {
+                let (_, help) = match self.commands.get(&name) {
+                    Some(value) => value,
+                    None => continue,
+                };
+                match help.as_deref().map(str::trim) {
+                    Some(text) if !text.is_empty() => {
+                        let mut lines = text.lines();
+                        if let Some(first_line) = lines.next() {
+                            println!("  {name:<width$}  {first_line}");
+                        }
+                        for line in lines {
+                            if line.trim().is_empty() {
+                                println!();
+                                continue;
+                            }
+                            let cleaned = line.trim_start_matches([' ', '\t']);
+                            println!("  {:<width$}  {}", "", cleaned, width = inner_width);
+                        }
+                    }
+                    _ => println!("  {name}"),
+                }
             }
         }
 

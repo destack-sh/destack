@@ -7,12 +7,14 @@ use crate::source::get_string_or_file;
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
-pub const HELP: &str = r"Tokenize source into Tokens.
-	--file <path>      Read input from file
-	--string <string>  Read input from provided string
+pub const HELP: &str = r"
+Tokenize source into Tokens.
+    --file <path>      Read input from file
+    --string <string>  Read input from provided string
     --only-semantic    Only show semantic tokens
     --no-whitespace    Don't show whitespace tokens
-	--max-lexeme <n>   Truncate lexeme preview to n chars";
+    --max-lexeme <n>   Truncate lexeme preview to n chars
+";
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(ctx: CommandArguments) -> i32 {
