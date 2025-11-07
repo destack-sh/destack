@@ -31,10 +31,13 @@ pub struct Module {
     pub kind: ModuleKind,
     /// The underlying source File.
     pub file: File,
+
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
     /// The string pool of the Module.
     pub strings: StringPool,
+    /// The top-level expressions of the Module.
+    pub expressions: Vec<ast::NodeId<ast::Expression>>,
 }
 
 impl Module {

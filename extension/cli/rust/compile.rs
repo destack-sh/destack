@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use destack_terminal::{CommandArguments, console};
 use dyst_compiler::Compiler;
 use dyst_dir::{Definition, Dumper, DumperOptions, NodeVisitor};
-use dyst_source::{DiagnosticCollector, LanguageOptions, Severity};
+use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
@@ -38,6 +36,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let mut diagnostics = DiagnosticCollector::new();
     let mut compiler = Compiler::from_file(file.clone(), language, &mut diagnostics);
     compiler.compile();
+    let diagnostics = compiler.diagnostics.clone();
 
     // dump DIR to output
     if !silent {
@@ -53,9 +52,13 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // handle diagnostics
-    let source_by_id = HashMap::from([(file.id, &file)]);
-    print_diagnostics(&source_by_id, language, &diagnostics);
-    if diagnostics.has_diagnostics_of_severity(Severity::Error) {
+    print_diagnostics(
+        &diagnostics,
+        language,
+        DiagnosticSeverity::Note,
+        |file_id| compiler.modules.get_file_by_file_id(file_id),
+    );
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
     0

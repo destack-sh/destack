@@ -1,6 +1,6 @@
 #![allow(clippy::new_without_default)]
 
-use crate::{Diagnostic, Severity, Suggestion};
+use crate::{Diagnostic, DiagnosticSeverity, Suggestion};
 
 /// A collector for diagnostics and suggestions.
 #[derive(Debug, Clone)]
@@ -30,8 +30,8 @@ impl DiagnosticCollector {
         self.diagnostics.push(diagnostic);
     }
 
-    /// Has diagnostics of the given severity.
-    pub fn has_diagnostics_of_severity(&self, severity: Severity) -> bool {
+    /// Has diagnostics of the given DiagnosticSeverity.
+    pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
         self.diagnostics.iter().any(|d| d.severity == severity)
     }
 
