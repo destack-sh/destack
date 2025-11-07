@@ -9,7 +9,7 @@
  * a nice thing as it would allow us to split up
  * relevant types into their own files.
  */
-declare module "bun" {
+declare namespace "bun" {
   type HeadersInit = string[][] | Record<string, string | ReadonlyArray<string>> | Headers;
   type BodyInit =
     | ReadableStream

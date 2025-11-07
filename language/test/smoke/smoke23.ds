@@ -1,34 +1,34 @@
-declare module "*.txt" {
+declare namespace "*.txt" {
     let text: string
     export = text
 }
 
-declare module "*.toml" {
+declare namespace "*.toml" {
     let contents: any
     export = contents
 }
 
-declare module "*.yaml" {
+declare namespace "*.yaml" {
     let contents: any
     export = contents
 }
 
-declare module "*.yml" {
+declare namespace "*.yml" {
     let contents: any
     export = contents
 }
 
-declare module "*.jsonc" {
+declare namespace "*.jsonc" {
     let contents: any
     export = contents
 }
 
-declare module "*/bun.lock" {
+declare namespace "*/bun.lock" {
     let contents: import("bun").BunLockFile
     export = contents
 }
 
-declare module "*.html" {
+declare namespace "*.html" {
     let contents: import("bun").HTMLBundle
     export = contents
 }

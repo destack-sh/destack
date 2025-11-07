@@ -248,10 +248,8 @@ impl<'a> Compiler<'a> {
         let definition = ast.get(definition_id);
         match definition {
             // Module definition
-            ast::Definition::Module {
+            ast::Definition::Namespace {
                 meta,
-                format: _,
-                style: _,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -269,7 +267,7 @@ impl<'a> Compiler<'a> {
                     .filter_map(|expr| self.lower_expression_to_definition(file_id, ast, *expr))
                     .collect();
                 self.tree.insert_from_ast(
-                    Definition::Module {
+                    Definition::Namespace {
                         meta,
                         generics,
                         definitions,

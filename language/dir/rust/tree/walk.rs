@@ -591,7 +591,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             let value_type = tree.get(*value);
             visitor.visit_type(tree, *value, value_type);
         }
-        Definition::Module {
+        Definition::Namespace {
             meta: _,
             generics,
             definitions,

@@ -648,10 +648,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Definition, id.id);
 
     match definition {
-        Definition::Module {
+        Definition::Namespace {
             meta,
-            format: _,
-            style: _,
             with_clauses,
             where_clauses,
             expressions,

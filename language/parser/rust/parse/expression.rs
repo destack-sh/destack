@@ -9,10 +9,9 @@ use crate::{
     Parser, ParserError, ParserMark, ParserResult, TokenSpan, TokenType, UnaryOperator,
 };
 
-pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
+pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
     Keyword::Declare,
     Keyword::Namespace,
-    Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
     Keyword::Enum,
@@ -42,9 +41,8 @@ pub static DEFINITION_START_TOKENS: [TokenType; 6] = [
     TokenType::LessThan,
 ];
 
-pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 9] = [
+pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
     Keyword::Type,
-    Keyword::Module,
     Keyword::Struct,
     Keyword::Class,
     Keyword::Enum,
@@ -602,13 +600,15 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // module
-            else if (keyword == Some(Keyword::Module) || keyword == Some(Keyword::Namespace))
+            // namespace
+            else if keyword == Some(Keyword::Namespace)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let module_id = self.eat_module(meta)?;
-                self.tree
-                    .insert(Expression::Definition(module_id), self.get_span_from(start))
+                let namespace_id = self.eat_namespace(meta)?;
+                self.tree.insert(
+                    Expression::Definition(namespace_id),
+                    self.get_span_from(start),
+                )
             }
             // struct / class
             else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))

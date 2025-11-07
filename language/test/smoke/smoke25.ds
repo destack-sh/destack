@@ -1,4 +1,4 @@
-declare module "bun" {
+declare namespace "bun" {
     type ShellExpression = {
         toString: () => string,
     } | Array<ShellExpression> | string | { raw: string } | Subprocess<

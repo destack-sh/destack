@@ -1,27 +1,17 @@
-use dyst_ast::ModuleStyle;
-
 use crate::TokenType;
 use crate::parse::prelude::*;
 
 use crate::{
-    BlockFormat, Definition, DefinitionMeta, Keyword, ModuleFormat, NodeId, NodeType, Parser,
-    ParserResult,
+    BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, Parser, ParserResult,
 };
 
 impl<'a> Parser<'a> {
-    /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    /// Eat a namespace declaration (incl. `namespace` keyword).
+    pub fn eat_namespace(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
-        let keyword = self
-            .eat_keyword_in(&[Keyword::Module, Keyword::Namespace])
-            .for_node_type(NodeType::Definition)?;
-        let style = match keyword {
-            Keyword::Module => ModuleStyle::Module,
-            Keyword::Namespace => ModuleStyle::Namespace,
-            _ => unreachable!(),
-        };
+        self.eat_keyword(Keyword::Namespace)?;
 
         // name
         meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
@@ -33,48 +23,32 @@ impl<'a> Parser<'a> {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        let module = {
-            // inline module
-            if self.peek_token(TokenType::OpenBrace).is_ok() {
-                self.bump(); // eat open brace
+        let namespace = {
+            let expressions = if self.peek_token(TokenType::OpenBrace).is_ok() {
+                self.eat_token(TokenType::OpenBrace)?; // eat open brace
                 let expressions = self
                     .eat_block_body(BlockFormat::Explicit)
                     .for_node_type(NodeType::Block)?;
                 self.eat_token(TokenType::CloseBrace)
                     .for_node_type(NodeType::Definition)?;
-                Definition::Module {
-                    meta,
-                    format: ModuleFormat::Inline,
-                    style,
-                    with_clauses,
-                    where_clauses,
-                    expressions,
-                }
-            }
-            // forward module
-            else {
-                Definition::Module {
-                    meta,
-                    format: ModuleFormat::Forward,
-                    style,
-                    with_clauses,
-                    where_clauses,
-                    expressions: Vec::new(),
-                }
+                expressions
+            } else {
+                vec![]
+            };
+            Definition::Namespace {
+                meta,
+                with_clauses,
+                where_clauses,
+                expressions,
             }
         };
 
-        let module_id = self.tree.insert(module, self.get_span_from(start));
-        Ok(module_id)
+        let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
+        Ok(namespace_id)
     }
 
-    // Eat a module body (aka a module file, without `module` keyword or braces).
-    pub fn eat_module_body(
-        &mut self,
-        meta: DefinitionMeta,
-        format: ModuleFormat,
-        style: ModuleStyle,
-    ) -> ParserResult<NodeId<Definition>> {
+    // Eat a namespace body (aka a namespace file, without `namespace` keyword or braces).
+    pub fn eat_namespace_body(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
         let start = self.mark();
 
         // with
@@ -87,30 +61,24 @@ impl<'a> Parser<'a> {
         let expressions = self
             .eat_block_body(BlockFormat::Implicit)
             .for_node_type(NodeType::Block)?;
-        let module = Definition::Module {
+        let namespace = Definition::Namespace {
             meta,
-            format,
-            style,
             with_clauses,
             where_clauses,
             expressions,
         };
-        let module_id = self.tree.insert(module, self.get_span_from(start));
-        Ok(module_id)
+        let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
+        Ok(namespace_id)
     }
 
-    /// Eat an implicit module body (without `module` keyword or braces).
-    pub fn eat_implicit_module_with_recovery(
+    /// Eat an implicit namespace body (without `namespace` keyword or braces).
+    pub fn eat_implicit_namespace_with_recovery(
         &mut self,
         meta: DefinitionMeta,
     ) -> Option<NodeId<Definition>> {
         self.with_recovery(
             self.mark(),
-            |parser| {
-                parser
-                    .eat_module_body(meta, ModuleFormat::Inline, ModuleStyle::Module)
-                    .map(Some)
-            },
+            |parser| parser.eat_namespace_body(meta).map(Some),
             None,
             TokenType::End,
         )
@@ -123,21 +91,20 @@ mod tests {
 
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Definition, Expression, ModuleFormat, WhereClause, WithClause,
-        assert_expr_path, assert_node, assert_path, assert_string,
+        BinaryOperator, Definition, Expression, WhereClause, WithClause, assert_expr_path,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
-    fn test_parse_empty_module() {
-        let mut test = TestParser::new("module { }");
+    fn test_parse_empty_namespace() {
+        let mut test = TestParser::new("namespace { }");
         let mut parser = test.prepare();
-        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses, .. } => {
+        let namespace_id = parser.eat_namespace(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { meta, expressions, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert!(meta.visibility.is_none());
             assert!(meta.export.is_none());
-            assert_eq!(*format, ModuleFormat::Inline);
             assert!(expressions.is_empty());
             assert!(with_clauses.is_none());
             assert!(where_clauses.is_none());
@@ -145,39 +112,21 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_forward_module() {
-        let mut test = TestParser::new("module x;");
-        let mut parser = test.prepare();
-        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { meta, expressions, format, with_clauses, where_clauses, .. } => {
-            assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "x");
-            assert!(meta.visibility.is_none());
-            assert!(meta.export.is_none());
-            assert_eq!(*format, ModuleFormat::Forward);
-            assert!(expressions.is_empty());
-            assert!(with_clauses.is_none());
-            assert!(where_clauses.is_none());
-        });
-    }
-
-    #[test]
-    fn test_parse_inline_module_with_with_and_where() {
+    fn test_parse_inline_namespace_with_with_and_where() {
         let mut test = TestParser::new(
             r###"
-module Foo with Context where Guard > Limit {
+namespace Foo with Context where Guard > Limit {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        // module Foo with Context where Guard > Limit { }
-        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, module_id, Definition::Module { meta, format, expressions, with_clauses, where_clauses, .. } => {
+        // namespace Foo with Context where Guard > Limit { }
+        let namespace_id = parser.eat_namespace(DefinitionMeta::default()).unwrap();
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { meta, expressions, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(*format, ModuleFormat::Inline);
             assert!(meta.export.is_none());
             assert!(expressions.is_empty());
 
@@ -207,15 +156,15 @@ module Foo with Context where Guard > Limit {
     }
 
     #[test]
-    fn test_parse_forward_module_with_with_and_where() {
-        let mut test = TestParser::new("module Foo with Context where Requirement: Interface;");
+    fn test_parse_forward_namespace_with_with_and_where() {
+        let mut test =
+            TestParser::new("namespace Foo with Context where Requirement: Interface { }");
         let mut parser = test.prepare();
-        let module_id = parser.eat_module(DefinitionMeta::default()).unwrap();
+        let namespace_id = parser.eat_namespace(DefinitionMeta::default()).unwrap();
 
-        assert_node!(parser.tree, module_id, Definition::Module { meta, format, expressions, with_clauses, where_clauses, .. } => {
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { meta, expressions, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(*format, ModuleFormat::Forward);
             assert!(meta.export.is_none());
             assert!(expressions.is_empty());
             let with_items = with_clauses.as_ref().expect("expected with clauses");

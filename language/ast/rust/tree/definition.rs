@@ -93,19 +93,17 @@ impl DefinitionMeta {
 /// Definition introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    /// A Module is a module declaration.
-    /// Modules may be whole directories, single files, or nested within a file.
+    /// A Namespace is a namespace declaration.
+    /// Namespaces may be whole directories, single files, or nested within a file.
     ///
     /// Examples:
     /// ```
-    /// module foo {
+    /// namespace foo {
     ///     ...
     /// }
     /// ```
-    Module {
+    Namespace {
         meta: DefinitionMeta,
-        format: ModuleFormat,
-        style: ModuleStyle,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
@@ -411,7 +409,7 @@ impl Definition {
     #[inline]
     pub fn meta(&self) -> &DefinitionMeta {
         match self {
-            Definition::Module { meta, .. } => meta,
+            Definition::Namespace { meta, .. } => meta,
             Definition::Struct { meta, .. } => meta,
             Definition::Enum { meta, .. } => meta,
             Definition::Union { meta, .. } => meta,
@@ -490,26 +488,6 @@ pub enum FunctionAbstraction {
     Concrete,
 }
 
-/// The format of a module.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ModuleFormat {
-    /// Implicit module source (e.g., whole file).
-    File,
-    /// Forward declaration for a module (e.g., `module x;)
-    Forward,
-    /// Inline module with explicit braces (e.g., `module x { ... }`).
-    Inline,
-}
-
-/// The style of a module.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ModuleStyle {
-    /// Regular module.
-    Module,
-    /// Namespace module.
-    Namespace,
-}
-
 /// A EnumField is a enum field declaration.
 ///
 /// Examples:
@@ -562,7 +540,7 @@ impl Node for UnionField {
     const TYPE: NodeType = NodeType::UnionField;
 }
 
-/// A FunctionStyle is the style of a function.
+/// A FunctionKind is the style of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionKind {
     /// A normal function.

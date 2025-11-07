@@ -184,7 +184,7 @@ pub enum DefinitionType {
     /// Root type `type`.
     Type,
     /// Module type.
-    Module,
+    Namespace,
     /// Struct type.
     Struct,
     /// Class type.
