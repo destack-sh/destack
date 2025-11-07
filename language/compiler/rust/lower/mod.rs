@@ -8,6 +8,7 @@ mod function;
 mod literal;
 mod r#loop;
 mod r#match;
+mod module;
 mod operator;
 mod path;
 mod pattern;

@@ -36,65 +36,70 @@ impl<'a> Compiler<'a> {
     /// Lower an int type to a DIR int type.
     pub fn lower_int_type(&self, int_type: &ast::IntType) -> IntType {
         match int_type {
-            ast::IntType {
+            // pointer
+            ast::IntType::Pointer { is_signed: true } => IntType::IntP,
+            ast::IntType::Pointer { is_signed: false } => IntType::UintP,
+            // fixed builtin
+            ast::IntType::Arbitrary {
                 width: Some(8),
                 is_signed: true,
             } => IntType::Int8,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(16),
                 is_signed: true,
             } => IntType::Int16,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true,
             } => IntType::Int32,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(64),
                 is_signed: true,
             } => IntType::Int64,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(128),
                 is_signed: true,
             } => IntType::Int128,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(256),
                 is_signed: true,
             } => IntType::Int256,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(8),
                 is_signed: false,
             } => IntType::Uint8,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(16),
                 is_signed: false,
             } => IntType::Uint16,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(32),
                 is_signed: false,
             } => IntType::Uint32,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(64),
                 is_signed: false,
             } => IntType::Uint64,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(128),
                 is_signed: false,
             } => IntType::Uint128,
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(256),
                 is_signed: false,
             } => IntType::Uint256,
-            ast::IntType {
+            // fixed variable
+            ast::IntType::Arbitrary {
                 width: None,
                 is_signed,
-            } => IntType::Variable {
+            } => IntType::Arbitrary {
                 width: self.options.default_int_width,
                 is_signed: *is_signed,
             },
-            ast::IntType {
+            ast::IntType::Arbitrary {
                 width: Some(width),
                 is_signed,
-            } => IntType::Variable {
+            } => IntType::Arbitrary {
                 width: *width,
                 is_signed: *is_signed,
             },
@@ -109,10 +114,10 @@ impl<'a> Compiler<'a> {
             ast::FloatType { width: Some(64) } => FloatType::Float64,
             ast::FloatType { width: Some(80) } => FloatType::Float80,
             ast::FloatType { width: Some(128) } => FloatType::Float128,
-            ast::FloatType { width: None } => FloatType::Variable {
+            ast::FloatType { width: None } => FloatType::Arbitrary {
                 width: self.options.default_float_width,
             },
-            ast::FloatType { width: Some(width) } => FloatType::Variable { width: *width },
+            ast::FloatType { width: Some(width) } => FloatType::Arbitrary { width: *width },
         }
     }
 

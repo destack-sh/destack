@@ -125,35 +125,37 @@ impl<'a> Parser<'a> {
             // number
             "number" => Ok(TypeLiteral::Number),            
             // int (followed by number or nothing)
-            "int" => Ok(TypeLiteral::Int(IntType {
+            "int" => Ok(TypeLiteral::Int(IntType::Arbitrary {
                 width: None,
                 is_signed: true,
             })),
+            "intp" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
             int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
-                Ok(TypeLiteral::Int(IntType {
+                Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
                     is_signed: true,
                 }))
             }
             int_str if let Some(width) = self.is_type_with_width("i", int_str) => {
-                Ok(TypeLiteral::Int(IntType {
+                Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
                     is_signed: true,
                 }))
             }
             // uint (followed by number or nothing)
-            "uint" => Ok(TypeLiteral::Int(IntType {
+            "uint" => Ok(TypeLiteral::Int(IntType::Arbitrary {
                 width: None,
                 is_signed: false,
             })),
+            "uintp" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
             uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
-                Ok(TypeLiteral::Int(IntType {
+                Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
                     is_signed: false,
                 }))
             }
             uint_str if let Some(width) = self.is_type_with_width("u", uint_str) => {
-                Ok(TypeLiteral::Int(IntType {
+                Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
                     is_signed: false,
                 }))
@@ -380,19 +382,19 @@ mod tests {
         // type T = int32
         assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, .. } => {
             assert_string!(parser, meta.name.unwrap().string(), "T");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 
     #[test]
     fn test_parse_type_alias_with_static_parameters() {
-        let mut test = TestParser::new("type T<A, B> = int32");
+        let mut test = TestParser::new("type T<A, B> = intp");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
         assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, static_parameters, .. } => {
             assert_string!(parser, meta.name.unwrap().string(), "T");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
             assert!(static_parameters.is_some());
             assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
         });

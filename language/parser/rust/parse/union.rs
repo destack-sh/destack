@@ -337,11 +337,11 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
             assert!(where_clauses.is_none());
 
             // (uint4, uint60)
-            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                 assert_eq!(*width, Some(4));
                 assert!(!*is_signed);
             });
-            assert_node!(parser.tree, representation_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+            assert_node!(parser.tree, representation_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                 assert_eq!(*width, Some(60));
                 assert!(!*is_signed);
             });
@@ -400,9 +400,9 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                 // count: int32
                 assert_node!(parser.tree, fields[1], Field::Named { name: Name::Identifier(name), ty, .. } => {
                     assert_string!(parser, *name, "count");
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                        assert_eq!(int_ty.width, Some(32));
-                        assert!(int_ty.is_signed);
+                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                        assert_eq!(*width, Some(32));
+                        assert!(*is_signed);
                     });
                 });
 
@@ -418,9 +418,9 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                     // x
                     assert_string!(parser, *name, "x");
                     // int32
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                        assert_eq!(int_ty.width, Some(32));
-                        assert!(int_ty.is_signed);
+                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                        assert_eq!(*width, Some(32));
+                        assert!(*is_signed);
                     });
                 });
 

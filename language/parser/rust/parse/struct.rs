@@ -182,7 +182,7 @@ struct { public x: int32, readonly y: boolean
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert_string!(parser, *name, "x");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
 
             // readonly y: boolean
@@ -247,7 +247,7 @@ struct Foo(int32, public boolean) {}
             // int32
             assert_node!(parser.tree, fields[0], Field::Positional { modifiers: None, ty, default, .. } => {
                 assert!(default.is_none());
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
 
             // public boolean
@@ -347,7 +347,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
             assert_node!(parser.tree, fields[3], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 assert!(default.is_some());
             });
 

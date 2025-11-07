@@ -955,8 +955,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, FunctionMode, Mutability, Name, Parameter,
-        TemplateLiteral,
+        BindingKind, Definition, DefinitionMeta, FloatType, FunctionMode, IntType, Mutability, Name, Parameter, TemplateLiteral
     };
 
     use crate::parse::tests::TestParser;
@@ -1205,13 +1204,13 @@ mod tests {
         parser.options.in_type = true;
 
         assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(int_ty) if int_ty.width == Some(32))
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }))
         );
         assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(int_ty) if !int_ty.is_signed && int_ty.width == Some(8))
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false }))
         );
         assert!(
-            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Float(float_ty) if float_ty.width.is_none())
+            matches!(parser.eat_type_literal(None).unwrap(), TypeLiteral::Float(FloatType { width: None }))
         );
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),

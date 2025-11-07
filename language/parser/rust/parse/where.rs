@@ -116,6 +116,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::IntType;
+
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Expression, TypeLiteral, UnaryOperator, WhereClause, assert_expr_path,
@@ -132,10 +134,7 @@ mod tests {
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WhereClause::Assertion { left, right } => {
             assert_string!(parser, *left, "T");
-            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
-            });
+            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 

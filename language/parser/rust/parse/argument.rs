@@ -660,7 +660,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType {
+            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
             })));
@@ -677,7 +677,7 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
             assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType {
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
             })));
@@ -752,7 +752,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType {
+            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
                 width: Some(32),
                 is_signed: true
             })));

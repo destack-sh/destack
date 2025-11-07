@@ -1,6 +1,6 @@
 use destack_terminal::{CommandArguments, console};
 use dyst_compiler::Compiler;
-use dyst_dir::{Definition, Dumper, DumperOptions, NodeVisitor};
+use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
 use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
@@ -10,7 +10,7 @@ pub const HELP: &str = r"Compile source files.
     --package <path>   Compile a package
 	--file <path>      Compile a single file
 	--string <string>  Compile a string
-    --type <format>  Compile a file with the given format (default: ds)
+    --type <format>    Compile a file with the given format (default: ds)
     --silent           Don't print anything to the console (except errors)
 ";
 
@@ -42,10 +42,10 @@ pub fn run(ctx: CommandArguments) -> i32 {
     if !silent {
         let dump_options = DumperOptions::default();
         let mut dumper = Dumper::new(&compiler.strings, &compiler.tree, dump_options);
-        // nocheckin: iterate over top-level modules properly
-        for (definition_id, definition) in compiler.tree.iter_nodes::<Definition>() {
-            if let Definition::Namespace { meta, .. } = definition {
-                dumper.visit_definition(&compiler.tree, definition_id, definition);
+        for module in compiler.modules.iter() {
+            for expression_id in &module.expressions {
+                let expression = compiler.tree.get(*expression_id);
+                dumper.visit_expression(&compiler.tree, *expression_id, expression);
             }
         }
         console::info(&dumper.finish());

@@ -58,35 +58,41 @@ impl<'a> Compiler<'a> {
             // Self
             "Self" => Some(ast::TypeLiteral::Self_),
             // int (followed by number or nothing)
-            "int" => Some(ast::TypeLiteral::Int(ast::IntType {
+            "int" => Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                 width: None,
                 is_signed: true,
             })),
+            "intp" => Some(ast::TypeLiteral::Int(ast::IntType::Pointer {
+                is_signed: true,
+            })),
             int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
-                Some(ast::TypeLiteral::Int(ast::IntType {
+                Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                     width: Some(width),
                     is_signed: true,
                 }))
             }
             int_str if let Some(width) = self.is_type_with_width("i", int_str) => {
-                Some(ast::TypeLiteral::Int(ast::IntType {
+                Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                     width: Some(width),
                     is_signed: true,
                 }))
             }
             // uint (followed by number or nothing)
-            "uint" => Some(ast::TypeLiteral::Int(ast::IntType {
+            "uint" => Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                 width: None,
                 is_signed: false,
             })),
+            "uintp" => Some(ast::TypeLiteral::Int(ast::IntType::Pointer {
+                is_signed: false,
+            })),
             uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
-                Some(ast::TypeLiteral::Int(ast::IntType {
+                Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                     width: Some(width),
                     is_signed: false,
                 }))
             }
             uint_str if let Some(width) = self.is_type_with_width("u", uint_str) => {
-                Some(ast::TypeLiteral::Int(ast::IntType {
+                Some(ast::TypeLiteral::Int(ast::IntType::Arbitrary {
                     width: Some(width),
                     is_signed: false,
                 }))
