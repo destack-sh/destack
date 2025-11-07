@@ -37,9 +37,8 @@ impl<'a> Compiler<'a> {
             .map(|id| self.lower_expression(&module, id))
             .collect();
         module.expressions.extend(expressions);
-		self.modules.insert(module);
+        self.modules.insert(module);
 
-		// nocheckin: schedule evaluate/next tasks
+        // nocheckin: schedule evaluate/next tasks
     }
 }
- 
