@@ -182,7 +182,7 @@ macro_rules! assert_char {
 #[macro_export]
 macro_rules! assert_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
-        let got = $parser.get_string($id);
+        let got = $parser.strings.get($id);
         assert_eq!(got, $expected, "expected string");
     }};
 }
@@ -191,7 +191,7 @@ macro_rules! assert_string {
 #[macro_export]
 macro_rules! assert_name {
     ($parser:expr, $name:expr, $expected:expr) => {{
-        let got = $parser.get_string($name.string());
+        let got = $parser.strings.get($name.string());
         assert_eq!(got, $expected, "expected name");
     }};
 }
@@ -202,7 +202,7 @@ macro_rules! assert_lit_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
         match $id {
             $crate::ScalarLiteral::String(s) => {
-                let got = $parser.get_string(*s);
+                let got = $parser.strings.get(*s);
                 assert_eq!(got, $expected, "expected string");
             }
             other => panic!("expected ScalarLiteral::String, got {other:?}"),
@@ -230,7 +230,7 @@ macro_rules! assert_path {
         let path_str = $path
             .segments
             .iter()
-            .map(|s| $parser.get_string(*s))
+            .map(|s| $parser.strings.get(*s))
             .collect::<Vec<_>>()
             .join(".");
         assert_eq!(path_str, $expected, "expected path");

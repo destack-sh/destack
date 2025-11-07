@@ -20,7 +20,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.intern_string(module, name.string());
+                let name = self.strings.intern_from(&module.strings, name.string());
                 let ty = self.lower_expression_to_type(module, *ty);
                 let default = default.map(|default| self.lower_expression(module, default));
                 Field::Named {
@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.intern_string(module, name));
+                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
                 let ty = self.lower_expression_to_type(module, *ty);
                 let key = self.lower_expression_to_type(module, *key);
                 let default = default.map(|default| self.lower_expression(module, default));
@@ -125,7 +125,7 @@ impl<'a> Compiler<'a> {
         field_id: ast::NodeId<ast::EnumField>,
     ) -> NodeId<Variant> {
         let field = module.get(field_id);
-        let name = self.intern_string(module, field.name.string());
+        let name = self.strings.intern_from(&module.strings, field.name.string());
         let value = field
             .value
             .map(|value| self.lower_expression(module, value));
@@ -170,7 +170,7 @@ impl<'a> Compiler<'a> {
         let field = module.get(field_id);
         let variant = match field {
             ast::UnionField::Unit { name, value } => {
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let value = value.map(|value| self.lower_expression(module, value));
                 Variant::Unit {
                     name: Some(name),
@@ -183,7 +183,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_field(module, *field))
@@ -201,7 +201,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.intern_string(module, *name);
+                let name = self.strings.intern_from(&module.strings, *name);
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_field(module, *field))

@@ -399,16 +399,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Intern a string.
-    pub fn intern_string<S: AsRef<str>>(&mut self, string: S) -> StringId {
-        self.strings.intern(string)
-    }
-
-    /// Get an interned string.
-    pub fn get_string(&self, string_id: StringId) -> &str {
-        self.strings.get(string_id)
-    }
-
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {

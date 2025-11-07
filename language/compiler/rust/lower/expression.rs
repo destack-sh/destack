@@ -198,8 +198,8 @@ impl<'a> Compiler<'a> {
                 static_parameters,
                 value,
             } => {
-                let name = self.intern_string(
-                    module,
+                let name = self.strings.intern_from(
+                    &module.strings,
                     meta.name.expect("LetType must have a name").string(),
                 );
                 let mutability = mutability

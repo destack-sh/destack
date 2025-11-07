@@ -57,13 +57,13 @@ impl<'a> Compiler<'a> {
             ast::Annotation::Doc { node, position } => {
                 let doc = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.intern_string(module, doc.string);
+                let string = self.strings.intern_from(&module.strings, doc.string);
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Comment { node, position } => {
                 let comment = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.intern_string(module, comment.string);
+                let string = self.strings.intern_from(&module.strings, comment.string);
                 Annotation::Comment { position, string }
             }
             ast::Annotation::Tag { node, position } => {

@@ -1,6 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{Module, NodeId, Type, TypeLiteral};
+use dyst_source::StringId;
 
 impl<'a> Compiler<'a> {
     /// Lower a an expression into a type (without evaluating it at all).
@@ -30,8 +31,8 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an expression string into a DIR type literal.
-    pub fn lower_string_to_type(&mut self, string_id: ast::StringId) -> Option<TypeLiteral> {
-        let string = self.get_string(string_id);
+    pub fn lower_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
+        let string = self.strings.get(string_id);
 
         // NOTE: we map the string to an AST type literal first
         let ast_literal = match string {

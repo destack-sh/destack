@@ -125,7 +125,7 @@ impl<'a> Compiler<'a> {
         let kind = self.lower_declaration_kind(meta.kind);
         let name = meta
             .name
-            .map(|name| self.intern_string(module, name.string()));
+            .map(|name| self.strings.intern_from(&module.strings, name.string()));
         let visibility = meta
             .visibility
             .map(|visibility| self.lower_visibility(visibility));

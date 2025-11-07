@@ -226,7 +226,7 @@ impl<'a> Parser<'a> {
                         literal_str
                     }
                 };
-                let string_id = self.intern_string(content);
+                let string_id = self.strings.intern(content);
                 Ok(ScalarLiteral::String(string_id))
             }
 
@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
                 // regex without flags
                 if !has_flags {
                     let content = literal_str.trim_start_matches("/").trim_end_matches("/");
-                    let string_id = self.intern_string(content);
+                    let string_id = self.strings.intern(content);
                     Ok(ScalarLiteral::RegexString {
                         content: string_id,
                         flags: None,
@@ -246,8 +246,8 @@ impl<'a> Parser<'a> {
                     let last_slash_index = literal_str.rfind('/').unwrap();
                     let content = &literal_str[1..last_slash_index];
                     let flags = &literal_str[last_slash_index + 1..];
-                    let string_id = self.intern_string(content);
-                    let flags_id = self.intern_string(flags);
+                    let string_id = self.strings.intern(content);
+                    let flags_id = self.strings.intern(flags);
                     Ok(ScalarLiteral::RegexString {
                         content: string_id,
                         flags: Some(flags_id),
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
                     return Err(ParserError::expected(literal_span.span, TokenType::Literal));
                 }
                 let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                let string_id = self.intern_string(content);
+                let string_id = self.strings.intern(content);
                 Ok(ScalarLiteral::String(string_id))
             }
 
@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
         // template string without interpolation
         if next.token.ty == TokenType::TemplateString {
             let string = next_str.trim_start_matches('`').trim_end_matches('`');
-            let string_id = self.intern_string(string);
+            let string_id = self.strings.intern(string);
             // tagged template string
             if let Some(tag) = tag {
                 Ok(TemplateLiteral::TaggedString {
@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
 
             // start
             let string = &next_str[1..next_str.len() - 2]; // remove ` and ${
-            let string_id = self.intern_string(string);
+            let string_id = self.strings.intern(string);
             strings.push(string_id);
 
             // eat until the end
@@ -372,7 +372,7 @@ impl<'a> Parser<'a> {
                     let token = *self.eat()?;
                     let string = self.get_span_str(token.span);
                     let string = &string[1..string.len() - 2]; // remove } and ${
-                    let string_id = self.intern_string(string);
+                    let string_id = self.strings.intern(string);
                     strings.push(string_id);
                 }
                 // argument
@@ -388,7 +388,7 @@ impl<'a> Parser<'a> {
             let token = *self.eat_token(TokenType::TemplateStringEnd)?;
             let string = self.get_span_str(token.span);
             let string = &string[1..string.len() - 1]; // remove } and `
-            let string_id = self.intern_string(string);
+            let string_id = self.strings.intern(string);
             strings.push(string_id);
 
             if let Some(tag) = tag {

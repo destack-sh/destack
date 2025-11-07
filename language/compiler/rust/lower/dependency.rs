@@ -41,7 +41,7 @@ impl<'a> Compiler<'a> {
     ) -> Vec<NodeId<DependencyItem>> {
         let kind = self.lower_dependency_kind(kind);
         let target = target.map(|target| self.lower_dependency_target(module, target));
-        let alias = alias.map(|alias| self.intern_string(module, alias));
+        let alias = alias.map(|alias| self.strings.intern_from(&module.strings, alias));
 
         let mut items = if let Some(items) = items {
             items
@@ -52,10 +52,10 @@ impl<'a> Compiler<'a> {
                         .kind
                         .map(|kind| self.lower_dependency_kind(kind))
                         .unwrap_or(kind);
-                    let name = self.intern_string(module, dependency_item.name);
+                    let name = self.strings.intern_from(&module.strings, dependency_item.name);
                     let alias = dependency_item
                         .alias
-                        .map(|alias| self.intern_string(module, alias));
+                        .map(|alias| self.strings.intern_from(&module.strings, alias));
                     let dependency_item = DependencyItem::Scalar {
                         kind,
                         target: target.clone(),
@@ -99,7 +99,7 @@ impl<'a> Compiler<'a> {
                 DirDependencyTarget::Path(path)
             }
             ast::DependencyTarget::String(string_id) => {
-                let string_id = self.intern_string(module, *string_id);
+                let string_id = self.strings.intern_from(&module.strings, *string_id);
                 DirDependencyTarget::String(string_id)
             }
         }

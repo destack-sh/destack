@@ -13,7 +13,7 @@ impl<'a> Compiler<'a> {
         let where_clause = module.get(where_clause_id);
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {
-                let left = self.intern_string(module, *left);
+                let left = self.strings.intern_from(&module.strings, *left);
                 let right = self.lower_expression(module, *right);
                 self.tree.insert_from_ast(
                     WhereClause::Assertion { left, right },

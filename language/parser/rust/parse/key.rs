@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_identifier(&mut self) -> ParserResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
-        let string_id = self.intern_string(self.get_token_str(token));
+        let string_id = self.strings.intern(self.get_token_str(token));
         Ok(string_id)
     }
 
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParserResult<StringId> {
         let span = self.peek_identifier_str(string)?;
-        let string_id = self.intern_string(self.get_token_str(*span));
+        let string_id = self.strings.intern(self.get_token_str(*span));
         self.bump();
         Ok(string_id)
     }
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        let string_id = self.intern_string(identifier);
+        let string_id = self.strings.intern(identifier);
         Ok(string_id)
     }
 
@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
             let token = self.peek_string_literal()?;
             let token_str = self.get_token_str(*token);
             let token_str = &token_str[1..token_str.len() - 1];
-            let string_id = self.intern_string(token_str);
+            let string_id = self.strings.intern(token_str);
             self.bump();
             Ok(Name::String(string_id))
         }
