@@ -6,9 +6,10 @@ use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
 
-pub const HELP: &str = r"Transpile source files.
-	--file <path>      Read input from file
-	--string <string>  Read input from provided string
+pub const HELP: &str = r"
+Transpile source files.
+    --file <path>      Read input from file
+    --string <string>  Read input from provided string
     --silent           Don't print anything to the console (except errors)
 ";
 

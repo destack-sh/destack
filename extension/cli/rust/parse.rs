@@ -6,12 +6,13 @@ use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
 
-pub const HELP: &str = r"Parse source into AST (implicit module).
-	--file <path>      Read input from file
-	--string <string>  Read input from provided string
+pub const HELP: &str = r"
+Parse source into AST (implicit module).
+    --file <path>      Read input from file
+    --string <string>  Read input from provided string
     --type <format>  Parse a file with the given format (default: ds)
     --silent           Don't print anything to the console (except errors)
-    ";
+";
 
 /// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {

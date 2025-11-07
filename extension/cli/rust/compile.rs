@@ -6,10 +6,11 @@ use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
 
-pub const HELP: &str = r"Compile source files.
+pub const HELP: &str = r"
+Compile source files.
     --package <path>   Compile a package
-	--file <path>      Compile a single file
-	--string <string>  Compile a string
+    --file <path>      Compile a single file
+    --string <string>  Compile a string
     --type <format>    Compile a file with the given format (default: ds)
     --silent           Don't print anything to the console (except errors)
 ";

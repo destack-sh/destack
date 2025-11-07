@@ -5,7 +5,7 @@ use crate::{Lexer, TokenSpan, TokenType, is_semantic};
 use dyst_ast::{BlockFormat, Expression, NodeId};
 use dyst_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
-    StringId, StringPool,
+    StringPool,
 };
 
 use crate::{NodeTree, NodeType, ParserError, ParserResult};
