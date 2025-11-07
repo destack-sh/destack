@@ -2,7 +2,7 @@ use crate::Compiler;
 
 use dyst_dir::{NodeId, NodeIdAny, Pattern, Type};
 
-/// Request to validate something.
+/// Task to validate something.
 #[derive(Debug, Clone)]
 pub enum ValidateTask {
     /// Typevalidate a Type.
@@ -23,8 +23,8 @@ pub enum ValidateError {
 pub type ValidateResult<T> = Result<T, ValidateError>;
 
 impl<'a> Compiler<'a> {
-    /// Process a validate request.
-    pub fn process_validate(&mut self, request: ValidateTask) {
-        todo!("process_validate({request:?})")
+    /// Process a validate task.
+    pub fn process_validate(&mut self, task: ValidateTask) {
+        todo!("process_validate({task:?})")
     }
 }
