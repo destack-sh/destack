@@ -235,6 +235,8 @@ pub enum IntType {
     Int128,
     /// 256-bit signed integer (range: -2^255 to 2^255-1)
     Int256,
+    /// Pointer-sized integer (range: 0 to 2^pointer_width-1).
+    IntP,
     /// 8-bit unsigned integer (range: 0 to 2^8-1)
     Uint8,
     /// 16-bit unsigned integer (range: 0 to 2^16-1)
@@ -247,30 +249,35 @@ pub enum IntType {
     Uint128,
     /// 256-bit unsigned integer (range: 0 to 2^256-1)
     Uint256,
+    /// Pointer-sized unsigned integer (range: 0 to 2^pointer_width-1).
+    UintP,
     /// Arbitrary width integer with signedness.
-    Variable { width: u16, is_signed: bool },
+    Arbitrary { width: u16, is_signed: bool },
 }
 
 impl IntType {
-    pub fn width(&self) -> u16 {
-        match self {
+    pub fn width(&self) -> Option<u16> {
+        let width = match self {
             IntType::Int8 => 8,
             IntType::Int16 => 16,
             IntType::Int32 => 32,
             IntType::Int64 => 64,
             IntType::Int128 => 128,
             IntType::Int256 => 256,
+            IntType::IntP => return None,
             IntType::Uint8 => 8,
             IntType::Uint16 => 16,
             IntType::Uint32 => 32,
             IntType::Uint64 => 64,
             IntType::Uint128 => 128,
             IntType::Uint256 => 256,
-            IntType::Variable {
+            IntType::UintP => return None,
+            IntType::Arbitrary {
                 width,
                 is_signed: _,
             } => *width,
-        }
+        };
+        Some(width)
     }
 
     pub fn is_signed(&self) -> bool {
@@ -281,13 +288,15 @@ impl IntType {
             IntType::Int64 => true,
             IntType::Int128 => true,
             IntType::Int256 => true,
+            IntType::IntP => true,
             IntType::Uint8 => false,
             IntType::Uint16 => false,
             IntType::Uint32 => false,
             IntType::Uint64 => false,
             IntType::Uint128 => false,
             IntType::Uint256 => false,
-            IntType::Variable {
+            IntType::UintP => false,
+            IntType::Arbitrary {
                 width: _,
                 is_signed,
             } => *is_signed,
@@ -303,13 +312,15 @@ impl IntType {
             IntType::Int64 => "int64".to_string(),
             IntType::Int128 => "int128".to_string(),
             IntType::Int256 => "int256".to_string(),
+            IntType::IntP => "intp".to_string(),
             IntType::Uint8 => "uint8".to_string(),
             IntType::Uint16 => "uint16".to_string(),
             IntType::Uint32 => "uint32".to_string(),
             IntType::Uint64 => "uint64".to_string(),
             IntType::Uint128 => "uint128".to_string(),
             IntType::Uint256 => "uint256".to_string(),
-            IntType::Variable { width, is_signed } => {
+            IntType::UintP => "uintp".to_string(),
+            IntType::Arbitrary { width, is_signed } => {
                 let mut as_str = if is_signed {
                     "int".to_string()
                 } else {
@@ -336,7 +347,7 @@ pub enum FloatType {
     /// 128-bit IEEE-754 float.
     Float128,
     /// Arbitrary width IEEE-754 float.
-    Variable { width: u16 },
+    Arbitrary { width: u16 },
 }
 
 impl FloatType {
@@ -347,7 +358,7 @@ impl FloatType {
             FloatType::Float64 => 64,
             FloatType::Float80 => 80,
             FloatType::Float128 => 128,
-            FloatType::Variable { width } => *width,
+            FloatType::Arbitrary { width } => *width,
         }
     }
 
@@ -359,7 +370,7 @@ impl FloatType {
             FloatType::Float64 => "float64".to_string(),
             FloatType::Float80 => "float80".to_string(),
             FloatType::Float128 => "float128".to_string(),
-            FloatType::Variable { width } => format!("float{width}"),
+            FloatType::Arbitrary { width } => format!("float{width}"),
         }
     }
 }

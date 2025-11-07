@@ -1,6 +1,8 @@
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{File, FileId};
 
+use crate::{Expression, NodeId};
+
 /// Unique identifier for Modules.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,7 +39,7 @@ pub struct Module {
     /// The string pool of the Module.
     pub strings: StringPool,
     /// The top-level expressions of the Module.
-    pub expressions: Vec<ast::NodeId<ast::Expression>>,
+    pub expressions: Vec<NodeId<Expression>>,
 }
 
 impl Module {

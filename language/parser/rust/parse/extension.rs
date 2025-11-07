@@ -135,7 +135,7 @@ extension Foo<int32> {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: None, value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
@@ -170,7 +170,7 @@ extension Bar<int32> implements Baz {
                 assert_eq!(static_args.len(), 1);
                 // int32
                 assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: None, value } => {
-                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType { width, is_signed })) => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });

@@ -132,11 +132,22 @@ pub enum TypeLiteral {
 
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct IntType {
-    /// Bit width. May be omitted in AST for better diagnostics.
-    pub width: Option<u16>,
-    /// Whether the integer is signed (`int*` or `uint*`).
-    pub is_signed: bool,
+pub enum IntType {
+    Pointer { is_signed: bool },
+    Arbitrary { width: Option<u16>, is_signed: bool },
+}
+
+impl IntType {
+    /// Whether the integer is signed.
+    pub fn is_signed(&self) -> bool {
+        match self {
+            IntType::Pointer { is_signed } => *is_signed,
+            IntType::Arbitrary {
+                width: _,
+                is_signed,
+            } => *is_signed,
+        }
+    }
 }
 
 /// A FloatType represents IEEE-754 float.
@@ -149,19 +160,30 @@ pub struct FloatType {
 impl IntType {
     #[inline]
     pub fn as_str(self) -> String {
-        if self.is_signed {
-            // int
-            if let Some(width) = self.width {
-                format!("int{width}")
-            } else {
-                "int".to_string()
+        match self {
+            IntType::Pointer { is_signed } => {
+                if is_signed {
+                    "intp".to_string()
+                } else {
+                    "uintp".to_string()
+                }
             }
-        } else {
-            // uint
-            if let Some(width) = self.width {
-                format!("uint{width}")
-            } else {
-                "uint".to_string()
+            IntType::Arbitrary { width, is_signed } => {
+                if is_signed {
+                    // int
+                    if let Some(width) = width {
+                        format!("int{width}")
+                    } else {
+                        "int".to_string()
+                    }
+                } else {
+                    // uint
+                    if let Some(width) = width {
+                        format!("uint{width}")
+                    } else {
+                        "uint".to_string()
+                    }
+                }
             }
         }
     }

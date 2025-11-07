@@ -305,42 +305,42 @@ impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
 /// Dump a bool as a string.
 impl Dump for bool {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(if *self { "true" } else { "false" }, None)
+        dumper.write_str(if *self { "true" } else { "false" }, Some(Color::Green))
     }
 }
 
 /// Dump a u8 as a string.
 impl Dump for u8 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u16 as a string.
 impl Dump for u16 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u32 as a string.
 impl Dump for u32 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an i64 as a string.
 impl Dump for i64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an f64 as a string.
 impl Dump for f64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
@@ -348,7 +348,7 @@ impl Dump for f64 {
 impl Dump for char {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_char('\'', None);
-        dumper.write_str(&self.to_string(), None);
+        dumper.write_str(&self.to_string(), Some(Color::Green));
         dumper.write_char('\'', None);
     }
 }
@@ -614,14 +614,16 @@ impl Dump for IntType {
             IntType::Int64 => dumper.object("IntType::Int64").end(),
             IntType::Int128 => dumper.object("IntType::Int128").end(),
             IntType::Int256 => dumper.object("IntType::Int256").end(),
+            IntType::IntP => dumper.object("IntType::IntSize").end(),
             IntType::Uint8 => dumper.object("IntType::Uint8").end(),
             IntType::Uint16 => dumper.object("IntType::Uint16").end(),
             IntType::Uint32 => dumper.object("IntType::Uint32").end(),
             IntType::Uint64 => dumper.object("IntType::Uint64").end(),
             IntType::Uint128 => dumper.object("IntType::Uint128").end(),
             IntType::Uint256 => dumper.object("IntType::Uint256").end(),
-            IntType::Variable { width, is_signed } => dumper
-                .object("IntType::Variable")
+            IntType::UintP => dumper.object("IntType::UintSize").end(),
+            IntType::Arbitrary { width, is_signed } => dumper
+                .object("IntType::Arbitrary")
                 .field("width", width)
                 .field("is_signed", is_signed)
                 .end(),
@@ -638,8 +640,8 @@ impl Dump for FloatType {
             FloatType::Float64 => dumper.object("FloatType::Float64").end(),
             FloatType::Float80 => dumper.object("FloatType::Float80").end(),
             FloatType::Float128 => dumper.object("FloatType::Float128").end(),
-            FloatType::Variable { width } => dumper
-                .object("FloatType::Variable")
+            FloatType::Arbitrary { width } => dumper
+                .object("FloatType::Arbitrary")
                 .field("width", width)
                 .end(),
         };
@@ -768,51 +770,30 @@ impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             ScalarLiteral::Boolean(value) => {
-                dumper
-                    .object("ScalarLiteral::Boolean")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
             ScalarLiteral::Byte(value) => {
-                dumper
-                    .object("ScalarLiteral::Byte")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Byte").value(value).end();
             }
             ScalarLiteral::Integer(value) => {
-                dumper
-                    .object("ScalarLiteral::Integer")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Integer").value(value).end();
             }
             ScalarLiteral::Bigint(value) => {
-                dumper
-                    .object("ScalarLiteral::Bigint")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Bigint").value(value).end();
             }
             ScalarLiteral::Float(value) => {
-                dumper
-                    .object("ScalarLiteral::Float")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Float").value(value).end();
             }
             ScalarLiteral::Character(value) => {
-                dumper
-                    .object("ScalarLiteral::Character")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::Character").value(value).end();
             }
             ScalarLiteral::String(value) => {
-                dumper
-                    .object("ScalarLiteral::String")
-                    .field("value", value)
-                    .end();
+                dumper.object("ScalarLiteral::String").value(value).end();
             }
             ScalarLiteral::RegexString { content, flags } => {
                 dumper
                     .object("ScalarLiteral::RegexString")
-                    .field("content", content)
+                    .value(content)
                     .field_optional("flags", flags)
                     .end();
             }

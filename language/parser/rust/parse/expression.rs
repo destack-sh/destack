@@ -1908,10 +1908,10 @@ const shapes = (
                 // (a: int32)
                 assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "a");
-                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 });
                 // int32
-                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 // with Time
                 assert_node!(parser.tree, with_clauses.as_ref().unwrap()[0], WithClause { right, .. } => {
                     assert_expr_path!(parser, parser.tree.get(*right), "Time");

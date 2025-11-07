@@ -500,8 +500,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
-        Parameter, ReferenceType,
+        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, ReferenceType
     };
 
     use crate::parse::tests::TestParser;
@@ -555,10 +554,7 @@ mod tests {
                 assert_string!(parser, *name, "x");
             });
             // int32
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
-            });
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
@@ -639,10 +635,7 @@ mod tests {
                 assert_eq!(dynamic_parameters.len(), 1);
                 assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "x");
-                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                        assert_eq!(int_ty.width, Some(32));
-                        assert!(int_ty.is_signed);
-                    });
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 });
 
                 // T
@@ -665,10 +658,7 @@ mod tests {
             // ()
             assert_eq!(dynamic_parameters.len(), 0);
             // int32
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
-            });
+            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 
@@ -725,10 +715,7 @@ function foo() => int32 with (
 
             // return type
             let ret = return_type.expect("expected return type");
-            assert_node!(parser.tree, ret, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
-            });
+            assert_node!(parser.tree, ret, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 
@@ -779,10 +766,7 @@ function b(
             assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 let param_type = ty.expect("expected type for parameter x");
-                assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                    assert_eq!(int_ty.width, Some(32));
-                    assert!(int_ty.is_signed);
-                });
+                assert_node!(parser.tree, param_type, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
             assert!(where_clauses.is_none());
         });
@@ -840,10 +824,7 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
             // Precision: uint8
             assert_node!(parser.tree, static_parameters[1], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "Precision");
-                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                    assert_eq!(int_ty.width, Some(8));
-                    assert!(!int_ty.is_signed);
-                });
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false })));
             });
 
             // data: uint8[]

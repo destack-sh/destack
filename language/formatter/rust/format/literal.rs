@@ -163,19 +163,30 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TypeLiteral {
 
 impl<'ast> Format<LanguageFormatContext<'ast>> for IntType {
     fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
-        if self.is_signed {
-            // signed
-            if let Some(width) = self.width {
-                write!(f, [token("int"), text(&width.to_string())])
-            } else {
-                write!(f, [token("int")])
+        match self {
+            IntType::Pointer { is_signed } => {
+                if *is_signed {
+                    write!(f, [token("intp")])
+                } else {
+                    write!(f, [token("uintp")])
+                }
             }
-        } else {
-            // unsigned
-            if let Some(width) = self.width {
-                write!(f, [token("uint"), text(&width.to_string())])
-            } else {
-                write!(f, [token("uint")])
+            IntType::Arbitrary { width, is_signed } => {
+                if *is_signed {
+                    // int
+                    if let Some(width) = *width {
+                        write!(f, [token("int"), text(&width.to_string())])
+                    } else {
+                        write!(f, [token("int")])
+                    }
+                } else {
+                    // uint
+                    if let Some(width) = *width {
+                        write!(f, [token("uint"), text(&width.to_string())])
+                    } else {
+                        write!(f, [token("uint")])
+                    }
+                }
             }
         }
     }

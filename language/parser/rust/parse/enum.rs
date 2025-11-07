@@ -280,7 +280,7 @@ enum(uint8) Foo extends Day {
             assert!(where_clauses.is_none());
 
             // enum type
-            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(8), is_signed: false })));
+            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false })));
 
             // extends: Day
             let supers = extends_types.as_ref().expect("expected extends types");

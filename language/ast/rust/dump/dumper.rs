@@ -309,42 +309,42 @@ impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
 /// Dump a bool as a string.
 impl Dump for bool {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(if *self { "true" } else { "false" }, None)
+        dumper.write_str(if *self { "true" } else { "false" }, Some(Color::Green))
     }
 }
 
 /// Dump a u8 as a string.
 impl Dump for u8 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u16 as a string.
 impl Dump for u16 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u32 as a string.
 impl Dump for u32 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an i64 as a string.
 impl Dump for i64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an f64 as a string.
 impl Dump for f64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), None)
+        dumper.write_str(&self.to_string(), Some(Color::Green))
     }
 }
 
@@ -352,7 +352,7 @@ impl Dump for f64 {
 impl Dump for char {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_char('\'', None);
-        dumper.write_str(&self.to_string(), None);
+        dumper.write_str(&self.to_string(), Some(Color::Green));
         dumper.write_char('\'', None);
     }
 }
@@ -522,11 +522,21 @@ impl Dump for DependencyTarget {
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("IntType")
-            .field("width", &self.width)
-            .field("is_signed", &self.is_signed)
-            .end();
+        match self {
+            IntType::Pointer { is_signed } => {
+                dumper
+                    .object("IntType::Pointer")
+                    .field("is_signed", is_signed)
+                    .end();
+            }
+            IntType::Arbitrary { width, is_signed } => {
+                dumper
+                    .object("IntType::Arbitrary")
+                    .field("width", width)
+                    .field("is_signed", is_signed)
+                    .end();
+            }
+        }
     }
 }
 
@@ -577,40 +587,22 @@ impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             ScalarLiteral::Boolean(value) => {
-                dumper
-                    .object("ScalarLiteral::Boolean")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
             ScalarLiteral::Byte(value) => {
-                dumper
-                    .object("ScalarLiteral::Byte")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Byte").value(value).end();
             }
             ScalarLiteral::Integer(value) => {
-                dumper
-                    .object("ScalarLiteral::Integer")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Integer").value(value).end();
             }
             ScalarLiteral::Bigint(value) => {
-                dumper
-                    .object("ScalarLiteral::Bigint")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Bigint").value(value).end();
             }
             ScalarLiteral::Float(value) => {
-                dumper
-                    .object("ScalarLiteral::Float")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Float").value(value).end();
             }
             ScalarLiteral::Character(value) => {
-                dumper
-                    .object("ScalarLiteral::Character")
-                    .value(&value.to_string().as_str())
-                    .end();
+                dumper.object("ScalarLiteral::Character").value(value).end();
             }
             ScalarLiteral::String(value) => {
                 dumper.object("ScalarLiteral::String").value(value).end();

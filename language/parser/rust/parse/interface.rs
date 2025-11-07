@@ -170,13 +170,13 @@ interface Foo extends Baz {
                 assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
                 assert_string!(parser, *name, "value");
                 assert!(default.is_none());
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
 
             // count: int32 = 4
             assert_node!(parser.tree, fields[1], Field::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
                 assert_string!(parser, *name, "count");
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 let default_id = default.expect("expected default value");
                 assert_node!(parser.tree, default_id, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
                     assert_eq!(*value, 4);

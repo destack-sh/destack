@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, Name};
+    use dyst_ast::{Argument, IntType, Name};
 
     use crate::parse::tests::TestParser;
     use crate::{
@@ -251,10 +251,7 @@ const x: int32 = 1
 
             // int32
             let ty_id = ty.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, Expression::TypeLiteral(TypeLiteral::Int(int_ty)) => {
-                assert_eq!(int_ty.width, Some(32));
-                assert!(int_ty.is_signed);
-            });
+            assert_node!(parser.tree, ty_id, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
 
             // 1
             let value_id = value.expect("expected value");
