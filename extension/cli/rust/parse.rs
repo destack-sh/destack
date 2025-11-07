@@ -41,7 +41,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         .last_segment()
         .map(|s| Name::Identifier(parser.intern_string(s)))
         .unwrap_or(Name::String(parser.intern_string("<string>")));
-    let definition_id = parser.eat_implicit_module_with_recovery(DefinitionMeta::new(module_name));
+    let definition_id = parser.eat_implicit_namespace_with_recovery(DefinitionMeta::new(module_name));
     parser.finish();
 
     // dump AST to output

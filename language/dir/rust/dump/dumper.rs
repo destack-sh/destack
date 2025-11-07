@@ -653,7 +653,7 @@ impl Dump for DefinitionType {
             DefinitionType::Type => {
                 dumper.object("DefinitionType::Type").end();
             }
-            DefinitionType::Module => {
+            DefinitionType::Namespace => {
                 dumper.object("DefinitionType::Module").end();
             }
             DefinitionType::Struct => {
@@ -1229,7 +1229,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("generics", generics)
                     .end();
             }
-            Definition::Module {
+            Definition::Namespace {
                 meta,
                 generics,
                 definitions: _,

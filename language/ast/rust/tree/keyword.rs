@@ -1,4 +1,6 @@
 use std::str::FromStr;
+
+/// A Keyword in the language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
     // ------------------------------------------------------------
@@ -42,8 +44,6 @@ pub enum Keyword {
     Export,
     /// From expression.
     From,
-    /// Import an item (reserved).
-    Use,
     /// With expression to declare use of items for a scope.
     With,
 
@@ -56,10 +56,8 @@ pub enum Keyword {
     Let,
     /// Var expression.
     Var,
-    /// Declare a namespace (reserved).
+    /// Declare a namespace.
     Namespace,
-    /// Declare a Module.
-    Module,
     /// Declare a type.
     Type,
     /// Declare a Struct.
@@ -246,7 +244,6 @@ impl Keyword {
             Keyword::Import => "import",
             Keyword::Export => "export",
             Keyword::From => "from",
-            Keyword::Use => "use",
             Keyword::With => "with",
 
             // definitions
@@ -254,7 +251,6 @@ impl Keyword {
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::Namespace => "namespace",
-            Keyword::Module => "module",
             Keyword::Type => "type",
             Keyword::Struct => "struct",
             Keyword::Class => "class",
@@ -350,7 +346,6 @@ impl FromStr for Keyword {
             "import" => Ok(Keyword::Import),
             "export" => Ok(Keyword::Export),
             "from" => Ok(Keyword::From),
-            "use" => Ok(Keyword::Use),
             "with" => Ok(Keyword::With),
 
             // definitions
@@ -358,7 +353,6 @@ impl FromStr for Keyword {
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
             "namespace" => Ok(Keyword::Namespace),
-            "module" => Ok(Keyword::Module),
             "type" => Ok(Keyword::Type),
             "struct" => Ok(Keyword::Struct),
             "class" => Ok(Keyword::Class),

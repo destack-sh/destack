@@ -120,7 +120,7 @@ impl<'a> Compiler<'a> {
     pub fn lower_definition_type(&self, composite_type: &ast::DefinitionType) -> DefinitionType {
         match composite_type {
             ast::DefinitionType::Type => DefinitionType::Type,
-            ast::DefinitionType::Module => DefinitionType::Module,
+            ast::DefinitionType::Namespace => DefinitionType::Namespace,
             ast::DefinitionType::Struct => DefinitionType::Struct,
             ast::DefinitionType::Class => DefinitionType::Class,
             ast::DefinitionType::Enum => DefinitionType::Enum,

@@ -79,8 +79,8 @@ pub enum Definition {
         generics: Option<Generics>,
         value: NodeId<Type>,
     },
-    /// Module definition.
-    Module {
+    /// Namespace definition.
+    Namespace {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         definitions: Vec<NodeId<Definition>>,
@@ -146,7 +146,7 @@ impl Definition {
             Definition::Export { .. } => DeclarationKind::Declaration,
             Definition::Let { .. } => DeclarationKind::Declaration,
             Definition::Type { .. } => DeclarationKind::Declaration,
-            Definition::Module { meta, .. } => meta.kind,
+            Definition::Namespace { meta, .. } => meta.kind,
             Definition::Struct { meta, .. } => meta.kind,
             Definition::Enum { meta, .. } => meta.kind,
             Definition::Union { meta, .. } => meta.kind,
@@ -165,7 +165,7 @@ impl Definition {
             Definition::Export { .. } => None,
             Definition::Let { meta, .. } => meta.name,
             Definition::Type { meta, .. } => meta.name,
-            Definition::Module { meta, .. } => meta.name,
+            Definition::Namespace { meta, .. } => meta.name,
             Definition::Struct { meta, .. } => meta.name,
             Definition::Enum { meta, .. } => meta.name,
             Definition::Union { meta, .. } => meta.name,
@@ -184,7 +184,7 @@ impl Definition {
             Definition::Export { .. } => None,
             Definition::Let { meta, .. } => meta.visibility,
             Definition::Type { meta, .. } => meta.visibility,
-            Definition::Module { meta, .. } => meta.visibility,
+            Definition::Namespace { meta, .. } => meta.visibility,
             Definition::Struct { meta, .. } => meta.visibility,
             Definition::Enum { meta, .. } => meta.visibility,
             Definition::Union { meta, .. } => meta.visibility,
@@ -203,7 +203,7 @@ impl Definition {
             Definition::Export { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
-            Definition::Module { .. } => None,
+            Definition::Namespace { .. } => None,
             Definition::Struct {
                 embedded_definitions,
                 ..
@@ -234,7 +234,7 @@ impl Definition {
             Definition::Export { .. } => None,
             Definition::Let { .. } => None,
             Definition::Type { .. } => None,
-            Definition::Module { definitions, .. } => Some(definitions),
+            Definition::Namespace { definitions, .. } => Some(definitions),
             Definition::Struct { definitions, .. } => Some(definitions),
             Definition::Enum { definitions, .. } => Some(definitions),
             Definition::Union { definitions, .. } => Some(definitions),

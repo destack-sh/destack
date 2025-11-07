@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_terminal::{CommandArguments, console};
 use dyst_compiler::Compiler;
-use dyst_dir::{Dumper, DumperOptions};
+use dyst_dir::{Definition, Dumper, DumperOptions, NodeVisitor};
 use dyst_source::{DiagnosticCollector, LanguageOptions, Severity};
 
 use crate::diagnostic::print_diagnostics;
@@ -14,7 +14,7 @@ pub const HELP: &str = r"Compile source files.
 	--string <string>  Compile a string
     --type <format>  Compile a file with the given format (default: ds)
     --silent           Don't print anything to the console (except errors)
-    ";
+";
 
 /// Compile source into its final DIR.
 pub fn run(ctx: CommandArguments) -> i32 {
@@ -36,15 +36,19 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // compile source
     let language = LanguageOptions::default();
     let mut diagnostics = DiagnosticCollector::new();
-    let mut compiler = Compiler::from_source(file.clone(), language, &mut diagnostics);
+    let mut compiler = Compiler::from_file(file.clone(), language, &mut diagnostics);
     compiler.compile();
 
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        // nocheckin
         let mut dumper = Dumper::new(&compiler.strings, &compiler.tree, dump_options);
-        // let modules = compiler.tree;
+        // nocheckin: iterate over top-level modules properly
+        for (definition_id, definition) in compiler.tree.iter_nodes::<Definition>() {
+            if let Definition::Namespace { meta, .. } = definition {
+                dumper.visit_definition(&compiler.tree, definition_id, definition);
+            }
+        }
         console::info(&dumper.finish());
     }
 

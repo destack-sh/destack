@@ -1,5 +1,5 @@
 use dyst_ast::{StringId, StringPool};
-use dyst_dir::NodeTree;
+use dyst_dir::{Module, ModuleGraph, NodeTree};
 use dyst_source::{DiagnosticCollector, File, FileId, LanguageOptions};
 
 use crate::CompilerQueue;
@@ -24,8 +24,8 @@ pub struct Compiler<'s> {
 
     /// The diagnostic collector.
     pub diagnostics: &'s mut DiagnosticCollector,
-    /// The source files.
-    // pub source: SourceCache,
+    /// The modules.
+    pub modules: ModuleGraph,
     /// The compiled DIR node tree.
     pub tree: NodeTree,
     /// The combined string pool.
@@ -36,12 +36,20 @@ pub struct Compiler<'s> {
 
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
-    pub fn from_source(
-        source: File,
+    pub fn from_file(
+        file: File,
         language: LanguageOptions,
         diagnostics: &'s mut DiagnosticCollector,
     ) -> Self {
-        todo!("from_source({source:?})")
+        todo!("from_file({file:?})")
+    }
+
+    pub fn from_module(
+        module: Module,
+        language: LanguageOptions,
+        diagnostics: &'s mut DiagnosticCollector,
+    ) -> Self {
+        todo!("from_module({module:?})")
     }
 
     // Intern an AST string for a certain source.

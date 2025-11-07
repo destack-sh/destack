@@ -195,7 +195,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for DefinitionType {
     fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             DefinitionType::Type => write!(f, [Keyword::Type]),
-            DefinitionType::Module => write!(f, [Keyword::Module]),
+            DefinitionType::Namespace => write!(f, [Keyword::Namespace]),
             DefinitionType::Struct => write!(f, [Keyword::Struct]),
             DefinitionType::Class => write!(f, [Keyword::Class]),
             DefinitionType::Enum => write!(f, [Keyword::Enum]),

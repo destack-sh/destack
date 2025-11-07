@@ -1459,9 +1459,9 @@ struct Floof {
         let mut test = TestParser::new(
             r"
 // Outer comment
-export module Outer {
+export namespace Outer {
     // Middle comment
-    export module Middle {
+    export namespace Middle {
         // Inner comment
         export type Inner = { }
     }
@@ -1486,7 +1486,7 @@ export module Outer {
             });
 
             // Outer
-            assert_node!(parser.tree, *node, Definition::Module { meta, expressions, .. } => {
+            assert_node!(parser.tree, *node, Definition::Namespace { meta, expressions, .. } => {
                 assert_string!(parser, meta.name.unwrap().string(), "Outer");
 
                 // Middle comment
@@ -1503,7 +1503,7 @@ export module Outer {
 
                 // Middle
                 assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-                    assert_node!(parser.tree, *node, Definition::Module { meta, expressions, .. } => {
+                    assert_node!(parser.tree, *node, Definition::Namespace { meta, expressions, .. } => {
                         assert_string!(parser, meta.name.unwrap().string(), "Middle");
 
                         // Inner comment

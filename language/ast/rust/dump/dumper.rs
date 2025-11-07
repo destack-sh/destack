@@ -432,8 +432,6 @@ impl_dump_display! {
     IfKind,
     WhileKind,
     MatchKind,
-    ModuleFormat,
-    ModuleStyle,
     Mutability,
     PostfixPosition,
     ReferenceType,
@@ -546,8 +544,8 @@ impl Dump for DefinitionType {
             DefinitionType::Type => {
                 dumper.object("DefinitionType::Type").end();
             }
-            DefinitionType::Module => {
-                dumper.object("DefinitionType::Module").end();
+            DefinitionType::Namespace => {
+                dumper.object("DefinitionType::Namespace").end();
             }
             DefinitionType::Struct => {
                 dumper.object("DefinitionType::Struct").end();
@@ -1111,18 +1109,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &crate::Definition,
     ) {
         match definition {
-            Definition::Module {
+            Definition::Namespace {
                 meta,
-                format,
-                style,
                 expressions: _,
                 with_clauses: _,
                 where_clauses: _,
             } => {
-                self.node("Definition::Module", id.id)
+                self.node("Definition::Namespace", id.id)
                     .field("meta", meta)
-                    .field("format", format)
-                    .field("style", style)
                     .end();
             }
             Definition::Struct {

@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_file::glob;
-use dyst_ast::{DefinitionMeta, ModuleFormat, ModuleStyle, TokenType};
+use dyst_ast::{DefinitionMeta, TokenType};
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 use pprof::criterion::{Output, PProfProfiler};
@@ -60,21 +60,17 @@ fn bench_parse(c: &mut Criterion) {
             let language = LanguageOptions::default();
             let mut diagnostics = DiagnosticCollector::new();
             let mut parser = Parser::from_file(file, language, &mut diagnostics);
-            let module = parser.with_recovery(
+            let namespace = parser.with_recovery(
                 parser.mark(),
                 |parser| {
                     parser
-                        .eat_module_body(
-                            DefinitionMeta::default(),
-                            ModuleFormat::File,
-                            ModuleStyle::Module,
-                        )
+                        .eat_namespace_body(DefinitionMeta::default())
                         .map(Some)
                 },
                 None,
                 TokenType::End,
             );
-            black_box(module);
+            black_box(namespace);
         });
     });
     group.finish();

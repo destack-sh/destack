@@ -4,13 +4,12 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, Field, FormatNode, Keyword, LanguageFormatContext, LanguageFormatter, ModuleFormat,
-    NodeId, VariantFormat, empty_block_with_infix_annotations,
+    Definition, Field, FormatNode, Keyword, LanguageFormatContext, LanguageFormatter, NodeId,
+    VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
     Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, ModuleStyle, ReferenceType, StructKind,
-    Visibility,
+    FunctionCardinality, FunctionKind, FunctionMode, ReferenceType, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -76,20 +75,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
         match self {
             // module
-            Definition::Module {
+            Definition::Namespace {
                 meta,
-                format,
-                style,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
-                if format == &ModuleFormat::File {
-                    // print expressions only for source modules (?)
-                    format_block_of_expressions(f, expressions)?;
-                    return Ok(());
-                }
-
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -106,10 +97,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // keyword
-                match style {
-                    ModuleStyle::Module => write!(f, [Keyword::Module])?,
-                    ModuleStyle::Namespace => write!(f, [Keyword::Namespace])?,
-                }
+                write!(f, [Keyword::Namespace])?;
 
                 // name / key
                 if let Some(name) = meta.name {
@@ -135,35 +123,26 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // body
-                match format {
-                    ModuleFormat::Forward => {
-                        write!(f, [token(";")])?;
-                        write!(f, [f.context().any_postfix_annotations(node_id)])?;
-                    }
-                    ModuleFormat::Inline => {
-                        write!(f, [space()])?;
-                        if expressions.is_empty() {
-                            write!(f, [empty_block_with_infix_annotations(node_id)])?;
-                            write!(f, [f.context().any_postfix_annotations(node_id)])?;
-                        } else {
-                            write!(f, [token("{"), hard_line_break()])?;
-                            write!(
-                                f,
-                                [group(&block_indent(&format_with(|f| {
-                                    format_block_of_expressions(f, expressions)
-                                })))]
-                            )?;
-                            write!(
-                                f,
-                                [
-                                    hard_line_break(),
-                                    f.context().block_infix_annotations(node_id),
-                                    token("}")
-                                ]
-                            )?;
-                        }
-                    }
-                    ModuleFormat::File => unreachable!(),
+                write!(f, [space()])?;
+                if expressions.is_empty() {
+                    write!(f, [empty_block_with_infix_annotations(node_id)])?;
+                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                } else {
+                    write!(f, [token("{"), hard_line_break()])?;
+                    write!(
+                        f,
+                        [group(&block_indent(&format_with(|f| {
+                            format_block_of_expressions(f, expressions)
+                        })))]
+                    )?;
+                    write!(
+                        f,
+                        [
+                            hard_line_break(),
+                            f.context().block_infix_annotations(node_id),
+                            token("}")
+                        ]
+                    )?;
                 }
             }
 

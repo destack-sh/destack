@@ -241,6 +241,23 @@ impl NodeTree {
             .collect()
     }
 
+    /// Iter nodes of a given type.
+    #[inline]
+    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = NodeId<T>>
+    where
+        T: Node,
+    {
+        self.local_id_by_node_id
+            .iter()
+            .filter_map(|id| {
+                if self.type_by_node_id[*id as usize] == T::TYPE {
+                    Some(NodeId::new(*id))
+                } else {
+                    None
+                }
+            })
+    }
+
     /// Remove a given local node.
     #[inline]
     fn delete(&mut self, node_type: NodeType, local_ids: Vec<u32>) {

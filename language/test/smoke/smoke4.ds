@@ -1,4 +1,4 @@
-declare module "bun" {
+declare namespace "bun" {
   export interface RedisOptions {
     /**
      * Connection timeout in milliseconds

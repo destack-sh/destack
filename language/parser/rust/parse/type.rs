@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         let next = self.eat_keyword_any()?;
         match next {
             Keyword::Type => Ok(TypeLiteral::Composite(DefinitionType::Type)),
-            Keyword::Module => Ok(TypeLiteral::Composite(DefinitionType::Module)),
+            Keyword::Namespace => Ok(TypeLiteral::Composite(DefinitionType::Namespace)),
             Keyword::Struct => Ok(TypeLiteral::Composite(DefinitionType::Struct)),
             Keyword::Class => Ok(TypeLiteral::Composite(DefinitionType::Class)),
             Keyword::Enum => Ok(TypeLiteral::Composite(DefinitionType::Enum)),

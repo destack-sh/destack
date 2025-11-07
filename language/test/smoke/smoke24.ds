@@ -1,6 +1,6 @@
 import type * as BunSQLite from "bun:sqlite";
 
-declare module "bun" {
+declare namespace "bun" {
   /**
    * Represents a reserved connection from the connection pool Extends SQL with
    * additional release functionality
