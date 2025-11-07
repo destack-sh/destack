@@ -33,27 +33,41 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // compile source
     let language = LanguageOptions::default();
     let compiler_options = CompilerOptions::default();
-    let mut diagnostics = DiagnosticCollector::new();
-    let mut compiler =
-        Compiler::from_file(file.clone(), language, compiler_options, &mut diagnostics);
+    let mut compiler = Compiler::from_file(file, language, compiler_options);
     compiler.compile();
-    let diagnostics = compiler.diagnostics.clone();
 
     // handle compiler diagnostics
     print_diagnostics(
-        &diagnostics,
+        &compiler.diagnostics,
         language,
         DiagnosticSeverity::Note,
         |file_id| compiler.modules.get_file_by_file_id(file_id),
     );
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+    if compiler
+        .diagnostics
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+    {
         return 1;
     }
 
     // transpile source
     let transpiler_options = TranspilerOptions::default();
-    let mut transpiler = Transpiler::from_compiler(&compiler, transpiler_options);
+    let mut transpiler = Transpiler::from_compiled(&compiler, language, transpiler_options);
     transpiler.transpile();
+
+    // handle transpiler diagnostics
+    print_diagnostics(
+        &transpiler.diagnostics,
+        language,
+        DiagnosticSeverity::Note,
+        |file_id| transpiler.modules.get_file_by_file_id(file_id),
+    );
+    if transpiler
+        .diagnostics
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+    {
+        return 1;
+    }
 
     todo!("print/write transpiler artifacts");
 

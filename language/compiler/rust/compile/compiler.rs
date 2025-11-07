@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use dyst_ast::StringPool;
 use dyst_dir::{ModuleGraph, NodeTree};
 use dyst_source::{DiagnosticCollector, File, LanguageOptions};
@@ -19,11 +21,11 @@ pub struct CompilerOptions {
 pub struct Compiler<'s> {
     /// The language options.
     pub language: LanguageOptions,
-    /// The options for compiling the Package.
+    /// The options for compiling.
     pub options: CompilerOptions,
 
     /// The diagnostic collector.
-    pub diagnostics: &'s mut DiagnosticCollector,
+    pub diagnostics: DiagnosticCollector,
     /// The modules.
     pub modules: ModuleGraph,
     /// The compiled DIR node tree.
@@ -32,25 +34,24 @@ pub struct Compiler<'s> {
     pub strings: StringPool,
     /// The queue of compiler tasks.
     pub(super) queue: CompilerQueue,
+
+    // (will probably use lifetime parameter later)
+    _marker: PhantomData<&'s ()>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new Compiler from a single file.
-    pub fn from_file(
-        file: File,
-        language: LanguageOptions,
-        options: CompilerOptions,
-        diagnostics: &'s mut DiagnosticCollector,
-    ) -> Self {
+    pub fn from_file(file: File, language: LanguageOptions, options: CompilerOptions) -> Self {
         let mut compiler = Self {
             language,
             options,
-            diagnostics,
+            diagnostics: DiagnosticCollector::new(),
             modules: ModuleGraph::new(),
             tree: NodeTree::new(),
             strings: StringPool::new(),
             queue: CompilerQueue::new(),
+            _marker: PhantomData,
         };
         compiler
             .queue

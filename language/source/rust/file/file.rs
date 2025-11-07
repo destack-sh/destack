@@ -38,8 +38,8 @@ pub enum FileContent {
     Text(String),
     /// Binary content.
     Binary(Vec<u8>),
-    /// Binary content, not loaded.
-    BinaryUnloaded,
+    /// Content not yet loaded.
+    Unloaded,
 }
 
 impl File {
@@ -94,7 +94,7 @@ impl File {
         match &self.content {
             FileContent::Text(content) => Some(&content[span.start as usize..span.end as usize]),
             FileContent::Binary(_) => None,
-            FileContent::BinaryUnloaded => None,
+            FileContent::Unloaded => None,
         }
     }
 
