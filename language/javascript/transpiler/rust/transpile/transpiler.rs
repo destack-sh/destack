@@ -10,7 +10,7 @@ use crate::TranspilerArtifact;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TranspilerMode {
     /// Retain the original file structure.
-    Retain,
+    Retained,
     /// Flatten into minimal chunks.
     Chunked,
     /// Combine all files.
@@ -21,7 +21,7 @@ pub enum TranspilerMode {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TranspilerOptions {
     /// The transpilation mode.
-    pub mode: TranspilerMode = TranspilerMode::Retain,
+    pub mode: TranspilerMode = TranspilerMode::Retained,
     /// The target language.
     pub target: LanguageTarget = LanguageTarget::TypeScript,
     /// The ECMAScript level.

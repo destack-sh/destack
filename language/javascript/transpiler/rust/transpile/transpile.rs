@@ -9,18 +9,6 @@ use crate::{
 };
 
 impl<'a> Transpiler<'a> {
-    /// Map a file type to its artifact type.
-    pub(crate) fn map_file_type_to_artifact_type(
-        options: TranspilerOptions,
-        file_type: FileType,
-    ) -> FileType {
-        todo!(
-            "map_file_type_to_artifact_type({:?}, {:?})",
-            options,
-            file_type
-        )
-    }
-
     /// Map the modules to the artifacts for the transpiled files.
     pub(crate) fn map_artifacts(
         options: TranspilerOptions,
@@ -28,7 +16,7 @@ impl<'a> Transpiler<'a> {
     ) -> HashMap<FileId, TranspilerArtifact> {
         let mut artifacts: HashMap<FileId, TranspilerArtifact> = HashMap::new();
         // map every module to an artifact
-        if options.mode == TranspilerMode::Retain {
+        if options.mode == TranspilerMode::Retained {
             for module in modules.iter() {
                 let artifact = TranspilerArtifact {
                     id: module.file.id,
