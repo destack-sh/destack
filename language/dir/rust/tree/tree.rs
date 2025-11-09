@@ -19,7 +19,7 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
-    pub(crate) source_by_node_id: Vec<ModuleId>,
+    pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
@@ -75,7 +75,7 @@ impl NodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
-            source_by_node_id: Vec::with_capacity(capacity),
+            module_by_node_id: Vec::with_capacity(capacity),
             ast_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_ast_id: HashMap::new(),
             alias_node_id_by_dir_id: HashMap::new(),
@@ -109,7 +109,7 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.source_by_node_id.push(module_id);
+        self.module_by_node_id.push(module_id);
         NodeId::new(global_id)
     }
 
@@ -141,7 +141,7 @@ impl NodeTree {
         U: Node,
         Self: NodeTreeImpl<U>,
     {
-        let module_id = self.source_by_node_id[dir_node_id.id as usize];
+        let module_id = self.module_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, module_id);
         self.ast_id_by_node_id.push(None);
         self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
@@ -220,7 +220,7 @@ impl NodeTree {
     /// Every DIR node has a source, but only some come directly from AST nodes.
     pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         (
-            self.source_by_node_id[node_id as usize],
+            self.module_by_node_id[node_id as usize],
             self.ast_id_by_node_id[node_id as usize],
         )
     }

@@ -1,7 +1,7 @@
 use destack_terminal::{CommandArguments, console};
 use dyst_compiler::{Compiler, CompilerOptions};
 use dyst_javascript_transpiler::{Transpiler, TranspilerOptions};
-use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
+use dyst_source::{DiagnosticCollector, DiagnosticSeverity, FileContent, LanguageOptions};
 
 use crate::diagnostic::print_diagnostics;
 use crate::source::get_string_or_file;
@@ -69,7 +69,18 @@ pub fn run(ctx: CommandArguments) -> i32 {
         return 1;
     }
 
-    todo!("print/write transpiler artifacts");
+    // print/write transpiler artifacts
+    for artifact in &transpiler.artifacts {
+        console::info("=".repeat(80).as_str());
+        console::info(&format!("{}", artifact.uri.to_string()));
+        console::info("=".repeat(80).as_str());
+        match &artifact.content {
+            FileContent::Text(text) => {
+                console::info(text);
+            }
+            _ => {}
+        }
+    }
 
     0
 }

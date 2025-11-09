@@ -7,6 +7,5 @@ mod transpile;
 mod transpiler;
 
 pub use artifact::*;
-pub use literal::*;
 pub use module::*;
 pub use transpiler::*;

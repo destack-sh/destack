@@ -55,6 +55,12 @@ impl Debug for NodeTree {
     }
 }
 
+impl Default for NodeTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeTree {
     /// Create a new NodeTree.
     pub fn new() -> Self {
