@@ -308,7 +308,7 @@ impl<'a> Parser<'a> {
             is_finished: false,
             options: ParserOptions::default(),
             language,
-            tree: NodeTree::new(file.id),
+            tree: NodeTree::new(),
             strings: StringPool::new(),
             diagnostics,
             eof_token,
