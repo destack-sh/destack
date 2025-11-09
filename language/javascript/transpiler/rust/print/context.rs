@@ -2,7 +2,7 @@ use dyst_fir::format::FormatOptions;
 use dyst_fir::print::PrintOptions;
 use dyst_source::{IndentStyle, LineEnding};
 
-use crate::TranspilerOptions;
+use crate::{LanguageTarget, TranspilerOptions};
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -121,13 +121,10 @@ impl LanguageFormatOptions {
     /// Whether this includes type annotations.
     #[inline]
     pub fn includes_type_annotations(&self) -> bool {
-        self.transpiler.target.includes_type_annotations()
-    }
-
-    /// Whether this includes XML.
-    #[inline]
-    pub fn includes_xml(&self) -> bool {
-        self.transpiler.target.includes_xml()
+        matches!(
+            self.transpiler.target,
+            LanguageTarget::TypeScript | LanguageTarget::TypeScriptDeclaration
+        )
     }
 }
 

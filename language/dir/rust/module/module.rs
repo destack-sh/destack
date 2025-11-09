@@ -15,6 +15,12 @@ impl ModuleId {
     }
 }
 
+impl From<FileId> for ModuleId {
+    fn from(file_id: FileId) -> Self {
+        Self::new(file_id)
+    }
+}
+
 /// The kind of a Module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleKind {

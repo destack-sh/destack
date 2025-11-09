@@ -2,17 +2,15 @@ use std::collections::HashMap;
 
 use dyst_compiler::Compiler;
 use dyst_dir as dir;
-use dyst_source::{DiagnosticCollector, FileId, LanguageOptions, StringPool};
+use dyst_source::{DiagnosticCollector, LanguageOptions, StringPool};
 
-use crate::TranspilerArtifact;
+use crate::{TranspilerArtifact, TranspilerUnit, TranspilerUnitId};
 
 /// The transpilation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TranspilerMode {
     /// Retain the original file structure.
     Retained,
-    /// Flatten into minimal chunks.
-    Chunked,
     /// Combine all files.
     Combined,
 }
@@ -35,36 +33,10 @@ pub struct TranspilerOptions {
 pub enum LanguageTarget {
     /// Plain JavaScript (like `.js`).
     JavaScript,
-    /// JavaScript XML (like `.jsx`).
-    JavaScriptXml,
     /// TypeScript (like `.ts`).
     TypeScript,
-    /// Typescript XML (like `.tsx`).
-    TypeScriptXml,
     /// TypeScript declarations (like `.d.ts`).
     TypeScriptDeclaration,
-}
-
-impl LanguageTarget {
-    /// Whether this includes type annotations.
-    #[inline]
-    pub fn includes_type_annotations(&self) -> bool {
-        matches!(
-            self,
-            LanguageTarget::TypeScript
-                | LanguageTarget::TypeScriptXml
-                | LanguageTarget::TypeScriptDeclaration
-        )
-    }
-
-    /// Whether this includes XML.
-    #[inline]
-    pub fn includes_xml(&self) -> bool {
-        matches!(
-            self,
-            LanguageTarget::JavaScriptXml | LanguageTarget::TypeScriptXml
-        )
-    }
 }
 
 /// The ECMAScript level.
@@ -96,18 +68,19 @@ pub struct Transpiler<'a> {
 
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
-    /// The artifacts of the transpiled files.
-    pub artifacts: HashMap<FileId, TranspilerArtifact>,
+    /// The transpiled modules (from the source modules).
+    pub units: HashMap<TranspilerUnitId, TranspilerUnit>,
+    /// The transpiled artifacts (from those units).
+    pub artifacts: Vec<TranspilerArtifact>,
 }
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
     pub fn from_compiled(
-        compiler: &'a Compiler,
+        compiler: &'a Compiler<'_>,
         language: LanguageOptions,
         options: TranspilerOptions,
     ) -> Self {
-        let artifacts = Transpiler::map_artifacts(options, &compiler.modules);
         Self {
             language,
             options,
@@ -115,7 +88,8 @@ impl<'a> Transpiler<'a> {
             modules: &compiler.modules,
             strings: &compiler.strings,
             diagnostics: DiagnosticCollector::new(),
-            artifacts,
+            units: HashMap::new(),
+            artifacts: Vec::new(),
         }
     }
 }

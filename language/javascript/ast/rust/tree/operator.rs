@@ -15,7 +15,7 @@ pub enum UnaryOperator {
     /// `~`
     ElementwiseNot,
     /// `!`
-    LogicalNot,
+    Not,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
