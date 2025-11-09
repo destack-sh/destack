@@ -28,8 +28,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
     pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
-            let expression = self.tree.get(*expression_id);
-            self.transpile_expression(module, expression, unit);
+            self.transpile_expression(module, *expression_id, unit);
         }
     }
 }

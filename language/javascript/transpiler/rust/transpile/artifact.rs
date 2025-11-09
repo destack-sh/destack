@@ -1,4 +1,4 @@
-use dyst_source::{FileContent, FileId, FileType};
+use dyst_source::{FileContent, FileId, FileType, Uri};
 
 use crate::{Transpiler, TranspilerUnit, TranspilerUnitId};
 
@@ -11,6 +11,8 @@ pub struct TranspilerArtifact {
     pub file_id: FileId,
     /// The type of the artifact.
     pub ty: FileType,
+    /// The uri of the artifact.
+    pub uri: Uri,
     /// The content of the artifact.
     pub content: FileContent,
 }

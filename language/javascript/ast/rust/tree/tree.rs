@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{FileId, NodeArena};
+use dyst_dir::{self as dir, ModuleId};
+use dyst_source::NodeArena;
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, Node,
@@ -18,7 +19,7 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
-    pub(crate) source_by_node_id: Vec<FileId>,
+    pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
@@ -67,11 +68,11 @@ impl NodeTree {
 
     /// Create a new NodeTree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {  
+        Self {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
-            source_by_node_id: Vec::with_capacity(capacity),
+            module_by_node_id: Vec::with_capacity(capacity),
             annotations_per_node_id: HashMap::new(),
             ast_id_by_node_id: Vec::with_capacity(capacity),
             dir_id_by_node_id: Vec::with_capacity(capacity),
@@ -94,7 +95,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, file_id: FileId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -104,20 +105,24 @@ impl NodeTree {
         self.type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::push(self, node);
         self.local_id_by_node_id.push(local_id);
-        self.source_by_node_id.push(file_id);
+        self.module_by_node_id.push(module_id);
         NodeId::new(global_id)
     }
 
     /// Allocate a new node in the DIR tree derived from another node.
-    pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    pub fn insert_from_dir<T, U>(
+        &mut self,
+        node: T,
+        module_id: ModuleId,
+        dir_node_id: dir::NodeId<U>,
+    ) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
-        U: Node,
-        Self: NodeTreeImpl<U>,
+        U: dir::Node,
+        dir::NodeTree: dir::NodeTreeImpl<U>,
     {
-        let file_id = self.source_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, file_id);
+        let node_id = self.insert(node, module_id);
         self.ast_id_by_node_id.push(None);
         self.dir_id_by_node_id.push(Some(dir_node_id.id));
         node_id
@@ -174,17 +179,17 @@ impl NodeTree {
 
     /// Get the source and AST id of a node by its global id.
     /// Every DIR node has a source, but only some come directly from AST nodes.
-    pub fn get_source_ast(&self, node_id: u32) -> (FileId, Option<u32>) {
+    pub fn get_source_ast(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         (
-            self.source_by_node_id[node_id as usize],
+            self.module_by_node_id[node_id as usize],
             self.ast_id_by_node_id[node_id as usize],
         )
     }
 
     /// Get the source and DIR id of a node by its global id.
-    pub fn get_source_dir(&self, node_id: u32) -> (FileId, Option<u32>) {
+    pub fn get_source_dir(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         (
-            self.source_by_node_id[node_id as usize],
+            self.module_by_node_id[node_id as usize],
             self.dir_id_by_node_id[node_id as usize],
         )
     }

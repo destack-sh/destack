@@ -2994,6 +2994,7 @@ name = "dyst_javascript_ast"
 version = "2025.11.5-0"
 dependencies = [
  "destack_unicode",
+ "dyst_dir",
  "dyst_source",
 ]
 

@@ -1,4 +1,4 @@
-use crate::{Argument, Expression, NodeId, Path, StringId};
+use crate::{Expression, NodeId, Path, StringId};
 
 /// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,16 +35,5 @@ pub enum TemplateLiteral {
         tag: Path,
         template: Vec<StringId>,
         expressions: Vec<NodeId<Expression>>,
-    },
-}
-
-/// An XMLLiteral is literal JSX/TSX XML fragment.
-#[derive(Debug, Clone, PartialEq)]
-pub enum XMLLiteral {
-    /// XML fragment value.
-    Fragment {
-        tag: Path,
-        attributes: Vec<NodeId<Argument>>,
-        children: Vec<NodeId<Expression>>,
     },
 }
