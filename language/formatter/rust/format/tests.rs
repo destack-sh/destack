@@ -1,12 +1,11 @@
-use crate::TokenSpan;
+use crate::{DystFormatContext, DystFormatOptions};
+use dyst_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
 use dyst_source::{
     DiagnosticCollector, File, FileId, FileType, LanguageOptions, MultiSpan, StringPool, Uri,
 };
-
-use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]

@@ -1,5 +1,5 @@
-use crate::{DystFormatContext, DystFormatter, Keyword};
-use dyst_ast::Name;
+use crate::{DystFormatContext, DystFormatter};
+use dyst_ast::{Keyword, Name};
 use dyst_fir::format::text;
 use dyst_fir::prelude::*;
 use dyst_fir::write;

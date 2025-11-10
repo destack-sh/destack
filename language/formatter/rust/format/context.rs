@@ -1,4 +1,4 @@
-use crate::{
+use dyst_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
     DependencyItem, Doc, EnumField, Expression, Field, MatchCase, Node, NodeId, NodeIdAny,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Tag,

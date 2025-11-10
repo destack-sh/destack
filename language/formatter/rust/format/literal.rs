@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
-use crate::{
-    Argument, DefinitionType, DystFormatContext, DystFormatter, FloatType, IntType, Keyword,
-    NodeId, ScalarLiteral, TypeLiteral,
-};
+use crate::{DystFormatContext, DystFormatter};
 
-use dyst_ast::TemplateLiteral;
+use dyst_ast::{
+    Argument, DefinitionType, FloatType, IntType, Keyword, NodeId, ScalarLiteral, TemplateLiteral,
+    TypeLiteral,
+};
 use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};

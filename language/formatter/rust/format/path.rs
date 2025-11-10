@@ -1,4 +1,5 @@
-use crate::{DystFormatContext, DystFormatter, Path};
+use crate::{DystFormatContext, DystFormatter};
+use dyst_ast::Path;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
