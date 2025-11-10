@@ -262,7 +262,7 @@ pub enum TypeBinaryOperator {
     /// `is`
     Is = 1005,
     /// `instanceof`
-    Instanceof = 1004,
+    InstanceOf = 1004,
     /// `satisfies`
     Satisfies = 1003,
     /// `extends`
@@ -291,7 +291,7 @@ impl TypeBinaryOperator {
         match token_str {
             "as" => Some(TypeBinaryOperator::Cast),
             "is" => Some(TypeBinaryOperator::Is),
-            "instanceof" => Some(TypeBinaryOperator::Instanceof),
+            "instanceof" => Some(TypeBinaryOperator::InstanceOf),
             "satisfies" => Some(TypeBinaryOperator::Satisfies),
             "extends" => Some(TypeBinaryOperator::Extends),
             "implements" => Some(TypeBinaryOperator::Implements),

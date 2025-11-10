@@ -9,6 +9,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
         node_id: NodeId<Type>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        assert!(f.context().include_types(), "printing types in non-type context");
         todo!("format_node{self:?}");
     }
 }

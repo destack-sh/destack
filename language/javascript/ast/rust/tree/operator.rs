@@ -72,9 +72,9 @@ pub enum BinaryOperator {
 
     // logical
     /// `&&`
-    LogicalAnd,
+    And,
     /// `||`
-    LogicalOr,
+    Or,
     /// `??`
     Coalesce,
 
@@ -120,9 +120,9 @@ pub enum AssignOperator {
     ElementwiseOrAssign,
 
     /// `&&=`
-    LogicalAndAssign,
+    AndAssign,
     /// `||=`
-    LogicalOrAssign,
+    OrAssign,
     /// `??=`
     CoalesceAssign,
 }

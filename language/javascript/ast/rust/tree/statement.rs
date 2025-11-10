@@ -15,14 +15,12 @@ pub enum Statement {
     Export { items: Vec<NodeId<DependencyItem>> },
 
     /// Block of statements.
-    Block {
-        label: Option<StringId>,
-        statements: Vec<NodeId<Statement>>,
-    },
+    Block { block: NodeId<Block> },
 
     /// Let.
     Let {
         mutability: Mutability,
+        pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
     },

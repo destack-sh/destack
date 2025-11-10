@@ -9,6 +9,7 @@ mod expression;
 mod field;
 mod identifier;
 mod literal;
+mod operator;
 mod parameter;
 mod pattern;
 mod pattern_field;

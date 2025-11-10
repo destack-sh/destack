@@ -546,111 +546,98 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match statement {
             Statement::Import {
                 source,
-                items,
-                arguments,
+                items: _,
+                arguments: _,
             } => {
-                let item_count = items.len() as u32;
-                let argument_count = arguments.as_ref().map(|args| args.len() as u32);
                 self.node("Statement::Import", id.id)
                     .field("source", source)
-                    .field("item_count", &item_count)
-                    .field_optional("argument_count", &argument_count)
                     .end();
             }
-            Statement::Export { items } => {
-                let item_count = items.len() as u32;
-                self.node("Statement::Export", id.id)
-                    .field("item_count", &item_count)
-                    .end();
+            Statement::Export { items: _ } => {
+                self.node("Statement::Export", id.id).end();
             }
-            Statement::Block { label, statements } => {
-                let statement_count = statements.len() as u32;
-                self.node("Statement::Block", id.id)
-                    .field_optional("label", label)
-                    .field("statement_count", &statement_count)
-                    .end();
+            Statement::Block { block: _ } => {
+                self.node("Statement::Block", id.id).end();
             }
             Statement::Let {
                 mutability,
-                ty,
-                value,
+                pattern: _,
+                ty: _,
+                value: _,
             } => {
-                let has_type = ty.is_some();
-                let has_value = value.is_some();
                 self.node("Statement::Let", id.id)
                     .field("mutability", mutability)
-                    .field("has_type", &has_type)
-                    .field("has_value", &has_value)
                     .end();
             }
             Statement::LetType {
                 name,
-                static_parameters,
-                ..
+                static_parameters: _,
+                value: _,
             } => {
-                let static_parameter_count =
-                    static_parameters.as_ref().map(|params| params.len() as u32);
                 self.node("Statement::LetType", id.id)
                     .field("name", name)
-                    .field_optional("static_parameter_count", &static_parameter_count)
                     .end();
             }
-            Statement::Assign { operator, .. } => {
+            Statement::Assign {
+                operator,
+                left: _,
+                right: _,
+            } => {
                 self.node("Statement::Assign", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Statement::Expression { .. } => {
+            Statement::Expression { expression: _ } => {
                 self.node("Statement::Expression", id.id).end();
             }
-            Statement::If { else_block, .. } => {
-                let has_else = else_block.is_some();
-                self.node("Statement::If", id.id)
-                    .field("has_else", &has_else)
-                    .end();
+            Statement::If {
+                condition: _,
+                then_block: _,
+                else_block: _,
+            } => {
+                self.node("Statement::If", id.id).end();
             }
-            Statement::While { .. } => {
+            Statement::While {
+                condition: _,
+                body: _,
+            } => {
                 self.node("Statement::While", id.id).end();
             }
             Statement::For {
-                initialization,
-                increment,
-                ..
+                initialization: _,
+                increment: _,
+                condition: _,
+                body: _,
             } => {
-                let has_initialization = initialization.is_some();
-                let has_increment = increment.is_some();
-                self.node("Statement::For", id.id)
-                    .field("has_initialization", &has_initialization)
-                    .field("has_increment", &has_increment)
-                    .end();
+                self.node("Statement::For", id.id).end();
             }
             Statement::ForIn { name, .. } => {
                 self.node("Statement::ForIn", id.id)
                     .field("name", name)
                     .end();
             }
-            Statement::ForOf { .. } => {
+            Statement::ForOf {
+                pattern: _,
+                iterator: _,
+                body: _,
+            } => {
                 self.node("Statement::ForOf", id.id).end();
             }
             Statement::Try {
-                catch_pattern,
-                finally_block,
-                ..
+                catch_pattern: _,
+                finally_block: _,
+                try_block: _,
+                catch_block: _,
             } => {
-                let has_catch_pattern = catch_pattern.is_some();
-                let has_finally = finally_block.is_some();
-                self.node("Statement::Try", id.id)
-                    .field("has_catch_pattern", &has_catch_pattern)
-                    .field("has_finally", &has_finally)
-                    .end();
+                self.node("Statement::Try", id.id).end();
             }
-            Statement::Await { .. } => {
+            Statement::Await { value: _ } => {
                 self.node("Statement::Await", id.id).end();
             }
-            Statement::Yield { .. } => {
+            Statement::Yield { value: _ } => {
                 self.node("Statement::Yield", id.id).end();
             }
-            Statement::Throw { .. } => {
+            Statement::Throw { value: _ } => {
                 self.node("Statement::Throw", id.id).end();
             }
             Statement::Continue { label } => {
@@ -663,11 +650,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("label", label)
                     .end();
             }
-            Statement::Return { value } => {
-                let has_value = value.is_some();
-                self.node("Statement::Return", id.id)
-                    .field("has_value", &has_value)
-                    .end();
+            Statement::Return { value: _ } => {
+                self.node("Statement::Return", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -682,29 +666,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Definition { .. } => {
+            Expression::Definition { definition: _ } => {
                 self.node("Expression::Definition", id.id).end();
             }
             Expression::ArrowFunction {
-                dynamic_parameters,
-                return_type,
-                ..
+                dynamic_parameters: _,
+                return_type: _,
+                body: _,
             } => {
-                let parameter_count = dynamic_parameters.len() as u32;
-                let has_return_type = return_type.is_some();
-                self.node("Expression::ArrowFunction", id.id)
-                    .field("parameter_count", &parameter_count)
-                    .field("has_return_type", &has_return_type)
-                    .end();
+                self.node("Expression::ArrowFunction", id.id).end();
             }
             Expression::Path {
                 path,
-                static_arguments,
+                static_arguments: _,
             } => {
-                let static_argument_count = static_arguments.as_ref().map(|args| args.len() as u32);
                 self.node("Expression::Path", id.id)
                     .field("path", path)
-                    .field_optional("static_argument_count", &static_argument_count)
                     .end();
             }
             Expression::ScalarLiteral { value } => {
@@ -717,37 +694,45 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(value)
                     .end();
             }
-            Expression::ArrayLiteral { elements } => {
-                let element_count = elements.len() as u32;
-                self.node("Expression::ArrayLiteral", id.id)
-                    .field("element_count", &element_count)
-                    .end();
+            Expression::ArrayLiteral { elements: _ } => {
+                self.node("Expression::ArrayLiteral", id.id).end();
             }
-            Expression::ObjectLiteral { fields } => {
-                let field_count = fields.len() as u32;
-                self.node("Expression::ObjectLiteral", id.id)
-                    .field("field_count", &field_count)
-                    .end();
+            Expression::ObjectLiteral { fields: _ } => {
+                self.node("Expression::ObjectLiteral", id.id).end();
             }
             Expression::Parenthesized { .. } => {
                 self.node("Expression::Parenthesized", id.id).end();
             }
-            Expression::TypeUnary { operator, .. } => {
+            Expression::TypeUnary {
+                operator,
+                expression: _,
+            } => {
                 self.node("Expression::TypeUnary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeBinary { operator, .. } => {
+            Expression::TypeBinary {
+                operator,
+                left: _,
+                right: _,
+            } => {
                 self.node("Expression::TypeBinary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Unary { operator, .. } => {
+            Expression::Unary {
+                operator,
+                expression: _,
+            } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::Binary { operator, .. } => {
+            Expression::Binary {
+                operator,
+                left: _,
+                right: _,
+            } => {
                 self.node("Expression::Binary", id.id)
                     .field("operator", operator)
                     .end();
@@ -986,17 +971,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
-            Pattern::Array { elements } => {
-                let element_count = elements.len() as u32;
-                self.node("Pattern::Array", id.id)
-                    .field("element_count", &element_count)
-                    .end();
+            Pattern::Array { elements: _ } => {
+                self.node("Pattern::Array", id.id).end();
             }
-            Pattern::Object { fields } => {
-                let field_count = fields.len() as u32;
-                self.node("Pattern::Object", id.id)
-                    .field("field_count", &field_count)
-                    .end();
+            Pattern::Object { fields: _ } => {
+                self.node("Pattern::Object", id.id).end();
             }
             Pattern::Rest { name } => {
                 self.node("Pattern::Rest", id.id)
@@ -1063,17 +1042,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match annotation {
             Annotation::Doc { string } => {
-                let snippet = truncate_string(self.strings.get(*string), 40, " ");
-                let snippet_ref = snippet.as_ref();
+                let string = truncate_string(self.strings.get(*string), 40, " ");
                 self.node("Annotation::Doc", id.id)
-                    .field("string", &snippet_ref)
+                    .field("string", &string.as_ref())
                     .end();
             }
             Annotation::Comment { string } => {
-                let snippet = truncate_string(self.strings.get(*string), 40, " ");
-                let snippet_ref = snippet.as_ref();
+                let string = truncate_string(self.strings.get(*string), 40, " ");
                 self.node("Annotation::Comment", id.id)
-                    .field("string", &snippet_ref)
+                    .field("string", &string.as_ref())
                     .end();
             }
         }

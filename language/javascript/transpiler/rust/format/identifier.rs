@@ -10,7 +10,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for StringId {
     #[inline]
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
-        write!(f, [text(&string)])
+        write!(f, [text(string)])
     }
 }
 

@@ -131,6 +131,15 @@ impl JavaScriptFormatOptions {
             indent_width: self.indent_width,
         }
     }
+
+    /// Whether we need type annotations.
+    #[inline]
+    pub fn include_types(&self) -> bool {
+        matches!(
+            self.language,
+            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+        )
+    }
 }
 
 impl FormatOptions for JavaScriptFormatOptions {
@@ -170,7 +179,16 @@ pub struct JavaScriptFormatContext<'a> {
     pub strings: &'a StringPool,
 }
 
-impl<'ast> JavaScriptFormatContext<'ast> {}
+impl<'ast> JavaScriptFormatContext<'ast> {
+    /// Whether we need type annotations.
+    #[inline]
+    pub fn include_types(&self) -> bool {
+        matches!(
+            self.options.language,
+            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+        )
+    }
+}
 
 impl<'a> FormatContext for JavaScriptFormatContext<'a> {
     type Options = JavaScriptFormatOptions;
@@ -182,7 +200,7 @@ impl<'a> FormatContext for JavaScriptFormatContext<'a> {
 
     #[inline]
     fn file(&self) -> &File {
-        &self.file
+        self.file
     }
 }
 

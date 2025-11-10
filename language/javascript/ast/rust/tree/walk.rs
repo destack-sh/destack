@@ -124,19 +124,19 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::Block {
-            label: _,
-            statements,
+            block,
         } => {
-            for statement_id in statements {
-                let nested_statement = tree.get(*statement_id);
-                visitor.visit_statement(tree, *statement_id, nested_statement);
-            }
+            let block_node = tree.get(*block);
+            visitor.visit_block(tree, *block, block_node);
         }
         Statement::Let {
             mutability: _,
+            pattern,
             ty,
             value,
         } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
             if let Some(ty_id) = ty {
                 let ty = tree.get(*ty_id);
                 visitor.visit_type(tree, *ty_id, ty);
