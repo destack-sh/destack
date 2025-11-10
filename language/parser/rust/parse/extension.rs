@@ -1,7 +1,7 @@
-use dyst_ast::{DefinitionMeta, NodeType};
-
 use crate::parse::prelude::*;
-use crate::{BlockFormat, Definition, Keyword, NodeId, Parser, ParserResult, TokenType};
+use crate::{Parser, ParserResult};
+
+use dyst_ast::{BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an extension (incl. `extension` keyword).
@@ -74,13 +74,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, DefinitionMeta, Parameter};
+    use dyst_ast::{
+        Argument, BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, IntType,
+        Parameter, TypeLiteral, WhereClause, WithClause,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, BinaryOperator, Definition, Expression, IntType, TypeLiteral, WhereClause,
-        WithClause, assert_expr_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_extension_simple() {

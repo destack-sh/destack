@@ -1,8 +1,8 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use dyst_ast::Keyword;
+use dyst_ast::{Expression, Keyword, NodeId, PostfixPosition, TokenType};
 
-use crate::{Expression, NodeId, Parser, ParserResult, PostfixPosition, TokenType};
+use crate::{Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -150,11 +150,11 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Name, Path, PostfixPosition};
+    use dyst_ast::{Argument, Expression, Name, NodeId, Path, PostfixPosition, ScalarLiteral};
     use dyst_source::smallvec;
 
     use crate::parse::tests::TestParser;
-    use crate::{Argument, Expression, NodeId, Parser, ScalarLiteral, assert_node, assert_string};
+    use crate::{Parser, assert_node, assert_string};
 
     fn make_self_expression(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let self_str = parser.strings.intern("self");

@@ -1,6 +1,7 @@
 use dyst_source::{SmallVec, StringId};
 
-use crate::{Parser, ParserResult, Path, TokenType};
+use crate::{Parser, ParserResult};
+use dyst_ast::{Path, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a Path.

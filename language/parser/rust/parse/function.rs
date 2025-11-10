@@ -1,13 +1,10 @@
-use dyst_ast::{
-    Asynchrony, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionMode, NodeType,
-    Parameter,
-};
-
 use crate::parse::prelude::*;
-use crate::{ReferenceType, ScopedMutability, TokenType};
+use crate::{Parser, ParserResult};
 
-use crate::{
-    Definition, FunctionKind, Keyword, Mutability, NodeId, Parser, ParserResult, SelfParameter,
+use dyst_ast::{
+    Asynchrony, Definition, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionKind,
+    FunctionMode, Keyword, Mutability, NodeId, NodeType, Parameter, ReferenceType,
+    ScopedMutability, SelfParameter, TokenType,
 };
 
 /// The keywords that can appear before a function definition.
@@ -500,15 +497,13 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, Block, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
-        IntType, Parameter, ReferenceType,
+        Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta, Expression,
+        FunctionCardinality, FunctionKind, FunctionMode, IntType, Mutability, Parameter,
+        ReferenceType, ScopedMutability, TypeLiteral, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Definition, Expression, Mutability, ScopedMutability, TypeLiteral,
-        WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_function_lambda_with_newlines() {

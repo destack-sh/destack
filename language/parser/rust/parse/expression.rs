@@ -1,12 +1,10 @@
-use dyst_ast::{
-    BindingScope, DeclarationKind, DefinitionMeta, ExportType, IfKind, PostfixPosition,
-    TypeBinaryOperator, TypeUnaryOperator,
-};
-
 use crate::parse::prelude::*;
-use crate::{
-    Argument, AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, NodeType,
-    Parser, ParserError, ParserMark, ParserResult, TokenSpan, TokenType, UnaryOperator,
+use crate::{Parser, ParserError, ParserMark, ParserResult};
+
+use dyst_ast::{
+    Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationKind, DefinitionMeta,
+    ExportType, Expression, IfKind, InfixOperator, Keyword, NodeId, NodeType, PostfixPosition,
+    TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
@@ -1214,18 +1212,15 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        AssignOperator, Block, Definition, DefinitionMeta, DefinitionType, DependencyKind,
-        DependencyTarget, ExportType, FunctionKind, IntType, Name, Parameter, PatternField,
-        PostfixPosition, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, VarianceBound,
-        WithClause,
+        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
+        DefinitionType, DependencyItem, DependencyKind, DependencyTarget, ExportType, Expression,
+        FunctionKind, IntType, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
+        ScalarLiteral, ScopedMutability, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
+        UnaryOperator, VarianceBound, WithClause,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, BinaryOperator, DependencyItem, Expression, Mutability, Pattern, ScalarLiteral,
-        ScopedMutability, UnaryOperator, assert_expr_path, assert_name, assert_node, assert_path,
-        assert_string,
-    };
+    use crate::{assert_expr_path, assert_name, assert_node, assert_path, assert_string};
 
     /// Disambiguate using import as a path.
     #[test]

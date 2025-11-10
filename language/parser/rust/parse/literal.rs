@@ -1,17 +1,15 @@
 use std::borrow::Cow;
-
-use dyst_ast::{
-    BindingKind, BindingModifier, Definition, DefinitionMeta, FunctionKind, Keyword, Path,
-    StringId, TemplateLiteral,
-};
 use std::str::FromStr;
 
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::parse::variant::BINDING_MODIFIERS;
-use crate::{
-    Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Parser, ParserError,
-    ParserResult, ScalarLiteral, TokenSpan, TokenType,
+use crate::{Parser, ParserError, ParserResult};
+
+use dyst_ast::{
+    Argument, BindingKind, BindingModifier, Definition, DefinitionMeta, Expression, FunctionKind,
+    Keyword, LiteralType, NodeId, NodeType, NumberBase, Path, ScalarLiteral, StringId,
+    TemplateLiteral, TokenSpan, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -955,15 +953,13 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, Definition, DefinitionMeta, FloatType, FunctionMode, IntType, Mutability,
-        Name, Parameter, TemplateLiteral,
+        Argument, BindingKind, Block, Definition, DefinitionMeta, Expression, FloatType,
+        FunctionMode, IntType, Mutability, Name, Parameter, ScalarLiteral, TemplateLiteral,
+        TypeLiteral,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, Block, Expression, ScalarLiteral, TypeLiteral, assert_expr_path, assert_node,
-        assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     /// Parse integer literals in various formats.
     #[test]

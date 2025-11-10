@@ -1,7 +1,7 @@
 //! Parse use and where declarations.
-use crate::TokenType;
+use crate::{Parser, ParserResult};
 
-use crate::{Keyword, NodeId, Parser, ParserResult, WhereClause};
+use dyst_ast::{Keyword, NodeId, TokenType, WhereClause};
 
 impl<'a> Parser<'a> {
     /// Eat a where context declaration or assignment maybe.
@@ -116,13 +116,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::IntType;
+    use dyst_ast::{BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause};
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Expression, TypeLiteral, UnaryOperator, WhereClause, assert_expr_path,
-        assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_where_type_assertion() {

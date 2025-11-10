@@ -1,8 +1,8 @@
-use dyst_ast::{DefinitionMeta, DefinitionType, FloatType, Keyword, Mutability, VarianceBound};
+use crate::{Parser, ParserError, ParserResult};
 
-use crate::{
-    Expression, IntType, NodeId, Parser, ParserError, ParserResult, TokenType, TypeLiteral,
-    TypeUnaryOperator, UnaryOperator,
+use dyst_ast::{
+    DefinitionMeta, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability, NodeId,
+    TokenType, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 impl<'a> Parser<'a> {
@@ -366,13 +366,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::TypeUnaryOperator;
+    use dyst_ast::{
+        BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, TypeUnaryOperator,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, assert_node, assert_path,
-        assert_string,
-    };
+    use crate::{assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_type_alias() {

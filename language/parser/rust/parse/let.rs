@@ -1,8 +1,8 @@
-use dyst_ast::DefinitionMeta;
+use crate::{Parser, ParserError, ParserResult};
 
-use crate::{Expression, ParserError, Path, TokenType};
-
-use crate::{Keyword, Mutability, NodeId, Parser, ParserResult, ScopedMutability};
+use dyst_ast::{
+    DefinitionMeta, Expression, Keyword, Mutability, NodeId, Path, ScopedMutability, TokenType,
+};
 
 // TODO #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
 //  (and how does this interact with let/const expressions, bindings/arguments/parameters/fields, ..)
@@ -188,13 +188,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, IntType, Name};
+    use dyst_ast::{
+        Argument, DefinitionMeta, Expression, IntType, Mutability, Name, Pattern, PatternField,
+        ScalarLiteral, ScopedMutability, TypeLiteral,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        DefinitionMeta, Expression, Mutability, Pattern, PatternField, ScalarLiteral,
-        ScopedMutability, TypeLiteral, assert_name, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_var_with_scoped_mutability() {

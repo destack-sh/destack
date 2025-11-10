@@ -28,4 +28,4 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     }
 }
 
-// nocheckin: support annotations for FormatResult
+// nocheckin: support annotations for JS/TS

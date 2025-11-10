@@ -1,10 +1,10 @@
 use dyst_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Keyword, Mutability,
-    Name, Pattern, ScalarLiteral, StringId,
+    Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Keyword,
+    Mutability, Name, NodeId, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenType,
 };
 
 use crate::parse::prelude::*;
-use crate::{Argument, NodeId, NodeType, Parameter, Parser, ParserResult, TokenType};
+use crate::{Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat a binding modifiers prefix (visibility and mutability).
@@ -630,14 +630,12 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, BindingOperator, Mutability, Name, Pattern, PatternField, Visibility,
+        Argument, BindingKind, BindingOperator, Expression, IntType, Mutability, Name, Parameter,
+        Pattern, PatternField, ScalarLiteral, TypeLiteral, Visibility,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, Expression, IntType, Parameter, ScalarLiteral, TypeLiteral, assert_expr_path,
-        assert_name, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_parameter_type_only() {

@@ -1,5 +1,5 @@
-use crate::{Parser, ParserError, ParserResult, TokenSpan, TokenType};
-use dyst_ast::{LiteralType, Name, NameOrDynamicKey};
+use crate::{Parser, ParserError, ParserResult};
+use dyst_ast::{LiteralType, Name, NameOrDynamicKey, TokenSpan, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {

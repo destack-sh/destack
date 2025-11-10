@@ -1,11 +1,11 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{DefinitionMeta, StructKind};
-
-use crate::TokenType;
 use crate::parse::prelude::*;
+use crate::{Parser, ParserResult};
 
-use crate::{Definition, Keyword, NodeId, NodeType, Parser, ParserResult, VariantFormat};
+use dyst_ast::{
+    Definition, DefinitionMeta, Keyword, NodeId, NodeType, StructKind, TokenType, VariantFormat,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -145,15 +145,13 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, DeclarationKind, DefinitionMeta, Mutability, Name, StructKind, Visibility,
+        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression,
+        Field, IntType, Mutability, Name, Parameter, StructKind, TypeLiteral, VariantFormat,
+        Visibility, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Definition, Expression, Field, IntType, Parameter, TypeLiteral,
-        VariantFormat, WhereClause, WithClause, assert_expr_path, assert_node, assert_path,
-        assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_struct_anonymous() {
