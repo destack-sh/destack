@@ -7,7 +7,9 @@
 		"dev": "bun --hot src/index.ds",
 		"start": "NODE_ENV=production bun src/index.ds"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@destack/bun": "workspace:*"
+	},
 	"devDependencies": {
 		"@types/bun": "latest"
 	}
