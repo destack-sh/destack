@@ -1,9 +1,18 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, BinaryOperator, BindingKind, Definition, Node, NodeId, NodeType, Parameter, Path,
-    ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
+    TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
+
+/// The position of a postfix expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PostfixPosition {
+    // Regular postfix (just `x?`)
+    Direct,
+    // Dot postfix (like `x.?`)
+    Indirect,
+}
 
 /// An Expression is value-producing JS form.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,23 +66,32 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
+    /// Maybe unwrap an expression with `?`.
+    Maybe {
+        position: PostfixPosition,
+        left: NodeId<Expression>,
+    },
+    /// Force unwrap an expression with `!`.
+    Must {
+        position: PostfixPosition,
+        left: NodeId<Expression>,
+    },
     /// Member access.
     Member {
         left: NodeId<Expression>,
         path: Path,
-        kind: BindingKind,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Index.
     Index {
+        position: PostfixPosition,
         left: NodeId<Expression>,
-        kind: BindingKind,
         index: Option<NodeId<Expression>>,
     },
     /// Call.
     Call {
+        position: PostfixPosition,
         left: NodeId<Expression>,
-        kind: BindingKind,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// Import call.

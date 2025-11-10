@@ -65,13 +65,13 @@ pub enum Expression {
         expression: NodeId<Expression>,
     },
     /// Value operation (e.g., `^x`).
-    Value {
+    ValueOf {
         mutability: Option<ScopedMutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
-    /// Reference operation (e.g., `&x`).
-    Reference {
+    /// Reference of operation (e.g., `&x`).
+    ReferenceOf {
         mutability: Option<ScopedMutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
@@ -260,8 +260,8 @@ impl Expression {
             Expression::Block { .. }
             | Expression::Unary { .. }
             | Expression::TypeBinary { .. }
-            | Expression::Reference { .. }
-            | Expression::Value { .. }
+            | Expression::ReferenceOf { .. }
+            | Expression::ValueOf { .. }
             | Expression::Binary { .. }
             | Expression::TypeUnary { .. }
             | Expression::AssignDirect { .. }

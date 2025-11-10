@@ -946,22 +946,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::Value {
+            Expression::ValueOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Expression::Value", id.id)
+                self.node("Expression::ValueOf", id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::Reference {
+            Expression::ReferenceOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Expression::Reference", id.id)
+                self.node("Expression::ReferenceOf", id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
@@ -1325,22 +1325,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Type::Value {
+            Type::ValueOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Type::Value", id.id)
+                self.node("Type::ValueOf", id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
             }
-            Type::Reference {
+            Type::ReferenceOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Type::Reference", id.id)
+                self.node("Type::ReferenceOf", id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
@@ -1684,7 +1684,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 right: _,
                 mutability,
             } => {
-                self.node("Pattern::Reference", id.id)
+                self.node("Pattern::ReferenceOf", id.id)
                     .field("mutability", mutability)
                     .end();
             }

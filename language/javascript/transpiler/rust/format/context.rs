@@ -1,3 +1,4 @@
+use dyst_ast::StringId;
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
@@ -189,6 +190,16 @@ pub struct JavaScriptFormatContext<'a> {
 }
 
 impl<'ast> JavaScriptFormatContext<'ast> {
+    /// Get alias for a definition from a given node.
+    #[inline]
+    pub fn get_alias_to_definition(
+        &self,
+        from_id: NodeIdAny,
+        to_id: NodeId<Definition>,
+    ) -> StringId {
+        todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
+    }
+
     /// Whether we need type annotations.
     #[inline]
     pub fn include_types(&self) -> bool {

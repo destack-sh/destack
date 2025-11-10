@@ -55,15 +55,12 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
             }
             Pattern::Maybe(unwrap) => write!(f, [unwrap, token("?")])?,
-            Pattern::Reference {
-                right: target,
-                mutability,
-            } => {
+            Pattern::ReferenceOf { right, mutability } => {
                 write!(f, [token("&")])?;
                 if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
-                write!(f, [target])?;
+                write!(f, [right])?;
             }
             Pattern::Binding {
                 mutability,

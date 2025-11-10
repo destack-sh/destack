@@ -244,12 +244,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             operator: _,
             expression: right,
         }
-        | Expression::Value {
+        | Expression::ValueOf {
             mutability: _,
             variance: _,
             right,
         }
-        | Expression::Reference {
+        | Expression::ReferenceOf {
             mutability: _,
             variance: _,
             right,
@@ -771,12 +771,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             mutability: _,
             right,
         }
-        | Type::Value {
+        | Type::ValueOf {
             mutability: _,
             variance: _,
             right,
         }
-        | Type::Reference {
+        | Type::ReferenceOf {
             mutability: _,
             variance: _,
             right,

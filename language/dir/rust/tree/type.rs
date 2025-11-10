@@ -139,13 +139,13 @@ pub enum Type {
         right: NodeId<Type>,
     },
     /// Value `^T` of a `T`. Or `^var T` for a mutable value.
-    Value {
+    ValueOf {
         mutability: Option<ScopedMutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Type>,
     },
-    /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
-    Reference {
+    /// Reference of `&T` to a `T`. Or `&var T` for a mutable reference.
+    ReferenceOf {
         mutability: Option<ScopedMutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Type>,

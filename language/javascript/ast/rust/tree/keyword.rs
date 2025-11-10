@@ -26,7 +26,7 @@ pub enum Keyword {
     Import,
     Export,
     From,
-    Default, 
+    Default,
     As,
 
     // ------------------------------------------------------------

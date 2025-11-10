@@ -90,7 +90,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             // value
-            Expression::Value {
+            Expression::ValueOf {
                 mutability,
                 variance,
                 right,
@@ -98,14 +98,14 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability.clone();
                 let variance = *variance;
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
-                Type::Value {
+                Type::ValueOf {
                     mutability,
                     variance,
                     right: type_id,
                 }
             }
             // reference
-            Expression::Reference {
+            Expression::ReferenceOf {
                 mutability,
                 variance,
                 right,
@@ -113,7 +113,7 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability.clone();
                 let variance = *variance;
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
-                Type::Reference {
+                Type::ReferenceOf {
                     mutability,
                     variance,
                     right: type_id,

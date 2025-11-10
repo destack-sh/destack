@@ -1,11 +1,11 @@
 use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{Definition, EnumField, Keyword, NodeId};
+use dyst_javascript_ast::{Definition, EnumField, ExportType, Keyword, NodeId, Visibility};
 
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
 /// Format a block of definitions.
 pub(crate) fn format_block_of_definitions<'ast>(
@@ -13,6 +13,26 @@ pub(crate) fn format_block_of_definitions<'ast>(
     definitions: &Vec<NodeId<Definition>>,
 ) -> FormatResult<()> {
     f.join_with(hard_line_break()).entries(definitions).finish()
+}
+
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
+    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Visibility::Public => write!(f, [Keyword::Public]),
+            Visibility::Protected => write!(f, [Keyword::Protected]),
+            Visibility::Private => write!(f, [Keyword::Private]),
+        }
+    }
+}
+
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
+    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            ExportType::Item => write!(f, [Keyword::Export]),
+            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
+            ExportType::Module => write!(f, [Keyword::Export]),
+        }
+    }
 }
 
 impl<'ast> FormatNode<'ast, Definition> for Definition {

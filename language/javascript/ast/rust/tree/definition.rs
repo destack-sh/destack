@@ -1,5 +1,6 @@
 use crate::{
-    BindingModifier, BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType, Parameter, StringId, Type, Visibility
+    BindingModifier, BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType,
+    Parameter, StringId, Type, Visibility,
 };
 
 /// The kind of declaration.

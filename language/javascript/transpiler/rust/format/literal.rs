@@ -1,9 +1,9 @@
 use dyst_fir::format::{Format, FormatResult, token};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::ScalarLiteral;
+use dyst_javascript_ast::{ScalarLiteral, TemplateLiteral};
 
-use crate::JavaScriptFormatter;
+use crate::{JavaScriptFormatContext, JavaScriptFormatter};
 
 /// Format a scalar literal.
 pub(crate) fn format_scalar_literal<'ast>(
@@ -33,4 +33,26 @@ pub(crate) fn format_scalar_literal<'ast>(
     }
 
     Ok(())
+}
+
+/// Format a template literal.
+pub(crate) fn format_template_literal<'ast>(
+    template: &TemplateLiteral,
+    _f: &mut JavaScriptFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    todo!("format_template_literal: {template:?}");
+}
+
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for ScalarLiteral {
+    #[inline]
+    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+        format_scalar_literal(self, f)
+    }
+}
+
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for TemplateLiteral {
+    #[inline]
+    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+        format_template_literal(self, f)
+    }
 }

@@ -29,8 +29,8 @@ pub enum Pattern {
     Rest { name: Option<StringId> },
     /// Maybe pattern (like `T?`).
     Maybe(NodeId<Pattern>),
-    /// Reference pattern (like `&x`).
-    Reference {
+    /// Reference of pattern (like `&x`).
+    ReferenceOf {
         mutability: Option<ScopedMutability>,
         right: NodeId<Pattern>,
     },

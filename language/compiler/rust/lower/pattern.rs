@@ -59,7 +59,7 @@ impl<'a> Compiler<'a> {
             ast::Pattern::Maybe(pattern_id) => {
                 Pattern::Maybe(self.lower_pattern(module, *pattern_id))
             }
-            ast::Pattern::Reference {
+            ast::Pattern::ReferenceOf {
                 mutability,
                 right: right_id,
             } => {

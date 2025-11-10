@@ -244,7 +244,7 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            ast::Expression::Value {
+            ast::Expression::ValueOf {
                 mutability,
                 variance,
                 right,
@@ -254,13 +254,13 @@ impl<'a> Compiler<'a> {
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
                 let right = self.lower_expression(module, *right);
-                Expression::Value {
+                Expression::ValueOf {
                     mutability,
                     variance,
                     right,
                 }
             }
-            ast::Expression::Reference {
+            ast::Expression::ReferenceOf {
                 mutability,
                 variance,
                 right,
@@ -270,7 +270,7 @@ impl<'a> Compiler<'a> {
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
                 let right = self.lower_expression(module, *right);
-                Expression::Reference {
+                Expression::ReferenceOf {
                     mutability,
                     variance,
                     right,

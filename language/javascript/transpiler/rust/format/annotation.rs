@@ -27,3 +27,5 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
         Ok(())
     }
 }
+
+// nocheckin: support annotations for FormatResult
