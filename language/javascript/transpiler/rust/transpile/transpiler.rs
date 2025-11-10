@@ -39,6 +39,8 @@ pub enum TranspilerTarget {
     TypeScript,
     /// Plain JavaScript with TypeScript declarations (.js and .d.ts).
     JavaScriptWithTypeScriptDeclarations,
+    /// All languages.
+    All,
 }
 
 impl TranspilerTarget {
@@ -49,6 +51,11 @@ impl TranspilerTarget {
             TranspilerTarget::TypeScript => smallvec![TranspilerLanguage::TypeScript],
             TranspilerTarget::JavaScriptWithTypeScriptDeclarations => smallvec![
                 TranspilerLanguage::JavaScript,
+                TranspilerLanguage::TypeScriptDeclaration,
+            ],
+            TranspilerTarget::All => smallvec![
+                TranspilerLanguage::JavaScript,
+                TranspilerLanguage::TypeScript,
                 TranspilerLanguage::TypeScriptDeclaration,
             ],
         }

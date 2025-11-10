@@ -52,7 +52,7 @@ pub enum Keyword {
     Implements, // TS; also reserved in JS (strict/future)
     Satisfies,  // TS
     Asserts,    // TS
-    Instanceof,
+    InstanceOf,
     Typeof,
     Keyof, // TS
     Infer, // TS
@@ -183,7 +183,7 @@ impl Keyword {
             Keyword::Implements => "implements",
             Keyword::Satisfies => "satisfies",
             Keyword::Asserts => "asserts",
-            Keyword::Instanceof => "instanceof",
+            Keyword::InstanceOf => "instanceof",
             Keyword::Typeof => "typeof",
             Keyword::Keyof => "keyof",
             Keyword::Infer => "infer",
@@ -281,7 +281,7 @@ impl FromStr for Keyword {
             "implements" => Ok(Keyword::Implements),
             "satisfies" => Ok(Keyword::Satisfies),
             "asserts" => Ok(Keyword::Asserts),
-            "instanceof" => Ok(Keyword::Instanceof),
+            "instanceof" => Ok(Keyword::InstanceOf),
             "typeof" => Ok(Keyword::Typeof),
             "keyof" => Ok(Keyword::Keyof),
             "infer" => Ok(Keyword::Infer),

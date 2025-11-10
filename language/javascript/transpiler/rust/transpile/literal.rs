@@ -9,7 +9,7 @@ impl<'a> Transpiler<'a> {
         &self,
         _module: &Module,
         literal: &dir::ScalarLiteral,
-        _unit: &mut TranspilerUnit,
+        unit: &mut TranspilerUnit,
     ) -> ScalarLiteral {
         match literal {
             dir::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
@@ -17,12 +17,23 @@ impl<'a> Transpiler<'a> {
             dir::ScalarLiteral::Integer(integer) => ScalarLiteral::Number(*integer as f64),
             dir::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Number(*bigint as f64),
             dir::ScalarLiteral::Float(float) => ScalarLiteral::Number(*float),
-            dir::ScalarLiteral::String(string) => ScalarLiteral::String(*string),
-            dir::ScalarLiteral::RegexString { content, flags } => ScalarLiteral::RegexString {
-                content: *content,
-                flags: *flags,
-            },
-            _ => panic!("unsupposed literal {literal:?}"),
+            dir::ScalarLiteral::Character(character) => {
+                let string = unit.strings.intern(character.to_string());
+                ScalarLiteral::String(string)
+            }
+            dir::ScalarLiteral::String(string) => {
+                let string = unit.strings.intern_from(self.strings, *string);
+                ScalarLiteral::String(string)
+            }
+            dir::ScalarLiteral::RegexString { content, flags } => {
+                let content = unit.strings.intern_from(self.strings, *content);
+                let flags = flags.map(|flag| unit.strings.intern_from(self.strings, flag));
+                ScalarLiteral::RegexString { content, flags }
+            }
+            dir::ScalarLiteral::ByteString(byte_string) => {
+                let string = unit.strings.intern(String::from_utf8_lossy(byte_string));
+                ScalarLiteral::String(string)
+            }
         }
     }
 }

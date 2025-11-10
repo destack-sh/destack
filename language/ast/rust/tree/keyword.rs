@@ -101,7 +101,7 @@ pub enum Keyword {
     /// Declare a tuple.
     Tuple,
     /// Instanceof test.
-    Instanceof,
+    InstanceOf,
     /// Where assertion.
     Where,
     /// Typeof expression.
@@ -272,7 +272,7 @@ impl Keyword {
             Keyword::Override => "override",
             Keyword::Asserts => "asserts",
             Keyword::Tuple => "tuple",
-            Keyword::Instanceof => "instanceof",
+            Keyword::InstanceOf => "instanceof",
             Keyword::Where => "where",
             Keyword::Typeof => "typeof",
             Keyword::Keyof => "keyof",
@@ -374,7 +374,7 @@ impl FromStr for Keyword {
             "override" => Ok(Keyword::Override),
             "asserts" => Ok(Keyword::Asserts),
             "tuple" => Ok(Keyword::Tuple),
-            "instanceof" => Ok(Keyword::Instanceof),
+            "instanceof" => Ok(Keyword::InstanceOf),
             "where" => Ok(Keyword::Where),
             "typeof" => Ok(Keyword::Typeof),
             "keyof" => Ok(Keyword::Keyof),

@@ -109,7 +109,7 @@ pub enum TypeBinaryOperator {
     /// `is`
     Is,
     /// `instanceof`
-    Instanceof,
+    InstanceOf,
     /// `satisfies`
     Satisfies,
     /// `extends`

@@ -100,7 +100,7 @@ impl<'a> Compiler<'a> {
         match type_binary_operator {
             ast::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
             ast::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
-            ast::TypeBinaryOperator::Instanceof => TypeBinaryOperator::Instanceof,
+            ast::TypeBinaryOperator::InstanceOf => TypeBinaryOperator::InstanceOf,
             ast::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,
             ast::TypeBinaryOperator::Extends => TypeBinaryOperator::Extends,
             ast::TypeBinaryOperator::Implements => TypeBinaryOperator::Implements,

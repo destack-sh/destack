@@ -1,6 +1,5 @@
 use crate::{
-    BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType, Parameter, StringId,
-    Type, Visibility,
+    BindingModifier, BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType, Parameter, StringId, Type, Visibility
 };
 
 /// The kind of declaration.
@@ -59,6 +58,7 @@ impl Node for Definition {
 /// A Field is a named property of a definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
+    pub modifiers: Option<BindingModifier>,
     pub name: StringId,
     pub ty: Option<NodeId<Type>>,
     pub default: Option<NodeId<Expression>>,
