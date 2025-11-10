@@ -1,6 +1,8 @@
 use crate::{
-    Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeTree, NodeTreeImpl,
-    NodeType, TokenSpan, TokenType,
+    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
+    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, Node, NodeId, NodeIdAny,
+    NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Tag,
+    TokenSpan, TokenType, UnionField, WhereClause, WithClause,
 };
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
@@ -430,7 +432,7 @@ where
     fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'a, '_>) -> FormatResult<()>;
 }
 
-/// Implement Format for FormatNode via context.
+/// Implement Format for FormatNode for NodeIds.
 impl<'a, T: Node> Format<DystFormatContext<'a>> for NodeId<T>
 where
     T: Node + Clone,
@@ -442,5 +444,115 @@ where
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)
+    }
+}
+
+/// Implement Format for FormatNode for NodeIdsAny.
+impl<'a> Format<DystFormatContext<'a>> for NodeIdAny {
+    #[inline]
+    fn format(&self, f: &mut DystFormatter<'a, '_>) -> FormatResult<()> {
+        let context = f.context();
+        match self.ty {
+            NodeType::Expression => {
+                let node_id = NodeId::<Expression>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Block => {
+                let node_id = NodeId::<Block>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Definition => {
+                let node_id = NodeId::<Definition>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Field => {
+                let node_id = NodeId::<Field>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::EnumField => {
+                let node_id = NodeId::<EnumField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::UnionField => {
+                let node_id = NodeId::<UnionField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::WithClause => {
+                let node_id = NodeId::<WithClause>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::WhereClause => {
+                let node_id = NodeId::<WhereClause>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::DependencyItem => {
+                let node_id = NodeId::<DependencyItem>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Parameter => {
+                let node_id = NodeId::<Parameter>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Argument => {
+                let node_id = NodeId::<Argument>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::MatchCase => {
+                let node_id = NodeId::<MatchCase>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Pattern => {
+                let node_id = NodeId::<Pattern>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::PatternField => {
+                let node_id = NodeId::<PatternField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Annotation => {
+                let node_id = NodeId::<Annotation>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Blank => {
+                let node_id = NodeId::<Blank>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Doc => {
+                let node_id = NodeId::<Doc>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Comment => {
+                let node_id = NodeId::<Comment>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Tag => {
+                let node_id = NodeId::<Tag>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Decorator => {
+                let node_id = NodeId::<Decorator>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+        }
     }
 }

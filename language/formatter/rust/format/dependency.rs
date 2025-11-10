@@ -4,7 +4,7 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::{
-    DependencyItem, DependencyTarget, FormatNode, DystFormatContext, DystFormatter, NodeId,
+    DependencyItem, DependencyTarget, DystFormatContext, DystFormatter, FormatNode, NodeId,
 };
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;

@@ -6,8 +6,8 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{
-    Argument, FormatNode, DystFormatContext, DystFormatter, Node, NodeId, NodeTree,
-    NodeTreeImpl, Parameter,
+    Argument, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
+    Parameter,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
@@ -384,21 +384,11 @@ mod tests {
 
     #[test]
     fn test_format_argument_named_shorthand() {
-        assert_format!(
-            "x",
-            "x",
-            |p| p.eat_argument(),
-            DystFormatOptions::default()
-        );
+        assert_format!("x", "x", |p| p.eat_argument(), DystFormatOptions::default());
     }
 
     #[test]
     fn test_format_argument_positional() {
-        assert_format!(
-            "1",
-            "1",
-            |p| p.eat_argument(),
-            DystFormatOptions::default()
-        );
+        assert_format!("1", "1", |p| p.eat_argument(), DystFormatOptions::default());
     }
 }

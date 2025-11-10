@@ -15,8 +15,6 @@ pub struct TranspilerArtifact {
     pub ty: FileType,
     /// The file.
     pub file: File,
-    /// The uri of the artifact (including extension).
-    pub uri: Uri,
     /// The content of the artifact.
     pub content: FileContent,
 }
@@ -48,7 +46,7 @@ impl<'a> Transpiler<'a> {
             tree: &unit.ast,
             strings: &unit.strings,
         };
-        let formatted = format!(context, [unit.ast]).unwrap();
+        let formatted = format!(context, [unit]).unwrap();
         let printed = formatted.print();
         let content = printed.unwrap().as_str().to_string();
 
@@ -57,7 +55,6 @@ impl<'a> Transpiler<'a> {
             unit_id: unit.id,
             ty,
             file,
-            uri,
             content: FileContent::Text(content),
         };
         artifact
