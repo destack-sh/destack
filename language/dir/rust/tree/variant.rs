@@ -32,7 +32,7 @@ pub struct BindingModifier {
 /// A Field is a field of a variant.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Field {
-    /// Named field ().
+    /// Named field (like `x: int32`).
     Named {
         /// The modifiers of the field.
         modifiers: Option<BindingModifier>,
@@ -43,7 +43,7 @@ pub enum Field {
         /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
-    /// Positional field.
+    /// Positional field (like `4`).
     Positional {
         /// The modifiers of the field.
         modifiers: Option<BindingModifier>,
@@ -52,7 +52,7 @@ pub enum Field {
         /// The default value of the field.
         default: Option<NodeId<Expression>>,
     },
-    /// Dynamic field.
+    /// Dynamic field (like `[x: string]: any`).
     Dynamic {
         /// The modifiers of the field.
         modifiers: Option<BindingModifier>,

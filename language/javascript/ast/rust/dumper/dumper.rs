@@ -927,7 +927,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_field(&mut self, tree: &NodeTree, id: NodeId<Field>, field: &Field) {
-        self.node("Field", id.id).field("name", &field.name).end();
+        match field {
+            Field::Named {
+                modifiers,
+                name,
+                ty: _,
+                default: _,
+            } => {
+                self.node("Field::Named", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("name", name)
+                    .end();
+            }
+            Field::Dynamic {
+                modifiers,
+                name,
+                ty: _,
+                key: _,
+                default: _,
+            } => {
+                self.node("Field::Dynamic", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("name", name)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_field(dumper, tree, id, field);
         });
