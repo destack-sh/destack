@@ -1,7 +1,156 @@
-use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{Argument, NodeId};
+use std::marker::PhantomData;
 
-use crate::{FormatNode, JavaScriptFormatter};
+use dyst_fir::format::{BestFittingMode, FormatResult};
+use dyst_javascript_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl};
+
+use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
+
+use dyst_fir::{best_fitting, prelude::*};
+use dyst_fir::{format_args, write};
+
+/// List like thing infix annotations.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    start_token: &'static str,
+    end_token: &'static str,
+    separator: &'static str,
+    include_space: bool,
+    force_trailing_separator: bool,
+    force_expand: bool,
+    elements: &'e Vec<NodeId<T>>,
+
+    _phantom: PhantomData<&'ast ()>,
+}
+
+#[allow(dead_code)]
+impl<'ast, 'e, T> ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    pub(crate) fn force_expand(&mut self) -> &mut Self {
+        self.force_expand = true;
+        self
+    }
+
+    pub(crate) fn should_expand(&mut self, should_expand: bool) -> &mut Self {
+        self.force_expand = should_expand;
+        self
+    }
+
+    pub(crate) fn include_space(&mut self) -> &mut Self {
+        self.include_space = true;
+        self
+    }
+
+    pub(crate) fn force_trailing_separator(&mut self) -> &mut Self {
+        self.force_trailing_separator = true;
+        self
+    }
+}
+
+impl<'ast, 'e, T> Format<JavaScriptFormatContext<'ast>> for ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    #[inline]
+    fn format(&self, f: &mut Formatter<'_, JavaScriptFormatContext<'ast>>) -> FormatResult<()> {
+        let body = &format_with(|f| {
+            // leading space
+            if self.include_space {
+                write!(f, [if_group_fits_on_line(&space())])?;
+            }
+
+            // elements
+            f.join_with(&format_args![
+                &token(self.separator),
+                soft_line_break_or_space()
+            ])
+            .entries(self.elements)
+            .finish()?;
+
+            // trailing separator (always if forced, otherwise only if group breaks)
+            if self.force_trailing_separator {
+                write!(f, [token(self.separator)])?;
+            } else {
+                write!(f, [if_group_breaks(&token(self.separator))])?;
+            }
+
+            // trailing space
+            if self.include_space && !self.elements.is_empty() {
+                write!(f, [if_group_fits_on_line(&space())])?;
+            }
+
+            Ok(())
+        });
+
+        // prefer keeping the list on a single line
+        let format_inline =
+            format_with(|f| write!(f, [&token(self.start_token), body, &token(self.end_token)]));
+        // otherwise, indent the body
+        let format_indented = format_with(|f| {
+            group(&format_args![
+                &token(self.start_token),
+                block_indent(body),
+                &token(self.end_token)
+            ])
+            .should_expand(true)
+            .format(f)
+        });
+        // if overall better fit, expand without indenting the
+        let format_inline_expanded = format_with(|f| {
+            write!(
+                f,
+                [
+                    &token(self.start_token),
+                    fits_expanded(&group(body).should_expand(true)),
+                    &token(self.end_token)
+                ]
+            )
+        });
+
+        if self.force_expand {
+            format_indented.format(f)?;
+        } else {
+            best_fitting![format_inline, format_indented, format_inline_expanded]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// List like group for `elements`:
+///  - beginning with `start_token`
+///  - ending with `end_token`
+///  - separated by `separator`
+pub(crate) fn list_like<'ast, 'e, T>(
+    start_token: &'static str,
+    end_token: &'static str,
+    separator: &'static str,
+    elements: &'e Vec<NodeId<T>>,
+) -> ListLike<'ast, 'e, T>
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    ListLike {
+        start_token,
+        end_token,
+        separator,
+        include_space: false,
+        force_trailing_separator: false,
+        force_expand: false,
+        elements,
+        _phantom: PhantomData,
+    }
+}
 
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(

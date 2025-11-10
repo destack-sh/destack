@@ -3,91 +3,92 @@ use crate::{
     NodeType, Parameter, Pattern, StringId, Type,
 };
 
+/// A Statement is a JS/TS top-level statement in some container/block.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    /// Import.
+    /// Import items (including type items).
     Import {
         source: StringId,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// Export.
+    /// Export items (including type items).
     Export { items: Vec<NodeId<DependencyItem>> },
 
     /// Block of statements.
     Block { block: NodeId<Block> },
 
-    /// Let.
+    /// Let binding.
     Let {
         mutability: Mutability,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
     },
-    /// Let type.
+    /// Let type alias.
     LetType {
         name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         value: NodeId<Type>,
     },
-    /// Assignment.
+    /// Assignment operation.
     Assign {
         left: NodeId<Expression>,
         operator: AssignOperator,
         right: NodeId<Expression>,
     },
-    /// Expression.
+    /// Expression statement.
     Expression { expression: NodeId<Expression> },
 
-    /// If.
+    /// If statement.
     If {
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
         else_block: Option<NodeId<Block>>,
     },
-    /// While loop.
+    /// While statement.
     While {
         condition: NodeId<Expression>,
         body: NodeId<Block>,
     },
-    /// For three-part loop.
+    /// For statement.
     For {
         initialization: Option<NodeId<Expression>>,
         condition: NodeId<Expression>,
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
-    /// For in loop.
+    /// For in statement.
     ForIn {
         name: StringId,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
-    /// For of loop.
+    /// For of statement.
     ForOf {
         pattern: NodeId<Pattern>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
     },
 
-    /// Try.
+    /// Try statement.
     Try {
         try_block: NodeId<Block>,
         catch_pattern: Option<NodeId<Pattern>>,
         catch_block: NodeId<Block>,
         finally_block: Option<NodeId<Block>>,
     },
-    /// Await.
+    /// Await statement.
     Await { value: NodeId<Expression> },
-    /// Yield.
+    /// Yield statement.
     Yield { value: NodeId<Expression> },
-    /// Throw.
+    /// Throw statement.
     Throw { value: NodeId<Expression> },
-    /// Continue.
+    /// Continue statement.
     Continue { label: Option<StringId> },
-    /// Break.
+    /// Break statement.
     Break { label: Option<StringId> },
-    /// Return.
+    /// Return statement.
     Return { value: Option<NodeId<Expression>> },
 }
 

@@ -8,7 +8,7 @@ use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Forma
 use dyst_fir::print::PrintOptions;
 use dyst_source::{
     File, FileSourceMap, IndentStyle, LanguageCompatibility, LanguageOptions, LineEnding,
-    MultiSpan, Span, StringId, StringPool,
+    MultiSpan, Span, StringPool,
 };
 
 pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;

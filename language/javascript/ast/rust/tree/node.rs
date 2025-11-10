@@ -82,7 +82,7 @@ impl<T: Node> Debug for NodeId<T> {
     }
 }
 
-// manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
+/// Manually mark as Copy since PhantomData over T breaks Copy otherwise.
 impl<T: Clone + Node> Copy for NodeId<T> {}
 
 impl<T: Node> NodeId<T> {

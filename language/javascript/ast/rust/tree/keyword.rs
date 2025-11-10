@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-/// A JavaScript / TypeScript keyword.
+/// A JS/TS keyword.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
     // ------------------------------------------------------------
-    // Modifiers (TS + JS class modifiers)
+    // Modifiers
     // ------------------------------------------------------------
     Public,
     Protected,
@@ -26,8 +26,8 @@ pub enum Keyword {
     Import,
     Export,
     From,
-    Default, // `export default`
-    As,      // aliasing in import/export
+    Default, 
+    As,
 
     // ------------------------------------------------------------
     // Definitions
@@ -37,11 +37,11 @@ pub enum Keyword {
     Var,
     Class,
     Function,
-    Enum,      // TS
-    Interface, // TS
-    Type,      // TS
-    Namespace, // TS (aka `module` in older TS)
-    Module,    // TS alias for `namespace`
+    Enum,
+    Interface,
+    Type,
+    Namespace,
+    Module,
     New,
     Delete,
 
@@ -49,27 +49,27 @@ pub enum Keyword {
     // Typing (JS/TS operators + TS type/contextual keywords)
     // ------------------------------------------------------------
     Extends,
-    Implements, // TS; also reserved in JS (strict/future)
-    Satisfies,  // TS
-    Asserts,    // TS
+    Implements,
+    Satisfies,
+    Asserts,
     InstanceOf,
     Typeof,
-    Keyof, // TS
-    Infer, // TS
-    Is,    // TS
+    Keyof,
+    Infer,
+    Is,
     In,
-    Of, // contextual (for-of)
+    Of,
     Void,
-    Any,       // TS
-    Unknown,   // TS
-    Never,     // TS
-    Boolean,   // TS
-    Number,    // TS
-    String,    // TS
-    Symbol,    // TS
-    Bigint,    // TS
-    Object,    // TS
-    Undefined, // TS
+    Any,
+    Unknown,
+    Never,
+    Boolean,
+    Number,
+    String,
+    Symbol,
+    Bigint,
+    Object,
+    Undefined,
 
     // ------------------------------------------------------------
     // Branching
@@ -93,8 +93,8 @@ pub enum Keyword {
     Continue,
     Return,
     Yield,
-    With,     // JS statement (disallowed in strict mode)
-    Debugger, // JS statement
+    With,
+    Debugger,
     Using,
 
     // ------------------------------------------------------------
@@ -110,8 +110,8 @@ pub enum Keyword {
     // ------------------------------------------------------------
     Async,
     Await,
-    Get, // class accessor
-    Set, // class accessor
+    Get,
+    Set,
 }
 
 impl Keyword {

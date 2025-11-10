@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_source::{FileId, FileSourceMap, Span};
+use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,

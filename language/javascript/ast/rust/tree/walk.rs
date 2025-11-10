@@ -520,10 +520,17 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Interface {
             meta,
+            static_parameters,
             fields,
             definitions,
         } => {
             walk_definition_meta(visitor, tree, meta);
+            if let Some(parameters) = static_parameters {
+                for parameter_id in parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_field(tree, *field_id, field);
@@ -767,27 +774,6 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Named {
             mutability: _,
             name: _,
-            pattern,
-            default,
-        } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(default) = default {
-                let default_expr = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expr);
-            }
-        }
-        PatternField::Positional { pattern, default } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(default) = default {
-                let default_expr = tree.get(*default);
-                visitor.visit_expression(tree, *default, default_expr);
-            }
-        }
-        PatternField::Alias {
-            mutability: _,
-            name: _,
             alias: _,
             default,
         } => {
@@ -795,6 +781,20 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 let default_expr = tree.get(*default);
                 visitor.visit_expression(tree, *default, default_expr);
             }
+        }
+        PatternField::Pattern {
+            mutability: _,
+            pattern: _,
+            default,
+        } => {
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
+        }
+        PatternField::Positional { pattern } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
         }
     }
 }

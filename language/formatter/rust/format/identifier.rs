@@ -9,7 +9,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for StringId {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
-        write!(f, [text(&string)])
+        write!(f, [text(string)])
     }
 }
 
@@ -17,14 +17,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for Name {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            Name::Identifier(string) => {
-                string.format(f)?;
-            }
-            Name::String(string) => {
-                write!(f, [token("\""), string, token("\"")])?;
-            }
-        };
-        Ok(())
+            Name::Identifier(string) => string.format(f),
+            Name::String(string) => write!(f, [token("\""), string, token("\"")]),
+        }
     }
 }
 

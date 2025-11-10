@@ -1,5 +1,8 @@
 use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{NodeId, SwitchCase};
+use dyst_fir::prelude::*;
+use dyst_fir::write;
+
+use dyst_javascript_ast::{Keyword, NodeId, SwitchCase};
 
 use crate::{FormatNode, JavaScriptFormatter};
 
@@ -9,6 +12,8 @@ impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
         node_id: NodeId<SwitchCase>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        todo!("format_node{self:?}");
+        write!(f, [Keyword::Case, space(), self.value, token(":")])?;
+        write!(f, [block_indent(&format_with(|f| self.body.format(f)))])?;
+        Ok(())
     }
 }

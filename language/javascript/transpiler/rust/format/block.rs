@@ -1,9 +1,16 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::{Block, NodeId};
+use dyst_javascript_ast::{Block, NodeId, Statement};
 
 use crate::{FormatNode, JavaScriptFormatter};
+
+pub(crate) fn format_block_of_statements<'ast>(
+    f: &mut JavaScriptFormatter<'ast, '_>,
+    statements: &Vec<NodeId<Statement>>,
+) -> FormatResult<()> {
+    f.join_with(hard_line_break()).entries(statements).finish()
+}
 
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
@@ -19,10 +26,10 @@ impl<'ast> FormatNode<'ast, Block> for Block {
             [
                 token("{"),
                 hard_line_break(),
-                block_indent(&format_with(|f| f
-                    .join_with(hard_line_break())
-                    .entries(&self.statements)
-                    .finish())),
+                block_indent(&format_with(|f| format_block_of_statements(
+                    f,
+                    &self.statements
+                ))),
                 hard_line_break(),
                 token("}")
             ]

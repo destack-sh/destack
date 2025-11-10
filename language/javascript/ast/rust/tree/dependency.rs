@@ -3,15 +3,15 @@ use crate::{Node, NodeType, StringId};
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExportType {
-    /// Export as regular item (export foo)
+    /// Export as regular item (like `export foo`).
     Item,
-    /// Export as default item (export default foo)
+    /// Export as default item (like `export default foo`).
     Default,
-    /// Export as entire module (export = foo)
+    /// Export as entire module (like `export = foo`).
     Module,
 }
 
-/// The type of a dependency item.
+/// The kind of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
@@ -20,7 +20,7 @@ pub enum DependencyKind {
     Value,
 }
 
-/// A DependencyItem is an item to import from a target in a import clause.
+/// A DependencyItem is an item to import from a target in an import or export clause.
 ///
 /// Examples:
 /// ```

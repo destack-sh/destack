@@ -5,6 +5,7 @@ use crate::{
     ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
+/// An Expression is value-producing JS form.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Definition expression.
