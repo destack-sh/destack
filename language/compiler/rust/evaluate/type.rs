@@ -23,6 +23,7 @@ impl<'a> Compiler<'a> {
     /// Lower a VarianceBound to a TypeUnaryOperator.
     pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
         match bound {
+            ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
             ast::VarianceBound::Super => VarianceBound::Super,
         }

@@ -699,6 +699,8 @@ pub enum PostfixPosition {
 /// A TypeBound is a type bound for a reference operation.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum VarianceBound {
+    /// Implements a type (such that X implements Y, i.e. X implements Y).
+    Implements,
     /// Extends a type (such that X is a subtype of Y, i.e. X <: Y).
     Extends,
     /// Super a type (such that X is a supertype of Y, i.e. X >: Y).
@@ -709,6 +711,7 @@ impl VarianceBound {
     #[inline]
     pub fn to_keyword(&self) -> Keyword {
         match self {
+            VarianceBound::Implements => Keyword::Implements,
             VarianceBound::Extends => Keyword::Extends,
             VarianceBound::Super => Keyword::Super,
         }

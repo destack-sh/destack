@@ -532,28 +532,27 @@ impl<'a> Parser<'a> {
             //
 
             // unary prefix operations
-            else if let Ok(unary_operator) = self.peek_unary_prefix_operator() {
+            else if let Ok(operator) = self.peek_unary_prefix_operator() {
                 self.bump(); // eat unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options.in_left_precedence(unary_operator.precedence()),
+                    self.options.in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::Unary {
-                    operator: unary_operator,
+                    operator,
                     expression: right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
             // type unary operations
-            else if let Ok(type_unary_operator) = self.peek_type_unary_prefix_operator() {
+            else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
                 self.bump(); // eat type unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options
-                        .type_in_left_precedence(type_unary_operator.precedence()),
+                    self.options.type_in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::TypeUnary {
-                    operator: type_unary_operator,
+                    operator,
                     expression: right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
@@ -562,7 +561,7 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
                 self.bump(); // eat ^
                 let mutability = self.eat_scoped_mutability_maybe()?;
-                let variance = self.eat_variance_modifier_maybe()?;
+                let variance = self.eat_variance_bound_maybe()?;
                 let right = self.eat_expression()?;
                 let expression = Expression::ValueOf {
                     mutability,
@@ -575,7 +574,7 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
                 let mutability = self.eat_scoped_mutability_maybe()?;
-                let variance = self.eat_variance_modifier_maybe()?;
+                let variance = self.eat_variance_bound_maybe()?;
                 let right = self.eat_expression()?;
                 let expression = Expression::ReferenceOf {
                     mutability,
@@ -939,25 +938,25 @@ impl<'a> Parser<'a> {
         // eat all regular postfix operators
         loop {
             // unary postfix operations
-            if let Ok(unary_operator) = self.peek_unary_postfix_operator() {
+            if let Ok(operator) = self.peek_unary_postfix_operator() {
                 self.bump(); // eat unary operator
                 left_expression_id = self.tree.insert(
                     Expression::Unary {
-                        operator: unary_operator,
+                        operator,
                         expression: left_expression_id,
                     },
                     self.get_span_from(start),
                 );
             }
             // type unary postfix operations
-            else if let Ok(type_unary_operator) = self.peek_type_unary_postfix_operator() {
+            else if let Ok(operator) = self.peek_type_unary_postfix_operator() {
                 self.bump(); // eat type unary operator
-                if type_unary_operator == TypeUnaryOperator::AsConst {
+                if operator == TypeUnaryOperator::AsConst {
                     self.bump(); // eat second token
                 }
                 left_expression_id = self.tree.insert(
                     Expression::TypeUnary {
-                        operator: type_unary_operator,
+                        operator,
                         expression: left_expression_id,
                     },
                     self.get_span_from(start),
@@ -1178,19 +1177,19 @@ impl<'a> Parser<'a> {
         loop {
             let (right_operator, operator_offset) = {
                 // infix operator on same line with higher precedence
-                if let Ok((right_operator, operator_offset)) = self.peek_infix_operator()
+                if let Ok((operator, operator_offset)) = self.peek_infix_operator()
                     && (self.options.left_precedence.is_none()
-                        || self.options.left_precedence.unwrap() < right_operator.precedence())
+                        || self.options.left_precedence.unwrap() < operator.precedence())
                 {
-                    (right_operator, operator_offset)
+                    (operator, operator_offset)
                 }
                 // infix operator on next line with higher precedence
                 else if self.peek_token(TokenType::Newline).is_ok()
-                    && let Ok((right_operator, operator_offset)) = self.peek_next_infix_operator()
+                    && let Ok((operator, operator_offset)) = self.peek_next_infix_operator()
                     && (self.options.left_precedence.is_none()
-                        || self.options.left_precedence.unwrap() < right_operator.precedence())
+                        || self.options.left_precedence.unwrap() < operator.precedence())
                 {
-                    (right_operator, operator_offset)
+                    (operator, operator_offset)
                 }
                 // no infix operator with higher precedence
                 else {

@@ -6,16 +6,26 @@ use dyst_ast::{
 };
 
 impl<'a> Parser<'a> {
-    /// Eat a variance modifier maybe.
+    /// Eat a variance bound maybe.
     #[inline]
-    pub fn eat_variance_modifier_maybe(&mut self) -> ParserResult<Option<VarianceBound>> {
-        if self.peek_keyword(Keyword::Extends).is_ok() {
+    pub fn eat_variance_bound_maybe(&mut self) -> ParserResult<Option<VarianceBound>> {
+        // implements
+        if self.peek_keyword(Keyword::Implements).is_ok() {
+            self.bump(); // eat implements
+            Ok(Some(VarianceBound::Implements))
+        }
+        // extends
+        else if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
             Ok(Some(VarianceBound::Extends))
-        } else if self.peek_keyword(Keyword::Super).is_ok() {
+        }
+        // super
+        else if self.peek_keyword(Keyword::Super).is_ok() {
             self.bump(); // eat super
             Ok(Some(VarianceBound::Super))
-        } else {
+        }
+        // none
+        else {
             Ok(None)
         }
     }
