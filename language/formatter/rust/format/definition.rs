@@ -4,7 +4,7 @@ use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{
-    Definition, Field, FormatNode, Keyword, LanguageFormatContext, LanguageFormatter, NodeId,
+    Definition, Field, FormatNode, Keyword, DystFormatContext, DystFormatter, NodeId,
     VariantFormat, empty_block_with_infix_annotations,
 };
 use dyst_ast::{
@@ -16,7 +16,7 @@ use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 pub(crate) fn format_type_clause<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[NodeId<crate::Expression>],
 ) -> FormatResult<()> {
@@ -43,8 +43,8 @@ pub(crate) fn format_type_clause<'ast>(
     )
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for Visibility {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Visibility::Public => write!(f, [Keyword::Public])?,
             Visibility::Protected => write!(f, [Keyword::Protected])?,
@@ -54,8 +54,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for ExportType {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ExportType::Item => write!(f, [Keyword::Export])?,
             ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
@@ -69,7 +69,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
         &self,
         node_id: NodeId<Definition>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -963,7 +963,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     /// Expression definitions should be surrounded by at least one blank line (except start/end).
     #[test]

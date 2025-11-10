@@ -53,18 +53,22 @@ impl SimpleFormatOptions {
 }
 
 impl FormatOptions for SimpleFormatOptions {
+    #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
     }
 
+    #[inline]
     fn indent_width(&self) -> u8 {
         self.indent_width
     }
 
+    #[inline]
     fn line_width(&self) -> u8 {
         self.line_width
     }
 
+    #[inline]
     fn as_print_options(&self) -> PrintOptions {
         PrintOptions {
             line_ending: self.line_ending,

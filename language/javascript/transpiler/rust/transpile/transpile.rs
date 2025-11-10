@@ -1,5 +1,7 @@
+use dyst_ast::StringPool;
 use dyst_dir::ModuleGraph;
 use dyst_javascript_ast as ast;
+use dyst_source::{FileId, Uri};
 
 use crate::{Transpiler, TranspilerMode, TranspilerOptions, TranspilerUnit, TranspilerUnitId};
 
@@ -15,9 +17,13 @@ impl<'a> Transpiler<'a> {
             TranspilerMode::Retained => {
                 for (idx, module) in modules.iter().enumerate() {
                     let unit_id = TranspilerUnitId::new(idx as u32);
+                    let uri = module.file.uri.without_extension();
                     let unit = TranspilerUnit {
                         id: unit_id,
+                        uri,
                         ast: ast::NodeTree::new(),
+                        roots: Vec::new(),
+                        strings: StringPool::new(),
                         sources: vec![module.id],
                     };
                     units.push(unit);
@@ -27,7 +33,10 @@ impl<'a> Transpiler<'a> {
             TranspilerMode::Combined => {
                 let unit = TranspilerUnit {
                     id: TranspilerUnitId::new(0),
+                    uri: Uri::from_string("combined"),
                     ast: ast::NodeTree::new(),
+                    roots: Vec::new(),
+                    strings: StringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
                 };
                 units.push(unit);
@@ -54,9 +63,15 @@ impl<'a> Transpiler<'a> {
         }
 
         // print content
-        for unit in self.units.values() {
-            let artifact = self.print_unit(unit);
-            self.artifacts.push(artifact);
+        let mut file_idx: u32 = 0;
+        for language in self.options.target.language_targets() {
+            let formatting = self.options.formatting.with_language(language);
+            for unit in self.units.values() {
+                let file_id = FileId::new(file_idx);
+                let artifact = self.generate_artifact(unit, file_id, formatting, language);
+                self.artifacts.push(artifact);
+                file_idx += 1;
+            }
         }
     }
 }

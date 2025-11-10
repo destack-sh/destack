@@ -4,11 +4,11 @@ use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    FormatNode, LanguageFormatContext, LanguageFormatter, Node, NodeId, NodeTree, NodeTreeImpl,
+    FormatNode, DystFormatContext, DystFormatter, Node, NodeId, NodeTree, NodeTreeImpl,
     NodeType, Tag,
 };
 
-impl<'ast> LanguageFormatContext<'ast> {
+impl<'ast> DystFormatContext<'ast> {
     /// Format the block infix annotations for a node.
     #[inline]
     pub fn block_infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
@@ -114,12 +114,12 @@ pub struct Annotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<LanguageFormatContext<'ast>> for Annotations<T>
+impl<'ast, T> Format<DystFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
         };
@@ -215,7 +215,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     fn format_node(
         &self,
         node_id: NodeId<Annotation>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Annotation::Blank { node, .. } => {
@@ -227,7 +227,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
                     .find(|(_, node_type)| *node_type == NodeType::Definition);
                 if let Some((container_id, _)) = container {
                     let container_span = f.context().get_span_by_id(container_id);
-                    if container_span.end >= f.context().source.len - 1 {
+                    if container_span.end >= f.context().file.len - 1 {
                         return Ok(());
                     }
                 }
@@ -246,7 +246,7 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
     fn format_node(
         &self,
         _node_id: NodeId<Blank>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // reduce any number of blank lines to a single one
         write!(f, [empty_line()])?;
@@ -258,7 +258,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
     fn format_node(
         &self,
         _node_id: NodeId<Doc>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -310,7 +310,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
     fn format_node(
         &self,
         _node_id: NodeId<Comment>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -356,7 +356,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
     fn format_node(
         &self,
         _node_id: NodeId<Tag>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("#"), self.receiver])?;
         if let Some(arguments) = &self.arguments
@@ -382,7 +382,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     fn format_node(
         &self,
         _node_id: NodeId<Decorator>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("@"), self.receiver])?;
         if let Some(arguments) = &self.arguments
@@ -407,7 +407,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
@@ -430,7 +430,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -448,7 +448,7 @@ mod tests {
             source,
             source,
             |p| p.eat_struct(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -468,7 +468,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -497,7 +497,7 @@ mod tests {
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
             |p| p.eat_struct(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -528,7 +528,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -539,7 +539,7 @@ mod tests {
             "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(200)
+            DystFormatOptions::default_with_line_width(200)
         );
     }
 
@@ -560,7 +560,7 @@ mod tests {
     const X = 1
 }",
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -578,7 +578,7 @@ mod tests {
      * over multiple lines yo */
 }",
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -597,7 +597,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 }

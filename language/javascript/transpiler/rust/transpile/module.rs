@@ -1,5 +1,6 @@
 use dyst_dir::{self as dir, ModuleId};
-use dyst_javascript_ast as ast;
+use dyst_javascript_ast::{self as ast, NodeIdAny};
+use dyst_source::{StringPool, Uri};
 
 use crate::Transpiler;
 
@@ -18,8 +19,14 @@ impl TranspilerUnitId {
 pub struct TranspilerUnit {
     /// The id of the transpiled module.
     pub id: TranspilerUnitId,
-    /// The AST of the transpiled file.
+    /// The URI of the transpiled module (excluding extension).
+    pub uri: Uri,
+    /// The AST of the transpiled module.
     pub ast: ast::NodeTree,
+    /// The root nodes of the transpiled module.
+    pub roots: Vec<NodeIdAny>,
+    /// The string pool.
+    pub strings: StringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
 }
@@ -28,7 +35,8 @@ impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
     pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
-            self.transpile_expression(module, *expression_id, unit);
+            let root_id = self.transpile_expression(module, *expression_id, unit);
+            unit.roots.push(root_id.into());
         }
     }
 }

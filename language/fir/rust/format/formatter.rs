@@ -349,7 +349,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty(FileType::Dyst)
+                File::empty_with_type(FileType::Dyst)
             ),
             [format_with(|f| {
                 f.fill()
@@ -399,7 +399,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty(FileType::Dyst)
+                File::empty_with_type(FileType::Dyst)
             ),
             [format_with(|f| {
                 f.fill()

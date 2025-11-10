@@ -13,8 +13,8 @@ use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
-    AssignOperator, BinaryOperator, Expression, FormatNode, Keyword, LanguageFormatContext,
-    LanguageFormatter, NodeId, UnaryOperator, empty_block_with_infix_annotations,
+    AssignOperator, BinaryOperator, Expression, FormatNode, Keyword, DystFormatContext,
+    DystFormatter, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)
@@ -23,8 +23,8 @@ struct TreeLiteralArgument {
     argument_id: NodeId<Argument>,
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for TreeLiteralArgument {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
 
         let argument = f.context().tree.get(self.argument_id);
@@ -117,7 +117,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TreeLiteralArgument {
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_else_chain<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     // walk the chain
@@ -200,7 +200,7 @@ pub(crate) fn format_if_else_chain<'ast>(
 /// Format a member expression without considering chaining.
 #[inline]
 fn format_member_expression<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Member {
@@ -222,7 +222,7 @@ fn format_member_expression<'ast>(
 /// Format an index expression without considering chaining.
 #[inline]
 fn format_index_expression<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Index {
@@ -249,7 +249,7 @@ fn format_index_expression<'ast>(
 /// Format a call expression without considering chaining.
 #[inline]
 fn format_call_expression<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Call {
@@ -272,7 +272,7 @@ fn format_call_expression<'ast>(
 /// Format a maybe expression without considering chaining.
 #[inline]
 fn format_maybe_expression<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
@@ -328,7 +328,7 @@ enum ChainExpression {
 
 /// Format the base portion of the chain.
 fn format_chain_base<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     base: &ChainExpressionBase,
 ) -> FormatResult<()> {
     match &base.head {
@@ -366,7 +366,7 @@ fn format_chain_base<'ast>(
 
 /// Format one chained operation.
 fn format_chain_expression<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     op: &ChainExpression,
 ) -> FormatResult<()> {
     match op {
@@ -411,7 +411,7 @@ fn format_chain_expression<'ast>(
 
 /// Format all operations for one chain line.
 fn format_chain_expression_line<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     ops: &[ChainExpression],
 ) -> FormatResult<()> {
     for op in ops {
@@ -482,7 +482,7 @@ fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
 
 /// Format a member/call/maybe/index chain with prettier-style breaking.
 pub(crate) fn format_expression_chain<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -646,7 +646,7 @@ pub(crate) fn format_expression_chain<'ast>(
 /// Format a match expression.
 #[inline]
 pub(crate) fn format_match<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Expression>,
     include_prefix: bool,
 ) -> FormatResult<()> {
@@ -813,7 +813,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
 /// Format a struct literal.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     ty: &Option<NodeId<Expression>>,
     fields_ids: &Vec<NodeId<Argument>>,
@@ -851,7 +851,7 @@ pub(crate) fn format_struct_literal<'ast>(
 /// Format a tree literal.
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     path: &Option<Path>,
     arguments: &Option<Vec<NodeId<Argument>>>,
@@ -941,7 +941,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
         node_id: NodeId<Expression>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -1684,8 +1684,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for UnaryOperator {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -1703,8 +1703,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for TypeUnaryOperator {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Type => token("type"),
             TypeUnaryOperator::Readonly => token("readonly"),
@@ -1718,8 +1718,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TypeUnaryOperator {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for BinaryOperator {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
             BinaryOperator::Multiply => token("*"),
@@ -1771,8 +1771,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for TypeBinaryOperator {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
             TypeBinaryOperator::Is => token("is"),
@@ -1785,8 +1785,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for TypeBinaryOperator {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for AssignOperator {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
 
@@ -1830,7 +1830,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for AssignOperator {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     /// Simple expressions should stay on one line.
     #[test]
@@ -1839,7 +1839,7 @@ mod tests {
             "1 + 2 * 3 - a / b % c",
             "1 + 2 * 3 - a / b % c",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -1850,7 +1850,7 @@ mod tests {
             "(((1 + 2) * 3) - a / (b % c))",
             "(((1 + 2) * 3) - a / (b % c))",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -1861,7 +1861,7 @@ mod tests {
             "(((())))",
             "(((())))",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1872,7 +1872,7 @@ mod tests {
             "foo<()>(((())))",
             "foo<()>(((())))",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1882,7 +1882,7 @@ mod tests {
             "{ a: 1, ...B }",
             "{ a: 1, ...B }",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1892,7 +1892,7 @@ mod tests {
             "Foo { ...B }",
             "Foo { ...B }",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1902,7 +1902,7 @@ mod tests {
             "true ? 1 : 2",
             "true ? 1 : 2",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1912,7 +1912,7 @@ mod tests {
             "x?.[f]?.[2]?.(a, b)",
             "x?.[f]?.[2]?.(a, b)",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1922,7 +1922,7 @@ mod tests {
             "call().followed().by().many().calls()",
             "call().followed().by().many().calls()",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(100)
+            DystFormatOptions::default_tab_with_line_width(100)
         );
     }
 
@@ -1932,7 +1932,7 @@ mod tests {
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(20)
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1942,7 +1942,7 @@ mod tests {
             "call().followed().by().many().calls()\n",
             "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(20)
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1952,7 +1952,7 @@ mod tests {
             "call().followed()?.by()[0]?.many()?.calls()\n",
             "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()\n",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(20)
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1962,7 +1962,7 @@ mod tests {
             "long.base.path.followed().by().many().calls()\n",
             "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(20)
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1972,7 +1972,7 @@ mod tests {
             "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]\n",
             "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]\n",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab_with_line_width(20)
+            DystFormatOptions::default_tab_with_line_width(20)
         );
     }
 
@@ -1982,7 +1982,7 @@ mod tests {
             "<Entity/>",
             "<Entity />",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -1992,7 +1992,7 @@ mod tests {
             "<Entity a=1, b = 2 />",
             "<Entity a=1 b=2 />",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -2007,7 +2007,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -2025,7 +2025,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -2041,7 +2041,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -2057,7 +2057,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -2076,7 +2076,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 }

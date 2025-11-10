@@ -2,7 +2,7 @@ use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, FormatNode, LanguageFormatContext, LanguageFormatter, Node, NodeId, NodeTree,
+    Block, FormatNode, DystFormatContext, DystFormatter, Node, NodeId, NodeTree,
     NodeTreeImpl, NodeType,
 };
 use dyst_fir::prelude::*;
@@ -14,13 +14,13 @@ pub struct EmptyBlockWithInfixAnnotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<LanguageFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
+impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         write!(
             f,
             [group(&format_args![
@@ -52,7 +52,7 @@ pub fn empty_block_with_infix_annotations<T: Node>(
 /// Format a block inline with zero or one expression (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -87,7 +87,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 /// Format a block multiline with multiple expressions (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -114,7 +114,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 
 /// Format a block of expressions (with appropriate empty annotations)
 pub(crate) fn format_block_of_expressions<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     expressions: &[NodeId<Expression>],
 ) -> FormatResult<()> {
     for (i, &expression_id) in expressions.iter().enumerate() {
@@ -141,7 +141,7 @@ pub(crate) fn format_block_of_expressions<'ast>(
 
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     block_id: NodeId<Block>,
 ) -> bool {
     let block = f.context().tree.get(block_id);
@@ -184,7 +184,7 @@ pub(crate) fn should_inline_block<'ast>(
 
 /// Format a block (without a nested group!).
 pub fn format_block<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     node_id: NodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -201,7 +201,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         node_id: NodeId<Block>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         if should_inline_block(f, node_id) {
@@ -225,7 +225,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_empty_block_with_comment() {
@@ -236,7 +236,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -251,7 +251,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -266,7 +266,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -281,7 +281,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -293,7 +293,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -303,7 +303,7 @@ mod tests {
             "if y { z } else { w }",
             "if y {\n\tz\n} else {\n\tw\n}",
             |p| p.eat_if(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -315,7 +315,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 }

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_if_with_body() {
@@ -9,7 +9,7 @@ mod tests {
             "if cond { const X = 1 } else { const Y = 2 }",
             "if cond {\n\tconst X = 1\n} else {\n\tconst Y = 2\n}",
             |p| p.eat_if(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -26,7 +26,7 @@ mod tests {
             source,
             source,
             |p| p.eat_if(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -48,7 +48,7 @@ else {
             source,
             source,
             |p| p.eat_if(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -66,7 +66,7 @@ else {
             source,
             source,
             |p| p.eat_if(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 }

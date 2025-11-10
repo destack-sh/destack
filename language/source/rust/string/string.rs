@@ -80,7 +80,7 @@ impl StringPool {
     }
 
     /// Intern a string from another pool.
-
+    #[inline]
     pub fn intern_from(&mut self, other: &StringPool, string_id: StringId) -> StringId {
         let string = other.get(string_id);
         self.intern(string)
