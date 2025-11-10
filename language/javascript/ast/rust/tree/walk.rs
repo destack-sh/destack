@@ -606,13 +606,36 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Field, id.id);
 
-    if let Some(ty) = field.ty {
-        let ty_node = tree.get(ty);
-        visitor.visit_type(tree, ty, ty_node);
-    }
-    if let Some(default) = field.default {
-        let default_expr = tree.get(default);
-        visitor.visit_expression(tree, default, default_expr);
+    match field {
+        Field::Named {
+            modifiers: _,
+            name: _,
+            ty,
+            default,
+        } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_type(tree, *ty, ty_node);
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
+        }
+        Field::Dynamic {
+            modifiers: _,
+            name: _,
+            ty,
+            key,
+            default,
+        } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_type(tree, *ty, ty_node);
+            let key_node = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_node);
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
+        }
     }
 }
 

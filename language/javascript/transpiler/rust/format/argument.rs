@@ -1,8 +1,11 @@
 use std::marker::PhantomData;
 
 use dyst_fir::format::{BestFittingMode, FormatResult};
-use dyst_javascript_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl};
+use dyst_javascript_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl, Parameter};
 
+use crate::format::variant::{
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+};
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
 use dyst_fir::prelude::*;
@@ -149,6 +152,76 @@ where
         force_expand: false,
         elements,
         _phantom: PhantomData,
+    }
+}
+
+impl<'ast> FormatNode<'ast, Parameter> for Parameter {
+    fn format_node(
+        &self,
+        _node_id: NodeId<Parameter>,
+        f: &mut JavaScriptFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        match self {
+            Parameter::Named {
+                modifiers,
+                name,
+                ty,
+                default,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // name
+                write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
+            Parameter::Pattern {
+                modifiers,
+                pattern,
+                ty,
+                default,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // pattern
+                write!(f, [pattern])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
+            Parameter::Variadic {
+                modifiers,
+                name,
+                ty,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
+                write!(f, [token("...")])?;
+                // name
+                write!(f, [name])?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 

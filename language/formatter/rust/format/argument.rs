@@ -194,6 +194,8 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // pattern
                 write!(f, [pattern])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
                     write!(f, [token(":"), space(), ty])?;

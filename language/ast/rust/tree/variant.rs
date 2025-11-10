@@ -112,20 +112,20 @@ impl BindingModifier {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Field {
-    /// Named field.
+    /// Named field (like `x: int32`).
     Named {
         modifiers: Option<BindingModifier>,
         name: Name,
         ty: NodeId<Expression>,
         default: Option<NodeId<Expression>>,
     },
-    /// Positional field.
+    /// Positional field (like `4`).
     Positional {
         modifiers: Option<BindingModifier>,
         ty: NodeId<Expression>,
         default: Option<NodeId<Expression>>,
     },
-    /// Dynamic field.
+    /// Dynamic field (like `[x: string]: any`).
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,

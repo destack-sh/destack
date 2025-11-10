@@ -64,11 +64,22 @@ impl Node for Definition {
 
 /// A Field is a named property of a definition.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Field {
-    pub modifiers: Option<BindingModifier>,
-    pub name: StringId,
-    pub ty: Option<NodeId<Type>>,
-    pub default: Option<NodeId<Expression>>,
+pub enum Field {
+    /// Named field (like `x: int32`).
+    Named {
+        modifiers: Option<BindingModifier>,
+        name: Name,
+        ty: NodeId<Type>,
+        default: Option<NodeId<Expression>>,
+    },
+    /// Dynamic field (like `[x: string]: any`).
+    Dynamic {
+        modifiers: Option<BindingModifier>,
+        name: Option<StringId>,
+        ty: NodeId<Type>,
+        key: NodeId<Expression>,
+        default: Option<NodeId<Expression>>,
+    },
 }
 
 impl Node for Field {
@@ -78,7 +89,9 @@ impl Node for Field {
 /// An EnumField is a named field of an enum definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
+    /// The name of the enum field.
     pub name: StringId,
+    /// The value of the enum field.
     pub value: Option<NodeId<Expression>>,
 }
 
