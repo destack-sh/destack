@@ -39,7 +39,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
             // shift
             BinaryOperator::ShiftLeft => token("<<"),
             BinaryOperator::ShiftRight => token(">>"),
-            BinaryOperator::ShiftRightUnsigned => token(">>>"),
+            BinaryOperator::UnsignedShiftRight => token(">>>"),
 
             // elementwise
             BinaryOperator::ElementwiseAnd => token("&"),
@@ -121,7 +121,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for AssignOperator {
             // shift
             AssignOperator::ShiftLeftAssign => "<<=",
             AssignOperator::ShiftRightAssign => ">>=",
-            AssignOperator::ShiftRightUnsignedAssign => ">>>=",
+            AssignOperator::UnsignedShiftRightAssign => ">>>=",
 
             // elementwise
             AssignOperator::ElementwiseAndAssign => "&=",

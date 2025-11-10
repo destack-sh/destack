@@ -209,7 +209,7 @@ impl SemanticType {
             | TokenType::ShiftLeftAssign
             | TokenType::SaturatingShiftLeftAssign
             | TokenType::ShiftRightAssign
-
+            | TokenType::UnsignedShiftRightAssign
             // --------------------------------------------------
             // Assignment Elementwise
             // --------------------------------------------------

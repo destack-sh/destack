@@ -343,6 +343,8 @@ pub enum BinaryOperator {
     SaturatingShiftLeft = 1501,
     /// `>>`
     ShiftRight = 1500,
+    /// `>>>`
+    UnsignedShiftRight = 1503,
 
     // elementwise
     /// `&`
@@ -410,6 +412,7 @@ impl BinaryOperator {
             BinaryOperator::ShiftLeft => OperatorPrecedence::Shift,
             BinaryOperator::SaturatingShiftLeft => OperatorPrecedence::Shift,
             BinaryOperator::ShiftRight => OperatorPrecedence::Shift,
+            BinaryOperator::UnsignedShiftRight => OperatorPrecedence::Shift,
 
             // elementwise
             BinaryOperator::ElementwiseAnd => OperatorPrecedence::Elementwise,
@@ -551,6 +554,8 @@ pub enum AssignOperator {
     SaturatingShiftLeftAssign = 502,
     /// `>>=`
     ShiftRightAssign = 501,
+    /// `>>>=`
+    UnsignedShiftRightAssign = 500,
 
     // assignment elementwise
     /// `&=`
@@ -598,7 +603,8 @@ impl AssignOperator {
             // assignment shift
             AssignOperator::ShiftLeftAssign
             | AssignOperator::SaturatingShiftLeftAssign
-            | AssignOperator::ShiftRightAssign => OperatorPrecedence::AssignmentShift,
+            | AssignOperator::ShiftRightAssign
+            | AssignOperator::UnsignedShiftRightAssign => OperatorPrecedence::AssignmentShift,
 
             // assignment elementwise
             AssignOperator::ElementwiseAndAssign
@@ -647,6 +653,7 @@ impl AssignOperator {
             TokenType::ShiftLeftAssign => Some(AssignOperator::ShiftLeftAssign),
             TokenType::SaturatingShiftLeftAssign => Some(AssignOperator::SaturatingShiftLeftAssign),
             TokenType::ShiftRightAssign => Some(AssignOperator::ShiftRightAssign),
+            TokenType::UnsignedShiftRightAssign => Some(AssignOperator::UnsignedShiftRightAssign),
 
             // elementwise
             TokenType::ElementwiseAndAssign => Some(AssignOperator::ElementwiseAndAssign),
@@ -690,6 +697,7 @@ impl AssignOperator {
             AssignOperator::ShiftLeftAssign => TokenType::ShiftLeftAssign,
             AssignOperator::SaturatingShiftLeftAssign => TokenType::SaturatingShiftLeftAssign,
             AssignOperator::ShiftRightAssign => TokenType::ShiftRightAssign,
+            AssignOperator::UnsignedShiftRightAssign => TokenType::UnsignedShiftRightAssign,
 
             // elementwise
             AssignOperator::ElementwiseAndAssign => TokenType::ElementwiseAndAssign,

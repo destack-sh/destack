@@ -570,11 +570,21 @@ impl Lexer<'_> {
 
             // greater than or shift right
             '>' => {
-                // >>
+                // >>=
                 if self.peek() == '>' && self.peek_next() == '=' {
                     self.eat(); // >
                     self.eat(); // =
                     (TokenType::ShiftRightAssign, None)
+                }
+                // >>>=
+                else if self.peek() == '>'
+                    && self.peek_next() == '>'
+                    && self.peek_next_next() == '='
+                {
+                    self.eat(); // >
+                    self.eat(); // >
+                    self.eat(); // =
+                    (TokenType::UnsignedShiftRightAssign, None)
                 }
                 // >=
                 else if self.peek() == '=' {
