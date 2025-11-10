@@ -38,7 +38,5 @@ impl<'a> Compiler<'a> {
             .collect();
         module.expressions.extend(expressions);
         self.modules.insert(module);
-
-        // nocheckin: schedule evaluate/next tasks
     }
 }
