@@ -1,10 +1,8 @@
-use dyst_ast::DefinitionMeta;
-
-use crate::TokenType;
-
 use crate::parse::prelude::*;
-use crate::{
-    Definition, EnumField, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
+use crate::{Parser, ParserError, ParserResult};
+
+use dyst_ast::{
+    Definition, DefinitionMeta, EnumField, Expression, Keyword, NodeId, NodeType, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -182,13 +180,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::DeclarationKind;
+    use dyst_ast::{
+        DeclarationKind, Definition, DefinitionMeta, EnumField, Expression, IntType, Parameter,
+        ScalarLiteral, TypeLiteral, WhereClause, WithClause,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Definition, DefinitionMeta, EnumField, Expression, IntType, Parameter, ScalarLiteral,
-        TypeLiteral, WhereClause, WithClause, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_enum_with_extends_types() {

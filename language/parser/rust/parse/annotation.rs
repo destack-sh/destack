@@ -1,9 +1,10 @@
 //! Annotation parsing.
 
 use crate::parse::prelude::*;
-use crate::{
+use crate::{Parser, ParserResult};
+use dyst_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, NodeId, NodeType, Parser, ParserResult, Tag, TokenSpan, TokenType,
+    Doc, DocStyle, NodeId, NodeType, Tag, TokenSpan, TokenType,
 };
 use dyst_source::{MultiSpan, NodeSearch, Span};
 
@@ -765,14 +766,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DefinitionMeta, Name};
+    use dyst_ast::{
+        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
+        Comment, CommentStyle, Decorator, Definition, DefinitionMeta, Doc, DocStyle, Expression,
+        Field, Name, ScalarLiteral, Tag,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Decorator, Definition, Doc, DocStyle, Expression, Field,
-        ScalarLiteral, Tag, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_node, assert_path, assert_string};
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]

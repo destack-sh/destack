@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use crate::{Keyword, Parser, ParserError, ParserResult, TokenSpan, TokenType};
+use crate::{Parser, ParserError, ParserResult};
+use dyst_ast::{Keyword, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a keyword.

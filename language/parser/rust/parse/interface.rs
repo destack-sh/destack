@@ -1,9 +1,7 @@
-use dyst_ast::DefinitionMeta;
-
-use crate::TokenType;
-
 use crate::parse::prelude::*;
-use crate::{Definition, Keyword, NodeId, NodeType, Parser, ParserResult};
+use crate::{Parser, ParserResult};
+
+use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a Interface.
@@ -86,13 +84,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, FunctionMode, Mutability, Name};
+    use dyst_ast::{
+        DeclarationKind, Definition, DefinitionMeta, Expression, Field, FunctionMode, IntType,
+        Mutability, Name, ScalarLiteral, TypeLiteral, WhereClause, WithClause,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Definition, DefinitionMeta, Expression, Field, IntType, ScalarLiteral, TypeLiteral,
-        WhereClause, WithClause, assert_expr_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_interface_anonymous_empty() {

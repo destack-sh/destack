@@ -1,7 +1,7 @@
 //! Parse use and with declarations.
-use crate::TokenType;
+use crate::{Parser, ParserResult};
 
-use crate::{Expression, Keyword, NodeId, Parser, ParserResult, WithClause};
+use dyst_ast::{Expression, Keyword, NodeId, TokenType, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).
@@ -156,11 +156,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use dyst_ast::{Expression, UnaryOperator, WithClause};
+
     use crate::parse::tests::TestParser;
-    use crate::{
-        Expression, UnaryOperator, WithClause, assert_expr_path, assert_node, assert_path,
-        assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_with_type_assertion() {

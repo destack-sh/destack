@@ -123,7 +123,7 @@ macro_rules! assert_check {
 macro_rules! assert_int {
     // Exact integer value.
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Integer(n) => {
+        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Integer(n) => {
             assert_eq!(
 							*n,
 							$expected,
@@ -138,7 +138,7 @@ macro_rules! assert_int {
 macro_rules! assert_float {
     // Exact float value (elementwise equal).
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Float(f) => {
+        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Float(f) => {
             assert_eq!(
 							*f,
 							$expected,
@@ -153,7 +153,7 @@ macro_rules! assert_float {
 macro_rules! assert_bool {
     // Exact bool.
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Boolean(b) => {
+        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Boolean(b) => {
             assert_eq!(
 							*b,
 							$expected,
@@ -168,7 +168,7 @@ macro_rules! assert_bool {
 macro_rules! assert_char {
     // Exact char.
     ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::Character(c) => {
+        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Character(c) => {
             assert_eq!(
 							*c,
 							$expected,
@@ -201,7 +201,7 @@ macro_rules! assert_name {
 macro_rules! assert_lit_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
         match $id {
-            $crate::ScalarLiteral::String(s) => {
+            ::dyst_ast::ScalarLiteral::String(s) => {
                 let got = $parser.strings.get(*s);
                 assert_eq!(got, $expected, "expected string");
             }
@@ -215,7 +215,7 @@ macro_rules! assert_lit_string {
 macro_rules! assert_lit_int {
     ($parser:expr, $id:expr, $expected:expr) => {{
         match $id {
-            $crate::ScalarLiteral::Integer(n) => {
+            ::dyst_ast::ScalarLiteral::Integer(n) => {
                 assert_eq!(*n, $expected, "expected integer");
             }
             other => panic!("expected ScalarLiteral::Integer, got {other:?}"),
@@ -242,7 +242,7 @@ macro_rules! assert_path {
 macro_rules! assert_expr_path {
     ($parser:expr, $expr:expr, $expected:expr) => {{
         match $expr {
-            $crate::Expression::Path {
+            ::dyst_ast::Expression::Path {
                 path,
                 static_arguments: _,
             } => {
@@ -259,11 +259,11 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use crate::TokenType;
     use destack_file::glob;
+    use dyst_ast::{BlockFormat, TokenType};
     use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
 
-    use crate::{BlockFormat, Parser};
+    use crate::Parser;
 
     #[test]
     #[ignore = "slow"]

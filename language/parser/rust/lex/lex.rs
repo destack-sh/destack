@@ -1,9 +1,11 @@
-use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::{EOF_CHAR, Lexer};
-use dyst_ast::{Keyword, LiteralType, NumberBase, RawStringError, Token, TokenType};
+use dyst_ast::{
+    Keyword, LiteralType, NumberBase, RawStringError, Token, TokenSpan, TokenType,
+    is_identifier_continue, is_identifier_start, is_whitespace,
+};
 
 use destack_unicode::UnicodeEmoji;
 use dyst_source::{FileId, LanguageOptions, Span};

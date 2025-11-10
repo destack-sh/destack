@@ -1,14 +1,13 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    BindingKind, BindingModifier, BindingScope, DeclarationKind, DefinitionMeta, Expression,
-    Keyword,
+    BindingKind, BindingModifier, BindingScope, DeclarationKind, DefinitionMeta, Expression, Field,
+    Keyword, NodeId, NodeType, TokenType,
 };
 
-use crate::TokenType;
 use crate::parse::prelude::*;
 
-use crate::{Field, NodeId, NodeType, Parser, ParserError, ParserResult};
+use crate::{Parser, ParserError, ParserResult};
 
 /// The keywords that can appear before a binding.
 pub static BINDING_MODIFIERS: [Keyword; 6] = [

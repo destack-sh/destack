@@ -1,10 +1,11 @@
-use dyst_ast::{Asynchrony, DependencyKind, DependencyTarget, ExportType, ScalarLiteral};
-use dyst_source::StringId;
-
-use crate::TokenType;
-
 use crate::parse::prelude::*;
-use crate::{DependencyItem, Expression, Keyword, NodeId, NodeType, Parser, ParserResult};
+use crate::{Parser, ParserResult};
+
+use dyst_ast::{
+    Asynchrony, DependencyItem, DependencyKind, DependencyTarget, ExportType, Expression, Keyword,
+    NodeId, NodeType, ScalarLiteral, TokenType,
+};
+use dyst_source::StringId;
 
 #[allow(clippy::type_complexity)]
 impl<'a> Parser<'a> {
@@ -392,13 +393,12 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, Asynchrony, DependencyKind, DependencyTarget, ExportType, ScalarLiteral,
+        Argument, Asynchrony, DependencyItem, DependencyKind, DependencyTarget, ExportType,
+        Expression, ScalarLiteral,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        DependencyItem, Expression, assert_expr_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_import_simple() {

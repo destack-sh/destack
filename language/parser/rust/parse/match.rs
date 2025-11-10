@@ -1,9 +1,10 @@
-use dyst_ast::{Block, BlockFormat, MatchKind, Pattern};
-
-use crate::TokenType;
-
 use crate::parse::prelude::*;
-use crate::{Expression, Keyword, MatchCase, NodeId, NodeType, Parser, ParserResult};
+use crate::{Parser, ParserResult};
+
+use dyst_ast::{
+    Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, NodeId, NodeType, Pattern,
+    TokenType,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement. Tolerates switch-kind syntax for #Compatibility.
@@ -245,13 +246,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Block, MatchKind};
+    use dyst_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Expression, MatchCase, Pattern, ScalarLiteral, assert_expr_path, assert_node, assert_path,
-        assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_match_simple_arms() {

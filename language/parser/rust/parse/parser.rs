@@ -1,14 +1,14 @@
 use core::fmt;
 use std::fmt::Debug;
 
-use crate::{Lexer, TokenSpan, TokenType, is_semantic};
-use dyst_ast::{BlockFormat, Expression, NodeId};
+use crate::{Lexer, is_semantic};
+use dyst_ast::{BlockFormat, Expression, NodeId, NodeTree, NodeType, TokenSpan, TokenType};
 use dyst_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
     StringPool,
 };
 
-use crate::{NodeTree, NodeType, ParserError, ParserResult};
+use crate::{ParserError, ParserResult};
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.

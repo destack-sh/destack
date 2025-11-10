@@ -1,10 +1,9 @@
-use dyst_ast::YieldCardinality;
+use dyst_ast::{
+    Block, BlockFormat, Expression, Keyword, NodeId, NodeType, TokenType, YieldCardinality,
+};
 
 use crate::parse::prelude::*;
-use crate::{
-    Block, BlockFormat, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
-    TokenType,
-};
+use crate::{Parser, ParserError, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Peek a block (with and without label).
@@ -338,12 +337,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::YieldCardinality;
+    use dyst_ast::{Expression, ScalarLiteral, YieldCardinality};
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Expression, ScalarLiteral, assert_expr_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_empty_block() {

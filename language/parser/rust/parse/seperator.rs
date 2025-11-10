@@ -1,4 +1,5 @@
-use crate::{Parser, ParserError, ParserResult, TokenSpan, TokenType};
+use crate::{Parser, ParserError, ParserResult};
+use dyst_ast::{TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a colon.

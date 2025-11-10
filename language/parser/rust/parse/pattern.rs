@@ -1,9 +1,7 @@
-use dyst_ast::Expression;
-
-use crate::TokenType;
 use crate::parse::prelude::*;
+use crate::{Parser, ParserResult};
 
-use crate::{NodeId, NodeType, Parser, ParserResult, Pattern, PatternField};
+use dyst_ast::{Expression, NodeId, NodeType, Pattern, PatternField, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -367,13 +365,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Expression, ScopedMutability};
+    use dyst_ast::{
+        Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        Mutability, Pattern, PatternField, ScalarLiteral, assert_expr_path, assert_name,
-        assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_pattern_wildcard() {

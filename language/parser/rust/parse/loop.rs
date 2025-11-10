@@ -1,8 +1,8 @@
 //! Parse loops, for, while, etc.
 
-use dyst_ast::{Asynchrony, ForEachKind, TokenType, WhileKind};
+use dyst_ast::{Asynchrony, Expression, ForEachKind, Keyword, NodeId, TokenType, WhileKind};
 
-use crate::{Expression, Keyword, NodeId, Parser, ParserResult};
+use crate::{Parser, ParserResult};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -251,14 +251,12 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, ForEachKind, ScalarLiteral, ScopedMutability, UnaryOperator, WhileKind,
+        Asynchrony, BinaryOperator, Block, Expression, ForEachKind, Mutability, Pattern,
+        ScalarLiteral, ScopedMutability, UnaryOperator, WhileKind,
     };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Block, Expression, Mutability, Pattern, assert_expr_path, assert_node,
-        assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_loop() {

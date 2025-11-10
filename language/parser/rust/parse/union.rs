@@ -1,9 +1,8 @@
-use dyst_ast::DefinitionMeta;
-
 use crate::parse::prelude::*;
-use crate::{
-    Definition, Expression, Keyword, NodeId, NodeType, Parser, ParserError, ParserResult,
-    TokenType, UnionField,
+use crate::{Parser, ParserError, ParserResult};
+
+use dyst_ast::{
+    Definition, DefinitionMeta, Expression, Keyword, NodeId, NodeType, TokenType, UnionField,
 };
 
 impl<'a> Parser<'a> {
@@ -229,14 +228,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{DeclarationKind, DefinitionMeta, Name};
+    use dyst_ast::{
+        BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, Field, IntType,
+        Name, Parameter, ScalarLiteral, TypeLiteral, UnaryOperator, UnionField, WhereClause,
+        WithClause,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Definition, Expression, Field, IntType, Parameter, ScalarLiteral,
-        TypeLiteral, UnaryOperator, UnionField, WhereClause, WithClause, assert_expr_path,
-        assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_explicit_anonymous_union() {

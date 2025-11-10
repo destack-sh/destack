@@ -1,9 +1,7 @@
-use crate::TokenType;
 use crate::parse::prelude::*;
+use crate::{Parser, ParserResult};
 
-use crate::{
-    BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, Parser, ParserResult,
-};
+use dyst_ast::{BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a namespace declaration (incl. `namespace` keyword).
@@ -50,13 +48,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::{
+        BinaryOperator, Definition, DefinitionMeta, Expression, WhereClause, WithClause,
+    };
 
     use crate::parse::tests::TestParser;
-    use crate::{
-        BinaryOperator, Definition, Expression, WhereClause, WithClause, assert_expr_path,
-        assert_node, assert_path, assert_string,
-    };
+    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_empty_namespace() {
