@@ -160,11 +160,6 @@ impl<'a> DystFormatContext<'a> {
         self.file.get_span_str(token.span).unwrap_or_default()
     }
 
-    /// Get an interned string.
-    pub fn get_string(&self, string_id: StringId) -> &str {
-        self.strings.get(string_id)
-    }
-
     /// Get a Node from the tree.
     #[inline]
     pub fn get_node<T>(&self, node_id: NodeId<T>) -> &T

@@ -21,6 +21,7 @@ pub struct DefinitionMeta {
     pub export: Option<ExportType> = None,
 }
 
+/// A Definition is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     Namespace {
@@ -55,16 +56,19 @@ impl Node for Definition {
     const TYPE: NodeType = NodeType::Definition;
 }
 
+/// A Field is a named property of a definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     pub name: StringId,
-    pub ty: NodeId<Type>,
+    pub ty: Option<NodeId<Type>>,
+    pub default: Option<NodeId<Expression>>,
 }
 
 impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
 }
 
+/// An EnumField is a named field of an enum definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
     pub name: StringId,

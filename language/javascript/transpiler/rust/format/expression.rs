@@ -1,6 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{Expression, NodeId};
 
+use crate::format::literal::format_scalar_literal;
 use crate::{FormatNode, JavaScriptFormatter};
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
@@ -9,6 +10,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: NodeId<Expression>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        todo!("format_node{self:?}");
+        match self {
+            Expression::ScalarLiteral { value } => {
+                format_scalar_literal(value, f)?;
+            }
+            _ => todo!("format_node{self:?}"),
+        }
+
+        Ok(())
     }
 }

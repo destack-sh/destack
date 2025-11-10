@@ -1,4 +1,4 @@
-use dyst_source::{File, FileContent, FileId, FileType, Uri};
+use dyst_source::{File, FileContent, FileId, FileType};
 
 use crate::{
     JavaScriptFormatContext, JavaScriptFormatOptions, Transpiler, TranspilerLanguage,
@@ -51,12 +51,11 @@ impl<'a> Transpiler<'a> {
         let content = printed.unwrap().as_str().to_string();
 
         // make artifact
-        let artifact = TranspilerArtifact {
+        TranspilerArtifact {
             unit_id: unit.id,
             ty,
             file,
             content: FileContent::Text(content),
-        };
-        artifact
+        }
     }
 }

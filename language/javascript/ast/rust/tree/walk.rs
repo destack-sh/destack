@@ -579,8 +579,14 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Field, id.id);
 
-    let ty = tree.get(field.ty);
-    visitor.visit_type(tree, field.ty, ty);
+    if let Some(ty) = field.ty {
+        let ty_node = tree.get(ty);
+        visitor.visit_type(tree, ty, ty_node);
+    }
+    if let Some(default) = field.default {
+        let default_expr = tree.get(default);
+        visitor.visit_expression(tree, default, default_expr);
+    }
 }
 
 /// Walk an enum field.
