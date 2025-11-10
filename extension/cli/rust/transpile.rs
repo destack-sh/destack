@@ -72,7 +72,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // print/write transpiler artifacts
     for artifact in &transpiler.artifacts {
         console::info("=".repeat(80).as_str());
-        console::info(&artifact.file.uri.to_string());
+        console::info(artifact.file.uri.as_ref());
         console::info("=".repeat(80).as_str());
         match &artifact.content {
             FileContent::Text(text) => {

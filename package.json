@@ -6,9 +6,10 @@
     "type": "module",
     "workspaces": {
         "packages": [
-            "client/destack_ts",
-            "extension/vscode",
-            "extension/web"
+            "demo/tetris",
+            "demo/zurichtech",
+            "extension/bun",
+            "extension/vscode"
         ]
     },
     "scripts": {},

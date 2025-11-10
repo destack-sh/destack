@@ -1,0 +1,12 @@
+{
+	"name": "@destack/bun",
+	"version": "2025.11.05.0",
+	"license": "MIT",
+	"type": "module",
+	"main": "./src/index.ts",
+	"scripts": {},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}
