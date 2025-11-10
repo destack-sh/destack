@@ -62,11 +62,12 @@ pub static PATTERN_START_TOKENS: [TokenType; 7] = [
 
 // can't use anything with `<` or `>` in static arguments
 // (to avoid parsing ambiguity with `<>` brackets)
-static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
+static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 8] = [
     // shift
     BinaryOperator::ShiftLeft,
     BinaryOperator::SaturatingShiftLeft,
     BinaryOperator::ShiftRight,
+    BinaryOperator::UnsignedShiftRight,
     // comparison
     BinaryOperator::LessThan,
     BinaryOperator::LessThanOrEqual,
@@ -75,11 +76,12 @@ static NOT_IN_STATIC_BINARY_OPERATORS: [BinaryOperator; 7] = [
 ];
 
 // can't use anything with `<` or `>` in tree fragments
-static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 8] = [
+static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
     // shift
     BinaryOperator::ShiftLeft,
     BinaryOperator::SaturatingShiftLeft,
     BinaryOperator::ShiftRight,
+    BinaryOperator::UnsignedShiftRight,
     // comparison
     BinaryOperator::LessThan,
     BinaryOperator::LessThanOrEqual,
@@ -98,14 +100,20 @@ fn to_infix_operator(
     token_str: &str,
     token: &TokenSpan,
     next_token: &TokenSpan,
+    next_next_token: &TokenSpan,
     options: ParserOptions,
 ) -> ParserResult<(InfixOperator, u8)> {
-    // special case for shift right to avoid ungluing ambiguity
+    // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
     if !options.in_static
+        && !options.in_tree_literal
         && token.token.ty == TokenType::GreaterThan
         && next_token.token.ty == TokenType::GreaterThan
     {
-        Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
+        if next_next_token.token.ty == TokenType::GreaterThan {
+            Ok((InfixOperator::Binary(BinaryOperator::UnsignedShiftRight), 3))
+        } else {
+            Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
+        }
     }
     // regular binary operator
     // (only a subset of binary operators are allowed in static and tree contexts)
@@ -203,7 +211,8 @@ impl<'a> Parser<'a> {
         let token = self.peek()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next()?;
-        to_infix_operator(token_str, token, next_token, self.options)
+        let next_next_token = self.peek_next_next()?;
+        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
     }
 
     /// Peek a next infix operator.
@@ -212,7 +221,8 @@ impl<'a> Parser<'a> {
         let token = self.peek_next()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next_next()?;
-        to_infix_operator(token_str, token, next_token, self.options)
+        let next_next_token = self.peek_next_next_next()?;
+        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
     }
 
     /// Make an expression from an infix operator.

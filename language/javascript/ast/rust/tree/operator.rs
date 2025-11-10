@@ -44,7 +44,7 @@ pub enum BinaryOperator {
     /// `>>`
     ShiftRight,
     /// `>>>`
-    ShiftRightUnsigned,
+    UnsignedShiftRight,
 
     // comparison
     /// `<`
@@ -113,7 +113,7 @@ pub enum AssignOperator {
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
-    ShiftRightUnsignedAssign,
+    UnsignedShiftRightAssign,
 
     /// `&=`
     ElementwiseAndAssign,

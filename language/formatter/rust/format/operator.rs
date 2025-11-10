@@ -65,7 +65,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::ShiftLeft => token("<<"),
             BinaryOperator::SaturatingShiftLeft => token("<<|"),
             BinaryOperator::ShiftRight => token(">>"),
-
+            BinaryOperator::UnsignedShiftRight => token(">>>"),
+            
             // elementwise
             BinaryOperator::ElementwiseAnd => token("&"),
             BinaryOperator::ElementwiseXor => token("^"),
@@ -134,6 +135,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
             AssignOperator::ShiftLeftAssign => "<<=",
             AssignOperator::SaturatingShiftLeftAssign => "<<|=",
             AssignOperator::ShiftRightAssign => ">>=",
+            AssignOperator::UnsignedShiftRightAssign => ">>>=",
 
             // elementwise
             AssignOperator::ElementwiseAndAssign => "&=",

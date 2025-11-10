@@ -151,6 +151,7 @@ impl Token {
             TokenType::ShiftLeftAssign => "<<=".to_string(),
             TokenType::SaturatingShiftLeftAssign => "<<|=".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
+            TokenType::UnsignedShiftRightAssign => ">>>=".to_string(),
 
             // Elementwise assignment
             TokenType::ElementwiseAndAssign => "&=".to_string(),

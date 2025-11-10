@@ -69,7 +69,10 @@ pub enum BinaryOperator {
     SaturatingShiftLeft,
     /// `>>`
     ShiftRight,
-    // nocheckin TODO #Incomplete: add ShiftRightUnsigned (`>>>`) (and ShiftRightUnsignedAssign (`>>>=`))
+    /// `>>>`
+    UnsignedShiftRight,
+    /// `>>>=`
+    UnsignedShiftRightAssign,
 
     // elementwise
     /// `&`
@@ -157,7 +160,9 @@ pub enum AssignOperator {
     SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
-
+    /// `>>>=`
+    UnsignedShiftRightAssign,
+    
     // assignment elementwise
     /// `&=`
     ElementwiseAndAssign,

@@ -285,6 +285,8 @@ pub enum TokenType {
     SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
+    /// `>>>=`
+    UnsignedShiftRightAssign,
 
     /// --------------------------------------------------
     /// Assignment Elementwise
@@ -427,6 +429,7 @@ impl Display for TokenType {
             TokenType::ShiftLeftAssign => write!(f, "<<="),
             TokenType::SaturatingShiftLeftAssign => write!(f, "<<|=="),
             TokenType::ShiftRightAssign => write!(f, ">>="),
+            TokenType::UnsignedShiftRightAssign => write!(f, ">>>="),
 
             // assignment elementwise
             TokenType::ElementwiseAndAssign => write!(f, "&="),
