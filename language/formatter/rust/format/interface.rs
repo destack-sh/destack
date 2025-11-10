@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     #[test]
@@ -10,7 +10,7 @@ mod tests {
             "interface {}",
             "interface { }",
             |p| p.eat_interface(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -20,7 +20,7 @@ mod tests {
             "interface Foo extends Bar, Baz {}",
             "interface Foo extends Bar, Baz { }",
             |p| p.eat_interface(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -30,7 +30,7 @@ mod tests {
             "interface Foo with Bar { }",
             "interface Foo with Bar { }",
             |p| p.eat_interface(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -40,7 +40,7 @@ mod tests {
             "interface Foo { const X = 1 }",
             "interface Foo {\n\tconst X = 1\n}",
             |p| p.eat_interface(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 }

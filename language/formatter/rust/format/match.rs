@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{FormatNode, Keyword, LanguageFormatter, MatchCase, NodeId};
+use crate::{FormatNode, Keyword, DystFormatter, MatchCase, NodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -8,7 +8,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
         &self,
         node_id: NodeId<MatchCase>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -48,7 +48,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_match_expression_cases() {
@@ -56,7 +56,7 @@ mod tests {
             "match x { 1 => 2; 3 => 4 }",
             "match x {\n\t1 => 2\n\t3 => 4\n}",
             |p| p.eat_match(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -66,7 +66,7 @@ mod tests {
             "match value { Pattern if cond => { const X = 1 } }",
             "match value {\n\tPattern if cond => {\n\t\tconst X = 1\n\t}\n}",
             |p| p.eat_match(),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 }

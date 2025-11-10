@@ -4,15 +4,15 @@ use dyst_source::StringId;
 
 use crate::argument::list_like;
 use crate::{
-    DependencyItem, DependencyTarget, FormatNode, LanguageFormatContext, LanguageFormatter, NodeId,
+    DependencyItem, DependencyTarget, FormatNode, DystFormatContext, DystFormatter, NodeId,
 };
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for DependencyTarget {
+impl<'ast> Format<DystFormatContext<'ast>> for DependencyTarget {
     #[inline]
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyTarget::Path(path) => write!(f, [path]),
             DependencyTarget::String(string) => write!(f, [token("\""), string, token("\"")]),
@@ -24,7 +24,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         node_id: NodeId<DependencyItem>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -47,7 +47,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 
 /// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
 pub(crate) fn format_dependency_binding<'ast>(
-    f: &mut LanguageFormatter<'ast, '_>,
+    f: &mut DystFormatter<'ast, '_>,
     target: Option<&DependencyTarget>,
     alias: Option<StringId>,
     items: Option<&Vec<NodeId<DependencyItem>>>,
@@ -94,7 +94,7 @@ pub(crate) fn format_dependency_binding<'ast>(
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_import_simple() {
@@ -102,7 +102,7 @@ mod tests {
             "import foo",
             "import foo",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -112,7 +112,7 @@ mod tests {
             "import foo as bar",
             "import * as bar from foo",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -122,7 +122,7 @@ mod tests {
             "import foo.{bar, baz}",
             "import { bar, baz } from foo",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(60)
+            DystFormatOptions::default_with_line_width(60)
         );
     }
     #[test]
@@ -131,7 +131,7 @@ mod tests {
             "import {bar, baz} from foo",
             "import { bar, baz } from foo",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(60)
+            DystFormatOptions::default_with_line_width(60)
         );
     }
 
@@ -141,7 +141,7 @@ mod tests {
             "import \"foo\"",
             "import \"foo\"",
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -157,7 +157,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default_with_line_width(60)
+            DystFormatOptions::default_with_line_width(60)
         );
     }
 
@@ -167,7 +167,7 @@ mod tests {
             r#"export * from "./foo""#,
             r#"export * from "./foo""#,
             |p| p.eat_expression(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 }

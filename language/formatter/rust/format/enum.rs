@@ -1,4 +1,4 @@
-use crate::{EnumField, FormatNode, LanguageFormatter, NodeId};
+use crate::{EnumField, FormatNode, DystFormatter, NodeId};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
@@ -7,7 +7,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
         node_id: NodeId<EnumField>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -27,7 +27,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     #[test]
@@ -36,7 +36,7 @@ mod tests {
             "enum { }",
             "enum { }",
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -46,7 +46,7 @@ mod tests {
             "enum { A, B }",
             "enum {\n\tA\n\tB\n}",
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -56,7 +56,7 @@ mod tests {
             "enum(int4) { A = 1, B = 2, C, D = 4 }",
             "enum(int4) {\n\tA = 1\n\tB = 2\n\tC\n\tD = 4\n}",
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -66,7 +66,7 @@ mod tests {
             "enum { A }",
             "enum {\n\tA\n}",
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -78,7 +78,7 @@ mod tests {
 			}",
             "enum {\n\tconst X = 1\n}",
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab()
+            DystFormatOptions::default_tab()
         );
     }
 
@@ -94,7 +94,7 @@ mod tests {
             source,
             source,
             |p| p.eat_enum(DefinitionMeta::default()),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 }

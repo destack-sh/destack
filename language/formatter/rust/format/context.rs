@@ -9,11 +9,11 @@ use dyst_source::{
     MultiSpan, Span, StringId, StringPool,
 };
 
-pub type LanguageFormatter<'ast, 'buf> = Formatter<'buf, LanguageFormatContext<'ast>>;
+pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
 /// Dyst format options.
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct LanguageFormatOptions {
+pub struct DystFormatOptions {
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility>,
     /// The type of line ending to apply to the printed input.  
@@ -26,7 +26,7 @@ pub struct LanguageFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl From<LanguageOptions> for LanguageFormatOptions {
+impl From<LanguageOptions> for DystFormatOptions {
     #[inline]
     fn from(options: LanguageOptions) -> Self {
         Self {
@@ -39,7 +39,7 @@ impl From<LanguageOptions> for LanguageFormatOptions {
     }
 }
 
-impl LanguageFormatOptions {
+impl DystFormatOptions {
     /// Default options with a given line width.
     pub fn default_with_line_width(line_width: u8) -> Self {
         Self {
@@ -100,7 +100,7 @@ impl LanguageFormatOptions {
     }
 }
 
-impl FormatOptions for LanguageFormatOptions {
+impl FormatOptions for DystFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -116,6 +116,7 @@ impl FormatOptions for LanguageFormatOptions {
         self.line_width
     }
 
+    #[inline]
     fn as_print_options(&self) -> PrintOptions {
         self.as_print_options()
     }
@@ -123,38 +124,38 @@ impl FormatOptions for LanguageFormatOptions {
 
 /// Dyst format context.
 #[derive(Debug, Clone)]
-pub struct LanguageFormatContext<'ast> {
+pub struct DystFormatContext<'a> {
     /// The format options.
-    pub options: LanguageFormatOptions,
-    /// The source.
-    pub source: &'ast File,
+    pub options: DystFormatOptions,
+    /// The file.
+    pub file: &'a File,
     /// The main tokens.
-    pub tokens: &'ast Vec<TokenSpan>,
+    pub tokens: &'a Vec<TokenSpan>,
     /// The side tokens.
-    pub side_tokens: &'ast Vec<TokenSpan>,
+    pub side_tokens: &'a Vec<TokenSpan>,
     /// The side span.
-    pub side_span: &'ast MultiSpan,
+    pub side_span: &'a MultiSpan,
     /// The tree.
-    pub tree: &'ast NodeTree,
+    pub tree: &'a NodeTree,
     /// The source map.
-    pub source_map: &'ast FileSourceMap,
+    pub source_map: &'a FileSourceMap,
     /// The parent index.
     pub parents: NodeParentIndex,
     /// The string pool.
-    pub strings: &'ast StringPool,
+    pub strings: &'a StringPool,
 }
 
-impl<'ast> LanguageFormatContext<'ast> {
+impl<'a> DystFormatContext<'a> {
     /// Gets the str source backing a Span.
     #[inline]
-    pub fn get_span_str(&self, span: Span) -> &'ast str {
-        self.source.get_span_str(span).unwrap_or_default()
+    pub fn get_span_str(&self, span: Span) -> &'a str {
+        self.file.get_span_str(span).unwrap_or_default()
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
-    pub fn get_token_str(&self, token: TokenSpan) -> &'ast str {
-        self.source.get_span_str(token.span).unwrap_or_default()
+    pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
+        self.file.get_span_str(token.span).unwrap_or_default()
     }
 
     /// Get an interned string.
@@ -406,8 +407,8 @@ impl<'ast> LanguageFormatContext<'ast> {
     }
 }
 
-impl FormatContext for LanguageFormatContext<'_> {
-    type Options = LanguageFormatOptions;
+impl FormatContext for DystFormatContext<'_> {
+    type Options = DystFormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -416,32 +417,28 @@ impl FormatContext for LanguageFormatContext<'_> {
 
     #[inline]
     fn file(&self) -> &File {
-        self.source
+        self.file
     }
 }
 
 /// Format Nodes with more information.
-pub(crate) trait FormatNode<'ast, T: Node>
+pub(crate) trait FormatNode<'a, T: Node>
 where
-    LanguageFormatContext<'ast>: FormatContext,
+    DystFormatContext<'a>: FormatContext,
 {
     /// Format a node.
-    fn format_node(
-        &self,
-        node_id: NodeId<T>,
-        f: &mut LanguageFormatter<'ast, '_>,
-    ) -> FormatResult<()>;
+    fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'a, '_>) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode via context.
-impl<'ast, T: Node> Format<LanguageFormatContext<'ast>> for NodeId<T>
+impl<'a, T: Node> Format<DystFormatContext<'a>> for NodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
-    T: FormatNode<'ast, T>,
+    T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DystFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)

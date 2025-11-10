@@ -1,8 +1,10 @@
-use dyst_fir::format::FormatOptions;
+use dyst_ast::StringPool;
+use dyst_fir::format::{FormatContext, FormatOptions};
 use dyst_fir::print::PrintOptions;
-use dyst_source::{IndentStyle, LineEnding};
+use dyst_javascript_ast::NodeTree;
+use dyst_source::{File, IndentStyle, LineEnding};
 
-use crate::{LanguageTarget, TranspilerOptions};
+use crate::{TranspilerLanguage, TranspilerUnit};
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -14,12 +16,12 @@ pub enum FormatMode {
 }
 
 /// JS/TS format options (mostly for testing).
-#[derive(Debug, Default, Clone)]
-pub struct LanguageFormatOptions {
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct JavaScriptFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
-	/// The transpiler options.
-	pub transpiler: TranspilerOptions,
+    /// The language target.
+    pub language: TranspilerLanguage = TranspilerLanguage::TypeScript,
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -30,7 +32,7 @@ pub struct LanguageFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl LanguageFormatOptions {
+impl JavaScriptFormatOptions {
     /// Pretty options.
     pub fn pretty() -> Self {
         Self {
@@ -84,6 +86,12 @@ impl LanguageFormatOptions {
         }
     }
 
+    /// Set the language target.
+    pub fn with_language(mut self, language: TranspilerLanguage) -> Self {
+        self.language = language;
+        self
+    }
+
     /// Set the line ending.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;
@@ -109,6 +117,7 @@ impl LanguageFormatOptions {
     }
 
     /// Convert to print options.
+    #[inline]
     pub fn as_print_options(&self) -> PrintOptions {
         PrintOptions {
             line_ending: self.line_ending,
@@ -117,18 +126,9 @@ impl LanguageFormatOptions {
             indent_width: self.indent_width,
         }
     }
-
-    /// Whether this includes type annotations.
-    #[inline]
-    pub fn includes_type_annotations(&self) -> bool {
-        matches!(
-            self.transpiler.target,
-            LanguageTarget::TypeScript | LanguageTarget::TypeScriptDeclaration
-        )
-    }
 }
 
-impl FormatOptions for LanguageFormatOptions {
+impl FormatOptions for JavaScriptFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -144,7 +144,39 @@ impl FormatOptions for LanguageFormatOptions {
         self.line_width
     }
 
+    #[inline]
     fn as_print_options(&self) -> PrintOptions {
         self.as_print_options()
+    }
+}
+
+/// JS/TS format context.
+#[derive(Debug, Clone)]
+pub struct JavaScriptFormatContext<'a> {
+    /// The format options.
+    pub options: JavaScriptFormatOptions,
+    /// The file.
+    pub file: &'a File,
+    /// The unit.
+    pub unit: &'a TranspilerUnit,
+    /// The tree.
+    pub tree: &'a NodeTree,
+    /// The string pool.
+    pub strings: &'a StringPool,
+}
+
+impl<'ast> JavaScriptFormatContext<'ast> {}
+
+impl<'a> FormatContext for JavaScriptFormatContext<'a> {
+    type Options = JavaScriptFormatOptions;
+
+    #[inline]
+    fn options(&self) -> &Self::Options {
+        &self.options
+    }
+
+    #[inline]
+    fn file(&self) -> &File {
+        &self.file
     }
 }

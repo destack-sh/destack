@@ -23,6 +23,30 @@ impl Uri {
     pub fn starts_with(&self, other: &Uri) -> bool {
         self.0.starts_with(&other.0)
     }
+
+    /// Get the URI without the extension.
+    pub fn without_extension(&self) -> Self {
+        // trim extension if exists
+        if self.0.contains(".") {
+            let without_extension = self.0.split(".").next().unwrap();
+            Self(without_extension.to_string())
+        }
+        // no extension
+        else {
+            self.clone()
+        }
+    }
+
+    /// Append or replace the extension of the URI.
+    pub fn with_extension(&self, extension: &str) -> Self {
+        let extension = extension.trim_start_matches("."); // trim leading dot if any
+        if self.0.contains(".") {
+            let without_extension = format!("{}.{}", self.0.split(".").next().unwrap(), extension);
+            Self(without_extension)
+        } else {
+            Self(format!("{}.{}", self.0, extension))
+        }
+    }
 }
 
 impl FromStr for Uri {

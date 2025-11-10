@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 
-use crate::{LanguageFormatContext, LanguageFormatter, Mutability, ScopedMutability};
+use crate::{DystFormatContext, DystFormatter, Mutability, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -25,7 +25,7 @@ impl FormatScopedMutability {
     /// Format the mutability (without any scopes).
     /// Might be a no-op if the actual mutability is implicit.
     #[inline]
-    fn format_mutability(&self, f: &mut LanguageFormatter<'_, '_>) -> FormatResult<()> {
+    fn format_mutability(&self, f: &mut DystFormatter<'_, '_>) -> FormatResult<()> {
         match &self.mutability {
             ScopedMutability::Scoped { mutability, .. } => match self.implicit_mutability {
                 Some(implicit_mutability) => {
@@ -52,8 +52,8 @@ impl FormatScopedMutability {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for FormatScopedMutability {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for FormatScopedMutability {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match &self.mutability {
             ScopedMutability::Scoped { scopes, .. } => {
                 // mutability
@@ -84,7 +84,7 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for FormatScopedMutability {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DefinitionMeta;
 
     #[test]
@@ -99,7 +99,7 @@ mod tests {
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_tab().with_line_width(40)
+            DystFormatOptions::default_tab().with_line_width(40)
         );
     }
 
@@ -115,7 +115,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -130,7 +130,7 @@ mod tests {
     TetrisPieceShape.O,
 )",
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -146,7 +146,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -161,7 +161,7 @@ mod tests {
     TetrisPieceShape.O,
 ]",
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DefinitionMeta::default()),
-            LanguageFormatOptions::default_with_line_width(40)
+            DystFormatOptions::default_with_line_width(40)
         );
     }
 }

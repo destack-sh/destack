@@ -44,14 +44,23 @@ pub enum FileContent {
 
 impl File {
     /// Create an empty source in some format.
-    pub fn empty(format: FileType) -> Self {
+    pub fn empty_with_type(ty: FileType) -> Self {
         Self::from_string(
             FileId::new(0),
             "<empty>".to_string(),
             Uri::from_string("<empty>"),
-            format,
+            ty,
             String::new(),
         )
+    }
+
+    /// Create an empty source.
+    pub fn empty_with_id(ty: FileType, id: FileId, uri: Uri) -> Self {
+        let name = uri
+            .last_segment()
+            .unwrap_or_else(|| uri.as_ref())
+            .to_string();
+        Self::from_string(id, name, uri, ty, String::new())
     }
 
     /// Create a new File.

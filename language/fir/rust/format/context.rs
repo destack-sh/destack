@@ -81,7 +81,7 @@ impl SimpleFormatContext {
     pub fn empty_dyst() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
-            file: File::empty(FileType::Dyst),
+            file: File::empty_with_type(FileType::Dyst),
         }
     }
 }

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use dyst_compiler::Compiler;
 use dyst_dir as dir;
-use dyst_source::{DiagnosticCollector, LanguageOptions, StringPool};
+use dyst_source::{DiagnosticCollector, LanguageOptions, SmallVec, StringPool, smallvec};
 
-use crate::{TranspilerArtifact, TranspilerUnit, TranspilerUnitId};
+use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit, TranspilerUnitId};
 
 /// The transpilation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,16 +21,43 @@ pub struct TranspilerOptions {
     /// The transpilation mode.
     pub mode: TranspilerMode = TranspilerMode::Retained,
     /// The target language.
-    pub target: LanguageTarget = LanguageTarget::TypeScript,
+    pub target: TranspilerTarget = TranspilerTarget::TypeScript,
     /// The ECMAScript level.
     pub es_version: EcmaScriptVersion = EcmaScriptVersion::ES2022,
     /// The TypeScript version.
     pub ts_version: TypeScriptVersion = TypeScriptVersion::TS5_0,
+    /// The formatting options.
+    pub formatting: JavaScriptFormatOptions,
+}
+
+/// The transpiler target for transpiling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TranspilerTarget {
+    /// Plain JavaScript (`.js`).
+    JavaScript,
+    /// TypeScript (`.ts`).
+    TypeScript,
+    /// Plain JavaScript with TypeScript declarations (.js and .d.ts).
+    JavaScriptWithTypeScriptDeclarations,
+}
+
+impl TranspilerTarget {
+    /// Get the language targets for transpiling.
+    pub fn language_targets(&self) -> SmallVec<TranspilerLanguage, 3> {
+        match self {
+            TranspilerTarget::JavaScript => smallvec![TranspilerLanguage::JavaScript],
+            TranspilerTarget::TypeScript => smallvec![TranspilerLanguage::TypeScript],
+            TranspilerTarget::JavaScriptWithTypeScriptDeclarations => smallvec![
+                TranspilerLanguage::JavaScript,
+                TranspilerLanguage::TypeScriptDeclaration,
+            ],
+        }
+    }
 }
 
 /// The target language for transpiling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LanguageTarget {
+pub enum TranspilerLanguage {
     /// Plain JavaScript (like `.js`).
     JavaScript,
     /// TypeScript (like `.ts`).

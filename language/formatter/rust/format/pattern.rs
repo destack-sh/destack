@@ -3,13 +3,13 @@ use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
 use crate::{
-    FormatNode, LanguageFormatContext, LanguageFormatter, Mutability, NodeId, Pattern, PatternField,
+    FormatNode, DystFormatContext, DystFormatter, Mutability, NodeId, Pattern, PatternField,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for Mutability {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("const")]),
             Mutability::Mutable => write!(f, [token("var")]),
@@ -17,8 +17,8 @@ impl<'ast> Format<LanguageFormatContext<'ast>> for Mutability {
     }
 }
 
-impl<'ast> Format<LanguageFormatContext<'ast>> for ScopedMutability {
-    fn format(&self, f: &mut LanguageFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DystFormatContext<'ast>> for ScopedMutability {
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ScopedMutability::Unscoped { mutability } => write!(f, [mutability])?,
             ScopedMutability::Scoped { mutability, scopes } => {
@@ -42,7 +42,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
         node_id: NodeId<Pattern>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -114,7 +114,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
         node_id: NodeId<PatternField>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -163,7 +163,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_pattern_wildcard() {

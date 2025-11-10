@@ -6,7 +6,7 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{
-    Argument, FormatNode, LanguageFormatContext, LanguageFormatter, Node, NodeId, NodeTree,
+    Argument, FormatNode, DystFormatContext, DystFormatter, Node, NodeId, NodeTree,
     NodeTreeImpl, Parameter,
 };
 use dyst_fir::prelude::*;
@@ -57,13 +57,13 @@ where
     }
 }
 
-impl<'ast, 'e, T> Format<LanguageFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, LanguageFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
             if self.include_space {
@@ -160,7 +160,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: NodeId<Parameter>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -233,7 +233,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         node_id: NodeId<Argument>,
-        f: &mut LanguageFormatter<'ast, '_>,
+        f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -350,7 +350,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestFormatter;
-    use crate::{LanguageFormatOptions, assert_format};
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
     fn test_format_parameter() {
@@ -358,7 +358,7 @@ mod tests {
             "x: int32",
             "x: int32",
             |p| p.eat_parameter(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -368,7 +368,7 @@ mod tests {
             "x: int32 = 1",
             "x: int32 = 1",
             |p| p.eat_parameter(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -378,7 +378,7 @@ mod tests {
             "x: 1",
             "x: 1",
             |p| p.eat_argument(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -388,7 +388,7 @@ mod tests {
             "x",
             "x",
             |p| p.eat_argument(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 
@@ -398,7 +398,7 @@ mod tests {
             "1",
             "1",
             |p| p.eat_argument(),
-            LanguageFormatOptions::default()
+            DystFormatOptions::default()
         );
     }
 }
