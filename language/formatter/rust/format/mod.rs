@@ -10,6 +10,7 @@ pub mod extension;
 pub mod function;
 pub mod identifier;
 pub mod r#if;
+pub mod operator;
 pub mod interface;
 pub mod r#let;
 pub mod literal;
