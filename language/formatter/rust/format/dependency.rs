@@ -1,11 +1,9 @@
-use dyst_ast::{DependencyKind, Keyword};
+use dyst_ast::{DependencyItem, DependencyKind, DependencyTarget, Keyword, NodeId};
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
 use crate::argument::list_like;
-use crate::{
-    DependencyItem, DependencyTarget, DystFormatContext, DystFormatter, FormatNode, NodeId,
-};
+use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_fir::format::Format;
 use dyst_fir::prelude::*;
 use dyst_fir::write;

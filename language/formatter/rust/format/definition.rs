@@ -3,13 +3,11 @@ use crate::block::format_block_of_expressions;
 use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
-use crate::{
-    Definition, DystFormatContext, DystFormatter, Field, FormatNode, Keyword, NodeId,
-    VariantFormat, empty_block_with_infix_annotations,
-};
+use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
-    Asynchrony, BindingScope, DeclarationKind, ExportType, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, ReferenceType, StructKind, Visibility,
+    Asynchrony, BindingScope, DeclarationKind, Definition, ExportType, Expression, Field,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, NodeId,
+    ReferenceType, StructKind, VariantFormat, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -18,7 +16,7 @@ use dyst_fir::{format_args, write};
 pub(crate) fn format_type_clause<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     keyword: Keyword,
-    types: &[NodeId<crate::Expression>],
+    types: &[NodeId<Expression>],
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
 

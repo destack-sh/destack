@@ -1,6 +1,6 @@
 use dyst_ast::{
-    Argument, Asynchrony, DependencyKind, ForEachKind, IfKind, Mutability, NodeTree, Path,
-    PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
+    Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
+    NodeId, NodeTree, Path, PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use dyst_fir::format::BestFittingMode;
 use dyst_fir::prelude::*;
@@ -12,10 +12,7 @@ use crate::block::format_block;
 use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
-use crate::{
-    DystFormatContext, DystFormatter, Expression, FormatNode, Keyword, NodeId,
-    empty_block_with_infix_annotations,
-};
+use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 
 /// Tree fragment argument (with `=` instead of `: `)
 #[derive(Debug, Clone, PartialEq)]

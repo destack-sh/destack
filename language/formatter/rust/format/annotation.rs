@@ -2,10 +2,10 @@ use dyst_fir::format::{Format, FormatResult, hard_line_break};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-use crate::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl, NodeType,
-    Tag,
+use crate::{DystFormatContext, DystFormatter, FormatNode};
+use dyst_ast::{
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Node,
+    NodeId, NodeTree, NodeTreeImpl, NodeType, Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {

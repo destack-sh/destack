@@ -1,10 +1,8 @@
-use dyst_ast::ScopedMutability;
 use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
-use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Mutability, NodeId, Pattern, PatternField,
-};
+use crate::{DystFormatContext, DystFormatter, FormatNode};
+use dyst_ast::{Mutability, NodeId, Pattern, PatternField, ScopedMutability};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 

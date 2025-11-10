@@ -1,8 +1,10 @@
-use dyst_ast::{TypeBinaryOperator, TypeUnaryOperator};
+use dyst_ast::{
+    AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-use crate::{AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, UnaryOperator};
+use crate::{DystFormatContext, DystFormatter};
 
 impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
