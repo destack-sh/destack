@@ -9,7 +9,7 @@ use crate::{FormatNode, JavaScriptFormatter};
 impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
         &self,
-        node_id: NodeId<SwitchCase>,
+        _node_id: NodeId<SwitchCase>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [Keyword::Case, space(), self.value, token(":")])?;

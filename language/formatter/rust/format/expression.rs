@@ -719,7 +719,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
             is_trivial_expression(tree, tree.get(*left)) && index.is_none()
                 || is_trivial_expression(tree, tree.get(*index.as_ref().unwrap()))
         }
-        Expression::Reference {
+        Expression::ReferenceOf {
             mutability: _,
             variance: _,
             right,
@@ -1535,7 +1535,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             },
 
             // value
-            Expression::Value {
+            Expression::ValueOf {
                 mutability,
                 variance,
                 right,
@@ -1554,7 +1554,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // reference
-            Expression::Reference {
+            Expression::ReferenceOf {
                 mutability,
                 variance,
                 right,

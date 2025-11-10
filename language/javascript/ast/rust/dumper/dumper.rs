@@ -413,10 +413,12 @@ impl_dump_display! {
     BindingKind,
     BindingOperator,
     BindingScope,
+    PostfixPosition,
     DeclarationKind,
     DependencyKind,
     ExportType,
     Mutability,
+    PrimitiveType,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -487,6 +489,44 @@ impl Dump for TemplateLiteral {
     }
 }
 
+/// Dump a TypeLiteral.
+impl Dump for TypeLiteral {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypeLiteral::Never => {
+                dumper.object("TypeLiteral::Never").end();
+            }
+            TypeLiteral::Any => {
+                dumper.object("TypeLiteral::Any").end();
+            }
+            TypeLiteral::Undefined => {
+                dumper.object("TypeLiteral::Undefined").end();
+            }
+            TypeLiteral::Unknown => {
+                dumper.object("TypeLiteral::Unknown").end();
+            }
+            TypeLiteral::Void => {
+                dumper.object("TypeLiteral::Void").end();
+            }
+            TypeLiteral::Null => {
+                dumper.object("TypeLiteral::Null").end();
+            }
+            TypeLiteral::Primitive(primitive) => {
+                dumper
+                    .object("TypeLiteral::Primitive")
+                    .value(primitive)
+                    .end();
+            }
+            TypeLiteral::ScalarLiteral(scalar_literal) => {
+                dumper
+                    .object("TypeLiteral::ScalarLiteral")
+                    .value(scalar_literal)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump a BindingModifier.
 impl Dump for BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -545,16 +585,32 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_statement(&mut self, tree: &NodeTree, id: NodeId<Statement>, statement: &Statement) {
         match statement {
             Statement::Import {
-                source,
+                kind,
+                target,
+                alias,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Statement::Import", id.id)
-                    .field("source", source)
+                    .field("kind", kind)
+                    .field("target", target)
+                    .field_optional("alias", alias)
                     .end();
             }
-            Statement::Export { items: _ } => {
-                self.node("Statement::Export", id.id).end();
+            Statement::Export {
+                mode,
+                kind,
+                target,
+                alias,
+                value: _,
+                items: _,
+            } => {
+                self.node("Statement::Export", id.id)
+                    .field("mode", mode)
+                    .field("kind", kind)
+                    .field_optional("target", target)
+                    .field_optional("alias", alias)
+                    .end();
             }
             Statement::Block { block: _ } => {
                 self.node("Statement::Block", id.id).end();
@@ -737,33 +793,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::Maybe { position, left: _ } => {
+                self.node("Expression::Maybe", id.id)
+                    .field("position", position)
+                    .end();
+            }
+            Expression::Must { position, left: _ } => {
+                self.node("Expression::Must", id.id)
+                    .field("position", position)
+                    .end();
+            }
             Expression::Member {
                 left: _,
                 path,
-                kind,
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
                     .field("path", path)
-                    .field("kind", kind)
                     .end();
             }
             Expression::Index {
-                kind,
+                position,
                 index: _,
                 left: _,
             } => {
                 self.node("Expression::Index", id.id)
-                    .field("kind", kind)
+                    .field("position", position)
                     .end();
             }
             Expression::Call {
-                kind,
+                position,
                 left: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", id.id)
-                    .field("kind", kind)
+                    .field("position", position)
                     .end();
             }
             Expression::ImportCall { source } => {
@@ -937,26 +1001,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::Positional { modifiers, .. } => {
-                self.node("Argument::Positional", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Argument::Positional { value: _ } => {
+                self.node("Argument::Positional", id.id).end();
             }
-            Argument::Spread {
-                modifiers, name, ..
-            } => {
-                self.node("Argument::Spread", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
+            Argument::Spread { value: _ } => {
+                self.node("Argument::Spread", id.id).end();
             }
-            Argument::Dynamic {
-                modifiers, name, ..
-            } => {
-                self.node("Argument::Dynamic", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
+            Argument::Dynamic { key: _, value: _ } => {
+                self.node("Argument::Dynamic", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1030,7 +1082,28 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
-        self.node("Type", id.id).end();
+        match ty {
+            Type::Scalar(literal) => {
+                self.node("Type::Scalar", id.id).value(literal).end();
+            }
+            Type::Definition(_) => {
+                self.node("Type::Definition", id.id).end();
+            }
+            Type::Unary { operator, right: _ } => {
+                self.node("Type::Unary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Type::Binary {
+                left: _,
+                operator,
+                right: _,
+            } => {
+                self.node("Type::Binary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_type(dumper, tree, id, ty);
         });

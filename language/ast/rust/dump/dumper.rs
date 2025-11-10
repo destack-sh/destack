@@ -979,22 +979,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::Value {
+            Expression::ValueOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Expression::Value", _id.id)
+                self.node("Expression::ValueOf", _id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::Reference {
+            Expression::ReferenceOf {
                 mutability,
                 variance,
                 right: _,
             } => {
-                self.node("Expression::Reference", _id.id)
+                self.node("Expression::ReferenceOf", _id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
                     .end();
@@ -1496,7 +1496,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Maybe(_) => {
                 self.node("Pattern::Unwrap", _id.id).end();
             }
-            Pattern::Reference {
+            Pattern::ReferenceOf {
                 mutability,
                 right: _,
             } => {

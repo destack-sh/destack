@@ -46,22 +46,20 @@ pub(crate) fn format_type_clause<'ast>(
 impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            Visibility::Public => write!(f, [Keyword::Public])?,
-            Visibility::Protected => write!(f, [Keyword::Protected])?,
-            Visibility::Private => write!(f, [Keyword::Private])?,
-        };
-        Ok(())
+            Visibility::Public => write!(f, [Keyword::Public]),
+            Visibility::Protected => write!(f, [Keyword::Protected]),
+            Visibility::Private => write!(f, [Keyword::Private]),
+        }
     }
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ExportType::Item => write!(f, [Keyword::Export])?,
-            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default])?,
-            ExportType::Module => write!(f, [Keyword::Export])?,
-        };
-        Ok(())
+            ExportType::Item => write!(f, [Keyword::Export]),
+            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
+            ExportType::Module => write!(f, [Keyword::Export]),
+        }
     }
 }
 

@@ -495,7 +495,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::Value {
+        Expression::ValueOf {
             mutability: _,
             variance: _,
             right,
@@ -504,7 +504,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::Reference {
+        Expression::ReferenceOf {
             mutability: _,
             variance: _,
             right,
@@ -1294,7 +1294,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let unwrap_pattern = tree.get(*unwrap);
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
         }
-        Pattern::Reference {
+        Pattern::ReferenceOf {
             right: target,
             mutability: _,
         } => {

@@ -102,7 +102,9 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
 
     match statement {
         Statement::Import {
-            source: _,
+            kind: _,
+            target: _,
+            alias: _,
             items,
             arguments,
         } => {
@@ -117,15 +119,24 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Statement::Export { items } => {
+        Statement::Export {
+            mode: _,
+            kind: _,
+            target: _,
+            alias: _,
+            value,
+            items,
+        } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
         }
-        Statement::Block {
-            block,
-        } => {
+        Statement::Block { block } => {
             let block_node = tree.get(*block);
             visitor.visit_block(tree, *block, block_node);
         }
@@ -204,8 +215,10 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 let initialization_expr = tree.get(*initialization);
                 visitor.visit_expression(tree, *initialization, initialization_expr);
             }
-            let condition_expr = tree.get(*condition);
-            visitor.visit_expression(tree, *condition, condition_expr);
+            if let Some(condition) = condition {
+                let condition_expr = tree.get(*condition);
+                visitor.visit_expression(tree, *condition, condition_expr);
+            }
             if let Some(increment) = increment {
                 let increment_expr = tree.get(*increment);
                 visitor.visit_expression(tree, *increment, increment_expr);
@@ -395,10 +408,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expr = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expr);
         }
+        Expression::Maybe { position: _, left } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+        }
+        Expression::Must { position: _, left } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+        }
         Expression::Member {
             left,
             path: _,
-            kind: _,
             static_arguments,
         } => {
             let left_expr = tree.get(*left);
@@ -411,8 +431,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Index {
+            position: _,
             left,
-            kind: _,
             index,
         } => {
             let left_expr = tree.get(*left);
@@ -423,8 +443,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Call {
+            position: _,
             left,
-            kind: _,
             dynamic_arguments,
         } => {
             let left_expr = tree.get(*left);
@@ -701,27 +721,15 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Argument, id.id);
 
     match argument {
-        Argument::Positional {
-            modifiers: _,
-            value,
-        } => {
+        Argument::Positional { value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
-        Argument::Spread {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
+        Argument::Spread { value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
-        Argument::Dynamic {
-            modifiers: _,
-            name: _,
-            key,
-            value,
-        } => {
+        Argument::Dynamic { key, value } => {
             let key_expr = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expr);
             let value_expr = tree.get(*value);
@@ -817,5 +825,27 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     ty: &Type,
 ) {
     visitor.visit_any(tree, NodeType::Type, id.id);
-    let _ = ty;
+    match ty {
+        Type::Scalar(_) => {}
+        Type::Definition(definition_id) => {
+            if visitor.options().visit_indirect {
+                let definition = tree.get(*definition_id);
+                visitor.visit_definition(tree, *definition_id, definition);
+            }
+        }
+        Type::Unary { operator: _, right } => {
+            let right_ty = tree.get(*right);
+            visitor.visit_type(tree, *right, right_ty);
+        }
+        Type::Binary {
+            left,
+            operator: _,
+            right,
+        } => {
+            let left_ty = tree.get(*left);
+            visitor.visit_type(tree, *left, left_ty);
+            let right_ty = tree.get(*right);
+            visitor.visit_type(tree, *right, right_ty);
+        }
+    }
 }

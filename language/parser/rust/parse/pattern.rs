@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
                 let mutability = self.eat_scoped_mutability_maybe()?;
                 let target_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(
-                    Pattern::Reference {
+                    Pattern::ReferenceOf {
                         mutability,
                         right: target_id,
                     },
@@ -412,7 +412,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
         // &
         assert_node!(parser.tree, pattern_id,
-            Pattern::Reference { mutability: Some(ScopedMutability::Unscoped { mutability, .. }), right } => {
+            Pattern::ReferenceOf { mutability: Some(ScopedMutability::Unscoped { mutability, .. }), right } => {
                 // var
                 assert_eq!(*mutability, Mutability::Mutable);
                 // _
@@ -425,7 +425,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         // &
-        assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability: None, right } => {
+        assert_node!(parser.tree, pattern_id, Pattern::ReferenceOf { mutability: None, right } => {
             // 1
             assert_node!(parser.tree, *right, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));

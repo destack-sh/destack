@@ -5,8 +5,8 @@ use dyst_javascript_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl};
 
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
-use dyst_fir::{best_fitting, prelude::*};
-use dyst_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{best_fitting, format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -155,9 +155,20 @@ where
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
-        node_id: NodeId<Argument>,
+        _node_id: NodeId<Argument>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        todo!("format_node{self:?}");
+        match self {
+            Argument::Positional { value } => {
+                write!(f, [value])?;
+            }
+            Argument::Spread { value } => {
+                write!(f, [token("..."), value])?;
+            }
+            Argument::Dynamic { key, value } => {
+                write!(f, [token("["), key, token("]"), token(":"), space(), value])?;
+            }
+        }
+        Ok(())
     }
 }

@@ -10,6 +10,7 @@ mod identifier;
 mod literal;
 mod operator;
 mod parameter;
+mod path;
 mod pattern;
 mod statement;
 mod switch;

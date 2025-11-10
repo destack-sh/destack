@@ -39,9 +39,7 @@ pub enum PatternField {
         default: Option<NodeId<Expression>>,
     },
     /// Positional pattern field (like `4`).
-    Positional {
-        pattern: NodeId<Pattern>,
-    },
+    Positional { pattern: NodeId<Pattern> },
 }
 
 impl Node for PatternField {

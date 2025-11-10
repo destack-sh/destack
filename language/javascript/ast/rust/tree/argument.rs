@@ -3,7 +3,9 @@ use crate::{Expression, Mutability, Node, NodeId, NodeType, Pattern, StringId, T
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingKind {
+    /// Must binding (like `x`).
     Must,
+    /// Maybe binding (like `x?`).
     Maybe,
 }
 
@@ -41,7 +43,7 @@ pub struct BindingModifier {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
     /// Named parameter (like `x: int32` or `Validate: boolean = true`).
-    Named { 
+    Named {
         modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Type>>,
@@ -69,20 +71,11 @@ impl Node for Parameter {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).
-    Positional {
-        modifiers: Option<BindingModifier>,
-        value: NodeId<Expression>,
-    },
-    /// Spread argument (like `...args` or `...args: int32[]`).
-    Spread {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
-        value: NodeId<Expression>,
-    },
+    Positional { value: NodeId<Expression> },
+    /// Spread argument (like `...args`).
+    Spread { value: NodeId<Expression> },
     /// Dynamic argument (like `[variable]: 2`).
     Dynamic {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },

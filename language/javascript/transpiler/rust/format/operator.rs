@@ -23,7 +23,6 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
@@ -71,7 +70,6 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeUnaryOperator {
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
@@ -96,7 +94,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeBinaryOperator {
             TypeBinaryOperator::Cast => token("as"),
             TypeBinaryOperator::Is => token("is"),
             TypeBinaryOperator::In => token("in"),
-			TypeBinaryOperator::InstanceOf => token("instanceof"),
+            TypeBinaryOperator::InstanceOf => token("instanceof"),
             TypeBinaryOperator::Satisfies => token("satisfies"),
             TypeBinaryOperator::Extends => token("extends"),
             TypeBinaryOperator::Implements => token("implements"),

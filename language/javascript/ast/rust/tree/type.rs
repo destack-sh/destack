@@ -1,4 +1,4 @@
-use crate::{Definition, Mutability, Node, NodeId, NodeType, ScalarLiteral};
+use crate::{Definition, Node, NodeId, NodeType, ScalarLiteral};
 
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
@@ -93,11 +93,6 @@ pub enum Type {
     /// Type unary operator.
     Unary {
         operator: TypeUnaryOperator,
-        right: NodeId<Type>,
-    },
-    /// Mutable or immutable type `T`.
-    Mutable {
-        mutability: Mutability,
         right: NodeId<Type>,
     },
     /// Binary

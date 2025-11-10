@@ -1,6 +1,6 @@
 use crate::{
-    Argument, AssignOperator, Block, DependencyItem, Expression, Mutability, Node, NodeId,
-    NodeType, Parameter, Pattern, StringId, Type,
+    Argument, AssignOperator, Block, DependencyItem, DependencyKind, ExportType, Expression,
+    Mutability, Node, NodeId, NodeType, Parameter, Pattern, StringId, Type,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.
@@ -8,12 +8,21 @@ use crate::{
 pub enum Statement {
     /// Import items (including type items).
     Import {
-        source: StringId,
+        kind: DependencyKind,
+        target: StringId,
+        alias: Option<StringId>,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Export items (including type items).
-    Export { items: Vec<NodeId<DependencyItem>> },
+    Export {
+        mode: ExportType,
+        kind: DependencyKind,
+        target: Option<StringId>,
+        alias: Option<StringId>,
+        items: Vec<NodeId<DependencyItem>>,
+        value: Option<NodeId<Expression>>,
+    },
 
     /// Block of statements.
     Block { block: NodeId<Block> },
@@ -54,7 +63,7 @@ pub enum Statement {
     /// For statement.
     For {
         initialization: Option<NodeId<Expression>>,
-        condition: NodeId<Expression>,
+        condition: Option<NodeId<Expression>>,
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
