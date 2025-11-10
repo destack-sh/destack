@@ -10,9 +10,9 @@ use crate::{CompilerQueue, CompilerTask, LoadTask};
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
     /// Default integer width.
-    pub default_int_width: u16 = 64,
+    pub default_int_width: u16 = 32,
     /// Default float width.
-    pub default_float_width: u16 = 64,
+    pub default_float_width: u16 = 32,
 }
 
 /// Compile files and sources into something (via DIR).

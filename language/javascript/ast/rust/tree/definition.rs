@@ -23,25 +23,31 @@ pub struct DefinitionMeta {
 /// A Definition is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
+    /// Namespace definition (TS-only).
     Namespace {
         meta: DefinitionMeta,
         definitions: Vec<NodeId<Definition>>,
     },
+    /// Class definition.
     Class {
         meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         fields: Vec<NodeId<Field>>,
         definitions: Vec<NodeId<Definition>>,
     },
+    /// Interface definition.
     Interface {
         meta: DefinitionMeta,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
         fields: Vec<NodeId<Field>>,
         definitions: Vec<NodeId<Definition>>,
     },
+    /// Enum definition.
     Enum {
         meta: DefinitionMeta,
         fields: Vec<NodeId<EnumField>>,
     },
+    /// Function definition.
     Function {
         meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,

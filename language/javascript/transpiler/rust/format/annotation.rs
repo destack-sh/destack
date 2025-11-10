@@ -1,6 +1,9 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{Annotation, NodeId};
 
+use dyst_fir::prelude::*;
+use dyst_fir::write;
+
 use crate::{FormatNode, JavaScriptFormatter};
 
 impl<'ast> FormatNode<'ast, Annotation> for Annotation {
@@ -9,6 +12,18 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
         node_id: NodeId<Annotation>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        todo!("format_node{self:?}");
+        assert!(
+            f.context().include_annotations(),
+            "annotation in non-annotation context: {node_id:?}"
+        );
+        match self {
+            Annotation::Doc { string } => {
+                write!(f, [token("/**"), space(), string, token("*/")])?;
+            }
+            Annotation::Comment { string } => {
+                write!(f, [token("//"), space(), string])?;
+            }
+        }
+        Ok(())
     }
 }

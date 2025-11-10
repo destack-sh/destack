@@ -1,12 +1,10 @@
-use crate::{Node, NodeType};
+use crate::{Definition, Mutability, Node, NodeId, NodeType, ScalarLiteral};
 
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
-    /// Character type.
-    Character,
     /// String type (unsized).
     String,
     /// Bigint type (unsized).
@@ -17,23 +15,6 @@ pub enum PrimitiveType {
     Symbol,
     /// Unique symbol type.
     UniqueSymbol,
-}
-
-/// A DefinitionType represents composite types.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DefinitionType {
-    /// Root type `type`.
-    Type,
-    /// Module type.
-    Module,
-    /// Class type.
-    Class,
-    /// Enum type.
-    Enum,
-    /// Interface type.
-    Interface,
-    /// Function type.
-    Function,
 }
 
 /// A TypeLiteral is a scalar type.
@@ -53,6 +34,8 @@ pub enum TypeLiteral {
     Null,
     /// Primitive type.
     Primitive(PrimitiveType),
+    /// Scalar literal.
+    ScalarLiteral(ScalarLiteral),
 }
 
 /// A TypeUnaryOperator is a type unary operator.
@@ -101,7 +84,29 @@ pub enum TypeBinaryOperator {
 
 /// A Type is a Typescript type.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {}
+pub enum Type {
+    /// Scalar type literal.
+    Scalar(TypeLiteral),
+    /// Evaluated definition type.
+    Definition(NodeId<Definition>),
+
+    /// Type unary operator.
+    Unary {
+        operator: TypeUnaryOperator,
+        right: NodeId<Type>,
+    },
+    /// Mutable or immutable type `T`.
+    Mutable {
+        mutability: Mutability,
+        right: NodeId<Type>,
+    },
+    /// Binary
+    Binary {
+        left: NodeId<Type>,
+        operator: TypeBinaryOperator,
+        right: NodeId<Type>,
+    },
+}
 
 impl Node for Type {
     const TYPE: NodeType = NodeType::Type;

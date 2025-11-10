@@ -1,3 +1,4 @@
+/// Unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `++`
@@ -18,6 +19,7 @@ pub enum UnaryOperator {
     Not,
 }
 
+/// Binary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BinaryOperator {
     // multiplicative
@@ -87,6 +89,7 @@ pub enum BinaryOperator {
     InstanceOf,
 }
 
+/// Assignment operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
     /// `=`

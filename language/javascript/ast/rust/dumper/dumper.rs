@@ -832,6 +832,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Interface {
                 meta,
+                static_parameters: _,
                 fields: _,
                 definitions: _,
             } => {
@@ -999,26 +1000,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match field {
             PatternField::Named {
-                mutability, name, ..
+                mutability,
+                name,
+                alias,
+                default: _,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
+                    .field_optional("alias", alias)
                     .end();
             }
-            PatternField::Alias {
+            PatternField::Pattern {
                 mutability,
-                name,
-                alias,
-                ..
+                pattern: _,
+                default: _,
             } => {
-                self.node("PatternField::Alias", id.id)
+                self.node("PatternField::Pattern", id.id)
                     .field_optional("mutability", mutability)
-                    .field("name", name)
-                    .field("alias", alias)
                     .end();
             }
-            PatternField::Positional { .. } => {
+            PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", id.id).end();
             }
         }

@@ -140,6 +140,15 @@ impl JavaScriptFormatOptions {
             TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
         )
     }
+
+    /// Whether we need annotations.
+    #[inline]
+    pub fn include_annotations(&self) -> bool {
+        matches!(
+            self.language,
+            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+        )
+    }
 }
 
 impl FormatOptions for JavaScriptFormatOptions {
@@ -183,6 +192,15 @@ impl<'ast> JavaScriptFormatContext<'ast> {
     /// Whether we need type annotations.
     #[inline]
     pub fn include_types(&self) -> bool {
+        matches!(
+            self.options.language,
+            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+        )
+    }
+
+    /// Whether we need annotations.
+    #[inline]
+    pub fn include_annotations(&self) -> bool {
         matches!(
             self.options.language,
             TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration

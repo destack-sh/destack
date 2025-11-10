@@ -40,21 +40,21 @@ pub struct BindingModifier {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
-    /// Named parameter.
-    Named {
+    /// Named parameter (like `x: int32` or `Validate: boolean = true`).
+    Named { 
         modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
     },
-    /// Pattern parameter.
+    /// Pattern parameter (like `_` or `{ x }` or `{ x, ..rest }: MyType = Foo`).
     Pattern {
         modifiers: Option<BindingModifier>,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
     },
-    /// Variadic parameter.
+    /// Variadic parameter (like `...args: int32[]`).
     Variadic {
         modifiers: Option<BindingModifier>,
         name: StringId,
@@ -68,18 +68,18 @@ impl Node for Parameter {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Positional argument.
+    /// Positional argument (like `1` or `foo()`).
     Positional {
         modifiers: Option<BindingModifier>,
         value: NodeId<Expression>,
     },
-    /// Spread argument.
+    /// Spread argument (like `...args` or `...args: int32[]`).
     Spread {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
-    /// Dynamic argument.
+    /// Dynamic argument (like `[variable]: 2`).
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,

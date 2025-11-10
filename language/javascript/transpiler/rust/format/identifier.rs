@@ -1,7 +1,7 @@
 use dyst_fir::format::{Format, FormatResult, text};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::Keyword;
+use dyst_javascript_ast::{Keyword, Name};
 use dyst_source::StringId;
 
 use crate::{JavaScriptFormatContext, JavaScriptFormatter};
@@ -14,6 +14,15 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for StringId {
     }
 }
 
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for Name {
+    #[inline]
+    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Name::Identifier(string) => string.format(f),
+            Name::String(string) => write!(f, [token("\""), string, token("\"")]),
+        }
+    }
+}
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for Keyword {
     #[inline]
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
