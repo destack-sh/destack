@@ -2,8 +2,8 @@ use dyst_ast::Expression;
 use dyst_fir::format::FormatResult;
 
 use crate::{
-    Block, FormatNode, DystFormatContext, DystFormatter, Node, NodeId, NodeTree,
-    NodeTreeImpl, NodeType,
+    Block, DystFormatContext, DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeImpl,
+    NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};

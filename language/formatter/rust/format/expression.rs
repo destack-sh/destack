@@ -13,8 +13,8 @@ use crate::dependency::format_dependency_binding;
 use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
-    AssignOperator, BinaryOperator, Expression, FormatNode, Keyword, DystFormatContext,
-    DystFormatter, NodeId, UnaryOperator, empty_block_with_infix_annotations,
+    AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
+    Keyword, NodeId, UnaryOperator, empty_block_with_infix_annotations,
 };
 
 /// Tree fragment argument (with `=` instead of `: `)

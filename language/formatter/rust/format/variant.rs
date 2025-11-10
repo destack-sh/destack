@@ -1,7 +1,7 @@
 use dyst_ast::{BindingKind, BindingModifier, BindingOperator, BindingScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
-use crate::{Field, FormatNode, DystFormatter, NodeId};
+use crate::{DystFormatter, Field, FormatNode, NodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
