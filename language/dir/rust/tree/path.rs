@@ -3,7 +3,7 @@ use dyst_source::SmallVec;
 use crate::{Definition, Intrinsic, NodeId, StringId};
 
 /// The base of a path.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathBase {
     /// The self base type.
     SelfType,
@@ -48,7 +48,7 @@ impl Path {
 }
 
 /// A block target for a control flow statement.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockTarget {
     /// Unevaluated block target with a string label.
     UnevaluatedString { label: StringId },
