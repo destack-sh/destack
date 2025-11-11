@@ -760,10 +760,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Parenthesized { .. } => {
                 self.node("Expression::Parenthesized", id.id).end();
             }
-            Expression::TypeUnary {
-                operator,
-                right: _,
-            } => {
+            Expression::TypeUnary { operator, right: _ } => {
                 self.node("Expression::TypeUnary", id.id)
                     .field("operator", operator)
                     .end();
@@ -777,10 +774,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::Unary {
-                operator,
-                right: _,
-            } => {
+            Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
                     .end();

@@ -3,7 +3,7 @@ use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::Path;
 use dyst_source::{SmallVec, smallvec};
 
-use crate::{Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR path base into a JS string.
@@ -26,8 +26,8 @@ impl<'a> Transpiler<'a> {
         _scope_id: dir::NodeIdAny,
         path: &dir::Path,
         unit: &mut TranspilerUnit,
-    ) -> Path {
-        match path {
+    ) -> TranspileResult<Path> {
+        let path = match path {
             dir::Path::UnevaluatedBase { base } => {
                 let base = self.transpile_path_base(*base, unit);
                 Path {
@@ -51,8 +51,10 @@ impl<'a> Transpiler<'a> {
                 Path { segments }
             }
 
-            _ => panic!("unsupported path: {path:?}"),
-        }
+            _ => return Err(TranspileError::UnsupportedPath { path: path.clone() }),
+        };
+
+        Ok(path)
     }
 
     /// Render a JS path to a single string.

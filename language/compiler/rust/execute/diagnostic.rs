@@ -4,11 +4,21 @@ use crate::{CompilerDiagnostic, CompilerError, SourceNodeIdAny};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum ExecuteError {
-	/// Dynamic dependency cannot be statically evaluated.
+    /// Dynamic dependency cannot be statically evaluated.
     DependencyIsUnevaluatable {
         node_id: SourceNodeIdAny,
         depends_on: Vec<SourceNodeIdAny>,
     } = 1,
+}
+
+impl ExecuteError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    fn sub_code(&self) -> u8 {
+        match self {
+            Self::DependencyIsUnevaluatable { .. } => 1,
+        }
+    }
 }
 
 impl std::fmt::Display for ExecuteError {
@@ -42,15 +52,5 @@ impl CompilerDiagnostic for ExecuteError {
     #[inline]
     fn sub_code(&self) -> u8 {
         self.sub_code()
-    }
-}
-
-impl ExecuteError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        match self {
-            Self::DependencyIsUnevaluatable { .. } => 1,
-        }
     }
 }

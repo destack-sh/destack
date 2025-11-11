@@ -963,18 +963,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
             }
-            Expression::Unary {
-                operator,
-                right: _,
-            } => {
+            Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
                     .end();
             }
-            Expression::TypeUnary {
-                operator,
-                right: _,
-            } => {
+            Expression::TypeUnary { operator, right: _ } => {
                 self.node("Expression::TypeUnary", _id.id)
                     .field("operator", operator)
                     .end();

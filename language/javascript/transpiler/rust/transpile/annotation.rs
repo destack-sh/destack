@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{Annotation, AnnotationPosition, NodeId};
 
-use crate::{Transpiler, TranspilerUnit};
+use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR annotation position into a JS annotation position.
@@ -23,7 +23,7 @@ impl<'a> Transpiler<'a> {
         scope_id: dir::NodeIdAny,
         annotation_id: dir::NodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
-    ) -> NodeId<Annotation> {
+    ) -> TranspileResult<NodeId<Annotation>> {
         let annotation = self.tree.get(annotation_id);
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
@@ -45,7 +45,7 @@ impl<'a> Transpiler<'a> {
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, receiver, unit);
+                let receiver = self.transpile_path(module, scope_id, receiver, unit)?;
                 let receiver_str = format!("#{}", self.render_path(&receiver, unit));
                 let receiver_str = unit.strings.intern(receiver_str);
                 Annotation::Comment {
@@ -59,7 +59,7 @@ impl<'a> Transpiler<'a> {
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, receiver, unit);
+                let receiver = self.transpile_path(module, scope_id, receiver, unit)?;
                 let receiver_str = format!("@{}", self.render_path(&receiver, unit));
                 let receiver_str = unit.strings.intern(receiver_str);
                 Annotation::Comment {
@@ -68,7 +68,9 @@ impl<'a> Transpiler<'a> {
                 }
             }
         };
-        unit.ast
-            .insert_from_dir(annotation, module.id, annotation_id)
+        let annotation_id = unit
+            .ast
+            .insert_from_dir(annotation, module.id, annotation_id);
+        Ok(annotation_id)
     }
 }

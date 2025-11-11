@@ -423,7 +423,7 @@ impl FromStr for Keyword {
             "get" => Ok(Keyword::Get),
             "set" => Ok(Keyword::Set),
             "move" => Ok(Keyword::Move),
-            
+
             _ => Err(()),
         }
     }

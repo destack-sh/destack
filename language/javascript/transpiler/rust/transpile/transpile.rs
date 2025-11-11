@@ -25,6 +25,7 @@ impl<'a> Transpiler<'a> {
                         roots: Vec::new(),
                         strings: StringPool::new(),
                         sources: vec![module.id],
+                        errors: Vec::new(),
                     };
                     units.push(unit);
                 }
@@ -38,6 +39,7 @@ impl<'a> Transpiler<'a> {
                     roots: Vec::new(),
                     strings: StringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
+                    errors: Vec::new(),
                 };
                 units.push(unit);
             }
@@ -58,20 +60,18 @@ impl<'a> Transpiler<'a> {
                 self.transpile_module(source_module, unit);
             }
         }
-        for unit in units.into_iter() {
-            self.units.insert(unit.id, unit);
-        }
 
         // print content
-        let mut file_idx: u32 = 0;
-        for language in self.options.target.language_targets() {
-            let formatting = self.options.formatting.with_language(language);
-            for unit in self.units.values() {
-                let file_id = FileId::new(file_idx);
-                let artifact = self.generate_artifact(unit, file_id, formatting, language);
-                self.artifacts.push(artifact);
-                file_idx += 1;
+        for (file_idx, mut unit) in units.into_iter().enumerate() {
+            let file_id = FileId::new(file_idx as u32);
+            for language in self.options.target.language_targets() {
+                let formatting = self.options.formatting.with_language(language);
+                match self.generate_artifact(&unit, file_id, formatting, language) {
+                    Ok(artifact) => self.artifacts.push(artifact),
+                    Err(error) => unit.add_error(error),
+                }
             }
+            self.units.insert(unit.id, unit);
         }
     }
 }

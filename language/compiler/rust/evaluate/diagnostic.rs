@@ -1,4 +1,5 @@
 use crate::{CompilerDiagnostic, CompilerError, SourceNodeIdAny};
+use dyst_dir::ModuleId;
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -6,9 +7,27 @@ use crate::{CompilerDiagnostic, CompilerError, SourceNodeIdAny};
 pub enum EvaluateError {
     /// Dependent nodes are not ready to be evaluated.
     NotReady {
+        module_id: ModuleId,
         node_id: SourceNodeIdAny,
         depends_on: Vec<SourceNodeIdAny>,
     } = 1,
+    /// Circular dependency.
+    CircularDependency {
+        module_id: ModuleId,
+        node_id: SourceNodeIdAny,
+        depends_on: Vec<SourceNodeIdAny>,
+    } = 2,
+}
+
+impl EvaluateError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    fn sub_code(&self) -> u8 {
+        match self {
+            Self::NotReady { .. } => 1,
+            Self::CircularDependency { .. } => 2,
+        }
+    }
 }
 
 impl std::fmt::Display for EvaluateError {
@@ -42,15 +61,5 @@ impl CompilerDiagnostic for EvaluateError {
     #[inline]
     fn sub_code(&self) -> u8 {
         self.sub_code()
-    }
-}
-
-impl EvaluateError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        match self {
-            Self::NotReady { .. } => 1,
-        }
     }
 }

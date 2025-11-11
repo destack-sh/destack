@@ -1,5 +1,3 @@
-use dyst_source::Diagnostic;
-
 use crate::{BuildError, EvaluateError, ExecuteError, LoadError, OptimizeError, ValidateError};
 
 /// Compiler diagnostic that can be turned into a CompilerError.
@@ -87,12 +85,6 @@ impl CompilerError {
     #[inline]
     pub fn numeric_code(&self) -> u16 {
         (self.family_number() as u16) * 1000 + self.sub_code() as u16
-    }
-}
-
-impl From<CompilerError> for Diagnostic {
-    fn from(error: CompilerError) -> Self {
-        todo!("nocheckin: CompilerError/diagnostic")
     }
 }
 

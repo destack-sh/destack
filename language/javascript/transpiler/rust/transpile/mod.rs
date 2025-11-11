@@ -1,6 +1,7 @@
 mod annotation;
 mod argument;
 mod artifact;
+mod diagnostic;
 mod expression;
 mod literal;
 mod module;
@@ -10,5 +11,6 @@ mod transpile;
 mod transpiler;
 
 pub use artifact::*;
+pub use diagnostic::*;
 pub use module::*;
 pub use transpiler::*;
