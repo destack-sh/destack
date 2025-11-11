@@ -1,5 +1,6 @@
 use crate::{Argument, Node, NodeId, NodeType, Path, StringId};
 
+/// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {
     /// Before the node.
@@ -10,6 +11,7 @@ pub enum AnnotationPosition {
     Postfix,
 }
 
+/// An annotation to a DIR node (like a comment or doc comment).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
     /// A doc annotation (like `///` or `/**`).

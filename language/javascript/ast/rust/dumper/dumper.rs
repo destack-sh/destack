@@ -414,6 +414,7 @@ impl_dump_display! {
     BindingOperator,
     BindingScope,
     PostfixPosition,
+    AnnotationPosition,
     DeclarationKind,
     DependencyKind,
     ExportType,
@@ -1140,15 +1141,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Doc { string } => {
+            Annotation::Doc { position, string } => {
                 let string = truncate_string(self.strings.get(*string), 40, " ");
                 self.node("Annotation::Doc", id.id)
+                    .field("position", position)
                     .field("string", &string.as_ref())
                     .end();
             }
-            Annotation::Comment { string } => {
+            Annotation::Comment { position, string } => {
                 let string = truncate_string(self.strings.get(*string), 40, " ");
                 self.node("Annotation::Comment", id.id)
+                    .field("position", position)
                     .field("string", &string.as_ref())
                     .end();
             }

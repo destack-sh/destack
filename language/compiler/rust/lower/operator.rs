@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
             }
             ast::BinaryOperator::ShiftRight => dyst_dir::BinaryOperator::ShiftRight,
             ast::BinaryOperator::UnsignedShiftRight => dyst_dir::BinaryOperator::UnsignedShiftRight,
-            
+
             // elementwise
             ast::BinaryOperator::ElementwiseAnd => dyst_dir::BinaryOperator::ElementwiseAnd,
             ast::BinaryOperator::ElementwiseXor => dyst_dir::BinaryOperator::ElementwiseXor,
@@ -151,7 +151,9 @@ impl<'a> Compiler<'a> {
                 AssignOperator::SaturatingShiftLeftAssign
             }
             ast::AssignOperator::ShiftRightAssign => AssignOperator::ShiftRightAssign,
-            ast::AssignOperator::UnsignedShiftRightAssign => AssignOperator::UnsignedShiftRightAssign,
+            ast::AssignOperator::UnsignedShiftRightAssign => {
+                AssignOperator::UnsignedShiftRightAssign
+            }
 
             // assignment elementwise
             ast::AssignOperator::ElementwiseAndAssign => AssignOperator::ElementwiseAndAssign,

@@ -66,7 +66,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
             BinaryOperator::SaturatingShiftLeft => token("<<|"),
             BinaryOperator::ShiftRight => token(">>"),
             BinaryOperator::UnsignedShiftRight => token(">>>"),
-            
+
             // elementwise
             BinaryOperator::ElementwiseAnd => token("&"),
             BinaryOperator::ElementwiseXor => token("^"),

@@ -162,7 +162,7 @@ pub enum AssignOperator {
     ShiftRightAssign,
     /// `>>>=`
     UnsignedShiftRightAssign,
-    
+
     // assignment elementwise
     /// `&=`
     ElementwiseAndAssign,

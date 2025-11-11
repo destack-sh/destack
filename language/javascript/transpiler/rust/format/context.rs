@@ -175,7 +175,7 @@ impl FormatOptions for JavaScriptFormatOptions {
 }
 
 /// JS/TS format context.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct JavaScriptFormatContext<'a> {
     /// The format options.
     pub options: JavaScriptFormatOptions,
@@ -197,7 +197,7 @@ impl<'ast> JavaScriptFormatContext<'ast> {
         from_id: NodeIdAny,
         to_id: NodeId<Definition>,
     ) -> StringId {
-        todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
+        self.unit.get_alias_to_definition(from_id, to_id)
     }
 
     /// Whether we need type annotations.

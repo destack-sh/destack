@@ -1,5 +1,6 @@
+use dyst_ast::StringId;
 use dyst_dir::{self as dir, ModuleId};
-use dyst_javascript_ast::{self as ast, NodeIdAny};
+use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
 use dyst_source::{StringPool, Uri};
 
 use crate::Transpiler;
@@ -29,6 +30,17 @@ pub struct TranspilerUnit {
     pub strings: StringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
+}
+
+impl TranspilerUnit {
+    /// Get alias for a definition from a given node.
+    pub fn get_alias_to_definition(
+        &self,
+        from_id: NodeIdAny,
+        to_id: NodeId<Definition>,
+    ) -> StringId {
+        todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
+    }
 }
 
 impl<'a> Transpiler<'a> {
