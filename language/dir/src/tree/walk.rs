@@ -547,41 +547,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
-        Definition::Intrinsic { intrinsic: _ } => {
-            // nothing to do
-        }
-        Definition::Import {
-            kind: _,
-            source: _,
-            asynchrony: _,
-            items,
-            arguments,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
-            }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Definition::Export {
-            mode: _,
-            kind: _,
-            items,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
-            }
-        }
-        Definition::Let { meta: _, value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
         Definition::Type {
             meta: _,
             generics,

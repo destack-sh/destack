@@ -1148,39 +1148,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &Definition,
     ) {
         match definition {
-            Definition::Intrinsic { intrinsic } => {
-                self.node("Definition::Intrinsic", id.id)
-                    .field("intrinsic", intrinsic)
-                    .end();
-            }
-            Definition::Import {
-                kind,
-                source,
-                asynchrony,
-                items: _,
-                arguments: _,
-            } => {
-                self.node("Definition::Import", id.id)
-                    .field("kind", kind)
-                    .field("source", source)
-                    .field("asynchrony", asynchrony)
-                    .end();
-            }
-            Definition::Export {
-                mode,
-                kind,
-                items: _,
-            } => {
-                self.node("Definition::Export", id.id)
-                    .field("mode", mode)
-                    .field("kind", kind)
-                    .end();
-            }
-            Definition::Let { meta, value: _ } => {
-                self.node("Definition::Let", id.id)
-                    .field("meta", meta)
-                    .end();
-            }
             Definition::Type {
                 meta,
                 generics,
