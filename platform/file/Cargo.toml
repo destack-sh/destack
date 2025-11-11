@@ -8,7 +8,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [lib]
-path = "rust/lib.rs"
+path = "src/lib.rs"
 doctest = false
 
 [dependencies]

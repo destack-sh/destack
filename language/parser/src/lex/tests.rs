@@ -176,7 +176,6 @@ fn test_lex_comparisons_and_equals() {
 
 #[test]
 fn test_lex_raw_string_unterminated_no_pound() {
-    // https://github.com/rust-library/rust/issues/70677
     assert_raw_str_eq(
         r#"""#,
         Err(RawStringError::NoTerminator {

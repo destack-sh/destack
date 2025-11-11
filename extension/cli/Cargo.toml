@@ -9,11 +9,11 @@ rust-version.workspace = true
 default-run = "destack_cli"
 
 [lib]
-path = "rust/lib.rs"
+path = "src/lib.rs"
 
 [[bin]]
 name = "destack_cli"
-path = "rust/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 dyst_ast = { workspace = true }
