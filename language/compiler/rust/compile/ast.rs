@@ -37,24 +37,24 @@ impl<T: ast::Node> AstNodeId<T> {
 
 /// A unique identifier for an AST node from some File.
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct AstNodeIdAny {
+pub struct SourceNodeIdAny {
     /// The underlying AST node id.
     pub id: ast::NodeIdAny,
     /// The source id of the underlying AST node.
     pub file_id: FileId,
 }
 
-impl Debug for AstNodeIdAny {
+impl Debug for SourceNodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AstNodeIdAny")
+        f.debug_struct("SourceNodeIdAny")
             .field("id", &self.id)
             .field("file_id", &self.file_id)
             .finish()
     }
 }
 
-impl AstNodeIdAny {
-    /// Create a new AST node id.
+impl SourceNodeIdAny {
+    /// Create a new source node id.
     pub fn new(id: ast::NodeIdAny, file_id: FileId) -> Self {
         Self { id, file_id }
     }

@@ -1,6 +1,6 @@
 use crate::Compiler;
 
-use dyst_dir::{NodeId, NodeIdAny, Pattern, Type};
+use dyst_dir::{NodeId, Pattern, Type};
 
 /// Task to validate something.
 #[derive(Debug, Clone)]
@@ -10,17 +10,6 @@ pub enum ValidateTask {
     /// Validate a Pattern.
     ValidatePattern { node: NodeId<Pattern> },
 }
-
-/// Error when validating something.
-#[derive(Debug, Clone)]
-pub enum ValidateError {
-    NotReady {
-        node_id: NodeIdAny,
-        depends_on: Option<NodeIdAny>,
-    },
-}
-
-pub type ValidateResult<T> = Result<T, ValidateError>;
 
 impl<'a> Compiler<'a> {
     /// Process a validate task.

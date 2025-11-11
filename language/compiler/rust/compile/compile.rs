@@ -1,14 +1,8 @@
 use dyst_dir::{
-    Annotation, Argument, Expression, Node, NodeId, NodeIdAny, NodeTreeImpl, NodeType, Type,
+    Annotation, Argument, Expression, Node, NodeId, NodeTreeImpl, NodeType, Type,
 };
 
 use crate::{Compiler, CompilerTask, EvaluateTask};
-
-/// A result of compiling something.
-pub trait CompilerResult {
-    /// The node that this result depends on.
-    fn depends_on(&self) -> Option<NodeIdAny>;
-}
 
 #[allow(dead_code)]
 impl<'s> Compiler<'s> {
