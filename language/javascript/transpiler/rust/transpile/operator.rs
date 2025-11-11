@@ -1,5 +1,7 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Expression, NodeId, TypeUnaryOperator, UnaryOperator};
+use dyst_javascript_ast::{
+    BinaryOperator, Expression, NodeId, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+};
 
 use crate::{Transpiler, TranspilerUnit};
 
@@ -33,7 +35,24 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> NodeId<Expression> {
-        todo!("lower_type_binary_expression {operator:?}");
+        let left_id = self.transpile_expression(module, left_id, unit);
+        let right_id = self.transpile_expression(module, right_id, unit);
+        let operator = match operator {
+            dir::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
+            dir::TypeBinaryOperator::In => TypeBinaryOperator::In,
+            dir::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
+            dir::TypeBinaryOperator::InstanceOf => TypeBinaryOperator::InstanceOf,
+            dir::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,
+            dir::TypeBinaryOperator::Extends => TypeBinaryOperator::Extends,
+            dir::TypeBinaryOperator::Implements => TypeBinaryOperator::Implements,
+        };
+        let expression = Expression::TypeBinary {
+            left: left_id,
+            operator,
+            right: right_id,
+        };
+        unit.ast
+            .insert_from_dir(expression, module.id, expression_id)
     }
 
     /// Transpile a DIR unary expression to a JavaScript unary expression.
@@ -46,56 +65,27 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> NodeId<Expression> {
         let right_id = self.transpile_expression(module, right_id, unit);
+
+        // transpile a trivial unary expression to a JavaScript unary expression
+        let mut unary = |operator: UnaryOperator| -> NodeId<Expression> {
+            let expression = Expression::Unary {
+                operator,
+                right: right_id,
+            };
+            unit.ast
+                .insert_from_dir(expression, module.id, expression_id)
+        };
+
         match operator {
-            dir::UnaryOperator::PostIncrement => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::PostIncrement,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::PostDecrement => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::PostDecrement,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::PreIncrement => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::PreIncrement,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::PreDecrement => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::PreDecrement,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::Not => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::Not,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::Plus => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::Plus,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
-            dir::UnaryOperator::Negate => {
+            dir::UnaryOperator::PostIncrement => unary(UnaryOperator::PostIncrement),
+            dir::UnaryOperator::PostDecrement => unary(UnaryOperator::PostDecrement),
+            dir::UnaryOperator::PreIncrement => unary(UnaryOperator::PreIncrement),
+            dir::UnaryOperator::PreDecrement => unary(UnaryOperator::PreDecrement),
+            dir::UnaryOperator::Not => unary(UnaryOperator::Not),
+            dir::UnaryOperator::Plus => unary(UnaryOperator::Plus),
+            dir::UnaryOperator::Negate => unary(UnaryOperator::Negate),
+            dir::UnaryOperator::WrappingNegate => {
+                // NOTE #Broken: transpile UnaryOperator.WrappingNegate
                 let expression = Expression::Unary {
                     operator: UnaryOperator::Negate,
                     right: right_id,
@@ -103,19 +93,9 @@ impl<'a> Transpiler<'a> {
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
             }
-            dir::UnaryOperator::WrappingNegate => {
-                panic!("nocheckin: proper TranspileErrors/diagnostics")
-            }
-            dir::UnaryOperator::ElementwiseNot => {
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::ElementwiseNot,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
-            }
+            dir::UnaryOperator::ElementwiseNot => unary(UnaryOperator::ElementwiseNot),
             dir::UnaryOperator::Dereference => {
-                // NOTE: nothing to do here?
+                // nothing to do here
                 right_id
             }
             dir::UnaryOperator::Spread => {
@@ -134,6 +114,60 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> NodeId<Expression> {
-        todo!("lower_binary_expression {operator:?}");
+        let left_id = self.transpile_expression(module, left_id, unit);
+        let right_id = self.transpile_expression(module, right_id, unit);
+
+        let mut binary = |operator: BinaryOperator| -> NodeId<Expression> {
+            let expression = Expression::Binary {
+                left: left_id,
+                operator,
+                right: right_id,
+            };
+            unit.ast
+                .insert_from_dir(expression, module.id, expression_id)
+        };
+
+        match operator {
+            // multiplication
+            dir::BinaryOperator::Multiply => binary(BinaryOperator::Multiply),
+            dir::BinaryOperator::Exponent => binary(BinaryOperator::Exponent),
+            dir::BinaryOperator::Divide => binary(BinaryOperator::Divide),
+            dir::BinaryOperator::Remainder => binary(BinaryOperator::Remainder),
+
+            // addition
+            dir::BinaryOperator::Add => binary(BinaryOperator::Add),
+            dir::BinaryOperator::Subtract => binary(BinaryOperator::Subtract),
+
+            // shift
+            dir::BinaryOperator::ShiftLeft => binary(BinaryOperator::ShiftLeft),
+            dir::BinaryOperator::ShiftRight => binary(BinaryOperator::ShiftRight),
+            dir::BinaryOperator::UnsignedShiftRight => binary(BinaryOperator::UnsignedShiftRight),
+
+            // elementwise
+            dir::BinaryOperator::ElementwiseAnd => binary(BinaryOperator::ElementwiseAnd),
+            dir::BinaryOperator::ElementwiseXor => binary(BinaryOperator::ElementwiseXor),
+            dir::BinaryOperator::ElementwiseOr => binary(BinaryOperator::ElementwiseOr),
+
+            // comparison
+            dir::BinaryOperator::Equal => binary(BinaryOperator::Equal),
+            dir::BinaryOperator::NotEqual => binary(BinaryOperator::NotEqual),
+            dir::BinaryOperator::EqualStrict => binary(BinaryOperator::EqualStrict),
+            dir::BinaryOperator::NotEqualStrict => binary(BinaryOperator::NotEqualStrict),
+            dir::BinaryOperator::LessThan => binary(BinaryOperator::LessThan),
+            dir::BinaryOperator::LessThanOrEqual => binary(BinaryOperator::LessThanOrEqual),
+            dir::BinaryOperator::GreaterThan => binary(BinaryOperator::GreaterThan),
+            dir::BinaryOperator::GreaterThanOrEqual => binary(BinaryOperator::GreaterThanOrEqual),
+
+            // boolean
+            dir::BinaryOperator::And => binary(BinaryOperator::And),
+            dir::BinaryOperator::Or => binary(BinaryOperator::Or),
+            dir::BinaryOperator::Coalesce => binary(BinaryOperator::Coalesce),
+
+            // container
+            dir::BinaryOperator::In => binary(BinaryOperator::In),
+            dir::BinaryOperator::InstanceOf => binary(BinaryOperator::InstanceOf),
+
+            _ => panic!("nocheckin: proper TranspileErrors/diagnostics"),
+        }
     }
 }
