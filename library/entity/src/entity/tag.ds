@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Definition of a builtin Tag to associate builtin definitions to.
 export struct TagDefinition {

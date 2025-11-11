@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A 2D content View
 @entity

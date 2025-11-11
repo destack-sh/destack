@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// An Organization with Users and Teams.
 @entity

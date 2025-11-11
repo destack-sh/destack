@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// When the effect fires.
 export enum EffectType {

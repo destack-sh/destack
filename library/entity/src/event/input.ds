@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Base type for direct user input events
 @event

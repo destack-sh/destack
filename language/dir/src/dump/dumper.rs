@@ -394,6 +394,7 @@ impl_dump_display! {
     BinaryOperator,
     DeclarationKind,
     DependencyKind,
+    DependencySource,
     ExportType,
     ForEachKind,
     FunctionAbstraction,
@@ -584,23 +585,6 @@ impl Dump for Path {
 impl Dump for Intrinsic {
     fn dump<'a>(&self, _dumper: &mut Dumper<'a>) {
         match *self {}
-    }
-}
-
-/// Dump an DependencyTarget as a string.
-impl Dump for DependencyTarget {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            DependencyTarget::Path(path) => {
-                dumper.object("DependencyTarget::Path").value(path).end();
-            }
-            DependencyTarget::String(string) => {
-                dumper
-                    .object("DependencyTarget::String")
-                    .value(string)
-                    .end();
-            }
-        }
     }
 }
 
@@ -888,13 +872,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Import {
                 kind,
-                asynchrony,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
                     .field("kind", kind)
-                    .field("asynchrony", asynchrony)
                     .end();
             }
             Expression::Export {
@@ -1173,12 +1155,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Import {
                 kind,
+                source,
                 asynchrony,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Definition::Import", id.id)
                     .field("kind", kind)
+                    .field("source", source)
                     .field("asynchrony", asynchrony)
                     .end();
             }
@@ -1515,25 +1499,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::Glob {
-                kind: ty,
+            DependencyItem::SideEffect { kind, target } => {
+                self.node("DependencyItem::SideEffect", id.id)
+                    .field("kind", kind)
+                    .field("target", target)
+                    .end();
+            }
+            DependencyItem::Namespace {
+                kind,
                 target,
                 alias,
             } => {
                 self.node("DependencyItem::Glob", id.id)
-                    .field("type", ty)
+                    .field("kind", kind)
                     .field("target", target)
-                    .field_optional("alias", alias)
+                    .field("alias", alias)
                     .end();
             }
-            DependencyItem::Scalar {
-                kind: ty,
+            DependencyItem::Named {
+                kind,
                 target,
                 name,
                 alias,
             } => {
                 self.node("DependencyItem::Scalar", id.id)
-                    .field("type", ty)
+                    .field("kind", kind)
                     .field_optional("target", target)
                     .field("name", name)
                     .field_optional("alias", alias)

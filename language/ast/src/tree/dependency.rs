@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Node, NodeType, Path};
+use crate::{Node, NodeType};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,15 +13,6 @@ pub enum ExportType {
     Module,
 }
 
-/// A DependencyTarget is the target to import from.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DependencyTarget {
-    // Regular Path target as an identifier/path (like `foo` or `foo.bar`)
-    Path(Path),
-    // Module string target as a literal string (like `"foo"` or `"foo/bar"`)
-    String(StringId),
-}
-
 /// The type of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyKind {
@@ -31,7 +22,7 @@ pub enum DependencyKind {
     Value,
 }
 
-/// A DependencyItem is an item to import from a target in a import clause.
+/// A DependencyItem is an item to import / export from a target in a import clause.
 ///
 /// Examples:
 /// ```

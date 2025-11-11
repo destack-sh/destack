@@ -1,5 +1,7 @@
 use napi_derive::napi;
 
+// nocheckin: proper NAPI binding
+
 #[napi]
 pub fn fibonacci(n: u32) -> u32 {
     match n {

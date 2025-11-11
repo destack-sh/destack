@@ -38,11 +38,11 @@ export const destackPlugin: BunPlugin = {
 
         // load .ds and .d.ds files
         build.onLoad({ filter: /\.(ds|d\.ds)$/ }, async (args: { path: string }) => {
+            // nocheckin: Bun plugin
             return {
                 contents: `console.log("${args.path}")`,
                 loader: "ts",
             };
         });
-        // nocheckin: Bun plugin
     },
 };

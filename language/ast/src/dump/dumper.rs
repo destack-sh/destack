@@ -502,23 +502,6 @@ impl Dump for BindingModifier {
     }
 }
 
-/// Dump an DependencyTarget as a string.
-impl Dump for DependencyTarget {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            DependencyTarget::Path(path) => {
-                dumper.object("DependencyTarget::Path").value(path).end();
-            }
-            DependencyTarget::String(string) => {
-                dumper
-                    .object("DependencyTarget::String")
-                    .value(string)
-                    .end();
-            }
-        }
-    }
-}
-
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -772,7 +755,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Import {
                 kind,
-                asynchrony,
                 target,
                 alias,
                 items: _,
@@ -780,7 +762,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Import", _id.id)
                     .field("kind", kind)
-                    .field("asynchrony", asynchrony)
                     .field("target", target)
                     .field_optional("alias", alias)
                     .end();

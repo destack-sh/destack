@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Node, NodeType, Path};
+use crate::{Node, NodeType};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,15 +13,6 @@ pub enum ExportType {
     Module,
 }
 
-/// A DependencyTarget is the target to import from.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DependencyTarget {
-    // Regular Path target as an identifier/path (like `foo` or `foo.bar`)
-    Path(Path),
-    // Module string target as a literal string (like `"foo"` or `"foo/bar"`)
-    String(StringId),
-}
-
 /// The type of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyKind {
@@ -31,19 +22,45 @@ pub enum DependencyKind {
     Value,
 }
 
+/// The source of the import.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DependencySource {
+    /// Plain import statement (like `import "foo"`).
+    Import,
+    /// Import call (like `await import("foo")`).
+    ImportCall,
+    /// Require call (like `require("foo")`).
+    RequireCall,
+}
+
+impl DependencySource {
+    /// Whether the source is dynamic (like `await import("foo")` or `require("foo")`).
+    pub fn is_dynamic(&self) -> bool {
+        matches!(
+            self,
+            DependencySource::ImportCall | DependencySource::RequireCall
+        )
+    }
+}
+
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {
-    /// Import all items from a target (`import * from foo` or `export * from foo`).
-    Glob {
+    /// Import a target as a side effect without alias (like `import "foo"`)
+    SideEffect {
         kind: DependencyKind,
-        target: DependencyTarget,
-        alias: Option<StringId>,
+        target: StringId,
     },
-    /// Import a single item from a target (or current scope when target is None) (`import foo` or `export foo`).
-    Scalar {
+    /// Import or export all items from a target (`import * from "foo"` or `export * from "foo"`).
+    Namespace {
         kind: DependencyKind,
-        target: Option<DependencyTarget>,
+        target: StringId,
+        alias: StringId,
+    },
+    /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
+    Named {
+        kind: DependencyKind,
+        target: Option<StringId>,
         name: StringId,
         alias: Option<StringId>,
     },

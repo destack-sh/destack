@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
 export struct Halfspace2D {

@@ -1,5 +1,4 @@
-import destack
-import destack.entity
+import * as ds from "destack"
 
 /// The consensus status of an Event.
 export enum EventStatus {

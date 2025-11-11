@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Mouse is a user input device that can be used to interact with the UI
 @entity

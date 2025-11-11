@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Space is the root of an isolated workspace in the Destack computational universe.
 @entity

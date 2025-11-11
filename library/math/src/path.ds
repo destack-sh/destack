@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Path is a polyline of multiple points.
 export struct Path2D {

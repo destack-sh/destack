@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Body in 2D space
 @entity

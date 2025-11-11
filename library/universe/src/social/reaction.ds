@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
 @entity

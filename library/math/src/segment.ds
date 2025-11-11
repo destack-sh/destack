@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Segment is a line between two points.
 export struct Segment2D {

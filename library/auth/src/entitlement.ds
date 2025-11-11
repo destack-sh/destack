@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A type of Entitlement.
 export enum EntitlementType {

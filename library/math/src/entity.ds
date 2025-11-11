@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Transform2D is a 2D geometric transform.
 export struct Transform2D {

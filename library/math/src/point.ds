@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Point is a zero-area shape with an optional local offset.
 export struct Point2D {

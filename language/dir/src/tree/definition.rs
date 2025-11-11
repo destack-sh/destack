@@ -1,7 +1,7 @@
 use crate::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, ExportType, Expression, Field, Generics,
-    Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, ScopedMutability, StringId, Type,
-    Variant, Visibility,
+    Argument, Asynchrony, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
+    Field, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, ScopedMutability,
+    StringId, Type, Variant, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -58,6 +58,7 @@ pub enum Definition {
     /// Import definition.
     Import {
         kind: DependencyKind,
+        source: DependencySource,
         asynchrony: Asynchrony,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,

@@ -9,13 +9,15 @@
             "demo/tetris",
             "demo/zurichtech",
             "extension/bun",
-            "extension/vscode"
+            "extension/vscode",
+            "extension/napi"
         ]
     },
     "scripts": {
         "build:napi": "bun run --cwd extension/napi build"
     },
     "catalog": {
+        "@destack/napi": "workspace:*",
         "temporal-polyfill": "^0.3.0"
     },
     "catalogs": {

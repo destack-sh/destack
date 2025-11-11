@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Star is a relationship between an Actor and a starred Node.
 @entity

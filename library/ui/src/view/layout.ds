@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Layout properties for a 2D view.
 export struct LayoutComponent2D {

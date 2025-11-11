@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// The type of a Snapshot.
 export enum SnapshotType {

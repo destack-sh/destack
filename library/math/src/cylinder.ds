@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Cylinder is aligned with the local z axis with a radius and height.
 export struct Cylinder3D {
