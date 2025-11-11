@@ -1,4 +1,4 @@
 import { plugin } from "bun";
-import { destack } from "./extension";
+import { destackPlugin } from "./extension";
 
-plugin(destack);
+plugin(destackPlugin);
