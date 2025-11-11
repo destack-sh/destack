@@ -88,6 +88,21 @@ pub enum Argument {
     },
 }
 
+impl Argument {
+    /// Get the value of the Argument.
+    pub fn value(&self) -> NodeId<Expression> {
+        match self {
+            Argument::UnevaluatedNamed { value, .. } => *value,
+            Argument::UnevaluatedPositional { value, .. } => *value,
+            Argument::UnevaluatedSpread { value, .. } => *value,
+            Argument::UnevaluatedDynamic { value, .. } => *value,
+            Argument::Direct { value, .. } => *value,
+            Argument::Spread { value, .. } => *value,
+            Argument::Dynamic { value, .. } => *value,
+        }
+    }
+}
+
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
 }

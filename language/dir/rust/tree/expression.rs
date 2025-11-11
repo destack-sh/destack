@@ -51,7 +51,7 @@ pub enum Expression {
     /// Type unary operation.
     TypeUnary {
         operator: TypeUnaryOperator,
-        expression: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Type binary operation.
     TypeBinary {
@@ -62,7 +62,7 @@ pub enum Expression {
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
-        expression: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Value operation (e.g., `^x`).
     ValueOf {
@@ -128,7 +128,10 @@ pub enum Expression {
     /// --------------------------------
 
     /// Path.
-    Path { path: Path },
+    Path {
+        path: Path,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal value.
@@ -226,7 +229,7 @@ impl Expression {
     pub fn is_evaluated(&self) -> bool {
         match self {
             // values
-            Expression::Path { path } => path.is_evaluated(),
+            Expression::Path { path, .. } => path.is_evaluated(),
             Expression::ScalarLiteral { .. }
             | Expression::TemplateLiteral { .. }
             | Expression::TypeLiteral { .. }

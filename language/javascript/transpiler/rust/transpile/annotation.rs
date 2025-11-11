@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Annotation, AnnotationPosition, NodeId, NodeIdAny};
+use dyst_javascript_ast::{Annotation, AnnotationPosition, NodeId};
 
 use crate::{Transpiler, TranspilerUnit};
 
@@ -20,7 +20,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_annotation(
         &self,
         module: &'a Module,
-        scope_id: NodeIdAny,
+        scope_id: dir::NodeIdAny,
         annotation_id: dir::NodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
     ) -> NodeId<Annotation> {

@@ -708,10 +708,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
                     .iter()
                     .all(|field| is_trivial_argument(tree, tree.get(*field)))
         }
-        Expression::Unary {
-            operator: _,
-            expression,
-        } => is_trivial_expression(tree, tree.get(*expression)),
+        Expression::Unary { operator: _, right } => is_trivial_expression(tree, tree.get(*right)),
         Expression::Index { left, index, .. } => {
             is_trivial_expression(tree, tree.get(*left)) && index.is_none()
                 || is_trivial_expression(tree, tree.get(*index.as_ref().unwrap()))
@@ -1502,22 +1499,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // unary
-            Expression::Unary {
-                operator,
-                expression,
-            } => {
+            Expression::Unary { operator, right } => {
                 if operator.is_prefix() {
-                    write!(f, [operator, expression])?;
+                    write!(f, [operator, right])?;
                 } else {
-                    write!(f, [expression, operator])?;
+                    write!(f, [right, operator])?;
                 }
             }
 
             // type unary
-            Expression::TypeUnary {
-                operator,
-                expression: right,
-            } => match operator {
+            Expression::TypeUnary { operator, right } => match operator {
                 TypeUnaryOperator::Type
                 | TypeUnaryOperator::Readonly
                 | TypeUnaryOperator::Typeof

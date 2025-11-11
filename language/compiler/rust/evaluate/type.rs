@@ -66,9 +66,9 @@ impl<'a> Compiler<'a> {
             // not
             Expression::Unary {
                 operator: UnaryOperator::Not,
-                expression,
+                right,
             } => {
-                let type_id = self.try_evaluate_expression_to_type(*expression)?;
+                let type_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,

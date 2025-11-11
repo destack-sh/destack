@@ -220,28 +220,16 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            ast::Expression::Unary {
-                operator,
-                expression: right,
-            } => {
+            ast::Expression::Unary { operator, right } => {
                 let right = self.lower_expression(module, *right);
                 let operator = self.lower_unary_operator(*operator);
-                Expression::Unary {
-                    operator,
-                    expression: right,
-                }
+                Expression::Unary { operator, right }
             }
 
-            ast::Expression::TypeUnary {
-                operator,
-                expression: right,
-            } => {
+            ast::Expression::TypeUnary { operator, right } => {
                 let right = self.lower_expression(module, *right);
                 let operator = self.lower_type_unary_operator(*operator);
-                Expression::TypeUnary {
-                    operator,
-                    expression: right,
-                }
+                Expression::TypeUnary { operator, right }
             }
 
             ast::Expression::ValueOf {
@@ -380,10 +368,19 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::Path {
                 path,
-                static_arguments: _,
+                static_arguments,
             } => {
                 let path = self.lower_path(module, path);
-                Expression::Path { path }
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(module, *argument))
+                        .collect()
+                });
+                Expression::Path {
+                    path,
+                    static_arguments,
+                }
             }
             ast::Expression::ScalarLiteral(value) => {
                 let value = self.lower_scalar_literal(module, value);
@@ -395,6 +392,7 @@ impl<'a> Compiler<'a> {
                         path: Path::UnevaluatedBase {
                             base: PathBase::SelfType,
                         },
+                        static_arguments: None,
                     }
                 } else {
                     let value = self.lower_type_literal(value);

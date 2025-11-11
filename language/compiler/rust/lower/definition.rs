@@ -104,7 +104,7 @@ impl<'a> Compiler<'a> {
             match expression {
                 ast::Expression::Unary {
                     operator: ast::UnaryOperator::Spread,
-                    expression: right,
+                    right,
                 } => {
                     let right = self.lower_expression_to_type(module, *right);
                     self.tree.alias_from_ast(module.id, expression_id.id, right);

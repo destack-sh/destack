@@ -242,7 +242,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Unary {
             operator: _,
-            expression: right,
+            right,
         }
         | Expression::ValueOf {
             mutability: _,
@@ -256,7 +256,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         | Expression::TypeUnary {
             operator: _,
-            expression: right,
+            right,
         } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
@@ -343,8 +343,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
         }
-        Expression::Path { path: _ } => {
-            // nothing to do
+        Expression::Path {
+            path: _,
+            static_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
         }
         Expression::ScalarLiteral { value: _ } => {
             // nothing to do
