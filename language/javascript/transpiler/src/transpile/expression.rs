@@ -76,6 +76,9 @@ impl<'a> Transpiler<'a> {
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
             }
+            dir::Expression::StructLiteral { ty: _, fields } => {
+                
+            }
 
             dir::Expression::TypeUnary { operator, right } => {
                 let operator = self.transpile_type_unary_operator(*operator);

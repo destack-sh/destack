@@ -33,5 +33,3 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
         Ok(())
     }
 }
-
-// TODO #Incomplete: support annotations for JS/TS

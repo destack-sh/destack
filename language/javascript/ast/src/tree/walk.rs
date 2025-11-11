@@ -446,7 +446,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
-        Expression::ImportCall { source: _ } => {}
         Expression::New {
             left: _,
             static_arguments,

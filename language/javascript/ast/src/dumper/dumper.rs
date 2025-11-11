@@ -825,11 +825,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
-            Expression::ImportCall { source } => {
-                self.node("Expression::ImportCall", id.id)
-                    .field("source", source)
-                    .end();
-            }
             Expression::New {
                 left,
                 static_arguments: _,

@@ -44,7 +44,7 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
-/// An Argument is an argument to a function call.
+/// An Argument is an argument to some construct.
 /// It may be named or positional. Named shorthands are only supported in struct-like literals.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
 ///
@@ -94,6 +94,7 @@ pub enum Argument {
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },
+    // nocheckin: remove Function/DynamicFunction "Arguments" to ..Field?
     /// Named member function argument (like `foo()` or `<T>(): T`, only in struct literals).
     Function {
         modifiers: Option<BindingModifier>,

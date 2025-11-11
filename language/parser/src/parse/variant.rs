@@ -329,7 +329,7 @@ impl<'a> Parser<'a> {
                     Expression::Definition(function_id),
                     self.tree.source_map.get(function_id.id),
                 );
-                // TODO #Incomplete: merge StructLiteral/Block, shorthands are just member functions, ..
+                // nocheckin #Broken: merge StructLiteral/Block?, shorthands are just properties/functions, ..
                 //  (also support declare modifier on bindings/fields?)
                 expressions.push(function_id);
             }
