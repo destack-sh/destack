@@ -2,9 +2,9 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
-    DependencyItem, DependencyKind, DependencyTarget, ExportType, Keyword, Mutability, Node,
-    NodeId, NodeType, Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, NodeId, NodeType,
+    Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 // TODO #Performance: reduce Expression size to <=64B
@@ -46,22 +46,16 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// import foo
-    /// import foo.bar
-    /// import foo.{bar, baz}
-    /// import * from foo // same as `import foo`
-    /// import * as foo from foo // same as `import foo as foo`
-    /// import { bar, baz } from foo
-    /// import Default, { type Item } from `foo`
-    /// import foo.{} // valid but linted
+    /// import "foo"
+    /// import "foo.bar"
+    /// import * as foo from "foo" // same as `import "foo" as foo`
+    /// import { bar, baz } from "foo"
+    /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true } // arguments
-    /// await import("foo")
-    /// await import("foo", arg1: 2, ...)
     /// ```
     Import {
         kind: DependencyKind,
-        asynchrony: Asynchrony,
-        target: DependencyTarget,
+        target: StringId,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
         arguments: Option<Vec<NodeId<Argument>>>,
@@ -72,21 +66,18 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// export foo
-    /// export foo.bar
-    /// export foo.{bar, baz}
-    /// export * from foo // same as `export foo`
-    /// export * as foo from foo // same as `export foo as foo`
-    /// export { bar, baz } from foo
-    /// export { bar, baz }
-    /// export foo.{} // valid but linted
-    /// export foo as baz
+    /// export "foo"
+    /// export * from "foo" // same as `export "foo"`
+    /// export * as foo from "foo" // same as `export "foo" as foo`
+    /// export { bar, baz } from "foo"
+    /// export { bar as bar, baz }
+    /// export default foo
     /// export = foo
     /// ```
     Export {
         mode: ExportType,
         kind: DependencyKind,
-        target: Option<DependencyTarget>,
+        target: Option<StringId>,
         alias: Option<StringId>,
         items: Option<Vec<NodeId<DependencyItem>>>,
         value: Option<NodeId<Expression>>,

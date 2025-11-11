@@ -1,5 +1,7 @@
-use dyst_dir::{DependencyTarget, ModuleId};
+use dyst_dir::ModuleId;
 use dyst_parser::ParserError;
+
+use dyst_source::StringId;
 
 use crate::{CompilerDiagnostic, CompilerError};
 
@@ -8,7 +10,7 @@ use crate::{CompilerDiagnostic, CompilerError};
 #[repr(u8)]
 pub enum LoadError {
     /// Module not found.
-    ModuleNotFound { target: DependencyTarget } = 1,
+    ModuleNotFound { target: StringId } = 1,
     /// Failed to parse a module.
     ParseError {
         module_id: ModuleId,

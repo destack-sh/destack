@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// An Ellipse is centered at a point with radii along x and y and a rotation.
 export struct Ellipse2D extends Form2D {

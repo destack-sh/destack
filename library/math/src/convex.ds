@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A ConvexShape2D represents a convex polygon.
 @entity

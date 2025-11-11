@@ -27,41 +27,6 @@ impl<'a> Compiler<'a> {
             ast::Expression::Definition(definition_id) => {
                 Some(self.lower_definition(module, *definition_id))
             }
-            ast::Expression::Import {
-                kind,
-                asynchrony,
-                target,
-                alias,
-                items,
-                arguments,
-            } => {
-                let asynchrony = self.lower_asynchrony(*asynchrony);
-                let items = self.lower_dependency_items(
-                    module,
-                    expression_id,
-                    *kind,
-                    Some(target),
-                    alias.as_ref().copied(),
-                    items.as_ref().map(|items| items.as_slice()),
-                );
-                let arguments = arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| self.lower_argument(module, *argument))
-                        .collect()
-                });
-                let kind = self.lower_dependency_kind(*kind);
-                let definition = Definition::Import {
-                    kind,
-                    asynchrony,
-                    items,
-                    arguments,
-                };
-                Some(
-                    self.tree
-                        .insert_from_ast(definition, module.id, expression_id),
-                )
-            }
             _ => None,
         };
         if let Some(definition) = definition {

@@ -176,7 +176,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Import {
             kind: _,
-            asynchrony: _,
             items,
             arguments,
         } => {
@@ -553,6 +552,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Import {
             kind: _,
+            source: _,
             asynchrony: _,
             items,
             arguments,

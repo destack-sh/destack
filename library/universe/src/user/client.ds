@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Client to connect with the system.
 @entity

@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Base input View
 @entity

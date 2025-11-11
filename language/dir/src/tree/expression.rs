@@ -19,10 +19,9 @@ pub enum Expression {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-    /// Import dependency declaration (flattened for grouped items like `import foo.{bar, baz}`)
+    /// Import dependency declaration (flattened `import foo.{bar, baz}` or `await import("foo")`)
     Import {
         kind: DependencyKind,
-        asynchrony: Asynchrony,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },

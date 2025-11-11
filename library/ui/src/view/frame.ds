@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A frame View is a bare ContainerView
 @entity

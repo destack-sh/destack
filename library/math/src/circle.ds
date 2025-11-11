@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Circle is centered at a point with a radius.
 export struct Circle2D {

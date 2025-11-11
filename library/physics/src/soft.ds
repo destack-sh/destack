@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A deformable body in 2D
 @entity

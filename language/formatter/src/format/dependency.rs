@@ -1,22 +1,11 @@
-use dyst_ast::{DependencyItem, DependencyKind, DependencyTarget, Keyword, NodeId};
+use dyst_ast::{DependencyItem, DependencyKind, Keyword, NodeId};
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
 use crate::argument::list_like;
-use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_fir::format::Format;
+use crate::{DystFormatter, FormatNode};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-
-impl<'ast> Format<DystFormatContext<'ast>> for DependencyTarget {
-    #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
-        match self {
-            DependencyTarget::Path(path) => write!(f, [path]),
-            DependencyTarget::String(string) => write!(f, [token("\""), string, token("\"")]),
-        }
-    }
-}
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
@@ -46,7 +35,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 /// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
 pub(crate) fn format_dependency_binding<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    target: Option<&DependencyTarget>,
+    target: Option<&StringId>,
     alias: Option<StringId>,
     items: Option<&Vec<NodeId<DependencyItem>>>,
     include_glob: bool,
@@ -59,7 +48,17 @@ pub(crate) fn format_dependency_binding<'ast>(
         write!(f, [list_like("{", "}", ",", items).include_space()])?;
         // target
         if let Some(target) = target {
-            write!(f, [space(), Keyword::From, space(), target])?;
+            write!(
+                f,
+                [
+                    space(),
+                    Keyword::From,
+                    space(),
+                    token("\""),
+                    target,
+                    token("\"")
+                ]
+            )?;
         }
     }
     // target only
@@ -83,7 +82,7 @@ pub(crate) fn format_dependency_binding<'ast>(
             write!(f, [token("*"), space(), Keyword::From, space()])?;
         }
         // target
-        write!(f, [target])?;
+        write!(f, [token("\""), target, token("\"")])?;
     }
 
     Ok(())
@@ -95,10 +94,10 @@ mod tests {
     use crate::{DystFormatOptions, assert_format};
 
     #[test]
-    fn test_format_import_simple() {
+    fn test_format_import() {
         assert_format!(
-            "import foo",
-            "import foo",
+            "import \"foo\"",
+            "import \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
@@ -107,39 +106,20 @@ mod tests {
     #[test]
     fn test_format_import_with_alias() {
         assert_format!(
-            "import foo as bar",
-            "import * as bar from foo",
+            "import \"foo\" as bar",
+            "import * as bar from \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
     }
 
-    #[test]
-    fn test_format_import_with_items() {
-        assert_format!(
-            "import foo.{bar, baz}",
-            "import { bar, baz } from foo",
-            |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
-        );
-    }
     #[test]
     fn test_format_import_with_items_from() {
         assert_format!(
-            "import {bar, baz} from foo",
-            "import { bar, baz } from foo",
+            "import {bar, baz} from \"foo\"",
+            "import { bar, baz } from \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default_with_line_width(60)
-        );
-    }
-
-    #[test]
-    fn test_format_import_with_physical_target() {
-        assert_format!(
-            "import \"foo\"",
-            "import \"foo\"",
-            |p| p.eat_expression(),
-            DystFormatOptions::default()
         );
     }
 
@@ -150,7 +130,7 @@ mod tests {
     StructuredObjectOptions,
     StructuredObjectOptions2,
     StructuredObjectOptions3,
-} from lib"#;
+} from "lib""#;
         assert_format!(
             source,
             source,

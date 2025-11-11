@@ -976,15 +976,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // import
             Expression::Import {
                 kind,
-                asynchrony,
                 target,
                 alias,
                 items,
                 arguments,
             } => {
-                if *asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Await, space()])?;
-                }
                 write!(f, [Keyword::Import, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;

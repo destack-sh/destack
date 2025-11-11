@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Rectangle is a rectangle.
 export struct Rectangle2D {

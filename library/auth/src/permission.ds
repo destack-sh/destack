@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Definition of a builtin Permission for a builtin Node.
 export struct PermissionDefinition { }

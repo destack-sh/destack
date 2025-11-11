@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
+    Asynchrony, DependencySource, Expression, FunctionAbstraction, FunctionCardinality,
+    FunctionKind, FunctionMode, IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
 };
 
 use crate::Compiler;
@@ -120,18 +120,17 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Import {
                 kind,
-                asynchrony,
                 target,
                 alias,
                 items,
                 arguments,
             } => {
-                let asynchrony = self.lower_asynchrony(*asynchrony);
                 let items = self.lower_dependency_items(
                     module,
                     expression_id,
                     *kind,
-                    Some(target),
+                    DependencySource::Import,
+                    Some(*target),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );
@@ -144,7 +143,6 @@ impl<'a> Compiler<'a> {
                 let kind = self.lower_dependency_kind(*kind);
                 Expression::Import {
                     kind,
-                    asynchrony,
                     items,
                     arguments,
                 }
@@ -161,7 +159,8 @@ impl<'a> Compiler<'a> {
                     module,
                     expression_id,
                     *kind,
-                    target.as_ref(),
+                    DependencySource::Import,
+                    target.as_ref().copied(),
                     alias.as_ref().copied(),
                     items.as_ref().map(|items| items.as_slice()),
                 );

@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// Position properties for a 2D view.
 export struct Position2D {

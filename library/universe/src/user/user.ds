@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A User is a human ..Destack.
 @entity

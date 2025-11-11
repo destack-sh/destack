@@ -1,8 +1,6 @@
 use dyst_ast as ast;
-use dyst_dir::{
-    DependencyItem, DependencyKind, DependencyTarget as DirDependencyTarget, ExportType, Module,
-    NodeId,
-};
+use dyst_dir::{DependencyItem, DependencyKind, DependencySource, ExportType, Module, NodeId};
+use dyst_source::StringId;
 
 use crate::Compiler;
 
@@ -35,12 +33,12 @@ impl<'a> Compiler<'a> {
         module: &Module,
         origin_id: ast::NodeId<ast::Expression>,
         kind: ast::DependencyKind,
-        target: Option<&ast::DependencyTarget>,
-        alias: Option<dyst_source::StringId>,
+        _source: DependencySource,
+        target: Option<StringId>,
+        alias: Option<StringId>,
         items: Option<&[ast::NodeId<ast::DependencyItem>]>,
     ) -> Vec<NodeId<DependencyItem>> {
         let kind = self.lower_dependency_kind(kind);
-        let target = target.map(|target| self.lower_dependency_target(module, target));
         let alias = alias.map(|alias| self.strings.intern_from(&module.strings, alias));
 
         let mut items = if let Some(items) = items {
@@ -58,9 +56,9 @@ impl<'a> Compiler<'a> {
                     let alias = dependency_item
                         .alias
                         .map(|alias| self.strings.intern_from(&module.strings, alias));
-                    let dependency_item = DependencyItem::Scalar {
+                    let dependency_item = DependencyItem::Named {
                         kind,
-                        target: target.clone(),
+                        target,
                         name,
                         alias,
                     };
@@ -72,38 +70,27 @@ impl<'a> Compiler<'a> {
             Vec::new()
         };
 
-        if let Some(target) = target
-            && (items.is_empty() || alias.is_some())
-        {
-            let dependency_item = DependencyItem::Glob {
-                kind,
-                target,
-                alias,
-            };
-            items.push(
-                self.tree
-                    .insert_from_ast(dependency_item, module.id, origin_id),
-            );
+        if let Some(target) = target {
+            if let Some(alias) = alias {
+                let dependency_item = DependencyItem::Namespace {
+                    kind,
+                    target,
+                    alias,
+                };
+
+                items.push(
+                    self.tree
+                        .insert_from_ast(dependency_item, module.id, origin_id),
+                );
+            } else if items.is_empty() {
+                let dependency_item = DependencyItem::SideEffect { kind, target };
+                items.push(
+                    self.tree
+                        .insert_from_ast(dependency_item, module.id, origin_id),
+                );
+            }
         }
 
         items
-    }
-
-    /// Lower a dependency target into a DIR dependency target.
-    fn lower_dependency_target(
-        &mut self,
-        module: &Module,
-        target: &ast::DependencyTarget,
-    ) -> DirDependencyTarget {
-        match target {
-            ast::DependencyTarget::Path(path) => {
-                let path = self.lower_path(module, path);
-                DirDependencyTarget::Path(path)
-            }
-            ast::DependencyTarget::String(string_id) => {
-                let string_id = self.strings.intern_from(&module.strings, *string_id);
-                DirDependencyTarget::String(string_id)
-            }
-        }
     }
 }

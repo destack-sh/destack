@@ -372,11 +372,6 @@ impl<'a> Parser<'a> {
                 .ok()
                 .map(|token| token.token.ty)
                 .unwrap_or(TokenType::End);
-            let next_next_token_type = self
-                .peek_next_next()
-                .ok()
-                .map(|token| token.token.ty)
-                .unwrap_or(TokenType::End);
 
             #[cfg(debug_assertions)]
             let _token_str = self.get_span_str(token.span);
@@ -708,9 +703,6 @@ impl<'a> Parser<'a> {
                     TokenType::Literal,
                 ]
                 .contains(&next_token_type)
-                || (keyword == Some(Keyword::Await)
-                    && self.peek_next_keyword(Keyword::Import).is_ok()
-                    && next_next_token_type == TokenType::OpenParenthesis)
             {
                 self.eat_import()?
             }
@@ -1216,8 +1208,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
-        DefinitionType, DependencyItem, DependencyKind, DependencyTarget, ExportType, Expression,
-        FunctionKind, IntType, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
+        DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
+        IntType, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
         ScalarLiteral, ScopedMutability, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
         UnaryOperator, VarianceBound, WithClause,
     };
@@ -1367,12 +1359,12 @@ type = type * 2
     /// Parse `export { bar, baz } from foo`.
     #[test]
     fn test_parse_export_expression_with_items_block() {
-        let mut test = TestParser::new("export { bar, baz } from foo");
+        let mut test = TestParser::new("export { bar, baz } from \"foo\"");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         // export { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target: Some(DependencyTarget::Path(target)), alias, items, value: None } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target, alias, items, value: None } => {
             assert_eq!(*mode, ExportType::Item);
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
@@ -1385,7 +1377,7 @@ type = type * 2
                 assert_string!(parser, *name, "baz");
                 assert!(alias.is_none());
             });
-            assert_path!(parser, *target, "foo");
+            assert_string!(parser, target.unwrap(), "foo");
         });
     }
 
@@ -1417,16 +1409,16 @@ type = type * 2
     /// Parse `export * as baz from foo`.
     #[test]
     fn test_parse_export_expression_star_alias() {
-        let mut test = TestParser::new("export * as baz from foo");
+        let mut test = TestParser::new("export * as baz from \"foo\"");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         // export * as baz from foo
-        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target: Some(DependencyTarget::Path(target)), alias, items, value: None } => {
+        assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target, alias, items, value: None } => {
             assert_eq!(*mode, ExportType::Item);
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
-            assert_path!(parser, *target, "foo");
+            assert_string!(parser, target.unwrap(), "foo");
         });
     }
 
@@ -1458,12 +1450,12 @@ type = type * 2
     /// Parse `import { bar, baz } from foo`.
     #[test]
     fn test_parse_import_expression_with_items_block() {
-        let mut test = TestParser::new("import { bar, baz } from foo");
+        let mut test = TestParser::new("import { bar, baz } from \"foo\"");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target: DependencyTarget::Path(target), alias, items, arguments: None, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target, alias, items, arguments: None, .. } => {
             assert!(alias.is_none());
             let items = items.as_ref().expect("expected items");
             assert_eq!(items.len(), 2);
@@ -1475,23 +1467,23 @@ type = type * 2
                 assert_string!(parser, *name, "baz");
                 assert!(alias.is_none());
             });
-            assert_path!(parser, *target, "foo");
+            assert_string!(parser, *target, "foo");
         });
     }
 
     /// Parse `import * as baz from foo`.
     #[test]
     fn test_parse_import_expression_star_alias_with_arguments() {
-        let mut test = TestParser::new("import * as baz from foo with { bar: true }");
+        let mut test = TestParser::new("import * as baz from \"foo\" with { bar: true }");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         // import * as baz from foo with { bar: true }
-        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target: DependencyTarget::Path(target), alias, items, arguments, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { kind: DependencyKind::Value, target, alias, items, arguments, .. } => {
             // * as baz
             assert_string!(parser, alias.unwrap(), "baz");
             assert!(items.is_none());
-            assert_path!(parser, *target, "foo");
+            assert_string!(parser, *target, "foo");
             // with { bar: true }
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);

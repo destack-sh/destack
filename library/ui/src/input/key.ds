@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 export enum KeyModifier {
     Shift

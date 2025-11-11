@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Capsule2D is a segment with rounded ends with a common radius.
 export struct Capsule2D {

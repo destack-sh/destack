@@ -1,4 +1,4 @@
-import destack
+import * as ds from "destack"
 
 /// A Form2D is a 2D geometric form.
 export struct Form2D {

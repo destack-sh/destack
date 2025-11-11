@@ -48,6 +48,11 @@ pub struct Module {
     pub expressions: Vec<NodeId<Expression>>,
     /// The string pool of the Module.
     pub strings: StringPool,
+    // nocheckin: Module imports/exports
+    // The imports of the Module.
+    // pub imports: Vec<NodeId<ModuleImport>>,
+    // The exports of the Module.
+    // pub exports: HashMap<StringId, NodeIdAny>,
 }
 
 impl Module {
