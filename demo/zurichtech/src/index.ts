@@ -1,6 +1,7 @@
-import { destack } from "@destack/bun";
+import { destackPlugin } from "@destack/bun";
 import { plugin } from "bun";
 
-plugin(destack);
+plugin(destackPlugin);
 
-// export * from "./index.ds";
+// @ts-ignore
+export * from "./index.ds";
