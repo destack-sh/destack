@@ -1,7 +1,9 @@
-use dyst_ast::{self as ast, StringPool};
+use std::collections::HashMap;
+
+use dyst_ast::{self as ast, StringId, StringPool};
 use dyst_source::{File, FileId};
 
-use crate::{Expression, NodeId};
+use crate::{DependencyItem, Expression, NodeId};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
@@ -44,15 +46,15 @@ pub struct Module {
     pub ast: ast::NodeTree,
     /// The AST parent index
     pub parents: ast::NodeParentIndex,
-    /// The top-level expressions of the Module.
-    pub expressions: Vec<NodeId<Expression>>,
     /// The string pool of the Module.
     pub strings: StringPool,
-    // nocheckin: Module imports/exports
+
+    /// The top-level expressions of the Module.
+    pub expressions: Vec<NodeId<Expression>>,
     // The imports of the Module.
-    // pub imports: Vec<NodeId<ModuleImport>>,
+    pub imports: Vec<NodeId<DependencyItem>>,
     // The exports of the Module.
-    // pub exports: HashMap<StringId, NodeIdAny>,
+    pub exports: HashMap<StringId, NodeId<DependencyItem>>,
 }
 
 impl Module {
@@ -67,6 +69,8 @@ impl Module {
             parents,
             strings,
             expressions: Vec::new(),
+            imports: Vec::new(),
+            exports: HashMap::new(),
         }
     }
 

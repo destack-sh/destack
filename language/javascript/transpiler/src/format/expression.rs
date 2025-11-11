@@ -119,9 +119,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
                 write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
             }
-            Expression::ImportCall { source } => {
-                write!(f, [token("import"), token("("), source, token(")")])?;
-            }
             Expression::New {
                 left,
                 static_arguments,

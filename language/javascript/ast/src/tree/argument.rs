@@ -40,6 +40,7 @@ pub struct BindingModifier {
     pub operator: Option<BindingOperator> = None,
 }
 
+/// Named or positional parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
     /// Named parameter (like `x: int32` or `Validate: boolean = true`).
@@ -68,6 +69,7 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
+/// Positional argument to some construct.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).

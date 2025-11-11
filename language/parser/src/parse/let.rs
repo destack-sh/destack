@@ -4,7 +4,7 @@ use dyst_ast::{
     DefinitionMeta, Expression, Keyword, Mutability, NodeId, Path, ScopedMutability, TokenType,
 };
 
-// TODO #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
+// NOTE #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
 //  (and how does this interact with let/const expressions, bindings/arguments/parameters/fields, ..)
 
 impl<'a> Parser<'a> {

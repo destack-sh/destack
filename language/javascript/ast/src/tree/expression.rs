@@ -1,5 +1,3 @@
-use dyst_source::StringId;
-
 use crate::{
     Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
     TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
@@ -94,8 +92,6 @@ pub enum Expression {
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
-    /// Import call.
-    ImportCall { source: StringId },
     /// New.
     New {
         left: Path,
