@@ -105,14 +105,6 @@ pub enum Expression {
         left: NodeId<Expression>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
-    /// New constructor call (for #Compatibility).
-    New {
-        left: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
-    },
-    /// Delete expression (for #Compatibility).
-    Delete { value: NodeId<Expression> },
     /// Index into an array or slice.
     Index {
         left: NodeId<Expression>,
@@ -122,6 +114,14 @@ pub enum Expression {
     Maybe { left: NodeId<Expression> },
     /// Force unwrap an expression with `!` and propagate.
     Must { left: NodeId<Expression> },
+    /// New constructor call (for #Compatibility).
+    New {
+        left: Path,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+        dynamic_arguments: Vec<NodeId<Argument>>,
+    },
+    /// Delete expression (for #Compatibility).
+    Delete { value: NodeId<Expression> },
 
     /// --------------------------------
     /// Values.

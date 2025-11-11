@@ -86,7 +86,7 @@ pub enum Expression {
     Index {
         position: PostfixPosition,
         left: NodeId<Expression>,
-        index: Option<NodeId<Expression>>,
+        right: NodeId<Expression>,
     },
     /// Call.
     Call {

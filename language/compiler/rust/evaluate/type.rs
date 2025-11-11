@@ -120,6 +120,14 @@ impl<'a> Compiler<'a> {
                     right: type_id,
                 }
             }
+            // unary
+            &Expression::TypeUnary { operator, right } => {
+                let right_id = self.try_evaluate_expression_to_type(right)?;
+                Type::Unary {
+                    operator,
+                    right: right_id,
+                }
+            }
             // binary
             &Expression::TypeBinary {
                 left,

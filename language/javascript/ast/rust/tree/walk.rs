@@ -427,14 +427,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Index {
             position: _,
             left,
-            index,
+            right,
         } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
-            if let Some(index) = index {
-                let index_expr = tree.get(*index);
-                visitor.visit_expression(tree, *index, index_expr);
-            }
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
         }
         Expression::Call {
             position: _,
