@@ -6,7 +6,7 @@ edition = "2021"
 license = "proprietary"
 
 [lib]
-path = "rust/lib.rs"
+path = "src/lib.rs"
 [dependencies]
 
 

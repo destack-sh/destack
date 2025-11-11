@@ -9,7 +9,7 @@ rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
-path = "rust/lib.rs"
+path = "src/lib.rs"
 
 [dependencies]
 dyst_compiler = { workspace = true }
