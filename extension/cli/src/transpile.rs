@@ -93,7 +93,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
             console::print("=".repeat(80).as_str());
             match &artifact.content {
                 FileContent::Text(text) => {
-                    console::print(&text);
+                    console::print(text);
                 }
                 FileContent::Binary(bytes) => {
                     console::error(&format!("<binary {} bytes>", bytes.len()));
