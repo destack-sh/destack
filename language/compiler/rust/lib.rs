@@ -3,7 +3,6 @@
 
 mod build;
 mod compile;
-mod diagnostic;
 mod evaluate;
 mod execute;
 mod load;
@@ -13,7 +12,6 @@ mod validate;
 
 pub use build::*;
 pub use compile::*;
-pub use diagnostic::*;
 pub use evaluate::*;
 pub use execute::*;
 pub use load::*;
