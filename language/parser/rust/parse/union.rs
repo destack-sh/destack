@@ -435,9 +435,9 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
             });
 
             // ..Bar
-            assert_node!(parser.tree, expressions[0], Expression::Unary { operator, expression } => {
+            assert_node!(parser.tree, expressions[0], Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Spread);
-                assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "Bar");
                 });
             });

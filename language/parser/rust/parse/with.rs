@@ -241,9 +241,9 @@ mod tests {
 
         // !Bar
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_node!(parser.tree, *right, Expression::Unary { operator, expression } => {
+            assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "Bar");
                 });
             });

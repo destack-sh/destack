@@ -145,9 +145,14 @@ impl<'a> Compiler<'a> {
                 let path = Path::UnevaluatedAbsoluteString {
                     segments: smallvec![name],
                 };
-                let value =
-                    self.tree
-                        .insert_from_ast(Expression::Path { path }, module.id, argument_id);
+                let value = self.tree.insert_from_ast(
+                    Expression::Path {
+                        path,
+                        static_arguments: None,
+                    },
+                    module.id,
+                    argument_id,
+                );
                 self.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
                         modifiers,

@@ -71,10 +71,21 @@ pub struct NodeId<T: Node> {
 }
 
 impl<T: Node> NodeId<T> {
+    /// Create a new node id.
+    #[inline]
     pub fn new(id: u32) -> Self {
         Self {
             id,
             _ty: PhantomData,
+        }
+    }
+
+    /// Turn into a NodeIdAny.
+    #[inline]
+    pub fn into_any(self) -> NodeIdAny {
+        NodeIdAny {
+            id: self.id,
+            ty: T::TYPE,
         }
     }
 }

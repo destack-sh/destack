@@ -540,7 +540,7 @@ impl<'a> Parser<'a> {
                 )?;
                 let expression = Expression::Unary {
                     operator,
-                    expression: right,
+                    right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
@@ -553,7 +553,7 @@ impl<'a> Parser<'a> {
                 )?;
                 let expression = Expression::TypeUnary {
                     operator,
-                    expression: right,
+                    right,
                 };
                 self.tree.insert(expression, self.get_span_from(start))
             }
@@ -943,7 +943,7 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.insert(
                     Expression::Unary {
                         operator,
-                        expression: left_expression_id,
+                        right: left_expression_id,
                     },
                     self.get_span_from(start),
                 );
@@ -957,7 +957,7 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.insert(
                     Expression::TypeUnary {
                         operator,
-                        expression: left_expression_id,
+                        right: left_expression_id,
                     },
                     self.get_span_from(start),
                 );
@@ -1530,16 +1530,16 @@ type = type * 2
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
                     // a++
-                    assert_node!(parser.tree, *left, Expression::Unary { operator, expression } => {
+                    assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
                         assert_eq!(*operator, UnaryOperator::PostIncrement);
-                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
+                        assert_expr_path!(parser, parser.tree.get(*right), "a");
                     });
                     // +
                     assert_eq!(*operator, BinaryOperator::Add);
                     // ++a
-                    assert_node!(parser.tree, *right, Expression::Unary { operator, expression } => {
+                    assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
                         assert_eq!(*operator, UnaryOperator::PreIncrement);
-                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
+                        assert_expr_path!(parser, parser.tree.get(*right), "a");
                     });
                 });
             });
@@ -1551,16 +1551,16 @@ type = type * 2
             assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
                     // b--
-                    assert_node!(parser.tree, *left, Expression::Unary { operator, expression } => {
+                    assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
                         assert_eq!(*operator, UnaryOperator::PostDecrement);
-                        assert_expr_path!(parser, parser.tree.get(*expression), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     });
                     // -
                     assert_eq!(*operator, BinaryOperator::Subtract);
                     // --b
-                    assert_node!(parser.tree, *right, Expression::Unary { operator, expression } => {
+                    assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
                         assert_eq!(*operator, UnaryOperator::PreDecrement);
-                        assert_expr_path!(parser, parser.tree.get(*expression), "b");
+                        assert_expr_path!(parser, parser.tree.get(*right), "b");
                     });
                 });
             });
@@ -2160,10 +2160,10 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // *x
-        assert_node!(parser.tree, expr_id, Expression::Unary { operator, expression, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right, .. } => {
             assert_eq!(*operator, UnaryOperator::Dereference);
             // x
-            assert_expr_path!(parser, parser.tree.get(*expression), "x");
+            assert_expr_path!(parser, parser.tree.get(*right), "x");
         });
     }
 
@@ -2621,9 +2621,9 @@ self
                 assert_node!(
                     parser.tree,
                     *left,
-                    Expression::Unary { expression, .. } => {
+                    Expression::Unary { right, .. } => {
                         // a
-                        assert_expr_path!(parser, parser.tree.get(*expression), "a");
+                        assert_expr_path!(parser, parser.tree.get(*right), "a");
                     }
                 );
                 // b
@@ -2710,16 +2710,16 @@ self
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // keyof typeof infer Value
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             // keyof
             assert_eq!(*operator, TypeUnaryOperator::Keyof);
-            assert_node!(parser.tree, *expression, Expression::TypeUnary { operator, expression } => {
+            assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
                 // typeof
                 assert_eq!(*operator, TypeUnaryOperator::Typeof);
-                assert_node!(parser.tree, *expression, Expression::TypeUnary { operator, expression } => {
+                assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
                     // infer
                     assert_eq!(*operator, TypeUnaryOperator::Infer);
-                    assert_expr_path!(parser, parser.tree.get(*expression), "Value");
+                    assert_expr_path!(parser, parser.tree.get(*right), "Value");
                 });
             });
         });
@@ -2732,9 +2732,9 @@ self
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // Value as const
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::AsConst);
-            assert_expr_path!(parser, parser.tree.get(*expression), "Value");
+            assert_expr_path!(parser, parser.tree.get(*right), "Value");
         });
     }
 
@@ -2764,9 +2764,9 @@ function isStringy(value: any): asserts value is string {
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 // asserts value is string
-                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeUnary { operator, expression } => {
+                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeUnary { operator, right } => {
                     assert_eq!(*operator, TypeUnaryOperator::Asserts);
-                    assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right, .. } => {
+                    assert_node!(parser.tree, *right, Expression::TypeBinary { left, operator, right, .. } => {
                         // value is string
                         assert_expr_path!(parser, parser.tree.get(*left), "value");
                         // is

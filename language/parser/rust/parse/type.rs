@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
                 };
                 let expression = Expression::TypeUnary {
                     operator,
-                    expression: right,
+                    right,
                 };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
             };
             let expression = Expression::TypeUnary {
                 operator,
-                expression: right,
+                right,
             };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
@@ -415,9 +415,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B>
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::Type);
-            assert_node!(parser.tree, *expression, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "T");
                 assert_eq!(static_arguments.as_ref().unwrap().len(), 2);
             })
@@ -430,9 +430,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type 1 | 2 |3
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::Type);
-            assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, .. } => {
+            assert_node!(parser.tree, *right, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
@@ -450,9 +450,9 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // readonly T
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, expression } => {
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::Readonly);
-            assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });

@@ -421,9 +421,9 @@ for (var x = 0; x < 10; x++) {
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
             });
             // x++
-            assert_node!(parser.tree, increment.unwrap(), Expression::Unary { operator, expression } => {
+            assert_node!(parser.tree, increment.unwrap(), Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::PostIncrement);
-                assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, path, "x");
                 });
             });

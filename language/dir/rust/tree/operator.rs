@@ -22,7 +22,7 @@ pub enum UnaryOperator {
     ElementwiseNot,
     /// `*`
     Dereference,
-    /// `..`
+    /// `...`
     Spread,
 }
 

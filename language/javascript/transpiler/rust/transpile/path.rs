@@ -1,6 +1,6 @@
 use dyst_ast::StringId;
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{NodeIdAny, Path};
+use dyst_javascript_ast::Path;
 use dyst_source::{SmallVec, smallvec};
 
 use crate::{Transpiler, TranspilerUnit};
@@ -23,7 +23,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_path(
         &self,
         module: &'a Module,
-        _scope_id: NodeIdAny,
+        _scope_id: dir::NodeIdAny,
         path: &dir::Path,
         unit: &mut TranspilerUnit,
     ) -> Path {

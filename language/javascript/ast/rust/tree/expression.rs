@@ -46,7 +46,7 @@ pub enum Expression {
     /// Type unary operation.
     TypeUnary {
         operator: TypeUnaryOperator,
-        expression: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Type binary operation.
     TypeBinary {
@@ -57,7 +57,7 @@ pub enum Expression {
     /// Unary operation.
     Unary {
         operator: UnaryOperator,
-        expression: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Binary operation.
     Binary {
