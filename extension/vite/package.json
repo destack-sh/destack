@@ -1,0 +1,15 @@
+{
+	"name": "@destack/vite",
+	"version": "2025.11.05.0",
+	"license": "MIT",
+	"type": "module",
+	"main": "./src/index.ts",
+	"scripts": {},
+	"dependencies": {},
+	"peerDependencies": {
+		"vite": "^7.0.0"
+	},
+	"devDependencies": {
+		"vite": "^7.0.0"
+	}
+}
