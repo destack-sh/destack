@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fibonacci } from "./binding.ts";
+import { fibonacci } from "./binding";
 
 describe("fibonacci binding", () => {
     test("computes the base sequence", () => {

@@ -12,7 +12,9 @@
             "extension/vscode"
         ]
     },
-    "scripts": {},
+    "scripts": {
+        "build:napi": "bun run --cwd extension/napi build"
+    },
     "catalog": {
         "temporal-polyfill": "^0.3.0"
     },
