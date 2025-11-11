@@ -100,17 +100,13 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Index {
                 position,
                 left,
-                index,
+                right,
             } => {
                 write!(f, [left])?;
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
                 }
-                if f.context().include_types()
-                    && let Some(index) = index
-                {
-                    write!(f, [token("["), index, token("]")])?;
-                }
+                write!(f, [token("["), right, token("]")])?;
             }
             Expression::Call {
                 position,

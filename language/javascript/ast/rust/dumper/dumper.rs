@@ -815,7 +815,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Index {
                 position,
-                index: _,
+                right: _,
                 left: _,
             } => {
                 self.node("Expression::Index", id.id)

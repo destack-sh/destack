@@ -34,4 +34,4 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     }
 }
 
-// nocheckin: support annotations for JS/TS
+// TODO #Incomplete: support annotations for JS/TS
