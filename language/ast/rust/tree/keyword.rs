@@ -190,6 +190,8 @@ pub enum Keyword {
     Get,
     /// Setter function.
     Set,
+    /// Move values.
+    Move,
 }
 
 impl Keyword {
@@ -317,6 +319,7 @@ impl Keyword {
             Keyword::Await => "await",
             Keyword::Get => "get",
             Keyword::Set => "set",
+            Keyword::Move => "move",
         }
     }
 }
@@ -419,7 +422,8 @@ impl FromStr for Keyword {
             "await" => Ok(Keyword::Await),
             "get" => Ok(Keyword::Get),
             "set" => Ok(Keyword::Set),
-
+            "move" => Ok(Keyword::Move),
+            
             _ => Err(()),
         }
     }

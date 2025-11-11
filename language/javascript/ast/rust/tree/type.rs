@@ -63,6 +63,23 @@ pub enum TypeUnaryOperator {
     Asserts,
 }
 
+impl TypeUnaryOperator {
+    /// Whether the type unary operator is a prefix operator.
+    pub fn is_prefix(&self) -> bool {
+        matches!(
+            self,
+            Self::Not
+                | Self::Type
+                | Self::Readonly
+                | Self::Typeof
+                | Self::Keyof
+                | Self::Infer
+                | Self::AsConst
+                | Self::Asserts
+        )
+    }
+}
+
 /// A TypeBinaryOperator is a type binary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {

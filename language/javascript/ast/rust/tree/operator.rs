@@ -19,20 +19,42 @@ pub enum UnaryOperator {
     Not,
 }
 
+impl UnaryOperator {
+    /// Whether the unary operator is a prefix operator.
+    #[inline]
+    pub fn is_prefix(&self) -> bool {
+        matches!(
+            self,
+            Self::PreIncrement
+                | Self::PreDecrement
+                | Self::Not
+                | Self::Plus
+                | Self::Negate
+                | Self::ElementwiseNot
+        )
+    }
+
+    /// Whether the unary operator is a postfix operator.
+    #[inline]
+    pub fn is_postfix(&self) -> bool {
+        !self.is_prefix()
+    }
+}
+
 /// Binary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BinaryOperator {
-    // multiplicative
-    /// `**`
-    Exponent,
+    // multiplication
     /// `*`
     Multiply,
+    /// `**`
+    Exponent,
     /// `/`
     Divide,
     /// `%`
     Remainder,
 
-    // additive
+    // addition
     /// `+`
     Add,
     /// `-`
@@ -46,24 +68,6 @@ pub enum BinaryOperator {
     /// `>>>`
     UnsignedShiftRight,
 
-    // comparison
-    /// `<`
-    LessThan,
-    /// `<=`
-    LessThanOrEqual,
-    /// `>`
-    GreaterThan,
-    /// `>=`
-    GreaterThanOrEqual,
-    /// `==`
-    Equal,
-    /// `!=`
-    NotEqual,
-    /// `===`
-    EqualStrict,
-    /// `!==`
-    NotEqualStrict,
-
     // elementwise
     /// `&`
     ElementwiseAnd,
@@ -72,7 +76,25 @@ pub enum BinaryOperator {
     /// `|`
     ElementwiseOr,
 
-    // logical
+    // comparison
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+    /// `===`
+    EqualStrict,
+    /// `!==`
+    NotEqualStrict,
+    /// `<`
+    LessThan,
+    /// `<=`
+    LessThanOrEqual,
+    /// `>`
+    GreaterThan,
+    /// `>=`
+    GreaterThanOrEqual,
+
+    // boolean
     /// `&&`
     And,
     /// `||`
@@ -83,8 +105,6 @@ pub enum BinaryOperator {
     // container
     /// `in`
     In,
-    /// `of`
-    Of,
     /// `instanceof`
     InstanceOf,
 }

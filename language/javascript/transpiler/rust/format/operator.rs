@@ -63,7 +63,6 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
 
             // container
             BinaryOperator::In => token("in"),
-            BinaryOperator::Of => token("of"),
             BinaryOperator::InstanceOf => token("instanceof"),
         };
         write!(f, [token])

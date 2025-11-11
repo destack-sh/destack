@@ -42,6 +42,35 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [token("("), expression, token(")")])?;
             }
 
+            Expression::TypeUnary { operator, right } => {
+                if operator.is_prefix() {
+                    write!(f, [operator, right])?;
+                } else {
+                    write!(f, [right, operator])?;
+                }
+            }
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, [left, space(), operator, space(), right])?;
+            }
+            Expression::Unary { operator, right } => {
+                if operator.is_prefix() {
+                    write!(f, [operator, right])?;
+                } else {
+                    write!(f, [right, operator])?;
+                }
+            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, [left, space(), operator, space(), right])?;
+            }
+
             Expression::Maybe { position, left } => {
                 write!(f, [left])?;
                 if *position == PostfixPosition::Indirect {
