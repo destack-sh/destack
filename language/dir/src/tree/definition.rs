@@ -1,7 +1,6 @@
 use crate::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
-    Field, Generics, Intrinsic, Node, NodeId, NodeType, Parameter, ReferenceType, ScopedMutability,
-    StringId, Type, Variant, Visibility,
+    Asynchrony, ExportType, Expression, Field, Generics, Node, NodeId, NodeType, Parameter,
+    ReferenceType, ScopedMutability, StringId, Type, Variant, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -53,27 +52,6 @@ pub struct DefinitionMeta {
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    /// Intrinsic definition.
-    Intrinsic { intrinsic: Intrinsic },
-    /// Import definition.
-    Import {
-        kind: DependencyKind,
-        source: DependencySource,
-        asynchrony: Asynchrony,
-        items: Vec<NodeId<DependencyItem>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
-    },
-    /// Export definition.
-    Export {
-        mode: ExportType,
-        kind: DependencyKind,
-        items: Vec<NodeId<DependencyItem>>,
-    },
-    /// Let definition.
-    Let {
-        meta: DefinitionMeta,
-        value: NodeId<Expression>,
-    },
     /// Type definition.
     Type {
         meta: DefinitionMeta,
@@ -142,10 +120,6 @@ impl Definition {
     #[inline]
     pub fn kind(&self) -> DeclarationKind {
         match self {
-            Definition::Intrinsic { .. } => DeclarationKind::Declaration,
-            Definition::Import { .. } => DeclarationKind::Declaration,
-            Definition::Export { .. } => DeclarationKind::Declaration,
-            Definition::Let { .. } => DeclarationKind::Declaration,
             Definition::Type { .. } => DeclarationKind::Declaration,
             Definition::Namespace { meta, .. } => meta.kind,
             Definition::Struct { meta, .. } => meta.kind,
@@ -161,10 +135,6 @@ impl Definition {
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self {
-            Definition::Intrinsic { intrinsic } => Some(intrinsic.name()),
-            Definition::Import { .. } => None,
-            Definition::Export { .. } => None,
-            Definition::Let { meta, .. } => meta.name,
             Definition::Type { meta, .. } => meta.name,
             Definition::Namespace { meta, .. } => meta.name,
             Definition::Struct { meta, .. } => meta.name,
@@ -180,10 +150,6 @@ impl Definition {
     #[inline]
     pub fn visibility(&self) -> Option<Visibility> {
         match self {
-            Definition::Intrinsic { .. } => None,
-            Definition::Import { .. } => None,
-            Definition::Export { .. } => None,
-            Definition::Let { meta, .. } => meta.visibility,
             Definition::Type { meta, .. } => meta.visibility,
             Definition::Namespace { meta, .. } => meta.visibility,
             Definition::Struct { meta, .. } => meta.visibility,
@@ -199,10 +165,6 @@ impl Definition {
     #[inline]
     pub fn embedded_definitions(&self) -> Option<&Vec<EmbeddedDefinition>> {
         match self {
-            Definition::Intrinsic { .. } => None,
-            Definition::Import { .. } => None,
-            Definition::Export { .. } => None,
-            Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Namespace { .. } => None,
             Definition::Struct {
@@ -230,10 +192,6 @@ impl Definition {
     #[inline]
     pub fn definitions(&self) -> Option<&Vec<NodeId<Definition>>> {
         match self {
-            Definition::Intrinsic { .. } => None,
-            Definition::Import { .. } => None,
-            Definition::Export { .. } => None,
-            Definition::Let { .. } => None,
             Definition::Type { .. } => None,
             Definition::Namespace { definitions, .. } => Some(definitions),
             Definition::Struct { definitions, .. } => Some(definitions),
