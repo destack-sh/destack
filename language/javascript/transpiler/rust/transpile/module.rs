@@ -3,7 +3,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
 use dyst_source::{StringPool, Uri};
 
-use crate::Transpiler;
+use crate::{TranspileError, TranspileResult, Transpiler};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,6 +30,8 @@ pub struct TranspilerUnit {
     pub strings: StringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
+    /// The errors encountered during transpilation.
+    pub errors: Vec<TranspileError>,
 }
 
 impl TranspilerUnit {
@@ -41,14 +43,36 @@ impl TranspilerUnit {
     ) -> StringId {
         todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
     }
+
+    /// Add an error to the transpilation unit.
+    pub(crate) fn add_error(&mut self, error: TranspileError) {
+        self.errors.push(error);
+    }
+
+    /// Try to do something and remember the TranspilerError if it fails.
+    pub(crate) fn try_recoverable<T>(
+        &mut self,
+        f: impl FnOnce(&mut TranspilerUnit) -> TranspileResult<T>,
+    ) -> Option<T> {
+        match f(self) {
+            Ok(result) => Some(result),
+            Err(error) => {
+                self.add_error(error);
+                None
+            }
+        }
+    }
 }
 
 impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
     pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
-            let root_id = self.transpile_expression(module, *expression_id, unit);
-            unit.roots.push(root_id.into());
+            if let Some(root_id) =
+                unit.try_recoverable(|unit| self.transpile_expression(module, *expression_id, unit))
+            {
+                unit.roots.push(root_id.into())
+            }
         }
     }
 }

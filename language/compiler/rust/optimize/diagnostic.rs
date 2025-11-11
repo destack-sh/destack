@@ -10,6 +10,16 @@ pub enum OptimizeError {
     OptimizationImpossible { node_id: NodeIdAny } = 1,
 }
 
+impl OptimizeError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    fn sub_code(&self) -> u8 {
+        match self {
+            Self::OptimizationImpossible { .. } => 1,
+        }
+    }
+}
+
 impl std::fmt::Display for OptimizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OptimizeError")
@@ -41,15 +51,5 @@ impl CompilerDiagnostic for OptimizeError {
     #[inline]
     fn sub_code(&self) -> u8 {
         self.sub_code()
-    }
-}
-
-impl OptimizeError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        match self {
-            Self::OptimizationImpossible { .. } => 1,
-        }
     }
 }

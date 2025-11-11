@@ -291,9 +291,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // TODO #Broken: handle semicolon properly? (empty statements, parse, format, ..)
+    // nocheckin #Broken: handle semicolon properly? (empty statements, parse, format, ..)
+    // (just add Expression::Statement and use that as the root node in blocks/definitions?)
     // (to disambiguate expressions as values to expressions as statements)
-    // just add Expression::Statement and use that as the root node in blocks/definitions?
 
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
@@ -538,10 +538,7 @@ impl<'a> Parser<'a> {
                     self.options.in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
-                let expression = Expression::Unary {
-                    operator,
-                    right,
-                };
+                let expression = Expression::Unary { operator, right };
                 self.tree.insert(expression, self.get_span_from(start))
             }
             // type unary operations
@@ -551,10 +548,7 @@ impl<'a> Parser<'a> {
                     self.options.type_in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
-                let expression = Expression::TypeUnary {
-                    operator,
-                    right,
-                };
+                let expression = Expression::TypeUnary { operator, right };
                 self.tree.insert(expression, self.get_span_from(start))
             }
             // value (`^` or `^var` or `^T`)

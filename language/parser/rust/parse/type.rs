@@ -272,10 +272,7 @@ impl<'a> Parser<'a> {
                 } else {
                     TypeUnaryOperator::Type
                 };
-                let expression = Expression::TypeUnary {
-                    operator,
-                    right,
-                };
+                let expression = Expression::TypeUnary { operator, right };
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
         }
@@ -288,10 +285,7 @@ impl<'a> Parser<'a> {
             } else {
                 TypeUnaryOperator::Type
             };
-            let expression = Expression::TypeUnary {
-                operator,
-                right,
-            };
+            let expression = Expression::TypeUnary { operator, right };
             Ok(self.tree.insert(expression, self.get_span_from(start)))
         }
     }

@@ -1,6 +1,5 @@
-use dyst_dir::ModuleId;
+use dyst_dir::{DependencyTarget, ModuleId};
 use dyst_parser::ParserError;
-use dyst_source::Uri;
 
 use crate::{CompilerDiagnostic, CompilerError};
 
@@ -8,15 +7,27 @@ use crate::{CompilerDiagnostic, CompilerError};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum LoadError {
-    /// File not found on disk.
-    FileNotFound { path: Uri } = 1,
-    /// Failed to parse a file.
+    /// Module not found.
+    ModuleNotFound { target: DependencyTarget } = 1,
+    /// Failed to parse a module.
     ParseError {
         module_id: ModuleId,
         diagnostics: Vec<ParserError>,
     } = 2,
     /// Circular dependency.
     CircularDependency { module_id: ModuleId } = 3,
+}
+
+impl LoadError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    fn sub_code(&self) -> u8 {
+        match self {
+            Self::ModuleNotFound { .. } => 1,
+            Self::ParseError { .. } => 2,
+            Self::CircularDependency { .. } => 3,
+        }
+    }
 }
 
 impl std::fmt::Display for LoadError {
@@ -50,17 +61,5 @@ impl CompilerDiagnostic for LoadError {
     #[inline]
     fn sub_code(&self) -> u8 {
         self.sub_code()
-    }
-}
-
-impl LoadError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        match self {
-            Self::FileNotFound { .. } => 1,
-            Self::ParseError { .. } => 2,
-            Self::CircularDependency { .. } => 3,
-        }
     }
 }

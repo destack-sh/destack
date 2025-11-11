@@ -240,10 +240,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Expression::Unary {
-            operator: _,
-            right,
-        }
+        Expression::Unary { operator: _, right }
         | Expression::ValueOf {
             mutability: _,
             variance: _,
@@ -254,10 +251,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             variance: _,
             right,
         }
-        | Expression::TypeUnary {
-            operator: _,
-            right,
-        } => {
+        | Expression::TypeUnary { operator: _, right } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }

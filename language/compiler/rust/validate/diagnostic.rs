@@ -15,6 +15,16 @@ pub enum ValidateError {
     } = 1,
 }
 
+impl ValidateError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    fn sub_code(&self) -> u8 {
+        match self {
+            Self::AssignmentTypeMismatch { .. } => 1,
+        }
+    }
+}
+
 impl std::fmt::Display for ValidateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ValidateError")
@@ -44,16 +54,6 @@ impl CompilerDiagnostic for ValidateError {
     #[inline]
     fn sub_code(&self) -> u8 {
         self.sub_code()
-    }
-}
-
-impl ValidateError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        match self {
-            Self::AssignmentTypeMismatch { .. } => 1,
-        }
     }
 }
 
