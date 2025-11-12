@@ -1,14 +1,48 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+    defaultTranspilerOptions,
+    TranspilerLanguage,
+    type TranspilerOptions,
+    TranspilerTarget,
+} from "@destack/napi";
 import type { BunPlugin, PluginBuilder } from "bun";
+
+// nocheckin: bun plugin
+class Transpiler {
+    constructor(private readonly options: TranspilerOptions) {
+        this.options = options;
+    }
+
+    transpile() {}
+
+    getTranspiled(path: string, language: TranspilerLanguage): string | null {
+        return null;
+    }
+}
 
 /// Destack & Dyst Bun plugin.
 export const destackPlugin: BunPlugin = {
     name: "destack",
     setup(build: PluginBuilder) {
         console.debug("setup");
-        // ensure the compiler/transpiler is running
-        // ...
+        
+        // prepare the transpiler
+        let transpiler = new Transpiler({
+            ...defaultTranspilerOptions(),
+            target: TranspilerTarget.TypeScript,
+        });
+
+        // re-transpile everything on start
+        // TODO #Incomplete: support HMR properly
+        build.onStart(() => {
+            console.debug("onStart");
+            transpiler = new Transpiler({
+                ...defaultTranspilerOptions(),
+                target: TranspilerTarget.TypeScript,
+            });
+            transpiler.transpile();
+        });
 
         // resolve extensionless (`.ds`, `.d.ds`, `index.ds`, or `index.d.ds`)
         build.onResolve({ filter: /^[^.].*$|^\.\.?($|\/)/ }, (args) => {
@@ -19,11 +53,10 @@ export const destackPlugin: BunPlugin = {
             }
 
             // build the candidate paths
-            const resolveDir = args.resolveDir
-                ?? (args.importer.length > 0 ? path.dirname(args.importer) : process.cwd());
-            const base = path.isAbsolute(args.path)
-                ? args.path
-                : path.join(resolveDir, args.path);
+            const resolveDir =
+                args.resolveDir ??
+                (args.importer.length > 0 ? path.dirname(args.importer) : process.cwd());
+            const base = path.isAbsolute(args.path) ? args.path : path.join(resolveDir, args.path);
             const candidates = [
                 `${base}.ds`,
                 `${base}.d.ds`,
@@ -43,9 +76,9 @@ export const destackPlugin: BunPlugin = {
         // load .ds and .d.ds files
         build.onLoad({ filter: /\.(ds|d\.ds)$/ }, async (args: { path: string }) => {
             console.debug("onLoad", args.path);
-            // nocheckin: Bun plugin
+            const content = transpiler.getTranspiled(args.path, TranspilerLanguage.TypeScript);
             return {
-                contents: `console.log("module", "${args.path}")`,
+                contents: content ?? "",
                 loader: "ts",
             };
         });

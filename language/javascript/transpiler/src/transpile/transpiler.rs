@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use dyst_compiler::Compiler;
 use dyst_dir as dir;
-use dyst_source::{DiagnosticCollector, LanguageOptions, SmallVec, StringPool, Uri, smallvec};
+use dyst_source::{
+    DiagnosticCollector, FileType, LanguageOptions, SmallVec, StringPool, Uri, smallvec,
+};
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
 
@@ -105,7 +107,7 @@ pub struct Transpiler<'a> {
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The transpiled modules (from the source modules).
-    pub units: Vec<TranspilerUnit>,
+    pub units: HashMap<Uri, TranspilerUnit>,
     /// The transpiled artifacts (from those units).
     pub artifacts: HashMap<Uri, TranspilerArtifact>,
 }
@@ -124,8 +126,28 @@ impl<'a> Transpiler<'a> {
             modules: &compiler.modules,
             strings: &compiler.strings,
             diagnostics: DiagnosticCollector::new(),
-            units: Vec::new(),
+            units: HashMap::new(),
             artifacts: HashMap::new(),
         }
+    }
+
+    /// Get the transpiler artifacts for a given unit.
+    pub fn get_artifacts_for_unit(&self, uri: Uri) -> Vec<&TranspilerArtifact> {
+        let Some(unit) = self.units.get(&uri) else {
+            return Vec::new();
+        };
+        unit.artifacts
+            .iter()
+            .filter_map(|uri| self.artifacts.get(uri))
+            .collect()
+    }
+
+    /// Get the transpiler artifact of a certain type for a given unit.
+    pub fn get_artifact_for_unit(&self, uri: Uri, ty: FileType) -> Option<&TranspilerArtifact> {
+        let unit = self.units.get(&uri)?;
+        unit.artifacts
+            .iter()
+            .filter_map(|uri| self.artifacts.get(uri))
+            .find(|artifact| artifact.ty == ty)
     }
 }

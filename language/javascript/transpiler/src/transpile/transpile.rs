@@ -26,6 +26,7 @@ impl<'a> Transpiler<'a> {
                         strings: StringPool::new(),
                         sources: vec![module.id],
                         errors: Vec::new(),
+                        artifacts: Vec::new(),
                     };
                     units.push(unit);
                 }
@@ -40,6 +41,7 @@ impl<'a> Transpiler<'a> {
                     strings: StringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
                     errors: Vec::new(),
+                    artifacts: Vec::new(),
                 };
                 units.push(unit);
             }
@@ -68,6 +70,7 @@ impl<'a> Transpiler<'a> {
                 let formatting = self.options.formatting.with_language(language);
                 match self.generate_artifact(&unit, file_id, formatting, language) {
                     Ok(artifact) => {
+                        unit.artifacts.push(artifact.file.uri.clone());
                         self.artifacts.insert(artifact.file.uri.clone(), artifact);
                     }
                     Err(error) => {
@@ -75,7 +78,7 @@ impl<'a> Transpiler<'a> {
                     }
                 }
             }
-            self.units.push(unit);
+            self.units.insert(unit.uri.clone(), unit);
         }
     }
 }
