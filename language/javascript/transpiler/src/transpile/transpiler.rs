@@ -76,14 +76,14 @@ pub enum TranspilerLanguage {
 /// The ECMAScript level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EcmaScriptVersion {
-	/// ECMAScript 2022.
+    /// ECMAScript 2022.
     ES2022,
 }
 
 /// The TypeScript version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypeScriptVersion {
-	/// TypeScript 5.0.
+    /// TypeScript 5.0.
     TS5_0,
 }
 
@@ -105,9 +105,9 @@ pub struct Transpiler<'a> {
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The transpiled modules (from the source modules).
-    pub units: HashMap<TranspilerUnitId, TranspilerUnit>,
+    pub units: Vec<TranspilerUnit>,
     /// The transpiled artifacts (from those units).
-    pub artifacts: Vec<TranspilerArtifact>,
+    pub artifacts: HashMap<Uri, TranspilerArtifact>,
 }
 
 impl<'a> Transpiler<'a> {
@@ -124,8 +124,8 @@ impl<'a> Transpiler<'a> {
             modules: &compiler.modules,
             strings: &compiler.strings,
             diagnostics: DiagnosticCollector::new(),
-            units: HashMap::new(),
-            artifacts: Vec::new(),
+            units: Vec::new(),
+            artifacts: HashMap::new(),
         }
     }
 }

@@ -6,11 +6,13 @@ import type { BunPlugin, PluginBuilder } from "bun";
 export const destackPlugin: BunPlugin = {
     name: "destack",
     setup(build: PluginBuilder) {
+        console.debug("setup");
         // ensure the compiler/transpiler is running
         // ...
 
         // resolve extensionless (`.ds`, `.d.ds`, `index.ds`, or `index.d.ds`)
         build.onResolve({ filter: /^[^.].*$|^\.\.?($|\/)/ }, (args) => {
+            console.debug("onResolve", args.path);
             // only handle relative or absolute specifiers without an explicit extension
             if (!args.path.startsWith(".") && !path.isAbsolute(args.path)) {
                 return; // let Bun resolve bare specifiers/packages
@@ -40,9 +42,10 @@ export const destackPlugin: BunPlugin = {
 
         // load .ds and .d.ds files
         build.onLoad({ filter: /\.(ds|d\.ds)$/ }, async (args: { path: string }) => {
+            console.debug("onLoad", args.path);
             // nocheckin: Bun plugin
             return {
-                contents: `console.log("${args.path}")`,
+                contents: `console.log("module", "${args.path}")`,
                 loader: "ts",
             };
         });

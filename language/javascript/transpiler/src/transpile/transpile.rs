@@ -67,11 +67,11 @@ impl<'a> Transpiler<'a> {
             for language in self.options.target.language_targets() {
                 let formatting = self.options.formatting.with_language(language);
                 match self.generate_artifact(&unit, file_id, formatting, language) {
-                    Ok(artifact) => self.artifacts.push(artifact),
+                    Ok(artifact) => self.artifacts.insert(artifact.file.uri.clone(), artifact),
                     Err(error) => unit.add_error(error),
                 }
             }
-            self.units.insert(unit.id, unit);
+            self.units.push(unit);
         }
     }
 }

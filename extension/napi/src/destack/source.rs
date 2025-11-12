@@ -1,5 +1,4 @@
 use napi_derive::napi;
-use dyst_source;
 
 /// The indent style.
 #[napi]

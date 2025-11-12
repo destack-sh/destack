@@ -1,4 +1,3 @@
-use dyst_javascript_transpiler;
 use napi_derive::napi;
 
 use super::source::{IndentStyle, LineEnding};
@@ -191,7 +190,7 @@ impl Default for FormatOptions {
             line_ending: LineEnding::LineFeed,
             indent_style: IndentStyle::Space,
             indent_width: 4,
-            line_width: 80,
+            line_width: 100,
         }
     }
 }
@@ -203,8 +202,8 @@ impl From<FormatOptions> for dyst_javascript_transpiler::JavaScriptFormatOptions
             language: options.language.into(),
             line_ending: options.line_ending.into(),
             indent_style: options.indent_style.into(),
-            indent_width: options.indent_width as u16,
-            line_width: options.line_width as u16,
+            indent_width: options.indent_width,
+            line_width: options.line_width,
         }
     }
 }
