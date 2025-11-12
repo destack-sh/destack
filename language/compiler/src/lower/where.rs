@@ -13,9 +13,9 @@ impl<'a> Compiler<'a> {
         let where_clause = module.get(where_clause_id);
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {
-                let left = self.strings.intern_from(&module.strings, *left);
+                let left = self.session.strings.intern_from(&module.strings, *left);
                 let right = self.lower_expression(module, *right);
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     WhereClause::Assertion { left, right },
                     module.id,
                     where_clause_id,
@@ -23,8 +23,11 @@ impl<'a> Compiler<'a> {
             }
             ast::WhereClause::Guard { guard } => {
                 let guard = self.lower_expression(module, *guard);
-                self.tree
-                    .insert_from_ast(WhereClause::Guard { guard }, module.id, where_clause_id)
+                self.session.tree.insert_from_ast(
+                    WhereClause::Guard { guard },
+                    module.id,
+                    where_clause_id,
+                )
             }
         }
     }

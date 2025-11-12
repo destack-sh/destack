@@ -67,7 +67,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         target,
         ..Default::default()
     };
-    let mut transpiler = Transpiler::from_compiled(&compiler, language, transpiler_options);
+    let mut transpiler = Transpiler::new(&compiler.session, transpiler_options);
     transpiler.transpile();
 
     // handle transpiler diagnostics

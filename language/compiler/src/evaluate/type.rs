@@ -7,14 +7,14 @@ use dyst_dir::{
 impl<'a> Compiler<'a> {
     /// Evaluate a Type (in-place).
     pub fn evaluate_type(&mut self, ty_id: NodeId<Type>) -> EvaluateResult<()> {
-        let ty = self.tree.get(ty_id);
+        let ty = self.session.tree.get(ty_id);
         let Type::UnevaluatedExpression(expression_id) = ty else {
             return Ok(());
         };
 
         // Evaluate and update in-place
         let evaluated_ty = self.try_evaluate_expression_to_type_value(*expression_id)?;
-        let ty = self.tree.get_mut(ty_id);
+        let ty = self.session.tree.get_mut(ty_id);
         *ty = evaluated_ty;
 
         Ok(())
@@ -35,7 +35,7 @@ impl<'a> Compiler<'a> {
         expression_id: NodeId<Expression>,
     ) -> EvaluateResult<NodeId<Type>> {
         let ty = self.try_evaluate_expression_to_type_value(expression_id)?;
-        Ok(self.tree.insert_from_dir(ty, expression_id))
+        Ok(self.session.tree.insert_from_dir(ty, expression_id))
     }
 
     /// Try to Evaluate an Expression as a Type.
@@ -55,7 +55,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         expression_id: NodeId<Expression>,
     ) -> EvaluateResult<Option<Type>> {
-        let expression = self.tree.get(expression_id);
+        let expression = self.session.tree.get(expression_id);
 
         let ty = match expression {
             Expression::ScalarLiteral { value } => {

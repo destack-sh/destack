@@ -197,7 +197,7 @@ impl<'a> Compiler<'a> {
                 static_parameters,
                 value,
             } => {
-                let name = self.strings.intern_from(
+                let name = self.session.strings.intern_from(
                     &module.strings,
                     meta.name.expect("LetType must have a name").string(),
                 );
@@ -457,7 +457,8 @@ impl<'a> Compiler<'a> {
 
             _ => todo!("Compiler::lower_expression {:?}", expression),
         };
-        self.tree
+        self.session
+            .tree
             .insert_from_ast(expression, module.id, expression_id)
     }
 }

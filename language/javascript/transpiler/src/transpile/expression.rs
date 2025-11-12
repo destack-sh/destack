@@ -27,7 +27,7 @@ impl<'a> Transpiler<'a> {
         expression_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let expression = self.tree.get(expression_id);
+        let expression = self.session.tree.get(expression_id);
         let expression = match expression {
             dir::Expression::Path {
                 path,
@@ -59,7 +59,7 @@ impl<'a> Transpiler<'a> {
             dir::Expression::TupleLiteral { ty: _, elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element_id| self.tree.get(*element_id))
+                    .map(|element_id| self.session.tree.get(*element_id))
                     .map(|element| self.transpile_expression(module, element.value(), unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -69,7 +69,7 @@ impl<'a> Transpiler<'a> {
             dir::Expression::ArrayLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element_id| self.tree.get(*element_id))
+                    .map(|element_id| self.session.tree.get(*element_id))
                     .map(|element| self.transpile_expression(module, element.value(), unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };

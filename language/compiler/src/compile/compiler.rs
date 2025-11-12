@@ -1,8 +1,5 @@
-use std::marker::PhantomData;
-
-use dyst_ast::StringPool;
-use dyst_dir::{ModuleRegistry, NodeTree};
-use dyst_source::{DiagnosticCollector, File, LanguageOptions};
+use dyst_dir::Session;
+use dyst_source::File;
 
 use crate::{CompilerQueue, CompilerTask, LoadTask};
 
@@ -19,39 +16,31 @@ pub struct CompilerOptions {
 /// Includes module loading, parsing, evaluation, validation, execution, and building.
 #[derive(Debug)]
 pub struct Compiler<'s> {
-    /// The language options.
-    pub language: LanguageOptions,
+    /// The session.
+    pub session: &'s mut Session<'s>,
     /// The options for compiling.
     pub options: CompilerOptions,
-
-    /// The diagnostic collector.
-    pub diagnostics: DiagnosticCollector,
-    /// The modules.
-    pub modules: ModuleRegistry,
-    /// The compiled DIR node tree.
-    pub tree: NodeTree,
-    /// The combined string pool.
-    pub strings: StringPool,
     /// The queue of compiler tasks.
     pub(super) queue: CompilerQueue,
-
-    // (will probably use lifetime parameter later)
-    _marker: PhantomData<&'s ()>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
-    /// Create a new Compiler from a single file.
-    pub fn from_file(file: File, language: LanguageOptions, options: CompilerOptions) -> Self {
-        let mut compiler = Self {
-            language,
-            options,
-            diagnostics: DiagnosticCollector::new(),
-            modules: ModuleRegistry::new(),
-            tree: NodeTree::new(),
-            strings: StringPool::new(),
+    /// Create a new Compiler.
+    pub fn new(session: &'s mut Session<'s>) -> Self {
+        Self {
+            session,
+            options: CompilerOptions::default(),
             queue: CompilerQueue::new(),
-            _marker: PhantomData,
+        }
+    }
+
+    /// Create a new Compiler from a single file.
+    pub fn from_file(session: &'s mut Session<'s>, file: File, options: CompilerOptions) -> Self {
+        let mut compiler = Self {
+            session,
+            options,
+            queue: CompilerQueue::new(),
         };
         compiler
             .queue

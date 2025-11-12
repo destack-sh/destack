@@ -5,7 +5,7 @@ use dyst_source::SmallVec;
 
 impl<'a> Compiler<'a> {
     fn lower_path_base(&self, string_id: StringId) -> Option<PathBase> {
-        match self.strings.get(string_id) {
+        match self.session.strings.get(string_id) {
             "this" => Some(PathBase::SelfValue),
             "self" => Some(PathBase::SelfValue),
             "Self" => Some(PathBase::SelfType),
@@ -23,7 +23,7 @@ impl<'a> Compiler<'a> {
         let segments: SmallVec<StringId, 3> = path
             .segments
             .iter()
-            .map(|segment| self.strings.intern_from(&module.strings, *segment))
+            .map(|segment| self.session.strings.intern_from(&module.strings, *segment))
             .collect();
         match self.lower_path_base(segments[0]) {
             Some(base) => {

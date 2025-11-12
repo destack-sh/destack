@@ -12,17 +12,23 @@ impl<'a> Compiler<'a> {
 
         // attach them
         for (ast_node_id, ast_annotations) in module.ast.get_all_annotations() {
-            let Some(dir_node_id) = self.tree.get_node_id_by_ast_id(module.id, *ast_node_id) else {
+            let Some(dir_node_id) = self
+                .session
+                .tree
+                .get_node_id_by_ast_id(module.id, *ast_node_id)
+            else {
                 continue;
             };
             for ast_annotation_id in ast_annotations {
                 let Some(dir_annotation_id) = self
+                    .session
                     .tree
                     .get_node_id_by_ast_id(module.id, ast_annotation_id.id)
                 else {
                     continue; // skipped by lower_annotation
                 };
-                self.tree
+                self.session
+                    .tree
                     .append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
             }
         }
@@ -57,13 +63,19 @@ impl<'a> Compiler<'a> {
             ast::Annotation::Doc { node, position } => {
                 let doc = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(&module.strings, doc.string);
+                let string = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, doc.string);
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Comment { node, position } => {
                 let comment = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(&module.strings, comment.string);
+                let string = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, comment.string);
                 Annotation::Comment { position, string }
             }
             ast::Annotation::Tag { node, position } => {
@@ -100,7 +112,8 @@ impl<'a> Compiler<'a> {
             }
         };
         Some(
-            self.tree
+            self.session
+                .tree
                 .insert_from_ast(annotation, module.id, annotation_id),
         )
     }

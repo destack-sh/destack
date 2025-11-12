@@ -40,4 +40,3 @@ impl From<LineEnding> for dyst_source::LineEnding {
         }
     }
 }
-

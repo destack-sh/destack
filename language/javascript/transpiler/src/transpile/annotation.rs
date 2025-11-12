@@ -24,7 +24,7 @@ impl<'a> Transpiler<'a> {
         annotation_id: dir::NodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Annotation>> {
-        let annotation = self.tree.get(annotation_id);
+        let annotation = self.session.tree.get(annotation_id);
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
                 let position = self.transpile_annotation_position(*position);
