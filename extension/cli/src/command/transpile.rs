@@ -86,9 +86,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // print/write transpiler artifacts
     if !silent {
-        for (i, artifact) in transpiler.artifacts.iter().enumerate() {
+        for (i, (uri, artifact)) in transpiler.artifacts.iter().enumerate() {
             console::print("=".repeat(80).as_str());
-            console::print(artifact.file.uri.as_ref());
+            console::print(uri.as_ref());
             console::print("=".repeat(80).as_str());
             match &artifact.content {
                 FileContent::Text(text) => {
