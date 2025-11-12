@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use dyst_ast::{self as ast, StringId, StringPool};
+use dyst_ast::{self as ast, StringId, SharedStringPool};
 use dyst_source::{FileId, Uri};
 
 use crate::{DependencyItem, Expression, NodeId};
@@ -39,11 +39,11 @@ pub struct Module {
     pub uri: Uri,
 
     /// The AST of the Module (may be empty).
-    pub ast: ast::NodeTree,
+    pub ast: ast::MutableNodeTree,
     /// The AST parent index
     pub parents: ast::NodeParentIndex,
     /// The string pool of the Module.
-    pub strings: StringPool,
+    pub strings: SharedStringPool,
 
     /// The top-level expressions of the Module.
     pub expressions: Vec<NodeId<Expression>>,
@@ -59,8 +59,8 @@ impl Module {
         id: ModuleId,
         file_id: FileId,
         uri: Uri,
-        ast: ast::NodeTree,
-        strings: StringPool,
+        ast: ast::MutableNodeTree,
+        strings: SharedStringPool,
     ) -> Self {
         let parents = ast::NodeParentIndex::from_tree(&ast);
         Self {
@@ -82,7 +82,7 @@ impl Module {
     pub fn get<T>(&self, id: ast::NodeId<T>) -> &T
     where
         T: ast::Node,
-        ast::NodeTree: ast::NodeTreeImpl<T>,
+        ast::MutableNodeTree: ast::MutableNodeTreeImpl<T>,
     {
         self.ast.get(id)
     }
@@ -92,7 +92,7 @@ impl Module {
     pub fn get_nodes<T>(&self) -> Vec<ast::NodeId<T>>
     where
         T: ast::Node,
-        ast::NodeTree: ast::NodeTreeImpl<T>,
+        ast::MutableNodeTree: ast::MutableNodeTreeImpl<T>,
     {
         self.ast.get_nodes::<T>()
     }

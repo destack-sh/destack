@@ -20,8 +20,10 @@ dyst_javascript_ast = { workspace = true }
 dyst_mir = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
-
 dyst_unicode = { workspace = true }
+
+rayon = { workspace = true }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
 

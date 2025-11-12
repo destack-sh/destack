@@ -45,8 +45,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // compile source
-    let mut session = Session::new(LanguageOptions::default(), &files);
-    let mut compiler = Compiler::from_file(&mut session, file_id, CompilerOptions::default());
+    let session = Session::new(LanguageOptions::default(), &files);
+    let mut compiler = Compiler::from_file(&session, file_id, CompilerOptions::default());
     compiler.compile();
     drop(compiler);
 
@@ -61,7 +61,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         target,
         ..Default::default()
     };
-    let mut transpiler = Transpiler::new(&mut session, transpiler_options);
+    let mut transpiler = Transpiler::new(&session, transpiler_options);
     transpiler.transpile();
 
     // handle transpiler diagnostics
@@ -72,10 +72,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // print/write transpiler artifacts
     if !silent {
+        let line_width = session.language.formatting.line_width as usize;
         for (i, (uri, artifact)) in transpiler.artifacts.iter().enumerate() {
-            console::print("=".repeat(80).as_str());
+            console::print("=".repeat(line_width).as_str());
             console::print(uri.as_ref());
-            console::print("=".repeat(80).as_str());
+            console::print("=".repeat(line_width).as_str());
             match &artifact.content {
                 FileContent::Text(text) => {
                     console::print(text);

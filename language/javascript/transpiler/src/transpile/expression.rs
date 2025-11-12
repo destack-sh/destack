@@ -28,7 +28,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
         let expression = self.session.tree.get(expression_id);
-        let expression = match expression {
+        let expression = match expression.as_ref() {
             dir::Expression::Path {
                 path,
                 static_arguments,

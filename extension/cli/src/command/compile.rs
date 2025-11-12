@@ -41,14 +41,16 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let mut dumper = Dumper::new(&session.strings, &session.tree, dump_options);
+        let tree = session.tree.read();
+        let strings = session.strings.clone().into_immutable();
+        let mut dumper = Dumper::new(&strings, &tree, dump_options);
         for module in session.modules.iter() {
             console::info("=".repeat(80).as_str());
             console::info(module.uri.to_string().as_str());
             console::info("=".repeat(80).as_str());
             for expression_id in &module.expressions {
-                let expression = session.tree.get(*expression_id);
-                dumper.visit_expression(&session.tree, *expression_id, expression);
+                let expression = tree.get(*expression_id);
+                dumper.visit_expression(&tree, *expression_id, expression);
             }
         }
         console::info(&dumper.finish());

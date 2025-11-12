@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    Expression, Keyword, LiteralType, Node, NodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
+    Expression, Keyword, LiteralType, Node, NodeId, MutableNodeTree, NodeVisitor, NodeVisitorOptions,
     Parameter, ScalarLiteral, TokenSpan, TokenType, UnionField, walk_expression, walk_parameter,
     walk_union_field,
 };
@@ -267,7 +267,7 @@ impl<'a> SemanticTokenIndex<'a> {
     /// Set the semantic type for a span.
     pub(crate) fn set_semantic_span<T: Node>(
         &mut self,
-        tree: &NodeTree,
+        tree: &MutableNodeTree,
         id: NodeId<T>,
         semantic_type: SemanticType,
     ) {
@@ -288,7 +288,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
 
     fn visit_expression(
         &mut self,
-        tree: &NodeTree,
+        tree: &MutableNodeTree,
         id: NodeId<Expression>,
         expression: &Expression,
     ) {
@@ -315,7 +315,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
 
     fn visit_union_field(
         &mut self,
-        tree: &NodeTree,
+        tree: &MutableNodeTree,
         id: NodeId<UnionField>,
         union_field: &UnionField,
     ) {
@@ -327,7 +327,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     // Bindings
     // ------------------------------------------------------------
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
         match parameter {

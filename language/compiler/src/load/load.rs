@@ -7,28 +7,28 @@ use dyst_source::{DiagnosticCollector, FileId, Uri};
 /// Task to load a file into the compiler.
 #[derive(Debug, Clone)]
 pub enum LoadTask {
-    /// Feed a preloaded file.
-    LoadFileFromMemory { file_id: FileId },
-    /// Load a file from disk and feed it.
-    LoadFileFromDisk { path: Uri },
+    /// Feed a file from a file id.
+    LoadFileFromId { file_id: FileId },
+    /// Load a file from a URI.
+    LoadFileFromUri { path: Uri },
 }
 
 impl<'a> Compiler<'a> {
     /// Process a load task.
     pub fn process_load(&mut self, task: LoadTask) -> LoadResult<()> {
         let file = match task {
-            LoadTask::LoadFileFromMemory { file_id } => match self.session.files.get(file_id) {
+            LoadTask::LoadFileFromId { file_id } => match self.session.files.get(file_id) {
                 Some(file) => file,
                 None => return Err(LoadError::FileIdNotFound { file_id }),
             },
-            LoadTask::LoadFileFromDisk { path } => {
+            LoadTask::LoadFileFromUri { path } => {
                 todo!("process_load_from_disk({path:?})")
             }
         };
 
         // parse
         let mut diagnostics = DiagnosticCollector::new();
-        let mut parser = Parser::lex_file(&file, self.session.language, &mut diagnostics);
+        let mut parser = Parser::lex_file(file, self.session.language, &mut diagnostics);
         let expressions = parser.parse();
         self.session.diagnostics.merge_from(parser.diagnostics);
 

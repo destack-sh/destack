@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 use dyst_dir::{self as dir, ModuleId};
 use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
-use dyst_source::{StringPool, Uri};
+use dyst_source::{SharedStringPool, Uri};
 
 use crate::{TranspileError, TranspileResult, Transpiler};
 
@@ -23,11 +23,11 @@ pub struct TranspilerUnit {
     /// The URI of the transpiled module (excluding extension).
     pub uri: Uri,
     /// The AST of the transpiled module.
-    pub ast: ast::NodeTree,
+    pub ast: ast::MutableNodeTree,
     /// The root nodes of the transpiled module.
     pub roots: Vec<NodeIdAny>,
     /// The string pool.
-    pub strings: StringPool,
+    pub strings: SharedStringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
     /// The errors encountered during transpilation.

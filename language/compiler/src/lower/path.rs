@@ -5,7 +5,7 @@ use dyst_source::SmallVec;
 
 impl<'a> Compiler<'a> {
     fn lower_path_base(&self, string_id: StringId) -> Option<PathBase> {
-        match self.session.strings.get(string_id) {
+        match self.session.strings.get(string_id).as_ref() {
             "this" => Some(PathBase::SelfValue),
             "self" => Some(PathBase::SelfValue),
             "Self" => Some(PathBase::SelfType),

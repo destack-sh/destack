@@ -1024,20 +1024,22 @@ mod tests {
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(
-            parser.strings.get(match literal {
+        assert_string!(
+            parser,
+            match literal {
                 ScalarLiteral::String(id) => id,
                 other => panic!("expected string literal, got {other:?}"),
-            }),
+            },
             "hello"
         );
 
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(
-            parser.strings.get(match literal {
+        assert_string!(
+            parser,
+            match literal {
                 ScalarLiteral::String(id) => id,
                 other => panic!("expected string literal, got {other:?}"),
-            }),
+            },
             "hi there"
         );
 

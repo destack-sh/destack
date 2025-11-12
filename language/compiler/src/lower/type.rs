@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, Type, TypeLiteral};
+use dyst_dir::{Module, NodeId, Type, TypeLiteral, VarianceBound};
 use dyst_source::StringId;
 
 impl<'a> Compiler<'a> {
@@ -22,6 +22,15 @@ impl<'a> Compiler<'a> {
         type_id
     }
 
+    /// Lower a VarianceBound to a TypeUnaryOperator.
+    pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
+        match bound {
+            ast::VarianceBound::Implements => VarianceBound::Implements,
+            ast::VarianceBound::Extends => VarianceBound::Extends,
+            ast::VarianceBound::Super => VarianceBound::Super,
+        }
+    }
+
     /// Whether the token string encodes a type literal with an explicit width.
     fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
@@ -36,7 +45,7 @@ impl<'a> Compiler<'a> {
         let string = self.session.strings.get(string_id);
 
         // NOTE: we map the string to an AST type literal first
-        let ast_literal = match string {
+        let ast_literal = match string.as_ref() {
             // undefined
             "undefined" => Some(ast::TypeLiteral::Undefined),
             // unknown

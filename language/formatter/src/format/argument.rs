@@ -6,7 +6,7 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl, Parameter};
+use dyst_ast::{Argument, Node, NodeId, MutableNodeTree, MutableNodeTreeImpl, Parameter};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 
@@ -15,7 +15,7 @@ use dyst_fir::{best_fitting, format_args, write};
 pub(crate) struct ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    MutableNodeTree: MutableNodeTreeImpl<T>,
 {
     start_token: &'static str,
     end_token: &'static str,
@@ -32,7 +32,7 @@ where
 impl<'ast, 'e, T> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    MutableNodeTree: MutableNodeTreeImpl<T>,
 {
     pub(crate) fn force_expand(&mut self) -> &mut Self {
         self.force_expand = true;
@@ -58,7 +58,7 @@ where
 impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    MutableNodeTree: MutableNodeTreeImpl<T>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
@@ -140,7 +140,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
 ) -> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T>,
+    MutableNodeTree: MutableNodeTreeImpl<T>,
 {
     ListLike {
         start_token,
