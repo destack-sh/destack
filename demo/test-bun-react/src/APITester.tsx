@@ -1,4 +1,4 @@
-import { useRef, type FormEvent } from "react";
+import { type FormEvent, useRef } from "react";
 
 export function APITester() {
     const responseInputRef = useRef<HTMLTextAreaElement>(null);
@@ -29,7 +29,7 @@ export function APITester() {
             >
                 <select
                     name="method"
-                    className="bg-[#fbf0df] text-[#1a1a1a] py-1.5 px-3 rounded-lg font-bold text-sm min-w-[0px] appearance-none cursor-pointer hover:bg-[#f3d5a3] transition-colors duration-100"
+                    className="bg-[#fbf0df] text-[#1a1a1a] py-1.5 px-3 rounded-lg font-bold text-sm min-w-0 appearance-none cursor-pointer hover:bg-[#f3d5a3] transition-colors duration-100"
                 >
                     <option value="GET" className="py-1">
                         GET
