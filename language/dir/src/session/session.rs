@@ -1,5 +1,5 @@
 use dyst_ast::StringPool;
-use dyst_source::{DiagnosticCollector, FileRegistry, LanguageOptions};
+use dyst_source::{DiagnosticCollector, DiagnosticSeverity, FileRegistry, LanguageOptions};
 
 use crate::{ModuleRegistry, NodeTree};
 
@@ -31,5 +31,21 @@ impl<'a> Session<'a> {
             diagnostics: DiagnosticCollector::new(),
             strings: StringPool::new(),
         }
+    }
+
+    /// Whether the session has any diagnostics of the given severity.
+    pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
+        self.diagnostics.has_diagnostics_of_severity(severity)
+    }
+
+    /// Get the diagnostics status code.
+    pub fn get_diagnostics_status_code(&self) -> i32 {
+        if self.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+            return 1;
+        }
+        if self.has_diagnostics_of_severity(DiagnosticSeverity::Warning) {
+            return 2;
+        }
+        0
     }
 }

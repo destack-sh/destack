@@ -1,6 +1,7 @@
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
+use dyst_dir::Session;
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, DiagnosticSeverity, LanguageOptions};
+use dyst_source::{DiagnosticSeverity, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -18,7 +19,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let silent = ctx.flag("silent");
 
     // read input source
-    let file = match get_string_or_file(&ctx) {
+    let mut files = FileRegistry::new();
+    let file_id = match get_string_or_file(&mut files, &ctx) {
         Ok(Some(file)) => file,
         Ok(None) => {
             console::error("no source provided");
@@ -31,9 +33,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // parse as implicit module
-    let language = LanguageOptions::default();
-    let mut diagnostics = DiagnosticCollector::new();
-    let mut parser = Parser::lex_file(&file, language, &mut diagnostics);
+    let mut session = Session::new(LanguageOptions::default(), &files);
+    let file = files.get(file_id).unwrap();
+    let mut parser = Parser::lex_file(file, session.language, &mut session.diagnostics);
     let expressions = parser.parse();
 
     // dump AST to output
@@ -47,11 +49,6 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // handle diagnostics
-    print_diagnostics(&diagnostics, language, DiagnosticSeverity::Error, |_| {
-        Some(&file)
-    });
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        return 1;
-    }
-    0
+    print_diagnostics(&session, DiagnosticSeverity::Note);
+    session.get_diagnostics_status_code()
 }

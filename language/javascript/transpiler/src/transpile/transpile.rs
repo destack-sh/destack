@@ -50,7 +50,7 @@ impl<'a> Transpiler<'a> {
     }
 
     /// Transpile the compiler's DIR into JS/TS/.. artifacts.
-    pub fn transpile(&mut self) {
+    pub fn transpile(&'a mut self) {
         // transpile each module into AST
         let mut units = Transpiler::make_units(self.options, &self.session.modules);
         for unit in units.iter_mut() {
@@ -76,6 +76,7 @@ impl<'a> Transpiler<'a> {
                     }
                     Err(error) => {
                         unit.add_error(error);
+                        // nocheckin: transpiler diagnostics
                     }
                 }
             }

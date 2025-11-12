@@ -1,6 +1,6 @@
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::{File, LanguageOptions};
+use dyst_source::{File, FileRegistry, LanguageOptions};
 
 use crate::command::get_string_or_file;
 use crate::{CommandArguments, console, table};
@@ -18,8 +18,9 @@ Tokenize source into Tokens.
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(ctx: CommandArguments) -> i32 {
-    let file = match get_string_or_file(&ctx) {
-        Ok(Some(file)) => file,
+    let mut files = FileRegistry::new();
+    let file_id = match get_string_or_file(&mut files, &ctx) {
+        Ok(Some(file_id)) => file_id,
         Ok(None) => {
             console::error("no source provided");
             return 1;
@@ -29,6 +30,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
             return 1;
         }
     };
+    let file = files.get(file_id).unwrap();
     let text = file.text();
 
     let use_color = true;

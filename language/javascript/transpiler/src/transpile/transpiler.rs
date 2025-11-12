@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use dyst_dir as dir;
-use dyst_source::{FileType, LanguageOptions, SmallVec, Uri, smallvec};
+use dyst_source::{FileType, SmallVec, Uri, smallvec};
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
 
@@ -90,7 +90,7 @@ pub enum TypeScriptVersion {
 #[derive(Debug)]
 pub struct Transpiler<'a> {
     /// The session.
-    pub session: &'a dir::Session<'a>,
+    pub session: &'a mut dir::Session<'a>,
     /// The options for transpiling.
     pub options: TranspilerOptions,
     /// The transpiled modules (from the source modules).
@@ -101,7 +101,7 @@ pub struct Transpiler<'a> {
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
-    pub fn new(session: &'a dir::Session<'a>, options: TranspilerOptions) -> Self {
+    pub fn new(session: &'a mut dir::Session<'a>, options: TranspilerOptions) -> Self {
         Self {
             session,
             options,

@@ -52,7 +52,7 @@ impl TranspilerUnit {
     }
 
     /// Try to do something and remember the TranspilerError if it fails.
-    pub(crate) fn try_recoverable<T>(
+    pub(crate) fn try_recover<T>(
         &mut self,
         f: impl FnOnce(&mut TranspilerUnit) -> TranspileResult<T>,
     ) -> Option<T> {
@@ -71,7 +71,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
             if let Some(root_id) =
-                unit.try_recoverable(|unit| self.transpile_expression(module, *expression_id, unit))
+                unit.try_recover(|unit| self.transpile_expression(module, *expression_id, unit))
             {
                 unit.roots.push(root_id.into())
             }
