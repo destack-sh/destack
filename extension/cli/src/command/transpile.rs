@@ -73,7 +73,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // print/write transpiler artifacts
     if !silent {
         let line_width = session.language.formatting.line_width as usize;
-        for (i, (uri, artifact)) in transpiler.artifacts.iter().enumerate() {
+        let artifacts = transpiler.artifacts.read();
+        for (i, (uri, artifact)) in artifacts.iter().enumerate() {
             console::print("=".repeat(line_width).as_str());
             console::print(uri.as_ref());
             console::print("=".repeat(line_width).as_str());
@@ -88,7 +89,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
                     console::error("<unloaded>");
                 }
             }
-            if i < transpiler.artifacts.len() - 1 {
+            if i < artifacts.len() - 1 {
                 console::print("");
             }
         }
