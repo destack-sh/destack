@@ -1,5 +1,4 @@
 use napi_derive::napi;
-use dyst_compiler;
 
 /// The options for compiling.
 #[napi(object)]
