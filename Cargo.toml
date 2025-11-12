@@ -5,29 +5,23 @@ members = [
 	"language/ast",
 	"language/compiler",
 	"language/dir",
-	"language/machine",
 	"language/fir",
 	"language/formatter",
 	"language/javascript/ast",
-	"language/javascript/transpiler",
 	"language/javascript/machine",
+	"language/javascript/transpiler",
+	"language/json",
+	"language/machine",
 	"language/mir",
 	"language/parser",
 	"language/source",
 	"language/test",
+	"language/unicode",
 	# extension
 	"extension/cli",
 	"extension/lsp",
 	"extension/napi",
 	"extension/vscode",
-	# platform
-	"platform/file",
-	"platform/terminal",
-	"platform/json",
-	"platform/order",
-	"platform/time",
-	"platform/unicode",
-	"platform/uuid",
 ]
 
 [workspace.package]
@@ -45,29 +39,21 @@ dyst_dir = { path = "language/dir" }
 dyst_fir = { path = "language/fir" }
 dyst_formatter = { path = "language/formatter" }
 dyst_javascript_ast = { path = "language/javascript/ast" }
-dyst_javascript_transpiler = { path = "language/javascript/transpiler" }
 dyst_javascript_machine = { path = "language/javascript/machine" }
+dyst_javascript_transpiler = { path = "language/javascript/transpiler" }
+dyst_json = { path = "language/json" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
-dyst_workspace = { path = "language/workspace" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
+dyst_unicode = { path = "language/unicode" }
 
 # extension
+destack_cli = { path = "extension/cli" }
 destack_lsp = { path = "extension/lsp" }
 destack_vscode = { path = "extension/vscode" }
 destack_napi = { path = "extension/napi" }
-
-# platform
-destack_cli = { path = "extension/cli" }
-destack_file = { path = "platform/file" }
-destack_json = { path = "platform/json" }
-destack_order = { path = "platform/order" }
-destack_terminal = { path = "platform/terminal" }
-destack_time = { path = "platform/time" }
-destack_unicode = { path = "platform/unicode" }
-destack_uuid = { path = "platform/uuid" }
 
 # build
 wasm-bindgen = "0.2.100"

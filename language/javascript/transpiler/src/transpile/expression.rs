@@ -77,7 +77,7 @@ impl<'a> Transpiler<'a> {
                     .insert_from_dir(expression, module.id, expression_id)
             }
             dir::Expression::StructLiteral { ty: _, fields } => {
-                
+                todo!("unsupported struct literal {expression_id:?}");
             }
 
             dir::Expression::TypeUnary { operator, right } => {
@@ -205,7 +205,7 @@ impl<'a> Transpiler<'a> {
                     .insert_from_dir(expression, module.id, expression_id)
             }
 
-            _ => panic!("unsupported expression {expression:?}"),
+            _ => todo!("unsupported expression {expression:?}"),
         };
 
         Ok(expression)

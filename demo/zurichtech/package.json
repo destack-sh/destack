@@ -8,7 +8,8 @@
 		"start": "NODE_ENV=production bun src/index.ds"
 	},
 	"dependencies": {
-		"@destack/bun": "workspace:*"
+		"@destack/bun": "workspace:*",
+		"zod": "^4.1.12"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

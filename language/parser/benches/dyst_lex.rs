@@ -1,6 +1,5 @@
-use destack_file::glob;
 use dyst_parser::Lexer;
-use dyst_source::{FileId, LanguageOptions};
+use dyst_source::{FileId, LanguageOptions, glob};
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pprof::criterion::{Output, PProfProfiler};

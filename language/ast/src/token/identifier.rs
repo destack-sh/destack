@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_unicode::xid::UnicodeXID;
+use dyst_unicode::xid::UnicodeXID;
 
 /// Checks if `c` is considered whitespace per EcmaScript `WhiteSpace` or `LineTerminator`.
 pub fn is_whitespace(c: char) -> bool {

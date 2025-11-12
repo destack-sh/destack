@@ -21,8 +21,6 @@ dyst_fir = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 
-destack_file = { workspace = true }
-
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = [

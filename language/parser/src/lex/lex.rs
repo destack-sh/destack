@@ -7,8 +7,8 @@ use dyst_ast::{
     is_identifier_continue, is_identifier_start, is_whitespace,
 };
 
-use destack_unicode::UnicodeEmoji;
 use dyst_source::{FileId, LanguageOptions, Span};
+use dyst_unicode::UnicodeEmoji;
 
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {

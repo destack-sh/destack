@@ -1,6 +1,6 @@
 [package]
-name = "dyst_dir"
-description = "Dyst Data IR"
+name = "dyst_json"
+description = "Dyst JSON"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,11 +12,6 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_source = { workspace = true }
-
-dyst_unicode = { workspace = true }
 
 [dev-dependencies]
 

@@ -1,5 +1,5 @@
-import { entity, Entity, Reference } from "destack"
-import { DateTime } from "destack.time"
+import { entity, Entity, Reference } from "@destack"
+import { DateTime } from "@destack/time"
 
 /// The status of a Meetup.
 export enum MeetupStatus {
@@ -40,7 +40,7 @@ export struct Meetup {
     // The number of the Meetup.
     number: uint
     // The Series this Meetup is part of.
-    series: Reference<MeetupSeries>
+    series: MeetupSeries | null
     // The language of the Meetup.
     language: MeetupLanguage
     // The status of the Meetup.
@@ -51,16 +51,16 @@ export struct Meetup {
 @entity
 export struct MeetupRegistration {
     // The Meetup this registration is for.
-    meetup: Reference<Meetup>
+    meetup: Meetup
     // The person registering.
-    user: Reference<User>
+    user: User
 }
 
 /// Register for a Meetup.
 @action(commit: true)
 export async function register(
-    meetup: Reference<Meetup>,
-    user: Reference<User>,
+    meetup: Meetup,
+    user: User,
 ): MeetupRegistration {
     const registration = MeetupRegistration { meetup, user }
     session.create(registration)

@@ -1,8 +1,6 @@
-mod source;
+pub mod command;
+pub mod console;
 
-pub mod compile;
-pub mod diagnostic;
-pub mod lex;
-pub mod parse;
-pub mod transpile;
-pub mod version;
+pub use command::{compile, lex, parse, transpile, version};
+pub use console::parse::{CommandApp, CommandArguments, CommandFn};
+pub use console::table;

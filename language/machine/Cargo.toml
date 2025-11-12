@@ -18,7 +18,7 @@ dyst_fir = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_mir = { workspace = true }
 
-destack_unicode = { workspace = true }
+dyst_unicode = { workspace = true }
 
 [dev-dependencies]
 
