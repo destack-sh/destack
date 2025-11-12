@@ -25,12 +25,24 @@ impl<'s> Compiler<'s> {
     #[inline]
     pub(super) fn process(&mut self, task: CompilerTask) {
         match task {
-            CompilerTask::Load(task) => self.process_load(task),
-            CompilerTask::Evaluate(task) => self.process_evaluate(task),
-            CompilerTask::Validate(task) => self.process_validate(task),
-            CompilerTask::Execute(task) => self.process_execute(task),
-            CompilerTask::Optimize(task) => self.process_optimize(task),
-            CompilerTask::Build(task) => self.process_build(task),
+            CompilerTask::Load(task) => {
+                self.process_load(task);
+            }
+            CompilerTask::Evaluate(task) => {
+                self.process_evaluate(task);
+            }
+            CompilerTask::Validate(task) => {
+                self.process_validate(task);
+            }
+            CompilerTask::Execute(task) => {
+                self.process_execute(task);
+            }
+            CompilerTask::Optimize(task) => {
+                self.process_optimize(task);
+            }
+            CompilerTask::Build(task) => {
+                self.process_build(task);
+            }
         }
     }
 }

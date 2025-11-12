@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::{Compiler, EvaluateResult};
 
 use dyst_dir::{Annotation, Argument, Expression, ModuleId, NodeId, Type};
 
@@ -29,7 +29,7 @@ pub enum EvaluateTask {
 
 impl<'a> Compiler<'a> {
     /// Evaluate a node.
-    pub fn process_evaluate(&mut self, task: EvaluateTask) {
+    pub fn process_evaluate(&mut self, task: EvaluateTask) -> EvaluateResult<()> {
         todo!("process_evaluate({task:?})")
     }
 }

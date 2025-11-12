@@ -1,6 +1,6 @@
 use dyst_compiler::{Compiler, CompilerOptions};
-use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
-use dyst_source::{DiagnosticSeverity, LanguageOptions};
+use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Session};
+use dyst_source::{DiagnosticSeverity, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -19,7 +19,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let silent = ctx.flag("silent");
 
     // read input source
-    let file = match get_string_or_file(&ctx) {
+    let mut files = FileRegistry::new();
+    let file_id = match get_string_or_file(&mut files, &ctx) {
         Ok(Some(file)) => file,
         Ok(None) => {
             console::error("no source provided");
@@ -32,37 +33,28 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // compile source
-    let language = LanguageOptions::default();
-    let compiler_options = CompilerOptions::default();
-    let mut compiler = Compiler::from_file(file.clone(), language, compiler_options);
+    let mut session = Session::new(LanguageOptions::default(), &files);
+    let mut compiler = Compiler::from_file(&mut session, file_id, CompilerOptions::default());
     compiler.compile();
-    let compiler_diagnostics = compiler.diagnostics.clone();
+    drop(compiler);
 
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let mut dumper = Dumper::new(&compiler.strings, &compiler.tree, dump_options);
-        for module in compiler.modules.iter() {
+        let mut dumper = Dumper::new(&session.strings, &session.tree, dump_options);
+        for module in session.modules.iter() {
             console::info("=".repeat(80).as_str());
             console::info(module.uri.to_string().as_str());
             console::info("=".repeat(80).as_str());
             for expression_id in &module.expressions {
-                let expression = compiler.tree.get(*expression_id);
-                dumper.visit_expression(&compiler.tree, *expression_id, expression);
+                let expression = session.tree.get(*expression_id);
+                dumper.visit_expression(&session.tree, *expression_id, expression);
             }
         }
         console::info(&dumper.finish());
     }
 
     // handle diagnostics
-    print_diagnostics(
-        &compiler_diagnostics,
-        language,
-        DiagnosticSeverity::Note,
-        |file_id| compiler.modules.get_file_by_file_id(file_id),
-    );
-    if compiler_diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        return 1;
-    }
-    0
+    print_diagnostics(&session, DiagnosticSeverity::Note);
+    session.get_diagnostics_status_code()
 }

@@ -1,6 +1,7 @@
 use dyst_compiler::{Compiler, CompilerOptions};
+use dyst_dir::Session;
 use dyst_javascript_transpiler::{Transpiler, TranspilerOptions, TranspilerTarget};
-use dyst_source::{DiagnosticSeverity, FileContent, LanguageOptions};
+use dyst_source::{DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -30,8 +31,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // read input source
-    let file = match get_string_or_file(&ctx) {
-        Ok(Some(file)) => file,
+    let mut files = FileRegistry::new();
+    let file_id = match get_string_or_file(&mut files, &ctx) {
+        Ok(Some(file_id)) => file_id,
         Ok(None) => {
             console::error("no source provided");
             return 1;
@@ -43,22 +45,14 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // compile source
-    let language = LanguageOptions::default();
-    let compiler_options = CompilerOptions::default();
-    let mut compiler = Compiler::from_file(file, language, compiler_options);
+    let mut session = Session::new(LanguageOptions::default(), &files);
+    let mut compiler = Compiler::from_file(&mut session, file_id, CompilerOptions::default());
     compiler.compile();
+    drop(compiler);
 
     // handle compiler diagnostics
-    print_diagnostics(
-        &compiler.diagnostics,
-        language,
-        DiagnosticSeverity::Note,
-        |file_id| compiler.modules.get_file_by_file_id(file_id),
-    );
-    if compiler
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
+    if session.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        print_diagnostics(&session, DiagnosticSeverity::Warning);
         return 1;
     }
 
@@ -67,20 +61,12 @@ pub fn run(ctx: CommandArguments) -> i32 {
         target,
         ..Default::default()
     };
-    let mut transpiler = Transpiler::new(&compiler.session, transpiler_options);
+    let mut transpiler = Transpiler::new(&mut session, transpiler_options);
     transpiler.transpile();
 
     // handle transpiler diagnostics
-    print_diagnostics(
-        &transpiler.diagnostics,
-        language,
-        DiagnosticSeverity::Note,
-        |file_id| transpiler.modules.get_file_by_file_id(file_id),
-    );
-    if transpiler
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
+    print_diagnostics(&session, DiagnosticSeverity::Note);
+    if session.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
 
@@ -107,5 +93,5 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     }
 
-    0
+    session.get_diagnostics_status_code()
 }

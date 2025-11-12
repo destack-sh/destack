@@ -1,12 +1,15 @@
 use std::fs;
 use std::path::Path;
 
-use dyst_source::{File, FileId, FileType, Uri};
+use dyst_source::{File, FileId, FileRegistry, FileType, Uri};
 
 use crate::CommandArguments;
 
 /// Read a source either from a file or inline string argument.
-pub(crate) fn get_string_or_file(ctx: &CommandArguments) -> Result<Option<File>, String> {
+pub(crate) fn get_string_or_file(
+    files: &mut FileRegistry,
+    ctx: &CommandArguments,
+) -> Result<Option<FileId>, String> {
     let format = FileType::from_extension_or_unknown(ctx.option("format").unwrap_or("ds"));
     let extension = format.extension().unwrap();
 
@@ -18,6 +21,7 @@ pub(crate) fn get_string_or_file(ctx: &CommandArguments) -> Result<Option<File>,
                 "{path_str}: invalid file extension, expected {extension}"
             ));
         }
+        let file_id = files.next_id();
         let name = path
             .iter()
             .next_back()
@@ -26,22 +30,25 @@ pub(crate) fn get_string_or_file(ctx: &CommandArguments) -> Result<Option<File>,
         let uri = Uri::from_string(path_str);
         match fs::read_to_string(path) {
             Ok(content) => {
-                let file = File::from_string(FileId::new(0), name, uri, format, content);
-                Ok(Some(file))
+                let file = File::from_string(file_id, name, uri, format, content);
+                files.insert(file);
+                Ok(Some(file_id))
             }
             Err(e) => Err(format!("\"{path_str}\": {e}")),
         }
     }
     // string
     else if let Some(string) = ctx.option("string") {
+        let file_id = files.next_id();
         let file = File::from_string(
-            FileId::new(0),
+            file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
             format,
             string.to_string(),
         );
-        Ok(Some(file))
+        files.insert(file);
+        Ok(Some(file_id))
     }
     // nothing
     else {

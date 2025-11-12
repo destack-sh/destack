@@ -1,5 +1,6 @@
 use dyst_dir::ModuleId;
 use dyst_parser::ParserError;
+use dyst_source::{FileId, Uri};
 
 use dyst_source::StringId;
 
@@ -9,15 +10,19 @@ use crate::{CompilerDiagnostic, CompilerError};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum LoadError {
+    /// File ID not found.
+    FileIdNotFound { file_id: FileId } = 1,
+    /// File URI not found.
+    FileUriNotFound { uri: Uri } = 2,
     /// Module not found.
-    ModuleNotFound { target: StringId } = 1,
+    ModuleNotFound { target: StringId } = 3,
     /// Failed to parse a module.
     ParseError {
         module_id: ModuleId,
         diagnostics: Vec<ParserError>,
-    } = 2,
+    } = 4,
     /// Circular dependency.
-    CircularDependency { module_id: ModuleId } = 3,
+    CircularDependency { module_id: ModuleId } = 5,
 }
 
 impl LoadError {
@@ -25,9 +30,11 @@ impl LoadError {
     #[inline]
     fn sub_code(&self) -> u8 {
         match self {
-            Self::ModuleNotFound { .. } => 1,
-            Self::ParseError { .. } => 2,
-            Self::CircularDependency { .. } => 3,
+            Self::FileIdNotFound { .. } => 1,
+            Self::FileUriNotFound { .. } => 2,
+            Self::ModuleNotFound { .. } => 3,
+            Self::ParseError { .. } => 4,
+            Self::CircularDependency { .. } => 5,
         }
     }
 }

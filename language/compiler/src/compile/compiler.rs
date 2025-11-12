@@ -1,7 +1,7 @@
 use dyst_dir::Session;
-use dyst_source::File;
+use dyst_source::FileId;
 
-use crate::{CompilerQueue, CompilerTask, LoadTask};
+use crate::{CompilerQueue, CompilerResult, CompilerTask, LoadTask};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -36,7 +36,11 @@ impl<'s> Compiler<'s> {
     }
 
     /// Create a new Compiler from a single file.
-    pub fn from_file(session: &'s mut Session<'s>, file: File, options: CompilerOptions) -> Self {
+    pub fn from_file(
+        session: &'s mut Session<'s>,
+        file_id: FileId,
+        options: CompilerOptions,
+    ) -> Self {
         let mut compiler = Self {
             session,
             options,
@@ -44,7 +48,7 @@ impl<'s> Compiler<'s> {
         };
         compiler
             .queue
-            .push_back(CompilerTask::Load(LoadTask::LoadFileFromMemory { file }));
+            .push_back(CompilerTask::Load(LoadTask::LoadFileFromMemory { file_id }));
         compiler
     }
 }
