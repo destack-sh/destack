@@ -19,7 +19,7 @@ export default function destackPlugin(opts?: {
         async transform(code, id, options) {
             if (!filter(id)) return null;
 
-            // nocheckin: Vite plugin
+            // TODO #Incomplete: implement Vite plugin
             throw new Error("not implemented");
         },
 

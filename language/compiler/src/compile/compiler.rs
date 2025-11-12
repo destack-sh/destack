@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use dyst_ast::StringPool;
-use dyst_dir::{ModuleGraph, NodeTree};
+use dyst_dir::{ModuleRegistry, NodeTree};
 use dyst_source::{DiagnosticCollector, File, LanguageOptions};
 
 use crate::{CompilerQueue, CompilerTask, LoadTask};
@@ -27,7 +27,7 @@ pub struct Compiler<'s> {
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The modules.
-    pub modules: ModuleGraph,
+    pub modules: ModuleRegistry,
     /// The compiled DIR node tree.
     pub tree: NodeTree,
     /// The combined string pool.
@@ -47,7 +47,7 @@ impl<'s> Compiler<'s> {
             language,
             options,
             diagnostics: DiagnosticCollector::new(),
-            modules: ModuleGraph::new(),
+            modules: ModuleRegistry::new(),
             tree: NodeTree::new(),
             strings: StringPool::new(),
             queue: CompilerQueue::new(),

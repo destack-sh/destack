@@ -6,19 +6,19 @@ use crate::{Module, ModuleId};
 
 /// A graph of Modules (including their underlying Files).
 #[derive(Debug, Clone)]
-pub struct ModuleGraph {
+pub struct ModuleRegistry {
     /// The modules by id.
     modules_by_id: HashMap<ModuleId, Module>,
 }
 
-impl Default for ModuleGraph {
+impl Default for ModuleRegistry {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ModuleGraph {
-    /// Create a new ModuleGraph.
+impl ModuleRegistry {
+    /// Create a new ModuleRegistry.
     pub fn new() -> Self {
         Self {
             modules_by_id: HashMap::new(),

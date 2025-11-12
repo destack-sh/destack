@@ -1,5 +1,5 @@
 use dyst_ast::StringPool;
-use dyst_dir::ModuleGraph;
+use dyst_dir::ModuleRegistry;
 use dyst_javascript_ast as ast;
 use dyst_source::{FileId, Uri};
 
@@ -9,7 +9,7 @@ impl<'a> Transpiler<'a> {
     /// Map the modules to the units.
     pub(crate) fn make_units(
         options: TranspilerOptions,
-        modules: &ModuleGraph,
+        modules: &ModuleRegistry,
     ) -> Vec<TranspilerUnit> {
         let mut units: Vec<TranspilerUnit> = Vec::new();
         match options.mode {

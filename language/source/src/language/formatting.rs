@@ -37,12 +37,13 @@ impl FormattingOptions {
     }
 }
 
+/// The indent style.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default)]
 pub enum IndentStyle {
-    /// Use tabs to indent code.
+    /// Use tabs to indent.
     #[default]
     Tab,
-    /// Use [`IndentWidth`] spaces to indent code.
+    /// Use spaces to indent.
     Space,
 }
 
@@ -72,6 +73,7 @@ impl std::fmt::Display for IndentStyle {
     }
 }
 
+/// The type of line ending to apply to the printed input.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub enum LineEnding {
     /// Line Feed only (\n), common on Linux and macOS as well as inside git repos.

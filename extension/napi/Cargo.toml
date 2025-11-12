@@ -12,8 +12,11 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
+dyst_source = { workspace = true }
 dyst_compiler = { workspace = true }
+dyst_javascript_ast = { workspace = true }
 dyst_javascript_transpiler = { workspace = true }
+dyst_javascript_machine = { workspace = true }
 
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"

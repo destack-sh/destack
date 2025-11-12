@@ -1,5 +1,5 @@
-mod graph;
+mod registry;
 mod module;
 
-pub use graph::*;
+pub use registry::*;
 pub use module::*;

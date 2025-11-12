@@ -6,7 +6,7 @@ import type { BunPlugin, PluginBuilder } from "bun";
 export const destackPlugin: BunPlugin = {
     name: "destack",
     setup(build: PluginBuilder) {
-        // ensure the compiler is running
+        // ensure the compiler/transpiler is running
         // ...
 
         // resolve extensionless (`.ds`, `.d.ds`, `index.ds`, or `index.d.ds`)
@@ -17,9 +17,11 @@ export const destackPlugin: BunPlugin = {
             }
 
             // build the candidate paths
+            const resolveDir = args.resolveDir
+                ?? (args.importer.length > 0 ? path.dirname(args.importer) : process.cwd());
             const base = path.isAbsolute(args.path)
                 ? args.path
-                : path.join(args.resolveDir, args.path);
+                : path.join(resolveDir, args.path);
             const candidates = [
                 `${base}.ds`,
                 `${base}.d.ds`,
