@@ -3,9 +3,9 @@
 
 pub mod dump;
 pub mod formatter;
-pub mod module;
+pub mod session;
 pub mod tree;
 
 pub use dump::*;
-pub use module::*;
+pub use session::*;
 pub use tree::*;

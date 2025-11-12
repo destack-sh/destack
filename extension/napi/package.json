@@ -5,7 +5,7 @@
 	"type": "module",
 	"main": "./src/index.ts",
 	"scripts": {
-		"build": "napi build --platform --output-dir ./src/binding"
+		"build": "napi build --platform --output-dir ./src/generated"
 	},
 	"dependencies": {},
 	"devDependencies": {

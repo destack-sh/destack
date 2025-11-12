@@ -32,6 +32,8 @@ pub struct TranspilerUnit {
     pub sources: Vec<ModuleId>,
     /// The errors encountered during transpilation.
     pub errors: Vec<TranspileError>,
+    /// The artifacts produced by the transpilation unit.
+    pub artifacts: Vec<Uri>,
 }
 
 impl TranspilerUnit {
