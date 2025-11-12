@@ -1,5 +1,4 @@
-use destack_cli::{compile, lex, parse, transpile, version};
-use destack_terminal::CommandApp;
+use destack_cli::{CommandApp, compile, lex, parse, transpile, version};
 
 fn main() {
     // build cli

@@ -2661,8 +2661,6 @@ dependencies = [
 name = "destack_cli"
 version = "2025.11.5-0"
 dependencies = [
- "destack_file",
- "destack_terminal",
  "dyst_ast",
  "dyst_compiler",
  "dyst_dir",
@@ -2677,18 +2675,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_file"
-version = "2025.11.5-0"
-
-[[package]]
-name = "destack_json"
-version = "2025.11.5-0"
-
-[[package]]
 name = "destack_lsp"
 version = "2025.11.5-0"
 dependencies = [
- "destack_file",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
@@ -2710,34 +2699,6 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
-]
-
-[[package]]
-name = "destack_order"
-version = "2025.11.5-0"
-
-[[package]]
-name = "destack_terminal"
-version = "2025.11.5-0"
-
-[[package]]
-name = "destack_time"
-version = "2025.11.5-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_unicode"
-version = "2025.11.5-0"
-
-[[package]]
-name = "destack_uuid"
-version = "2025.11.5-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
 ]
 
 [[package]]
@@ -2941,10 +2902,9 @@ name = "dyst_ast"
 version = "2025.11.5-0"
 dependencies = [
  "criterion",
- "destack_file",
- "destack_unicode",
  "dyst_fir",
  "dyst_source",
+ "dyst_unicode",
  "pprof",
 ]
 
@@ -2964,19 +2924,18 @@ dependencies = [
 name = "dyst_dir"
 version = "2025.11.5-0"
 dependencies = [
- "destack_file",
- "destack_unicode",
  "dyst_ast",
  "dyst_fir",
  "dyst_source",
+ "dyst_unicode",
 ]
 
 [[package]]
 name = "dyst_fir"
 version = "2025.11.5-0"
 dependencies = [
- "destack_unicode",
  "dyst_source",
+ "dyst_unicode",
 ]
 
 [[package]]
@@ -2993,9 +2952,9 @@ dependencies = [
 name = "dyst_javascript_ast"
 version = "2025.11.5-0"
 dependencies = [
- "destack_unicode",
  "dyst_dir",
  "dyst_source",
+ "dyst_unicode",
 ]
 
 [[package]]
@@ -3003,12 +2962,12 @@ name = "dyst_javascript_machine"
 version = "2025.11.5-0"
 dependencies = [
  "deno_runtime",
- "destack_unicode",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
+ "dyst_unicode",
  "v8 142.0.0",
 ]
 
@@ -3016,7 +2975,6 @@ dependencies = [
 name = "dyst_javascript_transpiler"
 version = "2025.11.5-0"
 dependencies = [
- "destack_unicode",
  "dyst_ast",
  "dyst_compiler",
  "dyst_dir",
@@ -3025,29 +2983,34 @@ dependencies = [
  "dyst_mir",
  "dyst_parser",
  "dyst_source",
+ "dyst_unicode",
 ]
+
+[[package]]
+name = "dyst_json"
+version = "2025.11.5-0"
 
 [[package]]
 name = "dyst_machine"
 version = "2025.11.5-0"
 dependencies = [
- "destack_unicode",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
  "dyst_mir",
  "dyst_source",
+ "dyst_unicode",
 ]
 
 [[package]]
 name = "dyst_mir"
 version = "2025.11.5-0"
 dependencies = [
- "destack_unicode",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
  "dyst_source",
+ "dyst_unicode",
 ]
 
 [[package]]
@@ -3055,10 +3018,9 @@ name = "dyst_parser"
 version = "2025.11.5-0"
 dependencies = [
  "criterion",
- "destack_file",
- "destack_unicode",
  "dyst_ast",
  "dyst_source",
+ "dyst_unicode",
  "pprof",
 ]
 
@@ -3068,6 +3030,10 @@ version = "2025.11.5-0"
 
 [[package]]
 name = "dyst_test"
+version = "2025.11.5-0"
+
+[[package]]
+name = "dyst_unicode"
 version = "2025.11.5-0"
 
 [[package]]
@@ -3195,16 +3161,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3"
-dependencies = [
- "log",
- "regex",
 ]
 
 [[package]]
@@ -5953,28 +5909,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f50b1c63b38611e7d4d7f68b82d3ad0cc71a2ad2e7f61fc10f1328d917c93cd"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "quickcheck"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "588f6378e4dd99458b60ec275b4477add41ce4fa9f64dcba6f15adccb19b50d6"
-dependencies = [
- "env_logger",
- "log",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "quickcheck_macros"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f71ee38b42f8459a88d3362be6f9b841ad2d5421844f61eb1c59c11bff3ac14a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
 ]
 
 [[package]]

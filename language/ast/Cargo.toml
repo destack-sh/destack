@@ -15,8 +15,7 @@ doctest = false
 dyst_fir = { workspace = true }
 dyst_source = { workspace = true }
 
-destack_file = { workspace = true }
-destack_unicode = { workspace = true }
+dyst_unicode = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

@@ -13,7 +13,7 @@ doctest = false
 
 [dependencies]
 dyst_source = { workspace = true }
-destack_unicode = { workspace = true }
+dyst_unicode = { workspace = true }
 
 [dev-dependencies]
 

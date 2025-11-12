@@ -259,9 +259,8 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use destack_file::glob;
     use dyst_ast::{BlockFormat, TokenType};
-    use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
+    use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
 
     use crate::Parser;
 

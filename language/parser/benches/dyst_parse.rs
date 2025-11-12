@@ -1,7 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use destack_file::glob;
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
+use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;

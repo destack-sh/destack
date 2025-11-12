@@ -27,9 +27,6 @@ dyst_javascript_machine = { workspace = true, optional = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 
-destack_file = { workspace = true }
-destack_terminal = { workspace = true }
-
 tokio = { version = "1.47.1" }
 
 [dev-dependencies]
