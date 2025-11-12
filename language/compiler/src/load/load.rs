@@ -19,7 +19,7 @@ impl<'a> Compiler<'a> {
         let file = match task {
             LoadTask::LoadFileFromMemory { file } => file,
             LoadTask::LoadFileFromDisk { path } => {
-                panic!("process_load_from_disk({path:?})")
+                todo!("process_load_from_disk({path:?})")
             }
         };
 

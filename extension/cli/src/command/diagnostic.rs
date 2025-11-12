@@ -23,8 +23,10 @@ pub(crate) fn print_diagnostics<'a>(
         if diagnostic.severity < min_severity {
             continue;
         }
-        let file = get_source(diagnostic.file_id)
-            .unwrap_or_else(|| panic!("no source for diagnostic: {diagnostic:?}"));
+        let Some(file) = get_source(diagnostic.file_id) else {
+            console::error(&format!("no source for diagnostic: {diagnostic:?}"));
+            continue;
+        };
         let header = Color::Red.apply_bold(&format!("{}: {}", diagnostic.code, diagnostic.message));
         let body = annotate_source(file, &diagnostic.primary_span, options);
         console::error(&header);
