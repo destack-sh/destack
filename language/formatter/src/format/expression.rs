@@ -2,7 +2,7 @@ use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
     NodeId, NodeTree, Path, PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
-use dyst_fir::format::BestFittingMode;
+use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 use dyst_source::{SmallVec, StringId, smallvec};
@@ -188,7 +188,11 @@ pub(crate) fn format_if_else_chain<'ast>(
                 }
             }
             // shouldn't be anything else
-            _ => panic!("invalid if chain: {if_node:?}"),
+            _ => {
+                return Err(FormatError::SyntaxError {
+                    message: "unexpected expression kind for if chain",
+                });
+            }
         }
     }
     Ok(())
@@ -578,10 +582,11 @@ pub(crate) fn format_expression_chain<'ast>(
             Expression::Maybe { position, .. } => ChainExpression::Maybe {
                 position: *position,
             },
-            _ => panic!(
-                "unexpected expression kind for chain expression: {:?}",
-                tree.get(expression_id)
-            ),
+            _ => {
+                return Err(FormatError::SyntaxError {
+                    message: "unexpected expression kind for chain expression",
+                });
+            }
         };
         body.push(chain_expression);
     }
@@ -654,7 +659,9 @@ pub(crate) fn format_match<'ast>(
         cases,
     } = &match_node
     else {
-        panic!("invalid match expression: {match_node:?}");
+        return Err(FormatError::SyntaxError {
+            message: "invalid match expression",
+        });
     };
 
     if include_prefix {

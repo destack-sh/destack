@@ -80,7 +80,7 @@ impl BufferSnapshot {
     pub fn unwrap_position(&self) -> usize {
         match self {
             BufferSnapshot::Position(index) => *index,
-            BufferSnapshot::Any(_) => panic!("Tried to unwrap Any snapshot as a position."),
+            BufferSnapshot::Any(_) => panic!("cannot unwrap position from Any snapshot"),
         }
     }
 
@@ -92,13 +92,13 @@ impl BufferSnapshot {
     pub fn unwrap_any<T: 'static>(self) -> T {
         match self {
             BufferSnapshot::Position(_) => {
-                panic!("Tried to unwrap Position snapshot as Any snapshot.")
+                panic!("cannot unwrap Any snapshot from Position snapshot")
             }
             BufferSnapshot::Any(value) => match value.downcast::<T>() {
                 Ok(snapshot) => *snapshot,
                 Err(err) => {
                     panic!(
-                        "Tried to unwrap snapshot of type {:?} as {:?}",
+                        "cannot unwrap snapshot of type {:?} as {:?}",
                         (*err).type_id(),
                         TypeId::of::<T>()
                     )

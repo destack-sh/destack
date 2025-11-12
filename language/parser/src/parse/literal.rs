@@ -573,7 +573,7 @@ impl<'a> Parser<'a> {
                 *name = None;
                 *kind = FunctionKind::Lambda;
             }
-            _ => panic!("expected function for"),
+            _ => unreachable!("expected function for struct named function shorthand"),
         };
 
         // maybe

@@ -398,7 +398,7 @@ fn test_drop_panic_smallvec() {
 
     impl Drop for DropPanic {
         fn drop(&mut self) {
-            panic!("drop");
+            panic!("drop panic");
         }
     }
 

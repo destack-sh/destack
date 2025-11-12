@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
         let token_idx = tokens
             .iter()
             .position(|token| token.span.start == span.start)
-            .unwrap_or_else(|| panic!("tag span not found in tokens: {span:?}"));
+            .unwrap_or_else(|| unreachable!("annotation span not found in tokens: {span:?}"));
         let token_group = tokens
             .iter()
             .skip(token_idx)
@@ -567,7 +567,7 @@ impl<'a> Parser<'a> {
                 TokenType::BlockComment => NodeType::Comment,
                 TokenType::DocLineComment => NodeType::Doc,
                 TokenType::DocBlockComment => NodeType::Doc,
-                _ => panic!("unexpected token type: {token_type:?}"),
+                _ => unreachable!("unexpected token type: {token_type:?}"),
             };
             let error = ParserError::unexpected_for(span, node_type);
             self.handle_error(&error);
@@ -659,7 +659,7 @@ impl<'a> Parser<'a> {
                     span,
                 )
             }
-            _ => panic!("unexpected token type: {token_type:?}"),
+            _ => unreachable!("unexpected token type: {token_type:?}"),
         };
 
         // attach the annotation to the node
