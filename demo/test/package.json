@@ -1,5 +1,5 @@
 {
-	"name": "@destack/tetris",
+	"name": "test",
 	"version": "2025.11.05.0",
 	"license": "MIT",
 	"type": "module",
@@ -7,9 +7,10 @@
 		"dev": "bun --hot src/index.ds",
 		"start": "NODE_ENV=production bun src/index.ds"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@destack/bun": "workspace:*"
+	},
 	"devDependencies": {
-		"@destack/bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }

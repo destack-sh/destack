@@ -76,12 +76,14 @@ pub enum TranspilerLanguage {
 /// The ECMAScript level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EcmaScriptVersion {
+	/// ECMAScript 2022.
     ES2022,
 }
 
 /// The TypeScript version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypeScriptVersion {
+	/// TypeScript 5.0.
     TS5_0,
 }
 
@@ -96,7 +98,7 @@ pub struct Transpiler<'a> {
     /// The node tree of the compiled DIR.
     pub tree: &'a dir::NodeTree,
     /// The modules.
-    pub modules: &'a dir::ModuleGraph,
+    pub modules: &'a dir::ModuleRegistry,
     /// The string pool.
     pub strings: &'a StringPool,
 

@@ -2695,7 +2695,10 @@ name = "destack_napi"
 version = "2025.11.5-0"
 dependencies = [
  "dyst_compiler",
+ "dyst_javascript_ast",
+ "dyst_javascript_machine",
  "dyst_javascript_transpiler",
+ "dyst_source",
  "napi",
  "napi-build",
  "napi-derive",

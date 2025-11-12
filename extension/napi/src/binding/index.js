@@ -572,4 +572,13 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
-module.exports.fibonacci = nativeBinding.fibonacci
+module.exports.defaultCompilerOptions = nativeBinding.defaultCompilerOptions
+module.exports.defaultTranspilerOptions = nativeBinding.defaultTranspilerOptions
+module.exports.EcmaScriptVersion = nativeBinding.EcmaScriptVersion
+module.exports.FormatMode = nativeBinding.FormatMode
+module.exports.IndentStyle = nativeBinding.IndentStyle
+module.exports.LineEnding = nativeBinding.LineEnding
+module.exports.TranspilerLanguage = nativeBinding.TranspilerLanguage
+module.exports.TranspilerMode = nativeBinding.TranspilerMode
+module.exports.TranspilerTarget = nativeBinding.TranspilerTarget
+module.exports.TypeScriptVersion = nativeBinding.TypeScriptVersion
