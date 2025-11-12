@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use dyst_compiler::Compiler;
 use dyst_dir as dir;
-use dyst_source::{DiagnosticCollector, LanguageOptions, SmallVec, StringPool, smallvec};
+use dyst_source::{DiagnosticCollector, LanguageOptions, SmallVec, StringPool, Uri, smallvec};
 
-use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit, TranspilerUnitId};
+use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
 
 /// The transpilation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
