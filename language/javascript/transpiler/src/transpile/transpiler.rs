@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use dyst_dir as dir;
 use dyst_source::{FileType, SmallVec, Uri, smallvec};
+use parking_lot::RwLock;
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
 
@@ -94,9 +95,9 @@ pub struct Transpiler<'a> {
     /// The options for transpiling.
     pub options: TranspilerOptions,
     /// The transpiled modules (from the source modules).
-    pub units: HashMap<Uri, TranspilerUnit>,
+    pub units: RwLock<HashMap<Uri, TranspilerUnit>>,
     /// The transpiled artifacts (from those units).
-    pub artifacts: HashMap<Uri, TranspilerArtifact>,
+    pub artifacts: RwLock<HashMap<Uri, TranspilerArtifact>>,
 }
 
 impl<'a> Transpiler<'a> {
@@ -105,28 +106,8 @@ impl<'a> Transpiler<'a> {
         Self {
             session,
             options,
-            units: HashMap::new(),
-            artifacts: HashMap::new(),
+            units: RwLock::new(HashMap::new()),
+            artifacts: RwLock::new(HashMap::new()),
         }
-    }
-
-    /// Get the transpiler artifacts for a given unit.
-    pub fn get_artifacts_for_unit(&self, uri: Uri) -> Vec<&TranspilerArtifact> {
-        let Some(unit) = self.units.get(&uri) else {
-            return Vec::new();
-        };
-        unit.artifacts
-            .iter()
-            .filter_map(|uri| self.artifacts.get(uri))
-            .collect()
-    }
-
-    /// Get the transpiler artifact of a certain type for a given unit.
-    pub fn get_artifact_for_unit(&self, uri: Uri, ty: FileType) -> Option<&TranspilerArtifact> {
-        let unit = self.units.get(&uri)?;
-        unit.artifacts
-            .iter()
-            .filter_map(|uri| self.artifacts.get(uri))
-            .find(|artifact| artifact.ty == ty)
     }
 }
