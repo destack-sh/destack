@@ -13,6 +13,8 @@ doctest = false
 
 [dependencies]
 
+parking_lot = { workspace = true }
+
 [dev-dependencies]
 
 [lints]

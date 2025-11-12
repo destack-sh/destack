@@ -15,8 +15,9 @@ doctest = false
 dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_source = { workspace = true }
-
 dyst_unicode = { workspace = true }
+
+parking_lot = { workspace = true }
 
 [dev-dependencies]
 

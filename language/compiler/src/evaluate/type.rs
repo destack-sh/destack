@@ -1,32 +1,20 @@
 use crate::{Compiler, EvaluateResult};
-use dyst_ast as ast;
-use dyst_dir::{
-    Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
-};
+use dyst_dir::{Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator};
 
 impl<'a> Compiler<'a> {
     /// Evaluate a Type (in-place).
     pub fn evaluate_type(&mut self, ty_id: NodeId<Type>) -> EvaluateResult<()> {
         let ty = self.session.tree.get(ty_id);
-        let Type::UnevaluatedExpression(expression_id) = ty else {
+        let Type::UnevaluatedExpression(expression_id) = *ty else {
             return Ok(());
         };
 
-        // Evaluate and update in-place
-        let evaluated_ty = self.try_evaluate_expression_to_type_value(*expression_id)?;
-        let ty = self.session.tree.get_mut(ty_id);
+        // evaluate and update in-place
+        let evaluated_ty = self.try_evaluate_expression_to_type_value(expression_id)?;
+        let mut ty = self.session.tree.get_mut(ty_id);
         *ty = evaluated_ty;
 
         Ok(())
-    }
-
-    /// Lower a VarianceBound to a TypeUnaryOperator.
-    pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
-        match bound {
-            ast::VarianceBound::Implements => VarianceBound::Implements,
-            ast::VarianceBound::Extends => VarianceBound::Extends,
-            ast::VarianceBound::Super => VarianceBound::Super,
-        }
     }
 
     /// Try to Evaluate an Expression as a Type id.
@@ -57,7 +45,7 @@ impl<'a> Compiler<'a> {
     ) -> EvaluateResult<Option<Type>> {
         let expression = self.session.tree.get(expression_id);
 
-        let ty = match expression {
+        let ty = match expression.as_ref() {
             Expression::ScalarLiteral { value } => {
                 Type::Scalar(TypeLiteral::ScalarLiteral(value.clone()))
             }
@@ -97,7 +85,7 @@ impl<'a> Compiler<'a> {
                 right,
             } => {
                 let mutability = mutability.clone();
-                let variance = *variance;
+                let variance = variance.clone();
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::ValueOf {
                     mutability,
@@ -112,7 +100,7 @@ impl<'a> Compiler<'a> {
                 right,
             } => {
                 let mutability = mutability.clone();
-                let variance = *variance;
+                let variance = variance.clone();
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::ReferenceOf {
                     mutability,
@@ -121,40 +109,40 @@ impl<'a> Compiler<'a> {
                 }
             }
             // unary
-            &Expression::TypeUnary { operator, right } => {
-                let right_id = self.try_evaluate_expression_to_type(right)?;
+            Expression::TypeUnary { operator, right } => {
+                let right_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::Unary {
-                    operator,
+                    operator: *operator,
                     right: right_id,
                 }
             }
             // binary
-            &Expression::TypeBinary {
+            Expression::TypeBinary {
                 left,
                 operator,
                 right,
             } => {
-                let left_id = self.try_evaluate_expression_to_type(left)?;
-                let right_id = self.try_evaluate_expression_to_type(right)?;
+                let left_id = self.try_evaluate_expression_to_type(*left)?;
+                let right_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::Binary {
                     left: left_id,
-                    operator,
+                    operator: *operator,
                     right: right_id,
                 }
             }
 
             // range
-            &Expression::RangeLiteral {
+            Expression::RangeLiteral {
                 start,
                 end,
                 is_inclusive,
             } => {
-                let start_id = self.try_evaluate_expression_to_type(start)?;
-                let end_id = self.try_evaluate_expression_to_type(end)?;
+                let start_id = self.try_evaluate_expression_to_type(*start)?;
+                let end_id = self.try_evaluate_expression_to_type(*end)?;
                 Type::Range {
                     start: start_id,
                     end: end_id,
-                    is_inclusive,
+                    is_inclusive: *is_inclusive,
                 }
             }
             // tuple
@@ -169,11 +157,11 @@ impl<'a> Compiler<'a> {
             // array or slice
             Expression::Index { left, right } => {
                 // array with static length
-                if let &Some(right) = right {
+                if let Some(right) = right {
                     let left_id = self.try_evaluate_expression_to_type(*left)?;
                     Type::ArrayStatic {
                         element: left_id,
-                        count: right,
+                        count: *right,
                     }
                 }
                 // slice

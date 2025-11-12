@@ -41,7 +41,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // dump AST to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let mut dumper = Dumper::new(&parser.strings, &parser.tree, dump_options);
+        let strings = parser.strings.clone().into_immutable();
+        let mut dumper = Dumper::new(&strings, &parser.tree, dump_options);
         for expression in expressions {
             dumper.visit_expression(&parser.tree, expression, parser.tree.get(expression));
         }

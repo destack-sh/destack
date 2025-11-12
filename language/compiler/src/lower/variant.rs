@@ -6,7 +6,7 @@ use dyst_dir::{Field, Module, NodeId, StringId, Type, Variant};
 impl<'a> Compiler<'a> {
     /// Lower an AST variant field to a DIR variant field.
     #[inline]
-    pub(super) fn lower_field(
+    pub fn lower_field(
         &mut self,
         module: &Module,
         field_id: ast::NodeId<ast::Field>,
@@ -125,7 +125,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an AST enum field to a DIR variant.
     #[inline]
-    pub(super) fn lower_enum_field_to_variant(
+    pub fn lower_enum_field_to_variant(
         &mut self,
         module: &Module,
         representation_type: Option<NodeId<Type>>,
@@ -169,7 +169,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an AST union field to a DIR variant.
     #[inline]
-    pub(super) fn lower_union_field_to_variant(
+    pub fn lower_union_field_to_variant(
         &mut self,
         module: &Module,
         // NOTE #Incomplete: consider union field tag type?

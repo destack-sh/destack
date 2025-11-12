@@ -1,7 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::*;
-use dyst_source::{Color, SmallVec, impl_dump_display, rebuild_tree_output};
+use dyst_source::{Color, ImmutableStringPool, SmallVec, impl_dump_display, rebuild_tree_output};
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
@@ -34,9 +34,9 @@ impl Default for DumperOptions {
 #[derive(Debug)]
 pub struct Dumper<'a> {
     /// The string pool.
-    pub strings: &'a StringPool,
+    pub strings: &'a ImmutableStringPool,
     /// The node tree.
-    pub tree: &'a NodeTree,
+    pub tree: &'a MutableNodeTree,
     /// The dump options.
     pub options: DumperOptions,
     /// The visitor options.
@@ -55,7 +55,11 @@ pub struct Dumper<'a> {
 
 impl<'a> Dumper<'a> {
     /// Create a new Dumper.
-    pub fn new(strings: &'a StringPool, tree: &'a NodeTree, options: DumperOptions) -> Self {
+    pub fn new(
+        strings: &'a ImmutableStringPool,
+        tree: &'a MutableNodeTree,
+        options: DumperOptions,
+    ) -> Self {
         Self {
             strings,
             tree,
@@ -115,15 +119,15 @@ impl<'a> Dumper<'a> {
 
     /// Write a string to the buffer.
     #[inline]
-    fn write_str(&mut self, s: &str, color: Option<Color>) {
+    fn write_str(&mut self, s: impl AsRef<str>, color: Option<Color>) {
         if self.options.use_colors {
             if let Some(color) = color {
-                self.buffer.push_str(color.apply(s).as_str());
+                self.buffer.push_str(color.apply(s.as_ref()).as_str());
             } else {
-                self.buffer.push_str(s);
+                self.buffer.push_str(s.as_ref());
             }
         } else {
-            self.buffer.push_str(s);
+            self.buffer.push_str(s.as_ref());
         }
     }
 
@@ -268,7 +272,7 @@ pub trait Dump {
 impl Dump for &str {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_char('"', Some(Color::White));
-        dumper.write_str(self.as_ref(), Some(Color::BrightYellow));
+        dumper.write_str(self, Some(Color::BrightYellow));
         dumper.write_char('"', Some(Color::White));
     }
 }
@@ -316,35 +320,35 @@ impl Dump for bool {
 /// Dump a u8 as a string.
 impl Dump for u8 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), Some(Color::Green))
+        dumper.write_str(self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u16 as a string.
 impl Dump for u16 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), Some(Color::Green))
+        dumper.write_str(self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump a u32 as a string.
 impl Dump for u32 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), Some(Color::Green))
+        dumper.write_str(self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an i64 as a string.
 impl Dump for i64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), Some(Color::Green))
+        dumper.write_str(self.to_string(), Some(Color::Green))
     }
 }
 
 /// Dump an f64 as a string.
 impl Dump for f64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(&self.to_string(), Some(Color::Green))
+        dumper.write_str(self.to_string(), Some(Color::Green))
     }
 }
 
@@ -352,7 +356,7 @@ impl Dump for f64 {
 impl Dump for char {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_char('\'', None);
-        dumper.write_str(&self.to_string(), Some(Color::Green));
+        dumper.write_str(self.to_string(), Some(Color::Green));
         dumper.write_char('\'', None);
     }
 }
@@ -374,7 +378,7 @@ impl<T: Dump> Dump for &[T] {
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for NodeId<T>
 where
-    NodeTree: NodeTreeImpl<T>,
+    MutableNodeTree: MutableNodeTreeImpl<T>,
 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);
@@ -726,7 +730,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, tree: &MutableNodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
@@ -736,7 +740,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_expression(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<Expression>,
         expression: &Expression,
     ) {
@@ -1059,7 +1063,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_block(&mut self, _tree: &NodeTree, _id: NodeId<Block>, block: &Block) {
+    fn visit_block(&mut self, _tree: &MutableNodeTree, _id: NodeId<Block>, block: &Block) {
         self.node("Block", _id.id)
             .field("format", &block.format)
             .field_optional("label", &block.label)
@@ -1071,7 +1075,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_definition(
         &mut self,
-        tree: &NodeTree,
+        tree: &MutableNodeTree,
         id: NodeId<crate::Definition>,
         definition: &crate::Definition,
     ) {
@@ -1193,7 +1197,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_field(&mut self, _tree: &NodeTree, _id: NodeId<Field>, field: &Field) {
+    fn visit_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<Field>, field: &Field) {
         match field {
             Field::Named {
                 modifiers,
@@ -1233,7 +1237,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, _tree: &NodeTree, _id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<EnumField>, field: &EnumField) {
         self.node("EnumField", _id.id)
             .field("name", &field.name)
             .end();
@@ -1242,7 +1246,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_union_field(&mut self, _tree: &NodeTree, _id: NodeId<UnionField>, field: &UnionField) {
+    fn visit_union_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<UnionField>, field: &UnionField) {
         match field {
             UnionField::Unit { name, value: _ } => {
                 self.node("UnionField::Unit", _id.id)
@@ -1275,7 +1279,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_with_clause(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<WithClause>,
         clause: &WithClause,
     ) {
@@ -1289,7 +1293,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_where_clause(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<WhereClause>,
         clause: &WhereClause,
     ) {
@@ -1310,7 +1314,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_dependency_item(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<DependencyItem>,
         item: &DependencyItem,
     ) {
@@ -1323,7 +1327,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
+    fn visit_parameter(&mut self, _tree: &MutableNodeTree, _id: NodeId<Parameter>, param: &Parameter) {
         match param {
             Parameter::Named {
                 modifiers,
@@ -1362,7 +1366,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(&mut self, _tree: &NodeTree, _id: NodeId<Argument>, arg: &Argument) {
+    fn visit_argument(&mut self, _tree: &MutableNodeTree, _id: NodeId<Argument>, arg: &Argument) {
         match arg {
             Argument::Named {
                 modifiers,
@@ -1436,7 +1440,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, _tree: &NodeTree, _id: NodeId<MatchCase>, case: &MatchCase) {
+    fn visit_match_case(&mut self, _tree: &MutableNodeTree, _id: NodeId<MatchCase>, case: &MatchCase) {
         match case {
             MatchCase::Expression {
                 pattern: _,
@@ -1458,7 +1462,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_pattern(&mut self, _tree: &NodeTree, _id: NodeId<Pattern>, pattern: &Pattern) {
+    fn visit_pattern(&mut self, _tree: &MutableNodeTree, _id: NodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", _id.id).end();
@@ -1521,7 +1525,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_pattern_field(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<PatternField>,
         field: &PatternField,
     ) {
@@ -1560,7 +1564,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_annotation(
         &mut self,
-        _tree: &NodeTree,
+        _tree: &MutableNodeTree,
         _id: NodeId<Annotation>,
         annotation: &Annotation,
     ) {
@@ -1596,7 +1600,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_blank(&mut self, _tree: &NodeTree, _id: NodeId<Blank>, blank: &Blank) {
+    fn visit_blank(&mut self, _tree: &MutableNodeTree, _id: NodeId<Blank>, blank: &Blank) {
         self.node("Blank", _id.id)
             .field("lines", &blank.lines)
             .end();
@@ -1605,7 +1609,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_doc(&mut self, _tree: &NodeTree, _id: NodeId<Doc>, doc: &Doc) {
+    fn visit_doc(&mut self, _tree: &MutableNodeTree, _id: NodeId<Doc>, doc: &Doc) {
         let string = truncate_string(self.strings.get(doc.string), 40, "...");
         self.node("Doc", _id.id)
             .field("string", &string.as_ref())
@@ -1616,7 +1620,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_comment(&mut self, _tree: &NodeTree, _id: NodeId<Comment>, comment: &Comment) {
+    fn visit_comment(&mut self, _tree: &MutableNodeTree, _id: NodeId<Comment>, comment: &Comment) {
         let string = truncate_string(self.strings.get(comment.string), 40, "...");
         self.node("Comment", _id.id)
             .field("string", &string.as_ref())
@@ -1627,7 +1631,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_tag(&mut self, _tree: &NodeTree, _id: NodeId<Tag>, tag: &Tag) {
+    fn visit_tag(&mut self, _tree: &MutableNodeTree, _id: NodeId<Tag>, tag: &Tag) {
         self.node("Tag", _id.id)
             .field("receiver", &tag.receiver)
             .end();
@@ -1636,7 +1640,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_decorator(&mut self, _tree: &NodeTree, _id: NodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(&mut self, _tree: &MutableNodeTree, _id: NodeId<Decorator>, decorator: &Decorator) {
         self.node("Decorator", _id.id)
             .field("receiver", &decorator.receiver)
             .end();

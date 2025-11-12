@@ -1,10 +1,11 @@
 use crate::{DystFormatContext, DystFormatOptions};
-use dyst_ast::{NodeParentIndex, NodeTree, TokenSpan};
+use dyst_ast::{NodeParentIndex, MutableNodeTree, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{Parser, ParserResult};
 use dyst_source::{
-    DiagnosticCollector, File, FileId, FileType, LanguageOptions, MultiSpan, StringPool, Uri,
+    DiagnosticCollector, File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan,
+    Uri,
 };
 
 /// A test wrapper for Formatter.
@@ -14,8 +15,8 @@ pub(crate) struct TestFormatter {
     pub tokens: Vec<TokenSpan>,
     pub side_tokens: Vec<TokenSpan>,
     pub side_span: MultiSpan,
-    pub tree: NodeTree,
-    pub strings: StringPool,
+    pub tree: MutableNodeTree,
+    pub strings: ImmutableStringPool,
 }
 
 impl TestFormatter {
@@ -46,7 +47,7 @@ impl TestFormatter {
         let tree = parser.tree;
         let tokens = parser.tokens;
         let side_tokens = parser.side_tokens;
-        let strings = parser.strings;
+        let strings = parser.strings.into_immutable();
 
         let formatter = Self {
             source,

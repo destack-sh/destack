@@ -1,6 +1,6 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    NodeId, NodeTree, Path, PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
+    NodeId, MutableNodeTree, Path, PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
@@ -471,7 +471,7 @@ fn group_chain_expression_lines(
 }
 
 /// Check whether the expression is part of a member/call/maybe/index chain.
-fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
+fn is_expression_chain(tree: &MutableNodeTree, node_id: NodeId<Expression>) -> bool {
     match tree.get(node_id) {
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
@@ -705,7 +705,7 @@ fn is_chain_expression(expression: &Expression) -> bool {
 }
 
 /// Whether an expression is "trivial" (prefers to be fully inline).
-pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_trivial_expression(tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
         Expression::StructLiteral { ty, fields, .. } => {
@@ -737,7 +737,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
 }
 
 /// Whether an expression is "complex" (prefers to be multiline).
-pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_complex_expression(_tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::StructLiteral { ty, fields, .. } => ty.is_some() || fields.len() > 1,
         Expression::TreeLiteral { .. } => true,
@@ -746,7 +746,7 @@ pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool 
 }
 
 /// Whether an argument is "trivial" (prefers to be inline).
-pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+pub fn is_trivial_argument(tree: &MutableNodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Argument::Shorthand { name: _, .. } => true,
@@ -757,7 +757,7 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
 }
 
 /// Whether an argument is "complex" (prefers to be multiline).
-pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
+pub fn is_complex_argument(tree: &MutableNodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
         Argument::Shorthand { name: _, .. } => false,
@@ -768,7 +768,7 @@ pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
 }
 
 /// Whether the expression can break itself across multiple lines.
-pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
+pub fn is_expression_breakable(tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ArrayLiteral { elements, .. } => !elements.is_empty(),
         Expression::TupleLiteral { elements, .. } => !elements.is_empty(),

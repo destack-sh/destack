@@ -59,11 +59,15 @@ impl<'a> Transpiler<'a> {
 
     /// Render a JS path to a single string.
     pub fn render_path(&self, path: &Path, unit: &TranspilerUnit) -> String {
-        let segments: Vec<&str> = path
-            .segments
-            .iter()
-            .map(|segment| unit.strings.get(*segment))
-            .collect();
-        segments.join(".")
+        // manually build a vector of &str using a loop because as_ref isn't directly usable with collect
+        let mut path_str = String::new();
+        for (i, segment) in path.segments.iter().enumerate() {
+            let segment = unit.strings.get(*segment);
+            path_str.push_str(segment.as_ref());
+            if i + 1 < path.segments.len() {
+                path_str.push('.');
+            }
+        }
+        path_str
     }
 }

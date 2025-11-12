@@ -1,7 +1,7 @@
 use dyst_dir::Session;
 use dyst_source::FileId;
 
-use crate::{CompilerQueue, CompilerResult, CompilerTask, LoadTask};
+use crate::{CompilerQueue, CompilerTask, LoadTask};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
@@ -17,7 +17,7 @@ pub struct CompilerOptions {
 #[derive(Debug)]
 pub struct Compiler<'s> {
     /// The session.
-    pub session: &'s mut Session<'s>,
+    pub session: &'s Session<'s>,
     /// The options for compiling.
     pub options: CompilerOptions,
     /// The queue of compiler tasks.
@@ -27,7 +27,7 @@ pub struct Compiler<'s> {
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new Compiler.
-    pub fn new(session: &'s mut Session<'s>) -> Self {
+    pub fn new(session: &'s Session<'s>) -> Self {
         Self {
             session,
             options: CompilerOptions::default(),
@@ -36,11 +36,7 @@ impl<'s> Compiler<'s> {
     }
 
     /// Create a new Compiler from a single file.
-    pub fn from_file(
-        session: &'s mut Session<'s>,
-        file_id: FileId,
-        options: CompilerOptions,
-    ) -> Self {
+    pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompilerOptions) -> Self {
         let mut compiler = Self {
             session,
             options,
@@ -48,7 +44,7 @@ impl<'s> Compiler<'s> {
         };
         compiler
             .queue
-            .push_back(CompilerTask::Load(LoadTask::LoadFileFromMemory { file_id }));
+            .push_back(CompilerTask::Load(LoadTask::LoadFileFromId { file_id }));
         compiler
     }
 }

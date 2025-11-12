@@ -39,12 +39,13 @@ impl<'a> Transpiler<'a> {
         let file = File::empty_with_id(ty, file_id, uri);
 
         // print unit
+        let strings = unit.strings.clone().into_immutable(); // #Performance
         let context = JavaScriptFormatContext {
             options: formatting,
             file: &file,
             unit,
             tree: &unit.ast,
-            strings: &unit.strings,
+            strings: &strings,
         };
         let formatted =
             fir_format!(context, [unit]).map_err(|error| TranspileError::PrintError {

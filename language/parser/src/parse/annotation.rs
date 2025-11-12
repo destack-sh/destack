@@ -804,8 +804,7 @@ let y;
         assert_node!(parser.tree, x_annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                let comment = parser.strings.get(*string);
-                assert_eq!(comment, "\nComment 1\n");
+                assert_string!(parser, *string, "\nComment 1\n");
                 assert_eq!(*style, CommentStyle::Star);
             });
         });
@@ -815,8 +814,7 @@ let y;
         assert_node!(parser.tree, y_annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                let comment = parser.strings.get(*string);
-                assert_eq!(comment, "\nComment 2.1\nComment 2.2\nComment 2.3\n");
+                assert_string!(parser, *string, "\nComment 2.1\nComment 2.2\nComment 2.3\n");
                 assert_eq!(*style, CommentStyle::Star);
             });
         });
@@ -990,7 +988,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.strings.get(*string), "line comment");
+                assert_string!(parser, *string, "line comment");
                 assert_eq!(*style, CommentStyle::Slash);
             });
         });
@@ -1014,7 +1012,7 @@ over multiple lines with trailing space    */",
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.strings.get(*string), "line comment\nover multiple lines with trailing space");
+                assert_string!(parser, *string, "line comment\nover multiple lines with trailing space");
                 assert_eq!(*style, CommentStyle::Star);
             });
         });
@@ -1042,7 +1040,7 @@ over multiple lines with trailing space    */",
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Doc { string, style } => {
-                    assert_eq!(parser.strings.get(*string), "some multiline\nblock comment\nover multiple lines");
+                    assert_string!(parser, *string, "some multiline\nblock comment\nover multiple lines");
                     assert_eq!(*style, DocStyle::Star);
                 });
             });
@@ -1196,7 +1194,7 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::LinePrefix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(parser.strings.get(*string), "Pre-A comment");
+                        assert_string!(parser, *string, "Pre-A comment");
                         assert_eq!(*style, CommentStyle::Star);
                     });
                 });
@@ -1204,7 +1202,7 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::LinePostfix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(parser.strings.get(*string), "A comment");
+                        assert_string!(parser, *string, "A comment");
                         assert_eq!(*style, CommentStyle::Star);
                     });
                 });
@@ -1219,7 +1217,7 @@ over multiple lines with trailing space    */",
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(parser.strings.get(*string), "B comment");
+                        assert_string!(parser, *string, "B comment");
                         assert_eq!(*style, CommentStyle::Star);
                     });
                 });
@@ -1251,7 +1249,7 @@ let A = 1 // line suffix comment
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.strings.get(*string), "block prefix comment");
+                assert_string!(parser, *string, "block prefix comment");
                 assert_eq!(*style, CommentStyle::Slash);
             });
         });
@@ -1259,7 +1257,7 @@ let A = 1 // line suffix comment
         assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.strings.get(*string), "line suffix comment");
+                assert_string!(parser, *string, "line suffix comment");
                 assert_eq!(*style, CommentStyle::Slash);
             });
         });
@@ -1267,7 +1265,7 @@ let A = 1 // line suffix comment
         assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.strings.get(*string), "block postfix comment");
+                assert_string!(parser, *string, "block postfix comment");
                 assert_eq!(*style, CommentStyle::Slash);
             });
         });
@@ -1337,7 +1335,7 @@ function main() {
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockInfix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(parser.strings.get(*string), "block comment, infix");
+                        assert_string!(parser, *string, "block comment, infix");
                         assert_eq!(*style, CommentStyle::Slash);
                     });
                 });
@@ -1378,7 +1376,7 @@ struct Floof {
         assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_eq!(parser.strings.get(*string), "doc, floating");
+                assert_string!(parser, *string, "doc, floating");
                 assert_eq!(*style, DocStyle::Slash);
             });
         });
@@ -1394,7 +1392,7 @@ struct Floof {
         assert_node!(parser.tree, annotations[2], Annotation::Doc { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_eq!(parser.strings.get(*string), "doc, struct\ndoc, struct continued");
+                assert_string!(parser, *string, "doc, struct\ndoc, struct continued");
                 assert_eq!(*style, DocStyle::Slash);
             });
         });
@@ -1414,7 +1412,7 @@ struct Floof {
                     assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
                         assert_node!(parser.tree, *node, Doc { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "doc, struct field\ndoc, struct field continued");
+                            assert_string!(parser, *string, "doc, struct field\ndoc, struct field continued");
                             assert_eq!(*style, DocStyle::Slash);
                         });
                     });
@@ -1424,7 +1422,7 @@ struct Floof {
                     assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "doc, struct field infix");
+                            assert_string!(parser, *string, "doc, struct field infix");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1441,7 +1439,7 @@ struct Floof {
                     assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPostfix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "random comment");
+                            assert_string!(parser, *string, "random comment");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1476,7 +1474,7 @@ export namespace Outer {
             assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(parser.strings.get(*string), "Outer comment");
+                    assert_string!(parser, *string, "Outer comment");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
             });
@@ -1492,7 +1490,7 @@ export namespace Outer {
                 assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(parser.strings.get(*string), "Middle comment");
+                        assert_string!(parser, *string, "Middle comment");
                         assert_eq!(*style, CommentStyle::Slash);
                     });
                 });
@@ -1509,7 +1507,7 @@ export namespace Outer {
                         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                             assert_eq!(*position, AnnotationPosition::BlockPrefix);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(parser.strings.get(*string), "Inner comment");
+                                assert_string!(parser, *string, "Inner comment");
                                 assert_eq!(*style, CommentStyle::Slash);
                             });
                         });
@@ -1560,7 +1558,7 @@ export namespace Outer {
             assert_node!(parser.tree, a_annotations[0], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(parser.strings.get(*string), "comment part 0");
+                    assert_string!(parser, *string, "comment part 0");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
             });
@@ -1575,7 +1573,7 @@ export namespace Outer {
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "comment part 1\ncomment part 2");
+                            assert_string!(parser, *string, "comment part 1\ncomment part 2");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1583,7 +1581,7 @@ export namespace Outer {
                     assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPostfix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "comment part 3\ncomment part 4");
+                            assert_string!(parser, *string, "comment part 3\ncomment part 4");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1599,7 +1597,7 @@ export namespace Outer {
             assert_node!(parser.tree, b_annotations[0], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(parser.strings.get(*string), "comment part 5\ncomment part 6");
+                    assert_string!(parser, *string, "comment part 5\ncomment part 6");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
             });
@@ -1614,7 +1612,7 @@ export namespace Outer {
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "comment part 7\ncomment part 8");
+                            assert_string!(parser, *string, "comment part 7\ncomment part 8");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1622,7 +1620,7 @@ export namespace Outer {
                     assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::BlockPostfix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(parser.strings.get(*string), "comment part 9\ncomment part 10");
+                            assert_string!(parser, *string, "comment part 9\ncomment part 10");
                             assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
@@ -1633,7 +1631,7 @@ export namespace Outer {
             assert_node!(parser.tree, b_annotations[1], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPostfix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(parser.strings.get(*string), "comment part 11");
+                    assert_string!(parser, *string, "comment part 11");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
             });

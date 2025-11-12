@@ -1,5 +1,5 @@
-use dyst_ast::StringPool;
-use dyst_dir::ModuleRegistry;
+use dyst_ast::SharedStringPool;
+use dyst_dir::SharedModuleRegistry;
 use dyst_javascript_ast as ast;
 use dyst_source::{FileId, Uri};
 
@@ -9,7 +9,7 @@ impl<'a> Transpiler<'a> {
     /// Map the modules to the units.
     pub(crate) fn make_units(
         options: TranspilerOptions,
-        modules: &ModuleRegistry,
+        modules: &SharedModuleRegistry,
     ) -> Vec<TranspilerUnit> {
         let mut units: Vec<TranspilerUnit> = Vec::new();
         match options.mode {
@@ -21,9 +21,9 @@ impl<'a> Transpiler<'a> {
                     let unit = TranspilerUnit {
                         id: unit_id,
                         uri,
-                        ast: ast::NodeTree::new(),
+                        ast: ast::MutableNodeTree::new(),
                         roots: Vec::new(),
-                        strings: StringPool::new(),
+                        strings: SharedStringPool::new(),
                         sources: vec![module.id],
                         errors: Vec::new(),
                         artifacts: Vec::new(),
@@ -36,9 +36,9 @@ impl<'a> Transpiler<'a> {
                 let unit = TranspilerUnit {
                     id: TranspilerUnitId::new(0),
                     uri: Uri::from_string("combined"),
-                    ast: ast::NodeTree::new(),
+                    ast: ast::MutableNodeTree::new(),
                     roots: Vec::new(),
-                    strings: StringPool::new(),
+                    strings: SharedStringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
                     errors: Vec::new(),
                     artifacts: Vec::new(),
@@ -50,7 +50,7 @@ impl<'a> Transpiler<'a> {
     }
 
     /// Transpile the compiler's DIR into JS/TS/.. artifacts.
-    pub fn transpile(&'a mut self) {
+    pub fn transpile(&'a self) {
         // transpile each module into AST
         let mut units = Transpiler::make_units(self.options, &self.session.modules);
         for unit in units.iter_mut() {
@@ -60,7 +60,7 @@ impl<'a> Transpiler<'a> {
                     .modules
                     .get(source_module_id)
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));
-                self.transpile_module(source_module, unit);
+                self.transpile_module(&source_module, unit);
             }
         }
 

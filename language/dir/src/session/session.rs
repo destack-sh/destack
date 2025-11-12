@@ -1,7 +1,7 @@
-use dyst_ast::StringPool;
+use dyst_ast::SharedStringPool;
 use dyst_source::{DiagnosticCollector, DiagnosticSeverity, FileRegistry, LanguageOptions};
 
-use crate::{ModuleRegistry, NodeTree};
+use crate::{SharedModuleRegistry, SharedNodeTree};
 
 /// A session for a language.
 #[derive(Debug, Clone)]
@@ -11,13 +11,13 @@ pub struct Session<'a> {
     /// The files in the session.
     pub files: &'a FileRegistry,
     /// The modules.
-    pub modules: ModuleRegistry,
+    pub modules: SharedModuleRegistry,
     /// The combined DIR node tree.
-    pub tree: NodeTree,
+    pub tree: SharedNodeTree,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The combined string pool.
-    pub strings: StringPool,
+    pub strings: SharedStringPool,
 }
 
 impl<'a> Session<'a> {
@@ -26,10 +26,10 @@ impl<'a> Session<'a> {
         Self {
             language,
             files,
-            modules: ModuleRegistry::new(),
-            tree: NodeTree::new(),
+            modules: SharedModuleRegistry::new(),
+            tree: SharedNodeTree::new(),
             diagnostics: DiagnosticCollector::new(),
-            strings: StringPool::new(),
+            strings: SharedStringPool::new(),
         }
     }
 

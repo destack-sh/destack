@@ -182,7 +182,7 @@ macro_rules! assert_char {
 #[macro_export]
 macro_rules! assert_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
-        let got = $parser.strings.get($id);
+        let got = $parser.strings.get($id).to_string();
         assert_eq!(got, $expected, "expected string");
     }};
 }
@@ -191,7 +191,7 @@ macro_rules! assert_string {
 #[macro_export]
 macro_rules! assert_name {
     ($parser:expr, $name:expr, $expected:expr) => {{
-        let got = $parser.strings.get($name.string());
+        let got = $parser.strings.get($name.string()).to_string();
         assert_eq!(got, $expected, "expected name");
     }};
 }
@@ -230,7 +230,7 @@ macro_rules! assert_path {
         let path_str = $path
             .segments
             .iter()
-            .map(|s| $parser.strings.get(*s))
+            .map(|s| $parser.strings.get(*s).to_string())
             .collect::<Vec<_>>()
             .join(".");
         assert_eq!(path_str, $expected, "expected path");
