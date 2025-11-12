@@ -6,7 +6,7 @@ use crate::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Argument, Node, NodeId, MutableNodeTree, MutableNodeTreeImpl, Parameter};
+use dyst_ast::{Argument, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, Parameter};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 

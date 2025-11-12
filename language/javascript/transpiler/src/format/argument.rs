@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use dyst_fir::format::{BestFittingMode, FormatResult};
-use dyst_javascript_ast::{Argument, Node, NodeId, MutableNodeTree, MutableNodeTreeImpl, Parameter};
+use dyst_javascript_ast::{
+    Argument, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, Parameter,
+};
 
 use crate::format::variant::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,

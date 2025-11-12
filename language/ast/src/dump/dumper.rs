@@ -1237,7 +1237,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        _tree: &MutableNodeTree,
+        _id: NodeId<EnumField>,
+        field: &EnumField,
+    ) {
         self.node("EnumField", _id.id)
             .field("name", &field.name)
             .end();
@@ -1246,7 +1251,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_union_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<UnionField>, field: &UnionField) {
+    fn visit_union_field(
+        &mut self,
+        _tree: &MutableNodeTree,
+        _id: NodeId<UnionField>,
+        field: &UnionField,
+    ) {
         match field {
             UnionField::Unit { name, value: _ } => {
                 self.node("UnionField::Unit", _id.id)
@@ -1327,7 +1337,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, _tree: &MutableNodeTree, _id: NodeId<Parameter>, param: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        _tree: &MutableNodeTree,
+        _id: NodeId<Parameter>,
+        param: &Parameter,
+    ) {
         match param {
             Parameter::Named {
                 modifiers,
@@ -1440,7 +1455,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, _tree: &MutableNodeTree, _id: NodeId<MatchCase>, case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        _tree: &MutableNodeTree,
+        _id: NodeId<MatchCase>,
+        case: &MatchCase,
+    ) {
         match case {
             MatchCase::Expression {
                 pattern: _,
@@ -1640,7 +1660,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_decorator(&mut self, _tree: &MutableNodeTree, _id: NodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(
+        &mut self,
+        _tree: &MutableNodeTree,
+        _id: NodeId<Decorator>,
+        decorator: &Decorator,
+    ) {
         self.node("Decorator", _id.id)
             .field("receiver", &decorator.receiver)
             .end();

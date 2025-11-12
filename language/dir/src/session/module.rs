@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use dyst_ast::{self as ast, StringId, SharedStringPool};
+use dyst_ast::{self as ast, SharedStringPool, StringId};
 use dyst_source::{FileId, Uri};
 
 use crate::{DependencyItem, Expression, NodeId};

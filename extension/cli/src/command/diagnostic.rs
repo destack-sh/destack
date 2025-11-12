@@ -1,9 +1,6 @@
 use crate::console;
 use dyst_dir::Session;
-use dyst_source::{
-    AnnotateOptions, Color, DiagnosticSeverity,
-    annotate_source,
-};
+use dyst_source::{AnnotateOptions, Color, DiagnosticSeverity, annotate_source};
 
 /// Print diagnostics (and suggestions) to the console.
 pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, min_severity: DiagnosticSeverity) {

@@ -1,11 +1,11 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase, NodeId,
-    MutableNodeTree, NodeType, Parameter, Pattern, PatternField, Type, Variant, WhereClause, WithClause,
-    walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
-    walk_expression, walk_field, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_type, walk_variant, walk_where_clause, walk_with_clause,
+    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase,
+    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant,
+    WhereClause, WithClause, walk_annotation, walk_argument, walk_block, walk_definition,
+    walk_dependency_item, walk_expression, walk_field, walk_match_case, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_type, walk_variant, walk_where_clause, walk_with_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -95,12 +95,22 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Parameter.
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
     }
 
     /// Visit an Argument.
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        argument: &Argument,
+    ) {
         walk_argument(self, tree, id, argument);
     }
 
@@ -120,7 +130,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a MatchCase.
-    fn visit_match_case(&mut self, tree: &MutableNodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         walk_match_case(self, tree, id, match_case);
     }
 
@@ -230,11 +245,21 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, _parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        _parameter: &Parameter,
+    ) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, _argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        _argument: &Argument,
+    ) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
 

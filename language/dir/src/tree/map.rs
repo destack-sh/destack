@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{CapturingNodeVisitor, Node, NodeId, MutableNodeTree, MutableNodeTreeImpl, walk_any};
+use crate::{CapturingNodeVisitor, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, walk_any};
 
 /// The NodeParentIndex is a side index of parent nodes into a NodeTree.
 #[derive(Debug, Clone)]

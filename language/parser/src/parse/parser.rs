@@ -2,10 +2,10 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, is_semantic};
-use dyst_ast::{BlockFormat, Expression, NodeId, MutableNodeTree, NodeType, TokenSpan, TokenType};
+use dyst_ast::{BlockFormat, Expression, MutableNodeTree, NodeId, NodeType, TokenSpan, TokenType};
 use dyst_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
-    SharedStringPool,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch,
+    SharedStringPool, Span,
 };
 
 use crate::{ParserError, ParserResult};
