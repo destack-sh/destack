@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Block, Definition, DefinitionMeta, DependencyItem, EnumField, Expression,
-    Field, NodeId, MutableNodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Statement,
-    SwitchCase, TemplateLiteral, Type,
+    Field, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Statement, SwitchCase, TemplateLiteral, Type,
 };
 
 /// Walk any node.

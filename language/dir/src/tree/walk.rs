@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, Expression, Field,
-    FunctionSignature, Generics, MatchCase, NodeId, MutableNodeTree, NodeType, NodeVisitor, Parameter,
-    Pattern, PatternField, TemplateLiteral, Type, Variant, WhereClause, WithClause,
+    FunctionSignature, Generics, MatchCase, MutableNodeTree, NodeId, NodeType, NodeVisitor,
+    Parameter, Pattern, PatternField, TemplateLiteral, Type, Variant, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -98,7 +98,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Generics.
-fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &MutableNodeTree, generics: &Generics) {
+fn walk_generics<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    generics: &Generics,
+) {
     if let Some(static_parameters) = generics.static_parameters.as_ref() {
         for parameter_id in static_parameters.iter() {
             let parameter = tree.get(*parameter_id);

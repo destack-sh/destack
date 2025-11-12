@@ -55,7 +55,11 @@ pub struct Dumper<'a> {
 
 impl<'a> Dumper<'a> {
     /// Create a new Dumper.
-    pub fn new(strings: &'a ImmutableStringPool, tree: &'a MutableNodeTree, options: DumperOptions) -> Self {
+    pub fn new(
+        strings: &'a ImmutableStringPool,
+        tree: &'a MutableNodeTree,
+        options: DumperOptions,
+    ) -> Self {
         Self {
             strings,
             tree,
@@ -1502,7 +1506,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         match parameter {
             Parameter::Named {
                 modifiers,
@@ -1541,7 +1550,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        argument: &Argument,
+    ) {
         match argument {
             Argument::UnevaluatedNamed {
                 modifiers,
@@ -1721,7 +1735,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, tree: &MutableNodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         match match_case {
             MatchCase::Expression {
                 pattern: _,

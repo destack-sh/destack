@@ -49,8 +49,8 @@ impl<'a> Transpiler<'a> {
         units
     }
 
-    /// Transpile the compiler's DIR into JS/TS/.. artifacts.
-    pub fn transpile(&'a self) {
+    /// Transpile the compiler's DIR into JS/TS artifacts.
+    pub fn transpile(&self) {
         // transpile each module into AST
         let mut units = Transpiler::make_units(self.options, &self.session.modules);
         for unit in units.iter_mut() {

@@ -1,9 +1,9 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, NodeId,
-    MutableNodeTree, NodeType, Parameter, Pattern, PatternField, Statement, SwitchCase, Type,
-    walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field,
+    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Statement, SwitchCase,
+    Type, walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
     walk_enum_field, walk_expression, walk_field, walk_parameter, walk_pattern, walk_pattern_field,
     walk_statement, walk_switch_case, walk_type,
 };
@@ -28,7 +28,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a statement.
-    fn visit_statement(&mut self, tree: &MutableNodeTree, id: NodeId<Statement>, statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Statement>,
+        statement: &Statement,
+    ) {
         walk_statement(self, tree, id, statement);
     }
 
@@ -68,7 +73,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit an enum field.
-    fn visit_enum_field(&mut self, tree: &MutableNodeTree, id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        field: &EnumField,
+    ) {
         walk_enum_field(self, tree, id, field);
     }
 
@@ -83,12 +93,22 @@ pub trait NodeVisitor {
     }
 
     /// Visit a parameter.
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
     }
 
     /// Visit an argument.
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        argument: &Argument,
+    ) {
         walk_argument(self, tree, id, argument);
     }
 
@@ -161,7 +181,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Block, id.id);
     }
 
-    fn visit_statement(&mut self, tree: &MutableNodeTree, id: NodeId<Statement>, _statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Statement>,
+        _statement: &Statement,
+    ) {
         self.visit_any(tree, NodeType::Statement, id.id);
     }
 
@@ -196,7 +221,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Field, id.id);
     }
 
-    fn visit_enum_field(&mut self, tree: &MutableNodeTree, id: NodeId<EnumField>, _field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        _field: &EnumField,
+    ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
     }
 
@@ -209,11 +239,21 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, _parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        _parameter: &Parameter,
+    ) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, _argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        _argument: &Argument,
+    ) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
 

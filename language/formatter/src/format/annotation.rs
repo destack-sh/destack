@@ -4,8 +4,8 @@ use dyst_fir::{format_args, write};
 
 use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_ast::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Node,
-    NodeId, MutableNodeTree, MutableNodeTreeImpl, NodeType, Tag,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeType, Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {

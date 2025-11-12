@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta,
-    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, NodeId, MutableNodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField, WhereClause,
-    WithClause,
+    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, MutableNodeTree, NodeId,
+    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField,
+    WhereClause, WithClause,
 };
 
 /// Walk any node.

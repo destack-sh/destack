@@ -589,7 +589,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_statement(&mut self, tree: &MutableNodeTree, id: NodeId<Statement>, statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Statement>,
+        statement: &Statement,
+    ) {
         match statement {
             Statement::Import {
                 kind,
@@ -953,7 +958,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, tree: &MutableNodeTree, id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        field: &EnumField,
+    ) {
         let has_value = field.value.is_some();
         self.node("EnumField", id.id)
             .field("name", &field.name)
@@ -980,7 +990,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, tree: &MutableNodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         match parameter {
             Parameter::Named {
                 modifiers,
@@ -1019,7 +1034,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(&mut self, tree: &MutableNodeTree, id: NodeId<Argument>, argument: &Argument) {
+    fn visit_argument(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Argument>,
+        argument: &Argument,
+    ) {
         match argument {
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", id.id).end();

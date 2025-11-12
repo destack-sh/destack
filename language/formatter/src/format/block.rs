@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Block, Expression, Node, NodeId, MutableNodeTree, MutableNodeTreeImpl, NodeType};
+use dyst_ast::{Block, Expression, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeType};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
