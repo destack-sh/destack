@@ -5,7 +5,7 @@ use crate::{Compiler, EvaluateResult};
 impl<'a> Compiler<'a> {
     /// Evaluate an Argument.
     pub fn evaluate_argument(&mut self, argument_id: NodeId<Argument>) -> EvaluateResult<()> {
-        let _argument = self.tree.get(argument_id);
+        let _argument = self.session.tree.get(argument_id);
         // todo!("evaluate_argument({argument:?})");
         Ok(())
     }

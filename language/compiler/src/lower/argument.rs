@@ -53,10 +53,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 let default = default.map(|default| self.lower_expression(module, default));
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Parameter::Named {
                         modifiers,
                         name,
@@ -78,7 +78,7 @@ impl<'a> Compiler<'a> {
                 let pattern = self.lower_pattern(module, *pattern);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 let default = default.map(|default| self.lower_expression(module, default));
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Parameter::Pattern {
                         modifiers,
                         pattern,
@@ -96,9 +96,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Parameter::Variadic {
                         modifiers,
                         name,
@@ -126,9 +126,12 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.strings.intern_from(&module.strings, name.string());
+                let name = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, name.string());
                 let value = self.lower_expression(module, *value);
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
                         modifiers,
                         name,
@@ -141,11 +144,11 @@ impl<'a> Compiler<'a> {
             ast::Argument::Shorthand { modifiers, name } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let path = Path::UnevaluatedAbsoluteString {
                     segments: smallvec![name],
                 };
-                let value = self.tree.insert_from_ast(
+                let value = self.session.tree.insert_from_ast(
                     Expression::Path {
                         path,
                         static_arguments: None,
@@ -153,7 +156,7 @@ impl<'a> Compiler<'a> {
                     module.id,
                     argument_id,
                 );
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Argument::UnevaluatedNamed {
                         modifiers,
                         name,
@@ -167,7 +170,7 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let value = self.lower_expression(module, *value);
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Argument::UnevaluatedPositional { modifiers, value },
                     module.id,
                     argument_id,
@@ -180,9 +183,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
+                let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
                 let value = self.lower_expression(module, *value);
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Argument::UnevaluatedSpread {
                         modifiers,
                         name,
@@ -200,10 +203,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
+                let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
                 let key = self.lower_expression(module, *key);
                 let value = self.lower_expression(module, *value);
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Argument::UnevaluatedDynamic {
                         modifiers,
                         name,

@@ -11,12 +11,13 @@ impl<'a> Compiler<'a> {
         expression_id: ast::NodeId<ast::Expression>,
     ) -> NodeId<Type> {
         let expression = self.lower_expression(module, expression_id);
-        let type_id = self.tree.insert_from_ast(
+        let type_id = self.session.tree.insert_from_ast(
             Type::UnevaluatedExpression(expression),
             module.id,
             expression_id,
         );
-        self.tree
+        self.session
+            .tree
             .alias_from_ast(module.id, expression_id.id, type_id);
         type_id
     }
@@ -32,7 +33,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an expression string into a DIR type literal.
     pub fn lower_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
-        let string = self.strings.get(string_id);
+        let string = self.session.strings.get(string_id);
 
         // NOTE: we map the string to an AST type literal first
         let ast_literal = match string {

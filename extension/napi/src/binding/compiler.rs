@@ -33,4 +33,3 @@ impl From<CompilerOptions> for dyst_compiler::CompilerOptions {
 pub fn default_compiler_options() -> CompilerOptions {
     CompilerOptions::default()
 }
-

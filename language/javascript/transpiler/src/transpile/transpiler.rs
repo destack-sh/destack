@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
-use dyst_compiler::Compiler;
 use dyst_dir as dir;
-use dyst_source::{
-    DiagnosticCollector, FileType, LanguageOptions, SmallVec, StringPool, Uri, smallvec,
-};
+use dyst_source::{FileType, LanguageOptions, SmallVec, Uri, smallvec};
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
 
@@ -92,20 +89,10 @@ pub enum TypeScriptVersion {
 /// A transpiler for a Dyst package containing related Dyst sources.
 #[derive(Debug)]
 pub struct Transpiler<'a> {
-    /// The language options.
-    pub language: LanguageOptions,
+    /// The session.
+    pub session: &'a dir::Session<'a>,
     /// The options for transpiling.
     pub options: TranspilerOptions,
-
-    /// The node tree of the compiled DIR.
-    pub tree: &'a dir::NodeTree,
-    /// The modules.
-    pub modules: &'a dir::ModuleRegistry,
-    /// The string pool.
-    pub strings: &'a StringPool,
-
-    /// The diagnostic collector.
-    pub diagnostics: DiagnosticCollector,
     /// The transpiled modules (from the source modules).
     pub units: HashMap<Uri, TranspilerUnit>,
     /// The transpiled artifacts (from those units).
@@ -114,18 +101,10 @@ pub struct Transpiler<'a> {
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
-    pub fn from_compiled(
-        compiler: &'a Compiler<'_>,
-        language: LanguageOptions,
-        options: TranspilerOptions,
-    ) -> Self {
+    pub fn new(session: &'a dir::Session<'a>, options: TranspilerOptions) -> Self {
         Self {
-            language,
+            session,
             options,
-            tree: &compiler.tree,
-            modules: &compiler.modules,
-            strings: &compiler.strings,
-            diagnostics: DiagnosticCollector::new(),
             units: HashMap::new(),
             artifacts: HashMap::new(),
         }

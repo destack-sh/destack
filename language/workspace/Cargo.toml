@@ -1,0 +1,28 @@
+[package]
+name = "dyst_workspace"
+description = "Dyst Workspace"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_ast = { workspace = true }
+dyst_compiler = { workspace = true }
+dyst_dir = { workspace = true }
+dyst_fir = { workspace = true }
+dyst_javascript_transpiler = { workspace = true }
+dyst_mir = { workspace = true }
+dyst_parser = { workspace = true }
+dyst_source = { workspace = true }
+dyst_unicode = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Rest { name } => Pattern::Rest {
-                name: name.map(|name| self.strings.intern_from(&module.strings, name)),
+                name: name.map(|name| self.session.strings.intern_from(&module.strings, name)),
             },
             ast::Pattern::Maybe(pattern_id) => {
                 Pattern::Maybe(self.lower_pattern(module, *pattern_id))
@@ -77,7 +77,7 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(module, pattern));
                 Pattern::Binding {
                     mutability,
@@ -135,7 +135,9 @@ impl<'a> Compiler<'a> {
                 Pattern::Union { patterns }
             }
         };
-        self.tree.insert_from_ast(pattern, module.id, pattern_id)
+        self.session
+            .tree
+            .insert_from_ast(pattern, module.id, pattern_id)
     }
 
     /// Lower a pattern field to a DIR pattern field.
@@ -155,7 +157,10 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.strings.intern_from(&module.strings, name.string());
+                let name = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, name.string());
                 let pattern = pattern.map(|pattern| self.lower_pattern(module, pattern));
                 let default = default.map(|default| self.lower_expression(module, default));
                 PatternField::Named {
@@ -174,8 +179,11 @@ impl<'a> Compiler<'a> {
                 let mutability = mutability
                     .as_ref()
                     .map(|mutability| self.lower_scoped_mutability(module, mutability));
-                let name = self.strings.intern_from(&module.strings, name.string());
-                let alias = self.strings.intern_from(&module.strings, *alias);
+                let name = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, name.string());
+                let alias = self.session.strings.intern_from(&module.strings, *alias);
                 let default = default.map(|default| self.lower_expression(module, default));
                 PatternField::Alias {
                     mutability,
@@ -191,7 +199,8 @@ impl<'a> Compiler<'a> {
                 PatternField::Positional { pattern }
             }
         };
-        self.tree
+        self.session
+            .tree
             .insert_from_ast(pattern_field, module.id, pattern_field_id)
     }
 }

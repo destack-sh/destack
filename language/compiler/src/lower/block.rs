@@ -7,7 +7,7 @@ use crate::Compiler;
 impl<'a> Compiler<'a> {
     /// Lower a label to a DIR block target.
     pub fn lower_label(&mut self, module: &Module, label: StringId) -> BlockTarget {
-        let label = self.strings.intern_from(&module.strings, label);
+        let label = self.session.strings.intern_from(&module.strings, label);
         BlockTarget::UnevaluatedString { label }
     }
 
@@ -20,13 +20,14 @@ impl<'a> Compiler<'a> {
         let block = module.get(block_id);
         let label = block
             .label
-            .map(|label| self.strings.intern_from(&module.strings, label));
+            .map(|label| self.session.strings.intern_from(&module.strings, label));
         let expressions = block
             .expressions
             .iter()
             .map(|expression| self.lower_expression(module, *expression))
             .collect();
-        self.tree
+        self.session
+            .tree
             .insert_from_ast(Block { label, expressions }, module.id, block_id)
     }
 }

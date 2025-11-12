@@ -20,7 +20,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = self.strings.intern_from(&module.strings, name.string());
+                let name = self
+                    .session
+                    .strings
+                    .intern_from(&module.strings, name.string());
                 let ty = self.lower_expression_to_type(module, *ty);
                 let default = default.map(|default| self.lower_expression(module, default));
                 Field::Named {
@@ -54,7 +57,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.strings.intern_from(&module.strings, name));
+                let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
                 let ty = self.lower_expression_to_type(module, *ty);
                 let key = self.lower_expression_to_type(module, *key);
                 let default = default.map(|default| self.lower_expression(module, default));
@@ -68,7 +71,9 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        self.tree.insert_from_ast(field, module.id, field_id)
+        self.session
+            .tree
+            .insert_from_ast(field, module.id, field_id)
     }
 
     /// Lower an AST struct to a DIR variant.
@@ -99,7 +104,9 @@ impl<'a> Compiler<'a> {
                 value: None,
             },
         };
-        self.tree.insert_from_ast(variant, module.id, definition_id)
+        self.session
+            .tree
+            .insert_from_ast(variant, module.id, definition_id)
     }
 
     /// Lower an AST enum to a DIR variant.
@@ -126,12 +133,13 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Variant> {
         let field = module.get(field_id);
         let name = self
+            .session
             .strings
             .intern_from(&module.strings, field.name.string());
         let value = field
             .value
             .map(|value| self.lower_expression(module, value));
-        self.tree.insert_from_ast(
+        self.session.tree.insert_from_ast(
             Variant::Unit {
                 name: Some(name),
                 ty: representation_type,
@@ -172,7 +180,7 @@ impl<'a> Compiler<'a> {
         let field = module.get(field_id);
         let variant = match field {
             ast::UnionField::Unit { name, value } => {
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let value = value.map(|value| self.lower_expression(module, value));
                 Variant::Unit {
                     name: Some(name),
@@ -185,7 +193,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_field(module, *field))
@@ -203,7 +211,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 value,
             } => {
-                let name = self.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.strings, *name);
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_field(module, *field))
@@ -217,6 +225,8 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.tree.insert_from_ast(variant, module.id, field_id)
+        self.session
+            .tree
+            .insert_from_ast(variant, module.id, field_id)
     }
 }

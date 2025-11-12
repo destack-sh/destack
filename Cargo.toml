@@ -17,6 +17,7 @@ members = [
 	"language/source",
 	"language/test",
 	"language/unicode",
+	"language/workspace",
 	# extension
 	"extension/cli",
 	"extension/lsp",
@@ -48,6 +49,7 @@ dyst_parser = { path = "language/parser" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
 dyst_unicode = { path = "language/unicode" }
+dyst_workspace = { path = "language/workspace" }
 
 # extension
 destack_cli = { path = "extension/cli" }

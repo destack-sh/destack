@@ -232,16 +232,16 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let (file_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let file_id = file_id.0.0;
+            let (module_id, source_ast_id) = self.dumper.tree.get_source(node_id);
+            let module_id = module_id.0;
             if let Some(source_ast_id) = source_ast_id {
                 self.dumper.write_str(
-                    format!(" :{node_id} [{file_id:?}/{source_ast_id}]").as_str(),
+                    format!(" :{node_id} [{module_id:?}/{source_ast_id}]").as_str(),
                     Some(Color::White),
                 );
             } else {
                 self.dumper.write_str(
-                    format!(" :{node_id} [{file_id:?}]").as_str(),
+                    format!(" :{node_id} [{module_id:?}]").as_str(),
                     Some(Color::White),
                 );
             }

@@ -44,7 +44,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         let mut dumper = Dumper::new(&compiler.strings, &compiler.tree, dump_options);
         for module in compiler.modules.iter() {
             console::info("=".repeat(80).as_str());
-            console::info(module.file.uri.to_string().as_str());
+            console::info(module.uri.to_string().as_str());
             console::info("=".repeat(80).as_str());
             for expression_id in &module.expressions {
                 let expression = compiler.tree.get(*expression_id);

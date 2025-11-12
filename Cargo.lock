@@ -3040,6 +3040,21 @@ name = "dyst_unicode"
 version = "2025.11.5-0"
 
 [[package]]
+name = "dyst_workspace"
+version = "2025.11.5-0"
+dependencies = [
+ "dyst_ast",
+ "dyst_compiler",
+ "dyst_dir",
+ "dyst_fir",
+ "dyst_javascript_transpiler",
+ "dyst_mir",
+ "dyst_parser",
+ "dyst_source",
+ "dyst_unicode",
+]
+
+[[package]]
 name = "ecb"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

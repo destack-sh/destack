@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 
-use dyst_source::{File, FileId};
+use dyst_source::FileId;
 
 use crate::{Module, ModuleId};
 
-/// A graph of Modules (including their underlying Files).
+/// Graph of Modules (including their underlying Files).
 #[derive(Debug, Clone)]
 pub struct ModuleRegistry {
     /// The modules by id.
     modules_by_id: HashMap<ModuleId, Module>,
+    /// The modules by file id.
+    modules_by_file_id: HashMap<FileId, ModuleId>,
+    /// The next module id.
+    next_module_id: u32 = 0,
 }
 
 impl Default for ModuleRegistry {
@@ -22,11 +26,21 @@ impl ModuleRegistry {
     pub fn new() -> Self {
         Self {
             modules_by_id: HashMap::new(),
+            modules_by_file_id: HashMap::new(),
+            next_module_id: 0,
         }
+    }
+
+    /// Get and increment the next module id.
+    pub fn next_id(&mut self) -> ModuleId {
+        let id = ModuleId::new(self.next_module_id);
+        self.next_module_id += 1;
+        id
     }
 
     /// Insert a module into the graph.
     pub fn insert(&mut self, module: Module) {
+        self.modules_by_file_id.insert(module.file_id, module.id);
         self.modules_by_id.insert(module.id, module);
     }
 
@@ -44,18 +58,8 @@ impl ModuleRegistry {
     /// Get a module by file id.
     #[inline]
     pub fn get_by_file_id(&self, file_id: FileId) -> Option<&Module> {
-        self.modules_by_id.get(&ModuleId::new(file_id))
-    }
-
-    /// Get a file by module id.
-    #[inline]
-    pub fn get_file(&self, id: ModuleId) -> Option<&File> {
-        self.get(id).map(|module| &module.file)
-    }
-
-    /// Get a file by file id.
-    #[inline]
-    pub fn get_file_by_file_id(&self, file_id: FileId) -> Option<&File> {
-        self.get_by_file_id(file_id).map(|module| &module.file)
+        self.modules_by_file_id
+            .get(&file_id)
+            .and_then(|id| self.modules_by_id.get(id))
     }
 }

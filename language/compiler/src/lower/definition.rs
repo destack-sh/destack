@@ -30,7 +30,8 @@ impl<'a> Compiler<'a> {
             _ => None,
         };
         if let Some(definition) = definition {
-            self.tree
+            self.session
+                .tree
                 .alias_from_ast(module.id, expression_id.id, definition);
         }
         definition
@@ -72,7 +73,9 @@ impl<'a> Compiler<'a> {
                     right,
                 } => {
                     let right = self.lower_expression_to_type(module, *right);
-                    self.tree.alias_from_ast(module.id, expression_id.id, right);
+                    self.session
+                        .tree
+                        .alias_from_ast(module.id, expression_id.id, right);
                     Some(EmbeddedDefinition::Include { ty: right })
                 }
                 _ => None,
@@ -88,9 +91,11 @@ impl<'a> Compiler<'a> {
         meta: &ast::DefinitionMeta,
     ) -> DefinitionMeta {
         let kind = self.lower_declaration_kind(meta.kind);
-        let name = meta
-            .name
-            .map(|name| self.strings.intern_from(&module.strings, name.string()));
+        let name = meta.name.map(|name| {
+            self.session
+                .strings
+                .intern_from(&module.strings, name.string())
+        });
         let visibility = meta
             .visibility
             .map(|visibility| self.lower_visibility(visibility));
@@ -223,7 +228,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Namespace {
                         meta,
                         generics,
@@ -282,7 +287,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Struct {
                         meta,
                         kind,
@@ -330,7 +335,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Enum {
                         meta,
                         generics,
@@ -387,7 +392,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Union {
                         meta,
                         generics,
@@ -432,7 +437,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Interface {
                         meta,
                         generics,
@@ -483,7 +488,7 @@ impl<'a> Compiler<'a> {
                 let body = body
                     .as_ref()
                     .map(|body| self.lower_expression(module, *body));
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Function {
                         meta,
                         generics,
@@ -526,7 +531,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
-                self.tree.insert_from_ast(
+                self.session.tree.insert_from_ast(
                     Definition::Extension {
                         meta,
                         generics,

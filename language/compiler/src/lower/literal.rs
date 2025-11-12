@@ -19,12 +19,13 @@ impl<'a> Compiler<'a> {
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
             ast::ScalarLiteral::Character(character) => ScalarLiteral::Character(*character),
             ast::ScalarLiteral::String(string) => {
-                let string = self.strings.intern_from(&module.strings, *string);
+                let string = self.session.strings.intern_from(&module.strings, *string);
                 ScalarLiteral::String(string)
             }
             ast::ScalarLiteral::RegexString { content, flags } => {
-                let content = self.strings.intern_from(&module.strings, *content);
-                let flags = flags.map(|flag| self.strings.intern_from(&module.strings, flag));
+                let content = self.session.strings.intern_from(&module.strings, *content);
+                let flags =
+                    flags.map(|flag| self.session.strings.intern_from(&module.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
             ast::ScalarLiteral::ByteString(byte_string) => {

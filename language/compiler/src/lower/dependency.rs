@@ -39,7 +39,7 @@ impl<'a> Compiler<'a> {
         items: Option<&[ast::NodeId<ast::DependencyItem>]>,
     ) -> Vec<NodeId<DependencyItem>> {
         let kind = self.lower_dependency_kind(kind);
-        let alias = alias.map(|alias| self.strings.intern_from(&module.strings, alias));
+        let alias = alias.map(|alias| self.session.strings.intern_from(&module.strings, alias));
 
         let mut items = if let Some(items) = items {
             items
@@ -51,18 +51,20 @@ impl<'a> Compiler<'a> {
                         .map(|kind| self.lower_dependency_kind(kind))
                         .unwrap_or(kind);
                     let name = self
+                        .session
                         .strings
                         .intern_from(&module.strings, dependency_item.name);
                     let alias = dependency_item
                         .alias
-                        .map(|alias| self.strings.intern_from(&module.strings, alias));
+                        .map(|alias| self.session.strings.intern_from(&module.strings, alias));
                     let dependency_item = DependencyItem::Named {
                         kind,
                         target,
                         name,
                         alias,
                     };
-                    self.tree
+                    self.session
+                        .tree
                         .insert_from_ast(dependency_item, module.id, origin_id)
                 })
                 .collect()
@@ -78,16 +80,18 @@ impl<'a> Compiler<'a> {
                     alias,
                 };
 
-                items.push(
-                    self.tree
-                        .insert_from_ast(dependency_item, module.id, origin_id),
-                );
+                items.push(self.session.tree.insert_from_ast(
+                    dependency_item,
+                    module.id,
+                    origin_id,
+                ));
             } else if items.is_empty() {
                 let dependency_item = DependencyItem::SideEffect { kind, target };
-                items.push(
-                    self.tree
-                        .insert_from_ast(dependency_item, module.id, origin_id),
-                );
+                items.push(self.session.tree.insert_from_ast(
+                    dependency_item,
+                    module.id,
+                    origin_id,
+                ));
             }
         }
 

@@ -25,18 +25,19 @@ impl<'a> Compiler<'a> {
 
         // parse
         let mut diagnostics = DiagnosticCollector::new();
-        let mut parser = Parser::lex_file(&file, self.language, &mut diagnostics);
+        let mut parser = Parser::lex_file(&file, self.session.language, &mut diagnostics);
         let expressions = parser.parse();
-        self.diagnostics.merge_from(parser.diagnostics);
+        self.session.diagnostics.merge_from(parser.diagnostics);
 
         // lower & insert
         let (tree, strings) = (parser.tree, parser.strings);
-        let mut module = Module::from_file(file, tree, strings);
+        let module_id = self.session.modules.next_id();
+        let mut module = Module::from_file(module_id, file.id, file.uri, tree, strings);
         let expressions: Vec<_> = expressions
             .into_iter()
             .map(|id| self.lower_expression(&module, id))
             .collect();
         module.expressions.extend(expressions);
-        self.modules.insert(module);
+        self.session.modules.insert(module);
     }
 }

@@ -17,7 +17,7 @@ impl<'a> Transpiler<'a> {
             TranspilerMode::Retained => {
                 for (idx, module) in modules.iter().enumerate() {
                     let unit_id = TranspilerUnitId::new(idx as u32);
-                    let uri = module.file.uri.without_extension();
+                    let uri = module.uri.without_extension();
                     let unit = TranspilerUnit {
                         id: unit_id,
                         uri,
@@ -52,10 +52,11 @@ impl<'a> Transpiler<'a> {
     /// Transpile the compiler's DIR into JS/TS/.. artifacts.
     pub fn transpile(&mut self) {
         // transpile each module into AST
-        let mut units = Transpiler::make_units(self.options, self.modules);
+        let mut units = Transpiler::make_units(self.options, &self.session.modules);
         for unit in units.iter_mut() {
             for source_module_id in unit.sources.clone() {
                 let source_module = self
+                    .session
                     .modules
                     .get(source_module_id)
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));

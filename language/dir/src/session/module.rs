@@ -1,25 +1,19 @@
 use std::collections::HashMap;
 
 use dyst_ast::{self as ast, StringId, StringPool};
-use dyst_source::{File, FileId};
+use dyst_source::{FileId, Uri};
 
 use crate::{DependencyItem, Expression, NodeId};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleId(pub FileId);
+pub struct ModuleId(pub u32);
 
 impl ModuleId {
     /// Wrap an id as a ModuleId.
-    pub fn new(file_id: FileId) -> Self {
-        Self(file_id)
-    }
-}
-
-impl From<FileId> for ModuleId {
-    fn from(file_id: FileId) -> Self {
-        Self::new(file_id)
+    pub fn new(id: u32) -> Self {
+        Self(id)
     }
 }
 
@@ -40,7 +34,9 @@ pub struct Module {
     /// The kind of the Module.
     pub kind: ModuleKind,
     /// The underlying source File.
-    pub file: File,
+    pub file_id: FileId,
+    /// The URI of the Module.
+    pub uri: Uri,
 
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
@@ -59,12 +55,19 @@ pub struct Module {
 
 impl Module {
     /// Create a new Module from a file and expressions.
-    pub fn from_file(file: File, ast: ast::NodeTree, strings: StringPool) -> Self {
+    pub fn from_file(
+        id: ModuleId,
+        file_id: FileId,
+        uri: Uri,
+        ast: ast::NodeTree,
+        strings: StringPool,
+    ) -> Self {
         let parents = ast::NodeParentIndex::from_tree(&ast);
         Self {
-            id: ModuleId::new(file.id),
+            id,
             kind: ModuleKind::Script,
-            file,
+            file_id,
+            uri,
             ast,
             parents,
             strings,
