@@ -84,8 +84,8 @@ impl<'a> Compiler<'a> {
                 variance,
                 right,
             } => {
-                let mutability = mutability.clone();
-                let variance = variance.clone();
+                let mutability = *mutability;
+                let variance = *variance;
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::ValueOf {
                     mutability,
@@ -99,8 +99,8 @@ impl<'a> Compiler<'a> {
                 variance,
                 right,
             } => {
-                let mutability = mutability.clone();
-                let variance = variance.clone();
+                let mutability = *mutability;
+                let variance = *variance;
                 let type_id = self.try_evaluate_expression_to_type(*right)?;
                 Type::ReferenceOf {
                     mutability,

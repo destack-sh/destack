@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::{Keyword, Path};
+use crate::Keyword;
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -180,49 +180,6 @@ impl Mutability {
         match self {
             Mutability::Immutable => Keyword::Const,
             Mutability::Mutable => Keyword::Var,
-        }
-    }
-}
-
-/// Scoped Mutability is a mutability that is scoped to a specific pattern.
-///
-/// Examples:
-/// ```
-/// var(x, y)
-/// const(session.source)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum ScopedMutability {
-    /// Unscoped mutability (like just `var` or `const`)
-    Unscoped {
-        /// The mutability of the scoped mutability.
-        mutability: Mutability,
-    },
-    /// Scoped mutability (like `var(x, y)` or `const(session.source)`)
-    Scoped {
-        /// The mutability of the scoped mutability.
-        mutability: Mutability,
-        /// The scopes of the scoped mutability.
-        scopes: Vec<Path>,
-    },
-}
-
-impl ScopedMutability {
-    /// Whether the mutability is mutable.
-    #[inline]
-    pub fn is_mutable(&self) -> bool {
-        match self {
-            ScopedMutability::Unscoped { mutability } => *mutability == Mutability::Mutable,
-            ScopedMutability::Scoped { mutability, .. } => *mutability == Mutability::Mutable,
-        }
-    }
-
-    /// Whether the mutability is immutable.
-    #[inline]
-    pub fn is_immutable(&self) -> bool {
-        match self {
-            ScopedMutability::Unscoped { mutability } => *mutability == Mutability::Immutable,
-            ScopedMutability::Scoped { mutability, .. } => *mutability == Mutability::Immutable,
         }
     }
 }

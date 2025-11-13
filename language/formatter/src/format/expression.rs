@@ -10,7 +10,6 @@ use dyst_source::{SmallVec, StringId, smallvec};
 use crate::argument::list_like;
 use crate::block::format_block;
 use crate::dependency::format_dependency_binding;
-use crate::r#let::FormatScopedMutability;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 
@@ -1057,7 +1056,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                         write!(f, [visibility, space()])?;
                     }
                     // keyword
-                    if mutability.is_immutable() {
+                    if *mutability == Mutability::Immutable {
                         write!(f, [Keyword::Const])?;
                     } else {
                         write!(f, [Keyword::Let])?;
@@ -1533,10 +1532,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             } => {
                 write!(f, [token("^")])?;
                 if let Some(mutability) = mutability {
-                    write!(
-                        f,
-                        [FormatScopedMutability::implicit_const(mutability.clone())]
-                    )?;
+                    write!(f, [*mutability])?;
                 }
                 if let Some(variance) = variance {
                     write!(f, [variance.to_keyword(), space()])?;
@@ -1552,10 +1548,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             } => {
                 write!(f, [token("&")])?;
                 if let Some(mutability) = mutability {
-                    write!(
-                        f,
-                        [FormatScopedMutability::implicit_const(mutability.clone())]
-                    )?;
+                    write!(f, [*mutability])?;
                 }
                 if let Some(variance) = variance {
                     write!(f, [variance.to_keyword(), space()])?;

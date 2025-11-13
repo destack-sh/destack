@@ -81,15 +81,6 @@ mod tests {
     }
 
     #[test]
-    fn test_format_function_with_mutable_self_reference() {
-        assert_format!(
-            "function mutate(&var(x, y) self) {}",
-            "function mutate(&var(x, y) self) { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
-        );
-    }
-
-    #[test]
     fn test_format_function_with_with_clause_overflow() {
         assert_format!(
             "function foo() with Time, Place, Something, Foo, Baz {}",

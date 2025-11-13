@@ -1,6 +1,6 @@
 use crate::{
     Asynchrony, ExportType, Expression, Field, Generics, Node, NodeId, NodeType, Parameter,
-    ReferenceType, ScopedMutability, StringId, Type, Variant, Visibility,
+    StringId, Type, Variant, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -256,17 +256,6 @@ pub enum FunctionAbstraction {
     Concrete,
 }
 
-/// The "self" parameter for a function (also accepts `this` and `&`).
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelfParameter {
-    /// The mutability of the "self" parameter.
-    pub mutability: ScopedMutability,
-    /// The reference type of the "self" parameter.
-    pub reference_type: Option<ReferenceType>,
-    /// The type of the "self" parameter.
-    pub ty: Option<NodeId<Type>>,
-}
-
 /// The style of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionKind {
@@ -289,8 +278,6 @@ pub struct FunctionSignature {
     pub mode: Option<FunctionMode>,
     /// The kind of the function.
     pub kind: FunctionKind,
-    /// The "self" parameter of the function.
-    pub self_parameter: Option<SelfParameter>,
     /// The dynamic parameters of the function.
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.

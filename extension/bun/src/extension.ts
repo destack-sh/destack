@@ -9,28 +9,17 @@ import {
 import type { BunPlugin, PluginBuilder } from "bun";
 
 // nocheckin: bun plugin
-class Transpiler {
-    constructor(private readonly options: TranspilerOptions) {
-        this.options = options;
-    }
-
-    transpile() {}
-
-    getTranspiled(path: string, language: TranspilerLanguage): string | null {
-        return null;
-    }
-}
 
 /// Destack & Dyst Bun plugin.
 export const destackPlugin: BunPlugin = {
     name: "destack",
     setup(build: PluginBuilder) {
         console.debug("setup");
-        
-        // prepare the transpiler
-        let transpiler = new Transpiler({
-            ...defaultTranspilerOptions(),
-            target: TranspilerTarget.TypeScript,
+
+        // prepare the session
+        let session = new Session({
+            options: LanguageOptions.default(),
+            files: [],
         });
 
         // re-transpile everything on start

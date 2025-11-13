@@ -549,7 +549,7 @@ impl<'a> Parser<'a> {
             // value (`^` or `^var` or `^T`)
             else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
                 self.bump(); // eat ^
-                let mutability = self.eat_scoped_mutability_maybe()?;
+                let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
                 let right = self.eat_expression()?;
                 let expression = Expression::ValueOf {
@@ -562,7 +562,7 @@ impl<'a> Parser<'a> {
             // reference (`&` or `&var` or `&T`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
                 self.bump(); // eat &
-                let mutability = self.eat_scoped_mutability_maybe()?;
+                let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
                 let right = self.eat_expression()?;
                 let expression = Expression::ReferenceOf {
@@ -1210,8 +1210,8 @@ mod tests {
         Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
         DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
         IntType, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
-        ScalarLiteral, ScopedMutability, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
-        UnaryOperator, VarianceBound, WithClause,
+        ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+        VarianceBound, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -2180,7 +2180,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::ReferenceOf { mutability: Some(ScopedMutability::Unscoped { mutability: Mutability::Mutable }), right, .. } => {
+            Expression::ReferenceOf { mutability: Some(Mutability::Mutable), right, .. } => {
                 // self.foo()
                 assert_node!(
                     parser.tree,
@@ -2207,7 +2207,7 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance, right, .. } => {
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(*variance, Some(VarianceBound::Super));
             assert_expr_path!(parser, parser.tree.get(*right), "T");
         });
@@ -2220,7 +2220,7 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::ValueOf { mutability, variance, right, .. } => {
-            assert_eq!(*mutability, Some(ScopedMutability::Unscoped { mutability: Mutability::Mutable }));
+            assert_eq!(*mutability, Some(Mutability::Mutable));
             assert_eq!(*variance, Some(VarianceBound::Super));
             assert_expr_path!(parser, parser.tree.get(*right), "T");
         });
@@ -2269,7 +2269,7 @@ const x =
             parser.tree,
             expr_id,
             Expression::Let { mutability, pattern, value, .. } => {
-                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+                assert_eq!(*mutability, Mutability::Immutable);
                 // x
                 assert_node!(
                     parser.tree,
@@ -2815,7 +2815,7 @@ const value =
         let expr_id = parser.eat_expression().unwrap();
         // const value = | 1 | 2 | 3
         assert_node!(parser.tree, expr_id, Expression::Let { mutability, meta: DefinitionMeta { name: _, .. }, value, .. } => {
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
             // | 1 | 2 | 3
             assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);

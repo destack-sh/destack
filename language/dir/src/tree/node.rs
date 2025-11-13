@@ -1,8 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::Path;
-
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NodeType {
@@ -156,21 +154,4 @@ pub enum Mutability {
     Immutable,
     /// May be modified (incl. inner if they are also mutable).
     Mutable,
-}
-
-/// Scoped Mutability is a mutability that is scoped to a specific pattern.
-#[derive(Debug, Clone, PartialEq)]
-pub enum ScopedMutability {
-    /// Unscoped mutability (like just `var` or `const`)
-    Unscoped {
-        /// The mutability of the scoped mutability.
-        mutability: Mutability,
-    },
-    /// Scoped mutability (like `var(x, y)` or `const(session.source)`)
-    Scoped {
-        /// The mutability of the scoped mutability.
-        mutability: Mutability,
-        /// The scopes of the scoped mutability.
-        scopes: Vec<Path>,
-    },
 }

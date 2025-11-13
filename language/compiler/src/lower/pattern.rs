@@ -1,8 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{
-    Module, Mutability, NodeId, Pattern, PatternField, ReferenceType, ScopedMutability,
-};
+use dyst_dir::{Module, Mutability, NodeId, Pattern, PatternField, ReferenceType};
 
 impl<'a> Compiler<'a> {
     /// Lower reference type into a DIR reference type.
@@ -20,27 +18,6 @@ impl<'a> Compiler<'a> {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
-        }
-    }
-
-    /// Lower scoped mutability into a DIR scoped mutability.
-    #[inline]
-    pub fn lower_scoped_mutability(
-        &mut self,
-        module: &Module,
-        scoped_mutability: &ast::ScopedMutability,
-    ) -> ScopedMutability {
-        match scoped_mutability {
-            ast::ScopedMutability::Unscoped { mutability } => ScopedMutability::Unscoped {
-                mutability: self.lower_mutability(*mutability),
-            },
-            ast::ScopedMutability::Scoped { mutability, scopes } => ScopedMutability::Scoped {
-                mutability: self.lower_mutability(*mutability),
-                scopes: scopes
-                    .iter()
-                    .map(|scope| self.lower_path(module, scope))
-                    .collect(),
-            },
         }
     }
 
@@ -63,9 +40,7 @@ impl<'a> Compiler<'a> {
                 mutability,
                 right: right_id,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let right = self.lower_pattern(module, *right_id);
                 Pattern::Reference { mutability, right }
             }
@@ -74,9 +49,7 @@ impl<'a> Compiler<'a> {
                 name,
                 pattern,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = self.session.strings.intern_from(&module.strings, *name);
                 let pattern = pattern.map(|pattern| self.lower_pattern(module, pattern));
                 Pattern::Binding {
@@ -154,9 +127,7 @@ impl<'a> Compiler<'a> {
                 pattern,
                 default,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = self
                     .session
                     .strings
@@ -176,9 +147,7 @@ impl<'a> Compiler<'a> {
                 alias,
                 default,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = self
                     .session
                     .strings

@@ -292,6 +292,13 @@ impl<T: Dump> Dump for Option<T> {
     }
 }
 
+/// Dump a Box<T> as a string.
+impl<T: Dump> Dump for Box<T> {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        self.as_ref().dump(dumper)
+    }
+}
+
 /// Dump a Vec<T> as a slice.
 impl<T: Dump> Dump for Vec<T> {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -432,25 +439,6 @@ impl Dump for BindingModifier {
             .end();
     }
 }
-impl Dump for ScopedMutability {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            ScopedMutability::Scoped { mutability, scopes } => {
-                dumper
-                    .object("ScopedMutability::Scoped")
-                    .field("mutability", mutability)
-                    .field("scopes", scopes)
-                    .end();
-            }
-            ScopedMutability::Unscoped { mutability } => {
-                dumper
-                    .object("ScopedMutability::Unscoped")
-                    .field("mutability", mutability)
-                    .end();
-            }
-        }
-    }
-}
 
 /// Dump an ArgumentSlot as a string.
 impl Dump for ArgumentSlot {
@@ -463,17 +451,6 @@ impl Dump for ArgumentSlot {
                 dumper.object("ArgumentSlot::Field").end();
             }
         }
-    }
-}
-
-/// Dump a SelfParameter as a string.
-impl Dump for SelfParameter {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("SelfParameter")
-            .field("mutability", &self.mutability)
-            .field("reference_type", &self.reference_type)
-            .end();
     }
 }
 
@@ -506,7 +483,6 @@ impl Dump for FunctionSignature {
             .field("cardinality", &self.cardinality)
             .field_optional("kind", &self.mode)
             .field("style", &self.kind)
-            .field_optional("self_parameter", &self.self_parameter)
             .end();
     }
 }
@@ -1331,8 +1307,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Tuple(_) => {
                 self.node("Type::Tuple", id.id).end();
             }
+            Type::Union(_) => {
+                self.node("Type::Union", id.id).end();
+            }
             Type::Intersection(_) => {
                 self.node("Type::Intersection", id.id).end();
+            }
+            Type::Function { signature } => {
+                self.node("Type::Function", id.id).value(signature).end();
             }
 
             Type::UnevaluatedExpression(_) => {

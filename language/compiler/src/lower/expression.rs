@@ -180,7 +180,7 @@ impl<'a> Compiler<'a> {
                 ty,
                 value,
             } => {
-                let mutability = self.lower_scoped_mutability(module, mutability);
+                let mutability = self.lower_mutability(*mutability);
                 let pattern = self.lower_pattern(module, *pattern);
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
                 let value = value.map(|value| self.lower_expression(module, value));
@@ -201,9 +201,7 @@ impl<'a> Compiler<'a> {
                     &module.strings,
                     meta.name.expect("LetType must have a name").string(),
                 );
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_mutability(*mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
@@ -236,9 +234,7 @@ impl<'a> Compiler<'a> {
                 variance,
                 right,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
                 let right = self.lower_expression(module, *right);
                 Expression::ValueOf {
@@ -252,9 +248,7 @@ impl<'a> Compiler<'a> {
                 variance,
                 right,
             } => {
-                let mutability = mutability
-                    .as_ref()
-                    .map(|mutability| self.lower_scoped_mutability(module, mutability));
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let variance = variance.map(|variance| self.lower_variance_bound(variance));
                 let right = self.lower_expression(module, *right);
                 Expression::ReferenceOf {

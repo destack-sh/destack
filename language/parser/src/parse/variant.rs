@@ -351,32 +351,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Definition, Name, TypeLiteral, Visibility};
+    use dyst_ast::{Name, TypeLiteral, Visibility};
     use dyst_source::{LanguageCompatibility, LanguageOptions};
 
     use crate::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::{assert_node, assert_string};
 
     use super::*;
-
-    #[test]
-    fn test_parse_field_with_implicit_self_function() {
-        let mut test = TestParser::new(r#"onconnect: (this: Client) => void"#);
-        let mut parser = test.prepare();
-
-        let field = parser.eat_field().unwrap();
-        assert_node!(parser.tree, field, Field::Named { modifiers: None, name: Name::Identifier(name), ty, default: None, .. } => {
-            assert_string!(parser, *name, "onconnect");
-            // (this: Client) => void;
-            assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), return_type, .. } => {
-                    assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
-                    // void
-                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
-                });
-            });
-        });
-    }
 
     #[test]
     fn test_parse_field_with_es_visibility_modifier() {
