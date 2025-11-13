@@ -1,4 +1,4 @@
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 use dyst_ast::{Expression, Keyword, NodeId};
 
 impl<'a> Parser<'a> {
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_try(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_try(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
 

@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserError, ParserMark, ParserResult};
+use crate::{Parser, ParseError, ParserMark, ParseResult};
 
 use dyst_ast::{
     Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationKind, DefinitionMeta,
@@ -102,7 +102,7 @@ fn to_infix_operator(
     next_token: &TokenSpan,
     next_next_token: &TokenSpan,
     options: ParserOptions,
-) -> ParserResult<(InfixOperator, u8)> {
+) -> ParseResult<(InfixOperator, u8)> {
     // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
     if !options.in_static
         && !options.in_tree_literal
@@ -143,71 +143,71 @@ fn to_infix_operator(
     }
     // unexpected
     else {
-        Err(ParserError::unexpected(token.span))
+        Err(ParseError::unexpected(token.span))
     }
 }
 
 impl<'a> Parser<'a> {
     /// Peek a unary prefix operator.
     #[inline]
-    pub fn peek_unary_prefix_operator(&self) -> ParserResult<UnaryOperator> {
+    pub fn peek_unary_prefix_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek a unary postfix operator.
     #[inline]
-    pub fn peek_unary_postfix_operator(&self) -> ParserResult<UnaryOperator> {
+    pub fn peek_unary_postfix_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek a type unary operator.
     #[inline]
-    pub fn peek_type_unary_prefix_operator(&self) -> ParserResult<TypeUnaryOperator> {
+    pub fn peek_type_unary_prefix_operator(&self) -> ParseResult<TypeUnaryOperator> {
         let token = self.peek()?;
         let token_str = self.get_span_str(token.span);
         TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParserError::unexpected(token.span))
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek a type unary postfix operator.
     #[inline]
-    pub fn peek_type_unary_postfix_operator(&self) -> ParserResult<TypeUnaryOperator> {
+    pub fn peek_type_unary_postfix_operator(&self) -> ParseResult<TypeUnaryOperator> {
         let token = self.peek()?;
         let next_token = self.peek_next()?;
         let token_str = self.get_span_str(token.span);
         let next_token_str = self.get_span_str(next_token.span);
         TypeUnaryOperator::from_postfix_token(token_str, next_token_str, token.token.ty)
-            .ok_or(ParserError::unexpected(token.span))
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek a next type unary operator.
     #[inline]
-    pub fn peek_next_type_unary_operator(&self) -> ParserResult<TypeUnaryOperator> {
+    pub fn peek_next_type_unary_operator(&self) -> ParseResult<TypeUnaryOperator> {
         let token = self.peek_next()?;
         let token_str = self.get_span_str(token.span);
         TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParserError::unexpected(token.span))
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek an assign operator.
     #[inline]
-    pub fn peek_assign_operator(&self) -> ParserResult<AssignOperator> {
+    pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
         let token = self.peek()?;
-        AssignOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        AssignOperator::from_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek next assign operator.
     #[inline]
-    pub fn peek_next_assign_operator(&self) -> ParserResult<AssignOperator> {
+    pub fn peek_next_assign_operator(&self) -> ParseResult<AssignOperator> {
         let token = self.peek_next()?;
-        AssignOperator::from_token(token.token.ty).ok_or(ParserError::unexpected(token.span))
+        AssignOperator::from_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
     #[inline]
-    pub fn peek_infix_operator(&self) -> ParserResult<(InfixOperator, u8)> {
+    pub fn peek_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next()?;
@@ -217,7 +217,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a next infix operator.
     #[inline]
-    pub fn peek_next_infix_operator(&self) -> ParserResult<(InfixOperator, u8)> {
+    pub fn peek_next_infix_operator(&self) -> ParseResult<(InfixOperator, u8)> {
         let token = self.peek_next()?;
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next_next()?;
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParserResult<NodeId<Expression>> {
+    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParseResult<NodeId<Expression>> {
         match self.eat_expression() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
@@ -273,7 +273,7 @@ impl<'a> Parser<'a> {
     /// Peek a member access of the given token type.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]
-    fn peek_member(&self, token_type: TokenType) -> ParserResult<u8> {
+    fn peek_member(&self, token_type: TokenType) -> ParseResult<u8> {
         // immediate member access
         if self.peek_token(TokenType::Dot).is_ok() && self.peek_next_token(token_type).is_ok() {
             Ok(2)
@@ -287,12 +287,12 @@ impl<'a> Parser<'a> {
         }
         // nothing
         else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Eat an expression.
-    pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         //
@@ -350,7 +350,7 @@ impl<'a> Parser<'a> {
             self.bump(); // eat static
             BindingScope::Static
         } else {
-            BindingScope::Container
+            BindingScope::Instance
         };
 
         //
@@ -410,7 +410,7 @@ impl<'a> Parser<'a> {
                         // all good, leading operator matches inner operator
                     }
                     _ => {
-                        return Err(ParserError::unexpected(self.get_span_from(start)));
+                        return Err(ParseError::unexpected(self.get_span_from(start)));
                     }
                 }
 
@@ -880,7 +880,7 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             else {
-                return Err(ParserError::unexpected(self.peek()?.span));
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
         };
 

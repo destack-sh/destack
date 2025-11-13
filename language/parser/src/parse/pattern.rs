@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{Expression, NodeId, NodeType, Pattern, PatternField, TokenType};
 
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ..] }
     /// ```
-    pub fn eat_pattern(&mut self) -> ParserResult<NodeId<Pattern>> {
+    pub fn eat_pattern(&mut self) -> ParseResult<NodeId<Pattern>> {
         let start = self.mark();
 
         // mutability
@@ -267,7 +267,7 @@ impl<'a> Parser<'a> {
         &mut self,
         seperator: TokenType,
         terminator: TokenType,
-    ) -> ParserResult<Vec<NodeId<PatternField>>> {
+    ) -> ParseResult<Vec<NodeId<PatternField>>> {
         let mut fields: Vec<NodeId<PatternField>> = Vec::new();
         loop {
             if self.peek_token(terminator).is_ok() {

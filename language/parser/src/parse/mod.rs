@@ -27,7 +27,7 @@ mod r#struct;
 mod r#try;
 mod r#type;
 mod union;
-mod variant;
+mod property;
 mod visibility;
 mod r#where;
 mod with;
@@ -37,7 +37,7 @@ pub use expression::{
 };
 pub use function::FUNCTION_MODIFIERS;
 pub use prelude::*;
-pub use variant::BINDING_MODIFIERS;
+pub use property::BINDING_MODIFIERS;
 
 #[cfg(test)]
 pub(crate) mod tests;

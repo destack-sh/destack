@@ -39,12 +39,12 @@ pub enum TranspileError {
 }
 
 impl TranspileError {
-    /// Get the family letter of the error. See CompilerError.
+    /// Get the family letter of the error. See CompileError.
     pub fn family_letter(&self) -> &'static str {
         "T"
     }
 
-    /// Get the family number of the error. See CompilerError.
+    /// Get the family number of the error. See CompileError.
     pub fn family_number(&self) -> u8 {
         8
     }
@@ -85,7 +85,7 @@ impl TranspileError {
         }
     }
 
-    /// Get the full code of the error. See CompilerError.
+    /// Get the full code of the error. See CompileError.
     pub fn full_code(&self) -> String {
         format!("{}{:03}", self.family_letter(), self.sub_code())
     }

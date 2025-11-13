@@ -1,7 +1,7 @@
 //! Annotation parsing.
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 use dyst_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, NodeId, NodeType, Tag, TokenSpan, TokenType,
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     /// #Foo
     /// #Foo(x: 1)
     /// ```
-    fn eat_tag(&mut self) -> ParserResult<NodeId<Tag>> {
+    fn eat_tag(&mut self) -> ParseResult<NodeId<Tag>> {
         let start = self.mark();
 
         // #
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
-    fn eat_decorator(&mut self) -> ParserResult<NodeId<Decorator>> {
+    fn eat_decorator(&mut self) -> ParseResult<NodeId<Decorator>> {
         let start = self.mark();
 
         // @
@@ -267,7 +267,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_target(tokens, ignore_span, false, span)
             else {
                 // error if no position found
-                let error = ParserError::unexpected_for(span, NodeType::Tag);
+                let error = ParseError::unexpected_for(span, NodeType::Tag);
                 self.handle_error(&error);
                 continue;
             };
@@ -292,7 +292,7 @@ impl<'a> Parser<'a> {
                 self.find_main_annotation_target(tokens, ignore_span, true, span)
             else {
                 // error if no position found
-                let error = ParserError::unexpected_for(span, NodeType::Decorator);
+                let error = ParseError::unexpected_for(span, NodeType::Decorator);
                 self.handle_error(&error);
                 continue;
             };
@@ -569,7 +569,7 @@ impl<'a> Parser<'a> {
                 TokenType::DocBlockComment => NodeType::Doc,
                 _ => unreachable!("unexpected token type: {token_type:?}"),
             };
-            let error = ParserError::unexpected_for(span, node_type);
+            let error = ParseError::unexpected_for(span, node_type);
             self.handle_error(&error);
             return; // could not find a position
         };

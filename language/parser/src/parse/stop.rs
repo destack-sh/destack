@@ -1,16 +1,16 @@
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 use dyst_ast::{TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek an item stop (comma or newline).
     #[inline]
-    pub fn peek_item_stop(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ))
@@ -20,13 +20,13 @@ impl<'a> Parser<'a> {
     /// Eat an item stop (comma or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_item_stop_with_newlines(&mut self) -> ParserResult<()> {
+    pub fn eat_item_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
         {
             self.bump();
         } else {
-            return Err(ParserError::expected(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ));
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a statement stop (semicolon or newline).
     #[inline]
-    pub fn peek_statement_stop(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_statement_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a statement stop (semicolon or newline).
     #[inline]
-    pub fn eat_statement_stop(&mut self) -> ParserResult<()> {
+    pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParserError::expected(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
     /// Eat a statement stop (semicolon or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_statement_stop_with_newlines(&mut self) -> ParserResult<()> {
+    pub fn eat_statement_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParserError::expected(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
 
     /// Peek any stop (comma, semicolon, or newline).
     #[inline]
-    pub fn peek_any_stop(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
 
     /// Peek next any stop (comma, semicolon, or newline).
     #[inline]
-    pub fn peek_next_any_stop(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_any_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek_next()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek_next().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
     /// Eat any stop (comma, semicolon, or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_any_stop_with_newlines(&mut self) -> ParserResult<()> {
+    pub fn eat_any_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(ParserError::expected(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
 
     /// Peek any open parenthesis (`(`, `[`, `{`)
     #[inline]
-    pub fn peek_any_open_parenthesis(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_open_parenthesis(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::OpenParenthesis
                 || token.token.ty == TokenType::OpenBracket
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::OpenParenthesis,
             ))
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
 
     /// Peek any close parenthesis (`)`, `]`, `}`)
     #[inline]
-    pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_close_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::CloseParenthesis
                 || token.token.ty == TokenType::CloseBracket
@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::CloseParenthesis,
             ))
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
 
     /// Peek next any close parenthesis (`)`, `]`, `}`)
     #[inline]
-    pub fn peek_next_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_any_close_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek_next()
             && (token.token.ty == TokenType::CloseParenthesis
                 || token.token.ty == TokenType::CloseBracket
@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek_next().unwrap_or(&self.eof_token).span,
                 TokenType::CloseParenthesis,
             ))
@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
 
     /// Find a token.
     #[inline]
-    pub fn find_token(&self, target_token: TokenType) -> ParserResult<u32> {
+    pub fn find_token(&self, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = self.pos() as usize;
         while let Some(token) = self.tokens.get(pos) {
             if token.token.ty == target_token {
@@ -208,14 +208,14 @@ impl<'a> Parser<'a> {
             }
             pos += 1;
         }
-        Err(ParserError::unexpected(
+        Err(ParseError::unexpected(
             self.peek().unwrap_or(&self.eof_token).span,
         ))
     }
 
     /// Find a token after a position.
     #[inline]
-    pub fn find_token_after(&self, pos: u32, target_token: TokenType) -> ParserResult<u32> {
+    pub fn find_token_after(&self, pos: u32, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = pos as usize;
         while let Some(token) = self.tokens.get(pos) {
             if token.token.ty == target_token {
@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
             }
             pos += 1;
         }
-        Err(ParserError::unexpected(
+        Err(ParseError::unexpected(
             self.peek().unwrap_or(&self.eof_token).span,
         ))
     }
@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
         &self,
         open_token: TokenType,
         close_token: TokenType,
-    ) -> ParserResult<u32> {
+    ) -> ParseResult<u32> {
         let open_pos = self.find_token(open_token)?;
         let close_pos = self.find_matching_close(Some(open_pos), open_token, close_token)?;
         Ok(close_pos)
@@ -245,7 +245,7 @@ impl<'a> Parser<'a> {
         pos: Option<u32>,
         open_token: TokenType,
         close_token: TokenType,
-    ) -> ParserResult<u32> {
+    ) -> ParseResult<u32> {
         let mut depth = 0;
         let mut pos = pos.unwrap_or(self.pos()) as usize;
 
@@ -279,7 +279,7 @@ impl<'a> Parser<'a> {
             }
             pos += 1;
         }
-        Err(ParserError::expected(
+        Err(ParseError::expected(
             self.peek().unwrap_or(&self.eof_token).span,
             open_token,
         ))
@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
         open_token: TokenType,
         close_token: TokenType,
         target_type: TokenType,
-    ) -> ParserResult<u32> {
+    ) -> ParseResult<u32> {
         let mut depth = 0;
         let mut pos = self.pos() as usize;
         while let Some(token) = self.tokens.get(pos) {
@@ -313,7 +313,7 @@ impl<'a> Parser<'a> {
             }
             pos += 1;
         }
-        Err(ParserError::expected(
+        Err(ParseError::expected(
             self.peek().unwrap_or(&self.eof_token).span,
             open_token,
         ))
@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
 
     /// Skip any newlines at and after a position.
     #[inline]
-    pub fn skip_newlines(&mut self, pos: u32) -> ParserResult<u32> {
+    pub fn skip_newlines(&mut self, pos: u32) -> ParseResult<u32> {
         let mut pos = pos as usize;
         while let Some(token) = self.tokens.get(pos + 1)
             && token.token.ty == TokenType::Newline
@@ -336,14 +336,14 @@ impl<'a> Parser<'a> {
         &mut self,
         pos: u32,
         target_token: TokenType,
-    ) -> ParserResult<u32> {
+    ) -> ParseResult<u32> {
         let pos = self.skip_newlines(pos)?;
         if let Some(token) = self.tokens.get(pos as usize + 1)
             && token.token.ty == target_token
         {
             Ok(pos)
         } else {
-            Err(ParserError::expected(self.peek()?.span, target_token))
+            Err(ParseError::expected(self.peek()?.span, target_token))
         }
     }
 }

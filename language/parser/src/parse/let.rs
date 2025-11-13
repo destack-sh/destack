@@ -1,10 +1,10 @@
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 
 use dyst_ast::{DefinitionMeta, Expression, Keyword, Mutability, NodeId, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
-    pub fn peek_mutability(&mut self) -> ParserResult<()> {
+    pub fn peek_mutability(&mut self) -> ParseResult<()> {
         let keyword = self.peek_any_keyword()?;
         if keyword == Keyword::Var
             || keyword == Keyword::Mut
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
             ))
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a mutability modifier.
-    pub fn eat_mutability(&mut self) -> ParserResult<Mutability> {
+    pub fn eat_mutability(&mut self) -> ParseResult<Mutability> {
         let keyword = self.peek_any_keyword()?;
         // mutable
         if keyword == Keyword::Let || keyword == Keyword::Var || keyword == Keyword::Mut {
@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
         }
         // nothing
         else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
             ))
@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a mutability modifier maybe.
-    pub fn eat_mutability_maybe(&mut self) -> ParserResult<Option<Mutability>> {
+    pub fn eat_mutability_maybe(&mut self) -> ParseResult<Option<Mutability>> {
         let Ok(keyword) = self.peek_any_keyword() else {
             return Ok(None);
         };
@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_let(&mut self, meta: DefinitionMeta) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mutability

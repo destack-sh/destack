@@ -3,12 +3,12 @@ use dyst_ast::{
 };
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 
 impl<'a> Parser<'a> {
     /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
-    pub fn peek_block(&self) -> ParserResult<()> {
+    pub fn peek_block(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_keyword(Keyword::Do).is_ok()
                 && self.peek_next_token(TokenType::OpenBrace).is_ok()
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::OpenBrace,
             ))
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a next block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
-    pub fn peek_next_block(&self) -> ParserResult<()> {
+    pub fn peek_next_block(&self) -> ParseResult<()> {
         if self.peek_next_token(TokenType::OpenBrace).is_ok()
             || self.peek_next_keyword(Keyword::Do).is_ok()
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek_next().unwrap_or(&self.eof_token).span,
                 TokenType::OpenBrace,
             ))
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// { ... }
     /// block: { ... }
-    pub fn eat_block(&mut self) -> ParserResult<NodeId<Block>> {
+    pub fn eat_block(&mut self) -> ParseResult<NodeId<Block>> {
         let start = self.mark();
 
         // `do` prefix
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of expressions (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParserResult<Vec<NodeId<Expression>>> {
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Expression>>> {
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
 
         loop {
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
     /// break :label 17
     /// break 15
     /// ```
-    pub fn eat_break(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_break(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Break)?;
         // label
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
     /// continue
     /// continue :label
     /// ```
-    pub fn eat_continue(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_continue(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Continue)?;
         // label
@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
     ///     someOtherFunction()
     /// }
     /// ```
-    pub fn eat_defer(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_defer(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// await someFunction()
     /// ```
-    pub fn eat_await(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_await(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -265,7 +265,7 @@ impl<'a> Parser<'a> {
     /// yield someValue
     /// yield* someIterator
     /// ```
-    pub fn eat_yield(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_yield(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -300,7 +300,7 @@ impl<'a> Parser<'a> {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    pub fn eat_throw(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_throw(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Throw)?;
         // value
@@ -325,7 +325,7 @@ impl<'a> Parser<'a> {
     /// return
     /// return 17
     /// ```
-    pub fn eat_return(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_return(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
         // value

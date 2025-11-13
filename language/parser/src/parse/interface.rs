@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_interface(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_interface(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -61,7 +61,9 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let properties = self
-            .with_options(self.options.nested_in_variant(), |parser| parser.eat_properties())
+            .with_options(self.options.nested_in_variant(), |parser| {
+                parser.eat_properties()
+            })
             .for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
@@ -84,8 +86,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        DeclarationKind, Definition, DefinitionMeta, Expression, FunctionMode, IntType, Key,
-        Mutability, Name, Property, ScalarLiteral, TypeLiteral, WhereClause, WithClause,
+        BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression, FunctionMode,
+        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
+        WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -136,8 +139,6 @@ interface Foo extends Baz {
     count: int32 = 4
 
     static x: int32 = 4
-
-    woo() => void
 }
 "###,
         );
@@ -148,7 +149,6 @@ interface Foo extends Baz {
         assert_node!(parser.tree, interface_id, Definition::Interface { meta, properties, extends_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(properties.len(), 4);
             assert!(where_clauses.is_none());
 
             // extends Baz
@@ -172,16 +172,6 @@ interface Foo extends Baz {
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
             });
-
-            // woo() => void
-            assert_node!(parser.tree, properties[2], Property::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), definition, .. } => {
-                assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-                assert_string!(parser, *name, "woo");
-                assert_node!(parser.tree, *definition, Definition::Function { meta, return_type, .. } => {
-                    assert_string!(parser, meta.name.unwrap().string(), "woo");
-                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
-                });
-            });
         });
     }
 
@@ -204,7 +194,6 @@ interface Foo extends Baz {
         let mut test = TestParser::new(
             r###"
 interface Baz<T> with T: Copy where Requirement: Interface {
-    function baz() => T
 }
 "###,
         );
@@ -212,7 +201,7 @@ interface Baz<T> with T: Copy where Requirement: Interface {
         parser.eat_newline().unwrap();
 
         let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, static_parameters, with_clauses, where_clauses, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { meta, static_parameters, with_clauses, where_clauses,  .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Baz");
 
@@ -238,18 +227,6 @@ interface Baz<T> with T: Copy where Requirement: Interface {
                     assert_path!(parser, *path, "Interface");
                 });
             });
-
-            assert_eq!(properties.len(), 1);
-
-            // function baz() => T
-            assert_node!(parser.tree, properties[0], Property::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), definition, .. } => {
-                assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-                assert_string!(parser, *name, "baz");
-                assert_node!(parser.tree, *definition, Definition::Function { meta, return_type, .. } => {
-                    assert_string!(parser, meta.name.unwrap().string(), "baz");
-                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
-                });
-            });
         });
     }
 
@@ -260,15 +237,14 @@ interface Baz<T> with T: Copy where Requirement: Interface {
 interface SQL {
     <T = any>(value: T): SQL.Result<T>;
     
-    (value: any, ...arguments: any[]): SQL.Result<any>[];
+    (value: any, ...arguments: any[]): SQL.Result<any>;
 
     new(): SQL;
 
     [Symbol.asyncIterator](): AsyncIterableIterator<string>;
 
     [Symbol.toPrimitive]?(): number;
-}
-        "#,
+}"#,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
@@ -280,56 +256,68 @@ interface SQL {
             assert_eq!(properties.len(), 5);
 
             // <T = any>(value: T): SQL.Result<T>;
-            assert_node!(parser.tree, properties[0], Property::Method { modifiers: Some(_), key: None, definition, .. } => {
-                assert_node!(parser.tree, *definition, Definition::Function { meta, mode, static_parameters: Some(static_parameters), dynamic_parameters, return_type, .. } => {
-                    assert!(meta.name.is_none());
-                    assert_eq!(*mode, Some(FunctionMode::Call));
-                    assert_eq!(static_parameters.len(), 1);
-                    assert_eq!(dynamic_parameters.len(), 1);
-                    assert!(return_type.is_some());
+            assert_node!(parser.tree, properties[0], Property::Method { key: None, mode, static_parameters: Some(static_parameters), dynamic_parameters, return_type: Some(return_type), .. } => {
+                assert_eq!(*mode, Some(FunctionMode::Call));
+                // <T = any>
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, default, .. } => {
+                    assert_string!(parser, *name, "T");
+                    assert_node!(parser.tree, default.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
+                // value: T
+                assert_eq!(dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
+                });
+                // SQL.Result<T>
+                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL.Result");
             });
 
-            // (value: any, ...arguments: any[]): SQL.Result<any>[];
-            assert_node!(parser.tree, properties[1], Property::Method { modifiers: Some(_), key: None, definition, .. } => {
-                assert_node!(parser.tree, *definition, Definition::Function { meta, mode, dynamic_parameters, return_type, .. } => {
-                    assert!(meta.name.is_none());
-                    assert_eq!(*mode, Some(FunctionMode::Call));
-                    assert_eq!(dynamic_parameters.len(), 2);
-                    assert!(return_type.is_some());
+            // (value: any, ...arguments: any[]): SQL.Result<any>;
+            assert_node!(parser.tree, properties[1], Property::Method { modifiers: None, key: None, mode, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+                assert_eq!(*mode, Some(FunctionMode::Call));
+                // (value: any, ...arguments: any[])
+                assert_eq!(dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
+                // ...arguments: any[]
+                assert_node!(parser.tree, dynamic_parameters[1], Parameter::Variadic { name, ty: Some(ty), .. } => {
+                    assert_string!(parser, *name, "arguments");
+                    assert_node!(parser.tree, *ty, Expression::Index { .. });
+                });
+                // SQL.Result<any>;
+                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL.Result");
             });
 
             // new(): SQL;
-            assert_node!(parser.tree, properties[2], Property::Method { modifiers: Some(_), key: None, definition, .. } => {
-                assert_node!(parser.tree, *definition, Definition::Function { meta, mode, dynamic_parameters, return_type, .. } => {
-                    assert!(meta.name.is_none());
-                    assert_eq!(*mode, Some(FunctionMode::New));
-                    assert_eq!(dynamic_parameters.len(), 0);
-                    assert!(return_type.is_some());
-                });
+            assert_node!(parser.tree, properties[2], Property::Method { modifiers: None, key: None, mode, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+                assert_eq!(*mode, Some(FunctionMode::New));
+                assert_eq!(dynamic_parameters.len(), 0);
+                // SQL
+                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL");
             });
 
             // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
-            assert_node!(parser.tree, properties[3], Property::Method { modifiers: Some(_), key: Some(Key::Expression(expression)), definition, .. } => {
-                assert_node!(parser.tree, *definition, Definition::Function { meta, mode, dynamic_parameters, return_type, .. } => {
-                    assert!(meta.name.is_none());
-                    assert_expr_path!(parser, parser.tree.get(*expression), "Symbol.asyncIterator");
-                    assert_eq!(*mode, Some(FunctionMode::Call));
-                    assert_eq!(dynamic_parameters.len(), 0);
-                    assert!(return_type.is_some());
-                });
+            assert_node!(parser.tree, properties[3], Property::Method { modifiers: None, key: Some(Key::Expression(key)), mode: _, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+                // [Symbol.asyncIterator]
+                assert_expr_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
+                assert_eq!(dynamic_parameters.len(), 0);
+                // AsyncIterableIterator<string>
+                assert_expr_path!(parser, parser.tree.get(*return_type), "AsyncIterableIterator");
             });
 
             // [Symbol.toPrimitive]?(): number;
-            assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(_), key: Some(Key::Expression(expression)), definition, .. } => {
-                assert_node!(parser.tree, *definition, Definition::Function { meta, mode, dynamic_parameters, return_type, .. } => {
-                    assert!(meta.name.is_none());
-                    assert_expr_path!(parser, parser.tree.get(*expression), "Symbol.toPrimitive");
-                    assert_eq!(*mode, Some(FunctionMode::Call));
-                    assert_eq!(dynamic_parameters.len(), 0);
-                    assert!(return_type.is_some());
-                });
+            assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), mode: _, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+                // [Symbol.toPrimitive]
+                assert_expr_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
+                // ?
+                assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                assert_eq!(dynamic_parameters.len(), 0);
+                // number
+                assert_node!(parser.tree, *return_type, Expression::TypeLiteral(TypeLiteral::Number));
             });
         });
     }

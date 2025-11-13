@@ -1,6 +1,8 @@
 use dyst_source::StringId;
 
-use crate::{Argument, Definition, Expression, Mutability, Name, Key, Node, NodeId, NodeType, Visibility};
+use crate::{
+    Argument, Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability, Name, Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause
+};
 
 /// The format of a variant (tuple or struct).
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -23,10 +25,10 @@ pub enum BindingKind {
 /// The scope of a binding (dynamic or static).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingScope {
-    /// Container scope (whatever contains the declaration).
-    Container,
     /// Static scope (static in relation to the container).
     Static,
+    /// Container scope (whatever contains the declaration).
+    Instance,
 }
 
 /// The operator to apply to the binding.
@@ -43,9 +45,9 @@ pub struct BindingModifier {
     pub kind: Option<BindingKind> = None,
     /// The scope of the binding.
     pub scope: Option<BindingScope> = None,
-    /// The mutability of the field.
+    /// The mutability of the binding.
     pub mutability: Option<Mutability> = None,
-    /// The visibility of the field.
+    /// The visibility of the binding.
     pub visibility: Option<Visibility> = None,
     /// The operator to apply to the binding.
     pub operator: Option<BindingOperator> = None,
@@ -93,7 +95,55 @@ impl BindingModifier {
     }
 }
 
+/// The mode of a function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionMode {
+    /// Getter function.
+    Getter,
+    /// Setter function.
+    Setter,
+    /// Constructor function.
+    Constructor,
+    /// New type function.
+    New,
+    /// Implicit call function.
+    Call,
+}
+
+impl FunctionMode {
+    /// Get the keyword for the function accessor.
+    #[inline]
+    pub fn to_keyword(&self) -> Option<Keyword> {
+        match self {
+            FunctionMode::Getter => Some(Keyword::Get),
+            FunctionMode::Setter => Some(Keyword::Set),
+            FunctionMode::Constructor => Some(Keyword::Constructor),
+            FunctionMode::New => Some(Keyword::New),
+            FunctionMode::Call => None,
+        }
+    }
+}
+
 /// A Property is a property of a variant type (may be a field or method).
+///
+/// Examples:
+/// ```
+/// // field
+/// x: int32
+/// x
+/// ...Bar
+/// a: T
+/// a?: T
+/// private b: int32 = 4
+/// public static c: int32 = 4
+///
+/// // method
+/// foo()
+/// <T>(): T
+/// get x(): int32
+/// set x(value: int32): void
+/// public abstract foo(): void
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Property {
     /// Named field (like `x: int32`).
@@ -107,7 +157,16 @@ pub enum Property {
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        definition: NodeId<Definition>,
+        asynchrony: Asynchrony,
+        abstraction: FunctionAbstraction,
+        cardinality: FunctionCardinality,
+        mode: Option<FunctionMode>,
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        dynamic_parameters: Vec<NodeId<Parameter>>,
+        return_type: Option<NodeId<Expression>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        body: Option<NodeId<Expression>>,
     },
     /// Spread property (like `...a`).
     Spread {

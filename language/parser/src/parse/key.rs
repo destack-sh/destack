@@ -1,17 +1,17 @@
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 use dyst_ast::{LiteralType, Name, Key, TokenSpan, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {
     /// Peek an identifier.
     #[inline]
-    pub fn peek_identifier(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_identifier(&self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Identifier)
     }
 
     /// Eat an identifier.
     #[inline]
-    pub fn eat_identifier(&mut self) -> ParserResult<StringId> {
+    pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
         let string_id = self.strings.intern(self.get_token_str(token));
         Ok(string_id)
@@ -19,18 +19,18 @@ impl<'a> Parser<'a> {
 
     /// Peek an identifier that matches a given string.
     #[inline]
-    pub fn peek_identifier_str(&self, string: &str) -> ParserResult<&TokenSpan> {
+    pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
         let span = self.peek_token(TokenType::Identifier)?;
         if self.get_token_str(*span) == string {
             Ok(span)
         } else {
-            Err(ParserError::expected(span.span, TokenType::Identifier))
+            Err(ParseError::expected(span.span, TokenType::Identifier))
         }
     }
 
     /// Eat an identifier that matches a given string.
     #[inline]
-    pub fn eat_identifier_str(&mut self, string: &str) -> ParserResult<StringId> {
+    pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
         let span = self.peek_identifier_str(string)?;
         let string_id = self.strings.intern(self.get_token_str(*span));
         self.bump();
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
 
     /// Eat an identifier or a wildcard maybe.
     #[inline]
-    pub fn eat_identifier_or_wildcard_maybe(&mut self) -> ParserResult<Option<StringId>> {
+    pub fn eat_identifier_or_wildcard_maybe(&mut self) -> ParseResult<Option<StringId>> {
         if self.peek_token(TokenType::Wildcard).is_ok() {
             self.bump();
             Ok(None)
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a name maybe.
     #[inline]
-    pub fn eat_name_maybe(&mut self) -> ParserResult<Option<Name>> {
+    pub fn eat_name_maybe(&mut self) -> ParseResult<Option<Name>> {
         if self.peek_name().is_ok() {
             Ok(Some(self.eat_name()?))
         } else {
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a tree literal identifier (`kebab-case` as `kebabCase`).
     #[inline]
-    pub fn eat_tree_literal_identifier(&mut self) -> ParserResult<StringId> {
+    pub fn eat_tree_literal_identifier(&mut self) -> ParseResult<StringId> {
         let mut identifier = String::new();
         loop {
             let token = *self.eat_token(TokenType::Identifier)?;
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a string literal.
     #[inline]
-    pub fn peek_string_literal(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_string_literal(&self) -> ParseResult<&TokenSpan> {
         let token = self.peek()?;
         if token.token.ty == TokenType::Literal
             && token.token.literal
@@ -98,13 +98,13 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(token.span, TokenType::Literal))
+            Err(ParseError::expected(token.span, TokenType::Literal))
         }
     }
 
     /// Peek a next string literal.
     #[inline]
-    pub fn peek_next_string_literal(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_string_literal(&self) -> ParseResult<&TokenSpan> {
         let token = self.peek_next_token(TokenType::Literal)?;
         if token.token.ty == TokenType::Literal
             && token.token.literal
@@ -114,35 +114,35 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParserError::expected(token.span, TokenType::Literal))
+            Err(ParseError::expected(token.span, TokenType::Literal))
         }
     }
 
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
-    pub fn peek_name(&self) -> ParserResult<()> {
+    pub fn peek_name(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::Identifier).is_ok() || self.peek_string_literal().is_ok() {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Peek a next name (like `x` or `"Content-Type"`).
     #[inline]
-    pub fn peek_next_name(&self) -> ParserResult<()> {
+    pub fn peek_next_name(&self) -> ParseResult<()> {
         if self.peek_next_token(TokenType::Identifier).is_ok()
             || self.peek_next_string_literal().is_ok()
         {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek_next()?.span))
+            Err(ParseError::unexpected(self.peek_next()?.span))
         }
     }
 
     /// Eat a name (like `x` or `"Content-Type"`).
     #[inline]
-    pub fn eat_name(&mut self) -> ParserResult<Name> {
+    pub fn eat_name(&mut self) -> ParseResult<Name> {
         // regular identifier
         if self.peek_token(TokenType::Identifier).is_ok() {
             Ok(Name::Identifier(self.eat_identifier()?))
@@ -158,23 +158,23 @@ impl<'a> Parser<'a> {
         }
         // error
         else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Peek a name or a dynamic key.
     #[inline]
-    pub fn peek_key(&self) -> ParserResult<()> {
+    pub fn peek_key(&self) -> ParseResult<()> {
         if self.peek_name().is_ok() || self.peek_token(TokenType::OpenBracket).is_ok() {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Eat a name or a dynamic key.
     #[inline]
-    pub fn eat_key(&mut self) -> ParserResult<Key> {
+    pub fn eat_key(&mut self) -> ParseResult<Key> {
         if self.peek_name().is_ok() {
             Ok(Key::Name(self.eat_name()?))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
@@ -183,13 +183,13 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             Ok(Key::Expression(key))
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Eat a name or a dynamic key maybe.
     #[inline]
-    pub fn eat_key_maybe(&mut self) -> ParserResult<Option<Key>> {
+    pub fn eat_key_maybe(&mut self) -> ParseResult<Option<Key>> {
         if self.peek_key().is_ok() {
             Ok(Some(self.eat_key()?))
         } else {

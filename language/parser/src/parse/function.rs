@@ -1,9 +1,9 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{
-    Asynchrony, Definition, DefinitionMeta, FunctionAbstraction, FunctionCardinality, FunctionKind,
-    FunctionMode, Keyword, NodeId, NodeType, Parameter, TokenType,
+    Asynchrony, Definition, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
+    Keyword, NodeId, NodeType, Parameter, TokenType,
 };
 
 /// The keywords that can appear before a function definition.
@@ -20,7 +20,6 @@ pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
 impl<'a> Parser<'a> {
     /// Eat a function or "lambda" definition or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
-    /// If no function keyword is provided, it is a shorthand regular function or a lambda.
     ///
     /// Examples:
     /// ```
@@ -40,7 +39,6 @@ impl<'a> Parser<'a> {
     /// function () // anonymous function with empty signature
     ///
     /// function foo() // just declaration, no body, no opening `{`
-    /// foo()
     ///
     /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
@@ -48,7 +46,6 @@ impl<'a> Parser<'a> {
     /// ) {
     ///    print("Hello, world!")
     /// }
-    /// foo<T, U>(x: T) => (int32, boolean) ... // shorthand
     ///
     /// function baz(a: int32, b: boolean) => (
     ///    MyStruct,
@@ -56,10 +53,6 @@ impl<'a> Parser<'a> {
     /// ) with Disk, Time { // with can be on next line
     ///    ...
     /// }
-    ///
-    /// // getter/setter style
-    /// get foo() => int32
-    /// set foo(value: int32)
     ///
     /// // optional , if newline-delimited
     /// function longBar<Validate: boolean>(
@@ -83,24 +76,8 @@ impl<'a> Parser<'a> {
         mut meta: DefinitionMeta,
         expect_maybe: bool,
         expect_body: bool,
-    ) -> ParserResult<NodeId<Definition>> {
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
-
-        // abstraction
-        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok() {
-            self.bump(); // eat abstract keyword
-            if self.peek_keyword(Keyword::Override).is_ok() {
-                self.bump(); // eat override keyword
-                FunctionAbstraction::AbstractOverride
-            } else {
-                FunctionAbstraction::Abstract
-            }
-        } else if self.peek_keyword(Keyword::Override).is_ok() {
-            self.bump(); // eat override keyword
-            FunctionAbstraction::ConcreteOverride
-        } else {
-            FunctionAbstraction::Concrete
-        };
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
@@ -110,71 +87,24 @@ impl<'a> Parser<'a> {
             false
         };
 
-        // mode
-        let mut mode = {
-            // getter
-            if self.peek_keyword(Keyword::Get).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-            {
-                self.bump(); // eat get keyword
-                Some(FunctionMode::Getter)
-            }
-            // setter
-            else if self.peek_keyword(Keyword::Set).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-            {
-                self.bump(); // eat set keyword
-                Some(FunctionMode::Setter)
-            }
-            // constructor
-            else if self.peek_keyword(Keyword::Constructor).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
-            {
-                self.bump(); // eat constructor keyword
-                Some(FunctionMode::Constructor)
-            }
-            // new constructor
-            else if self.peek_keyword(Keyword::New).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
-            {
-                self.bump(); // eat new keyword
-                Some(FunctionMode::New)
-            } else {
-                None
-            }
+        // new
+        let mode = if self.peek_keyword(Keyword::New).is_ok()
+            && (self.peek_next_token(TokenType::LessThan).is_ok()
+                || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+        {
+            self.bump(); // eat new keyword
+            Some(FunctionMode::New)
+        } else {
+            None
         };
 
         // function style
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
         let (kind, is_generator) = {
-            // constructors are always functions
-            if mode == Some(FunctionMode::Constructor) {
-                (FunctionKind::Function, false)
-            }
             // regular `function` style
-            else if self.peek_keyword(Keyword::Function).is_ok() {
+            if self.peek_keyword(Keyword::Function).is_ok() {
                 self.bump(); // eat function keyword
                 let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
-                (FunctionKind::Function, is_generator)
-            }
-            // shorthand `name()` or `name?()` style
-            // (or `[Symbol.iterator]()` or `[Symbol.iterator]?()` style)
-            else if self.peek_token(TokenType::Identifier).is_ok()
-                && (!expect_maybe
-                    && self
-                        .peek_next_token_in(&[TokenType::LessThan, TokenType::OpenParenthesis])
-                        .is_ok()
-                    || expect_maybe
-                        && self
-                            .peek_next_next_token_in(&[
-                                TokenType::LessThan,
-                                TokenType::OpenParenthesis,
-                            ])
-                            .is_ok())
-                || self.peek_token(TokenType::OpenBracket).is_ok()
-            {
                 (FunctionKind::Function, is_generator)
             }
             // lambda style
@@ -306,7 +236,7 @@ impl<'a> Parser<'a> {
         let body = {
             // expect body but no opening brace
             if expect_body && self.peek_token(TokenType::OpenBrace).is_err() {
-                return Err(ParserError::expected(
+                return Err(ParseError::expected(
                     self.peek()?.span,
                     TokenType::OpenBrace,
                 ));
@@ -336,11 +266,6 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // turn into call if we don't have a name or body
-        if meta.name.is_none() && mode.is_none() && body.is_none() {
-            mode = Some(FunctionMode::Call);
-        }
-
         // function
         let asynchrony = if is_async {
             Asynchrony::Async
@@ -355,11 +280,10 @@ impl<'a> Parser<'a> {
         let function_id = self.tree.insert(
             Definition::Function {
                 meta,
-                abstraction,
                 asynchrony,
                 cardinality,
-                mode,
                 kind,
+                mode,
                 static_parameters,
                 dynamic_parameters,
                 return_type,
@@ -437,102 +361,53 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_function_lambda_call_expression() {
-        let mut test = TestParser::new("<T = any>(x: T): T");
-        let mut parser = test.prepare();
-        let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
-            .unwrap();
-        // <T = any>(x: T): T
-        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
-            assert_eq!(meta.name, None);
-            assert_eq!(*kind, FunctionKind::Lambda);
-            assert_eq!(*mode, Some(FunctionMode::Call));
-            // <T = any>
-            assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
-            assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty: None, default, .. } => {
-                assert_string!(parser, *name, "T");
-                assert_node!(parser.tree, default.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
-            });
-            // x: T
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
-                assert_string!(parser, *name, "x");
-                assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
-            });
-            // T
-            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
-        });
-    }
-
-    #[test]
-    fn test_parse_function_lambda_type_constructor_expression() {
-        let mut test = TestParser::new("new() => $");
+    fn test_parse_function_new_type() {
+        let mut test = TestParser::new("new(): $");
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
-        let expression_id = parser.eat_expression().unwrap();
+        let function_id = parser
+            .eat_function(DefinitionMeta::default(), false, false)
+            .unwrap();
         // new (x) => int32
-        assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, mode, static_parameters, dynamic_parameters, return_type, .. } => {
-                assert_eq!(meta.name, None);
-                assert_eq!(*mode, Some(FunctionMode::New));
-                assert_eq!(*kind, FunctionKind::Lambda);
-                assert!(static_parameters.is_none());
-                assert!(dynamic_parameters.is_empty());
-                assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "$");
-            });
+        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, dynamic_parameters, return_type, .. } => {
+            assert!(meta.name.is_none());
+            assert_eq!(*mode, Some(FunctionMode::New));
+            assert_eq!(*kind, FunctionKind::Lambda);
+            assert!(dynamic_parameters.is_empty());
+            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "$");
         });
     }
 
     #[test]
-    fn test_parse_function_lambda_type_constructor_expression_with_static_arguments() {
+    fn test_parse_function_new_type_with_static_arguments() {
         let mut test = TestParser::new("new <T>(x: int32) => T");
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
-        let expression_id = parser.eat_expression().unwrap();
-        // new <T>(x: int32) => T
-        assert_node!(parser.tree, expression_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { meta, kind, mode, static_parameters, dynamic_parameters, return_type, .. } => {
-                assert_eq!(meta.name, None);
-                assert_eq!(*mode, Some(FunctionMode::New));
-                assert_eq!(*kind, FunctionKind::Lambda);
-
-                // <T>
-                assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
-                assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, .. } => {
-                    assert_string!(parser, *name, "T");
-                });
-
-                // x: int32
-                assert_eq!(dynamic_parameters.len(), 1);
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
-                    assert_string!(parser, *name, "x");
-                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
-                });
-
-                // T
-                assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_shorthand_style() {
-        let mut test = TestParser::new("foo() => int32 { body }");
-        let mut parser = test.prepare();
-
         let function_id = parser
             .eat_function(DefinitionMeta::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type,  .. } => {
-            assert_string!(parser, meta.name.unwrap().string(), "foo");
-            assert_eq!(*kind, FunctionKind::Function);
-            // ()
-            assert_eq!(dynamic_parameters.len(), 0);
-            // int32
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        // new <T>(x: int32) => T
+        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+            assert!(meta.name.is_none());
+            // new
+            assert_eq!(*mode, Some(FunctionMode::New));
+            assert_eq!(*kind, FunctionKind::Lambda);
+            // <T>
+            assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
+            assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "T");
+                assert!(ty.is_none());
+            });
+            // x: int32
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            });
+            // T
+            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
         });
     }
 
@@ -688,23 +563,6 @@ async function* foo() => int32 {
             assert_string!(parser, meta.name.unwrap().string(), "foo");
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*cardinality, FunctionCardinality::Generator);
-        });
-    }
-
-    #[test]
-    fn test_parse_function_constructor() {
-        let mut test = TestParser::new("constructor(x: int32);");
-        let mut parser = test.prepare();
-
-        let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
-            .unwrap();
-
-        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, dynamic_parameters, body, .. } => {
-            assert!(meta.name.is_none());
-            assert_eq!(*mode, Some(FunctionMode::Constructor));
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert!(body.is_none());
         });
     }
 

@@ -1,10 +1,10 @@
 use dyst_dir::ModuleId;
-use dyst_parser::ParserError;
+use dyst_parser::ParseError;
 use dyst_source::{FileId, Uri};
 
 use dyst_source::StringId;
 
-use crate::{CompilerDiagnostic, CompilerError};
+use crate::{CompilerDiagnostic, CompileError};
 
 /// Error when loading something into the compiler.
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub enum LoadError {
     /// Failed to parse a module.
     ParseError {
         module_id: ModuleId,
-        diagnostics: Vec<ParserError>,
+        diagnostics: Vec<ParseError>,
     } = 4,
     /// Circular dependency.
     CircularDependency { module_id: ModuleId } = 5,
@@ -49,10 +49,10 @@ impl std::fmt::Display for LoadError {
 
 pub type LoadResult<T> = Result<T, LoadError>;
 
-impl From<LoadError> for CompilerError {
+impl From<LoadError> for CompileError {
     #[inline]
     fn from(error: LoadError) -> Self {
-        CompilerError::Load(error)
+        CompileError::Load(error)
     }
 }
 

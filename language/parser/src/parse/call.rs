@@ -2,7 +2,7 @@
 
 use dyst_ast::{Expression, Keyword, NodeId, PostfixPosition, TokenType};
 
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParserResult<NodeId<Expression>> {
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // open bracket
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// new
     /// ```
-    pub fn eat_new(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_new(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
     /// delete foo.bar
     /// delete foo['result']
     /// ```
-    pub fn eat_delete(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_delete(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
         &mut self,
         receiver_id: NodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParserResult<NodeId<Expression>> {
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // dynamic arguments (may be empty)

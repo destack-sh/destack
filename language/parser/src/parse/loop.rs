@@ -2,7 +2,7 @@
 
 use dyst_ast::{Asynchrony, Expression, ForEachKind, Keyword, NodeId, TokenType, WhileKind};
 
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_loop(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_loop(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// }
     /// ```
-    pub fn eat_for(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_for(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// } while x > 1
     /// ```
-    pub fn eat_while(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_while(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // do-while loop

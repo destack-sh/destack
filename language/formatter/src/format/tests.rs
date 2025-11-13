@@ -2,7 +2,7 @@ use crate::{DystFormatContext, DystFormatOptions};
 use dyst_ast::{MutableNodeTree, NodeParentIndex, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
-use dyst_parser::{Parser, ParserResult};
+use dyst_parser::{Parser, ParseResult};
 use dyst_source::{
     DiagnosticCollector, File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan,
     Uri,
@@ -21,9 +21,9 @@ pub(crate) struct TestFormatter {
 
 impl TestFormatter {
     /// Make a TestFormatter over a parse function on an input.
-    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParserResult<(Self, N)>
+    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParseResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser<'_>) -> ParserResult<N>,
+        F: FnOnce(&mut Parser<'_>) -> ParseResult<N>,
     {
         // tokenize source
         let file_id = FileId::new(0);

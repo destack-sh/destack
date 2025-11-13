@@ -1,6 +1,6 @@
 use dyst_dir::{NodeId, NodeIdAny, Type};
 
-use crate::{CompilerDiagnostic, CompilerError};
+use crate::{CompilerDiagnostic, CompileError};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone)]
@@ -33,10 +33,10 @@ impl std::fmt::Display for ValidateError {
     }
 }
 
-impl From<ValidateError> for CompilerError {
+impl From<ValidateError> for CompileError {
     #[inline]
     fn from(error: ValidateError) -> Self {
-        CompilerError::Validate(error)
+        CompileError::Validate(error)
     }
 }
 
