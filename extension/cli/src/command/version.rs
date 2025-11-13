@@ -2,17 +2,17 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+use dyst_source::glob::glob;
+
 use crate::{CommandApp, CommandArguments, console};
 
-const FILES_TO_UPDATE: &[&str] = &[
+const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "version.txt",
-    "pyproject.toml",
-    "package.json",
     "Cargo.toml",
-    "client/destack_py/python/pyproject.toml",
-    "extension/vscode/package.json",
-    "extension/zed/Cargo.toml",
-    "extension/zed/extension.toml",
+    "package.json",
+    "*/package.json",
+    "*/*/package.json",
+    "*/*/*/package.json",
 ];
 
 /// Create the version command app.
@@ -31,9 +31,7 @@ pub fn app() -> CommandApp {
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-fn bump(ctx: CommandArguments) -> i32 {
-    let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
-
+fn bump(_ctx: CommandArguments) -> i32 {
     let current_version =
         read_current_version().unwrap_or_else(|| panic!("version file not found"));
 
@@ -50,40 +48,45 @@ fn bump(ctx: CommandArguments) -> i32 {
         .unwrap_or(0);
     let current_semver = to_semver(&current_version);
 
-    // determine new version
+    // make new version
     let today = today_calver();
-    let new_rev = match override_rev {
-        Some(r) => r,
-        None => {
-            if today == current_date {
-                current_rev + 1
-            } else {
-                0
-            }
-        }
+    let new_rev = if today == current_date {
+        current_rev + 1
+    } else {
+        0
     };
     let new_version = format!("{today}.{new_rev}");
     let new_semver = to_semver(&new_version);
 
     console::print(&format!("Version: {current_version} -> {new_version}"));
+    console::print(&"=".repeat(100));
 
     // read and validate all files before making changes
-    let mut contents: Vec<(PathBuf, String)> = Vec::new();
-    for rel in FILES_TO_UPDATE {
-        let p = PathBuf::from(rel);
-        match fs::read_to_string(&p) {
-            Ok(text) => {
-                if !text.contains(&current_version) && !text.contains(&current_semver) {
-                    console::error(&format!(
-                        "{current_version} or {current_semver} not found in {rel}"
-                    ));
+    let mut files: Vec<(PathBuf, String)> = Vec::new();
+    for glob_path in FILE_GLOBS_TO_UPDATE {
+        let paths = {
+            if glob_path.contains("*") {
+                glob(glob_path)
+            } else {
+                vec![PathBuf::from(glob_path)]
+            }
+        };
+        for path in paths {
+            console::print(&path.to_string_lossy());
+            match fs::read_to_string(&path) {
+                Ok(text) => {
+                    if !text.contains(&current_version) && !text.contains(&current_semver) {
+                        console::error(&format!(
+                            "{current_version} or {current_semver} not found in {path:?} (from \"{glob_path}\")"
+                        ));
+                        return 1;
+                    }
+                    files.push((path, text));
+                }
+                Err(e) => {
+                    console::error(&format!("{path:?} not found: {e} (from \"{glob_path}\")"));
                     return 1;
                 }
-                contents.push((p, text));
-            }
-            Err(e) => {
-                console::error(&format!("{} not found ({e})", p.display()));
-                return 1;
             }
         }
     }
@@ -95,7 +98,7 @@ fn bump(ctx: CommandArguments) -> i32 {
     }
 
     // update all files with new version
-    for (p, text) in contents.into_iter() {
+    for (p, text) in files.into_iter() {
         let updated = text
             .replace(&current_version, &new_version)
             .replace(&current_semver, &new_semver);

@@ -1,5 +1,6 @@
 {
     "name": "demo/test-bun-tanstack",
+	"version": "2025.11.13.1",
     "private": true,
     "type": "module",
     "scripts": {
