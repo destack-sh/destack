@@ -3,21 +3,21 @@ import * as ds from "destack"
 /// A Transform2D is a 2D geometric transform.
 export struct Transform2D {
     /// The position of the Entity in 2D space.
-    position: Vector2
+    position: Vector2,
     /// The scale of the Entity in 2D space.
-    scale: Vector2
+    scale: Vector2,
     /// The rotation of the Entity in 2D space.
-    rotation: float32
+    rotation: float32,
 }
 
 /// A Transform3D is a 3D geometric transform.
 export struct Transform3D {
     /// The position of the Entity in 3D space.
-    position: Vector3
+    position: Vector3,
     /// The scale of the Entity in 3D space.
-    scale: Vector3
+    scale: Vector3,
     /// The rotation of the Entity in 3D space.
-    rotation: Quaternion
+    rotation: Quaternion,
 }
 
 /// An Entity2D is a 2D geometric Entity.
@@ -30,4 +30,24 @@ export struct Entity2D {
 @entity
 export struct Entity3D {
     ...Transform3D
+}
+
+// nocheckin
+export union Result<S, E> {
+    Success(S),
+    Error(E),
+
+    isSuccess(): boolean {
+        match self {
+            Result.Success(_) => true,
+            Result.Error(_) => false,
+        }
+    }
+
+    isError(): boolean {
+        match self {
+            Result.Success(_) => false,
+            Result.Error(_) => true,
+        }
+    }
 }
