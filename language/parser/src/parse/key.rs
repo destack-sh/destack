@@ -1,5 +1,5 @@
 use crate::{Parser, ParserError, ParserResult};
-use dyst_ast::{LiteralType, Name, NameOrDynamicKey, TokenSpan, TokenType};
+use dyst_ast::{LiteralType, Name, Key, TokenSpan, TokenType};
 use dyst_source::StringId;
 
 impl<'a> Parser<'a> {
@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a name or a dynamic key.
     #[inline]
-    pub fn peek_name_or_key(&self) -> ParserResult<()> {
+    pub fn peek_key(&self) -> ParserResult<()> {
         if self.peek_name().is_ok() || self.peek_token(TokenType::OpenBracket).is_ok() {
             Ok(())
         } else {
@@ -174,14 +174,14 @@ impl<'a> Parser<'a> {
 
     /// Eat a name or a dynamic key.
     #[inline]
-    pub fn eat_name_or_key(&mut self) -> ParserResult<NameOrDynamicKey> {
+    pub fn eat_key(&mut self) -> ParserResult<Key> {
         if self.peek_name().is_ok() {
-            Ok(NameOrDynamicKey::Name(self.eat_name()?))
+            Ok(Key::Name(self.eat_name()?))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
             self.bump(); // eat open bracket
             let key = self.eat_expression()?;
             self.eat_token(TokenType::CloseBracket)?;
-            Ok(NameOrDynamicKey::Dynamic(key))
+            Ok(Key::Expression(key))
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
         }
@@ -189,9 +189,9 @@ impl<'a> Parser<'a> {
 
     /// Eat a name or a dynamic key maybe.
     #[inline]
-    pub fn eat_name_or_key_maybe(&mut self) -> ParserResult<Option<NameOrDynamicKey>> {
-        if self.peek_name_or_key().is_ok() {
-            Ok(Some(self.eat_name_or_key()?))
+    pub fn eat_key_maybe(&mut self) -> ParserResult<Option<Key>> {
+        if self.peek_key().is_ok() {
+            Ok(Some(self.eat_key()?))
         } else {
             Ok(None)
         }

@@ -133,8 +133,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, DefinitionMeta, Expression, IntType, Mutability, Name, Pattern, PatternField,
-        ScalarLiteral, TypeLiteral,
+        Argument, DefinitionMeta, Expression, IntType, Key, Mutability, Name, Pattern,
+        PatternField, Property, ScalarLiteral, TypeLiteral,
     };
 
     use crate::parse::tests::TestParser;
@@ -329,9 +329,9 @@ const registry: Map<
                         assert_path!(parser, *path, "Set");
                         // <{count: number}>
                         assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                            assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, fields, .. } => {
-                                assert_eq!(fields.len(), 1);
-                                assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), ..} => {
+                            assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, properties, .. } => {
+                                assert_eq!(properties.len(), 1);
+                                assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
                                     assert_string!(parser, *name, "count");
                                 });
                             });

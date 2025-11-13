@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{Parser, ParserResult};
 
-use dyst_ast::{BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
+use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an extension (incl. `extension` keyword).
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let expressions = self.eat_block_body(BlockFormat::Explicit)?;
+        let properties = self.eat_properties()?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // extension
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
                 implements_types,
                 with_clauses,
                 where_clauses,
-                expressions,
+                properties,
             },
             self.get_span_from(start),
         );
@@ -94,11 +94,10 @@ extension Foo {
         parser.eat_newline().unwrap();
 
         let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
-            assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Foo
@@ -120,11 +119,10 @@ extension Foo<int32> {
         parser.eat_newline().unwrap();
 
         let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
-            assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Foo<int32>
@@ -156,10 +154,9 @@ extension Bar<int32> implements Baz {
         parser.eat_newline().unwrap();
 
         let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
-            assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // Bar<int32>
@@ -197,9 +194,8 @@ extension<U> Bar<T> implements Baz<T> {
         parser.eat_newline().unwrap();
 
         let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, expressions, .. } => {
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(expressions.is_empty());
             assert!(where_clauses.is_none());
 
             // extension<U>
@@ -255,9 +251,8 @@ extension Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         let extension_id = parser.eat_extension(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, extension_id, Definition::Extension { meta, with_clauses, where_clauses, expressions, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Definition::Extension { meta, with_clauses, where_clauses, target_type, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(expressions.is_empty());
 
             // with Context
             let with_items = with_clauses.as_ref().expect("expected with clauses");

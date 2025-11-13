@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Namespace)?;
 
         // name
-        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
+        meta = meta.with_name_maybe(self.eat_name_maybe()?);
 
         // with
         let with_clauses = self.eat_with_header_maybe()?;

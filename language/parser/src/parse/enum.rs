@@ -2,7 +2,8 @@ use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult};
 
 use dyst_ast::{
-    Definition, DefinitionMeta, EnumField, Expression, Keyword, NodeId, NodeType, TokenType,
+    Definition, DefinitionMeta, EnumField, Expression, Keyword, NodeId, NodeType, Property,
+    TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -56,7 +57,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
+        meta = meta.with_name_maybe(self.eat_name_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -85,7 +86,7 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let (fields, expressions) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
+        let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         let enum_id = self.tree.insert(
@@ -98,7 +99,7 @@ impl<'a> Parser<'a> {
                 with_clauses,
                 where_clauses,
                 fields,
-                expressions,
+                properties,
             },
             self.get_span_from(start),
         );
@@ -108,10 +109,10 @@ impl<'a> Parser<'a> {
 
     /// Eat an enum body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_enum_body(&mut self) -> ParserResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Expression>>)> {
+    fn eat_enum_body(&mut self) -> ParserResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Property>>)> {
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
-        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+        let mut properties: Vec<NodeId<Property>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -126,18 +127,18 @@ impl<'a> Parser<'a> {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 fields.push(field);
             }
-            // eat expressions
+            // eat properties
             else {
-                let expression_id = self
+                let property_id = self
                     .with_options(self.options.nested_in_variant(), |parser| {
-                        parser.try_eat_expression(TokenType::Newline)
+                        parser.try_eat_property(TokenType::Newline)
                     })
-                    .for_node_type(NodeType::Expression)?;
-                expressions.push(expression_id);
+                    .for_node_type(NodeType::Property)?;
+                properties.push(property_id);
             }
         }
 
-        Ok((fields, expressions))
+        Ok((fields, properties))
     }
 
     /// Peek an enum field.
@@ -199,10 +200,10 @@ enum Foo extends Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, extends_types, implements_types, fields, properties, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert!(expressions.is_empty());
+            assert!(properties.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
 
@@ -230,13 +231,11 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert!(tag_type.is_none());
-            assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
-            assert!(where_clauses.is_none());
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {

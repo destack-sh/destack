@@ -23,8 +23,13 @@ impl Name {
 /// A Key is a name or a dynamic key.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {
-    /// A name (like `x` or `someThing`).
+    /// Name (like `x` or `someThing`).
     Name(Name),
-    /// A dynamic key (like `["Content-Type"]`).
-    Dynamic(NodeId<Expression>),
+    /// Dynamic key (like `["Content-Type"]`).
+    Expression(NodeId<Expression>),
+    /// Named dynamic key (like `[x: string]: any`).
+    NamedExpression {
+        name: StringId,
+        key: NodeId<Expression>,
+    },
 }
