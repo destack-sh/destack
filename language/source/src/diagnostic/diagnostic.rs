@@ -1,13 +1,5 @@
 use crate::{FileId, LabeledSpan, Suggestion};
 
-/// The kind of a diagnostic.
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Hash)]
-pub enum DiagnosticKind {
-    /// Parse error (invalid syntax).
-    Parse,
-    // type, static, ..
-}
-
 /// The level of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Hash)]
 pub enum DiagnosticSeverity {
@@ -22,8 +14,6 @@ pub enum DiagnosticSeverity {
 /// A Diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Diagnostic {
-    /// The kind of the diagnostic.
-    pub kind: DiagnosticKind,
     /// The stable identifier of the diagnostic (like `E001` or `W017`).
     pub code: String,
     /// The DiagnosticSeverity of the diagnostic.

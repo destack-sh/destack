@@ -226,7 +226,7 @@ impl MutableNodeTree {
 
     // Get the node id by its source / AST id.
     #[inline]
-    pub fn get_node_id_by_ast_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
+    pub fn get_node_id_by_source_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
         self.alias_node_id_by_ast_id
             .get(&(module_id, ast_id))
             .copied()
@@ -434,9 +434,9 @@ impl SharedNodeTree {
     }
 
     /// Get the node id by its source / AST id.
-    pub fn get_node_id_by_ast_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
+    pub fn get_node_id_by_source_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
         let tree = self.read();
-        tree.get_node_id_by_ast_id(module_id, ast_id)
+        tree.get_node_id_by_source_id(module_id, ast_id)
     }
 
     /// Append a doc to a node by its global id.
