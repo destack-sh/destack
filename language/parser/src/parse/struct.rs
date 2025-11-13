@@ -38,11 +38,11 @@ impl<'a> Parser<'a> {
     ///     myField: int32
     ///     myOtherField: T
     ///
-    ///     const x: int32 = 7 // constant
+    ///     static x: int32 = 7 // constant
     ///
     ///     ..Bar // Foo has a Bar
     ///
-    ///     function myFunc() { // nested declaration
+    ///     myFunc() { // nested declaration
     ///     }
     /// }
     /// ```
@@ -109,7 +109,11 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let mut properties = self.eat_properties().for_node_type(NodeType::Definition)?;
+        let mut properties = self
+            .with_options(self.options.nested_in_variant(), |parser| {
+                parser.eat_properties()
+            })
+            .for_node_type(NodeType::Definition)?;
         if let Some(tuple_properties) = tuple_properties {
             // merge in tuple properties at the beginning
             properties.extend(tuple_properties);
@@ -165,7 +169,7 @@ struct { public x: int32, readonly y: boolean
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert_eq!(*static_parameters, None);
-            assert!(properties.is_empty());
+            assert_eq!(properties.len(), 2);
             assert!(where_clauses.is_none());
 
             // public x: int32
@@ -253,15 +257,10 @@ struct Foo<T: Numeric> extends Boz implements Quux {
     ..Bar
     ..Baz
     
-    public static const x: int32 = 4
-
     a: T
     b?: T
     c: T?
     private d: int32 = 4
-
-    private static function myFunc() { // nested declaration
-    }
 }
 "###,
         );

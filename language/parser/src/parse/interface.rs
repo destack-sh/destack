@@ -19,10 +19,10 @@ impl<'a> Parser<'a> {
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
     ///     
-    ///     const x: int32 // constant
-    ///     function foo() => int32
+    ///     static x: int32 // constant
+    ///     foo() => int32
     ///
-    ///     function myFunc() { // nested declaration, default implementation
+    ///     myFunc() { // nested declaration, default implementation
     ///     }
     /// }
     ///
@@ -60,7 +60,9 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let properties = self.eat_properties().for_node_type(NodeType::Definition)?;
+        let properties = self
+            .with_options(self.options.nested_in_variant(), |parser| parser.eat_properties())
+            .for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 

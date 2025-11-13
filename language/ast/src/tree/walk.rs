@@ -1021,12 +1021,8 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         }
         Property::Spread {
             modifiers: _,
-            key,
             value,
         } => {
-            if let Some(key) = key {
-                walk_key(visitor, tree, key);
-            }
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }

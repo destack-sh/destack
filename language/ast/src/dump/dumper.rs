@@ -487,7 +487,8 @@ impl Dump for Key {
                 dumper.object("Key::Expression").end();
             }
             Key::NamedExpression { name, key: _ } => {
-                dumper.object("Key::NamedExpression")
+                dumper
+                    .object("Key::NamedExpression")
                     .field("name", name)
                     .end();
             }
@@ -1222,12 +1223,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Property::Spread {
                 modifiers,
-                key,
                 value: _,
             } => {
                 self.node("Property::Spread", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
                     .end();
             }
         }

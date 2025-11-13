@@ -24,7 +24,7 @@ pub(crate) struct ParserOptions {
     /// Binary type operators are prohibited in super type clauses.
     pub in_super_type: bool = false,
     /// Whether we're parsing inside a variant.
-    /// Certain functions (like get/set/constructor) are only allowed inside variants.
+    /// Certain properties/constructs are only allowed inside variants.
     pub in_variant: bool = false,
     /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
     /// Disallows binding patterns in these cases to avoid ambiguity with type annotations.
@@ -38,10 +38,13 @@ pub(crate) struct ParserOptions {
     /// Whether we're in parenthesized expression (`(..)`, directly).
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
+    /// Whether we're parsing at the start of a "statement".
+    /// Disallows anonymous struct literals.
+    pub in_statement_position: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// Disallows all struct literals at the root level in these cases to avoid ambiguity with expr {}.
+    /// Disallows all struct literals at the root level in these cases to avoid ambiguity with `expr {}`.
     pub in_before_block: bool = false,
-    /// Whether we're parsing an expression that might be a block (like in if, match, for, while).
+    /// Whether we're parsing an expression that's probably a block (like in if, match, for, while).
     /// Disallows empty anonymous struct literals.
     pub in_block_position: bool = false,
     /// Whether we're in a tree literal.
@@ -88,6 +91,14 @@ impl ParserOptions {
     pub(crate) fn in_before_type(self) -> Self {
         Self {
             in_before_type: true,
+            ..self
+        }
+    }
+
+    /// Set `in_statement_position=true`.
+    pub(crate) fn in_statement_position(self) -> Self {
+        Self {
+            in_statement_position: true,
             ..self
         }
     }

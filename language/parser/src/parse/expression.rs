@@ -291,10 +291,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // nocheckin #Broken: handle semicolon properly? (Expression:Statement?, noop, parse, format, ..)
-    // (just add Expression::Statement and use that as the root node in blocks/definitions?)
-    // (to disambiguate expressions as values to expressions as statements)
-
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParserResult<NodeId<Expression>> {
         let start = self.mark();
@@ -797,13 +793,20 @@ impl<'a> Parser<'a> {
             }
             // anonymous struct literal
             else if token_type == TokenType::OpenBrace
-                && let Ok(first_argument) = self.peek_anonymous_struct_literal_body()
+                && (self.options.in_parenthesis
+                    || !self.options.in_statement_position
+                        && !self.options.in_before_block
+                        && !self.options.in_block_position)
             {
-                let fields = self.with_options(self.options.not_in_parenthesis(), |parser| {
-                    parser.eat_struct_literal_body(first_argument)
-                })?;
+                let properties = self
+                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                        parser.eat_struct_literal()
+                    })?;
                 self.tree.insert(
-                    Expression::StructLiteral { ty: None, fields },
+                    Expression::StructLiteral {
+                        ty: None,
+                        properties,
+                    },
                     self.get_span_from(start),
                 )
             }
@@ -892,11 +895,11 @@ impl<'a> Parser<'a> {
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
         {
-            let fields = self.eat_struct_literal_body(None)?;
+            let properties = self.eat_struct_literal()?;
             left_expression_id = self.tree.insert(
                 Expression::StructLiteral {
                     ty: Some(left_expression_id),
-                    fields,
+                    properties,
                 },
                 self.get_span_from(start),
             );
@@ -1207,7 +1210,11 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta, DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound, WithClause
+        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
+        DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
+        IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
+        Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+        VarianceBound, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -1647,21 +1654,27 @@ const shapes = (
         });
     }
 
-    /// Parse an anonymous struct literal.
+    /// Parse an anonymous block.
     #[test]
     fn test_parse_anonymous_struct_literal() {
-        let mut test = TestParser::new("{ x: 1, y }");
+        let mut test = TestParser::new("{ }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Block { .. });
+    }
+
+    /// Parse an anonymous block with a do disambiguation.
+    #[test]
+    fn test_parse_anonymous_block_with_do_disambiguation() {
+        let mut test = TestParser::new("let x = do { }");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
-            assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
-                assert_string!(parser, *name, "y");
-            });
+            assert_node!(parser.tree, value.unwrap( ), Expression::Block { .. });
         });
     }
 
@@ -1672,14 +1685,15 @@ const shapes = (
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, fields, .. } => {
-                assert_eq!(fields.len(), 2);
-                assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+            assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, properties, .. } => {
+                assert_eq!(properties.len(), 2);
+                assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
-                assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
+                assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                     assert_string!(parser, *name, "y");
+                    assert_expr_path!(parser, parser.tree.get(*value), "y");
                 });
             });
         });
@@ -1691,14 +1705,15 @@ const shapes = (
         let mut test = TestParser::new("{\n\n x: 1,\n\n y\n}");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, fields, .. } => {
-            assert_eq!(fields.len(), 2);
-            assert_node!(parser.tree, fields[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 2);
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, fields[1], Argument::Shorthand { modifiers: _, name } => {
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                 assert_string!(parser, *name, "y");
+                assert_expr_path!(parser, parser.tree.get(*value), "y");
             });
         });
     }
@@ -1802,11 +1817,11 @@ const shapes = (
             assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
-            assert_node!(parser.tree, *then_expression, Expression::StructLiteral { ty: None, fields, .. } => {
-                assert_eq!(fields.len(), 0);
+            assert_node!(parser.tree, *then_expression, Expression::StructLiteral { ty: None, properties, .. } => {
+                assert_eq!(properties.len(), 0);
             });
-            assert_node!(parser.tree, else_expression.unwrap(), Expression::StructLiteral { ty: None, fields, .. } => {
-                assert_eq!(fields.len(), 0);
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::StructLiteral { ty: None, properties, .. } => {
+                assert_eq!(properties.len(), 0);
             });
         });
     }

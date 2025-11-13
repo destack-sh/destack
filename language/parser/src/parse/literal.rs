@@ -5,8 +5,8 @@ use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult};
 
 use dyst_ast::{
-    Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Path, ScalarLiteral, StringId,
-    TemplateLiteral, TokenSpan, TokenType,
+    Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
+    StringId, TemplateLiteral, TokenSpan, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -443,6 +443,21 @@ impl<'a> Parser<'a> {
             elements.push(element);
         }
         Ok(elements)
+    }
+
+    /// Eat a struct literal (including the surrounding braces, excluding any prefix type).
+    ///
+    /// Examples:
+    /// ```
+    /// { }
+    /// { a: 1, b }
+    /// { a(x): void }
+    pub fn eat_struct_literal(&mut self) -> ParserResult<Vec<NodeId<Property>>> {
+        self.eat_token(TokenType::OpenBrace)?;
+        self.eat_newlines_maybe()?;
+        let properties = self.eat_properties()?;
+        self.eat_token(TokenType::CloseBrace)?;
+        Ok(properties)
     }
 
     /// Peek a tree literal (including the `<` and `>` tokens).
@@ -1051,7 +1066,7 @@ mod tests {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, properties } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Spread { modifiers: _, key: None, value } => {
+                    assert_node!(parser.tree, properties[0], Property::Spread { modifiers: _, value } => {
                         assert_expr_path!(parser, parser.tree.get(*value), "a");
                     });
                 });
