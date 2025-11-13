@@ -3,8 +3,7 @@ use dyst_source::StringId;
 use crate::tree::variant::{Field, VariantFormat};
 use crate::{
     Asynchrony, BindingScope, ExportType, Expression, Keyword, Name, NameOrDynamicKey, Node,
-    NodeId, NodeType, Parameter, ReferenceType, ScopedMutability, Visibility, WhereClause,
-    WithClause,
+    NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -391,7 +390,6 @@ pub enum Definition {
         mode: Option<FunctionMode>,
         kind: FunctionKind,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        self_parameter: Option<SelfParameter>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
         return_type: Option<NodeId<Expression>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -547,27 +545,4 @@ pub enum FunctionKind {
     Function,
     /// A lambda function.
     Lambda,
-}
-
-/// The "self" parameter for a function (also accepts `this` and `&`).
-///
-/// Examples:
-/// ```
-/// self
-/// var self
-/// &self
-/// &var self
-/// ^self
-/// ^var self
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelfParameter {
-    /// The keyword for the self parameter.
-    pub keyword: Keyword,
-    /// Whether the self parameter is mutable.
-    pub mutability: ScopedMutability,
-    /// The reference type of the self parameter.
-    pub reference_type: Option<ReferenceType>,
-    /// The type of the self parameter.
-    pub ty: Option<NodeId<Expression>>,
 }

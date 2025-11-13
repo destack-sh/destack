@@ -2,7 +2,7 @@ use dyst_fir::format::FormatResult;
 
 use crate::argument::list_like;
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Mutability, NodeId, Pattern, PatternField, ScopedMutability};
+use dyst_ast::{Mutability, NodeId, Pattern, PatternField};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -12,27 +12,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
             Mutability::Immutable => write!(f, [token("const")]),
             Mutability::Mutable => write!(f, [token("var")]),
         }
-    }
-}
-
-impl<'ast> Format<DystFormatContext<'ast>> for ScopedMutability {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
-        match self {
-            ScopedMutability::Unscoped { mutability } => write!(f, [mutability])?,
-            ScopedMutability::Scoped { mutability, scopes } => {
-                write!(f, [mutability])?;
-                write!(f, [token("(")])?;
-                write!(
-                    f,
-                    [format_with(|f| f
-                        .join_with(&format_args![&token(","), space()])
-                        .entries(scopes)
-                        .finish())]
-                )?;
-                write!(f, [token(")")])?;
-            }
-        }
-        Ok(())
     }
 }
 

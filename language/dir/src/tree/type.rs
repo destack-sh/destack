@@ -1,6 +1,6 @@
 use crate::{
-    Definition, Expression, Mutability, Node, NodeId, NodeType, Parameter, ScalarLiteral,
-    ScopedMutability, StringId, WithClause,
+    Definition, Expression, FunctionSignature, Mutability, Node, NodeId, NodeType, Parameter,
+    ScalarLiteral, StringId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -140,13 +140,13 @@ pub enum Type {
     },
     /// Value `^T` of a `T`. Or `^var T` for a mutable value.
     ValueOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Type>,
     },
     /// Reference of `&T` to a `T`. Or `&var T` for a mutable reference.
     ReferenceOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Type>,
     },
@@ -174,9 +174,12 @@ pub enum Type {
     ArrayDynamic { elements: Vec<NodeId<Type>> },
     /// Tuple type `(T1, T2, ...)`. Fixed size.
     Tuple(Vec<NodeId<Type>>),
+    /// Union type `A | B | C`.
+    Union(Vec<NodeId<Type>>),
     /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
-
+    /// Function type `(T1, T2, ...) -> T`.
+    Function { signature: FunctionSignature },
     /// Expression yet to be evaluated into a Type (like a Path).
     UnevaluatedExpression(NodeId<Expression>),
     /// Unevaluated Self type.

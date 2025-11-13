@@ -1,4 +1,4 @@
-use crate::{Block, Expression, Node, NodeId, NodeType, ScopedMutability, StringId, Type};
+use crate::{Block, Expression, Mutability, Node, NodeId, NodeType, StringId, Type};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -11,12 +11,12 @@ pub enum Pattern {
     Maybe(NodeId<Pattern>),
     /// Reference pattern (like `&x`).
     Reference {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         right: NodeId<Pattern>,
     },
     /// Binding pattern (like `x`).
     Binding {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
     },
@@ -53,14 +53,14 @@ impl Node for Pattern {
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
     Named {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
         default: Option<NodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y`).
     Alias {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: StringId,
         alias: StringId,
         default: Option<NodeId<Expression>>,

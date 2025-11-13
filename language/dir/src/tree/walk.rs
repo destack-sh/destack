@@ -129,12 +129,6 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
     tree: &MutableNodeTree,
     signature: &FunctionSignature,
 ) {
-    if let Some(self_parameter) = &signature.self_parameter
-        && let Some(ty) = &self_parameter.ty
-    {
-        let ty_node = tree.get(*ty);
-        visitor.visit_type(tree, *ty, ty_node);
-    }
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);
         visitor.visit_parameter(tree, *parameter_id, parameter);
@@ -792,11 +786,26 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        Type::Tuple(elements) | Type::Intersection(elements) => {
+        Type::Tuple(elements) => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);
             }
+        }
+        Type::Union(elements) => {
+            for element_id in elements {
+                let element_type = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_type);
+            }
+        }
+        Type::Intersection(elements) => {
+            for element_id in elements {
+                let element_type = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_type);
+            }
+        }
+        Type::Function { signature } => {
+            walk_function_signature(visitor, tree, signature);
         }
 
         Type::UnevaluatedExpression(expression_id) => {
@@ -804,6 +813,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression_id, expression);
         }
         Type::UnevaluatedSelf => {}
+
         Type::Error => {}
     }
 }

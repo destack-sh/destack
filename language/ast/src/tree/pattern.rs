@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Name, Node, NodeId, NodeType, ScopedMutability};
+use crate::{Expression, Mutability, Name, Node, NodeId, NodeType};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -31,12 +31,12 @@ pub enum Pattern {
     Maybe(NodeId<Pattern>),
     /// Reference of pattern (like `&x`).
     ReferenceOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         right: NodeId<Pattern>,
     },
     /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
     Binding {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
     },
@@ -86,14 +86,14 @@ impl Node for Pattern {
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4`).
     Named {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: Name,
         pattern: Option<NodeId<Pattern>>,
         default: Option<NodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y`).
     Alias {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         name: Name,
         alias: StringId,
         default: Option<NodeId<Expression>>,

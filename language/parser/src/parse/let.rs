@@ -1,11 +1,6 @@
 use crate::{Parser, ParserError, ParserResult};
 
-use dyst_ast::{
-    DefinitionMeta, Expression, Keyword, Mutability, NodeId, Path, ScopedMutability, TokenType,
-};
-
-// NOTE #Incomplete: handle scoped mutability better (mut? readonly? const? scopes?)
-//  (and how does this interact with let/const expressions, bindings/arguments/parameters/fields, ..)
+use dyst_ast::{DefinitionMeta, Expression, Keyword, Mutability, NodeId, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
@@ -25,75 +20,50 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a scoped mutability modifier maybe.
-    /// Instead of defaulting to immutable returns None.
-    pub fn eat_scoped_mutability_maybe(&mut self) -> ParserResult<Option<ScopedMutability>> {
-        if self.peek_mutability().is_ok() {
-            Ok(Some(self.eat_scoped_mutability()?))
-        } else {
-            Ok(None)
+    /// Eat a mutability modifier.
+    pub fn eat_mutability(&mut self) -> ParserResult<Mutability> {
+        let keyword = self.peek_any_keyword()?;
+        // mutable
+        if keyword == Keyword::Let || keyword == Keyword::Var || keyword == Keyword::Mut {
+            self.bump(); // eat mutability
+            Ok(Mutability::Mutable)
+        }
+        // immutable
+        else if keyword == Keyword::Const || keyword == Keyword::Readonly {
+            self.bump(); // eat readonly
+            Ok(Mutability::Immutable)
+        }
+        // nothing
+        else {
+            Err(ParserError::expected(
+                self.peek_token(TokenType::Identifier)?.span,
+                TokenType::Identifier,
+            ))
         }
     }
 
-    /// Eat a scoped mutability modifier.
-    /// Allows empty, defaulting to unscoped immutable.
-    ///
-    /// Examples:
-    /// ```
-    /// mut
-    /// readonly
-    /// mut(x, y)
-    /// readonly(session.source)
-    /// ```
-    pub fn eat_scoped_mutability(&mut self) -> ParserResult<ScopedMutability> {
-        // mutability
-        let mutability = {
-            if self.peek_keyword(Keyword::Var).is_ok()
-                || self.peek_keyword(Keyword::Mut).is_ok()
-                || self.peek_keyword(Keyword::Let).is_ok()
-            {
-                self.bump(); // eat var or mut
-                Mutability::Mutable
-            } else if self.peek_keyword(Keyword::Const).is_ok()
-                || self.peek_keyword(Keyword::Readonly).is_ok()
-            {
-                self.bump(); // eat const or readonly
-                Mutability::Immutable
-            } else {
-                // nothing means unscoped const
-                return Ok(ScopedMutability::Unscoped {
-                    mutability: Mutability::Immutable,
-                });
-            }
+    /// Eat a mutability modifier maybe.
+    pub fn eat_mutability_maybe(&mut self) -> ParserResult<Option<Mutability>> {
+        let Ok(keyword) = self.peek_any_keyword() else {
+            return Ok(None);
         };
-
-        // scopes
-        let scoped_mutability = {
-            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                self.bump(); // eat open parenthesis
-                let mut scopes: Vec<Path> = Vec::new();
-                loop {
-                    // break on close parenthesis
-                    if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-                        break;
-                    }
-                    // eat any stops
-                    else if self.peek_item_stop().is_ok() {
-                        self.eat_item_stop_with_newlines()?;
-                    }
-                    // eat path
-                    else {
-                        let scope = self.eat_path()?;
-                        scopes.push(scope);
-                    }
-                }
-                self.eat_token(TokenType::CloseParenthesis)?;
-                ScopedMutability::Scoped { mutability, scopes }
-            } else {
-                ScopedMutability::Unscoped { mutability }
-            }
-        };
-        Ok(scoped_mutability)
+        // mutable
+        if keyword == Keyword::Var || keyword == Keyword::Mut {
+            self.bump(); // eat mutability
+            Ok(Some(Mutability::Mutable))
+        }
+        // immutable
+        else if keyword == Keyword::Let
+            || keyword == Keyword::Const
+            || keyword == Keyword::Readonly
+        {
+            self.bump(); // eat readonly
+            Ok(Some(Mutability::Immutable))
+        }
+        // nothing
+        else {
+            Ok(None)
+        }
     }
 
     /// Eat a let or var binding (incl. `let` or `var` keyword).
@@ -121,33 +91,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // mutability
-        let mutability =
-            // var or mut
-            if self.peek_keyword(Keyword::Var).is_ok()
-                || self.peek_keyword(Keyword::Mut).is_ok()
-                || self.peek_keyword(Keyword::Let).is_ok()
-            {
-                self.eat_scoped_mutability()?
-            }
-            // let or const 
-            else if self.peek_keyword(Keyword::Const).is_ok()
-                || self.peek_keyword(Keyword::Readonly).is_ok()
-            {
-                self.bump(); // eat let or const
-                // also support `let mut` or `let var` as an alias for #Compatibility
-                if self.peek_keyword(Keyword::Var).is_ok() || self.peek_keyword(Keyword::Mut).is_ok() {
-                    self.eat_scoped_mutability()?
-                } else {
-                    ScopedMutability::Unscoped {
-                        mutability: Mutability::Immutable,
-                    }
-                }
-            } else {
-                return Err(ParserError::expected(
-                    self.peek_token(TokenType::Identifier)?.span,
-                    TokenType::Identifier,
-                ));
-            };
+        let mutability = self.eat_mutability()?;
 
         // pattern
         let pattern =
@@ -190,45 +134,11 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Argument, DefinitionMeta, Expression, IntType, Mutability, Name, Pattern, PatternField,
-        ScalarLiteral, ScopedMutability, TypeLiteral,
+        ScalarLiteral, TypeLiteral,
     };
 
     use crate::parse::tests::TestParser;
     use crate::{assert_name, assert_node, assert_path, assert_string};
-
-    #[test]
-    fn test_parse_var_with_scoped_mutability() {
-        let mut test = TestParser::new(
-            r###"
-var(x, y) pos: Vector4
-"###,
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-        let let_id = parser.eat_let(DefinitionMeta::default()).unwrap();
-
-        // var(x, y) pos: Vector2 = --
-        assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value: _, .. } => {
-            // var(x, y)
-            match mutability {
-                ScopedMutability::Scoped { mutability, scopes } => {
-                    assert_eq!(*mutability, Mutability::Mutable);
-                    assert_eq!(scopes.len(), 2);
-                    assert_path!(parser, scopes[0], "x");
-                    assert_path!(parser, scopes[1], "y");
-                }
-                _ => panic!("expected ScopedMutability::Scoped"),
-            }
-
-            // pos: Vector4
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser, *name, "pos");
-            });
-            assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "Vector4");
-            });
-        });
-    }
 
     #[test]
     fn test_parse_let_scalar() {
@@ -247,7 +157,7 @@ const x: int32 = 1
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "x");
             });
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
 
             // int32
             let ty_id = ty.expect("expected explicit type");
@@ -273,7 +183,7 @@ var x: float64[3] = undefined
 
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty,  .. } => {
             // var (mutable)
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
+            assert_eq!(*mutability, Mutability::Mutable);
 
             // pattern: x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -318,7 +228,7 @@ const (x, y) = foo()
             });
 
             // let (immutable), no explicit type
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
             assert!(ty.is_none());
 
             // foo()
@@ -339,7 +249,7 @@ const (x, y) = foo()
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "x");
             });
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
             // int32
             assert!(ty.is_some());
             assert!(value.is_none());
@@ -365,7 +275,7 @@ const x =
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "x");
             });
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
 
             // foo.parse()
             assert!(value.is_some());
@@ -394,7 +304,7 @@ const registry: Map<
 
         // const renderCounter
         assert_node!(parser.tree, let_id, Expression::Let { pattern, mutability, ty, value, .. } => {
-            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_eq!(*mutability, Mutability::Immutable);
             assert!(ty.is_some());
             assert!(value.is_some());
 

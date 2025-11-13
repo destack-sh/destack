@@ -3,8 +3,8 @@ use dyst_source::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
     DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, NodeId, NodeType,
-    Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    Parameter, Path, Pattern, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -104,7 +104,7 @@ pub enum Expression {
     /// }
     Let {
         meta: DefinitionMeta,
-        mutability: ScopedMutability,
+        mutability: Mutability,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
         value: Option<NodeId<Expression>>,
@@ -527,14 +527,14 @@ pub enum Expression {
 
     /// Value of operation (e.g., `^x`).
     ValueOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
 
     /// Reference of operation (e.g., `&x`).
     ReferenceOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },

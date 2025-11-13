@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // mutability
-        let mutability = self.eat_scoped_mutability_maybe()?;
+        let mutability = self.eat_mutability_maybe()?;
 
         // ------------------------------------------------------------
         // Primary patterns
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
                 self.bump(); // eat pointer
-                let mutability = self.eat_scoped_mutability_maybe()?;
+                let mutability = self.eat_mutability_maybe()?;
                 let target_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(
                     Pattern::ReferenceOf {
@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
                 // named or named alias
                 if self.peek_name().is_ok() || self.peek_mutability().is_ok() {
                     // mutability
-                    let mutability = self.eat_scoped_mutability_maybe()?;
+                    let mutability = self.eat_mutability_maybe()?;
 
                     // name
                     let name = self.eat_name()?;
@@ -365,9 +365,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
-        Expression, Mutability, Pattern, PatternField, ScalarLiteral, ScopedMutability,
-    };
+    use dyst_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
 
     use crate::parse::tests::TestParser;
     use crate::{assert_expr_path, assert_name, assert_node, assert_path, assert_string};
@@ -409,7 +407,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
         // &
         assert_node!(parser.tree, pattern_id,
-            Pattern::ReferenceOf { mutability: Some(ScopedMutability::Unscoped { mutability, .. }), right } => {
+            Pattern::ReferenceOf { mutability: Some(mutability), right } => {
                 // var
                 assert_eq!(*mutability, Mutability::Mutable);
                 // _
@@ -476,13 +474,13 @@ mod tests {
             });
 
             // var y
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }), default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
                 assert_name!(parser, *name, "y");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const z
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability }), default: None } => {
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
                 assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Immutable);
             });
@@ -609,13 +607,13 @@ mod tests {
             });
 
             // var z
-            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(ScopedMutability::Unscoped { mutability, .. }), default: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability), default: None } => {
                 assert_name!(parser, *name, "z");
                 assert_eq!(*mutability, Mutability::Mutable);
             });
 
             // const w: 4
-            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), mutability: Some(ScopedMutability::Unscoped { mutability }), default: None } => {
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: Some(pattern), mutability: Some(mutability), default: None } => {
                 assert_name!(parser, *name, "w");
                 assert_eq!(*mutability, Mutability::Immutable);
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -723,7 +721,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Binding { mutability: Some(ScopedMutability::Unscoped { mutability }), name, pattern: Some(pattern) } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Binding { mutability: Some(mutability), name, pattern: Some(pattern) } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_string!(parser, *name, "value");
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {

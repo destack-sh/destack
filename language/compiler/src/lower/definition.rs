@@ -169,7 +169,6 @@ impl<'a> Compiler<'a> {
         cardinality: ast::FunctionCardinality,
         mode: Option<ast::FunctionMode>,
         kind: ast::FunctionKind,
-        self_parameter: &Option<ast::SelfParameter>,
         dynamic_parameters: &[ast::NodeId<ast::Parameter>],
         return_type: &Option<ast::NodeId<ast::Expression>>,
     ) -> FunctionSignature {
@@ -178,9 +177,6 @@ impl<'a> Compiler<'a> {
         let cardinality = self.lower_function_cardinality(cardinality);
         let kind = self.lower_function_kind(kind);
         let mode = mode.map(|mode| self.lower_function_mode(mode));
-        let self_parameter = self_parameter
-            .as_ref()
-            .map(|self_parameter| self.lower_self_parameter(module, self_parameter));
         let dynamic_parameters = dynamic_parameters
             .iter()
             .map(|parameter| self.lower_parameter(module, *parameter))
@@ -194,7 +190,6 @@ impl<'a> Compiler<'a> {
             cardinality,
             mode,
             kind,
-            self_parameter,
             dynamic_parameters,
             return_type,
         }
@@ -458,7 +453,6 @@ impl<'a> Compiler<'a> {
                 cardinality,
                 mode,
                 kind,
-                self_parameter,
                 dynamic_parameters,
                 return_type,
                 static_parameters,
@@ -480,7 +474,6 @@ impl<'a> Compiler<'a> {
                     *cardinality,
                     *mode,
                     *kind,
-                    self_parameter,
                     dynamic_parameters,
                     return_type,
                 );

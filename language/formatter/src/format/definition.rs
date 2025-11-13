@@ -1,13 +1,12 @@
 use crate::argument::list_like;
 use crate::block::format_block_of_expressions;
-use crate::r#let::FormatScopedMutability;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
     Asynchrony, BindingScope, DeclarationKind, Definition, ExportType, Expression, Field,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, NodeId,
-    ReferenceType, StructKind, VariantFormat, Visibility,
+    StructKind, VariantFormat, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -762,7 +761,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 mode: kind,
                 kind: style,
                 static_parameters,
-                self_parameter,
                 dynamic_parameters,
                 return_type,
                 with_clauses: with,
@@ -865,44 +863,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     [group(&format_args![
                         token("("),
                         soft_block_indent(&format_with(|f| {
-                            // self parameter
-                            let separator = format_with(|f| {
-                                token(",").format(f)?;
-                                soft_line_break_or_space().format(f)
-                            });
-                            let mut join = f.join_with(&separator);
-                            if let Some(self_parameter) = self_parameter.as_ref() {
-                                let mutability = &self_parameter.mutability;
-                                join.entry(&format_with(move |f| {
-                                    // reference type
-                                    if let Some(reference_type) = self_parameter.reference_type {
-                                        match reference_type {
-                                            ReferenceType::Reference => write!(f, [token("&")])?,
-                                            ReferenceType::Value => write!(f, [token("^")])?,
-                                        }
-                                    }
-                                    // mutability
-                                    write!(
-                                        f,
-                                        [FormatScopedMutability::implicit_const(
-                                            mutability.clone()
-                                        )]
-                                    )?;
-                                    if mutability.is_mutable() {
-                                        write!(f, [space()])?;
-                                    }
-                                    // self
-                                    write!(f, [self_parameter.keyword])?;
-                                    // ty
-                                    if let Some(ty) = self_parameter.ty {
-                                        write!(f, [token(":"), space(), ty])?;
-                                    }
-                                    Ok(())
-                                }));
-                            }
                             // dynamic parameters
-                            join.entries(dynamic_parameters);
-                            join.finish()?;
+                            f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                                .entries(dynamic_parameters)
+                                .finish()?;
 
                             // trailing comma
                             write!(f, [if_group_breaks(&token(","))])?;

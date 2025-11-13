@@ -450,38 +450,6 @@ impl_dump_display! {
     YieldCardinality,
 }
 
-/// Dump a SelfParameter as a string.
-impl Dump for SelfParameter {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("SelfParameter")
-            .field("mutability", &self.mutability)
-            .field("reference_type", &self.reference_type)
-            .end();
-    }
-}
-
-/// Dump a ScopedMutability as a string.
-impl Dump for ScopedMutability {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            ScopedMutability::Scoped { mutability, scopes } => {
-                dumper
-                    .object("ScopedMutability::Scoped")
-                    .field("mutability", mutability)
-                    .field("scopes", scopes)
-                    .end();
-            }
-            ScopedMutability::Unscoped { mutability } => {
-                dumper
-                    .object("ScopedMutability::Unscoped")
-                    .field("mutability", mutability)
-                    .end();
-            }
-        }
-    }
-}
-
 /// Dump a DefinitionMeta as a string.
 impl Dump for DefinitionMeta {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1174,7 +1142,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mode: kind,
                 kind: style,
                 static_parameters: _,
-                self_parameter,
                 dynamic_parameters: _,
                 return_type: _,
                 with_clauses: _,
@@ -1188,7 +1155,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("cardinality", cardinality)
                     .field_optional("kind", kind)
                     .field("style", style)
-                    .field_optional("self_parameter", self_parameter)
                     .end();
             }
         }

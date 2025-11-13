@@ -3,8 +3,8 @@ use dyst_ast::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
     DependencyItem, DependencyKind, ExportType, MatchCase, MatchFile, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, ScalarLiteral, ScopedMutability, TemplateLiteral, Type,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    NodeType, Parameter, Path, Pattern, ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +34,7 @@ pub enum Expression {
     },
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
-        mutability: ScopedMutability,
+        mutability: Mutability,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
@@ -65,13 +65,13 @@ pub enum Expression {
     },
     /// Value operation (e.g., `^x`).
     ValueOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
     /// Reference of operation (e.g., `&x`).
     ReferenceOf {
-        mutability: Option<ScopedMutability>,
+        mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },

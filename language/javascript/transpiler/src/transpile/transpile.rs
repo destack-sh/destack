@@ -72,7 +72,9 @@ impl<'a> Transpiler<'a> {
                 match self.generate_artifact(&unit, file_id, formatting, language) {
                     Ok(artifact) => {
                         unit.artifacts.push(artifact.file.uri.clone());
-                        self.artifacts.write().insert(artifact.file.uri.clone(), artifact);
+                        self.artifacts
+                            .write()
+                            .insert(artifact.file.uri.clone(), artifact);
                     }
                     Err(error) => {
                         unit.add_error(error);

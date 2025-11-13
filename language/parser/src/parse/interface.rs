@@ -267,49 +267,6 @@ interface Baz<T> with T: Copy where Requirement: Interface {
     }
 
     #[test]
-    fn test_parse_interface_with_implicit_self_functions_and_dynamic_name() {
-        let mut test = TestParser::new(
-            r#"
-interface [Symbols.Client] {
-    onconnect: (this: Client) => void;
-    onclose: (this: Client, error: Error) => void;
-}
-        "#,
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, fields, expressions, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_expr_path!(parser, parser.tree.get(meta.key.unwrap()), "Symbols.Client");
-            assert_eq!(expressions.len(), 0);
-            assert_eq!(fields.len(), 2);
-            // onconnect: (this: Client) => void;
-            assert_node!(parser.tree, fields[0], Field::Named { modifiers: None, name: Name::Identifier(name), ty, .. } => {
-                assert_string!(parser, *name, "onconnect");
-                // (this: Client) => void;
-                assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), .. } => {
-                        assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
-                    });
-                });
-            });
-            // onclose: (this: Client, error: Error) => void;
-            assert_node!(parser.tree, fields[1], Field::Named { modifiers: None, name: Name::Identifier(name), ty, .. } => {
-                assert_string!(parser, *name, "onclose");
-                // (this: Client, error: Error) => void;
-                assert_node!(parser.tree, *ty, Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { self_parameter: Some(self_parameter), dynamic_parameters, .. } => {
-                        assert_expr_path!(parser, parser.tree.get(self_parameter.ty.unwrap()), "Client");
-                        assert_eq!(dynamic_parameters.len(), 1);
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
     #[ignore = "TODO"]
     fn test_parse_interface_with_nameless_shorthand_functions() {
         let mut test = TestParser::new(

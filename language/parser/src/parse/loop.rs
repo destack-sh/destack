@@ -252,7 +252,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Asynchrony, BinaryOperator, Block, Expression, ForEachKind, Mutability, Pattern,
-        ScalarLiteral, ScopedMutability, UnaryOperator, WhileKind,
+        ScalarLiteral, UnaryOperator, WhileKind,
     };
 
     use crate::parse::tests::TestParser;
@@ -363,7 +363,7 @@ for const item in items outer: {
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(ScopedMutability::Unscoped { mutability }), name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
