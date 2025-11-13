@@ -80,8 +80,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
             }
         }
 
-        let kind_str = format_token(&file, token, use_color);
-        let lexeme_preview = truncate_tokeneme(&file, token, max_tokeneme_len, use_color);
+        let kind_str = format_token(file, token, use_color);
+        let lexeme_preview = truncate_tokeneme(file, token, max_tokeneme_len, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {

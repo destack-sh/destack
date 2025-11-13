@@ -1,9 +1,11 @@
 [package]
 name = "destack_vscode"
 description = "VSCode extension for Destack"
-version = "2025.10.2-4"
-edition = "2021"
-license = "proprietary"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
 
 [lib]
 path = "src/lib.rs"

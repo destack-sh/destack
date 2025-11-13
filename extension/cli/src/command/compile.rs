@@ -33,8 +33,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     };
 
     // compile source
-    let mut session = Session::new(LanguageOptions::default(), &files);
-    let mut compiler = Compiler::from_file(&mut session, file_id, CompilerOptions::default());
+    let session = Session::new(LanguageOptions::default(), &files);
+    let mut compiler = Compiler::from_file(&session, file_id, CompilerOptions::default());
     compiler.compile();
     drop(compiler);
 

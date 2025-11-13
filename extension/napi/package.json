@@ -1,6 +1,6 @@
 {
 	"name": "@destack/napi",
-	"version": "2025.11.05.0",
+	"version": "2025.11.13.1",
 	"license": "MIT",
 	"type": "module",
 	"main": "./src/index.ts",

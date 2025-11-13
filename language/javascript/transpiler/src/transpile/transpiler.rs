@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use dyst_dir as dir;
-use dyst_source::{FileType, SmallVec, Uri, smallvec};
+use dyst_source::{SmallVec, Uri, smallvec};
 use parking_lot::RwLock;
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
