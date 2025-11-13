@@ -3,8 +3,8 @@ use dyst_source::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
     DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, NodeId, NodeType,
-    Parameter, Path, Pattern, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
-    TypeUnaryOperator, UnaryOperator,
+    Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 // TODO #Performance: reduce Expression size to <=64B
@@ -481,7 +481,7 @@ pub enum Expression {
     /// ```
     StructLiteral {
         ty: Option<NodeId<Expression>>,
-        fields: Vec<NodeId<Argument>>,
+        properties: Vec<NodeId<Property>>,
     },
 
     /// A TreeLiteral is literal tree fragment with arguments (similar to JSX).

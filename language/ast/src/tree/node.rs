@@ -9,7 +9,7 @@ pub enum NodeType {
     Expression,
     Block,
     Definition,
-    Field,
+    Property,
     EnumField,
     UnionField,
     WithClause,

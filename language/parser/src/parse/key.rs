@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
             self.bump(); // eat open bracket
             let key = self.eat_expression()?;
             self.eat_token(TokenType::CloseBracket)?;
-            Ok(NameOrDynamicKey::DynamicKey(key))
+            Ok(NameOrDynamicKey::Dynamic(key))
         } else {
             Err(ParserError::unexpected(self.peek()?.span))
         }

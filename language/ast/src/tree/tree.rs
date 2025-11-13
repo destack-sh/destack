@@ -5,8 +5,8 @@ use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, Node, NodeArena, NodeId,
-    NodeType, Parameter, Pattern, PatternField, Tag, UnionField, WhereClause, WithClause,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeArena, NodeId,
+    NodeType, Parameter, Pattern, PatternField, Property, Tag, UnionField, WhereClause, WithClause,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
@@ -27,7 +27,7 @@ pub struct MutableNodeTree {
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) blocks: NodeArena<Block>,
     pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) fields: NodeArena<Field>,
+    pub(crate) properties: NodeArena<Property>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) union_fields: NodeArena<UnionField>,
     pub(crate) with_clauses: NodeArena<WithClause>,
@@ -78,7 +78,7 @@ impl MutableNodeTree {
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
             definitions: NodeArena::new(),
-            fields: NodeArena::new(),
+            properties: NodeArena::new(),
             enum_fields: NodeArena::new(),
             union_fields: NodeArena::new(),
             with_clauses: NodeArena::new(),
@@ -264,7 +264,7 @@ impl MutableNodeTree {
             NodeType::Expression => self.expressions.deallocate(local_ids),
             NodeType::Block => self.blocks.deallocate(local_ids),
             NodeType::Definition => self.definitions.deallocate(local_ids),
-            NodeType::Field => self.fields.deallocate(local_ids),
+            NodeType::Property => self.properties.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
             NodeType::UnionField => self.union_fields.deallocate(local_ids),
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
@@ -403,7 +403,7 @@ impl_node_tree_stores! {
     Expression => expressions,
     Block => blocks,
     Definition => definitions,
-    Field => fields,
+    Property => properties,
     EnumField => enum_fields,
     UnionField => union_fields,
     WithClause => with_clauses,
