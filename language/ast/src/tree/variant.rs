@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Mutability, Name, Node, NodeId, NodeType, Visibility};
+use crate::{Argument, Definition, Expression, Mutability, Name, Key, Node, NodeId, NodeType, Visibility};
 
 /// The format of a variant (tuple or struct).
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -93,48 +93,76 @@ impl BindingModifier {
     }
 }
 
-/// A Field is a field in some variant type.
-///
-/// Examples:
-/// ```
-/// bar: int32
-/// T
-/// public T
-/// readonly name: T
-/// baz: T
-/// public T
-/// readonly bar: int32
-/// baz?: T // shorthand for baz: T?
-/// "Content-Type": string
-/// [x: string]: any
-/// [string]: woof
-/// [T] = "hello"
-/// ```
+/// A Property is a property of a variant type (may be a field or method).
 #[derive(Debug, Clone, PartialEq)]
-pub enum Field {
+pub enum Property {
     /// Named field (like `x: int32`).
-    Named {
+    Field {
         modifiers: Option<BindingModifier>,
-        name: Name,
+        key: Key,
         ty: NodeId<Expression>,
-        default: Option<NodeId<Expression>>,
+        value: Option<NodeId<Expression>>,
     },
-    /// Positional field (like `4`).
-    Positional {
+    /// Named member function (like `foo()` or `<T>(): T`).
+    Method {
         modifiers: Option<BindingModifier>,
-        ty: NodeId<Expression>,
-        default: Option<NodeId<Expression>>,
-    },
-    /// Dynamic field (like `[x: string]: any`).
-    Dynamic {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
-        ty: NodeId<Expression>,
-        key: NodeId<Expression>,
-        default: Option<NodeId<Expression>>,
+        key: Option<Key>,
+        definition: NodeId<Definition>,
     },
 }
 
-impl Node for Field {
-    const TYPE: NodeType = NodeType::Field;
+impl Node for Property {
+    const TYPE: NodeType = NodeType::Property;
+}
+
+/// A EnumField is a enum field declaration.
+///
+/// Examples:
+/// ```
+/// A
+/// B = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumField {
+    /// The name of the enum field.
+    pub name: Name,
+    /// The default value of the enum field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for EnumField {
+    const TYPE: NodeType = NodeType::EnumField;
+}
+
+/// A UnionField is a union field declaration.
+///
+/// Examples:
+/// ```
+/// A
+/// A(int32)
+/// A { x: int32, y: int32 } = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnionField {
+    /// Unit union field (like `A` or `A = 2`).
+    Unit {
+        name: StringId,
+        value: Option<NodeId<Expression>>,
+    },
+    /// Tuple union field (like `A(int32)`).
+    Tuple {
+        name: StringId,
+        fields: Vec<NodeId<Argument>>,
+        value: Option<NodeId<Expression>>,
+    },
+    /// Struct union field (like `A { x: int32, y: int32 }`).
+    Struct {
+        name: StringId,
+        fields: Vec<NodeId<Argument>>,
+        value: Option<NodeId<Expression>>,
+    },
+}
+
+impl Node for UnionField {
+    const TYPE: NodeType = NodeType::UnionField;
 }

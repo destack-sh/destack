@@ -20,11 +20,11 @@ impl Name {
     }
 }
 
-/// A NameOrDynamicKey is a name or a dynamic key.
+/// A Key is a name or a dynamic key.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum NameOrDynamicKey {
+pub enum Key {
     /// A name (like `x` or `someThing`).
     Name(Name),
     /// A dynamic key (like `["Content-Type"]`).
-    DynamicKey(NodeId<Expression>),
+    Dynamic(NodeId<Expression>),
 }

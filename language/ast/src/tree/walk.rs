@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta,
-    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, MutableNodeTree, NodeId,
-    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Tag, TemplateLiteral, UnionField,
-    WhereClause, WithClause,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, MutableNodeTree, Key,
+    NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Tag,
+    TemplateLiteral, UnionField, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -32,9 +32,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let definition = tree.definitions.get(local_idx);
             walk_definition(visitor, tree, NodeId::new(node_id), definition);
         }
-        NodeType::Field => {
-            let field = tree.fields.get(local_idx);
-            walk_field(visitor, tree, NodeId::new(node_id), field);
+        NodeType::Property => {
+            let property = tree.properties.get(local_idx);
+            walk_property(visitor, tree, NodeId::new(node_id), property);
         }
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
@@ -448,14 +448,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::StructLiteral { ty, fields } => {
+        Expression::StructLiteral { ty, properties } => {
             if let Some(type_id) = ty {
                 let type_expr = tree.get(*type_id);
                 visitor.visit_expression(tree, *type_id, type_expr);
             }
-            for field_id in fields {
-                let field_arg = tree.get(*field_id);
-                visitor.visit_argument(tree, *field_id, field_arg);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
 
@@ -626,14 +626,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 // ----------------------------------------------------------------------------
 
 fn walk_definition_meta<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &MutableNodeTree,
-    meta: &DefinitionMeta,
+    _visitor: &mut V,
+    _tree: &MutableNodeTree,
+    _meta: &DefinitionMeta,
 ) {
-    if let Some(key) = meta.key {
-        let key_expr = tree.get(key);
-        visitor.visit_expression(tree, key, key_expr);
-    }
+    // nothing to do
 }
 
 /// Walk the Definition and visit all child nodes.
@@ -680,8 +677,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             static_parameters,
             with_clauses,
             where_clauses,
-            fields,
-            expressions,
+            properties,
         } => {
             walk_definition_meta(visitor, tree, meta);
             if let Some(ext_types) = extends_types {
@@ -718,13 +714,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
             }
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_field(tree, *field_id, field);
-            }
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Enum {
@@ -736,7 +728,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             with_clauses,
             where_clauses,
             fields,
-            expressions,
+            properties,
         } => {
             walk_definition_meta(visitor, tree, meta);
             if let Some(tag_type) = tag_type {
@@ -777,22 +769,24 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let field = tree.get(*field_id);
                 visitor.visit_enum_field(tree, *field_id, field);
             }
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Union {
             meta,
+            tag_name: _,
             tag_type,
+            representation_name: _,
             representation_type,
             static_parameters,
             extends_types,
             implements_types,
-            with_clauses: with,
+            with_clauses,
             where_clauses,
             fields,
-            expressions,
+            properties,
         } => {
             walk_definition_meta(visitor, tree, meta);
             if let Some(tag_type) = tag_type {
@@ -821,7 +815,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_expression(tree, *implements_type_id, expr);
                 }
             }
-            if let Some(with_clauses) = with {
+            if let Some(with_clauses) = with_clauses {
                 for with_id in with_clauses {
                     let with_clause = tree.get(*with_id);
                     visitor.visit_with_clause(tree, *with_id, with_clause);
@@ -837,9 +831,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 let field = tree.get(*field_id);
                 visitor.visit_union_field(tree, *field_id, field);
             }
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Interface {
@@ -848,8 +842,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             static_parameters,
             with_clauses,
             where_clauses,
-            fields,
-            expressions,
+            properties,
         } => {
             walk_definition_meta(visitor, tree, meta);
             if let Some(extends_types) = extends_types {
@@ -876,13 +869,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
             }
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_field(tree, *field_id, field);
-            }
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Extension {
@@ -975,55 +964,56 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Field.
-pub fn walk_field<V: NodeVisitor + ?Sized>(
+/// Walk a Key.
+pub fn walk_name_or_dynamic_key<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &MutableNodeTree,
-    id: NodeId<Field>,
-    field: &Field,
+    name_or_dynamic_key: &Key,
 ) {
-    visitor.visit_any(tree, NodeType::Field, id.id);
-    match field {
-        Field::Named {
+    match name_or_dynamic_key {
+        Key::Name(_name) => {
+            // nothing to do
+        }
+        Key::Dynamic(dynamic_key) => {
+            let dynamic_key_expr = tree.get(*dynamic_key);
+            visitor.visit_expression(tree, *dynamic_key, dynamic_key_expr);
+        }
+    }
+}
+
+/// Walk the Property.
+pub fn walk_property<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    id: NodeId<Property>,
+    property: &Property,
+) {
+    visitor.visit_any(tree, NodeType::Property, id.id);
+    match property {
+        Property::Field {
             modifiers: _,
-            name: _,
+            key: name,
             ty,
-            default,
+            value,
         } => {
-            let type_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, type_node);
-            if let Some(default) = default {
-                let expression = tree.get(*default);
-                visitor.visit_expression(tree, *default, expression);
+            walk_name_or_dynamic_key(visitor, tree, name);
+            let ty_expr = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, ty_expr);
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
             }
         }
-        Field::Positional {
+        Property::Method {
             modifiers: _,
-            ty,
-            default,
+            key: name,
+            definition,
         } => {
-            let type_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, type_node);
-            if let Some(default) = default {
-                let expression = tree.get(*default);
-                visitor.visit_expression(tree, *default, expression);
+            if let Some(name) = name {
+                walk_name_or_dynamic_key(visitor, tree, name);
             }
-        }
-        Field::Dynamic {
-            modifiers: _,
-            name: _,
-            ty,
-            key,
-            default,
-        } => {
-            let type_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, type_node);
-            let key_node = tree.get(*key);
-            visitor.visit_expression(tree, *key, key_node);
-            if let Some(default) = default {
-                let expression = tree.get(*default);
-                visitor.visit_expression(tree, *default, expression);
-            }
+            let definition_expr = tree.get(*definition);
+            visitor.visit_definition(tree, *definition, definition_expr);
         }
     }
 }
@@ -1064,7 +1054,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
         } => {
             for field in fields {
                 let field_node = tree.get(*field);
-                visitor.visit_field(tree, *field, field_node);
+                visitor.visit_argument(tree, *field, field_node);
             }
             if let Some(value) = value {
                 let expression = tree.get(*value);
@@ -1078,7 +1068,7 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
         } => {
             for field in fields {
                 let field_node = tree.get(*field);
-                visitor.visit_field(tree, *field, field_node);
+                visitor.visit_argument(tree, *field, field_node);
             }
             if let Some(value) = value {
                 let expression = tree.get(*value);
@@ -1213,7 +1203,6 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         } => {
             // no child nodes to visit
         }
-
         Argument::Positional {
             modifiers: _,
             value,
@@ -1228,36 +1217,6 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
-        }
-        Argument::Dynamic {
-            modifiers: _,
-            name: _,
-            key,
-            value,
-        } => {
-            let key_expr = tree.get(*key);
-            visitor.visit_expression(tree, *key, key_expr);
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-        Argument::Function {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-        Argument::DynamicFunction {
-            modifiers: _,
-            name: _,
-            key,
-            value,
-        } => {
-            let key_expr = tree.get(*key);
-            visitor.visit_expression(tree, *key, key_expr);
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
         }
     }
 }

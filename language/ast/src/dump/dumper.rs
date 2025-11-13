@@ -462,6 +462,8 @@ impl Dump for DefinitionMeta {
             .end();
     }
 }
+
+/// Dump a BindingModifier as a structured representation.
 impl Dump for BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
@@ -471,6 +473,20 @@ impl Dump for BindingModifier {
             .field_optional("visibility", &self.visibility)
             .field_optional("operator", &self.operator)
             .end();
+    }
+}
+
+/// Dump a Key as a structured representation.
+impl Dump for Key {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Key::Name(name) => {
+                dumper.object("Key::Name").value(name).end();
+            }
+            Key::Dynamic(_) => {
+                dumper.object("Key::Dynamic").end();
+            }
+        }
     }
 }
 
@@ -904,7 +920,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::TupleLiteral { elements: _ } => {
                 self.node("Expression::TupleLiteral", _id.id).end();
             }
-            Expression::StructLiteral { ty: _, fields: _ } => {
+            Expression::StructLiteral {
+                ty: _,
+                properties: _,
+            } => {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
             Expression::TreeLiteral {
@@ -1071,8 +1090,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
-                fields: _,
-                expressions: _,
+                properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
@@ -1089,7 +1107,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 with_clauses: _,
                 where_clauses: _,
                 fields: _,
-                expressions: _,
+                properties: _,
             } => {
                 self.node("Definition::Enum", id.id)
                     .field("meta", meta)
@@ -1097,7 +1115,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Union {
                 meta,
+                tag_name,
                 tag_type: _,
+                representation_name,
                 representation_type: _,
                 static_parameters: _,
                 extends_types: _,
@@ -1105,10 +1125,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 with_clauses: _,
                 where_clauses: _,
                 fields: _,
-                expressions: _,
+                properties: _,
             } => {
                 self.node("Definition::Union", id.id)
                     .field("meta", meta)
+                    .field_optional("tag_name", tag_name)
+                    .field_optional("representation_name", representation_name)
                     .end();
             }
             Definition::Interface {
@@ -1117,8 +1139,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
-                fields: _,
-                expressions: _,
+                properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
                     .field("meta", meta)
@@ -1166,43 +1187,37 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_field(&mut self, _tree: &MutableNodeTree, _id: NodeId<Field>, field: &Field) {
-        match field {
-            Field::Named {
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        property: &Property,
+    ) {
+        match property {
+            Property::Field {
                 modifiers,
-                name,
+                key: name,
                 ty: _,
-                default: _,
+                value: _,
             } => {
-                self.node("Field::Named", _id.id)
-                    .field("modifiers", modifiers)
+                self.node("Property::Field", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Field::Positional {
+            Property::Method {
                 modifiers,
-                ty: _,
-                default: _,
+                key: name,
+                definition: _,
             } => {
-                self.node("Field::Positional", _id.id)
-                    .field("modifiers", modifiers)
-                    .end();
-            }
-            Field::Dynamic {
-                modifiers,
-                name,
-                ty: _,
-                key: _,
-                default: _,
-            } => {
-                self.node("Field::Dynamic", _id.id)
-                    .field("modifiers", modifiers)
-                    .field_optional("name", name)
+                self.node("Property::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("name", name)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_field(dumper, _tree, _id, field);
+            walk_property(dumper, tree, id, property);
         });
     }
 
@@ -1382,38 +1397,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 value: _,
             } => {
                 self.node("Argument::Spread", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
-            }
-            Argument::Dynamic {
-                modifiers,
-                name,
-                key: _,
-                value: _,
-            } => {
-                self.node("Argument::Dynamic", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
-            }
-            Argument::Function {
-                modifiers,
-                name,
-                value: _,
-            } => {
-                self.node("Argument::Function", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
-            }
-            Argument::DynamicFunction {
-                modifiers,
-                name,
-                key: _,
-                value: _,
-            } => {
-                self.node("Argument::DynamicFunction", _id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
