@@ -2,7 +2,8 @@ use dyst_source::StringId;
 
 use crate::tree::variant::VariantFormat;
 use crate::{
-    Asynchrony, BindingScope, EnumField, ExportType, Expression, Keyword, Name, Node, NodeId, NodeType, Parameter, Property, UnionField, Visibility, WhereClause, WithClause
+    Asynchrony, BindingScope, EnumField, ExportType, Expression, Keyword, Name, Node, NodeId,
+    NodeType, Parameter, Property, UnionField, Visibility, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -53,6 +54,16 @@ impl DefinitionMeta {
         Self {
             name: Some(name),
             ..self
+        }
+    }
+
+    /// Update the name of the definition meta maybe.
+    #[inline]
+    pub fn with_name_maybe(self, name: Option<Name>) -> Self {
+        if let Some(name) = name {
+            self.with_name(name)
+        } else {
+            self
         }
     }
 }
@@ -286,7 +297,7 @@ pub enum Definition {
         implements_types: Option<Vec<NodeId<Expression>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        expressions: Vec<NodeId<Expression>>,
+        properties: Vec<NodeId<Property>>,
     },
 
     /// A Function is function or "lambda" declaration or definition.
@@ -409,8 +420,6 @@ pub enum FunctionCardinality {
     /// Generator function.
     Generator,
 }
-
-impl FunctionCardinality {}
 
 /// The mode of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]

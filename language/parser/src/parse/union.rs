@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult};
 
 use dyst_ast::{
-    Definition, DefinitionMeta, Expression, Keyword, NodeId, NodeType, TokenType, UnionField,
+    Definition, DefinitionMeta, Keyword, NodeId, NodeType, Property, TokenType, UnionField,
 };
 
 impl<'a> Parser<'a> {
@@ -40,11 +40,12 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Union)?;
 
         // optional explicit tag / representation type in `(Type)`
-        let (explicit_type, representation_type) =
+        let (tag_name, tag_type, representation_name, representation_type) =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
+
                 // tag type
-                let ty =
+                let tag_type =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
 
                 // representation type
@@ -53,19 +54,19 @@ impl<'a> Parser<'a> {
                     let representation_type = self
                         .with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    (Some(ty), Some(representation_type))
+                    (None, Some(tag_type), None, Some(representation_type))
                 }
                 // no representation type
                 else {
                     self.eat_token(TokenType::CloseParenthesis)?;
-                    (Some(ty), None)
+                    (None, Some(tag_type), None, None)
                 }
             } else {
-                (None, None)
+                (None, None, None, None)
             };
 
         // optional name
-        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
+        meta = meta.with_name_maybe(self.eat_name_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -86,7 +87,7 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let (fields, expressions) = self.eat_union_body()?;
+        let (fields, properties) = self.eat_union_body()?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // union
@@ -96,12 +97,14 @@ impl<'a> Parser<'a> {
                 static_parameters,
                 extends_types,
                 implements_types,
-                tag_type: explicit_type,
+                tag_name,
+                tag_type,
+                representation_name,
                 representation_type,
                 with_clauses,
                 where_clauses,
                 fields,
-                expressions,
+                properties,
             },
             self.get_span_from(start),
         );
@@ -112,12 +115,10 @@ impl<'a> Parser<'a> {
 
     /// Eat a union body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_union_body(
-        &mut self,
-    ) -> ParserResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Expression>>)> {
+    fn eat_union_body(&mut self) -> ParserResult<(Vec<NodeId<UnionField>>, Vec<NodeId<Property>>)> {
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+        let mut properties: Vec<NodeId<Property>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -132,16 +133,19 @@ impl<'a> Parser<'a> {
                 let field = self.eat_union_field()?;
                 fields.push(field);
             }
-            // eat expressions
+            // eat properties
             else {
-                let expression_id = self
-                    .try_eat_expression(TokenType::Newline)
-                    .for_node_type(NodeType::Expression)?;
-                expressions.push(expression_id);
+                let Ok(property_id) = self
+                    .try_eat_property(TokenType::Newline)
+                    .for_node_type(NodeType::Property)
+                else {
+                    continue;
+                };
+                properties.push(property_id);
             }
         }
 
-        Ok((fields, expressions))
+        Ok((fields, properties))
     }
 
     /// Peek a union field.
@@ -182,7 +186,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 let fields = self
-                    .eat_variant_body_fields()
+                    .eat_arguments_body(TokenType::CloseParenthesis)
                     .for_node_type(NodeType::UnionField)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 UnionField::Tuple {
@@ -195,7 +199,7 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
                 let fields = self
-                    .eat_variant_body_fields()
+                    .eat_arguments_body(TokenType::CloseBrace)
                     .for_node_type(NodeType::UnionField)?;
                 self.eat_token(TokenType::CloseBrace)?;
                 UnionField::Struct {
@@ -229,9 +233,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, Field, IntType,
-        Name, Parameter, ScalarLiteral, TypeLiteral, UnaryOperator, UnionField, WhereClause,
-        WithClause,
+        Argument, BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, IntType,
+        Name, Parameter, Property, ScalarLiteral, TypeLiteral, UnionField, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -248,11 +251,10 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, fields, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert!(tag_type.is_none());
-            assert!(expressions.is_empty());
             assert_eq!(fields.len(), 2);
             assert!(where_clauses.is_none());
 
@@ -287,10 +289,10 @@ union Foo extends Bar {}
                 ..DefinitionMeta::default()
             })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, extends_types, implements_types, fields, properties, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert!(expressions.is_empty());
+            assert!(properties.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
 
@@ -315,8 +317,6 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
     E { x: int32, y: T }
     
     ...Bar
-    function myFunc() { // nested declaration
-    }
 }
 "###,
         );
@@ -330,7 +330,7 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                 ..DefinitionMeta::default()
             })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, representation_type, static_parameters, fields, expressions, extends_types, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, tag_type, representation_type, static_parameters, fields, properties, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
@@ -368,8 +368,8 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                 assert_path!(parser, *path, "Shape");
             });
 
-            assert_eq!(expressions.len(), 2);
             assert_eq!(fields.len(), 4);
+            assert_eq!(properties.len(), 1);
 
             // A
             assert_node!(parser.tree, fields[0], UnionField::Unit { name, value } => {
@@ -381,8 +381,8 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
             assert_node!(parser.tree, fields[1], UnionField::Tuple { name, fields, value } => {
                 assert_string!(parser, *name, "C");
                 // boolean
-                assert_node!(parser.tree, fields[0], Field::Positional { ty, .. } => {
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
+                assert_node!(parser.tree, fields[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
                 assert!(value.is_none());
             });
@@ -392,14 +392,14 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                 assert_string!(parser, *name, "D");
 
                 // boolean
-                assert_node!(parser.tree, fields[0], Field::Positional { ty, .. } => {
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
+                assert_node!(parser.tree, fields[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
 
                 // count: int32
-                assert_node!(parser.tree, fields[1], Field::Named { name: Name::Identifier(name), ty, .. } => {
+                assert_node!(parser.tree, fields[1], Argument::Named { name: Name::Identifier(name), value, .. } => {
                     assert_string!(parser, *name, "count");
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
@@ -413,35 +413,29 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
             assert_node!(parser.tree, fields[3], UnionField::Struct { name, fields, value: _ } => {
                 assert_string!(parser, *name, "E");
                 // x: int32
-                assert_node!(parser.tree, fields[0], Field::Named { name: Name::Identifier(name), ty, .. } => {
+                assert_node!(parser.tree, fields[0], Argument::Named { name: Name::Identifier(name), value, .. } => {
                     // x
                     assert_string!(parser, *name, "x");
                     // int32
-                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
                     });
                 });
 
                 // y: T
-                assert_node!(parser.tree, fields[1], Field::Named { name: Name::Identifier(name), ty, .. } => {
+                assert_node!(parser.tree, fields[1], Argument::Named { name: Name::Identifier(name), value, .. } => {
                     // y
                     assert_string!(parser, *name, "y");
                     // T
-                    assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: _ } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
             });
 
             // ..Bar
-            assert_node!(parser.tree, expressions[0], Expression::Unary { operator, right } => {
-                assert_eq!(*operator, UnaryOperator::Spread);
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Bar");
-                });
-            });
-
+            assert_node!(parser.tree, properties[0], Property::Spread { modifiers: _, .. });
         });
     }
 
@@ -464,9 +458,9 @@ union Foo with Context where Guard > Limit {
                 ..DefinitionMeta::default()
             })
             .unwrap();
-        assert_node!(parser.tree, union_id, Definition::Union { meta, with_clauses, where_clauses, fields: _, expressions, .. } => {
+        assert_node!(parser.tree, union_id, Definition::Union { meta, with_clauses, where_clauses, fields: _, properties, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(expressions.is_empty());
+            assert!(properties.is_empty());
 
             // with Context
             let with_clauses = with_clauses.as_ref().expect("expected with clauses");

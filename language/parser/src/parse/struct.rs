@@ -70,14 +70,12 @@ impl<'a> Parser<'a> {
         };
 
         // optional name / key
-        meta = meta.with_name_or_key_maybe(self.eat_name_or_key_maybe()?);
+        meta = meta.with_name_maybe(self.eat_name_maybe()?);
 
         // format
-        let (format, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        let (format, tuple_properties) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
-            let tuple_fields = self
-                .eat_variant_body_fields()
-                .for_node_type(NodeType::Definition)?;
+            let tuple_properties = self.eat_properties().for_node_type(NodeType::Definition)?;
             self.eat_token(TokenType::CloseParenthesis)
                 .for_node_type(NodeType::Definition)?;
             (VariantFormat::Tuple, Some(tuple_fields))
@@ -111,12 +109,10 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let (mut fields, expressions) = self
-            .eat_variant_body_mixed(format == VariantFormat::Struct)
-            .for_node_type(NodeType::Definition)?;
-        if let Some(tuple_fields) = tuple_fields {
+        let mut properties = self.eat_properties().for_node_type(NodeType::Definition)?;
+        if let Some(tuple_properties) = tuple_properties {
             // merge in tuple fields
-            fields.extend(tuple_fields);
+            properties.insert(0, tuple_properties);
         }
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
@@ -132,8 +128,7 @@ impl<'a> Parser<'a> {
                 representation_type,
                 with_clauses,
                 where_clauses,
-                fields,
-                expressions,
+                properties,
             },
             self.get_span_from(start),
         );
@@ -145,9 +140,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression,
-        Field, IntType, Mutability, Name, Parameter, StructKind, TypeLiteral, VariantFormat,
-        Visibility, WhereClause, WithClause,
+        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression, IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, StructKind, TypeLiteral, VariantFormat, Visibility, WhereClause, WithClause
     };
 
     use crate::parse::tests::TestParser;
@@ -166,29 +159,26 @@ struct { public x: int32, readonly y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, properties, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(meta.name.is_none());
             assert_eq!(*static_parameters, None);
-            assert!(expressions.is_empty());
-            assert_eq!(fields.len(), 2);
+            assert!(properties.is_empty());
             assert!(where_clauses.is_none());
 
             // public x: int32
-            assert_node!(parser.tree, fields[0], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert!(modifiers.mutability.is_none());
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert_string!(parser, *name, "x");
-                assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
 
             // readonly y: boolean
-            assert_node!(parser.tree, fields[1], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
-                assert!(*modifiers.mutability.as_ref().unwrap() == Mutability::Immutable);
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+                assert_eq!(modifiers.mutability.unwrap(), Mutability::Immutable);
                 assert!(modifiers.visibility.is_none());
                 assert_string!(parser, *name, "y");
-                assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
         });
@@ -205,11 +195,10 @@ struct Foo extends Bar {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, extends_types, implements_types, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, extends_types, implements_types, properties, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert!(expressions.is_empty());
-            assert!(fields.is_empty());
+            assert!(properties.is_empty());
             assert!(where_clauses.is_none());
 
             assert!(implements_types.is_none());
@@ -233,25 +222,22 @@ struct Foo(int32, public boolean) {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, kind, format, fields, expressions, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, kind, format, properties, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert_eq!(*kind, StructKind::Struct);
             assert_eq!(*format, VariantFormat::Tuple);
-            assert_eq!(fields.len(), 2);
-            assert!(expressions.is_empty());
+            assert_eq!(properties.len(), 2);
             assert!(where_clauses.is_none());
 
             // int32
-            assert_node!(parser.tree, fields[0], Field::Positional { modifiers: None, ty, default, .. } => {
-                assert!(default.is_none());
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: None, key: None, ty: Some(ty), value: None, .. } => {
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
 
             // public boolean
-            assert_node!(parser.tree, fields[1], Field::Positional { modifiers: Some(modifiers), ty, default, .. } => {
-                assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
-                assert!(default.is_none());
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key:Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+                assert_eq!(modifiers.visibility.unwrap(), Visibility::Public);
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
         });
@@ -281,7 +267,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, fields, expressions, extends_types, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, properties, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
@@ -315,26 +301,23 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_path!(parser, *path, "Quux");
             });
 
-            assert_eq!(fields.len(), 4);
+            assert_eq!(properties.len(), 4);
             // a: T
-            assert_node!(parser.tree, fields[0], Field::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert_string!(parser, *name, "a");
-                assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // b?: T
-            assert_node!(parser.tree, fields[1], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
-                assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+                assert_eq!(modifiers.kind.unwrap(), BindingKind::Maybe);
                 assert_string!(parser, *name, "b");
-                assert!(default.is_none());
                 assert_expr_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
-            assert_node!(parser.tree, fields[2], Field::Named { modifiers: None, name: Name::Identifier(name), ty, default, .. } => {
+            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert_string!(parser, *name, "c");
-                assert!(default.is_none());
                 assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
                         assert_path!(parser, *path, "T");
@@ -342,14 +325,12 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, fields[3], Field::Named { modifiers: Some(modifiers), name: Name::Identifier(name), ty, default, .. } => {
-                assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Private);
+            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: Some(value), .. } => {
+                assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
-                assert!(default.is_some());
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
             });
-
-            assert_eq!(expressions.len(), 4);
         });
     }
 
@@ -365,10 +346,9 @@ struct Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, with_clauses, where_clauses, fields, expressions, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, with_clauses, where_clauses, properties, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(fields.is_empty());
-            assert!(expressions.is_empty());
+            assert!(properties.is_empty());
 
             // with Context
             let with_clauses = with_clauses.as_ref().expect("expected with clauses");
@@ -394,7 +374,7 @@ struct Foo with Context where Guard > Limit {
     }
 
     #[test]
-    fn test_parse_struct_with_private_function_shorthand() {
+    fn test_parse_struct_with_private_member_function() {
         let mut test = TestParser::new(
             r###"
 struct Foo {
@@ -408,10 +388,9 @@ struct Foo {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, fields, expressions, .. } => {
+        assert_node!(parser.tree, struct_id, Definition::Struct { meta, properties, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_eq!(fields.len(), 0);
-            assert_eq!(expressions.len(), 1);
+            assert_eq!(properties.len(), 1);
         });
     }
 }

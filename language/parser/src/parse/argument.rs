@@ -400,47 +400,6 @@ impl<'a> Parser<'a> {
             );
             Ok(argument_id)
         }
-        // dynamic argument (has a colon after the closing bracket)
-        else if self.peek_token(TokenType::OpenBracket).is_ok()
-            && self
-                .find_matching_close(None, TokenType::OpenBracket, TokenType::CloseBracket)
-                .map(|pos| {
-                    self.tokens
-                        .get(pos as usize + 1)
-                        .map(|token| token.token.ty == TokenType::Colon)
-                        .unwrap_or(false)
-                })
-                .unwrap_or(false)
-        {
-            self.bump(); // eat open bracket
-            // name
-            let name = if self.peek_token(TokenType::Identifier).is_ok()
-                && self.peek_next_token(TokenType::Colon).is_ok()
-            {
-                let name = self.eat_identifier()?;
-                self.bump(); // eat colon
-                Some(name)
-            } else {
-                None
-            };
-            // key
-            let key = self.eat_expression().for_node_type(NodeType::Argument)?;
-            self.eat_token(TokenType::CloseBracket)?;
-            // value
-            self.eat_token(TokenType::Colon)?;
-            self.eat_newlines_maybe()?;
-            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
-            let argument_id = self.tree.insert(
-                Argument::Dynamic {
-                    modifiers,
-                    name,
-                    key,
-                    value,
-                },
-                self.get_span_from(start),
-            );
-            Ok(argument_id)
-        }
         // positional argument
         else {
             let value = self.eat_expression()?;
@@ -851,22 +810,6 @@ mod tests {
             assert_string!(parser, *name, "args");
             // x
             assert_expr_path!(parser, parser.tree.get(*value), "x");
-        });
-    }
-
-    #[test]
-    fn test_parse_argument_dynamic() {
-        // [x: string]: any
-        let mut test = TestParser::new("[x: string]: any");
-        let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Dynamic { modifiers: _, name, key, value } => {
-            // x
-            assert_string!(parser, name.unwrap(), "x");
-            // string
-            assert_expr_path!(parser, parser.tree.get(*key), "string");
-            // any
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
         });
     }
 

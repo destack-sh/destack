@@ -769,7 +769,7 @@ mod tests {
     use dyst_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Decorator, Definition, DefinitionMeta, Doc, DocStyle, Expression,
-        Field, Name, ScalarLiteral, Tag,
+        Key, Name, Property, ScalarLiteral, Tag,
     };
 
     use crate::parse::tests::TestParser;
@@ -1053,9 +1053,9 @@ over multiple lines with trailing space    */",
         let mut test = TestParser::new(
             r"interface X {
     /** Doc A */
-    function a(): A
+    a(): A
     /** Doc B */
-    function b(): B
+    b(): B
 }",
         );
         let mut parser = test.prepare();
@@ -1063,11 +1063,11 @@ over multiple lines with trailing space    */",
         parser.finish();
 
         // interface X
-        assert_node!(parser.tree, interface_id, Definition::Interface { expressions, .. } => {
-            assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, interface_id, Definition::Interface { properties, .. } => {
+            assert_eq!(properties.len(), 2);
 
-            // function a(): A
-            let annotations = parser.tree.get_annotations(expressions[0].id);
+            // a(): A
+            let annotations = parser.tree.get_annotations(properties[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1077,8 +1077,8 @@ over multiple lines with trailing space    */",
                 });
             });
 
-            // function b(): B
-            let annotations = parser.tree.get_annotations(expressions[1].id);
+            // b(): B
+            let annotations = parser.tree.get_annotations(properties[1].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1399,12 +1399,12 @@ struct Floof {
 
         // struct Floof
         assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-            assert_node!(parser.tree, *node, Definition::Struct { fields, .. } => {
+            assert_node!(parser.tree, *node, Definition::Struct { properties, .. } => {
                 // a: int32
-                assert_eq!(fields.len(), 1);
-                assert_node!(parser.tree, fields[0], Field::Named { name: Name::Identifier(name), .. } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
                     assert_string!(parser, *name, "a");
-                    let annotations = parser.tree.get_annotations(fields[0].id);
+                    let annotations = parser.tree.get_annotations(properties[0].id);
                     assert_eq!(annotations.len(), 4);
 
                     // doc block prefix

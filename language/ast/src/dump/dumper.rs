@@ -483,8 +483,13 @@ impl Dump for Key {
             Key::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
             }
-            Key::Dynamic(_) => {
-                dumper.object("Key::Dynamic").end();
+            Key::Expression(_) => {
+                dumper.object("Key::Expression").end();
+            }
+            Key::NamedExpression { name, key: _ } => {
+                dumper.object("Key::NamedExpression")
+                    .field("name", name)
+                    .end();
             }
         }
     }
@@ -1152,7 +1157,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 implements_types: _,
                 with_clauses: _,
                 where_clauses: _,
-                expressions: _,
+                properties: _,
             } => {
                 self.node("Definition::Extension", id.id)
                     .field("meta", meta)
@@ -1196,23 +1201,33 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match property {
             Property::Field {
                 modifiers,
-                key: name,
+                key,
                 ty: _,
                 value: _,
             } => {
                 self.node("Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field("name", name)
+                    .field("key", key)
                     .end();
             }
             Property::Method {
                 modifiers,
-                key: name,
+                key,
                 definition: _,
             } => {
                 self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field("name", name)
+                    .field("key", key)
+                    .end();
+            }
+            Property::Spread {
+                modifiers,
+                key,
+                value: _,
+            } => {
+                self.node("Property::Spread", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
                     .end();
             }
         }

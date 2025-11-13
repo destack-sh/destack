@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, MutableNodeTree, Key,
-    NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Tag,
-    TemplateLiteral, UnionField, WhereClause, WithClause,
+    DependencyItem, Doc, EnumField, Expression, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, Tag, TemplateLiteral, UnionField,
+    WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -881,7 +881,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             implements_types,
             with_clauses,
             where_clauses,
-            expressions,
+            properties,
         } => {
             walk_definition_meta(visitor, tree, meta);
             if let Some(static_parameters) = static_parameters {
@@ -910,9 +910,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                     visitor.visit_where_clause(tree, *where_id, where_clause);
                 }
             }
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Function {
@@ -965,18 +965,18 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk a Key.
-pub fn walk_name_or_dynamic_key<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &MutableNodeTree,
-    name_or_dynamic_key: &Key,
-) {
-    match name_or_dynamic_key {
+pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &MutableNodeTree, key: &Key) {
+    match key {
         Key::Name(_name) => {
             // nothing to do
         }
-        Key::Dynamic(dynamic_key) => {
+        Key::Expression(dynamic_key) => {
             let dynamic_key_expr = tree.get(*dynamic_key);
             visitor.visit_expression(tree, *dynamic_key, dynamic_key_expr);
+        }
+        Key::NamedExpression { name: _, key } => {
+            let key_expr = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expr);
         }
     }
 }
@@ -992,13 +992,17 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
     match property {
         Property::Field {
             modifiers: _,
-            key: name,
+            key,
             ty,
             value,
         } => {
-            walk_name_or_dynamic_key(visitor, tree, name);
-            let ty_expr = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_expr);
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            if let Some(ty) = ty {
+                let ty_expr = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_expr);
+            }
             if let Some(value) = value {
                 let value_expr = tree.get(*value);
                 visitor.visit_expression(tree, *value, value_expr);
@@ -1006,14 +1010,25 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         }
         Property::Method {
             modifiers: _,
-            key: name,
+            key,
             definition,
         } => {
-            if let Some(name) = name {
-                walk_name_or_dynamic_key(visitor, tree, name);
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
             }
             let definition_expr = tree.get(*definition);
             visitor.visit_definition(tree, *definition, definition_expr);
+        }
+        Property::Spread {
+            modifiers: _,
+            key,
+            value,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
     }
 }

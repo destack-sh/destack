@@ -99,8 +99,8 @@ pub enum Property {
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Key,
-        ty: NodeId<Expression>,
+        key: Option<Key>,
+        ty: Option<NodeId<Expression>>,
         value: Option<NodeId<Expression>>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
@@ -108,6 +108,12 @@ pub enum Property {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         definition: NodeId<Definition>,
+    },
+    /// Spread property (like `...a`).
+    Spread {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        value: NodeId<Expression>,
     },
 }
 

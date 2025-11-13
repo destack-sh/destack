@@ -184,14 +184,10 @@ impl<'a> Parser<'a> {
         };
 
         // function style, name, static parameters
-        let (name_or_key, static_parameters) = {
+        let (name, static_parameters) = {
             if kind == FunctionKind::Function {
                 // name
-                let name_or_key = if self.peek_name_or_key().is_ok() {
-                    Some(self.eat_name_or_key()?)
-                } else {
-                    None
-                };
+                let name = self.eat_name_maybe()?;
 
                 // maybe keyword after name (maybe)
                 if expect_maybe {
@@ -203,7 +199,7 @@ impl<'a> Parser<'a> {
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Definition)?;
 
-                (name_or_key, static_parameters)
+                (name, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
@@ -213,7 +209,7 @@ impl<'a> Parser<'a> {
                 (None, static_parameters)
             }
         };
-        meta = meta.with_name_or_key_maybe(name_or_key);
+        meta = meta.with_name_maybe(name);
 
         // dynamic parameters
         let dynamic_parameters = {
@@ -380,9 +376,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta, Expression,
-        FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
-        WhereClause, WithClause,
+        Asynchrony, BinaryOperator, Definition, DefinitionMeta, Expression, FunctionCardinality,
+        FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -697,36 +692,6 @@ async function* foo() => int32 {
     }
 
     #[test]
-    fn test_parse_function_with_symbol_iterator() {
-        let mut test = TestParser::new(
-            r#"
-async *[Symbol.iterator]() {
-    yield 1; 
-    yield 2; 
-    yield 3;
-}
-            "#,
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-
-        let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, asynchrony, cardinality, body, .. } => {
-            assert!(meta.name.is_none());
-            assert_expr_path!(parser, parser.tree.get(meta.key.unwrap()), "Symbol.iterator");
-            assert_eq!(*asynchrony, Asynchrony::Async);
-            assert_eq!(*cardinality, FunctionCardinality::Generator);
-            assert_node!(parser.tree, body.unwrap(), Expression::Block(block) => {
-                assert_node!(parser.tree, *block, Block { expressions, .. } => {
-                    assert_eq!(expressions.len(), 3);
-                });
-            });
-        });
-    }
-
-    #[test]
     fn test_parse_function_constructor() {
         let mut test = TestParser::new("constructor(x: int32);");
         let mut parser = test.prepare();
@@ -777,8 +742,8 @@ function onResolve(
                         // { .. } | void
                         assert_node!(parser.tree, return_type.unwrap(), Expression::Binary { operator, left, right } => {
                             // { .. }
-                            assert_node!(parser.tree, *left, Expression::StructLiteral { ty: None, fields } => {
-                                assert_eq!(fields.len(), 2);
+                            assert_node!(parser.tree, *left, Expression::StructLiteral { ty: None, properties } => {
+                                assert_eq!(properties.len(), 2);
                             });
                             // |
                             assert_eq!(*operator, BinaryOperator::ElementwiseOr);

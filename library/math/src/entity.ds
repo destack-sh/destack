@@ -31,23 +31,3 @@ export struct Entity2D {
 export struct Entity3D {
     ...Transform3D
 }
-
-// nocheckin
-export union Result<S, E> {
-    Success(S),
-    Error(E),
-
-    isSuccess(): boolean {
-        match self {
-            Result.Success(_) => true,
-            Result.Error(_) => false,
-        }
-    }
-
-    isError(): boolean {
-        match self {
-            Result.Success(_) => false,
-            Result.Error(_) => true,
-        }
-    }
-}
