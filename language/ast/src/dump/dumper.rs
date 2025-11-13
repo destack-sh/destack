@@ -719,6 +719,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Block(_) => {
                 self.node("Expression::Block", _id.id).end();
             }
+            Expression::Statement(_) => {
+                self.node("Expression::Statement", _id.id).end();
+            }
             Expression::With {
                 clauses: _,
                 body: _,

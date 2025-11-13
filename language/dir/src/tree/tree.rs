@@ -25,11 +25,11 @@ pub struct MutableNodeTree {
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The source AST ids of all nodes. Index is the global node id.
-    pub(crate) ast_id_by_node_id: Vec<Option<u32>>,
+    pub(crate) source_id_by_node_id: Vec<Option<u32>>,
     /// The alias node id by AST source / node id.
-    pub(crate) alias_node_id_by_ast_id: HashMap<(ModuleId, u32), u32>,
+    pub(crate) alias_node_id_by_source_id: HashMap<(ModuleId, u32), u32>,
     /// The alias node id by DIR source / node id.
-    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
+    pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
 
     // per-node arenas
     pub(crate) expressions: NodeArena<Expression>,
@@ -77,9 +77,9 @@ impl MutableNodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
             module_by_node_id: Vec::with_capacity(capacity),
-            ast_id_by_node_id: Vec::with_capacity(capacity),
-            alias_node_id_by_ast_id: HashMap::new(),
-            alias_node_id_by_dir_id: HashMap::new(),
+            source_id_by_node_id: Vec::with_capacity(capacity),
+            alias_node_id_by_source_id: HashMap::new(),
+            alias_node_id_by_node_id: HashMap::new(),
             annotations_per_node_id: HashMap::new(),
             expressions: NodeArena::new(),
             blocks: NodeArena::new(),
@@ -127,8 +127,8 @@ impl MutableNodeTree {
         U: ast::Node,
     {
         let node_id = self.insert(node, module_id);
-        self.ast_id_by_node_id.push(Some(ast_node_id.id));
-        self.alias_node_id_by_ast_id
+        self.source_id_by_node_id.push(Some(ast_node_id.id));
+        self.alias_node_id_by_source_id
             .insert((module_id, ast_node_id.id), node_id.id);
         node_id
     }
@@ -142,8 +142,8 @@ impl MutableNodeTree {
     {
         let module_id = self.module_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, module_id);
-        self.ast_id_by_node_id.push(None);
-        self.alias_node_id_by_dir_id.insert(node_id.id, node_id.id);
+        self.source_id_by_node_id.push(None);
+        self.alias_node_id_by_node_id.insert(node_id.id, node_id.id);
         node_id
     }
 
@@ -153,7 +153,7 @@ impl MutableNodeTree {
         T: Node,
         Self: MutableNodeTreeImpl<T>,
     {
-        self.alias_node_id_by_ast_id
+        self.alias_node_id_by_source_id
             .insert((module_id, ast_id), alias.id);
     }
 
@@ -163,7 +163,7 @@ impl MutableNodeTree {
         T: Node,
         Self: MutableNodeTreeImpl<T>,
     {
-        self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
+        self.alias_node_id_by_node_id.insert(dir_id, alias.id);
     }
 
     /// Get the type of an untyped node id.
@@ -220,14 +220,14 @@ impl MutableNodeTree {
     pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         (
             self.module_by_node_id[node_id as usize],
-            self.ast_id_by_node_id[node_id as usize],
+            self.source_id_by_node_id[node_id as usize],
         )
     }
 
     // Get the node id by its source / AST id.
     #[inline]
     pub fn get_node_id_by_source_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
-        self.alias_node_id_by_ast_id
+        self.alias_node_id_by_source_id
             .get(&(module_id, ast_id))
             .copied()
     }

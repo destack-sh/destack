@@ -954,6 +954,11 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             // block
             Expression::Block(node) => node.format(f)?,
 
+            // statement
+            Expression::Statement(node) => {
+                write!(f, [*node, token(";")])?;
+            }
+
             // with
             Expression::With { clauses, body } => {
                 // keyword
