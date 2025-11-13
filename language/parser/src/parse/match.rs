@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{
     Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, NodeId, NodeType, Pattern,
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_match(&mut self) -> ParseResult<NodeId<Expression>> {
         // keyword
         // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn eat_match_cases(
         &mut self,
         kind: MatchKind,
-    ) -> ParserResult<Vec<NodeId<MatchCase>>> {
+    ) -> ParseResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
         loop {
             // stop on closing brace
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self, kind: MatchKind) -> ParserResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<NodeId<MatchCase>> {
         let start = self.mark();
 
         let (pattern_id, guard) = {

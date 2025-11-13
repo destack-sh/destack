@@ -4,11 +4,11 @@ use dyst_ast::{
 };
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 impl<'a> Parser<'a> {
     /// Eat a binding modifiers prefix (visibility and mutability).
-    pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParserResult<Option<BindingModifier>> {
+    pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParseResult<Option<BindingModifier>> {
         let mut modifiers: Option<BindingModifier> = None;
         // visibility
         if let Ok(Some(visibility)) = self.peek_visibility() {
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
     pub fn eat_binding_modifiers_postfix_maybe(
         &mut self,
         modifiers: Option<BindingModifier>,
-    ) -> ParserResult<Option<BindingModifier>> {
+    ) -> ParseResult<Option<BindingModifier>> {
         if self.peek_token(TokenType::Maybe).is_ok() {
             self.bump(); // eat maybe
             if let Some(modifiers) = modifiers {
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     pub fn eat_binding_modifiers_postfix(
         &mut self,
         modifiers: Option<BindingModifier>,
-    ) -> ParserResult<Option<BindingModifier>> {
+    ) -> ParseResult<Option<BindingModifier>> {
         self.eat_token(TokenType::Maybe)?;
         if let Some(modifiers) = modifiers {
             Ok(Some(BindingModifier {
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
     /// ...args: int32[]
     /// ```
     #[inline]
-    pub fn eat_parameter(&mut self) -> ParserResult<NodeId<Parameter>> {
+    pub fn eat_parameter(&mut self) -> ParseResult<NodeId<Parameter>> {
         let start = self.mark();
 
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
     /// x: int32, y: int32
     /// ```
     #[inline]
-    pub fn eat_parameters_body(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
+    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
         while self.peek_token(TokenType::Identifier).is_ok()
             // spread
@@ -262,7 +262,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static parameters (including the `<` and `>` tokens) if they exist.
-    pub fn eat_static_parameters_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Parameter>>>> {
+    pub fn eat_static_parameters_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Parameter>>>> {
         if self.peek_token(TokenType::LessThan).is_ok() {
             return Ok(Some(self.eat_static_parameters()?));
         }
@@ -270,7 +270,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static parameters (including the `<` and `>` tokens).
-    pub fn eat_static_parameters(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
+    pub fn eat_static_parameters(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
@@ -289,7 +289,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic parameters (including the `(` and `)` tokens) if they exist.
-    pub fn eat_dynamic_parameters_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Parameter>>>> {
+    pub fn eat_dynamic_parameters_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Parameter>>>> {
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             return Ok(Some(self.eat_dynamic_parameters()?));
         }
@@ -297,7 +297,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic parameters (including the `(` and `)` tokens).
-    pub fn eat_dynamic_parameters(&mut self) -> ParserResult<Vec<NodeId<Parameter>>> {
+    pub fn eat_dynamic_parameters(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -315,7 +315,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an argument name (like `name:` prefix) if it exists.
-    pub(crate) fn eat_argument_name_maybe(&mut self) -> ParserResult<Option<StringId>> {
+    pub(crate) fn eat_argument_name_maybe(&mut self) -> ParseResult<Option<StringId>> {
         if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
     /// [var] = "hello"
     /// ```
     #[inline]
-    pub fn eat_argument(&mut self) -> ParserResult<NodeId<Argument>> {
+    pub fn eat_argument(&mut self) -> ParseResult<NodeId<Argument>> {
         let start = self.mark();
         let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
         // named argument
@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
     /// ...args
     /// ```
     #[inline]
-    pub fn eat_tree_literal_argument(&mut self) -> ParserResult<NodeId<Argument>> {
+    pub fn eat_tree_literal_argument(&mut self) -> ParseResult<NodeId<Argument>> {
         let start = self.mark();
         let modifiers: Option<BindingModifier> = None;
         // spread argument
@@ -494,7 +494,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static arguments (including the `<` and `>` tokens) if they exist.
-    pub fn eat_static_arguments_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Argument>>>> {
+    pub fn eat_static_arguments_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Argument>>>> {
         if self.peek_token(TokenType::LessThan).is_ok() {
             return Ok(Some(self.eat_static_arguments()?));
         }
@@ -502,7 +502,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static arguments (including the `<` and `>` tokens).
-    pub fn eat_static_arguments(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
+    pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
@@ -523,7 +523,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic arguments (including the `(` and `)` tokens) if they exist.
-    pub fn eat_dynamic_arguments_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Argument>>>> {
+    pub fn eat_dynamic_arguments_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Argument>>>> {
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             return Ok(Some(self.eat_dynamic_arguments()?));
         }
@@ -531,7 +531,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic arguments (including the `(` and `)` tokens).
-    pub fn eat_dynamic_arguments(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
+    pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -568,7 +568,7 @@ impl<'a> Parser<'a> {
     pub fn eat_arguments_body(
         &mut self,
         terminator: TokenType,
-    ) -> ParserResult<Vec<NodeId<Argument>>> {
+    ) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
         loop {
             if self.peek_token(terminator).is_ok() {

@@ -8,7 +8,7 @@ use dyst_source::{
     SharedStringPool, Span,
 };
 
-use crate::{ParserError, ParserResult};
+use crate::{ParseError, ParseResult};
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -111,6 +111,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_before_block=true` and `in_type=true`.
+    pub(crate) fn type_in_before_block(self) -> Self {
+        Self {
+            in_before_block: true,
+            in_type: true,
+            ..self
+        }
+    }
+
     /// Set `in_for_each=true`, `in_before_block=true`.
     pub(crate) fn in_for_each_before_block(self) -> Self {
         Self {
@@ -167,6 +176,14 @@ impl ParserOptions {
         Self {
             left_precedence: Some(precedence),
             in_type: true,
+            ..self
+        }
+    }
+
+    /// Set `in_variant=true`.
+    pub(crate) fn in_variant(self) -> Self {
+        Self {
+            in_variant: true,
             ..self
         }
     }
@@ -286,7 +303,7 @@ pub struct Parser<'ast> {
     /// The diagnostic collector.
     pub diagnostics: &'ast mut DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
-    pub errors: Vec<ParserError>,
+    pub errors: Vec<ParseError>,
 }
 
 impl Debug for Parser<'_> {
@@ -390,8 +407,8 @@ impl<'a> Parser<'a> {
     pub(crate) fn with_options<T>(
         &mut self,
         options: ParserOptions,
-        func: impl FnOnce(&mut Self) -> ParserResult<T>,
-    ) -> ParserResult<T> {
+        func: impl FnOnce(&mut Self) -> ParseResult<T>,
+    ) -> ParseResult<T> {
         let old_options = self.options;
         self.options = options;
         let result = func(self);
@@ -402,7 +419,7 @@ impl<'a> Parser<'a> {
     /// Handle an error as a Diagnostic.
     /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
     #[inline]
-    pub(crate) fn handle_error(&mut self, e: &ParserError) {
+    pub(crate) fn handle_error(&mut self, e: &ParseError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.file, &self.tokens);
@@ -481,45 +498,45 @@ impl<'a> Parser<'a> {
 
     /// Peek the next Token or error.
     #[inline]
-    pub fn peek(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos)
-            .ok_or(ParserError::unexpected(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 1)
-            .ok_or(ParserError::unexpected(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next_next(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 2)
-            .ok_or(ParserError::unexpected(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next next Token or error.
     #[inline]
-    pub fn peek_next_next_next(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_next_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 3)
-            .ok_or(ParserError::unexpected(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Eat the next Token or error.
     #[inline]
-    pub fn eat(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
         if self.pos < self.tokens.len() {
             self.bump();
             let next = &self.tokens[self.pos - 1];
             Ok(next)
         } else {
-            Err(ParserError::unexpected(self.eof_token.span))
+            Err(ParseError::unexpected(self.eof_token.span))
         }
     }
 
@@ -544,16 +561,16 @@ impl<'a> Parser<'a> {
 
     /// Peek a token at a position.
     #[inline]
-    pub fn peek_token_ahead(&self, delta: u32, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn peek_token_ahead(&self, delta: u32, token_type: TokenType) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + (delta as usize))
             .filter(|token| token.token.ty == token_type)
-            .ok_or(ParserError::unexpected(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn peek_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_token requires semantic token type"
@@ -562,24 +579,24 @@ impl<'a> Parser<'a> {
         if next.token.ty == token_type {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next token in a list of token types.
     #[inline]
-    pub fn peek_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+    pub fn peek_token_in(&self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
         let next = self.peek()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next next token.
     #[inline]
-    pub fn peek_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_next_token requires semantic token type"
@@ -588,51 +605,51 @@ impl<'a> Parser<'a> {
         if next.token.ty == token_type {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next token in a list of token types.
     #[inline]
-    pub fn peek_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_token_in(&self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
         let next = self.peek_next()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next next next token.
     #[inline]
-    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         let next = self.peek_next_next()?;
         if next.token.ty == token_type {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next next token in a list of token types.
     #[inline]
-    pub fn peek_next_next_token_in(&self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_next_token_in(&self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
         let next = self.peek_next_next()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Peek the next next next token.
     #[inline]
-    pub fn peek_next_next_next_token(&self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn peek_next_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         let next = self.peek_next_next_next()?;
         if next.token.ty == token_type {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
@@ -641,18 +658,18 @@ impl<'a> Parser<'a> {
     pub fn peek_next_next_next_token_in(
         &self,
         token_types: &[TokenType],
-    ) -> ParserResult<&TokenSpan> {
+    ) -> ParseResult<&TokenSpan> {
         let next = self.peek_next_next_next()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Eat a token.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> ParserResult<&TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "eat_token requires semantic token type"
@@ -661,12 +678,12 @@ impl<'a> Parser<'a> {
         if current.token.ty == token_type {
             Ok(current)
         } else {
-            Err(ParserError::unexpected(current.span))
+            Err(ParseError::unexpected(current.span))
         }
     }
 
     /// Eat a token maybe.
-    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParserResult<bool> {
+    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParseResult<bool> {
         if self.peek_token(token_type).is_ok() {
             self.bump();
             Ok(true)
@@ -677,12 +694,12 @@ impl<'a> Parser<'a> {
 
     /// Eat a token in a list of tokens.
     #[inline]
-    pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {
+    pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<TokenType> {
         let current = self.eat()?;
         if token_types.contains(&current.token.ty) {
             Ok(current.token.ty)
         } else {
-            Err(ParserError::unexpected(current.span))
+            Err(ParseError::unexpected(current.span))
         }
     }
 
@@ -691,7 +708,7 @@ impl<'a> Parser<'a> {
     pub fn eat_token_in_maybe(
         &mut self,
         token_types: &[TokenType],
-    ) -> ParserResult<Option<TokenType>> {
+    ) -> ParseResult<Option<TokenType>> {
         let token = *self.peek()?;
         if token_types.contains(&token.token.ty) {
             self.bump();
@@ -705,7 +722,7 @@ impl<'a> Parser<'a> {
     pub fn with_recovery<T>(
         &mut self,
         start: ParserMark,
-        func: impl FnOnce(&mut Self) -> ParserResult<T>,
+        func: impl FnOnce(&mut Self) -> ParseResult<T>,
         default: T,
         bail: TokenType,
     ) -> T {
@@ -724,13 +741,13 @@ impl<'a> Parser<'a> {
         &mut self,
         start: ParserMark,
         recover: TokenType,
-        error: Option<ParserError>,
-    ) -> ParserResult<()> {
+        error: Option<ParseError>,
+    ) -> ParseResult<()> {
         // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
             // recover from here (but report error)
             if token.token.ty == recover {
-                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
+                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
                 self.handle_error(&error);
                 return Ok(());
             } else {
@@ -739,7 +756,7 @@ impl<'a> Parser<'a> {
             }
         }
         // error if we didn't hit the expected token
-        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
+        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
         self.handle_error(&error);
         Err(error)
     }
@@ -748,7 +765,7 @@ impl<'a> Parser<'a> {
     /// If we don't get the token, it's an error, but:
     ///  1) If we do hit the expected token later, we recover from there.
     ///  2) Otherwise, we try to recover forward until the bail token.
-    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParserResult<()> {
+    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
         // we're good if it's the expected token
         if self.peek_token(expected).is_ok() {
             self.bump();
@@ -762,7 +779,7 @@ impl<'a> Parser<'a> {
         {
             // ok with error if we finally hit the expected token
             if token.token.ty == expected {
-                let error = ParserError::unexpected(self.get_span_from(start));
+                let error = ParseError::unexpected(self.get_span_from(start));
                 self.bump();
                 self.handle_error(&error);
                 return Ok(());
@@ -774,7 +791,7 @@ impl<'a> Parser<'a> {
         }
 
         // error if we didn't hit the expected token, we're either at recovery or EOF
-        let error = ParserError::unexpected(self.get_span_from(start));
+        let error = ParseError::unexpected(self.get_span_from(start));
         self.handle_error(&error);
         Err(error)
     }

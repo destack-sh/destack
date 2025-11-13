@@ -5,7 +5,7 @@ use dyst_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone)]
-pub struct ParserError {
+pub struct ParseError {
     /// The span of the error.
     pub span: Span,
     /// The expected token type.
@@ -13,18 +13,18 @@ pub struct ParserError {
     /// The node type we tried to parse.
     pub node_type: Option<NodeType>,
     /// The source error.
-    pub source: Option<Box<ParserError>>,
+    pub source: Option<Box<ParseError>>,
 }
 
 /// The result of an AST parse.
-pub type ParserResult<T> = Result<T, ParserError>;
+pub type ParseResult<T> = Result<T, ParseError>;
 
-pub trait ParserResultExt<T> {
+pub trait ParseResultExt<T> {
     /// Set the node type of the error.
-    fn for_node_type(self, node_type: NodeType) -> Result<T, ParserError>;
+    fn for_node_type(self, node_type: NodeType) -> Result<T, ParseError>;
 }
 
-impl<T> ParserResultExt<T> for Result<T, ParserError> {
+impl<T> ParseResultExt<T> for Result<T, ParseError> {
     /// Set the node type of the error (if not already set)
     #[inline]
     fn for_node_type(self, node_type: NodeType) -> Self {
@@ -38,11 +38,11 @@ impl<T> ParserResultExt<T> for Result<T, ParserError> {
     }
 }
 
-impl ParserError {
+impl ParseError {
     /// Create a ParseError leaf without an expected alternative.
     #[inline]
     pub fn unexpected(span: Span) -> Self {
-        ParserError {
+        ParseError {
             span,
             expected: None,
             node_type: None,
@@ -53,7 +53,7 @@ impl ParserError {
     /// Create a ParseError leaf with an unexpected token and node type.
     #[inline]
     pub fn unexpected_for(span: Span, node_type: NodeType) -> Self {
-        ParserError {
+        ParseError {
             span,
             expected: None,
             node_type: Some(node_type),
@@ -64,7 +64,7 @@ impl ParserError {
     /// Create a ParseError leaf with an expected alternative.
     #[inline]
     pub fn expected(span: Span, expected: TokenType) -> Self {
-        ParserError {
+        ParseError {
             span,
             expected: Some(expected),
             node_type: None,
@@ -75,7 +75,7 @@ impl ParserError {
     /// Create a ParseError leaf with an expected alternative and node type.
     #[inline]
     pub fn expected_for(span: Span, expected: TokenType, node_type: NodeType) -> Self {
-        ParserError {
+        ParseError {
             span,
             expected: Some(expected),
             node_type: Some(node_type),
@@ -85,8 +85,8 @@ impl ParserError {
 
     /// Create a ParseError leaf from a source error with a new span.
     #[inline]
-    pub fn from_source(span: Span, source: ParserError) -> Self {
-        ParserError {
+    pub fn from_source(span: Span, source: ParseError) -> Self {
+        ParseError {
             span,
             expected: None,
             node_type: source.node_type,
@@ -96,8 +96,8 @@ impl ParserError {
 
     /// Create a ParseError leaf from a source error with a new span.
     #[inline]
-    pub fn from_source_maybe(span: Span, source: Option<ParserError>) -> Self {
-        ParserError {
+    pub fn from_source_maybe(span: Span, source: Option<ParseError>) -> Self {
+        ParseError {
             span,
             expected: None,
             node_type: source.as_ref().and_then(|s| s.node_type),
@@ -122,7 +122,7 @@ impl ParserError {
     }
 
     /// Get the leaf error.
-    pub fn leaf(&self) -> &ParserError {
+    pub fn leaf(&self) -> &ParseError {
         if let Some(source) = &self.source {
             source.leaf()
         } else {
@@ -143,7 +143,7 @@ impl ParserError {
     }
 }
 
-impl fmt::Display for ParserError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let span = self.span;
         match self.expected {
@@ -155,7 +155,7 @@ impl fmt::Display for ParserError {
 }
 
 // Optional: extension std::error::Error so callers can use `source()` if they like.
-impl std::error::Error for ParserError {
+impl std::error::Error for ParseError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         if let Some(source) = &self.source {
             Some(&**source)
@@ -165,7 +165,7 @@ impl std::error::Error for ParserError {
     }
 }
 
-impl ParserError {
+impl ParseError {
     pub fn to_diagnostic(&self, _source: &File, tokens: &[TokenSpan]) -> Diagnostic {
         let (span, node_type, expected) = self.leaf_content();
 

@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_extension(&mut self, meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_extension(&mut self, meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

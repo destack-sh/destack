@@ -1,4 +1,4 @@
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 
 use dyst_ast::{
     DefinitionMeta, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability, NodeId,
@@ -8,7 +8,7 @@ use dyst_ast::{
 impl<'a> Parser<'a> {
     /// Eat a variance bound maybe.
     #[inline]
-    pub fn eat_variance_bound_maybe(&mut self) -> ParserResult<Option<VarianceBound>> {
+    pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {
         // implements
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a composite / definition type literal.
-    pub fn eat_composite_type_literal(&mut self) -> ParserResult<TypeLiteral> {
+    pub fn eat_composite_type_literal(&mut self) -> ParseResult<TypeLiteral> {
         let next = self.eat_keyword_any()?;
         match next {
             Keyword::Type => Ok(TypeLiteral::Composite(DefinitionType::Type)),
@@ -65,14 +65,14 @@ impl<'a> Parser<'a> {
             Keyword::Interface => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
             Keyword::Extension => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
             Keyword::Function => Ok(TypeLiteral::Composite(DefinitionType::Function)),
-            _ => Err(ParserError::unexpected(self.peek()?.span)),
+            _ => Err(ParseError::unexpected(self.peek()?.span)),
         }
     }
 
     /// Peek a type literal (except composite types).
     /// Certain type literals are only parsed at the AST-level in static or type contexts.
     /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
-    pub fn peek_type_literal(&self) -> ParserResult<TypeLiteral> {
+    pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {
         let next = self.peek()?;
         let next_str = self.get_span_str(next.span);
 
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
 
         // bail if not inside static or type context
         if !self.options.in_type && !self.options.in_static {
-            return Err(ParserError::unexpected(next.span));
+            return Err(ParseError::unexpected(next.span));
         }
 
         let next_type = next.token.ty;
@@ -192,12 +192,12 @@ impl<'a> Parser<'a> {
                 Ok(TypeLiteral::Self_)
             }
             // composite type
-            _ => Err(ParserError::unexpected(next.span)),
+            _ => Err(ParseError::unexpected(next.span)),
         }
     }
 
     /// Eat a type literal (except composite types).
-    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParserResult<TypeLiteral> {
+    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParseResult<TypeLiteral> {
         let literal = match literal {
             Some(literal) => literal,
             None => self.peek_type_literal()?,
@@ -220,7 +220,7 @@ impl<'a> Parser<'a> {
     /// type 1 | 2 | 3
     /// readonly T
     /// ```
-    pub fn eat_type(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_type(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly])?;
 
@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat extends types maybe.
-    pub fn eat_extends_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+    pub fn eat_extends_types_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
@@ -303,7 +303,7 @@ impl<'a> Parser<'a> {
 
     /// Eat implements types maybe.
     #[inline]
-    pub fn eat_implements_types_maybe(&mut self) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+    pub fn eat_implements_types_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
@@ -318,7 +318,7 @@ impl<'a> Parser<'a> {
     fn eat_super_type_body_maybe(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParserResult<Option<Vec<NodeId<Expression>>>> {
+    ) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
         let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump();
             self.eat_newlines_maybe()?;
@@ -340,7 +340,7 @@ impl<'a> Parser<'a> {
     fn eat_super_type_body(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParserResult<Vec<NodeId<Expression>>> {
+    ) -> ParseResult<Vec<NodeId<Expression>>> {
         let mut types: Vec<NodeId<Expression>> = Vec::new();
         loop {
             // eat until open brace or close parenthesis

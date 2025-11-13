@@ -1,4 +1,4 @@
-use crate::{CompilerDiagnostic, CompilerError, SourceNodeIdAny};
+use crate::{CompilerDiagnostic, CompileError, SourceNodeIdAny};
 use dyst_dir::ModuleId;
 
 /// Error when evaluating something statically.
@@ -40,10 +40,10 @@ impl std::fmt::Display for EvaluateError {
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
-impl From<EvaluateError> for CompilerError {
+impl From<EvaluateError> for CompileError {
     #[inline]
     fn from(error: EvaluateError) -> Self {
-        CompilerError::Evaluate(error)
+        CompileError::Evaluate(error)
     }
 }
 

@@ -1,11 +1,11 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a namespace declaration (incl. `namespace` keyword).
-    pub fn eat_namespace(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_namespace(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword

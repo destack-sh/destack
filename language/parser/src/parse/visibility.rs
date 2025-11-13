@@ -1,4 +1,4 @@
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 use dyst_ast::{Keyword, TokenType, Visibility};
 
 // NOTE: we support parsing `#name` as alias for `private name` for #Compatibility
@@ -7,7 +7,7 @@ use dyst_ast::{Keyword, TokenType, Visibility};
 impl<'a> Parser<'a> {
     /// Peek a visibility.
     #[inline]
-    pub fn peek_visibility(&self) -> ParserResult<Option<Visibility>> {
+    pub fn peek_visibility(&self) -> ParseResult<Option<Visibility>> {
         if self.peek_keyword(Keyword::Public).is_ok() {
             Ok(Some(Visibility::Public))
         } else if self.peek_keyword(Keyword::Protected).is_ok() {
@@ -18,13 +18,13 @@ impl<'a> Parser<'a> {
         {
             Ok(Some(Visibility::Private))
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
     /// Eat a visibility maybe.
     #[inline]
-    pub fn eat_visibility_maybe(&mut self) -> ParserResult<Option<Visibility>> {
+    pub fn eat_visibility_maybe(&mut self) -> ParseResult<Option<Visibility>> {
         if self.peek_visibility().is_ok() {
             Ok(Some(self.eat_visibility()?))
         } else {
@@ -34,12 +34,12 @@ impl<'a> Parser<'a> {
 
     /// Eat a visibility.
     #[inline]
-    pub fn eat_visibility(&mut self) -> ParserResult<Visibility> {
+    pub fn eat_visibility(&mut self) -> ParseResult<Visibility> {
         if let Some(visibility) = self.peek_visibility()? {
             self.bump(); // eat visibility
             Ok(visibility)
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 }

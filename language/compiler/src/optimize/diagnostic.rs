@@ -1,6 +1,6 @@
 use dyst_dir::NodeIdAny;
 
-use crate::{CompilerDiagnostic, CompilerError};
+use crate::{CompilerDiagnostic, CompileError};
 
 /// Error when optimizeing something into the compiler.
 #[derive(Debug, Clone)]
@@ -30,10 +30,10 @@ impl std::fmt::Display for OptimizeError {
 
 pub type OptimizeResult<T> = Result<T, OptimizeError>;
 
-impl From<OptimizeError> for CompilerError {
+impl From<OptimizeError> for CompileError {
     #[inline]
     fn from(error: OptimizeError) -> Self {
-        CompilerError::Optimize(error)
+        CompileError::Optimize(error)
     }
 }
 

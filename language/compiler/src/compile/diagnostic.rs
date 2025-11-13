@@ -1,6 +1,6 @@
 use crate::{BuildError, EvaluateError, ExecuteError, LoadError, OptimizeError, ValidateError};
 
-/// Compiler diagnostic that can be turned into a CompilerError.
+/// Compiler diagnostic that can be turned into a CompileError.
 #[allow(dead_code)]
 pub trait CompilerDiagnostic {
     /// Get the numeric sub-code of the error.
@@ -22,7 +22,7 @@ pub trait CompilerDiagnostic {
 /// Error during compilation.
 #[derive(Debug, Clone)]
 #[repr(u8)]
-pub enum CompilerError {
+pub enum CompileError {
     /// Error during loading (code `L`).
     Load(LoadError) = 1,
     /// Error during evaluation (code `E`).
@@ -37,7 +37,7 @@ pub enum CompilerError {
     Build(BuildError) = 6,
 }
 
-impl CompilerError {
+impl CompileError {
     /// Get the family letter of the error.
     pub fn family_letter(&self) -> &str {
         match self {
@@ -88,4 +88,4 @@ impl CompilerError {
     }
 }
 
-pub type CompilerResult<T> = Result<T, CompilerError>;
+pub type CompileResult<T> = Result<T, CompileError>;

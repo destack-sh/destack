@@ -2,8 +2,7 @@ use dyst_source::StringId;
 
 use crate::tree::variant::VariantFormat;
 use crate::{
-    Asynchrony, BindingScope, EnumField, ExportType, Expression, Keyword, Name, Node, NodeId,
-    NodeType, Parameter, Property, UnionField, Visibility, WhereClause, WithClause,
+    Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId, NodeType, Parameter, Property, UnionField, Visibility, WhereClause, WithClause
 };
 
 /// The kind of declaration.
@@ -21,7 +20,7 @@ pub struct DefinitionMeta {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The scope of the declaration.
-    pub scope: BindingScope = BindingScope::Container,
+    pub scope: BindingScope = BindingScope::Instance,
     /// The name of the definition.
     pub name: Option<Name> = None,
     /// The visibility of the definition.
@@ -35,7 +34,7 @@ impl DefinitionMeta {
     pub fn named(name: Name) -> Self {
         Self {
             kind: DeclarationKind::Definition,
-            scope: BindingScope::Container,
+            scope: BindingScope::Instance,
             name: Some(name),
             visibility: None,
             export: None,
@@ -323,11 +322,6 @@ pub enum Definition {
     /// function () // anonymous function with empty signature
     ///
     /// function foo() // just declaration, no body, no opening `{`
-    /// foo()
-    ///
-    /// // getter/setter style
-    /// get foo() => int32
-    /// set foo(value: int32)
     ///
     /// function foo<T, U>(x: T) => (int32, boolean) where (
     ///    T: Copy
@@ -335,7 +329,6 @@ pub enum Definition {
     /// ) {
     ///    print("Hello, world!")
     /// }
-    /// foo<T, U>(x: T) => (int32, boolean) ... // shorthand
     ///
     /// function baz(a: int32, b: boolean) => (
     ///    MyStruct,
@@ -363,11 +356,10 @@ pub enum Definition {
     /// ```
     Function {
         meta: DefinitionMeta,
-        abstraction: FunctionAbstraction,
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
-        mode: Option<FunctionMode>,
         kind: FunctionKind,
+        mode: Option<FunctionMode>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
         return_type: Option<NodeId<Expression>>,
@@ -419,35 +411,6 @@ pub enum FunctionCardinality {
     Scalar,
     /// Generator function.
     Generator,
-}
-
-/// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionMode {
-    /// Getter function.
-    Getter,
-    /// Setter function.
-    Setter,
-    /// Constructor function.
-    Constructor,
-    /// New type function.
-    New,
-    /// Implicit call function.
-    Call,
-}
-
-impl FunctionMode {
-    /// Get the keyword for the function accessor.
-    #[inline]
-    pub fn to_keyword(&self) -> Option<Keyword> {
-        match self {
-            FunctionMode::Getter => Some(Keyword::Get),
-            FunctionMode::Setter => Some(Keyword::Set),
-            FunctionMode::Constructor => Some(Keyword::Constructor),
-            FunctionMode::New => Some(Keyword::New),
-            FunctionMode::Call => None,
-        }
-    }
 }
 
 /// The abstraction level of a definition.

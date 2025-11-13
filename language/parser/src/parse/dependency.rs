@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{
     DependencyItem, DependencyKind, ExportType, Expression, Keyword, NodeId, NodeType,
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true } // arguments
     /// ```
-    pub fn eat_import(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_import(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
         let target = match target {
             Some(target) => target,
             None => {
-                return Err(ParserError::unexpected(self.get_span_from(start))
+                return Err(ParseError::unexpected(self.get_span_from(start))
                     .for_node_type(NodeType::Expression));
             }
         };
@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
     /// export default foo
     /// export = foo
     /// ```
-    pub fn eat_export(&mut self, mode: Option<ExportType>) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_export(&mut self, mode: Option<ExportType>) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // mode
@@ -148,14 +148,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an import clause.
-    pub(crate) fn peek_import_clause(&mut self) -> ParserResult<()> {
+    pub(crate) fn peek_import_clause(&mut self) -> ParseResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Multiply).is_ok()
             || self.peek_token(TokenType::Identifier).is_ok()
         {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
@@ -172,7 +172,7 @@ impl<'a> Parser<'a> {
     /// ```
     fn eat_dependency_binding(
         &mut self,
-    ) -> ParserResult<(
+    ) -> ParseResult<(
         Option<StringId>,
         Option<StringId>,
         Option<Vec<NodeId<DependencyItem>>>,
@@ -259,17 +259,17 @@ impl<'a> Parser<'a> {
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target(&mut self) -> ParserResult<StringId> {
+    fn eat_dependency_target(&mut self) -> ParseResult<StringId> {
         // physical/string target
         let literal = self.eat_scalar_literal()?;
         match literal {
             ScalarLiteral::String(string) => Ok(string),
-            _ => Err(ParserError::expected(self.peek()?.span, TokenType::Literal)),
+            _ => Err(ParseError::expected(self.peek()?.span, TokenType::Literal)),
         }
     }
 
     /// Eat a block of import items (like `{ a, b }` in `import foo.{a, b}`).
-    fn eat_dependency_items_block(&mut self) -> ParserResult<Vec<NodeId<DependencyItem>>> {
+    fn eat_dependency_items_block(&mut self) -> ParseResult<Vec<NodeId<DependencyItem>>> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
 
@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
     /// geometry
     /// geometry as geom
     /// ```
-    pub(crate) fn eat_dependency_item(&mut self) -> ParserResult<NodeId<DependencyItem>> {
+    pub(crate) fn eat_dependency_item(&mut self) -> ParseResult<NodeId<DependencyItem>> {
         let start = self.mark();
 
         // kind

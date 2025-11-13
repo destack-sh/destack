@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 
 use dyst_ast::{
     Definition, DefinitionMeta, Keyword, NodeId, NodeType, StructKind, TokenType, VariantFormat,
@@ -46,7 +46,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_struct(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -75,9 +75,11 @@ impl<'a> Parser<'a> {
         // format
         let (format, tuple_properties) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
-            let tuple_properties = self.eat_properties().for_node_type(NodeType::Definition)?;
-            self.eat_token(TokenType::CloseParenthesis)
-                .for_node_type(NodeType::Definition)?;
+            let tuple_properties = self
+                .with_options(self.options.nested_in_variant(), |parser| {
+                    parser.eat_tuple_property_list(TokenType::CloseParenthesis)
+                })?;
+            self.eat_token(TokenType::CloseParenthesis)?;
             (VariantFormat::Tuple, Some(tuple_properties))
         } else {
             (VariantFormat::Struct, None)
@@ -250,12 +252,12 @@ struct Foo(int32, public boolean) {}
     }
 
     #[test]
-    fn test_parse_struct_with_struct_kind() {
+    fn test_parse_struct_with_spread() {
         let mut test = TestParser::new(
             r###"
 struct Foo<T: Numeric> extends Boz implements Quux {
-    ..Bar
-    ..Baz
+    ...Bar
+    ...Baz
     
     a: T
     b?: T
@@ -302,22 +304,31 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_path!(parser, *path, "Quux");
             });
 
-            assert_eq!(properties.len(), 4);
+            assert_eq!(properties.len(), 6);
+
+            // ..Bar
+            assert_node!(parser.tree, properties[0], Property::Spread { modifiers: None, value } => {
+                assert_expr_path!(parser, parser.tree.get(*value), "Bar");
+            });
+            // ..Baz
+            assert_node!(parser.tree, properties[1], Property::Spread { modifiers: None, value } => {
+                assert_expr_path!(parser, parser.tree.get(*value), "Baz");
+            });
             // a: T
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // b?: T
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert_eq!(modifiers.kind.unwrap(), BindingKind::Maybe);
                 assert_string!(parser, *name, "b");
                 assert_expr_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
-            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[4], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
@@ -326,7 +337,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: Some(value), .. } => {
+            assert_node!(parser.tree, properties[5], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: Some(value), .. } => {
                 assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));

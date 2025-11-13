@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 
 use dyst_ast::{
     Definition, DefinitionMeta, EnumField, Expression, Keyword, NodeId, NodeType, Property,
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(&mut self, mut meta: DefinitionMeta) -> ParserResult<NodeId<Definition>> {
+    pub fn eat_enum(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
 
     /// Eat an enum body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_enum_body(&mut self) -> ParserResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Property>>)> {
+    fn eat_enum_body(&mut self) -> ParseResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Property>>)> {
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
         let mut properties: Vec<NodeId<Property>> = Vec::new();
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an enum field.
-    fn peek_enum_field(&self) -> ParserResult<()> {
+    fn peek_enum_field(&self) -> ParseResult<()> {
         if self.peek_name().is_ok()
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParserError::expected(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Identifier,
             ))
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
-    fn eat_enum_field(&mut self) -> ParserResult<NodeId<EnumField>> {
+    fn eat_enum_field(&mut self) -> ParseResult<NodeId<EnumField>> {
         let start = self.mark();
         let name = self.eat_name().for_node_type(NodeType::EnumField)?;
 

@@ -1,11 +1,11 @@
 use dyst_source::{SmallVec, StringId};
 
-use crate::{Parser, ParserResult};
+use crate::{Parser, ParseResult};
 use dyst_ast::{Path, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a Path.
-    pub fn eat_path(&mut self) -> ParserResult<Path> {
+    pub fn eat_path(&mut self) -> ParseResult<Path> {
         let mut segments: SmallVec<StringId, 3> = SmallVec::new();
 
         // first identifier

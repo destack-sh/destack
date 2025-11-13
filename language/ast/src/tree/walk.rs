@@ -917,11 +917,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Function {
             meta,
-            abstraction: _,
             asynchrony: _,
             cardinality: _,
-            mode: _,
             kind: _,
+            mode: _,
             static_parameters,
             dynamic_parameters,
             return_type,
@@ -1011,13 +1010,50 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         Property::Method {
             modifiers: _,
             key,
-            definition,
+            asynchrony: _,
+            abstraction: _,
+            cardinality: _,
+            mode: _,
+            static_parameters,
+            dynamic_parameters,
+            return_type,
+            with_clauses,
+            where_clauses,
+            body,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
-            let definition_expr = tree.get(*definition);
-            visitor.visit_definition(tree, *definition, definition_expr);
+            if let Some(static_parameters) = static_parameters {
+                for param_id in static_parameters {
+                    let param = tree.get(*param_id);
+                    visitor.visit_parameter(tree, *param_id, param);
+                }
+            }
+            for param_id in dynamic_parameters {
+                let param = tree.get(*param_id);
+                visitor.visit_parameter(tree, *param_id, param);
+            }
+            if let Some(return_type) = return_type {
+                let expr = tree.get(*return_type);
+                visitor.visit_expression(tree, *return_type, expr);
+            }
+            if let Some(with_clauses) = with_clauses {
+                for with_id in with_clauses {
+                    let with_clause = tree.get(*with_id);
+                    visitor.visit_with_clause(tree, *with_id, with_clause);
+                }
+            }
+            if let Some(where_clauses) = where_clauses {
+                for where_id in where_clauses {
+                    let where_clause = tree.get(*where_id);
+                    visitor.visit_where_clause(tree, *where_id, where_clause);
+                }
+            }
+            if let Some(body_id) = body {
+                let expression = tree.get(*body_id);
+                visitor.visit_expression(tree, *body_id, expression);
+            }
         }
         Property::Spread {
             modifiers: _,

@@ -1,4 +1,4 @@
-use crate::{CompilerDiagnostic, CompilerError, SourceNodeIdAny};
+use crate::{CompilerDiagnostic, CompileError, SourceNodeIdAny};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone)]
@@ -31,10 +31,10 @@ impl std::fmt::Display for ExecuteError {
 
 pub type ExecuteResult<T> = Result<T, ExecuteError>;
 
-impl From<ExecuteError> for CompilerError {
+impl From<ExecuteError> for CompileError {
     #[inline]
     fn from(error: ExecuteError) -> Self {
-        CompilerError::Execute(error)
+        CompileError::Execute(error)
     }
 }
 

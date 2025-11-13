@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParseError, ParseResult};
 
 use dyst_ast::{
     Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
@@ -12,11 +12,11 @@ use dyst_ast::{
 impl<'a> Parser<'a> {
     /// Peek a scalar literal token.
     #[inline]
-    pub fn peek_scalar_literal(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {
         if self.peek_token(TokenType::Literal).is_ok() {
             Ok(self.peek()?)
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
@@ -37,10 +37,10 @@ impl<'a> Parser<'a> {
     /// /abc/
     /// /abc/g
     /// ```
-    pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
+    pub fn eat_scalar_literal(&mut self) -> ParseResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
         let Some(body) = literal_span.token.literal else {
-            return Err(ParserError::unexpected(literal_span.span));
+            return Err(ParseError::unexpected(literal_span.span));
         };
         let literal_str = self.get_span_str(literal_span.span);
 
@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
                 is_bigint,
             } => {
                 if is_empty {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
                 // int
                 if is_bigint {
                     parsed.map(ScalarLiteral::Bigint).map_err(|_| {
-                        ParserError::expected_for(
+                        ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
                     })
                 } else {
                     parsed.map(ScalarLiteral::Integer).map_err(|_| {
-                        ParserError::expected_for(
+                        ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
                 is_empty_exponent,
             } => {
                 if is_empty_exponent {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
                     .parse::<f64>()
                     .map(ScalarLiteral::Float)
                     .map_err(|_| {
-                        ParserError::expected_for(
+                        ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
                     decode_html_entity(literal_str)
                         .map(ScalarLiteral::Character)
                         .ok_or_else(|| {
-                            ParserError::expected_for(
+                            ParseError::expected_for(
                                 literal_span.span,
                                 TokenType::Literal,
                                 NodeType::Expression,
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
                         })
                 } else {
                     if !is_terminated {
-                        return Err(ParserError::expected_for(
+                        return Err(ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
                         .next()
                         .map(ScalarLiteral::Character)
                         .ok_or_else(|| {
-                            ParserError::expected_for(
+                            ParseError::expected_for(
                                 literal_span.span,
                                 TokenType::Literal,
                                 NodeType::Expression,
@@ -178,7 +178,7 @@ impl<'a> Parser<'a> {
             // byte character literal (ignore quotes)
             LiteralType::Byte { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
                     .next()
                     .map(|ch| ScalarLiteral::Byte(ch as u8))
                     .ok_or_else(|| {
-                        ParserError::expected_for(
+                        ParseError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -202,7 +202,7 @@ impl<'a> Parser<'a> {
             // supports both '...' and "..." delimited string literals
             LiteralType::String { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -253,7 +253,7 @@ impl<'a> Parser<'a> {
             // raw string literal (ignore quotes and hashes)
             LiteralType::RawString { hashes } => {
                 let Some(hashes) = hashes else {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
                 let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
                 let suffix_len = 1 /* closing " */ + num_hashes;
                 if literal_str.len() < prefix_len + suffix_len {
-                    return Err(ParserError::expected(literal_span.span, TokenType::Literal));
+                    return Err(ParseError::expected(literal_span.span, TokenType::Literal));
                 }
                 let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                 let string_id = self.strings.intern(content);
@@ -273,7 +273,7 @@ impl<'a> Parser<'a> {
             // byte string literal (ignore quotes)
             LiteralType::ByteString { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -286,7 +286,7 @@ impl<'a> Parser<'a> {
             // raw byte string literal (ignore quotes and hashes)
             LiteralType::RawByteString { hashes } => {
                 let Some(hashes) = hashes else {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
                 let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
                 let suffix_len = 1 /* closing " */ + num_hashes;
                 if literal_str.len() < prefix_len + suffix_len {
-                    return Err(ParserError::expected_for(
+                    return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -310,13 +310,13 @@ impl<'a> Parser<'a> {
 
     /// Peek a template literal.
     #[inline]
-    pub fn peek_template_literal(&self) -> ParserResult<&TokenSpan> {
+    pub fn peek_template_literal(&self) -> ParseResult<&TokenSpan> {
         if self.peek_token(TokenType::TemplateString).is_ok()
             || self.peek_token(TokenType::TemplateStringStart).is_ok()
         {
             Ok(self.peek()?)
         } else {
-            Err(ParserError::unexpected(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
@@ -330,7 +330,7 @@ impl<'a> Parser<'a> {
     /// sql`${stmt}`
     /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
-    pub fn eat_template_literal(&mut self, tag: Option<Path>) -> ParserResult<TemplateLiteral> {
+    pub fn eat_template_literal(&mut self, tag: Option<Path>) -> ParseResult<TemplateLiteral> {
         let next = *self.eat()?;
         let next_str = self.get_span_str(next.span);
 
@@ -398,12 +398,12 @@ impl<'a> Parser<'a> {
         }
         // error
         else {
-            Err(ParserError::unexpected(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
     /// Eat an array literal (including the surrounding brackets).
-    pub fn eat_array_literal(&mut self) -> ParserResult<Vec<NodeId<Argument>>> {
+    pub fn eat_array_literal(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         self.eat_token(TokenType::OpenBracket)?;
         self.eat_newlines_maybe()?;
         let elements = if self.peek_token(TokenType::CloseBracket).is_ok() {
@@ -423,7 +423,7 @@ impl<'a> Parser<'a> {
         &mut self,
         first_element: Option<NodeId<Argument>>,
         close_token: TokenType,
-    ) -> ParserResult<Vec<NodeId<Argument>>> {
+    ) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
             elements.push(first);
@@ -452,7 +452,7 @@ impl<'a> Parser<'a> {
     /// { }
     /// { a: 1, b }
     /// { a(x): void }
-    pub fn eat_struct_literal(&mut self) -> ParserResult<Vec<NodeId<Property>>> {
+    pub fn eat_struct_literal(&mut self) -> ParseResult<Vec<NodeId<Property>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
@@ -462,7 +462,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
-    pub fn peek_tree_literal(&self) -> ParserResult<()> {
+    pub fn peek_tree_literal(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::LessThan).is_ok()
             && (self.peek_next_token(TokenType::GreaterThan).is_ok()
                 || self.peek_next_token(TokenType::Divide).is_ok()
@@ -470,7 +470,7 @@ impl<'a> Parser<'a> {
         {
             return Ok(());
         }
-        Err(ParserError::unexpected(self.peek()?.span))
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Eat a tree literal (including the `<` and `>` tokens).
@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
     ///     ..someChildren.map(child => <Entity name={child.name} />)
     /// </Level>
     /// ```
-    pub fn eat_tree_literal(&mut self) -> ParserResult<NodeId<Expression>> {
+    pub fn eat_tree_literal(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;

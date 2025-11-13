@@ -1166,11 +1166,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Function {
                 meta,
-                abstraction,
                 asynchrony,
                 cardinality,
-                mode: kind,
-                kind: style,
+                kind,
+                mode,
                 static_parameters: _,
                 dynamic_parameters: _,
                 return_type: _,
@@ -1180,11 +1179,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
-                    .field("abstraction", abstraction)
                     .field("asynchrony", asynchrony)
                     .field("cardinality", cardinality)
-                    .field_optional("kind", kind)
-                    .field("style", style)
+                    .field("kind", kind)
+                    .field_optional("mode", mode)
                     .end();
             }
         }
@@ -1214,11 +1212,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Property::Method {
                 modifiers,
                 key,
-                definition: _,
+                asynchrony,
+                abstraction,
+                cardinality,
+                mode,
+                static_parameters: _,
+                dynamic_parameters: _,
+                return_type: _,
+                with_clauses: _,
+                where_clauses: _,
+                body: _,
             } => {
                 self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("key", key)
+                    .field("asynchrony", asynchrony)
+                    .field("abstraction", abstraction)
+                    .field("cardinality", cardinality)
+                    .field_optional("mode", mode)
                     .end();
             }
             Property::Spread {
