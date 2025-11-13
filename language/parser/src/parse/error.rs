@@ -1,7 +1,7 @@
 use core::fmt;
 
 use dyst_ast::{NodeType, TokenSpan, TokenType};
-use dyst_source::{Diagnostic, DiagnosticKind, DiagnosticSeverity, File, LabeledSpan, Span};
+use dyst_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone)]
@@ -179,8 +179,7 @@ impl ParserError {
             None => "".to_string(),
         };
         Diagnostic {
-            kind: DiagnosticKind::Parse,
-            code: "E001".to_string(),
+            code: "P001".to_string(),
             severity: DiagnosticSeverity::Error,
             message: match expected {
                 Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),

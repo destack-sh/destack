@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
             let Some(dir_node_id) = self
                 .session
                 .tree
-                .get_node_id_by_ast_id(module.id, *ast_node_id)
+                .get_node_id_by_source_id(module.id, *ast_node_id)
             else {
                 continue;
             };
@@ -23,7 +23,7 @@ impl<'a> Compiler<'a> {
                 let Some(dir_annotation_id) = self
                     .session
                     .tree
-                    .get_node_id_by_ast_id(module.id, ast_annotation_id.id)
+                    .get_node_id_by_source_id(module.id, ast_annotation_id.id)
                 else {
                     continue; // skipped by lower_annotation
                 };

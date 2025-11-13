@@ -23,7 +23,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_path(
         &self,
         module: &'a Module,
-        _scope_id: dir::NodeIdAny,
+        scope_id: dir::NodeIdAny,
         path: &dir::Path,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
@@ -51,7 +51,12 @@ impl<'a> Transpiler<'a> {
                 Path { segments }
             }
 
-            _ => return Err(TranspileError::UnsupportedPath { path: path.clone() }),
+            _ => {
+                return Err(TranspileError::UnsupportedPath {
+                    node: scope_id,
+                    path: path.clone(),
+                });
+            }
         };
 
         Ok(path)

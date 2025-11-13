@@ -124,7 +124,7 @@ pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
     /// Evaluated definition type.
-    /// NOTE #Incomplete: shouldn't Type::Definition be an instance (statically parameterized)?
+    /// NOTE: shouldn't Type::Definition be an instance (statically parameterized)?
     ///  (same with all statically parameterized instantiations like Functions etc.?)
     Definition(NodeId<Definition>),
 

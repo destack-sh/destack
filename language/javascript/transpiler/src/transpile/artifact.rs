@@ -1,7 +1,7 @@
 use dyst_source::{File, FileContent, FileId, FileType};
 
 use crate::{
-    JavaScriptFormatContext, JavaScriptFormatOptions, TranspileError, TranspileResult, Transpiler,
+    JavaScriptFormatContext, JavaScriptFormatOptions, TranspileResult, Transpiler,
     TranspilerLanguage, TranspilerUnit, TranspilerUnitId,
 };
 use dyst_fir::format as fir_format;
@@ -47,16 +47,10 @@ impl<'a> Transpiler<'a> {
             tree: &unit.ast,
             strings: &strings,
         };
-        let formatted =
-            fir_format!(context, [unit]).map_err(|error| TranspileError::PrintError {
-                message: format!("failed to format unit: {error}"),
-            })?;
-        let printed = formatted.print();
-        let content = printed
-            .map(|printed| printed.as_str().to_string())
-            .map_err(|error| TranspileError::PrintError {
-                message: format!("failed to print unit: {error}"),
-            })?;
+        // NOTE #Robustness: handle transpiler artifact print errors
+        let formatted = fir_format!(context, [unit]).expect("failed to format");
+        let printed = formatted.print().expect("failed to print");
+        let content = printed.as_str().to_string();
 
         // make artifact
         let artifact = TranspilerArtifact {

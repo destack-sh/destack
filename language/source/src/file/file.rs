@@ -197,4 +197,9 @@ impl File {
             0
         }
     }
+
+    /// Get the span of the file.
+    pub fn span(&self) -> Span {
+        Span::new(self.id, 0, self.len)
+    }
 }
