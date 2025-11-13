@@ -1207,11 +1207,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
-        DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
-        IntType, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
-        ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-        VarianceBound, WithClause,
+        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta, DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound, WithClause
     };
 
     use crate::parse::tests::TestParser;
@@ -2018,7 +2014,7 @@ const shapes = (
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty: Some(ty), fields, .. } => {
+            Expression::StructLiteral { ty: Some(ty), properties, .. } => {
                 // geom.Vector2
                 assert_node!(
                     parser.tree,
@@ -2027,12 +2023,12 @@ const shapes = (
                         assert_path!(parser, *path, "geom.Vector2");
                     }
                 );
-                assert_eq!(fields.len(), 2);
+                assert_eq!(properties.len(), 2);
                 // x: 1
                 assert_node!(
                     parser.tree,
-                    fields[0],
-                    Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                    properties[0],
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(
                             parser.tree,
@@ -2046,8 +2042,8 @@ const shapes = (
                 // y
                 assert_node!(
                     parser.tree,
-                    fields[1],
-                    Argument::Shorthand { modifiers: _, name } => {
+                    properties[1],
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
                         assert_string!(parser, *name, "y");
                     }
                 );
@@ -2061,8 +2057,8 @@ const shapes = (
         let mut test = TestParser::new(
             r##"
 geom.Mesh<2, Dims: 4> { 
-    vertices: [1, 2]
-    y
+    vertices: [1, 2],
+    y,
 }"##,
         );
         let mut parser = test.prepare();
@@ -2071,7 +2067,7 @@ geom.Mesh<2, Dims: 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty: Some(ty), fields, .. } => {
+            Expression::StructLiteral { ty: Some(ty), properties, .. } => {
                 assert_node!(
                     parser.tree,
                     *ty,
@@ -2082,12 +2078,12 @@ geom.Mesh<2, Dims: 4> {
                         assert_eq!(params.len(), 2);
                     }
                 );
-                assert_eq!(fields.len(), 2);
+                assert_eq!(properties.len(), 2);
                 // vertices: [1, 2]
                 assert_node!(
                     parser.tree,
-                    fields[0],
-                    Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                    properties[0],
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                         assert_string!(parser, *name, "vertices");
                         assert_node!(
                             parser.tree,
@@ -2099,9 +2095,10 @@ geom.Mesh<2, Dims: 4> {
                 // y
                 assert_node!(
                     parser.tree,
-                    fields[1],
-                    Argument::Shorthand { modifiers: _, name } => {
+                    properties[1],
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
                         assert_string!(parser, *name, "y");
+                        assert_expr_path!(parser, parser.tree.get(*value), "y");
                     }
                 );
             }

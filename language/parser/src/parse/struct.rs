@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
             let tuple_properties = self.eat_properties().for_node_type(NodeType::Definition)?;
             self.eat_token(TokenType::CloseParenthesis)
                 .for_node_type(NodeType::Definition)?;
-            (VariantFormat::Tuple, Some(tuple_fields))
+            (VariantFormat::Tuple, Some(tuple_properties))
         } else {
             (VariantFormat::Struct, None)
         };
@@ -111,8 +111,8 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
         let mut properties = self.eat_properties().for_node_type(NodeType::Definition)?;
         if let Some(tuple_properties) = tuple_properties {
-            // merge in tuple fields
-            properties.insert(0, tuple_properties);
+            // merge in tuple properties at the beginning
+            properties.extend(tuple_properties);
         }
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
@@ -140,7 +140,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression, IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, StructKind, TypeLiteral, VariantFormat, Visibility, WhereClause, WithClause
+        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression,
+        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, StructKind,
+        TypeLiteral, VariantFormat, Visibility, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -236,7 +238,7 @@ struct Foo(int32, public boolean) {}
             });
 
             // public boolean
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key:Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: None, ty: Some(ty), value: None, .. } => {
                 assert_eq!(modifiers.visibility.unwrap(), Visibility::Public);
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
