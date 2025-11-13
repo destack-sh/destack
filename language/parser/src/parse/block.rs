@@ -6,10 +6,12 @@ use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult};
 
 impl<'a> Parser<'a> {
-    /// Peek a block (with and without label).
+    /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_block(&self) -> ParserResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
+            || self.peek_keyword(Keyword::Do).is_ok()
+                && self.peek_next_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Identifier).is_ok()
                 && self.peek_next_token(TokenType::Colon).is_ok()
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
@@ -23,10 +25,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a next block (with and without label).
+    /// Peek a next block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_next_block(&self) -> ParserResult<()> {
         if self.peek_next_token(TokenType::OpenBrace).is_ok()
+            || self.peek_next_keyword(Keyword::Do).is_ok()
+                && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
             || self.peek_next_token(TokenType::Identifier).is_ok()
                 && self.peek_next_next_token(TokenType::Colon).is_ok()
                 && self.peek_next_next_next_token(TokenType::OpenBrace).is_ok()
@@ -40,7 +44,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a block (including the label, `{`, and `}`).
+    /// Eat a block (including the label, `{`, and `}`). Optional `do` prefix for disambiguation.
     ///
     /// Examples:
     /// ```
@@ -48,6 +52,11 @@ impl<'a> Parser<'a> {
     /// block: { ... }
     pub fn eat_block(&mut self) -> ParserResult<NodeId<Block>> {
         let start = self.mark();
+
+        // `do` prefix
+        if self.peek_keyword(Keyword::Do).is_ok() {
+            self.bump(); // eat keyword
+        }
 
         // label
         let label = if self.peek_token(TokenType::Identifier).is_ok()

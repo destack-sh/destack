@@ -112,7 +112,6 @@ pub enum Property {
     /// Spread property (like `...a`).
     Spread {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
         value: NodeId<Expression>,
     },
 }

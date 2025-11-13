@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
     /// union(TetrisShapeType) TetrisShape { // TetrisShape has Entity as super
     ///     ..TetrisGameObject
     ///
-    ///     function myFunc() { // nested declaration
+    ///     myFunc() { // nested declaration
     ///     }
     /// }
     ///
@@ -135,12 +135,11 @@ impl<'a> Parser<'a> {
             }
             // eat properties
             else {
-                let Ok(property_id) = self
-                    .try_eat_property(TokenType::Newline)
-                    .for_node_type(NodeType::Property)
-                else {
-                    continue;
-                };
+                let property_id = self
+                    .with_options(self.options.nested_in_variant(), |parser| {
+                        parser.try_eat_property(TokenType::Newline)
+                    })
+                    .for_node_type(NodeType::Property)?;
                 properties.push(property_id);
             }
         }

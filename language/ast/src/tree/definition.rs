@@ -123,9 +123,9 @@ pub enum Definition {
     ///     myOtherField: T
     ///
     ///     ..Baz
-    //      const x: int32 = 7 // constant
+    ///     static x: int32 = 7 // constant
     ///
-    ///     function myFunc() { // nested declaration
+    ///     myFunc() { // nested declaration
     ///     }
     /// }
     /// ```
@@ -157,7 +157,7 @@ pub enum Definition {
     ///     B
     ///     C
     ///
-    ///     function myFunc() { // nested declaration
+    ///     myFunc() { // nested declaration
     ///     }
     /// }
     ///
@@ -210,7 +210,7 @@ pub enum Definition {
     /// union(TetrisShapeType) TetrisShape { // TetrisShape extends Entity
     ///     ..TetrisGameObject
     ///
-    ///     function myFunc() { // nested declaration
+    ///     myFunc() { // nested declaration
     ///     }
     /// }
     /// ```
@@ -246,17 +246,17 @@ pub enum Definition {
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
     ///     
-    ///     let x: int32 // associated constant/type
-    ///     function foo() => int32
+    ///     static x: int32 // associated constant/type
+    ///     foo() => int32
     ///
-    ///     function myFunc() { // nested declaration, default implementation
+    ///     myFunc() { // nested declaration, default implementation
     ///     }
     /// }
     ///
     /// interface Baz<T> {
     ///     ..Bar
     ///
-    ///     function baz() => T // semicolon optional
+    ///     baz() => T // semicolon optional
     /// }
     /// ```
     Interface {

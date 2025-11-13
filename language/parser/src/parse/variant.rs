@@ -32,7 +32,70 @@ impl<'a> Parser<'a> {
 
     /// Eat a property.
     pub fn eat_property(&mut self) -> ParserResult<NodeId<Property>> {
-        todo!("not implemented")
+        // spread property
+        if self.peek_token(TokenType::Spread).is_ok() {
+            let start = self.mark();
+            self.bump(); // eat spread
+            let value = self.eat_expression()?;
+            let property = Property::Spread { modifiers: None, value };
+            return Ok(self.tree.insert(property, self.get_span_from(start)));
+        }
+
+        // modifiers prefix
+        let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
+
+        // key
+        let key = self.eat_key_maybe()?;
+
+        // modifiers postfix
+        let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
+
+        // field type / value
+        if self.options.in_variant || self.options.in_type {
+            let start = self.mark();
+            // type
+            let ty = if self.peek_colon().is_ok() {
+                self.bump(); // eat colon
+                Some(self.eat_expression()?)
+            } else {
+                None
+            };
+
+            // value
+            let value = if self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                Some(self.eat_expression()?)
+            } else {
+                None
+            };
+
+            // property
+            let property = Property::Field {
+                modifiers,
+                key,
+                ty,
+                value,
+            };
+            Ok(self.tree.insert(property, self.get_span_from(start)))
+        } else {
+            let start = self.mark();
+            // value
+            let value = if self.peek_colon().is_ok() {
+                self.bump(); // eat colon
+                Some(self.eat_expression()?)
+            } else {
+                None
+            };
+
+            // property
+            let property = Property::Field {
+                modifiers,
+                key,
+                ty: None,
+                value,
+            };
+            Ok(self.tree.insert(property, self.get_span_from(start)))
+        }
     }
 
     /// Eat a variant body (without the header or `{` and `}`).
@@ -49,10 +112,16 @@ impl<'a> Parser<'a> {
                 self.eat_any_stop_with_newlines()?;
                 continue;
             }
-
-            todo!("nocheckin")
+            // keep eating properties
+            else {
+                match self.try_eat_property(TokenType::Newline) {
+                    Ok(property_id) => {
+                        properties.push(property_id);
+                    }
+                    Err(_) => continue, // keep eating other properties
+                }
+            }
         }
-
         Ok(properties)
     }
 }
