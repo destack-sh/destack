@@ -7,19 +7,24 @@ use crate::{
     TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
+/// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Block of "statements" (inside `{}` usually)
-    Block { block: NodeId<Block> },
     /// Definition as a value (with a name or anonymous)
     Definition { definition: NodeId<Definition> },
+
+    /// Block of "statements" (inside `{}` usually)
+    Block { block: NodeId<Block> },
+
+    /// Statement expression (explicit statement with a `;` terminator).
+    Statement { statement: NodeId<Expression> },
 
     /// With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
     With {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-    /// Import dependency declaration (flattened `import foo.{bar, baz}` or `await import("foo")`)
+    /// Import dependency declaration (flattened `foo.{bar, baz}``)
     Import {
         kind: DependencyKind,
         items: Vec<NodeId<DependencyItem>>,
@@ -228,59 +233,7 @@ impl Expression {
 
     /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
     pub fn is_evaluated(&self) -> bool {
-        match self {
-            // values
-            Expression::Path { path, .. } => path.is_evaluated(),
-            Expression::ScalarLiteral { .. }
-            | Expression::TemplateLiteral { .. }
-            | Expression::TypeLiteral { .. }
-            | Expression::RangeLiteral { .. }
-            | Expression::ArrayLiteral { .. }
-            | Expression::TupleLiteral { .. }
-            | Expression::StructLiteral { .. }
-            | Expression::TreeLiteral { .. } => true,
-
-            // control flow
-            Expression::If { .. }
-            | Expression::Loop { .. }
-            | Expression::For { .. }
-            | Expression::ForEach { .. }
-            | Expression::Match { .. }
-            | Expression::Break { .. }
-            | Expression::Continue { .. }
-            | Expression::Defer { .. }
-            | Expression::Throw { .. }
-            | Expression::Return { .. } => false,
-
-            // definitions and declarations
-            Expression::Definition { .. }
-            | Expression::With { .. }
-            | Expression::Import { .. }
-            | Expression::Export { .. }
-            | Expression::Let { .. }
-            | Expression::LetType { .. } => true,
-
-            // operators
-            Expression::Block { .. }
-            | Expression::Unary { .. }
-            | Expression::TypeBinary { .. }
-            | Expression::ReferenceOf { .. }
-            | Expression::ValueOf { .. }
-            | Expression::Binary { .. }
-            | Expression::TypeUnary { .. }
-            | Expression::AssignDirect { .. }
-            | Expression::AssignBinary { .. }
-            | Expression::Member { .. }
-            | Expression::Call { .. }
-            | Expression::Index { .. }
-            | Expression::Maybe { .. }
-            | Expression::Must { .. }
-            | Expression::New { .. }
-            | Expression::Delete { .. } => false,
-
-            // error
-            Expression::Error => false,
-        }
+        false
     }
 }
 

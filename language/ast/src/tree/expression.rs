@@ -7,19 +7,20 @@ use crate::{
     TypeUnaryOperator, UnaryOperator,
 };
 
-// NOTE #Performance: reduce Expression size to <=64B
+// TODO #Performance: reduce Expression size to <=64B
 
-/// An Expression is a generic container for value-producing forms.
-///
-/// Some Expressions are "place Expressions" and can be read from and written to,
-///  that is, they have a place in memory we can point to and get the address of.
+/// An Expression is a generic container for all constructs.
+/// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Definition (with a name or anonymous).
     Definition(NodeId<Definition>),
 
-    /// Block of Statements.
+    /// Block of Expressions.
     Block(NodeId<Block>),
+
+    /// Statement expression (explicit statement with a `;` terminator).
+    Statement(NodeId<Expression>),
 
     /// A With is a with declaration for context management.
     /// With can declare the use of an item in a scope and refine type bounds.
@@ -584,6 +585,7 @@ pub enum Expression {
     Call {
         position: PostfixPosition,
         left: NodeId<Expression>,
+        // TODO #Incomplete: static arguments for Calls
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
 

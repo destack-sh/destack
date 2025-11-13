@@ -2,8 +2,8 @@ import * as ds from "destack"
 
 /// A 2-dimensional vector with float32 components.
 export struct Vector2 {
-    x: float32
-    y: float32
+    x: float32,
+    y: float32,
 }
 
 export async function clampScalar(v: float32, lo: float32, hi: float32): float32 {

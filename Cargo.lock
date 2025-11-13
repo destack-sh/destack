@@ -2999,6 +2999,16 @@ name = "dyst_json"
 version = "2025.11.13-1"
 
 [[package]]
+name = "dyst_linter"
+version = "2025.11.13-1"
+dependencies = [
+ "dyst_ast",
+ "dyst_dir",
+ "dyst_source",
+ "dyst_unicode",
+]
+
+[[package]]
 name = "dyst_machine"
 version = "2025.11.13-1"
 dependencies = [

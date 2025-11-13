@@ -837,11 +837,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
+            Expression::Definition { definition: _ } => {
+                self.node("Expression::Definition", id.id).end();
+            }
             Expression::Block { block: _ } => {
                 self.node("Expression::Block", id.id).end();
             }
-            Expression::Definition { definition: _ } => {
-                self.node("Expression::Definition", id.id).end();
+            Expression::Statement { statement: _ } => {
+                self.node("Expression::Statement", id.id).end();
             }
 
             Expression::With {

@@ -1,0 +1,23 @@
+[package]
+name = "dyst_linter"
+description = "Dyst Linter"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+dyst_source = { workspace = true }
+dyst_ast = { workspace = true }
+dyst_dir = { workspace = true }
+dyst_unicode = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

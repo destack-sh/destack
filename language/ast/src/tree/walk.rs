@@ -153,6 +153,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *block_id, block);
         }
 
+        Expression::Statement(statement_id) => {
+            let statement = tree.get(*statement_id);
+            visitor.visit_expression(tree, *statement_id, statement);
+        }
+
         Expression::With { clauses, body } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);

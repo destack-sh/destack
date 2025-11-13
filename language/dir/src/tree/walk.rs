@@ -152,15 +152,21 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        Expression::Block { block: block_id } => {
-            let block = tree.get(*block_id);
-            visitor.visit_block(tree, *block_id, block);
-        }
         Expression::Definition {
             definition: definition_id,
         } => {
             let definition = tree.get(*definition_id);
             visitor.visit_definition(tree, *definition_id, definition);
+        }
+        Expression::Block { block: block_id } => {
+            let block = tree.get(*block_id);
+            visitor.visit_block(tree, *block_id, block);
+        }
+        Expression::Statement {
+            statement: statement_id,
+        } => {
+            let statement = tree.get(*statement_id);
+            visitor.visit_expression(tree, *statement_id, statement);
         }
         Expression::With { clauses, body } => {
             for clause_id in clauses {
