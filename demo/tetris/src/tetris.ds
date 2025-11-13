@@ -1,72 +1,71 @@
-import { entity, Entity, Reference } from "destack"
-import "destack.geometry"
+import { entity, Entity, Reference } from "destack";
 
 /// A color in the Tetris game.
 export enum Color {
-    Red
-    Orange
-    Yellow
-    Green
-    Blue
-    Purple
-    Brown
+    Red,
+    Orange,
+    Yellow,
+    Green,
+    Blue,
+    Purple,
+    Brown,
 }
 
 /// Game state for Tetris.
 export enum GameState {
-    Playing
-    Paused
-    GameOver
+    Playing,
+    Paused,
+    GameOver,
 }
 
 /// Position on the game board.
 export struct Position {
-    x: int32
-    y: int32
+    x: int32,
+    y: int32,
 }
 
 /// A cell on the Tetris board.
 @entity
 export struct Cell {
-    isFilled: boolean
-    color: Color?
+    isFilled: boolean,
+    color: Color?,
 }
 
 /// The Tetris game board.
 @entity
 export struct Board {
-    width: int32 = 10
-    height: int32 = 20
-    cells: Cell[][]
+    width: int32 = 10,
+    height: int32 = 20,
+    cells: Cell[][],
 
     /// Create a new empty board.
-    function new(width: int32, height: int32): Board {
-        const cells = Cell[width][height]
+    constructor(width: int32, height: int32): Board {
+        const cells = Cell[width][height];
         Board { width, height, cells }
     }
 
     /// Check if a position is valid on the board.
-    function isValidPosition(pos: Position): boolean {
+    isValidPosition(pos: Position): boolean {
         pos.x >= 0 && pos.x < this.width && pos.y >= 0 && pos.y < this.height
     }
 
     /// Check if a cell is filled at the given position.
-    function isFilled(pos: Position): boolean {
+    isFilled(pos: Position): boolean {
         if !this.isValidPosition(pos) {
-            return true
+            return false;
         }
         this.cells[pos.y][pos.x].isFilled
     }
 
     /// Set a cell at the given position.
-    function setCell(pos: Position, color: Color) {
+    setCell(pos: Position, color: Color) {
         if this.isValidPosition(pos) {
             this.cells[pos.y][pos.x] = Cell { isFilled: true, color }
         }
     }
 
     /// Clear completed lines and return the number cleared.
-    function clearLines(): int32 {
+    clearLines(): int32 {
         const linesCleared = 0
         const y = this.height - 1
         while y >= 0 {
@@ -97,45 +96,43 @@ export struct Board {
 
 @entity
 export struct TetrisGame {
-    board: Board
-    currentPiece: TetrisPiece?
-    currentPosition: Position
-    nextPiece: TetrisPiece?
-    score: int32 = 0
-    level: int32 = 1
-    linesCleared: int32 = 0
-    state: GameState = GameState.Playing
-    dropTimer: float32 = 0.0
-    dropInterval: float32 = 1.0
+    board: Board,
+    currentPiece: TetrisPiece?,
+    currentPosition: Position,
+    nextPiece: TetrisPiece?,
+    score: int32 = 0,
+    level: int32 = 1,
+    linesCleared: int32 = 0,
+    state: GameState = GameState.Playing,
+    dropTimer: float32 = 0.0,
+    dropInterval: float32 = 1.0,
 }
 
 /// The shape of a Tetris piece.
 export enum TetrisPieceShape {
-    I
-    J
-    L
-    O
-    S
-    T
-    Z
+    I,
+    J,
+    L,
+    O,
+    S,
+    T,
+    Z,
 }
 
 /// A Tetris piece with its rotation state.
 export struct TetrisPiece {
-    shape: TetrisPieceShape
-    rotation: int32 = 0
-    blocks: Position[]
-}
+    shape: TetrisPieceShape,
+    rotation: int32 = 0,
+    blocks: Position[],
 
-extension TetrisPiece {
     /// Create a new Tetris piece.
-    function new(shape: TetrisPieceShape): TetrisPiece {
-        const blocks = TetrisPiece.getBlocksForShape(shape, 0)
+    constructor(shape: TetrisPieceShape): TetrisPiece {
+        const blocks = TetrisPiece.getBlocksForShape(shape, 0);
         TetrisPiece { shape, rotation: 0, blocks }
     }
 
     /// Get the color of the Tetris piece.
-    function getColor(self): Color {
+    getColor(): Color {
         match this.shape {
             TetrisPieceShape.I => Color.Blue
             TetrisPieceShape.J => Color.Red
@@ -148,7 +145,7 @@ extension TetrisPiece {
     }
 
     /// Get block positions for a shape and rotation.
-    function getBlocksForShape(shape: TetrisPieceShape, rotation: int32): Position[] {
+    getBlocksForShape(shape: TetrisPieceShape, rotation: int32): Position[] {
         const normalizedRotation = rotation % 4
         match shape {
             TetrisPieceShape.I => if normalizedRotation == 0 || normalizedRotation == 2 {
@@ -287,13 +284,13 @@ extension TetrisPiece {
     }
 
     /// Rotate the piece clockwise.
-    function rotate(self) {
+    rotate() {
         this.rotation = this.rotation + 1 % 4
         this.blocks = TetrisPiece.getBlocksForShape(this.shape, this.rotation)
     }
 
     /// Get absolute positions of blocks given a base position.
-    function getAbsolutePositions(self, basePos: Position): Position[] {
+    getAbsolutePositions(basePos: Position): Position[] {
         const positions = []
         for block in this.blocks {
             positions.push(Position {
@@ -307,7 +304,7 @@ extension TetrisPiece {
 
 extension TetrisGame {
     /// Create a new Tetris game.
-    function new(width: int32, height: int32): TetrisGame {
+    constructor(width: int32, height: int32): TetrisGame {
         TetrisGame {
             board: Board.new(width, height),
             currentPiece: null,
@@ -323,7 +320,7 @@ extension TetrisGame {
     }
 
     /// Spawn a new piece at the top of the board.
-    function spawnPiece(shape: TetrisPieceShape) {
+    spawnPiece(shape: TetrisPieceShape) {
         const piece = TetrisPiece.new(shape)
         this.currentPiece = piece
         this.currentPosition = Position { x: 4, y: 0 }
@@ -334,7 +331,7 @@ extension TetrisGame {
     }
 
     /// Check if the current piece would collide at the given position.
-    function collidesWith(pos: Position): boolean {
+    collidesWith(pos: Position): boolean {
         if const Some(piece) = this.currentPiece {
             const absolutePositions = piece.getAbsolutePositions(pos)
             for blockPos in absolutePositions {
@@ -347,7 +344,7 @@ extension TetrisGame {
     }
 
     /// Try to move the current piece in the given direction.
-    function tryMove(dx: int32, dy: int32): boolean {
+    tryMove(dx: int32, dy: int32): boolean {
         const newPosition = Position {
             x: this.currentPosition.x + dx,
             y: this.currentPosition.y + dy,
@@ -360,7 +357,7 @@ extension TetrisGame {
     }
 
     /// Try to rotate the current piece.
-    function tryRotate(): boolean {
+    tryRotate(): boolean {
         if this.currentPiece != null {
             const oldRotation = this.currentPiece.rotation
             this.currentPiece.rotate()
@@ -381,7 +378,7 @@ extension TetrisGame {
     }
 
     /// Lock the current piece to the board.
-    function lockPiece() {
+    lockPiece() {
         if this.currentPiece != null {
             const absolutePositions = this.currentPiece.getAbsolutePositions(this.currentPosition)
             const color = this.currentPiece.getColor()
@@ -410,49 +407,49 @@ extension TetrisGame {
     }
 
     /// Handle input for moving left.
-    function moveLeft() {
+    moveLeft() {
         if this.state == GameState.Playing {
-            this.tryMove(-1, 0)
+            this.tryMove(-1, 0);
         }
     }
 
     /// Handle input for moving right.
-    function moveRight() {
+    moveRight() {
         if this.state == GameState.Playing {
-            this.tryMove(1, 0)
+            this.tryMove(1, 0);
         }
     }
 
     /// Handle input for soft drop.
-    function softDrop() {
+    softDrop() {
         if this.state == GameState.Playing {
             if this.tryMove(0, 1) {
-                this.score += 1
+                this.score += 1;
             }
         }
     }
 
     /// Handle input for hard drop.
-    function hardDrop() {
+    hardDrop() {
         if this.state == GameState.Playing {
-            const dropDistance = 0
+            const dropDistance = 0;
             while this.tryMove(0, 1) {
-                dropDistance += 1
+                dropDistance += 1;
             }
-            this.score += dropDistance * 2
-            this.lockPiece()
+            this.score += dropDistance * 2;
+            this.lockPiece();
         }
     }
 
     /// Handle input for rotation.
-    function rotatePiece() {
+    rotatePiece() {
         if this.state == GameState.Playing {
-            this.tryRotate()
+            this.tryRotate();
         }
     }
 
     /// Get a random piece shape.
-    function getRandomShape(random: &Random): TetrisPieceShape {
+    getRandomShape(random: &Random): TetrisPieceShape {
         const shapes = [
             TetrisPieceShape.I,
             TetrisPieceShape.J,
@@ -461,32 +458,32 @@ extension TetrisGame {
             TetrisPieceShape.S,
             TetrisPieceShape.T,
             TetrisPieceShape.Z,
-        ]
-        shapes[random.range(0, 7)]
+        ];
+        shapes[random.range(0, 7)];
     }
 }
 
 extension TetrisGame implements Tick {
-    function tick() with Time, &Random {
+    tick() with Time, Random {
         // spawn initial piece if needed
         if this.currentPiece == null {
             const shape = if const Some(next) = this.nextPiece {
-                const nextShape = next.shape
-                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                const nextShape = next.shape;
+                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random));
                 nextShape
             } else {
-                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random))
+                this.nextPiece = TetrisPiece.new(TetrisGame.getRandomShape(random));
                 TetrisGame.getRandomShape(random)
             }
             this.spawnPiece(shape)
         }
         // handle automatic dropping
-        this.dropTimer += time.deltaTime
+        this.dropTimer += time.deltaTime;
         if this.dropTimer >= this.dropInterval {
-            this.dropTimer = 0.0
+            this.dropTimer = 0.0;
             if !this.tryMove(0, 1) {
                 // piece can't move down, lock it
-                this.lockPiece()
+                this.lockPiece();
             }
         }
     }

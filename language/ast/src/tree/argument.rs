@@ -87,6 +87,7 @@ pub enum Argument {
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
+    // nocheckin: remove Dynamic/Function/DynamicFunction "Arguments" to ..Field? (see StructLiteral/Block/..)
     /// Dynamic argument (like `{ [variable]: 2 }`).
     Dynamic {
         modifiers: Option<BindingModifier>,
@@ -94,7 +95,6 @@ pub enum Argument {
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },
-    // nocheckin: remove Function/DynamicFunction "Arguments" to ..Field? (see StructLiteral/Block/..)
     /// Named member function argument (like `foo()` or `<T>(): T`, only in struct literals).
     Function {
         modifiers: Option<BindingModifier>,
