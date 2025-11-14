@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_token(TokenType::OpenParenthesis)?;
             self.eat_newlines_maybe()?;
-            loop {
+            while self.peek().is_ok() {
                 self.eat_newlines_maybe()?;
                 if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     break;
@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
         }
         // plain list separated by commas
         else {
-            loop {
+            while self.peek().is_ok() {
                 let clause = self.eat_with_clause()?;
                 clauses.push(clause);
                 // required comma

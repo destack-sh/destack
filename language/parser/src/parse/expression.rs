@@ -935,7 +935,7 @@ impl<'a> Parser<'a> {
         }
 
         // eat all regular postfix operators
-        loop {
+        while self.peek().is_ok() {
             // unary postfix operations
             if let Ok(operator) = self.peek_unary_postfix_operator() {
                 self.bump(); // eat unary operator
@@ -1173,7 +1173,7 @@ impl<'a> Parser<'a> {
         //
 
         // eat infix expressions while left precedence is weaker than right precedence
-        loop {
+        while self.peek().is_ok() {
             let (right_operator, operator_offset) = {
                 // infix operator on same line with higher precedence
                 if let Ok((operator, operator_offset)) = self.peek_infix_operator()

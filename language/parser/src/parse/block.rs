@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
     pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Expression>>> {
         let mut expressions: Vec<NodeId<Expression>> = Vec::new();
 
-        loop {
+        while self.peek().is_ok() {
             // break if we're at the end of the block
             if self.peek().is_err()
                 || format == BlockFormat::Explicit && self.peek_token(TokenType::CloseBrace).is_ok()

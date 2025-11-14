@@ -358,7 +358,7 @@ impl<'a> Parser<'a> {
         terminators: &[Keyword],
     ) -> ParseResult<Vec<NodeId<Expression>>> {
         let mut types: Vec<NodeId<Expression>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             // eat until open brace or close parenthesis
             if self.peek_token(TokenType::OpenBrace).is_ok()
                 || self.peek_token(TokenType::CloseParenthesis).is_ok()
