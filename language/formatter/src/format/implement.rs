@@ -17,8 +17,8 @@ mod tests {
     #[test]
     fn test_format_implement_with_implements() {
         assert_format!(
-            "implement Foo implements Bar { const X = 1 }",
-            "implement Foo implements Bar {\n\tconst X = 1\n}",
+            "implement Foo implements Bar { static X = 1 }",
+            "implement Foo implements Bar {\n\tstatic X = 1\n}",
             |p| p.eat_implement(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );

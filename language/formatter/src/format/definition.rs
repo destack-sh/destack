@@ -1,12 +1,12 @@
 use crate::argument::list_like;
-use crate::block::format_block_of_expressions;
+use crate::block::format_block_of_statements;
+use crate::property::format_block_of_properties;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
-    Asynchrony, BindingScope, DeclarationKind, Definition, ExportType, Expression, Field,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, NodeId,
-    StructKind, VariantFormat, Visibility,
+    Asynchrony, DeclarationKind, Definition, ExportType, Expression, FunctionCardinality,
+    FunctionKind, FunctionMode, Keyword, NodeId, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -86,19 +86,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // keyword
                 write!(f, [Keyword::Namespace])?;
 
                 // name / key
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
-                } else if let Some(key) = meta.key {
-                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // with
@@ -127,7 +120,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(
                         f,
                         [group(&block_indent(&format_with(|f| {
-                            format_block_of_expressions(f, expressions)
+                            format_block_of_statements(f, expressions)
                         })))]
                     )?;
                     write!(
@@ -144,10 +137,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // struct
             Definition::Struct {
                 meta,
-                kind: style,
+                kind,
                 extends_types,
                 implements_types,
-                representation_type,
                 static_parameters,
                 with_clauses,
                 where_clauses,
@@ -163,25 +155,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // keyword
-                match style {
+                match kind {
                     StructKind::Struct => write!(f, [Keyword::Struct])?,
                     StructKind::Class => write!(f, [Keyword::Class])?,
-                }
-                if let Some(representation_type) = representation_type {
-                    write!(f, [token("("), representation_type, token(")")])?;
                 }
 
                 // name / key
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
-                } else if let Some(key) = meta.key {
-                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -191,33 +173,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
-                // tuple
-                if *format == VariantFormat::Tuple {
-                    if tuple_fields.is_empty() {
-                        write!(f, [token("("), token(")")])?;
-                    } else {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("("),
-                                soft_block_indent(&format_with(|f| f
-                                    .join_with(&format_args![
-                                        &token(","),
-                                        soft_line_break_or_space()
-                                    ])
-                                    .entries(tuple_fields)
-                                    .finish())),
-                                token(")")
-                            ])]
-                        )?;
-                    }
-                }
-
+                // extends types
                 if let Some(extends_types) = &extends_types
                     && !extends_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
+
+                // implements types
                 if let Some(implements_types) = &implements_types
                     && !implements_types.is_empty()
                 {
@@ -243,7 +206,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty body
-                if fields.is_empty() && expressions.is_empty() {
+                if properties.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -252,31 +215,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
 
-                // fields
-                if !fields.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(fields)
-                            .finish())),])]
-                    )?;
-                }
-
-                // blank line between fields and expressions
-                if !fields.is_empty() && !expressions.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(expressions[0]) {
-                        write!(f, [empty_line()])?;
-                    }
-                }
-
-                // expressions
-                if !expressions.is_empty() {
+                // properties
+                if !properties.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| {
-                            format_block_of_expressions(f, expressions)
+                            format_block_of_properties(f, properties)
                         })),])]
                     )?;
                 }
@@ -289,7 +233,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // enum
             Definition::Enum {
                 meta,
-                tag_type,
                 static_parameters,
                 extends_types,
                 implements_types,
@@ -308,23 +251,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // header
                 write!(f, [Keyword::Enum])?;
-                // type
-                if let Some(ty) = tag_type {
-                    write!(f, [token("("), ty, token(")")])?;
-                }
 
                 // name / key
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
-                } else if let Some(key) = meta.key {
-                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -367,7 +299,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty block
-                if fields.is_empty() && expressions.is_empty() {
+                if fields.is_empty() && properties.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -386,18 +318,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 )?;
 
                 // blank line
-                if !fields.is_empty() && !expressions.is_empty() {
+                if !fields.is_empty() && !properties.is_empty() {
                     write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(expressions[0]) {
+                    if !f.context().has_blank_prefix_annotation(properties[0]) {
                         write!(f, [empty_line()])?;
                     }
                 }
 
-                // expressions
+                // properties
                 write!(
                     f,
                     [group(&format_args![block_indent(&format_with(|f| {
-                        format_block_of_expressions(f, expressions)
+                        format_block_of_properties(f, properties)
                     })),])]
                 )?;
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
@@ -409,7 +341,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 meta,
                 static_parameters,
                 extends_types,
-                with_clauses: with,
+                with_clauses,
                 where_clauses,
                 properties,
             } => {
@@ -423,19 +355,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // keyword
                 write!(f, [Keyword::Interface])?;
 
                 // name / key
                 if let Some(name) = meta.name {
                     write!(f, [space(), name])?;
-                } else if let Some(key) = meta.key {
-                    write!(f, [space(), token("["), key, token("]")])?;
                 }
 
                 // static parameters
@@ -453,7 +378,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with clauses
-                if let Some(with) = &with
+                if let Some(with) = &with_clauses
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -472,7 +397,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space()])?;
 
                 // empty body
-                if expressions.is_empty() && fields.is_empty() {
+                if properties.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -481,170 +406,18 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
 
-                // fields
-                if !fields.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(fields)
-                            .finish())),])]
-                    )?;
-                }
-
-                // blank line between fields and expressions
-                if !fields.is_empty() && !expressions.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(expressions[0]) {
-                        write!(f, [empty_line()])?;
-                    }
-                }
-
                 // expressions
-                if !expressions.is_empty() {
+                if !properties.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| {
-                            format_block_of_expressions(f, expressions)
+                            format_block_of_properties(f, properties)
                         })),])]
                     )?;
                 }
 
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
 
-                write!(f, [hard_line_break(), token("}")])?;
-            }
-
-            // union
-            Definition::Union {
-                meta,
-                tag_type,
-                representation_type,
-                static_parameters,
-                extends_types,
-                implements_types,
-                with_clauses: with,
-                where_clauses,
-                fields,
-                expressions,
-            } => {
-                // export
-                if let Some(export) = meta.export {
-                    write!(f, [export, space()])?;
-                }
-
-                // kind
-                if meta.kind == DeclarationKind::Declaration {
-                    write!(f, [Keyword::Declare, space()])?;
-                }
-
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
-                // keyword
-                write!(f, [Keyword::Union])?;
-
-                // tag and representation type
-                if tag_type.is_some() || representation_type.is_some() {
-                    write!(f, [token("(")])?;
-                    let mut join = f.join_with(token(", "));
-                    if let Some(tag_type) = tag_type {
-                        join.entry(&tag_type);
-                    }
-                    if let Some(representation_type) = representation_type {
-                        join.entry(&representation_type);
-                    }
-                    join.finish()?;
-                    write!(f, [token(")")])?;
-                }
-
-                // name / key
-                if let Some(name) = meta.name {
-                    write!(f, [space(), name])?;
-                } else if let Some(key) = meta.key {
-                    write!(f, [space(), token("["), key, token("]")])?;
-                }
-
-                // static parameters
-                if let Some(static_parameters) = &static_parameters
-                    && !static_parameters.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                }
-
-                if let Some(extends_types) = &extends_types
-                    && !extends_types.is_empty()
-                {
-                    format_type_clause(f, Keyword::Extends, extends_types)?;
-                }
-                if let Some(implements_types) = &implements_types
-                    && !implements_types.is_empty()
-                {
-                    format_type_clause(f, Keyword::Implements, implements_types)?;
-                }
-
-                // with
-                if let Some(with) = with
-                    && !with.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with)?;
-                }
-
-                // where
-                if let Some(where_clauses) = &where_clauses
-                    && !where_clauses.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
-                }
-
-                // space before body braces
-                write!(f, [space()])?;
-
-                // empty body
-                if fields.is_empty() && expressions.is_empty() {
-                    write!(f, [empty_block_with_infix_annotations(node_id)])?;
-                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
-                    return Ok(());
-                }
-
-                // body
-                write!(f, [token("{"), hard_line_break()])?;
-
-                // fields
-                if !fields.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(fields)
-                            .finish())),])]
-                    )?;
-                }
-
-                // blank line between fields and expressions
-                if !fields.is_empty() && !expressions.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(expressions[0]) {
-                        write!(f, [empty_line()])?;
-                    }
-                }
-
-                // expressions
-                if !expressions.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| {
-                            format_block_of_expressions(f, expressions)
-                        })),])]
-                    )?;
-                }
-                write!(f, [f.context().block_infix_annotations(node_id)])?;
-
-                // body closing braces
                 write!(f, [hard_line_break(), token("}")])?;
             }
 
@@ -666,11 +439,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // kind
                 if meta.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
-                }
-
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
                 }
 
                 // keyword
@@ -721,7 +489,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // body
-                if expressions.is_empty() {
+                if properties.is_empty() {
                     write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
                     return Ok(());
                 }
@@ -731,7 +499,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(
                     f,
                     [group(&format_args![block_indent(&format_with(|f| {
-                        format_block_of_expressions(f, expressions)
+                        format_block_of_properties(f, properties)
                     })),])]
                 )?;
                 write!(f, [hard_line_break(), token("}")])?;
@@ -742,12 +510,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 meta,
                 asynchrony,
                 cardinality,
-                mode: kind,
-                kind: style,
+                mode,
+                kind,
                 static_parameters,
                 dynamic_parameters,
                 return_type,
-                with_clauses: with,
+                with_clauses,
                 where_clauses,
                 body,
             } => {
@@ -761,18 +529,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
-                // visibility
-                if let Some(visibility) = meta.visibility {
-                    write!(f, [visibility, space()])?;
-                }
-
                 // asynchrony
                 if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
                 // kind
-                if let Some(kind) = kind {
+                if let Some(kind) = mode {
                     write!(f, [kind.to_keyword()])?;
                     if meta.name.is_some() || *kind == FunctionMode::New {
                         write!(f, [space()])?;
@@ -780,9 +543,9 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // keyword
-                if *style == FunctionKind::Function
-                    && *kind != Some(FunctionMode::Constructor)
-                    && *kind != Some(FunctionMode::New)
+                if *kind == FunctionKind::Function
+                    && *mode != Some(FunctionMode::Constructor)
+                    && *mode != Some(FunctionMode::New)
                 {
                     // function keyword
                     if *cardinality == FunctionCardinality::Generator {
@@ -797,13 +560,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     }
                 }
 
-                // name / key (with @)
-                if *style == FunctionKind::Function {
-                    if let Some(name) = meta.name {
-                        write!(f, [name])?;
-                    } else if let Some(key) = meta.key {
-                        write!(f, [token("["), key, token("]")])?;
-                    }
+                // name / key
+                if *kind == FunctionKind::Function
+                    && let Some(name) = meta.name
+                {
+                    write!(f, [name])?;
                 }
 
                 // static parameters
@@ -835,7 +596,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // return type
                 if let Some(return_type) = return_type {
-                    if *style == FunctionKind::Lambda && body.is_none() {
+                    if *kind == FunctionKind::Lambda && body.is_none() {
                         write!(f, [space(), token("=>"), space(), return_type])?;
                     } else {
                         write!(f, [token(":"), space(), return_type])?;
@@ -843,7 +604,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with clause
-                if let Some(with) = with
+                if let Some(with) = with_clauses
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -860,7 +621,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // body
                 if let Some(body) = body {
-                    if *style == FunctionKind::Lambda {
+                    if *kind == FunctionKind::Lambda {
                         // arrow is fine since lambdas can only have return type or body
                         write!(f, [space(), token("=>"), space(), body])?;
                     } else {
@@ -873,51 +634,5 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
-
-    /// Expression definitions should be surrounded by at least one blank line (except start/end).
-    #[test]
-    fn test_format_expression_definitions_with_spacing() {
-        assert_format!(
-            r#"class Foo {
-    
-    function a() { }
-
-
-
-
-    function b() { }
-    function c() { }
-
-    /**
-     * Comment
-     */
-    function d() { }
-
-
-
-}
-        "#,
-            r#"class Foo {
-    function a() { }
-
-    function b() { }
-
-    function c() { }
-
-    /** 
-     * Comment
-     */
-    function d() { }
-
-}"#,
-            |p| p.eat_expression()
-        );
     }
 }

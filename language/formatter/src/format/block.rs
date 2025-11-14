@@ -98,7 +98,7 @@ pub(crate) fn format_block_body_wide<'ast>(
         [
             token("{"),
             hard_line_break(),
-            soft_block_indent(&format_with(|f| format_block_of_expressions(
+            soft_block_indent(&format_with(|f| format_block_of_statements(
                 f,
                 &block.expressions
             ))),
@@ -109,8 +109,9 @@ pub(crate) fn format_block_body_wide<'ast>(
     )
 }
 
-/// Format a block of expressions (with appropriate empty annotations)
-pub(crate) fn format_block_of_expressions<'ast>(
+
+/// Format a block of expression statements (with appropriate empty annotations)
+pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     expressions: &[NodeId<Expression>],
 ) -> FormatResult<()> {

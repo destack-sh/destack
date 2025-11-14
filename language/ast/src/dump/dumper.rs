@@ -1178,8 +1178,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Property::Field {
                 modifiers,
                 key,
-                ty: _,
                 value: _,
+                default: _,
             } => {
                 self.node("Property::Field", id.id)
                     .field_optional("modifiers", modifiers)

@@ -136,7 +136,7 @@ struct { public x: int32, readonly y: boolean
             assert!(where_clauses.is_none());
 
             // public x: int32
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert!(modifiers.mutability.is_none());
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert_string!(parser, *name, "x");
@@ -144,7 +144,7 @@ struct { public x: int32, readonly y: boolean
             });
 
             // readonly y: boolean
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_eq!(modifiers.mutability.unwrap(), Mutability::Immutable);
                 assert!(modifiers.visibility.is_none());
                 assert_string!(parser, *name, "y");
@@ -244,20 +244,20 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_expr_path!(parser, parser.tree.get(*value), "Baz");
             });
             // a: T
-            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // b?: T
-            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_eq!(modifiers.kind.unwrap(), BindingKind::Maybe);
                 assert_string!(parser, *name, "b");
                 assert_expr_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
-            assert_node!(parser.tree, properties[4], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+            assert_node!(parser.tree, properties[4], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
@@ -266,7 +266,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, properties[5], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: Some(value), .. } => {
+            assert_node!(parser.tree, properties[5], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
                 assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
