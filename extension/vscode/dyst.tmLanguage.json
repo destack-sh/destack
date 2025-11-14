@@ -117,7 +117,7 @@
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
+          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|implement|declare|constructor)\\b"
         },
         {
           "name": "keyword.operator.new.ds",
@@ -711,7 +711,7 @@
       "patterns": [
         {
           "name": "meta.entity.definition.ds",
-          "match": "(?x)\\b(struct|interface|extension|module|namespace|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "match": "(?x)\\b(struct|interface|implement|module|namespace|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"

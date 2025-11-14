@@ -6,7 +6,7 @@ pub mod definition;
 pub mod dependency;
 pub mod r#enum;
 pub mod expression;
-pub mod extension;
+pub mod implement;
 pub mod function;
 pub mod identifier;
 pub mod r#if;

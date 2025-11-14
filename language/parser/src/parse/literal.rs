@@ -611,8 +611,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, Block, Expression, FloatType, IntType, Name, Property, ScalarLiteral,
-        TemplateLiteral, TypeLiteral,
+        Argument, Block, Expression, FloatType, IntType, Name, ScalarLiteral, TemplateLiteral,
+        TypeLiteral,
     };
 
     use crate::parse::tests::TestParser;

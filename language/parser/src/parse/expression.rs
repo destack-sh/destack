@@ -9,7 +9,7 @@ use dyst_ast::{
     TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
-pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
+pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
     Keyword::Declare,
     Keyword::Namespace,
     Keyword::Struct,
@@ -17,9 +17,10 @@ pub static DEFINITION_KEYWORDS: [Keyword; 20] = [
     Keyword::Enum,
     Keyword::Union,
     Keyword::Function,
-    Keyword::Extension,
+    Keyword::Implement,
     Keyword::Interface,
     Keyword::Type,
+    Keyword::Newtype,
     Keyword::Const,
     Keyword::Readonly,
     Keyword::Let,
@@ -41,8 +42,9 @@ pub static DEFINITION_START_TOKENS: [TokenType; 6] = [
     TokenType::LessThan,
 ];
 
-pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 7] = [
+pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
     Keyword::Type,
+    Keyword::Newtype,
     Keyword::Struct,
     Keyword::Class,
     Keyword::Enum,
@@ -585,7 +587,7 @@ impl<'a> Parser<'a> {
                 && (!DEFINITION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
                 // type is only allowed in `(type)` parenthesis to disambiguate from expression form
                 // (other composites don't need this since they're always followed by `<`, `(`, or `{`))
-                && (keyword != Keyword::Type || self.prev_token_type() == TokenType::OpenParenthesis && next_token_type == TokenType::CloseParenthesis)
+                && (keyword != Keyword::Type && keyword != Keyword::Newtype || self.prev_token_type() == TokenType::OpenParenthesis && next_token_type == TokenType::CloseParenthesis)
             {
                 let type_literal = self.eat_composite_type_literal()?;
                 self.tree.insert(
@@ -619,14 +621,6 @@ impl<'a> Parser<'a> {
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
-            // union
-            else if keyword == Some(Keyword::Union)
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
-            {
-                let union_id = self.eat_union(meta)?;
-                self.tree
-                    .insert(Expression::Definition(union_id), self.get_span_from(start))
-            }
             // interface
             else if keyword == Some(Keyword::Interface)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
@@ -637,13 +631,13 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // extension
-            else if keyword == Some(Keyword::Extension)
+            // implement
+            else if keyword == Some(Keyword::Implement)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let extension_id = self.eat_extension(meta)?;
+                let implement_id = self.eat_implement(meta)?;
                 self.tree.insert(
-                    Expression::Definition(extension_id),
+                    Expression::Definition(implement_id),
                     self.get_span_from(start),
                 )
             }
@@ -711,7 +705,9 @@ impl<'a> Parser<'a> {
                 self.eat_let(meta)?
             }
             // type
-            else if (keyword == Some(Keyword::Type) || keyword == Some(Keyword::Readonly))
+            else if (keyword == Some(Keyword::Type)
+                || keyword == Some(Keyword::Readonly)
+                || keyword == Some(Keyword::Newtype))
                 && ([
                     TokenType::Identifier,
                     TokenType::OpenBrace,

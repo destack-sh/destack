@@ -116,12 +116,17 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// type T = int32
-    /// type Foo = foo()
-    /// type Foo<T> = Baz<T> | null
+    /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
+    /// type 1 | 2 | 3
+    /// readonly T
+    /// newtype T = int32
+    /// newtype Foo<T> = Baz<T> | null
+    /// newtype T = { a: int32, b: boolean } | true
     /// ```
     LetType {
         meta: DefinitionMeta,
+        kind: TypeKind,
         mutability: Option<Mutability>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         value: NodeId<Expression>,
@@ -687,6 +692,15 @@ pub enum PostfixPosition {
     Direct,
     // Dot postfix (like `x.?`)
     Indirect,
+}
+
+/// A TypeKind determines nominal vs. structural typing.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TypeKind {
+    /// Structural typing (like `type T = { a: int32, b: boolean }`).
+    Structural,
+    /// Nominal typing (like `newtype T = int32`).
+    Nominal,
 }
 
 /// A TypeBound is a type bound for a reference operation.

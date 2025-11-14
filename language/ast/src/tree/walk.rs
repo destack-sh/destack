@@ -230,6 +230,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::LetType {
+            kind: _,
             mutability: _,
             meta: _,
             static_parameters,
@@ -774,68 +775,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Union {
-            meta,
-            tag_name: _,
-            tag_type,
-            representation_name: _,
-            representation_type,
-            static_parameters,
-            extends_types,
-            implements_types,
-            with_clauses,
-            where_clauses,
-            fields,
-            properties,
-        } => {
-            walk_definition_meta(visitor, tree, meta);
-            if let Some(tag_type) = tag_type {
-                let expr = tree.get(*tag_type);
-                visitor.visit_expression(tree, *tag_type, expr);
-            }
-            if let Some(representation_type) = representation_type {
-                let expr = tree.get(*representation_type);
-                visitor.visit_expression(tree, *representation_type, expr);
-            }
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
-            }
-            if let Some(ext_types) = extends_types {
-                for extends_type_id in ext_types {
-                    let expr = tree.get(*extends_type_id);
-                    visitor.visit_expression(tree, *extends_type_id, expr);
-                }
-            }
-            if let Some(impl_types) = implements_types {
-                for implements_type_id in impl_types {
-                    let expr = tree.get(*implements_type_id);
-                    visitor.visit_expression(tree, *implements_type_id, expr);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
-            }
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_union_field(tree, *field_id, field);
-            }
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
-            }
-        }
         Definition::Interface {
             meta,
             extends_types,
@@ -874,7 +813,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Extension {
+        Definition::Implement {
             meta,
             static_parameters,
             target_type,

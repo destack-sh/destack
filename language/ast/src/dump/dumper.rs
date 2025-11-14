@@ -445,6 +445,7 @@ impl_dump_display! {
     TypeUnaryOperator,
     UnaryOperator,
     VariantFormat,
+    TypeKind,
     VarianceBound,
     Visibility,
     YieldCardinality,
@@ -791,12 +792,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::LetType {
+                kind,
                 mutability,
                 meta,
                 static_parameters: _,
                 value: _,
             } => {
                 self.node("Expression::LetType", _id.id)
+                    .field("kind", kind)
                     .field_optional("mutability", mutability)
                     .field("meta", meta)
                     .end();
@@ -1119,26 +1122,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("meta", meta)
                     .end();
             }
-            Definition::Union {
-                meta,
-                tag_name,
-                tag_type: _,
-                representation_name,
-                representation_type: _,
-                static_parameters: _,
-                extends_types: _,
-                implements_types: _,
-                with_clauses: _,
-                where_clauses: _,
-                fields: _,
-                properties: _,
-            } => {
-                self.node("Definition::Union", id.id)
-                    .field("meta", meta)
-                    .field_optional("tag_name", tag_name)
-                    .field_optional("representation_name", representation_name)
-                    .end();
-            }
             Definition::Interface {
                 meta,
                 extends_types: _,
@@ -1151,7 +1134,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("meta", meta)
                     .end();
             }
-            Definition::Extension {
+            Definition::Implement {
                 meta,
                 static_parameters: _,
                 target_type: _,

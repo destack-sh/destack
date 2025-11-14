@@ -422,6 +422,7 @@ impl_dump_display! {
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
+    TypeKind,
     VarianceBound,
     Visibility,
     WhileKind,

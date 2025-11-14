@@ -84,6 +84,8 @@ pub enum OperatorPrecedence {
 /// A TypeUnaryOperator is a type unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeUnaryOperator {
+    /// `newtype`
+    Newtype = 1808,
     /// `type`
     Type = 1807,
     /// `readonly`
@@ -118,7 +120,8 @@ impl TypeUnaryOperator {
     #[inline]
     pub fn is_prefix(&self) -> bool {
         match self {
-            TypeUnaryOperator::Type
+            TypeUnaryOperator::Newtype
+            | TypeUnaryOperator::Type
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof
@@ -138,7 +141,7 @@ impl TypeUnaryOperator {
     #[inline]
     pub fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<TypeUnaryOperator> {
         match token_str {
-            // NOTE: type / readonly / as const are disambiguated separately
+            // NOTE: newtype | type / readonly / as const are disambiguated separately
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             "infer" => Some(TypeUnaryOperator::Infer),

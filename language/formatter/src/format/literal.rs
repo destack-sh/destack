@@ -212,7 +212,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for DefinitionType {
             DefinitionType::Enum => write!(f, [Keyword::Enum]),
             DefinitionType::Union => write!(f, [Keyword::Union]),
             DefinitionType::Interface => write!(f, [Keyword::Interface]),
-            DefinitionType::Extension => write!(f, [Keyword::Extension]),
+            DefinitionType::Extension => write!(f, [Keyword::Implement]),
             DefinitionType::Function => write!(f, [Keyword::Function]),
         }
     }

@@ -495,7 +495,7 @@ impl<'a> Compiler<'a> {
             }
 
             // Implement definition
-            ast::Definition::Extension {
+            ast::Definition::Implement {
                 meta,
                 static_parameters,
                 target_type,
