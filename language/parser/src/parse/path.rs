@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
         segments.push(first);
 
         // zero or more `.identifier` (ignoring newlines)
-        loop {
+        while self.peek().is_ok() {
             // dot followed by identifier
             if self.peek_token(TokenType::Dot).is_ok()
                 && let Ok(after_dot) = self.peek_next()

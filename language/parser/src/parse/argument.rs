@@ -575,7 +575,7 @@ impl<'a> Parser<'a> {
         terminator: TokenType,
     ) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             if self.peek_token(terminator).is_ok() {
                 break;
             }

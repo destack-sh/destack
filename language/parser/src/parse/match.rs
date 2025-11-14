@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
         kind: MatchKind,
     ) -> ParseResult<Vec<NodeId<MatchCase>>> {
         let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;

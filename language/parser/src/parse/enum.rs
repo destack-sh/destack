@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
         // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
         let mut properties: Vec<NodeId<Property>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;

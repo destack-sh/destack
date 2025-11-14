@@ -428,7 +428,7 @@ impl<'a> Parser<'a> {
         if let Some(first) = first_element {
             elements.push(first);
         }
-        loop {
+        while self.peek().is_ok() {
             // stop at closing parenthesis
             if self.peek_token(close_token).is_ok() {
                 break;
@@ -543,7 +543,7 @@ impl<'a> Parser<'a> {
 
                 // eat children until closing fragment
                 let mut elements: Vec<NodeId<Argument>> = vec![];
-                loop {
+                while self.peek().is_ok() {
                     // stop at closing fragment (</)
                     if self.peek_token(TokenType::LessThan).is_ok()
                         && self.peek_next_token(TokenType::Divide).is_ok()

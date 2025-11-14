@@ -269,7 +269,7 @@ impl<'a> Parser<'a> {
         terminator: TokenType,
     ) -> ParseResult<Vec<NodeId<PatternField>>> {
         let mut fields: Vec<NodeId<PatternField>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             if self.peek_token(terminator).is_ok() {
                 break;
             }
