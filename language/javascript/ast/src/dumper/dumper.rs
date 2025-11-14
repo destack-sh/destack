@@ -413,18 +413,57 @@ impl Dump for Name {
     }
 }
 
+/// Dump a Key as a structured representation.
+impl Dump for Key {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Key::Name(name) => {
+                dumper.object("Key::Name").value(name).end();
+            }
+            Key::Expression(_) => {
+                dumper.object("Key::Expression").end();
+            }
+            Key::NamedExpression { name, key: _ } => {
+                dumper
+                    .object("Key::NamedExpression")
+                    .field("name", name)
+                    .end();
+            }
+        }
+    }
+}
+
+/// Dump a FunctionSignature as a structured object.
+impl Dump for FunctionSignature {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("FunctionSignature")
+            .field("abstraction", &self.abstraction)
+            .field("asynchrony", &self.asynchrony)
+            .field("cardinality", &self.cardinality)
+            .field_optional("mode", &self.mode)
+            .field("kind", &self.kind)
+            .end();
+    }
+}
+
 impl_dump_display! {
+    AnnotationPosition,
+    Asynchrony,
     AssignOperator,
     BinaryOperator,
     BindingKind,
     BindingOperator,
     BindingScope,
-    PostfixPosition,
-    AnnotationPosition,
     DeclarationKind,
     DependencyKind,
     ExportType,
+    FunctionAbstraction,
+    FunctionCardinality,
+    FunctionKind,
+    FunctionMode,
     Mutability,
+    PostfixPosition,
     PrimitiveType,
     TypeBinaryOperator,
     TypeUnaryOperator,
@@ -765,7 +804,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ArrayLiteral { elements: _ } => {
                 self.node("Expression::ArrayLiteral", id.id).end();
             }
-            Expression::ObjectLiteral { fields: _ } => {
+            Expression::ObjectLiteral { properties: _ } => {
                 self.node("Expression::ObjectLiteral", id.id).end();
             }
             Expression::Parenthesized { .. } => {
@@ -830,6 +869,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Call {
                 position,
                 left: _,
+                static_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", id.id)
@@ -915,13 +955,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Function {
                 descriptor,
-                static_parameters: _,
-                dynamic_parameters: _,
-                return_type: _,
+                signature,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
                     .field("descriptor", descriptor)
+                    .field("signature", signature)
                     .end();
             }
         }
@@ -930,34 +969,47 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_field(&mut self, tree: &MutableNodeTree, id: NodeId<Field>, field: &Field) {
-        match field {
-            Field::Named {
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        property: &Property,
+    ) {
+        match property {
+            Property::Field {
                 modifiers,
-                name,
-                ty: _,
+                key,
+                value: _,
                 default: _,
             } => {
-                self.node("Field::Named", id.id)
+                self.node("Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field("name", name)
+                    .field_optional("key", key)
                     .end();
             }
-            Field::Dynamic {
+            Property::Method {
                 modifiers,
-                name,
-                ty: _,
-                key: _,
-                default: _,
+                key,
+                signature,
+                body: _,
             } => {
-                self.node("Field::Dynamic", id.id)
+                self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .end();
+            }
+            Property::Spread {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Property::Spread", id.id)
+                    .field_optional("modifiers", modifiers)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_field(dumper, tree, id, field);
+            walk_property(dumper, tree, id, property);
         });
     }
 

@@ -6,6 +6,7 @@ mod definition;
 mod dependency;
 mod expression;
 mod identifier;
+mod key;
 mod literal;
 mod operator;
 mod path;

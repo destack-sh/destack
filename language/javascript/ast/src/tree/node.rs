@@ -8,7 +8,7 @@ pub enum NodeType {
     Statement,
     Expression,
     Definition,
-    Field,
+    Property,
     Type,
     EnumField,
     DependencyItem,

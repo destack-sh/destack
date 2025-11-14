@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, BindingScope, Block, ExportType, Expression, Name, Node, NodeId, NodeType,
-    Parameter, StringId, Type, Visibility,
+    BindingScope, Block, ExportType, Expression, FunctionSignature, Name, Node, NodeId, NodeType,
+    Parameter, Property, StringId, Visibility,
 };
 
 /// The kind of declaration.
@@ -41,14 +41,14 @@ pub enum Definition {
     Class {
         descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        fields: Vec<NodeId<Field>>,
+        fields: Vec<NodeId<Property>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
-        fields: Vec<NodeId<Field>>,
+        fields: Vec<NodeId<Property>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.
@@ -59,40 +59,13 @@ pub enum Definition {
     /// Function definition.
     Function {
         descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        dynamic_parameters: Vec<NodeId<Parameter>>,
-        return_type: Option<NodeId<Type>>,
+        signature: FunctionSignature,
         body: Option<NodeId<Block>>,
     },
 }
 
 impl Node for Definition {
     const TYPE: NodeType = NodeType::Definition;
-}
-
-/// A Field is a named property of a definition.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Field {
-    // nocheckin: turn JS Field -> Property
-    /// Named field (like `x: int32`).
-    Named {
-        modifiers: Option<BindingModifier>,
-        name: Name,
-        ty: NodeId<Type>,
-        default: Option<NodeId<Expression>>,
-    },
-    /// Dynamic field (like `[x: string]: any`).
-    Dynamic {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
-        ty: NodeId<Type>,
-        key: NodeId<Expression>,
-        default: Option<NodeId<Expression>>,
-    },
-}
-
-impl Node for Field {
-    const TYPE: NodeType = NodeType::Field;
 }
 
 /// An EnumField is a named field of an enum definition.

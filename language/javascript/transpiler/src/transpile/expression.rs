@@ -76,20 +76,19 @@ impl<'a> Transpiler<'a> {
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
             }
-            dir::Expression::StructLiteral { ty: _, fields: _ } => {
-                todo!("unsupported struct literal {expression_id:?}");
-            }
-
-            dir::Expression::TypeUnary { operator, right } => {
-                let operator = self.transpile_type_unary_operator(*operator);
-                let expression = self.transpile_expression(module, *right, unit)?;
-                let expression = Expression::TypeUnary {
-                    operator,
-                    right: expression,
-                };
+            dir::Expression::StructLiteral { ty: _, properties } => {
+                let properties = properties
+                    .iter()
+                    .map(|property_id| self.session.tree.get(*property_id))
+                    .map(|property| self.transpile_property(module, property, unit))
+                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                let expression = Expression::ObjectLiteral { properties };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
             }
+
+            dir::Expression::TypeUnary { operator, right } => self
+                .transpile_type_unary_expression(module, expression_id, *operator, *right, unit)?,
             dir::Expression::TypeBinary {
                 left,
                 operator,
@@ -161,10 +160,20 @@ impl<'a> Transpiler<'a> {
             }
             dir::Expression::Call {
                 left,
+                static_arguments,
                 dynamic_arguments,
             } => {
                 let left_id = self.transpile_expression(module, *left, unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
+                let static_arguments = static_arguments
+                    .as_ref()
+                    .map(|arguments| {
+                        arguments
+                            .iter()
+                            .map(|argument| self.transpile_argument(module, *argument, unit))
+                            .collect::<Result<Vec<_>, TranspileError>>()
+                    })
+                    .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.transpile_argument(module, *argument, unit))
@@ -172,6 +181,7 @@ impl<'a> Transpiler<'a> {
                 let expression = Expression::Call {
                     position,
                     left: left_id,
+                    static_arguments,
                     dynamic_arguments,
                 };
                 unit.ast

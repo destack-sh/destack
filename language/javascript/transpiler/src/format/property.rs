@@ -2,7 +2,8 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, Field, Keyword, Mutability, NodeId,
+    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
+    FunctionCardinality, Keyword, Mutability, NodeId, Property,
 };
 
 use crate::{FormatNode, JavaScriptFormatter};
@@ -65,54 +66,91 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     Ok(())
 }
 
-impl<'ast> FormatNode<'ast, Field> for Field {
+impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
-        _node_id: NodeId<Field>,
+        _node_id: NodeId<Property>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Field::Named {
+            Property::Field {
                 modifiers,
-                name,
-                ty,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // name
-                write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                write!(f, [token(":"), space()])?;
-                // type
-                write!(f, [ty])?;
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-            Field::Dynamic {
-                modifiers,
-                name,
-                ty,
                 key,
+                value,
                 default,
             } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // key
-                write!(f, [token("[")])?;
-                if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
-                }
-                write!(f, [key, token("]"), token(":"), space(), ty])?;
+                write!(f, [key])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                if let Some(value) = value {
+                    write!(f, [token(":"), space(), value])?;
+                }
                 // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;
                 }
+            }
+            Property::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // abstraction
+                match signature.abstraction {
+                    FunctionAbstraction::Abstract => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                    }
+                    FunctionAbstraction::AbstractOverride => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::ConcreteOverride => {
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::Concrete => {}
+                }
+                // asynchrony
+                if signature.asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Async, space()])?;
+                }
+                // mode
+                if let Some(mode) = signature.mode {
+                    if let Some(keyword) = mode.to_keyword() {
+                        write!(f, [keyword])?;
+                    }
+                    if key.is_some() {
+                        write!(f, [space()])?;
+                    }
+                }
+                // cardinality
+                if signature.cardinality == FunctionCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+                // key
+                write!(f, [key])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+                // body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
+            }
+            Property::Spread { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // value
+                write!(f, [token("..."), value])?;
             }
         }
 

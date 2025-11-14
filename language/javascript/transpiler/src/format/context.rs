@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Property,
     MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeType, Parameter, Pattern,
     PatternField, Statement, SwitchCase, Type,
 };
@@ -287,8 +287,8 @@ impl<'a> Format<JavaScriptFormatContext<'a>> for NodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
-            NodeType::Field => {
-                let node_id = NodeId::<Field>::new(self.id);
+            NodeType::Property => {
+                let node_id = NodeId::<Property>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
