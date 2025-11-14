@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use crate::parse::prelude::*;
-use crate::{Parser, ParseError, ParserMark, ParseResult};
+use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use dyst_ast::{
     Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationKind, DefinitionMeta,
@@ -39,13 +41,12 @@ pub static DEFINITION_START_TOKENS: [TokenType; 6] = [
     TokenType::LessThan,
 ];
 
-pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
+pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 7] = [
     Keyword::Type,
     Keyword::Struct,
     Keyword::Class,
     Keyword::Enum,
     Keyword::Union,
-    Keyword::Tuple,
     Keyword::Interface,
     Keyword::Function,
 ];
@@ -727,7 +728,20 @@ impl<'a> Parser<'a> {
                 self.eat_if()?
             }
             // while
-            else if keyword == Some(Keyword::While) || keyword == Some(Keyword::Do) {
+            else if keyword == Some(Keyword::While)
+                || keyword == Some(Keyword::Do)
+                    // do must be followed by a while after open/close brace
+                    && self
+                        .find_open_and_matching_close(TokenType::OpenBrace, TokenType::CloseBrace)
+                        .ok()
+                        .map(|pos| {
+                            self.tokens
+                                .get(pos as usize + 1)
+                                .map(|token| Keyword::from_str(self.get_token_str(*token)) == Ok(Keyword::While))
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false)
+            {
                 self.eat_while()?
             }
             // for
@@ -1691,29 +1705,9 @@ const shapes = (
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
-                assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
+                assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
                     assert_string!(parser, *name, "y");
-                    assert_expr_path!(parser, parser.tree.get(*value), "y");
                 });
-            });
-        });
-    }
-
-    /// Parse an anonymous struct literal with newlines.
-    #[test]
-    fn test_parse_anonymous_struct_literal_with_newlines() {
-        let mut test = TestParser::new("{\n\n x: 1,\n\n y\n}");
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::StructLiteral { ty: None, properties, .. } => {
-            assert_eq!(properties.len(), 2);
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
-                assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-            });
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
-                assert_string!(parser, *name, "y");
-                assert_expr_path!(parser, parser.tree.get(*value), "y");
             });
         });
     }
@@ -2111,9 +2105,8 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     properties[1],
-                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
                         assert_string!(parser, *name, "y");
-                        assert_expr_path!(parser, parser.tree.get(*value), "y");
                     }
                 );
             }

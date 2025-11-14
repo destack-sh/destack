@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
     Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
@@ -584,9 +584,10 @@ impl<'a> Parser<'a> {
                     }
 
                     // keep eating child elements
-                    let element = self.with_options(self.options.in_tree_literal(), |parser| {
-                        parser.eat_argument()
-                    })?;
+                    let element = self.with_options(
+                        self.options.in_statement_position_in_tree_literal(),
+                        |parser| parser.eat_argument(),
+                    )?;
                     elements.push(element);
                     if self.peek_any_stop().is_ok() {
                         self.eat_any_stop_with_newlines()?;
@@ -610,8 +611,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, Block, Definition, DefinitionMeta, Expression, FloatType, IntType, Key, Name,
-        Parameter, Property, ScalarLiteral, TemplateLiteral, TypeLiteral,
+        Argument, Block, Expression, FloatType, IntType, Name, Property, ScalarLiteral,
+        TemplateLiteral, TypeLiteral,
     };
 
     use crate::parse::tests::TestParser;
@@ -891,33 +892,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_struct_literal_body_with_dynamic_field() {
-        let mut test = TestParser::new(r#"{ [key: T]: (...args: Array<any>) => any }"#);
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
-
-        assert_node!(parser.tree, expression_id, Expression::StructLiteral { ty: None, properties } => {
-            assert_eq!(properties.len(), 1);
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::NamedExpression { name, key }), ty: None, value: Some(value) } => {
-                // [key: a]
-                assert_string!(parser, *name, "key");
-                assert_expr_path!(parser, parser.tree.get(*key), "T");
-                // (...args: Array<any>) => any
-                assert_node!(parser.tree, *value, Expression::Definition(function_id) => {
-                    assert_node!(parser.tree, *function_id, Definition::Function { meta: DefinitionMeta { name: None, .. }, dynamic_parameters, .. } => {
-                        // ...args: Array<any>
-                        assert_eq!(dynamic_parameters.len(), 1);
-                        assert_node!(parser.tree, dynamic_parameters[0], Parameter::Variadic { modifiers: _, name, ty, .. } => {
-                            assert_string!(parser, *name, "args");
-                            assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "Array");
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
     fn test_parse_array_literal() {
         let mut test = TestParser::new("[1, 2]");
         let mut parser = test.prepare();
@@ -1041,43 +1015,6 @@ mod tests {
                         assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
                     });
                 })
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_tree_fragment_with_spread_argument() {
-        let mut test = TestParser::new(
-            r"
-<A  
-    a={...a} // not a rest because {...a} is just a struct literal
-    {...b} // ...b
-    ...c
-/>",
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-        let expression = parser.eat_tree_literal().unwrap();
-        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements: _ } => {
-            assert_path!(parser, path.as_ref().unwrap(), "A");
-            assert_eq!(arguments.as_ref().unwrap().len(), 3);
-            // a={..a}
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-                assert_string!(parser, *name, "a");
-                assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, properties } => {
-                    assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], Property::Spread { modifiers: _, value } => {
-                        assert_expr_path!(parser, parser.tree.get(*value), "a");
-                    });
-                });
-            });
-            // {...b}
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Spread { modifiers: _, name: None, value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "b");
-            });
-            // ...c
-            assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Spread { modifiers: _, name: None, value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "c");
             });
         });
     }

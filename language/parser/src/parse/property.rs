@@ -80,9 +80,9 @@ impl<'a> Parser<'a> {
         terminator: TokenType,
     ) -> ParseResult<Vec<NodeId<Property>>> {
         let mut properties: Vec<NodeId<Property>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             // stop on terminator
-            if self.peek_token(terminator).is_ok() {
+            if self.peek_token(terminator).is_ok() || self.peek_token(TokenType::End).is_ok() {
                 break;
             }
             // consume item separator
@@ -247,9 +247,10 @@ impl<'a> Parser<'a> {
             // return type
             let return_type = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
-                let return_type = self.with_options(self.options.nested_type_in_before_block(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let return_type = self
+                    .with_options(self.options.nested_type_in_before_block(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 Some(return_type)
             } else {
                 None
@@ -322,7 +323,7 @@ impl<'a> Parser<'a> {
                 if modifiers.is_none() && key.is_none() && ty.is_none() && value.is_none() {
                     // not a property
                     return Err(ParseError::expected(
-                        self.peek().unwrap().span,
+                        self.peek()?.span,
                         TokenType::Identifier,
                     ));
                 }
@@ -347,7 +348,7 @@ impl<'a> Parser<'a> {
                 if modifiers.is_none() && key.is_none() && value.is_none() {
                     // not a property
                     return Err(ParseError::expected(
-                        self.peek().unwrap().span,
+                        self.peek()?.span,
                         TokenType::Identifier,
                     ));
                 }
@@ -366,9 +367,11 @@ impl<'a> Parser<'a> {
     pub fn eat_properties(&mut self) -> ParseResult<Vec<NodeId<Property>>> {
         // eat everything
         let mut properties: Vec<NodeId<Property>> = Vec::new();
-        loop {
+        while self.peek().is_ok() {
             // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_token(TokenType::CloseBrace).is_ok()
+                || self.peek_token(TokenType::End).is_ok()
+            {
                 break;
             }
             // consume any stop

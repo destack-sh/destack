@@ -61,6 +61,7 @@ pub(crate) struct ParserOptions {
     pub left_precedence: Option<u16> = None,
 }
 
+#[allow(unused)]
 impl ParserOptions {
     /// Set `in_type=true`.
     pub(crate) fn in_type(self) -> Self {
@@ -151,6 +152,15 @@ impl ParserOptions {
         Self {
             in_tree_literal: true,
             in_parenthesis: false,
+            ..self
+        }
+    }
+
+    /// Set `in_statement_position=true`, `in_tree_literal=true`.
+    pub(crate) fn in_statement_position_in_tree_literal(self) -> Self {
+        Self {
+            in_statement_position: true,
+            in_tree_literal: true,
             ..self
         }
     }

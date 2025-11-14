@@ -60,6 +60,8 @@ pub enum Keyword {
     Namespace,
     /// Declare a type.
     Type,
+    /// Declare a newtype.
+    Newtype,
     /// Declare a Struct.
     Struct,
     /// Declare a Class (alias to struct).
@@ -98,8 +100,6 @@ pub enum Keyword {
     Abstract,
     /// Override.
     Override,
-    /// Declare a tuple.
-    Tuple,
     /// Instanceof test.
     InstanceOf,
     /// Where assertion.
@@ -254,6 +254,7 @@ impl Keyword {
             Keyword::Var => "var",
             Keyword::Namespace => "namespace",
             Keyword::Type => "type",
+            Keyword::Newtype => "newtype",
             Keyword::Struct => "struct",
             Keyword::Class => "class",
             Keyword::Enum => "enum",
@@ -273,7 +274,6 @@ impl Keyword {
             Keyword::Abstract => "abstract",
             Keyword::Override => "override",
             Keyword::Asserts => "asserts",
-            Keyword::Tuple => "tuple",
             Keyword::InstanceOf => "instanceof",
             Keyword::Where => "where",
             Keyword::Typeof => "typeof",
@@ -357,6 +357,7 @@ impl FromStr for Keyword {
             "var" => Ok(Keyword::Var),
             "namespace" => Ok(Keyword::Namespace),
             "type" => Ok(Keyword::Type),
+            "newtype" => Ok(Keyword::Newtype),
             "struct" => Ok(Keyword::Struct),
             "class" => Ok(Keyword::Class),
             "enum" => Ok(Keyword::Enum),
@@ -376,7 +377,6 @@ impl FromStr for Keyword {
             "abstract" => Ok(Keyword::Abstract),
             "override" => Ok(Keyword::Override),
             "asserts" => Ok(Keyword::Asserts),
-            "tuple" => Ok(Keyword::Tuple),
             "instanceof" => Ok(Keyword::InstanceOf),
             "where" => Ok(Keyword::Where),
             "typeof" => Ok(Keyword::Typeof),

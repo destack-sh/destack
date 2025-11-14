@@ -4,7 +4,7 @@ use dyst_ast::{
 };
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat a binding modifiers prefix (visibility and mutability).
@@ -429,7 +429,9 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
-            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let value = self.with_options(self.options.in_statement_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
                     modifiers,
@@ -448,8 +450,9 @@ impl<'a> Parser<'a> {
             self.bump(); // eat open brace
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
-            let value =
-                self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+            let value = self.with_options(self.options.in_statement_position(), |parser| {
+                parser.eat_expression()
+            })?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
@@ -471,7 +474,9 @@ impl<'a> Parser<'a> {
             {
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
-                self.eat_expression().for_node_type(NodeType::Argument)?
+                self.with_options(self.options.in_statement_position(), |parser| {
+                    parser.eat_expression()
+                })?
             }
             // implicit boolean true
             else {
