@@ -1,5 +1,5 @@
 use crate::{
-    Asynchrony, BindingScope, ExportType, Expression, FunctionMode, Name, Node, NodeId, NodeType,
+    BindingScope, ExportType, Expression, FunctionSignature, Name, Node, NodeId, NodeType,
     Parameter, Property, WhereClause, WithClause,
 };
 
@@ -12,7 +12,7 @@ pub enum DeclarationKind {
     Definition,
 }
 
-/// The meta data for a definition.
+/// The descriptor data for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
@@ -26,7 +26,7 @@ pub struct DeclarationDescriptor {
 }
 
 impl DeclarationDescriptor {
-    /// Create a new definition meta with the given name.
+    /// Create a new definition descriptor with the given name.
     pub fn named(name: Name) -> Self {
         Self {
             kind: DeclarationKind::Definition,
@@ -36,13 +36,13 @@ impl DeclarationDescriptor {
         }
     }
 
-    /// Create a new definition meta with the given name and scope.
+    /// Create a new definition descriptor with the given name and scope.
     #[inline]
     pub fn with_scope(self, scope: BindingScope) -> Self {
         Self { scope, ..self }
     }
 
-    /// Create a new definition meta with the given name and name.
+    /// Create a new definition descriptor with the given name and name.
     #[inline]
     pub fn with_name(self, name: Name) -> Self {
         Self {
@@ -51,13 +51,78 @@ impl DeclarationDescriptor {
         }
     }
 
-    /// Update the name of the definition meta maybe.
+    /// Update the name of the definition descriptor maybe.
     #[inline]
     pub fn with_name_maybe(self, name: Option<Name>) -> Self {
         if let Some(name) = name {
             self.with_name(name)
         } else {
             self
+        }
+    }
+}
+
+/// The parameterization and constraints of some type or declaration.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Generics {
+    /// The static parameters of the declaration.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+    /// The with clauses of the declaration.
+    pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
+    /// The where clauses of the declaration.
+    pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
+}
+
+impl Generics {
+    /// Create a new generics maybe.
+    pub fn maybe(
+        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        with_clauses: Option<Vec<NodeId<WithClause>>>,
+        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+    ) -> Option<Self> {
+        if static_parameters.is_none() && with_clauses.is_none() && where_clauses.is_none() {
+            None
+        } else {
+            Some(Self {
+                static_parameters,
+                with_clauses,
+                where_clauses,
+            })
+        }
+    }
+
+    /// Create a new generics from the given static parameters.
+    pub fn from_static_parameters(static_parameters: Option<Vec<NodeId<Parameter>>>) -> Self {
+        Self {
+            static_parameters,
+            with_clauses: None,
+            where_clauses: None,
+        }
+    }
+}
+
+/// The polymoprhic relations.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Heritage {
+    /// The extends types of the declaration.
+    pub extends_types: Option<Vec<NodeId<Expression>>> = None,
+    /// The implements types of the declaration.
+    pub implements_types: Option<Vec<NodeId<Expression>>> = None,
+}
+
+impl Heritage {
+    /// Create a new heritage maybe.
+    pub fn maybe(
+        extends_types: Option<Vec<NodeId<Expression>>>,
+        implements_types: Option<Vec<NodeId<Expression>>>,
+    ) -> Option<Self> {
+        if extends_types.is_none() && implements_types.is_none() {
+            None
+        } else {
+            Some(Self {
+                extends_types,
+                implements_types,
+            })
         }
     }
 }
@@ -76,8 +141,7 @@ pub enum Definition {
     /// ```
     Namespace {
         descriptor: DeclarationDescriptor,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        generics: Option<Generics>,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -118,11 +182,8 @@ pub enum Definition {
     Struct {
         descriptor: DeclarationDescriptor,
         kind: StructKind,
-        extends_types: Option<Vec<NodeId<Expression>>>,
-        implements_types: Option<Vec<NodeId<Expression>>>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        generics: Option<Generics>,
+        heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
     },
 
@@ -163,11 +224,8 @@ pub enum Definition {
     /// ```
     Enum {
         descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        extends_types: Option<Vec<NodeId<Expression>>>,
-        implements_types: Option<Vec<NodeId<Expression>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        generics: Option<Generics>,
+        heritage: Option<Heritage>,
         fields: Vec<NodeId<EnumField>>,
         properties: Vec<NodeId<Property>>,
     },
@@ -204,10 +262,8 @@ pub enum Definition {
     /// ```
     Interface {
         descriptor: DeclarationDescriptor,
-        extends_types: Option<Vec<NodeId<Expression>>>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        generics: Option<Generics>,
+        heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
     },
 
@@ -235,11 +291,9 @@ pub enum Definition {
     /// ```
     Implement {
         descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
+        generics: Option<Generics>,
         target_type: NodeId<Expression>,
-        implements_types: Option<Vec<NodeId<Expression>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
     },
 
@@ -300,15 +354,7 @@ pub enum Definition {
     /// ```
     Function {
         descriptor: DeclarationDescriptor,
-        asynchrony: Asynchrony,
-        cardinality: FunctionCardinality,
-        kind: FunctionKind,
-        mode: Option<FunctionMode>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        dynamic_parameters: Vec<NodeId<Parameter>>,
-        return_type: Option<NodeId<Expression>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        signature: FunctionSignature,
         body: Option<NodeId<Expression>>,
     },
 }
@@ -318,28 +364,16 @@ impl Node for Definition {
 }
 
 impl Definition {
-    /// Get the meta data of the definition.
+    /// Get the descriptor data of the definition.
     #[inline]
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
-            Definition::Namespace {
-                descriptor: meta, ..
-            } => meta,
-            Definition::Struct {
-                descriptor: meta, ..
-            } => meta,
-            Definition::Enum {
-                descriptor: meta, ..
-            } => meta,
-            Definition::Interface {
-                descriptor: meta, ..
-            } => meta,
-            Definition::Implement {
-                descriptor: meta, ..
-            } => meta,
-            Definition::Function {
-                descriptor: meta, ..
-            } => meta,
+            Definition::Namespace { descriptor, .. } => descriptor,
+            Definition::Struct { descriptor, .. } => descriptor,
+            Definition::Enum { descriptor, .. } => descriptor,
+            Definition::Interface { descriptor, .. } => descriptor,
+            Definition::Implement { descriptor, .. } => descriptor,
+            Definition::Function { descriptor, .. } => descriptor,
         }
     }
 
@@ -357,37 +391,6 @@ pub enum StructKind {
     Struct,
     /// Class.
     Class,
-}
-
-/// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionCardinality {
-    /// Scalar function.
-    Scalar,
-    /// Generator function.
-    Generator,
-}
-
-/// The abstraction level of a definition.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionAbstraction {
-    /// Abstract definition.
-    Abstract,
-    /// Abstract override.
-    AbstractOverride,
-    /// Concrete override.
-    ConcreteOverride,
-    /// Concrete definition.
-    Concrete,
-}
-
-/// A FunctionKind is the style of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum FunctionKind {
-    /// A normal function.
-    Function,
-    /// A lambda function.
-    Lambda,
 }
 
 /// A EnumField is a enum field declaration.

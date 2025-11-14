@@ -192,14 +192,16 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::LetType {
-                descriptor: meta,
+                kind,
+                descriptor,
                 mutability,
                 static_parameters,
                 value,
             } => {
+                let kind = self.lower_type_kind(*kind);
                 let name = self.session.strings.intern_from(
                     &module.strings,
-                    meta.name.expect("LetType must have a name").string(),
+                    descriptor.name.expect("LetType must have a name").string(),
                 );
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let static_parameters = static_parameters.as_ref().map(|params| {
@@ -210,6 +212,7 @@ impl<'a> Compiler<'a> {
                 });
                 let value = self.lower_expression(module, *value);
                 Expression::LetType {
+                    kind,
                     mutability,
                     name,
                     static_parameters,
@@ -305,11 +308,11 @@ impl<'a> Compiler<'a> {
             }
 
             ast::Expression::Member {
-                left: receiver,
+                left,
                 path,
                 static_arguments,
             } => {
-                let left = self.lower_expression(module, *receiver);
+                let left = self.lower_expression(module, *left);
                 let path = self.lower_path(module, path);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
@@ -325,10 +328,10 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Call {
                 position: _,
-                left: receiver,
+                left,
                 dynamic_arguments,
             } => {
-                let receiver = self.lower_expression(module, *receiver);
+                let receiver = self.lower_expression(module, *left);
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(module, *argument))
@@ -340,10 +343,10 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Index {
                 position: _,
-                left: receiver,
+                left,
                 index,
             } => {
-                let receiver = self.lower_expression(module, *receiver);
+                let receiver = self.lower_expression(module, *left);
                 let index = index.map(|index| self.lower_expression(module, index));
                 Expression::Index {
                     left: receiver,
@@ -392,13 +395,13 @@ impl<'a> Compiler<'a> {
                     Expression::TypeLiteral { value }
                 }
             }
-            ast::Expression::StructLiteral { ty, fields } => {
+            ast::Expression::StructLiteral { ty, properties } => {
                 let ty = ty.map(|ty| self.lower_expression_to_type(module, ty));
-                let fields = fields
+                let properties = properties
                     .iter()
-                    .map(|field| self.lower_argument(module, *field))
+                    .map(|property| self.lower_property(module, *property))
                     .collect();
-                Expression::StructLiteral { ty, fields }
+                Expression::StructLiteral { ty, properties }
             }
             ast::Expression::TupleLiteral { elements } => {
                 let elements = elements

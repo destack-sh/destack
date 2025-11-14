@@ -1,7 +1,9 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, TokenType};
+use dyst_ast::{
+    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, NodeId, NodeType, TokenType,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a Interface.
@@ -71,13 +73,14 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
+        // interface
+        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::maybe(extends_types, None);
         let interface_id = self.tree.insert(
             Definition::Interface {
                 descriptor,
-                static_parameters,
-                extends_types,
-                with_clauses,
-                where_clauses,
+                generics,
+                heritage,
                 properties,
             },
             self.get_span_from(start),
@@ -105,12 +108,10 @@ mod tests {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, with_clauses, where_clauses, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
-            assert!(static_parameters.is_none());
-            assert!(with_clauses.is_none());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
             assert!(properties.is_empty());
         });
     }
@@ -123,13 +124,14 @@ mod tests {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, extends_types, where_clauses, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
+            let heritage = heritage.as_ref().expect("expected heritage");
 
-            let supers = extends_types.as_ref().expect("expected extends types");
+            let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
@@ -155,13 +157,14 @@ interface Foo extends Baz {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, properties, extends_types, where_clauses, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
 
             // extends Baz
-            let supers = extends_types.as_ref().expect("expected extends types");
+            let heritage = heritage.as_ref().expect("expected heritage");
+            let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
@@ -192,10 +195,13 @@ interface Foo extends Baz {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
-            let params = static_parameters.as_ref().expect("expected static params");
+            let params = generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static params");
             assert_eq!(params.len(), 1);
         });
     }
@@ -214,15 +220,18 @@ interface Baz<T> with T: Copy where Requirement: Interface {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, with_clauses, where_clauses,  .. } => {
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
-
-            let params = static_parameters.as_ref().expect("expected static params");
+            let generics = generics.as_ref().expect("expected generics");
+            let params = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static params");
             assert_eq!(params.len(), 1);
 
             // with T: Copy
-            let with_items = with_clauses.as_ref().expect("expected with clauses");
+            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
             assert_node!(parser.tree, with_items[0], WithClause { alias, right } => {
                 assert_string!(parser, alias.unwrap(), "T");
@@ -230,9 +239,8 @@ interface Baz<T> with T: Copy where Requirement: Interface {
                     assert_path!(parser, *path, "Copy");
                 });
             });
-
             // where Requirement: Interface
-            let where_items = where_clauses.as_ref().expect("expected where clauses");
+            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
             assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
                 assert_string!(parser, *left, "Requirement");
@@ -271,8 +279,13 @@ interface SQL {
             assert_eq!(properties.len(), 5);
 
             // <T = any>(value: T): SQL.Result<T>;
-            assert_node!(parser.tree, properties[0], Property::Method { key: None, mode, static_parameters: Some(static_parameters), dynamic_parameters, return_type: Some(return_type), .. } => {
-                assert_eq!(*mode, Some(FunctionMode::Call));
+            assert_node!(parser.tree, properties[0], Property::Method { key: None, signature, .. } => {
+                assert_eq!(signature.mode, Some(FunctionMode::Call));
+                let static_parameters = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    .expect("expected static parameters");
                 // <T = any>
                 assert_eq!(static_parameters.len(), 1);
                 assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, default, .. } => {
@@ -280,59 +293,59 @@ interface SQL {
                     assert_node!(parser.tree, default.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 // value: T
-                assert_eq!(dynamic_parameters.len(), 1);
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "value");
                     assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
                 });
                 // SQL.Result<T>
-                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL.Result");
+                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
             });
 
             // (value: any, ...arguments: any[]): SQL.Result<any>;
-            assert_node!(parser.tree, properties[1], Property::Method { modifiers: None, key: None, mode, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
-                assert_eq!(*mode, Some(FunctionMode::Call));
+            assert_node!(parser.tree, properties[1], Property::Method { modifiers: None, key: None, signature, .. } => {
+                assert_eq!(signature.mode, Some(FunctionMode::Call));
                 // (value: any, ...arguments: any[])
-                assert_eq!(dynamic_parameters.len(), 2);
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "value");
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 // ...arguments: any[]
-                assert_node!(parser.tree, dynamic_parameters[1], Parameter::Variadic { name, ty: Some(ty), .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Variadic { name, ty: Some(ty), .. } => {
                     assert_string!(parser, *name, "arguments");
                     assert_node!(parser.tree, *ty, Expression::Index { .. });
                 });
                 // SQL.Result<any>;
-                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL.Result");
+                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
             });
 
             // new(): SQL;
-            assert_node!(parser.tree, properties[2], Property::Method { modifiers: None, key: None, mode, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
-                assert_eq!(*mode, Some(FunctionMode::New));
-                assert_eq!(dynamic_parameters.len(), 0);
+            assert_node!(parser.tree, properties[2], Property::Method { modifiers: None, key: None, signature, .. } => {
+                assert_eq!(signature.mode, Some(FunctionMode::New));
+                assert_eq!(signature.dynamic_parameters.len(), 0);
                 // SQL
-                assert_expr_path!(parser, parser.tree.get(*return_type), "SQL");
+                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL");
             });
 
             // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
-            assert_node!(parser.tree, properties[3], Property::Method { modifiers: None, key: Some(Key::Expression(key)), mode: _, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+            assert_node!(parser.tree, properties[3], Property::Method { modifiers: None, key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.asyncIterator]
                 assert_expr_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
-                assert_eq!(dynamic_parameters.len(), 0);
+                assert_eq!(signature.dynamic_parameters.len(), 0);
                 // AsyncIterableIterator<string>
-                assert_expr_path!(parser, parser.tree.get(*return_type), "AsyncIterableIterator");
+                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "AsyncIterableIterator");
             });
 
             // [Symbol.toPrimitive]?(): number;
-            assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), mode: _, static_parameters: None, dynamic_parameters, return_type: Some(return_type), .. } => {
+            assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.toPrimitive]
                 assert_expr_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
                 // ?
                 assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
-                assert_eq!(dynamic_parameters.len(), 0);
+                assert_eq!(signature.dynamic_parameters.len(), 0);
                 // number
-                assert_node!(parser.tree, *return_type, Expression::TypeLiteral(TypeLiteral::Number));
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
             });
         });
     }

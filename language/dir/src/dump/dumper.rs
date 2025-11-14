@@ -462,7 +462,6 @@ impl Dump for DeclarationDescriptor {
             .object("DeclarationDescriptor")
             .field("kind", &self.kind)
             .field_optional("name", &self.name)
-            .field_optional("visibility", &self.visibility)
             .field_optional("export", &self.export)
             .end();
     }
@@ -475,15 +474,23 @@ impl Dump for Generics {
     }
 }
 
+/// Dump a Heritage as a structured object.
+impl Dump for Heritage {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Heritage").end();
+    }
+}
+
 /// Dump a FunctionSignature as a structured object.
 impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .object("FunctionSignature")
             .field("abstraction", &self.abstraction)
+            .field("asynchrony", &self.asynchrony)
             .field("cardinality", &self.cardinality)
-            .field_optional("kind", &self.mode)
-            .field("style", &self.kind)
+            .field_optional("mode", &self.mode)
+            .field("kind", &self.kind)
             .end();
     }
 }
@@ -1052,7 +1059,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::TupleLiteral { ty: _, elements: _ } => {
                 self.node("Expression::TupleLiteral", id.id).end();
             }
-            Expression::StructLiteral { ty: _, fields: _ } => {
+            Expression::StructLiteral {
+                ty: _,
+                properties: _,
+            } => {
                 self.node("Expression::StructLiteral", id.id).end();
             }
             Expression::TreeLiteral {
@@ -1155,11 +1165,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Type {
                 descriptor,
                 generics,
+                heritage,
                 value: _,
             } => {
                 self.node("Definition::Type", id.id)
                     .field("descriptor", descriptor)
                     .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Namespace {
@@ -1176,36 +1188,39 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 kind,
                 generics,
-                embedded_definitions: _,
+                heritage,
                 properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("descriptor", descriptor)
                     .field("kind", kind)
                     .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Enum {
                 descriptor,
                 generics,
-                embedded_definitions: _,
+                heritage,
                 fields: _,
                 properties: _,
             } => {
                 self.node("Definition::Enum", id.id)
                     .field("descriptor", descriptor)
                     .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Interface {
                 descriptor,
                 generics,
-                embedded_definitions: _,
+                heritage,
                 properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
                     .field("descriptor", descriptor)
                     .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Function {
@@ -1223,12 +1238,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 target_type: _,
-                implements_types: _,
-                definitions: _,
+                heritage,
+                properties: _,
             } => {
                 self.node("Definition::Extension", id.id)
                     .field("descriptor", descriptor)
                     .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
         }

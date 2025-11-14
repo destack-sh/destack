@@ -1,6 +1,5 @@
 use crate::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability,
-    Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
+    Expression, FunctionSignature, Key, Keyword, Mutability, Node, NodeId, NodeType, Visibility,
 };
 
 /// The type of a binding.
@@ -147,15 +146,7 @@ pub enum Property {
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        asynchrony: Asynchrony,
-        abstraction: FunctionAbstraction,
-        cardinality: FunctionCardinality,
-        mode: Option<FunctionMode>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        dynamic_parameters: Vec<NodeId<Parameter>>,
-        return_type: Option<NodeId<Expression>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        signature: FunctionSignature,
         body: Option<NodeId<Expression>>,
     },
     /// Spread property (like `...a`).

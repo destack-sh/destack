@@ -5,8 +5,8 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
-    Asynchrony, DeclarationKind, Definition, ExportType, Expression, FunctionCardinality,
-    FunctionKind, FunctionMode, Keyword, NodeId, StructKind, Visibility,
+    Asynchrony, DeclarationKind, Definition, ExportType, Expression, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionMode, Keyword, NodeId, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -72,10 +72,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // module
             Definition::Namespace {
                 descriptor: meta,
-                with_clauses,
-                where_clauses,
+                generics,
                 expressions,
             } => {
+                let generics = generics.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -95,7 +96,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with
-                if let Some(with_clauses) = with_clauses
+                if let Some(with_clauses) =
+                    generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -103,7 +105,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) = where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -138,13 +141,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Struct {
                 descriptor: meta,
                 kind,
-                extends_types,
-                implements_types,
-                static_parameters,
-                with_clauses,
-                where_clauses,
+                generics,
+                heritage,
                 properties,
             } => {
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -167,28 +170,32 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) = &static_parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) = &extends_types
+                if let Some(extends_types) =
+                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
-                if let Some(implements_types) = &implements_types
+                if let Some(implements_types) =
+                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with clauses
-                if let Some(with_clauses) = with_clauses
+                if let Some(with_clauses) =
+                    generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -196,7 +203,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where clauses
-                if let Some(where_clauses) = where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -233,14 +241,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // enum
             Definition::Enum {
                 descriptor: meta,
-                static_parameters,
-                extends_types,
-                implements_types,
-                with_clauses,
-                where_clauses,
+                generics,
+                heritage,
                 fields,
                 properties,
             } => {
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -260,28 +268,31 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) = &static_parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) = &extends_types
+                if let Some(extends_types) =
+                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
-                if let Some(implements_types) = &implements_types
+                if let Some(implements_types) =
+                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
-                if let Some(with) = with_clauses
+                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -289,7 +300,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) = &where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -339,12 +351,13 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // interface
             Definition::Interface {
                 descriptor: meta,
-                static_parameters,
-                extends_types,
-                with_clauses,
-                where_clauses,
+                generics,
+                heritage,
                 properties,
             } => {
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -364,21 +377,23 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) = &static_parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) = &extends_types
+                if let Some(extends_types) =
+                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // with clauses
-                if let Some(with) = &with_clauses
+                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -386,7 +401,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where clauses
-                if let Some(where_clauses) = &where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -424,13 +440,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // implement
             Definition::Implement {
                 descriptor: meta,
-                static_parameters: static_arguments,
+                generics,
                 target_type,
-                implements_types,
-                with_clauses,
-                where_clauses,
+                heritage,
                 properties,
             } => {
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -445,7 +462,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Implement])?;
 
                 // static arguments
-                if let Some(static_arguments) = &static_arguments
+                if let Some(static_arguments) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_arguments.is_empty()
                 {
                     write!(
@@ -466,14 +484,15 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space(), target_type])?;
 
                 // implements types
-                if let Some(implements_types) = &implements_types
+                if let Some(implements_types) =
+                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
                     format_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
-                if let Some(with) = with_clauses
+                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -481,7 +500,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) = &where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -508,17 +528,11 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // function
             Definition::Function {
                 descriptor: meta,
-                asynchrony,
-                cardinality,
-                mode,
-                kind,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                with_clauses,
-                where_clauses,
+                signature,
                 body,
             } => {
+                let generics = signature.generics.as_ref();
+
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -529,46 +543,61 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
+                // abstraction
+                match signature.abstraction {
+                    FunctionAbstraction::Abstract => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                    }
+                    FunctionAbstraction::AbstractOverride => {
+                        write!(f, [Keyword::Abstract, space(), Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::ConcreteOverride => {
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::Concrete => {}
+                }
+
                 // asynchrony
-                if *asynchrony == Asynchrony::Async {
+                if signature.asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
                 // kind
-                if let Some(kind) = mode {
+                if let Some(kind) = signature.mode {
                     write!(f, [kind.to_keyword()])?;
-                    if meta.name.is_some() || *kind == FunctionMode::New {
+                    if meta.name.is_some() || kind == FunctionMode::New {
                         write!(f, [space()])?;
                     }
                 }
 
                 // keyword
-                if *kind == FunctionKind::Function
-                    && *mode != Some(FunctionMode::Constructor)
-                    && *mode != Some(FunctionMode::New)
+                if signature.kind == FunctionKind::Function
+                    && signature.mode != Some(FunctionMode::Constructor)
+                    && signature.mode != Some(FunctionMode::New)
                 {
                     // function keyword
-                    if *cardinality == FunctionCardinality::Generator {
+                    if signature.cardinality == FunctionCardinality::Generator {
                         write!(f, [Keyword::Function, token("*"), space()])?;
                     } else {
                         write!(f, [Keyword::Function, space()])?;
                     }
                 } else {
                     // lambda (no keyword, maybe star)
-                    if *cardinality == FunctionCardinality::Generator {
+                    if signature.cardinality == FunctionCardinality::Generator {
                         write!(f, [token("*"), space()])?;
                     }
                 }
 
                 // name / key
-                if *kind == FunctionKind::Function
+                if signature.kind == FunctionKind::Function
                     && let Some(name) = meta.name
                 {
                     write!(f, [name])?;
                 }
 
                 // static parameters
-                if let Some(static_parameters) = &static_parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
@@ -582,7 +611,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         soft_block_indent(&format_with(|f| {
                             // dynamic parameters
                             f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                                .entries(dynamic_parameters)
+                                .entries(&signature.dynamic_parameters)
                                 .finish()?;
 
                             // trailing comma
@@ -595,8 +624,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 )?;
 
                 // return type
-                if let Some(return_type) = return_type {
-                    if *kind == FunctionKind::Lambda && body.is_none() {
+                if let Some(return_type) = signature.return_type {
+                    if signature.kind == FunctionKind::Lambda && body.is_none() {
                         write!(f, [space(), token("=>"), space(), return_type])?;
                     } else {
                         write!(f, [token(":"), space(), return_type])?;
@@ -604,7 +633,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with clause
-                if let Some(with) = with_clauses
+                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -612,7 +641,8 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where clause
-                if let Some(where_clauses) = &where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -621,7 +651,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // body
                 if let Some(body) = body {
-                    if *kind == FunctionKind::Lambda {
+                    if signature.kind == FunctionKind::Lambda {
                         // arrow is fine since lambdas can only have return type or body
                         write!(f, [space(), token("=>"), space(), body])?;
                     } else {

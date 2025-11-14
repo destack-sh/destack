@@ -1,7 +1,8 @@
 use crate::{
     Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Key, MatchCase, MutableNodeTree, NodeId, NodeType, NodeVisitor,
-    Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, WhereClause, WithClause,
+    FunctionSignature, Generics, Heritage, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, WhereClause,
+    WithClause,
 };
 
 /// Walk any node.
@@ -98,6 +99,32 @@ fn walk_generics<V: NodeVisitor + ?Sized>(
         for clause_id in where_clauses.iter() {
             let clause = tree.get(*clause_id);
             visitor.visit_where_clause(tree, *clause_id, clause);
+        }
+    }
+}
+
+/// Walk the Heritage.
+fn walk_heritage<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    heritage: &Heritage,
+) {
+    if let Some(extends_types) = heritage.extends_types.as_ref() {
+        for extends_type_id in extends_types.iter() {
+            let extends_type = tree.get(*extends_type_id);
+            visitor.visit_type(tree, *extends_type_id, extends_type);
+        }
+    }
+    if let Some(implements_types) = heritage.implements_types.as_ref() {
+        for implements_type_id in implements_types.iter() {
+            let implements_type = tree.get(*implements_type_id);
+            visitor.visit_type(tree, *implements_type_id, implements_type);
+        }
+    }
+    if let Some(embedded_types) = heritage.embedded_types.as_ref() {
+        for embedded_type_id in embedded_types.iter() {
+            let embedded_type = tree.get(*embedded_type_id);
+            visitor.visit_type(tree, *embedded_type_id, embedded_type);
         }
     }
 }
@@ -394,14 +421,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
-        Expression::StructLiteral { ty, fields } => {
+        Expression::StructLiteral { ty, properties } => {
             if let Some(ty_id) = ty {
                 let ty_node = tree.get(*ty_id);
                 visitor.visit_type(tree, *ty_id, ty_node);
             }
-            for field_id in fields {
-                let argument = tree.get(*field_id);
-                visitor.visit_argument(tree, *field_id, argument);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Expression::TreeLiteral {
@@ -547,10 +574,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Type {
             descriptor: _,
             generics,
+            heritage,
             value,
         } => {
             if let Some(generics) = generics.as_ref() {
                 walk_generics(visitor, tree, generics);
+            }
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             let value_type = tree.get(*value);
             visitor.visit_type(tree, *value, value_type);
@@ -572,16 +603,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             descriptor: _,
             kind: _,
             generics,
-            embedded_definitions,
+            heritage,
             properties,
         } => {
             if let Some(generics) = generics.as_ref() {
                 walk_generics(visitor, tree, generics);
             }
-            for embedded_definition in embedded_definitions.iter() {
-                let ty_id = embedded_definition.ty();
-                let ty = tree.get(ty_id);
-                visitor.visit_type(tree, ty_id, ty);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for property_id in properties {
                 let property = tree.get(*property_id);
@@ -591,17 +620,15 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Enum {
             descriptor: _,
             generics,
-            embedded_definitions,
+            heritage,
             fields,
             properties,
         } => {
             if let Some(generics) = generics.as_ref() {
                 walk_generics(visitor, tree, generics);
             }
-            for embedded_definition in embedded_definitions.iter() {
-                let ty_id = embedded_definition.ty();
-                let ty = tree.get(ty_id);
-                visitor.visit_type(tree, ty_id, ty);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for field_id in fields {
                 let field = tree.get(*field_id);
@@ -615,16 +642,14 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Interface {
             descriptor: _,
             generics,
-            embedded_definitions,
+            heritage,
             properties,
         } => {
             if let Some(generics) = generics.as_ref() {
                 walk_generics(visitor, tree, generics);
             }
-            for embedded_definition in embedded_definitions.iter() {
-                let ty_id = embedded_definition.ty();
-                let ty = tree.get(ty_id);
-                visitor.visit_type(tree, ty_id, ty);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for property_id in properties {
                 let property = tree.get(*property_id);
@@ -651,23 +676,20 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             descriptor: _,
             generics,
             target_type,
-            implements_types,
-            definitions,
+            heritage,
+            properties,
         } => {
             if let Some(generics) = generics.as_ref() {
                 walk_generics(visitor, tree, generics);
             }
             let target_type_expr = tree.get(*target_type);
             visitor.visit_type(tree, *target_type, target_type_expr);
-            if let Some(implements_types) = implements_types {
-                for implements_type in implements_types {
-                    let implements_type_expr = tree.get(*implements_type);
-                    visitor.visit_type(tree, *implements_type, implements_type_expr);
-                }
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
-            for definition_id in definitions.iter() {
-                let child_definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, child_definition);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
     }

@@ -3,8 +3,8 @@ use dyst_ast::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
     DependencyItem, DependencyKind, ExportType, MatchCase, MatchFile, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, Type,
+    TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -177,7 +177,7 @@ pub enum Expression {
     /// Struct creation.
     StructLiteral {
         ty: Option<NodeId<Type>>,
-        fields: Vec<NodeId<Argument>>,
+        properties: Vec<NodeId<Property>>,
     },
     /// Tree creation.
     TreeLiteral {

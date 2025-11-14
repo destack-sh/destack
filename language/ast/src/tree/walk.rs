@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, DeclarationDescriptor, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, Tag, TemplateLiteral, WhereClause,
-    WithClause,
+    DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
+    MatchCase, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Property, Tag, TemplateLiteral, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -111,10 +111,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     }
 }
 
-// ----------------------------------------------------------------------------
-// Groupings
-// ----------------------------------------------------------------------------
-
 /// Walk the Block.
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -129,7 +125,6 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Expression.
 /// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -625,16 +620,78 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     }
 }
 
-// ----------------------------------------------------------------------------
-// Declarations
-// ----------------------------------------------------------------------------
-
+/// Walk the DeclarationDescriptor.
 fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
     _visitor: &mut V,
     _tree: &MutableNodeTree,
-    _meta: &DeclarationDescriptor,
+    _descriptor: &DeclarationDescriptor,
 ) {
     // nothing to do
+}
+
+/// Walk the Generics.
+fn walk_generics<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    generics: &Generics,
+) {
+    if let Some(static_parameters) = generics.static_parameters.as_ref() {
+        for parameter_id in static_parameters.iter() {
+            let parameter = tree.get(*parameter_id);
+            visitor.visit_parameter(tree, *parameter_id, parameter);
+        }
+    }
+    if let Some(with_clauses) = generics.with_clauses.as_ref() {
+        for clause_id in with_clauses.iter() {
+            let clause = tree.get(*clause_id);
+            visitor.visit_with_clause(tree, *clause_id, clause);
+        }
+    }
+    if let Some(where_clauses) = generics.where_clauses.as_ref() {
+        for clause_id in where_clauses.iter() {
+            let clause = tree.get(*clause_id);
+            visitor.visit_where_clause(tree, *clause_id, clause);
+        }
+    }
+}
+
+/// Walk the Heritage.
+fn walk_heritage<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    heritage: &Heritage,
+) {
+    if let Some(extends_expressions) = heritage.extends_types.as_ref() {
+        for extends_expression_id in extends_expressions.iter() {
+            let extends_expression = tree.get(*extends_expression_id);
+            visitor.visit_expression(tree, *extends_expression_id, extends_expression);
+        }
+    }
+    if let Some(implements_expressions) = heritage.implements_types.as_ref() {
+        for implements_expression_id in implements_expressions.iter() {
+            let implements_expression = tree.get(*implements_expression_id);
+            visitor.visit_expression(tree, *implements_expression_id, implements_expression);
+        }
+    }
+}
+
+/// Walk the FunctionSignature.
+fn walk_function_signature<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    signature: &FunctionSignature,
+) {
+    if let Some(generics) = signature.generics.as_ref() {
+        walk_generics(visitor, tree, generics);
+    }
+    for parameter_id in signature.dynamic_parameters.iter() {
+        let parameter = tree.get(*parameter_id);
+        visitor.visit_parameter(tree, *parameter_id, parameter);
+    }
+    if let Some(return_type) = signature.return_type {
+        let return_type_expression = tree.get(return_type);
+        visitor.visit_expression(tree, return_type, return_type_expression);
+    }
 }
 
 /// Walk the Definition and visit all child nodes.
@@ -648,69 +705,32 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 
     match definition {
         Definition::Namespace {
-            descriptor: meta,
-            with_clauses,
-            where_clauses,
-            expressions,
+            descriptor,
+            generics,
+            expressions: statements,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
+            for statement_id in statements {
+                let statement = tree.get(*statement_id);
+                visitor.visit_expression(tree, *statement_id, statement);
             }
         }
         Definition::Struct {
-            descriptor: meta,
+            descriptor,
             kind: _,
-            extends_types,
-            implements_types,
-            static_parameters,
-            with_clauses,
-            where_clauses,
+            generics,
+            heritage,
             properties,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            if let Some(ext_types) = extends_types {
-                for extends_type_id in ext_types {
-                    let expr = tree.get(*extends_type_id);
-                    visitor.visit_expression(tree, *extends_type_id, expr);
-                }
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            if let Some(impl_types) = implements_types {
-                for implements_type_id in impl_types {
-                    let expr = tree.get(*implements_type_id);
-                    visitor.visit_expression(tree, *implements_type_id, expr);
-                }
-            }
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for property_id in properties {
                 let property = tree.get(*property_id);
@@ -718,45 +738,18 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
-            descriptor: meta,
-            static_parameters,
-            extends_types,
-            implements_types,
-            with_clauses,
-            where_clauses,
+            descriptor,
+            generics,
+            heritage,
             fields,
             properties,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            if let Some(ext_types) = extends_types {
-                for extends_type_id in ext_types {
-                    let expr = tree.get(*extends_type_id);
-                    visitor.visit_expression(tree, *extends_type_id, expr);
-                }
-            }
-            if let Some(impl_types) = implements_types {
-                for implements_type_id in impl_types {
-                    let expr = tree.get(*implements_type_id);
-                    visitor.visit_expression(tree, *implements_type_id, expr);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for field_id in fields {
                 let field = tree.get(*field_id);
@@ -768,37 +761,17 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
-            descriptor: meta,
-            extends_types,
-            static_parameters,
-            with_clauses,
-            where_clauses,
+            descriptor,
+            generics,
+            heritage,
             properties,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            if let Some(extends_types) = extends_types {
-                for extends_type_id in extends_types {
-                    let expr = tree.get(*extends_type_id);
-                    visitor.visit_expression(tree, *extends_type_id, expr);
-                }
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for property_id in properties {
                 let property = tree.get(*property_id);
@@ -806,40 +779,20 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            descriptor: meta,
-            static_parameters,
+            descriptor,
+            generics,
             target_type,
-            implements_types,
-            with_clauses,
-            where_clauses,
+            heritage,
             properties,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            if let Some(static_parameters) = static_parameters {
-                for argument_id in static_parameters {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_parameter(tree, *argument_id, argument);
-                }
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            let target_type_expr = tree.get(*target_type);
-            visitor.visit_expression(tree, *target_type, target_type_expr);
-            if let Some(impl_types) = implements_types {
-                for implements_type_id in impl_types {
-                    let implements_type_expr = tree.get(*implements_type_id);
-                    visitor.visit_expression(tree, *implements_type_id, implements_type_expr);
-                }
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
+            let target_type_expression = tree.get(*target_type);
+            visitor.visit_expression(tree, *target_type, target_type_expression);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
             for property_id in properties {
                 let property = tree.get(*property_id);
@@ -847,45 +800,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
-            descriptor: meta,
-            asynchrony: _,
-            cardinality: _,
-            kind: _,
-            mode: _,
-            static_parameters,
-            dynamic_parameters,
-            return_type,
-            with_clauses,
-            where_clauses,
+            descriptor,
+            signature,
             body,
         } => {
-            walk_declaration_descriptor(visitor, tree, meta);
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
-            }
-            for param_id in dynamic_parameters {
-                let param = tree.get(*param_id);
-                visitor.visit_parameter(tree, *param_id, param);
-            }
-            if let Some(return_type) = return_type {
-                let expr = tree.get(*return_type);
-                visitor.visit_expression(tree, *return_type, expr);
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
-            }
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            walk_function_signature(visitor, tree, signature);
             if let Some(body_id) = body {
                 let expression = tree.get(*body_id);
                 visitor.visit_expression(tree, *body_id, expression);
@@ -941,46 +861,13 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         Property::Method {
             modifiers: _,
             key,
-            asynchrony: _,
-            abstraction: _,
-            cardinality: _,
-            mode: _,
-            static_parameters,
-            dynamic_parameters,
-            return_type,
-            with_clauses,
-            where_clauses,
+            signature,
             body,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
-            if let Some(static_parameters) = static_parameters {
-                for param_id in static_parameters {
-                    let param = tree.get(*param_id);
-                    visitor.visit_parameter(tree, *param_id, param);
-                }
-            }
-            for param_id in dynamic_parameters {
-                let param = tree.get(*param_id);
-                visitor.visit_parameter(tree, *param_id, param);
-            }
-            if let Some(return_type) = return_type {
-                let expr = tree.get(*return_type);
-                visitor.visit_expression(tree, *return_type, expr);
-            }
-            if let Some(with_clauses) = with_clauses {
-                for with_id in with_clauses {
-                    let with_clause = tree.get(*with_id);
-                    visitor.visit_with_clause(tree, *with_id, with_clause);
-                }
-            }
-            if let Some(where_clauses) = where_clauses {
-                for where_id in where_clauses {
-                    let where_clause = tree.get(*where_id);
-                    visitor.visit_where_clause(tree, *where_id, where_clause);
-                }
-            }
+            walk_function_signature(visitor, tree, signature);
             if let Some(body_id) = body {
                 let expression = tree.get(*body_id);
                 visitor.visit_expression(tree, *body_id, expression);
@@ -1009,10 +896,6 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
         visitor.visit_expression(tree, *value, expression);
     }
 }
-
-// ----------------------------------------------------------------------------
-// Context
-// ----------------------------------------------------------------------------
 
 /// Walk the WithClause.
 pub fn walk_with_clause<V: NodeVisitor + ?Sized>(

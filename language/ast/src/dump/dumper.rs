@@ -495,6 +495,34 @@ impl Dump for Key {
     }
 }
 
+/// Dump a Generics as a structured representation.
+impl Dump for Generics {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Generics").end();
+    }
+}
+
+/// Dump a Heritage as a structured representation.
+impl Dump for Heritage {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Heritage").end();
+    }
+}
+
+/// Dump a FunctionSignature as a structured representation.
+impl Dump for FunctionSignature {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("FunctionSignature")
+            .field("abstraction", &self.abstraction)
+            .field("asynchrony", &self.asynchrony)
+            .field("cardinality", &self.cardinality)
+            .field_optional("mode", &self.mode)
+            .field("kind", &self.kind)
+            .end();
+    }
+}
+
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1080,9 +1108,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match definition {
             Definition::Namespace {
                 descriptor,
+                generics: _,
                 expressions: _,
-                with_clauses: _,
-                where_clauses: _,
             } => {
                 self.node("Definition::Namespace", id.id)
                     .field("descriptor", descriptor)
@@ -1091,11 +1118,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Struct {
                 descriptor,
                 kind,
-                extends_types: _,
-                implements_types: _,
-                static_parameters: _,
-                with_clauses: _,
-                where_clauses: _,
+                generics: _,
+                heritage: _,
                 properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
@@ -1105,11 +1129,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Enum {
                 descriptor,
-                static_parameters: _,
-                extends_types: _,
-                implements_types: _,
-                with_clauses: _,
-                where_clauses: _,
+                generics: _,
+                heritage: _,
                 fields: _,
                 properties: _,
             } => {
@@ -1119,10 +1140,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Interface {
                 descriptor,
-                extends_types: _,
-                static_parameters: _,
-                with_clauses: _,
-                where_clauses: _,
+                generics: _,
+                heritage: _,
                 properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
@@ -1131,11 +1150,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Implement {
                 descriptor,
-                static_parameters: _,
+                generics: _,
                 target_type: _,
-                implements_types: _,
-                with_clauses: _,
-                where_clauses: _,
+                heritage: _,
                 properties: _,
             } => {
                 self.node("Definition::Extension", id.id)
@@ -1144,23 +1161,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Function {
                 descriptor,
-                asynchrony,
-                cardinality,
-                kind,
-                mode,
-                static_parameters: _,
-                dynamic_parameters: _,
-                return_type: _,
-                with_clauses: _,
-                where_clauses: _,
+                signature,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
                     .field("descriptor", descriptor)
-                    .field("asynchrony", asynchrony)
-                    .field("cardinality", cardinality)
-                    .field("kind", kind)
-                    .field_optional("mode", mode)
+                    .field("signature", signature)
                     .end();
             }
         }
@@ -1190,24 +1196,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Property::Method {
                 modifiers,
                 key,
-                asynchrony,
-                abstraction,
-                cardinality,
-                mode,
-                static_parameters: _,
-                dynamic_parameters: _,
-                return_type: _,
-                with_clauses: _,
-                where_clauses: _,
+                signature,
                 body: _,
             } => {
                 self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("key", key)
-                    .field("asynchrony", asynchrony)
-                    .field("abstraction", abstraction)
-                    .field("cardinality", cardinality)
-                    .field_optional("mode", mode)
+                    .field("signature", signature)
                     .end();
             }
             Property::Spread {

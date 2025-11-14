@@ -116,22 +116,16 @@ impl<'ast> FormatNode<'ast, Property> for Property {
             Property::Method {
                 modifiers,
                 key,
-                asynchrony,
-                abstraction,
-                cardinality,
-                mode,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                with_clauses,
-                where_clauses,
+                signature,
                 body,
             } => {
+                let generics = signature.generics.as_ref();
+
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
 
                 // abstraction
-                match *abstraction {
+                match signature.abstraction {
                     FunctionAbstraction::Abstract => {
                         write!(f, [Keyword::Abstract, space()])?;
                     }
@@ -146,12 +140,12 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
 
                 // asynchrony
-                if *asynchrony == Asynchrony::Async {
+                if signature.asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Async, space()])?;
                 }
 
                 // mode
-                if let Some(mode) = mode {
+                if let Some(mode) = signature.mode {
                     write!(f, [mode.to_keyword()])?;
                     if key.is_some() {
                         write!(f, [space()])?;
@@ -159,7 +153,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
 
                 // cardinality
-                if *cardinality == FunctionCardinality::Generator {
+                if signature.cardinality == FunctionCardinality::Generator {
                     write!(f, [token("*")])?;
                 }
 
@@ -167,25 +161,27 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 write!(f, [key])?;
 
                 // static parameters
-                if let Some(static_parameters) = &static_parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // dynamic parameters
-                write!(f, [list_like("(", ")", ",", dynamic_parameters)])?;
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
 
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
 
                 // return type
-                if let Some(return_type) = return_type {
+                if let Some(return_type) = signature.return_type {
                     write!(f, [token(":"), space(), return_type])?;
                 }
 
                 // with clauses
-                if let Some(with_clauses) = with_clauses
+                if let Some(with_clauses) =
+                    generics.and_then(|generics| generics.with_clauses.as_ref())
                     && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -193,7 +189,8 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
 
                 // where clauses
-                if let Some(where_clauses) = where_clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;

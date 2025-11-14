@@ -1,7 +1,9 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, TokenType};
+use dyst_ast::{
+    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, NodeId, NodeType, TokenType,
+};
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
@@ -59,14 +61,14 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // implement
+        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::maybe(None, implements_types);
         let implement_id = self.tree.insert(
             Definition::Implement {
                 descriptor,
-                static_parameters,
+                generics,
                 target_type,
-                implements_types,
-                with_clauses,
-                where_clauses,
+                heritage,
                 properties,
             },
             self.get_span_from(start),
@@ -99,11 +101,10 @@ implement Foo {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(static_parameters.is_none());
-            assert!(implements_types.is_none());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
+            assert!(heritage.is_none());
 
             // Foo
             assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
@@ -126,11 +127,10 @@ implement Foo<int32> {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(static_parameters.is_none());
-            assert!(implements_types.is_none());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
+            assert!(heritage.is_none());
 
             // Foo<int32>
             assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
@@ -163,10 +163,10 @@ implement Bar<int32> implements Baz {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(static_parameters.is_none());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
+            let heritage = heritage.as_ref().expect("expected heritage");
 
             // Bar<int32>
             assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
@@ -183,7 +183,10 @@ implement Bar<int32> implements Baz {
                 });
             });
 
-            let implements = implements_types.as_ref().expect("expected implements types");
+            let implements = heritage
+                .implements_types
+                .as_ref()
+                .expect("expected implements types");
             assert_eq!(implements.len(), 1);
             assert_node!(parser.tree, implements[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Baz");
@@ -205,12 +208,15 @@ implement<U> Bar<T> implements Baz<T> {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(where_clauses.is_none());
+            let generics = generics.as_ref().expect("expected generics");
 
             // implement<U>
-            let static_parameters = static_parameters.as_ref().expect("expected static parameters");
+            let static_parameters = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static parameters");
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers: None, name, ty, default } => {
                 assert_string!(parser, *name, "U");
@@ -233,7 +239,10 @@ implement<U> Bar<T> implements Baz<T> {
             });
 
             // : Baz<T>
-            let implements = implements_types.as_ref().expect("expected implements types");
+            let implements = heritage
+                .as_ref()
+                .and_then(|h| h.implements_types.as_ref())
+                .expect("expected implements types");
             assert_eq!(implements.len(), 1);
             assert_node!(parser.tree, implements[0], Expression::Path { path, static_arguments } => {
                 // Baz
@@ -264,11 +273,12 @@ implement Foo with Context where Guard > Limit {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, with_clauses, where_clauses, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            let generics = generics.as_ref().expect("expected generics");
 
             // with Context
-            let with_items = with_clauses.as_ref().expect("expected with clauses");
+            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
             assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
                 assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
@@ -276,9 +286,8 @@ implement Foo with Context where Guard > Limit {
                     assert!(static_arguments.is_none());
                 });
             });
-
             // where Guard > Limit
-            let where_items = where_clauses.as_ref().expect("expected where clauses");
+            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
             assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
