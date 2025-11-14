@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{
     Asynchrony, Definition, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
@@ -208,10 +208,10 @@ impl<'a> Parser<'a> {
                 let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
-                    let return_type = self
-                        .with_options(self.options.nested().in_type().in_before_block(), |parser| {
-                            parser.eat_expression()
-                        })?;
+                    let return_type = self.with_options(
+                        self.options.nested().in_type().in_before_block(),
+                        |parser| parser.eat_expression(),
+                    )?;
                     Some(return_type)
                 } else {
                     None
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
             }
             // function with body
             if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(self.options.in_block_position(), |parser| {
+                let body = self.with_options(self.options.in_statement_position(), |parser| {
                     parser.eat_expression()
                 })?;
                 Some(body)
@@ -255,7 +255,7 @@ impl<'a> Parser<'a> {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let body = self.with_options(self.options.in_block_position(), |parser| {
+                let body = self.with_options(self.options.in_statement_position(), |parser| {
                     parser.eat_expression()
                 })?;
                 Some(body)
