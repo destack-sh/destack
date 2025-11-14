@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
+use dyst_ast::{DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a Interface.
@@ -34,7 +34,10 @@ impl<'a> Parser<'a> {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_interface(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_interface(
+        &mut self,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -42,7 +45,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // optional name / key
-        meta = meta.with_name_maybe(self.eat_name_maybe()?);
+        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -70,7 +73,7 @@ impl<'a> Parser<'a> {
 
         let interface_id = self.tree.insert(
             Definition::Interface {
-                meta,
+                descriptor,
                 static_parameters,
                 extends_types,
                 with_clauses,
@@ -86,7 +89,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression, FunctionMode,
+        BindingKind, DeclarationDescriptor, DeclarationKind, Definition, Expression, FunctionMode,
         IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
         WhereClause, WithClause,
     };
@@ -99,10 +102,12 @@ mod tests {
         let mut test = TestParser::new("interface {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, static_parameters, with_clauses, where_clauses, properties, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(meta.name.is_none());
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, with_clauses, where_clauses, properties, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert!(descriptor.name.is_none());
             assert!(static_parameters.is_none());
             assert!(with_clauses.is_none());
             assert!(where_clauses.is_none());
@@ -115,10 +120,12 @@ mod tests {
         let mut test = TestParser::new("interface Foo extends Bar {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, extends_types, where_clauses, properties, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, extends_types, where_clauses, properties, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
             assert!(where_clauses.is_none());
 
@@ -145,10 +152,12 @@ interface Foo extends Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, properties, extends_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, properties, extends_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
 
             // extends Baz
@@ -180,10 +189,12 @@ interface Foo extends Baz {
         let mut test = TestParser::new("interface Baz<T> {}");
         let mut parser = test.prepare();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, static_parameters, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Baz");
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
         });
@@ -200,10 +211,12 @@ interface Baz<T> with T: Copy where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, static_parameters, with_clauses, where_clauses,  .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Baz");
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, static_parameters, with_clauses, where_clauses,  .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -249,10 +262,12 @@ interface SQL {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, interface_id, Definition::Interface { meta, properties, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "SQL");
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, properties, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "SQL");
             assert_eq!(properties.len(), 5);
 
             // <T = any>(value: T): SQL.Result<T>;

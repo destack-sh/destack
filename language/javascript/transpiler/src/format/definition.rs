@@ -42,7 +42,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Definition::Namespace { meta, definitions } => {
+            Definition::Namespace {
+                descriptor: meta,
+                definitions,
+            } => {
                 assert!(
                     f.context().include_types(),
                     "namespace in non-type context: {node_id:?}"
@@ -64,7 +67,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 Ok(())
             }
             Definition::Class {
-                meta,
+                descriptor: meta,
                 static_parameters,
                 fields,
                 definitions,
@@ -94,7 +97,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 Ok(())
             }
             Definition::Interface {
-                meta,
+                descriptor: meta,
                 static_parameters,
                 fields,
                 definitions,
@@ -125,7 +128,10 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [hard_line_break(), token("}"),])?;
                 Ok(())
             }
-            Definition::Enum { meta, fields } => {
+            Definition::Enum {
+                descriptor: meta,
+                fields,
+            } => {
                 assert!(
                     f.context().include_types(),
                     "enum in non-type context: {node_id:?}"

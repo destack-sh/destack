@@ -2,12 +2,12 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_let_with_value() {
         assert_format!("let x = 1", "let x = 1", |p| p
-            .eat_let(DefinitionMeta::default()));
+            .eat_let(DeclarationDescriptor::default()));
     }
 
     #[test]
@@ -15,7 +15,7 @@ mod tests {
         assert_format!(
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab().with_line_width(40)
         );
     }
@@ -31,7 +31,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }
@@ -46,7 +46,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 )",
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }
@@ -62,7 +62,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }
@@ -77,7 +77,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 ]",
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }
@@ -95,7 +95,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DefinitionMeta::default()),
+            |p| p.eat_let(DeclarationDescriptor::default()),
             DystFormatOptions::default_with_line_width(40)
         );
     }

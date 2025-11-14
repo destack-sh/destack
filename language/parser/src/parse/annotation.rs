@@ -1,7 +1,7 @@
 //! Annotation parsing.
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 use dyst_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, NodeId, NodeType, Tag, TokenSpan, TokenType,
@@ -768,8 +768,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Decorator, Definition, DefinitionMeta, Doc, DocStyle, Expression,
-        Key, Name, Property, ScalarLiteral, Tag,
+        Comment, CommentStyle, DeclarationDescriptor, Decorator, Definition, Doc, DocStyle,
+        Expression, Key, Name, Property, ScalarLiteral, Tag,
     };
 
     use crate::parse::tests::TestParser;
@@ -1059,7 +1059,9 @@ over multiple lines with trailing space    */",
 }",
         );
         let mut parser = test.prepare();
-        let interface_id = parser.eat_interface(DefinitionMeta::default()).unwrap();
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default())
+            .unwrap();
         parser.finish();
 
         // interface X
@@ -1107,7 +1109,7 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let function = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 
@@ -1119,8 +1121,8 @@ over multiple lines with trailing space    */",
 
                     // function a(): A
                     assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
-                            assert_string!(parser, meta.name.unwrap().string(), "a");
+                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                            assert_string!(parser, descriptor.name.unwrap().string(), "a");
                         });
                     });
                     let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -1135,8 +1137,8 @@ over multiple lines with trailing space    */",
 
                     // function b(): B
                     assert_node!(parser.tree, expressions[1], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
-                            assert_string!(parser, meta.name.unwrap().string(), "b");
+                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                            assert_string!(parser, descriptor.name.unwrap().string(), "b");
                         });
                     });
                     let annotations = parser.tree.get_annotations(expressions[1].id);
@@ -1151,8 +1153,8 @@ over multiple lines with trailing space    */",
 
                     // function c() C { .. }
                     assert_node!(parser.tree, expressions[2], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { meta, .. } => {
-                            assert_string!(parser, meta.name.unwrap().string(), "c");
+                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                            assert_string!(parser, descriptor.name.unwrap().string(), "c");
                         });
                     });
                     let annotations = parser.tree.get_annotations(expressions[2].id);
@@ -1322,7 +1324,7 @@ function main() {
         parser.eat_newline().unwrap();
 
         let function = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 
@@ -1480,8 +1482,8 @@ export namespace Outer {
             });
 
             // Outer
-            assert_node!(parser.tree, *node, Definition::Namespace { meta, expressions, .. } => {
-                assert_string!(parser, meta.name.unwrap().string(), "Outer");
+            assert_node!(parser.tree, *node, Definition::Namespace { descriptor, expressions, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Outer");
 
                 // Middle comment
                 assert_eq!(expressions.len(), 1);
@@ -1497,8 +1499,8 @@ export namespace Outer {
 
                 // Middle
                 assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-                    assert_node!(parser.tree, *node, Definition::Namespace { meta, expressions, .. } => {
-                        assert_string!(parser, meta.name.unwrap().string(), "Middle");
+                    assert_node!(parser.tree, *node, Definition::Namespace { descriptor, expressions, .. } => {
+                        assert_string!(parser, descriptor.name.unwrap().string(), "Middle");
 
                         // Inner comment
                         assert_eq!(expressions.len(), 1);

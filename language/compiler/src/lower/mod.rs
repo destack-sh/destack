@@ -13,6 +13,5 @@ mod operator;
 mod path;
 mod pattern;
 mod r#type;
-mod variant;
 mod r#where;
 mod with;

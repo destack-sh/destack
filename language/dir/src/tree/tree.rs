@@ -5,7 +5,9 @@ use dyst_ast as ast;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase, ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type, WhereClause, WithClause
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
+    ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type,
+    WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.

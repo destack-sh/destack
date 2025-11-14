@@ -455,11 +455,11 @@ impl Dump for ArgumentSlot {
     }
 }
 
-/// Dump a DefinitionMeta as a structured object.
-impl Dump for DefinitionMeta {
+/// Dump a DeclarationDescriptor as a structured object.
+impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("DefinitionMeta")
+            .object("DeclarationDescriptor")
             .field("kind", &self.kind)
             .field_optional("name", &self.name)
             .field_optional("visibility", &self.visibility)
@@ -1153,81 +1153,81 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Type {
-                meta,
+                descriptor,
                 generics,
                 value: _,
             } => {
                 self.node("Definition::Type", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field_optional("generics", generics)
                     .end();
             }
             Definition::Namespace {
-                meta,
+                descriptor,
                 generics,
                 definitions: _,
             } => {
                 self.node("Definition::Module", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field_optional("generics", generics)
                     .end();
             }
             Definition::Struct {
-                meta,
+                descriptor,
                 kind,
                 generics,
                 embedded_definitions: _,
                 properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field("kind", kind)
                     .field_optional("generics", generics)
                     .end();
             }
             Definition::Enum {
-                meta,
+                descriptor,
                 generics,
                 embedded_definitions: _,
                 fields: _,
                 properties: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field_optional("generics", generics)
                     .end();
             }
             Definition::Interface {
-                meta,
+                descriptor,
                 generics,
                 embedded_definitions: _,
                 properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field_optional("generics", generics)
                     .end();
             }
             Definition::Function {
-                meta,
+                descriptor,
                 signature,
                 definitions: _,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field("signature", signature)
                     .end();
             }
             Definition::Implement {
-                meta,
+                descriptor,
                 generics,
                 target_type: _,
                 implements_types: _,
                 definitions: _,
             } => {
                 self.node("Definition::Extension", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field_optional("generics", generics)
                     .end();
             }

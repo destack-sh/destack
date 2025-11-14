@@ -195,29 +195,6 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 )
             }
-            ast::Argument::Dynamic {
-                modifiers,
-                name,
-                key,
-                value,
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
-                let key = self.lower_expression(module, *key);
-                let value = self.lower_expression(module, *value);
-                self.session.tree.insert_from_ast(
-                    Argument::UnevaluatedDynamic {
-                        modifiers,
-                        name,
-                        key,
-                        value,
-                    },
-                    module.id,
-                    argument_id,
-                )
-            }
-            _ => todo!("lower_argument({argument:?})"),
         }
     }
 }

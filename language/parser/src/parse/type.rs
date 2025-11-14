@@ -1,8 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DefinitionMeta, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability, NodeId,
-    TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    DeclarationDescriptor, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability,
+    NodeId, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 impl<'a> Parser<'a> {
@@ -222,7 +222,10 @@ impl<'a> Parser<'a> {
     /// newtype Foo<T> = Baz<T> | null
     /// newtype T = { a: int32, b: boolean } | true
     /// ```
-    pub fn eat_type(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_type(
+        &mut self,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
@@ -250,7 +253,7 @@ impl<'a> Parser<'a> {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
             let speculative_start = (self.mark(), self.tree.next_id());
-            meta.name = self.eat_name_maybe()?;
+            descriptor.name = self.eat_name_maybe()?;
 
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;
@@ -261,13 +264,15 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;
                 // value
-                let value_id =
-                    self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
+                let value_id = self
+                    .with_options(self.options.not_in_position().in_type(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 // type
                 let expression = Expression::LetType {
                     kind,
                     mutability,
-                    meta,
+                    descriptor,
                     static_parameters,
                     value: value_id,
                 };
@@ -277,8 +282,10 @@ impl<'a> Parser<'a> {
             else {
                 // re-parse from before the static parameters to get them as a arguments
                 self.restore(speculative_start.0, speculative_start.1);
-                let right =
-                    self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
+                let right = self
+                    .with_options(self.options.not_in_position().in_type(), |parser| {
+                        parser.eat_expression()
+                    })?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -292,8 +299,9 @@ impl<'a> Parser<'a> {
         }
         // type expression
         else {
-            let right =
-                self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
+            let right = self.with_options(self.options.not_in_position().in_type(), |parser| {
+                parser.eat_expression()
+            })?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -396,8 +404,8 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, .. } => {
-            assert_string!(parser, meta.name.unwrap().string(), "T");
+        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
@@ -408,8 +416,8 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, static_parameters, .. } => {
-            assert_string!(parser, meta.name.unwrap().string(), "T");
+        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, static_parameters, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
             assert!(static_parameters.is_some());
             assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
@@ -471,8 +479,8 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // newtype T = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, .. } => {
-            assert_string!(parser, meta.name.unwrap().string(), "T");
+        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "T");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }

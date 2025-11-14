@@ -71,7 +71,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         match self {
             // module
             Definition::Namespace {
-                meta,
+                descriptor: meta,
                 with_clauses,
                 where_clauses,
                 expressions,
@@ -136,7 +136,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // struct
             Definition::Struct {
-                meta,
+                descriptor: meta,
                 kind,
                 extends_types,
                 implements_types,
@@ -232,7 +232,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // enum
             Definition::Enum {
-                meta,
+                descriptor: meta,
                 static_parameters,
                 extends_types,
                 implements_types,
@@ -338,7 +338,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // interface
             Definition::Interface {
-                meta,
+                descriptor: meta,
                 static_parameters,
                 extends_types,
                 with_clauses,
@@ -423,7 +423,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
-                meta,
+                descriptor: meta,
                 static_parameters: static_arguments,
                 target_type,
                 implements_types,
@@ -507,7 +507,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // function
             Definition::Function {
-                meta,
+                descriptor: meta,
                 asynchrony,
                 cardinality,
                 mode,

@@ -6,8 +6,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
-            && (token.token.ty == TokenType::Comma
-                || token.token.ty == TokenType::Newline)
+            && (token.token.ty == TokenType::Comma || token.token.ty == TokenType::Newline)
         {
             Ok(token)
         } else {

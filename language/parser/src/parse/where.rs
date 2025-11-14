@@ -1,5 +1,5 @@
 //! Parse use and where declarations.
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{Keyword, NodeId, TokenType, WhereClause};
 

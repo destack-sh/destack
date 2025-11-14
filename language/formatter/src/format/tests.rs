@@ -2,7 +2,7 @@ use crate::{DystFormatContext, DystFormatOptions};
 use dyst_ast::{MutableNodeTree, NodeParentIndex, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
-use dyst_parser::{Parser, ParseResult};
+use dyst_parser::{ParseResult, Parser};
 use dyst_source::{
     DiagnosticCollector, File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan,
     Uri,

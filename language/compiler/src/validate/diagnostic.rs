@@ -1,6 +1,6 @@
 use dyst_dir::{NodeId, NodeIdAny, Type};
 
-use crate::{CompilerDiagnostic, CompileError};
+use crate::{CompileDiagnostic, CompileError};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ impl From<ValidateError> for CompileError {
     }
 }
 
-impl CompilerDiagnostic for ValidateError {
+impl CompileDiagnostic for ValidateError {
     #[inline]
     fn family_letter(&self) -> &'static str {
         "O"

@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, BindingScope, ExportType, Expression, FunctionMode, Name, Node, NodeId,
-    NodeType, Parameter, Property, WhereClause, WithClause,
+    Asynchrony, BindingScope, ExportType, Expression, FunctionMode, Name, Node, NodeId, NodeType,
+    Parameter, Property, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -14,7 +14,7 @@ pub enum DeclarationKind {
 
 /// The meta data for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct DefinitionMeta {
+pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The scope of the declaration.
@@ -25,7 +25,7 @@ pub struct DefinitionMeta {
     pub export: Option<ExportType> = None,
 }
 
-impl DefinitionMeta {
+impl DeclarationDescriptor {
     /// Create a new definition meta with the given name.
     pub fn named(name: Name) -> Self {
         Self {
@@ -75,7 +75,7 @@ pub enum Definition {
     /// }
     /// ```
     Namespace {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
         expressions: Vec<NodeId<Expression>>,
@@ -116,7 +116,7 @@ pub enum Definition {
     /// }
     /// ```
     Struct {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         kind: StructKind,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
@@ -162,7 +162,7 @@ pub enum Definition {
     /// }
     /// ```
     Enum {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
@@ -203,7 +203,7 @@ pub enum Definition {
     /// }
     /// ```
     Interface {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         extends_types: Option<Vec<NodeId<Expression>>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
@@ -234,7 +234,7 @@ pub enum Definition {
     /// }
     /// ```
     Implement {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
         implements_types: Option<Vec<NodeId<Expression>>>,
@@ -299,7 +299,7 @@ pub enum Definition {
     /// }
     /// ```
     Function {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
         kind: FunctionKind,
@@ -320,21 +320,33 @@ impl Node for Definition {
 impl Definition {
     /// Get the meta data of the definition.
     #[inline]
-    pub fn meta(&self) -> &DefinitionMeta {
+    pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
-            Definition::Namespace { meta, .. } => meta,
-            Definition::Struct { meta, .. } => meta,
-            Definition::Enum { meta, .. } => meta,
-            Definition::Interface { meta, .. } => meta,
-            Definition::Implement { meta, .. } => meta,
-            Definition::Function { meta, .. } => meta,
+            Definition::Namespace {
+                descriptor: meta, ..
+            } => meta,
+            Definition::Struct {
+                descriptor: meta, ..
+            } => meta,
+            Definition::Enum {
+                descriptor: meta, ..
+            } => meta,
+            Definition::Interface {
+                descriptor: meta, ..
+            } => meta,
+            Definition::Implement {
+                descriptor: meta, ..
+            } => meta,
+            Definition::Function {
+                descriptor: meta, ..
+            } => meta,
         }
     }
 
     /// Get the name of the definition.
     #[inline]
     pub fn name(&self) -> Option<Name> {
-        self.meta().name
+        self.descriptor().name
     }
 }
 
@@ -377,7 +389,6 @@ pub enum FunctionKind {
     /// A lambda function.
     Lambda,
 }
-
 
 /// A EnumField is a enum field declaration.
 ///

@@ -221,11 +221,21 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Type, id.id);
     }
 
-    fn visit_property(&mut self, tree: &MutableNodeTree, id: NodeId<Property>, _property: &Property) {
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        _property: &Property,
+    ) {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
-    fn visit_enum_field(&mut self, tree: &MutableNodeTree, id: NodeId<EnumField>, _enum_field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        _enum_field: &EnumField,
+    ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
     }
 

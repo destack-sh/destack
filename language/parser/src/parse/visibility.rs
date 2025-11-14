@@ -1,4 +1,4 @@
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{Keyword, TokenType, Visibility};
 
 // NOTE: we support parsing `#name` as alias for `private name` for #Compatibility

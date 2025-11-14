@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    Asynchrony, Definition, DefinitionMeta, FunctionCardinality, FunctionKind, FunctionMode,
+    Asynchrony, DeclarationDescriptor, Definition, FunctionCardinality, FunctionKind, FunctionMode,
     Keyword, NodeId, NodeType, Parameter, TokenType,
 };
 
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_function(
         &mut self,
-        mut meta: DefinitionMeta,
+        mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<NodeId<Definition>> {
@@ -139,7 +139,7 @@ impl<'a> Parser<'a> {
                 (None, static_parameters)
             }
         };
-        meta = meta.with_name_maybe(name);
+        descriptor = descriptor.with_name_maybe(name);
 
         // dynamic parameters
         let dynamic_parameters = {
@@ -279,7 +279,7 @@ impl<'a> Parser<'a> {
         };
         let function_id = self.tree.insert(
             Definition::Function {
-                meta,
+                descriptor,
                 asynchrony,
                 cardinality,
                 kind,
@@ -300,8 +300,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, BinaryOperator, Definition, DefinitionMeta, Expression, FunctionCardinality,
-        FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral, WhereClause, WithClause,
+        Asynchrony, BinaryOperator, DeclarationDescriptor, Definition, Expression,
+        FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
+        WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -313,11 +314,11 @@ mod tests {
         let mut parser = test.prepare();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x: number): number => x
-        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
-            assert_eq!(meta.name, None);
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
+            assert_eq!(descriptor.name, None);
             assert_eq!(*kind, FunctionKind::Lambda);
             // x: number
             assert_eq!(dynamic_parameters.len(), 1);
@@ -340,11 +341,11 @@ mod tests {
         let mut parser = test.prepare();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x): int32 => x
-        assert_node!(parser.tree, function_id, Definition::Function { meta, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
-            assert_eq!(meta.name, None);
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
+            assert_eq!(descriptor.name, None);
             assert_eq!(*kind, FunctionKind::Lambda);
             // x
             assert_eq!(dynamic_parameters.len(), 1);
@@ -367,11 +368,11 @@ mod tests {
         parser.options.in_type = true;
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new (x) => int32
-        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, dynamic_parameters, return_type, .. } => {
-            assert!(meta.name.is_none());
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, mode, kind, dynamic_parameters, return_type, .. } => {
+            assert!(descriptor.name.is_none());
             assert_eq!(*mode, Some(FunctionMode::New));
             assert_eq!(*kind, FunctionKind::Lambda);
             assert!(dynamic_parameters.is_empty());
@@ -386,11 +387,11 @@ mod tests {
         parser.options.in_type = true;
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new <T>(x: int32) => T
-        assert_node!(parser.tree, function_id, Definition::Function { meta, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
-            assert!(meta.name.is_none());
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+            assert!(descriptor.name.is_none());
             // new
             assert_eq!(*mode, Some(FunctionMode::New));
             assert_eq!(*kind, FunctionKind::Lambda);
@@ -426,11 +427,11 @@ function foo() => int32 with (
         parser.eat_newline().unwrap();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, with_clauses, where_clauses, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, with_clauses, where_clauses, return_type, .. } => {
             // function name
-            assert_string!(parser, meta.name.unwrap().string(), "foo");
+            assert_string!(parser, descriptor.name.unwrap().string(), "foo");
 
             let with_clauses = with_clauses.as_ref().unwrap();
             assert_eq!(with_clauses.len(), 2);
@@ -481,11 +482,11 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
         parser.eat_newline().unwrap();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, static_parameters, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, static_parameters, dynamic_parameters, .. } => {
             // compute
-            assert_string!(parser, meta.name.unwrap().string(), "compute");
+            assert_string!(parser, descriptor.name.unwrap().string(), "compute");
 
             // <Validate: bool, Precision: uint8>
             let static_parameters = static_parameters.as_ref().unwrap();
@@ -518,11 +519,11 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
 
         // function foo() => (str: string) => boolean
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, return_type, .. } => {
             // foo
-        assert_string!(parser, meta.name.unwrap().string() , "foo");
+        assert_string!(parser, descriptor.name.unwrap().string() , "foo");
 
             // (str: string) => boolean
             assert_node!(parser.tree, return_type.unwrap(), Expression::Definition(definition_id) => {
@@ -555,12 +556,12 @@ async function* foo() => int32 {
         parser.eat_newline().unwrap();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Definition::Function { meta, asynchrony, cardinality, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, asynchrony, cardinality, .. } => {
             // foo
-            assert_string!(parser, meta.name.unwrap().string(), "foo");
+            assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*cardinality, FunctionCardinality::Generator);
         });
@@ -582,10 +583,10 @@ function onResolve(
         parser.eat_newline().unwrap();
 
         let function_id = parser
-            .eat_function(DefinitionMeta::default(), false, false)
+            .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { meta, dynamic_parameters, return_type, .. } => {
-            assert_string!(parser, meta.name.unwrap().string(), "onResolve");
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, dynamic_parameters, return_type, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "onResolve");
             // callback: (args) => { .. } | void
             assert_eq!(dynamic_parameters.len(), 1);
             assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {

@@ -3,7 +3,9 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, StructKind, TokenType};
+use dyst_ast::{
+    DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, StructKind, TokenType,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -36,7 +38,10 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_struct(
+        &mut self,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -50,7 +55,7 @@ impl<'a> Parser<'a> {
         };
 
         // optional name / key
-        meta = meta.with_name_maybe(self.eat_name_maybe()?);
+        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -88,7 +93,7 @@ impl<'a> Parser<'a> {
 
         let struct_id = self.tree.insert(
             Definition::Struct {
-                meta,
+                descriptor,
                 kind,
                 extends_types,
                 implements_types,
@@ -107,9 +112,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression,
-        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
-        Visibility, WhereClause, WithClause,
+        BinaryOperator, BindingKind, DeclarationDescriptor, DeclarationKind, Definition,
+        Expression, IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
+        TypeLiteral, Visibility, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -127,10 +132,10 @@ struct { public x: int32, readonly y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, properties, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(meta.name.is_none());
+        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, static_parameters, properties, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert!(descriptor.name.is_none());
             assert_eq!(*static_parameters, None);
             assert_eq!(properties.len(), 2);
             assert!(where_clauses.is_none());
@@ -163,10 +168,10 @@ struct Foo extends Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, extends_types, implements_types, properties, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, extends_types, implements_types, properties, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
             assert!(where_clauses.is_none());
 
@@ -198,10 +203,10 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, static_parameters, properties, extends_types, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, static_parameters, properties, extends_types, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
 
             // T: Numeric
@@ -286,9 +291,9 @@ struct Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, with_clauses, where_clauses, properties, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, with_clauses, where_clauses, properties, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(properties.is_empty());
 
             // with Context
@@ -328,9 +333,9 @@ struct Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, properties, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, properties, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_eq!(properties.len(), 1);
         });
     }

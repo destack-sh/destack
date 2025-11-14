@@ -10,9 +10,9 @@ mod literal;
 mod operator;
 mod path;
 mod pattern;
+mod property;
 mod statement;
 mod switch;
 mod r#type;
-mod property;
 
 pub use context::*;

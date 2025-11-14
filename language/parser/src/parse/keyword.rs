@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{Keyword, TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {

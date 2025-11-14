@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
+use dyst_ast::{DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
@@ -24,7 +24,10 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(&mut self, meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_implement(
+        &mut self,
+        descriptor: DeclarationDescriptor,
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -58,7 +61,7 @@ impl<'a> Parser<'a> {
         // implement
         let implement_id = self.tree.insert(
             Definition::Implement {
-                meta,
+                descriptor,
                 static_parameters,
                 target_type,
                 implements_types,
@@ -75,8 +78,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, IntType,
-        Parameter, TypeLiteral, WhereClause, WithClause,
+        Argument, BinaryOperator, DeclarationDescriptor, DeclarationKind, Definition, Expression,
+        IntType, Parameter, TypeLiteral, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -93,9 +96,11 @@ implement Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let implement_id = parser
+            .eat_implement(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
             assert!(where_clauses.is_none());
@@ -118,9 +123,11 @@ implement Foo<int32> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let implement_id = parser
+            .eat_implement(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(implements_types.is_none());
             assert!(where_clauses.is_none());
@@ -153,9 +160,11 @@ implement Bar<int32> implements Baz {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let implement_id = parser
+            .eat_implement(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(static_parameters.is_none());
             assert!(where_clauses.is_none());
 
@@ -193,9 +202,11 @@ implement<U> Bar<T> implements Baz<T> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, static_parameters, target_type, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let implement_id = parser
+            .eat_implement(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, static_parameters, target_type, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(where_clauses.is_none());
 
             // implement<U>
@@ -250,9 +261,11 @@ implement Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser.eat_implement(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { meta, with_clauses, where_clauses, target_type, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let implement_id = parser
+            .eat_implement(DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, with_clauses, where_clauses, target_type, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
 
             // with Context
             let with_items = with_clauses.as_ref().expect("expected with clauses");

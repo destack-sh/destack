@@ -2,7 +2,7 @@ use crate::{BuildError, EvaluateError, ExecuteError, LoadError, OptimizeError, V
 
 /// Compiler diagnostic that can be turned into a CompileError.
 #[allow(dead_code)]
-pub trait CompilerDiagnostic {
+pub trait CompileDiagnostic {
     /// Get the numeric sub-code of the error.
     fn sub_code(&self) -> u8;
 
