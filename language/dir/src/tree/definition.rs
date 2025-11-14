@@ -3,30 +3,6 @@ use crate::{
     Property, StringId, Type,
 };
 
-/// An embedded definition is a definition that is embedded in another definition.
-/// It is used to represent super types and include types.
-#[derive(Debug, Clone, PartialEq)]
-pub enum EmbeddedDefinition {
-    /// Extends type ("is a" relationship like `B` in `struct A extends B`).
-    Extends { ty: NodeId<Type> },
-    /// Implements type ("implements" relationship like `B` in `struct A implements B`).
-    Implements { ty: NodeId<Type> },
-    /// Include type ("has a" relationship like `..B` in `struct A { ..B }`).
-    Include { ty: NodeId<Type> },
-}
-
-impl EmbeddedDefinition {
-    /// Get the type of the embedded definition.
-    #[inline]
-    pub fn ty(&self) -> NodeId<Type> {
-        match self {
-            EmbeddedDefinition::Extends { ty } => *ty,
-            EmbeddedDefinition::Implements { ty } => *ty,
-            EmbeddedDefinition::Include { ty } => *ty,
-        }
-    }
-}
-
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
@@ -50,13 +26,8 @@ pub struct DeclarationDescriptor {
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    /// Type definition.
-    Type {
-        descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
-        value: NodeId<Type>,
-    },
+    /// Unevaluated expression as a definition.
+    UnevaluatedExpression { expression: NodeId<Expression> },
     /// Namespace definition.
     Namespace {
         descriptor: DeclarationDescriptor,
