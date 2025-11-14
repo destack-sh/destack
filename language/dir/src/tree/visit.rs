@@ -1,11 +1,12 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase,
-    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
+    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type,
     WhereClause, WithClause, walk_annotation, walk_argument, walk_block, walk_definition,
-    walk_dependency_item, walk_expression, walk_field, walk_match_case, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_type, walk_variant, walk_where_clause, walk_with_clause,
+    walk_dependency_item, walk_enum_field, walk_expression, walk_match_case, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_type, walk_where_clause,
+    walk_with_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -54,14 +55,24 @@ pub trait NodeVisitor {
         walk_type(self, tree, id, ty);
     }
 
-    /// Visit a Variant.
-    fn visit_variant(&mut self, tree: &MutableNodeTree, id: NodeId<Variant>, variant: &Variant) {
-        walk_variant(self, tree, id, variant);
+    /// Visit a Property.
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        property: &Property,
+    ) {
+        walk_property(self, tree, id, property);
     }
 
-    /// Visit a Field.
-    fn visit_field(&mut self, tree: &MutableNodeTree, id: NodeId<Field>, field: &Field) {
-        walk_field(self, tree, id, field);
+    /// Visit an EnumField.
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
+        walk_enum_field(self, tree, id, enum_field);
     }
 
     /// Visit a WhereClause.
@@ -210,12 +221,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Type, id.id);
     }
 
-    fn visit_variant(&mut self, tree: &MutableNodeTree, id: NodeId<Variant>, _variant: &Variant) {
-        self.visit_any(tree, NodeType::Variant, id.id);
+    fn visit_property(&mut self, tree: &MutableNodeTree, id: NodeId<Property>, _property: &Property) {
+        self.visit_any(tree, NodeType::Property, id.id);
     }
 
-    fn visit_field(&mut self, tree: &MutableNodeTree, id: NodeId<Field>, _field: &Field) {
-        self.visit_any(tree, NodeType::Field, id.id);
+    fn visit_enum_field(&mut self, tree: &MutableNodeTree, id: NodeId<EnumField>, _enum_field: &EnumField) {
+        self.visit_any(tree, NodeType::EnumField, id.id);
     }
 
     fn visit_where_clause(

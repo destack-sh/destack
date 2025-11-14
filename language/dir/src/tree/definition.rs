@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, ExportType, Expression, Generics, Node, NodeId, NodeType, Parameter, StringId,
-    Type, Visibility,
+    ExportType, Expression, FunctionSignature, Generics, Node, NodeId, NodeType, Property,
+    StringId, Type, Visibility,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -70,21 +70,22 @@ pub enum Definition {
         kind: StructKind,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
-        variant: NodeId<Variant>,
+        properties: Vec<NodeId<Property>>,
     },
     /// Enum definition.
     Enum {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
-        variants: Vec<NodeId<Variant>>,
+        fields: Vec<NodeId<EnumField>>,
+        properties: Vec<NodeId<Property>>,
     },
     /// Interface definition.
     Interface {
         meta: DefinitionMeta,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
-        fields: Vec<NodeId<Field>>,
+        properties: Vec<NodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
@@ -114,4 +115,17 @@ pub enum StructKind {
     Struct,
     /// Class.
     Class,
+}
+
+/// An enum field is a named field of an enum definition.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumField {
+    /// The name of the enum field.
+    pub name: StringId,
+    /// The value of the enum field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for EnumField {
+    const TYPE: NodeType = NodeType::EnumField;
 }
