@@ -417,14 +417,14 @@ mod tests {
     /*
      * Comment 1
      */
-    let x
+    let x;
 
     /*
      * Comment 2.1
      * Comment 2.2
      * Comment 2.3
      */
-    let y
+    let y;
 }"#;
         assert_format!(
             source,
@@ -478,14 +478,14 @@ mod tests {
         let source = "{
     // comment part 1
     // comment part 2
-    const A = 1
+    const A = 1;
     // comment part 3
     // comment part 4
 }";
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_block(),
             DystFormatOptions::default()
         );
     }
@@ -509,7 +509,7 @@ mod tests {
     a: {
         // comment part 1
         // comment part 2
-        const A = 1
+        const A = 1;
         // comment part 3
         // comment part 4
     }
@@ -518,7 +518,7 @@ mod tests {
     b: {
         // comment part 7
         // comment part 8
-        const B = 2
+        const B = 2;
         // comment part 9
         // comment part 10
     }
@@ -545,7 +545,7 @@ mod tests {
 
     /// Keep multiline block doc comments as block comments.
     #[test]
-    fn test_format_multine_block_doc_comment_stays_block() {
+    fn test_format_multi_line_block_doc_comment_stays_block() {
         assert_format!(
             "{
     /** some multiline
@@ -557,7 +557,7 @@ mod tests {
     /** some multiline
      * doc comment
      * over multiple lines */
-    const X = 1
+    const X = 1;
 }",
             |p| p.eat_block(),
             DystFormatOptions::default()
@@ -566,14 +566,14 @@ mod tests {
 
     /// Keep multiline postfix comments as block comments.
     #[test]
-    fn test_format_multine_block_comment_stays_block() {
+    fn test_format_multi_line_block_comment_stays_block() {
         assert_format!(
             "{
     const X = 1 /* some comment
     * over multiple lines yo       */
 }",
             "{
-    const X = 1
+    const X = 1;
     /* some comment
      * over multiple lines yo */
 }",
@@ -591,7 +591,7 @@ mod tests {
     //     /// The universally unique identifier of this Entity.
     //     id: Uuid
     // }
-    const X = 1
+    const X = 1;
 }";
         assert_format!(
             source,

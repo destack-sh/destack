@@ -658,6 +658,46 @@ impl Node for Expression {
 }
 
 impl Expression {
+    /// Whether the expression is like a statement.
+    #[inline]
+    pub fn is_statement_like(&self) -> bool {
+        match self {
+            Expression::Block(_) => true,
+            Expression::Definition(_) => true,
+            Expression::Statement(_) => true,
+            Expression::With { .. } => true,
+            Expression::If { .. } => true,
+            Expression::While { .. } => true,
+            Expression::ForEach { .. } => true,
+            Expression::Try {
+                try_expression: _,
+                catch_expression,
+                catch_pattern,
+                finally_expression,
+            } => {
+                catch_expression.is_some()
+                    || catch_pattern.is_some()
+                    || finally_expression.is_some()
+            }
+            Expression::For { .. } => true,
+            Expression::Loop { .. } => true,
+            Expression::Match { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// Whether the expression is an implicit statement always at root.
+    #[inline]
+    pub fn is_statement_like_at_root(&self) -> bool {
+        matches!(
+            self,
+            Expression::Let { .. }
+                | Expression::LetType { .. }
+                | Expression::Delete { .. }
+                | Expression::Assign { .. }
+        )
+    }
+
     /// Whether the expression may be inlined into a statement.
     #[inline]
     pub fn is_narrow(&self) -> bool {
@@ -669,7 +709,8 @@ impl Expression {
     pub fn is_wide(&self) -> bool {
         matches!(
             self,
-            Expression::Definition { .. }
+            Expression::Statement { .. }
+                | Expression::Definition { .. }
                 | Expression::With { .. }
                 | Expression::Import { .. }
                 | Expression::Let { .. }

@@ -17,7 +17,7 @@ mod tests {
     fn test_format_try_block() {
         assert_format!(
             "try { const X = 1 }",
-            "try {\n\tconst X = 1\n}",
+            "try {\n\tconst X = 1;\n}",
             |p| p.eat_try(),
             DystFormatOptions::default_tab()
         );

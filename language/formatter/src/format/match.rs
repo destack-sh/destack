@@ -64,8 +64,8 @@ mod tests {
     #[test]
     fn test_format_match_with_block_case_and_guard() {
         assert_format!(
-            "match value { Pattern if cond => { const X = 1 } }",
-            "match value {\n\tPattern if cond => {\n\t\tconst X = 1\n\t}\n}",
+            "match value { Pattern if cond => { const X = 1; } }",
+            "match value {\n\tPattern if cond => {\n\t\tconst X = 1;\n\t}\n}",
             |p| p.eat_match(),
             DystFormatOptions::default_tab()
         );

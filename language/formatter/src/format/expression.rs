@@ -697,6 +697,7 @@ pub fn is_trivial_expression(tree: &MutableNodeTree, expression: &Expression) ->
 /// Whether an expression is "complex" (prefers to be multiline).
 pub fn is_complex_expression(_tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
+        Expression::Statement { .. } => true,
         Expression::StructLiteral { ty, properties, .. } => ty.is_some() || properties.len() > 1,
         Expression::TreeLiteral { .. } => true,
         _ => false,
@@ -719,7 +720,7 @@ pub fn is_trivial_property(tree: &MutableNodeTree, property: &Property) -> bool 
         Property::Field { value, default, .. } => {
             value.is_none_or(|value| is_trivial_expression(tree, tree.get(value)))
                 && default.is_none_or(|default| is_trivial_expression(tree, tree.get(default)))
-        }   
+        }
         Property::Method { body, .. } => {
             body.is_none_or(|body| is_trivial_expression(tree, tree.get(body)))
         }
@@ -909,503 +910,524 @@ pub(crate) fn format_tree_literal<'ast>(
     )
 }
 
-impl<'ast> FormatNode<'ast, Expression> for Expression {
-    fn format_node(
-        &self,
-        node_id: NodeId<Expression>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+/// Format an expression (without prefix and postfix annotations)
+pub(crate) fn format_expression<'ast>(
+    f: &mut DystFormatter<'ast, '_>,
+    node_id: NodeId<Expression>,
+    expression: &Expression,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
 
-        let tree = f.context().tree;
+    match expression {
+        // definition
+        Expression::Definition(node) => node.format(f)?,
 
-        match self {
-            // definition
-            Expression::Definition(node) => node.format(f)?,
+        // block
+        Expression::Block(node) => node.format(f)?,
 
-            // block
-            Expression::Block(node) => node.format(f)?,
+        // statement
+        Expression::Statement(node) => {
+            write!(f, [*node, token(";")])?;
+        }
 
-            // statement
-            Expression::Statement(node) => {
-                write!(f, [*node, token(";")])?;
+        // with
+        Expression::With { clauses, body } => {
+            // keyword
+            write!(f, [Keyword::With])?;
+            if clauses.is_empty() {
+                return Ok(());
             }
+            write!(f, [space()])?;
 
-            // with
-            Expression::With { clauses, body } => {
-                // keyword
-                write!(f, [Keyword::With])?;
-                if clauses.is_empty() {
-                    return Ok(());
-                }
-                write!(f, [space()])?;
+            // clauses
+            write!(
+                f,
+                [best_fit_parenthesize(&format_with(|f| {
+                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                        .entries(clauses)
+                        .finish()
+                }))]
+            )?;
 
-                // clauses
-                write!(
-                    f,
-                    [best_fit_parenthesize(&format_with(|f| {
-                        f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                            .entries(clauses)
-                            .finish()
-                    }))]
-                )?;
-
-                // scoped body
-                if let Some(body) = body {
-                    write!(f, [space(), body])?;
-                }
+            // scoped body
+            if let Some(body) = body {
+                write!(f, [space(), body])?;
             }
+        }
 
-            // import
-            Expression::Import {
-                kind,
-                target,
-                alias,
-                items,
-                arguments,
-            } => {
-                write!(f, [Keyword::Import, space()])?;
-                if *kind == DependencyKind::Type {
-                    write!(f, [Keyword::Type, space()])?;
-                }
-                format_dependency_binding(
-                    f,
-                    Some(target),
-                    alias.as_ref().copied(),
-                    items.as_ref(),
-                    false,
-                )?;
-                if let Some(arguments) = arguments {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::With,
-                            space(),
-                            list_like("{", "}", ",", arguments).include_space()
-                        ]
-                    )?;
-                }
+        // import
+        Expression::Import {
+            kind,
+            target,
+            alias,
+            items,
+            arguments,
+        } => {
+            write!(f, [Keyword::Import, space()])?;
+            if *kind == DependencyKind::Type {
+                write!(f, [Keyword::Type, space()])?;
             }
-
-            // export
-            Expression::Export {
-                mode,
-                kind,
-                target,
-                alias,
-                items,
-                value,
-            } => {
-                write!(f, [mode, space()])?;
-                if *kind == DependencyKind::Type {
-                    write!(f, [Keyword::Type, space()])?;
-                }
-                if let Some(value) = value {
-                    write!(f, [token("="), space(), value])?;
-                } else {
-                    format_dependency_binding(
-                        f,
-                        target.as_ref(),
-                        alias.as_ref().copied(),
-                        items.as_ref(),
-                        true,
-                    )?;
-                }
-            }
-
-            // let
-            Expression::Let {
-                mutability,
-                meta,
-                pattern,
-                ty,
-                value: value_id,
-            } => {
-                // header
-                let header = format_with(|f| {
-                    // export
-                    if let Some(export) = meta.export {
-                        write!(f, [export, space()])?;
-                    }
-                    // keyword
-                    if *mutability == Mutability::Immutable {
-                        write!(f, [Keyword::Const])?;
-                    } else {
-                        write!(f, [Keyword::Let])?;
-                    }
-                    // pattern
-                    write!(f, [space(), pattern])?;
-                    // type
-                    if let Some(ty) = ty {
-                        write!(f, [token(":"), space(), ty])?;
-                    }
-                    Ok(())
-                });
-
-                let Some(value_id) = value_id else {
-                    write!(f, [header])?;
-                    return Ok(());
-                };
-
-                // prefer keeping the value on a single line
-                let format_inline = format_with(|f| {
-                    write!(f, [header, space(), token("="), space(), *value_id])?;
-                    Ok(())
-                });
-                // expand inline if breakable (like let x = [\n ... ])
-                let format_inline_expanded = format_with(|f| {
-                    write!(
-                        f,
-                        [
-                            header,
-                            space(),
-                            token("="),
-                            space(),
-                            fits_expanded(&group(value_id).should_expand(true)),
-                        ]
-                    )
-                });
-                // expand and indent the value
-                let format_indented = format_with(|f| {
-                    group(&format_args![
-                        header,
-                        space(),
-                        token("="),
-                        block_indent(value_id)
-                    ])
-                    .format(f)
-                });
-
-                if is_expression_breakable(tree, tree.get(*value_id)) {
-                    best_fitting![format_inline, format_inline_expanded, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
-                } else {
-                    best_fitting![format_inline, format_indented].format(f)?;
-                }
-            }
-
-            // type
-            Expression::LetType {
-                kind,
-                mutability,
-                meta,
-                static_parameters,
-                value: value_id,
-            } => {
-                let header = format_with(|f| {
-                    // export
-                    if let Some(export) = meta.export {
-                        write!(f, [export, space()])?;
-                    }
-                    // keyword
-                    if *mutability == Some(Mutability::Immutable) {
-                        // for readonly type expression
-                        write!(f, [Keyword::Readonly])?;
-                    } else if *kind == TypeKind::Structural {
-                        write!(f, [Keyword::Type])?;
-                    } else {
-                        write!(f, [Keyword::Newtype])?;
-                    }
-                    // name
-                    if let Some(name) = meta.name {
-                        write!(f, [space(), name])?;
-                    }
-                    // static parameters
-                    if let Some(static_parameters) = static_parameters {
-                        write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                    }
-                    Ok(())
-                });
-
-                // prefer keeping the value on a single line
-                let format_inline = format_with(|f| {
-                    write!(f, [header, space(), token("="), space(), *value_id])?;
-                    Ok(())
-                });
-                // expand inline if breakable (like let x = [\n ... ])
-                let format_inline_expanded = format_with(|f| {
-                    write!(
-                        f,
-                        [
-                            header,
-                            space(),
-                            token("="),
-                            space(),
-                            fits_expanded(&group(value_id).should_expand(true)),
-                        ]
-                    )
-                });
-                // expand and indent the value
-                let format_indented = format_with(|f| {
-                    group(&format_args![
-                        header,
-                        space(),
-                        token("="),
-                        block_indent(value_id)
-                    ])
-                    .format(f)
-                });
-
-                if is_expression_breakable(tree, tree.get(*value_id)) {
-                    best_fitting![format_inline, format_inline_expanded, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
-                } else {
-                    best_fitting![format_inline, format_indented]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
-                }
-            }
-
-            // if (ternary)
-            Expression::If {
-                kind: IfKind::Ternary,
-                condition,
-                then_expression,
-                else_expression,
-                ..
-            } => {
-                write!(
-                    f,
-                    [group(&format_args![
-                        condition,
-                        if_group_fits_on_line(&space()),
-                        soft_block_indent(&format_args![
-                            token("?"),
-                            space(),
-                            then_expression,
-                            soft_line_break(),
-                            if_group_fits_on_line(&space()),
-                            token(":"),
-                            space(),
-                            else_expression
-                        ]),
-                    ])]
-                )?;
-            }
-
-            // if (regular)
-            Expression::If {
-                kind: IfKind::If, ..
-            } => {
-                write!(
-                    f,
-                    [group(&format_with(|f| format_if_else_chain(f, node_id)))]
-                )?;
-            }
-
-            // while
-            Expression::While {
-                kind,
-                condition,
-                body,
-            } => match *kind {
-                WhileKind::While => {
-                    write!(f, [Keyword::While, space(), condition, space(), body])?;
-                }
-                WhileKind::DoWhile => {
-                    write!(
-                        f,
-                        [
-                            Keyword::Do,
-                            space(),
-                            body,
-                            space(),
-                            Keyword::While,
-                            space(),
-                            condition
-                        ]
-                    )?;
-                }
-            },
-
-            // for each
-            Expression::ForEach {
-                asynchrony,
-                kind,
-                pattern,
-                iterator,
-                body,
-            } => {
-                write!(f, [Keyword::For, space()])?;
-                if *asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Await, space()])?;
-                }
-                let keyword = match kind {
-                    ForEachKind::In => Keyword::In,
-                    ForEachKind::Of => Keyword::Of,
-                };
-                write!(f, [pattern, space(), keyword, space()])?;
-                write!(f, [iterator, space()])?;
-                write!(f, [body])?;
-            }
-
-            // for condition
-            Expression::For {
-                initialization,
-                condition,
-                increment,
-                body,
-            } => {
+            format_dependency_binding(
+                f,
+                Some(target),
+                alias.as_ref().copied(),
+                items.as_ref(),
+                false,
+            )?;
+            if let Some(arguments) = arguments {
                 write!(
                     f,
                     [
-                        Keyword::For,
                         space(),
-                        token("("),
-                        initialization,
-                        token(";"),
+                        Keyword::With,
                         space(),
-                        condition,
-                        token(";"),
-                        space(),
-                        increment,
-                        token(")"),
-                        space(),
-                        body
+                        list_like("{", "}", ",", arguments).include_space()
                     ]
                 )?;
             }
+        }
 
-            // loop
-            Expression::Loop { body } => {
-                write!(f, [Keyword::Loop, space(), body])?;
+        // export
+        Expression::Export {
+            mode,
+            kind,
+            target,
+            alias,
+            items,
+            value,
+        } => {
+            write!(f, [mode, space()])?;
+            if *kind == DependencyKind::Type {
+                write!(f, [Keyword::Type, space()])?;
+            }
+            if let Some(value) = value {
+                write!(f, [token("="), space(), value])?;
+            } else {
+                format_dependency_binding(
+                    f,
+                    target.as_ref(),
+                    alias.as_ref().copied(),
+                    items.as_ref(),
+                    true,
+                )?;
+            }
+        }
+
+        // let
+        Expression::Let {
+            mutability,
+            meta,
+            pattern,
+            ty,
+            value: value_id,
+        } => {
+            // header
+            let header = format_with(|f| {
+                // export
+                if let Some(export) = meta.export {
+                    write!(f, [export, space()])?;
+                }
+                // keyword
+                if *mutability == Mutability::Immutable {
+                    write!(f, [Keyword::Const])?;
+                } else {
+                    write!(f, [Keyword::Let])?;
+                }
+                // pattern
+                write!(f, [space(), pattern])?;
+                // type
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+                Ok(())
+            });
+
+            let Some(value_id) = value_id else {
+                write!(f, [header])?;
+                return Ok(());
+            };
+
+            // prefer keeping the value on a single line
+            let format_inline = format_with(|f| {
+                write!(f, [header, space(), token("="), space(), *value_id])?;
+                Ok(())
+            });
+            // expand inline if breakable (like let x = [\n ... ])
+            let format_inline_expanded = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        header,
+                        space(),
+                        token("="),
+                        space(),
+                        fits_expanded(&group(value_id).should_expand(true)),
+                    ]
+                )
+            });
+            // expand and indent the value
+            let format_indented = format_with(|f| {
+                group(&format_args![
+                    header,
+                    space(),
+                    token("="),
+                    block_indent(value_id)
+                ])
+                .format(f)
+            });
+
+            if is_expression_breakable(tree, tree.get(*value_id)) {
+                best_fitting![format_inline, format_inline_expanded, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            } else {
+                best_fitting![format_inline, format_indented].format(f)?;
+            }
+        }
+
+        // type
+        Expression::LetType {
+            kind,
+            mutability,
+            meta,
+            static_parameters,
+            value: value_id,
+        } => {
+            let header = format_with(|f| {
+                // export
+                if let Some(export) = meta.export {
+                    write!(f, [export, space()])?;
+                }
+                // keyword
+                if *mutability == Some(Mutability::Immutable) {
+                    // for readonly type expression
+                    write!(f, [Keyword::Readonly])?;
+                } else if *kind == TypeKind::Structural {
+                    write!(f, [Keyword::Type])?;
+                } else {
+                    write!(f, [Keyword::Newtype])?;
+                }
+                // name
+                if let Some(name) = meta.name {
+                    write!(f, [space(), name])?;
+                }
+                // static parameters
+                if let Some(static_parameters) = static_parameters {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                Ok(())
+            });
+
+            // prefer keeping the value on a single line
+            let format_inline = format_with(|f| {
+                write!(f, [header, space(), token("="), space(), *value_id])?;
+                Ok(())
+            });
+            // expand inline if breakable (like let x = [\n ... ])
+            let format_inline_expanded = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        header,
+                        space(),
+                        token("="),
+                        space(),
+                        fits_expanded(&group(value_id).should_expand(true)),
+                    ]
+                )
+            });
+            // expand and indent the value
+            let format_indented = format_with(|f| {
+                group(&format_args![
+                    header,
+                    space(),
+                    token("="),
+                    block_indent(value_id)
+                ])
+                .format(f)
+            });
+
+            if is_expression_breakable(tree, tree.get(*value_id)) {
+                best_fitting![format_inline, format_inline_expanded, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            } else {
+                best_fitting![format_inline, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            }
+        }
+
+        // if (ternary)
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            write!(
+                f,
+                [group(&format_args![
+                    condition,
+                    if_group_fits_on_line(&space()),
+                    soft_block_indent(&format_args![
+                        token("?"),
+                        space(),
+                        then_expression,
+                        soft_line_break(),
+                        if_group_fits_on_line(&space()),
+                        token(":"),
+                        space(),
+                        else_expression
+                    ]),
+                ])]
+            )?;
+        }
+
+        // if (regular)
+        Expression::If {
+            kind: IfKind::If, ..
+        } => {
+            write!(
+                f,
+                [group(&format_with(|f| format_if_else_chain(f, node_id)))]
+            )?;
+        }
+
+        // while
+        Expression::While {
+            kind,
+            condition,
+            body,
+        } => match *kind {
+            WhileKind::While => {
+                write!(f, [Keyword::While, space(), condition, space(), body])?;
+            }
+            WhileKind::DoWhile => {
+                write!(
+                    f,
+                    [
+                        Keyword::Do,
+                        space(),
+                        body,
+                        space(),
+                        Keyword::While,
+                        space(),
+                        condition
+                    ]
+                )?;
+            }
+        },
+
+        // for each
+        Expression::ForEach {
+            asynchrony,
+            kind,
+            pattern,
+            iterator,
+            body,
+        } => {
+            write!(f, [Keyword::For, space()])?;
+            if *asynchrony == Asynchrony::Async {
+                write!(f, [Keyword::Await, space()])?;
+            }
+            let keyword = match kind {
+                ForEachKind::In => Keyword::In,
+                ForEachKind::Of => Keyword::Of,
+            };
+            write!(f, [pattern, space(), keyword, space()])?;
+            write!(f, [iterator, space()])?;
+            write!(f, [body])?;
+        }
+
+        // for condition
+        Expression::For {
+            initialization,
+            condition,
+            increment,
+            body,
+        } => {
+            write!(
+                f,
+                [
+                    Keyword::For,
+                    space(),
+                    token("("),
+                    initialization,
+                    token(";"),
+                    space(),
+                    condition,
+                    token(";"),
+                    space(),
+                    increment,
+                    token(")"),
+                    space(),
+                    body
+                ]
+            )?;
+        }
+
+        // loop
+        Expression::Loop { body } => {
+            write!(f, [Keyword::Loop, space(), body])?;
+        }
+
+        // try
+        Expression::Try {
+            try_expression,
+            catch_pattern,
+            catch_expression,
+            finally_expression,
+        } => {
+            // try <expression>
+            write!(f, [Keyword::Try, space(), try_expression])?;
+
+            // catch <expression>
+            if let Some(catch) = catch_expression {
+                write!(f, [space(), Keyword::Catch, space()])?;
+                if let Some(catch_pattern) = catch_pattern {
+                    write!(f, [catch_pattern, space()])?;
+                }
+                write!(f, [catch])?;
             }
 
-            // try
-            Expression::Try {
-                try_expression,
-                catch_pattern,
-                catch_expression,
-                finally_expression,
-            } => {
-                // try <expression>
-                write!(f, [Keyword::Try, space(), try_expression])?;
-
-                // catch <expression>
-                if let Some(catch) = catch_expression {
-                    write!(f, [space(), Keyword::Catch, space()])?;
-                    if let Some(catch_pattern) = catch_pattern {
-                        write!(f, [catch_pattern, space()])?;
-                    }
-                    write!(f, [catch])?;
-                }
-
-                // finally <expression>
-                if let Some(finally) = finally_expression {
-                    write!(f, [space(), Keyword::Finally, space(), finally])?;
-                }
+            // finally <expression>
+            if let Some(finally) = finally_expression {
+                write!(f, [space(), Keyword::Finally, space(), finally])?;
             }
+        }
 
-            // match
-            Expression::Match { .. } => {
-                format_match(f, node_id, true)?;
+        // match
+        Expression::Match { .. } => {
+            format_match(f, node_id, true)?;
+        }
+
+        // break
+        Expression::Break { label, value } => {
+            write!(f, [Keyword::Break])?;
+            if let Some(label) = label {
+                write!(f, [space(), token(":"), label])?;
             }
-
-            // break
-            Expression::Break { label, value } => {
-                write!(f, [Keyword::Break])?;
-                if let Some(label) = label {
-                    write!(f, [space(), token(":"), label])?;
-                }
-                if let Some(value) = value {
-                    write!(f, [space(), value])?;
-                }
-            }
-
-            // continue
-            Expression::Continue { label } => {
-                write!(f, [Keyword::Continue])?;
-                if let Some(label) = label {
-                    write!(f, [space(), token(":"), label])?;
-                }
-            }
-
-            // defer
-            Expression::Defer { expression } => {
-                write!(f, [Keyword::Defer])?;
-                if let Some(expression) = expression {
-                    write!(f, [space(), expression])?;
-                }
-            }
-
-            // await
-            Expression::Await { expression } => {
-                write!(f, [Keyword::Await, space(), expression])?;
-            }
-
-            // yield
-            Expression::Yield { cardinality, value } => {
-                write!(f, [Keyword::Yield])?;
-                if *cardinality == YieldCardinality::Generator {
-                    write!(f, [token("*")])?;
-                }
+            if let Some(value) = value {
                 write!(f, [space(), value])?;
             }
+        }
 
-            // throw
-            Expression::Throw { value } => {
-                write!(f, [token("throw")])?;
-                if let Some(value) = value {
-                    write!(f, [space(), value])?;
-                }
+        // continue
+        Expression::Continue { label } => {
+            write!(f, [Keyword::Continue])?;
+            if let Some(label) = label {
+                write!(f, [space(), token(":"), label])?;
             }
+        }
 
-            // return
-            Expression::Return { value } => {
-                write!(f, [token("return")])?;
-                if let Some(value) = value {
-                    write!(f, [space(), value])?;
-                }
+        // defer
+        Expression::Defer { expression } => {
+            write!(f, [Keyword::Defer])?;
+            if let Some(expression) = expression {
+                write!(f, [space(), expression])?;
             }
+        }
 
-            // path
-            Expression::Path {
-                path,
-                static_arguments,
-            } => {
-                write!(f, [path])?;
+        // await
+        Expression::Await { expression } => {
+            write!(f, [Keyword::Await, space(), expression])?;
+        }
 
-                // static arguments
-                if let Some(static_arguments) = static_arguments
-                    && !static_arguments.is_empty()
-                {
-                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
-                }
+        // yield
+        Expression::Yield { cardinality, value } => {
+            write!(f, [Keyword::Yield])?;
+            if *cardinality == YieldCardinality::Generator {
+                write!(f, [token("*")])?;
             }
+            write!(f, [space(), value])?;
+        }
 
-            // scalar literal
-            Expression::ScalarLiteral(node) => {
-                format_scalar_literal(node, tree.get_span(node_id), f)?;
+        // throw
+        Expression::Throw { value } => {
+            write!(f, [token("throw")])?;
+            if let Some(value) = value {
+                write!(f, [space(), value])?;
             }
+        }
 
-            // template literal
-            Expression::TemplateLiteral(node) => {
-                format_template_literal(node, tree.get_span(node_id), f)?;
+        // return
+        Expression::Return { value } => {
+            write!(f, [token("return")])?;
+            if let Some(value) = value {
+                write!(f, [space(), value])?;
             }
+        }
 
-            // type literal
-            Expression::TypeLiteral(node) => node.format(f)?,
+        // path
+        Expression::Path {
+            path,
+            static_arguments,
+        } => {
+            write!(f, [path])?;
 
-            // range literal
-            Expression::RangeLiteral {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                if *is_inclusive {
-                    write!(f, [start, token("..="), end,])?;
-                } else {
-                    write!(f, [start, token(".."), end,])?;
-                }
+            // static arguments
+            if let Some(static_arguments) = static_arguments
+                && !static_arguments.is_empty()
+            {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
             }
+        }
 
-            // array literal
-            Expression::ArrayLiteral {
-                elements: elements_ids,
-            } => {
+        // scalar literal
+        Expression::ScalarLiteral(node) => {
+            format_scalar_literal(node, tree.get_span(node_id), f)?;
+        }
+
+        // template literal
+        Expression::TemplateLiteral(node) => {
+            format_template_literal(node, tree.get_span(node_id), f)?;
+        }
+
+        // type literal
+        Expression::TypeLiteral(node) => node.format(f)?,
+
+        // range literal
+        Expression::RangeLiteral {
+            start,
+            end,
+            is_inclusive,
+        } => {
+            if *is_inclusive {
+                write!(f, [start, token("..="), end,])?;
+            } else {
+                write!(f, [start, token(".."), end,])?;
+            }
+        }
+
+        // array literal
+        Expression::ArrayLiteral {
+            elements: elements_ids,
+        } => {
+            let span = f.context().get_span(node_id);
+            let elements = elements_ids
+                .iter()
+                .map(|id| tree.get(*id))
+                .collect::<SmallVec<_, 3>>();
+            let should_expand = elements.len() > 1
+                && elements
+                    .iter()
+                    .any(|element| is_complex_argument(tree, element))
+                || f.context().has_newline(span) && elements.len() > 1;
+            write!(
+                f,
+                [list_like("[", "]", ",", elements_ids).should_expand(should_expand)]
+            )?;
+        }
+
+        // tuple literal
+        Expression::TupleLiteral {
+            elements: elements_ids,
+        } => {
+            if elements_ids.is_empty() {
+                write!(f, [token("()")])?;
+            } else {
                 let span = f.context().get_span(node_id);
                 let elements = elements_ids
                     .iter()
@@ -1418,222 +1440,214 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     || f.context().has_newline(span) && elements.len() > 1;
                 write!(
                     f,
-                    [list_like("[", "]", ",", elements_ids).should_expand(should_expand)]
+                    [list_like("(", ")", ",", elements_ids)
+                        .force_trailing_separator()
+                        .should_expand(should_expand)]
                 )?;
             }
+        }
 
-            // tuple literal
-            Expression::TupleLiteral {
-                elements: elements_ids,
-            } => {
-                if elements_ids.is_empty() {
-                    write!(f, [token("()")])?;
-                } else {
-                    let span = f.context().get_span(node_id);
-                    let elements = elements_ids
-                        .iter()
-                        .map(|id| tree.get(*id))
-                        .collect::<SmallVec<_, 3>>();
-                    let should_expand = elements.len() > 1
-                        && elements
-                            .iter()
-                            .any(|element| is_complex_argument(tree, element))
-                        || f.context().has_newline(span) && elements.len() > 1;
-                    write!(
-                        f,
-                        [list_like("(", ")", ",", elements_ids)
-                            .force_trailing_separator()
-                            .should_expand(should_expand)]
-                    )?;
-                }
+        // struct literal
+        Expression::StructLiteral { ty, properties } => {
+            format_struct_literal(f, node_id, ty, properties)?;
+        }
+
+        // tree literal
+        Expression::TreeLiteral {
+            path,
+            arguments,
+            elements,
+        } => {
+            format_tree_literal(f, node_id, path, arguments, elements)?;
+        }
+
+        // parenthesized
+        Expression::Parenthesized { expression } => {
+            let inner_expression = tree.get(*expression);
+            if let Expression::TreeLiteral { .. } = inner_expression {
+                write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
+            } else {
+                write!(f, [token("("), expression, token(")")])?;
             }
+        }
 
-            // struct literal
-            Expression::StructLiteral { ty, properties } => {
-                format_struct_literal(f, node_id, ty, properties)?;
+        // unary
+        Expression::Unary { operator, right } => {
+            if operator.is_prefix() {
+                write!(f, [operator, right])?;
+            } else {
+                write!(f, [right, operator])?;
             }
+        }
 
-            // tree literal
-            Expression::TreeLiteral {
-                path,
-                arguments,
-                elements,
-            } => {
-                format_tree_literal(f, node_id, path, arguments, elements)?;
-            }
-
-            // parenthesized
-            Expression::Parenthesized { expression } => {
-                let inner_expression = tree.get(*expression);
-                if let Expression::TreeLiteral { .. } = inner_expression {
-                    write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
-                } else {
-                    write!(f, [token("("), expression, token(")")])?;
-                }
-            }
-
-            // unary
-            Expression::Unary { operator, right } => {
-                if operator.is_prefix() {
-                    write!(f, [operator, right])?;
-                } else {
-                    write!(f, [right, operator])?;
-                }
-            }
-
-            // type unary
-            Expression::TypeUnary { operator, right } => match operator {
-                TypeUnaryOperator::Newtype
-                | TypeUnaryOperator::Type
-                | TypeUnaryOperator::Readonly
-                | TypeUnaryOperator::Typeof
-                | TypeUnaryOperator::Keyof
-                | TypeUnaryOperator::Infer
-                | TypeUnaryOperator::Asserts => {
-                    write!(f, [operator, space(), right])?;
-                }
-                TypeUnaryOperator::AsConst => {
-                    write!(f, [right, token(" as const")])?;
-                }
-            },
-
-            // value
-            Expression::ValueOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                write!(f, [token("^")])?;
-                if let Some(mutability) = mutability {
-                    write!(f, [*mutability])?;
-                }
-                if let Some(variance) = variance {
-                    write!(f, [variance.to_keyword(), space()])?;
-                }
-                right.format(f)?;
-            }
-
-            // reference
-            Expression::ReferenceOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                write!(f, [token("&")])?;
-                if let Some(mutability) = mutability {
-                    write!(f, [*mutability])?;
-                }
-                if let Some(variance) = variance {
-                    write!(f, [variance.to_keyword(), space()])?;
-                }
-                right.format(f)?;
-            }
-
-            // member
-            Expression::Member { .. } => {
-                if is_expression_chain(tree, node_id) {
-                    format_expression_chain(f, node_id)?;
-                } else {
-                    format_member_expression(f, node_id)?;
-                }
-            }
-
-            // index
-            Expression::Index { .. } => {
-                if is_expression_chain(tree, node_id) {
-                    format_expression_chain(f, node_id)?;
-                } else {
-                    format_index_expression(f, node_id)?;
-                }
-            }
-
-            // call
-            Expression::Call { .. } => {
-                if is_expression_chain(tree, node_id) {
-                    format_expression_chain(f, node_id)?;
-                } else {
-                    format_call_expression(f, node_id)?;
-                }
-            }
-
-            // new
-            Expression::New {
-                left,
-                static_arguments,
-                dynamic_arguments,
-            } => {
-                write!(f, [token("new"), space(), left])?;
-                if let Some(static_arguments) = static_arguments {
-                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
-                }
-                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
-            }
-
-            // delete
-            Expression::Delete { value } => {
-                write!(f, [token("delete"), space(), value])?;
-            }
-
-            // maybe
-            Expression::Maybe { .. } => {
-                if is_expression_chain(tree, node_id) {
-                    format_expression_chain(f, node_id)?;
-                } else {
-                    format_maybe_expression(f, node_id)?;
-                }
-            }
-
-            // must
-            Expression::Must { position, left } => {
-                write!(f, [left])?;
-                if *position == PostfixPosition::Indirect {
-                    write!(f, [token(".")])?;
-                }
-                write!(f, [token("!")])?;
-            }
-
-            // binary
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                write!(f, [left])?;
-                if !f.context().has_postfix_annotation(*left) {
-                    write!(f, [space()])?;
-                }
+        // type unary
+        Expression::TypeUnary { operator, right } => match operator {
+            TypeUnaryOperator::Newtype
+            | TypeUnaryOperator::Type
+            | TypeUnaryOperator::Readonly
+            | TypeUnaryOperator::Typeof
+            | TypeUnaryOperator::Keyof
+            | TypeUnaryOperator::Infer
+            | TypeUnaryOperator::Asserts => {
                 write!(f, [operator, space(), right])?;
             }
-
-            // type binary
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => {
-                write!(f, [left])?;
-                if !f.context().has_postfix_annotation(*left) {
-                    write!(f, [space()])?;
-                }
-                write!(f, [operator, space(), right])?;
+            TypeUnaryOperator::AsConst => {
+                write!(f, [right, token(" as const")])?;
             }
+        },
 
-            // assign
-            Expression::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                write!(f, [left])?;
-                if !f.context().has_postfix_annotation(*left) {
-                    write!(f, [space()])?;
-                }
-                write!(f, [operator, space(), right])?;
+        // value
+        Expression::ValueOf {
+            mutability,
+            variance,
+            right,
+        } => {
+            write!(f, [token("^")])?;
+            if let Some(mutability) = mutability {
+                write!(f, [*mutability])?;
             }
+            if let Some(variance) = variance {
+                write!(f, [variance.to_keyword(), space()])?;
+            }
+            right.format(f)?;
+        }
 
-            // error
-            Expression::Error => panic!("invalid expression: {self:?}"),
-        };
+        // reference
+        Expression::ReferenceOf {
+            mutability,
+            variance,
+            right,
+        } => {
+            write!(f, [token("&")])?;
+            if let Some(mutability) = mutability {
+                write!(f, [*mutability])?;
+            }
+            if let Some(variance) = variance {
+                write!(f, [variance.to_keyword(), space()])?;
+            }
+            right.format(f)?;
+        }
+
+        // member
+        Expression::Member { .. } => {
+            if is_expression_chain(tree, node_id) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_member_expression(f, node_id)?;
+            }
+        }
+
+        // index
+        Expression::Index { .. } => {
+            if is_expression_chain(tree, node_id) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_index_expression(f, node_id)?;
+            }
+        }
+
+        // call
+        Expression::Call { .. } => {
+            if is_expression_chain(tree, node_id) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_call_expression(f, node_id)?;
+            }
+        }
+
+        // new
+        Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+        } => {
+            write!(f, [token("new"), space(), left])?;
+            if let Some(static_arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            }
+            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+        }
+
+        // delete
+        Expression::Delete { value } => {
+            write!(f, [token("delete"), space(), value])?;
+        }
+
+        // maybe
+        Expression::Maybe { .. } => {
+            if is_expression_chain(tree, node_id) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_maybe_expression(f, node_id)?;
+            }
+        }
+
+        // must
+        Expression::Must { position, left } => {
+            write!(f, [left])?;
+            if *position == PostfixPosition::Indirect {
+                write!(f, [token(".")])?;
+            }
+            write!(f, [token("!")])?;
+        }
+
+        // binary
+        Expression::Binary {
+            left,
+            operator,
+            right,
+        } => {
+            write!(f, [left])?;
+            if !f.context().has_postfix_annotation(*left) {
+                write!(f, [space()])?;
+            }
+            write!(f, [operator, space(), right])?;
+        }
+
+        // type binary
+        Expression::TypeBinary {
+            left,
+            operator,
+            right,
+        } => {
+            write!(f, [left])?;
+            if !f.context().has_postfix_annotation(*left) {
+                write!(f, [space()])?;
+            }
+            write!(f, [operator, space(), right])?;
+        }
+
+        // assign
+        Expression::Assign {
+            left,
+            operator,
+            right,
+        } => {
+            write!(f, [left])?;
+            if !f.context().has_postfix_annotation(*left) {
+                write!(f, [space()])?;
+            }
+            write!(f, [operator, space(), right])?;
+        }
+
+        // error
+        Expression::Error => {
+            write!(f, [token("/* ERROR */")])?;
+        }
+    };
+
+    Ok(())
+}
+
+impl<'ast> FormatNode<'ast, Expression> for Expression {
+    fn format_node(
+        &self,
+        node_id: NodeId<Expression>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        format_expression(f, node_id, self)?;
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
