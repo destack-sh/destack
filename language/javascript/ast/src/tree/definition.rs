@@ -64,7 +64,7 @@ impl Node for Definition {
 
 /// A Field is a named property of a definition.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Field {
+pub enum Field { // nocheckin: turn JS Field -> Property
     /// Named field (like `x: int32`).
     Named {
         modifiers: Option<BindingModifier>,

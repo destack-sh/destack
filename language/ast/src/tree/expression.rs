@@ -365,7 +365,7 @@ pub enum Expression {
         value: NodeId<Expression>,
     },
 
-    /// Throw expression (for #Compatibility).
+    /// Throw expression.
     ///
     /// Examples:
     /// ```
@@ -510,28 +510,65 @@ pub enum Expression {
     },
 
     /// Parenthesized expression.
+    /// 
+    /// Examples:
+    /// ```
+    /// (x)
+    /// (x + y)
+    /// ```
     Parenthesized { expression: NodeId<Expression> },
 
-    /// Type operation.
+    /// Type unary operation (prefix or postfix).
+    /// 
+    /// Examples:
+    /// ```
+    /// type x
+    /// type (x + y)
+    /// newtype Foo
+    /// ```
     TypeUnary {
         operator: TypeUnaryOperator,
         right: NodeId<Expression>,
     },
 
-    /// Type binary operation.
+    /// Type binary operation (infix).
+    /// 
+    /// Examples:
+    /// ```
+    /// x as int32
+    /// x is int32
+    /// x instanceof int32
+    /// x satisfies int32
+    /// x extends int32
+    /// x implements int32
+    /// ```
     TypeBinary {
         left: NodeId<Expression>,
         operator: TypeBinaryOperator,
         right: NodeId<Expression>,
     },
 
-    /// Unary operation.
+    /// Unary operation (prefix or postfix).
+    /// 
+    /// Examples:
+    /// ```
+    /// !x
+    /// -x
+    /// +x
+    /// ```
     Unary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
     },
 
     /// Value of operation (e.g., `^x`).
+    /// 
+    /// Examples:
+    /// ```
+    /// ^x
+    /// ^mut x
+    /// ^mut super T
+    /// ```
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -539,6 +576,13 @@ pub enum Expression {
     },
 
     /// Reference of operation (e.g., `&x`).
+    /// 
+    /// Examples:
+    /// ```
+    /// &x
+    /// &mut x
+    /// &const extends T
+    /// ```
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -574,7 +618,6 @@ pub enum Expression {
     },
 
     /// A Call is call to a function OR an instantiation of a tuple type.
-    /// The static arguments are expressed in the receiver, not the call.
     ///
     /// The function may or may not be declared as comptime (with a `@ prefix),
     ///  but the call must be prefixed with a `@` to qualify as a static call.
@@ -590,12 +633,11 @@ pub enum Expression {
     Call {
         position: PostfixPosition,
         left: NodeId<Expression>,
-        // TODO #Incomplete: static arguments for Calls
+        static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
 
-    /// New constructor call (for #Compatibility).
-    /// This is just a special form for calling the `New` interface.
+    /// New constructor call.
     ///
     /// Examples:
     /// ```
@@ -610,8 +652,7 @@ pub enum Expression {
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
 
-    /// Delete expression (for #Compatibility).
-    /// This is just a special form for calling the `Delete` interface.
+    /// Delete expression.
     ///
     /// Examples:
     /// ```

@@ -5,7 +5,7 @@ use dyst_javascript_ast::{
     Argument, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, Parameter,
 };
 
-use crate::format::variant::{
+use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};

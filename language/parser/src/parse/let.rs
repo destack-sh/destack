@@ -285,7 +285,7 @@ const x =
 
             // foo.parse()
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, dynamic_arguments: _ } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, static_arguments: _, dynamic_arguments: _ } => {
                 assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
                     assert_path!(parser, *path, "foo.parse");
                 });

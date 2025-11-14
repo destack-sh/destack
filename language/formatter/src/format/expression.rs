@@ -214,12 +214,16 @@ fn format_call_expression<'ast>(
     if let Expression::Call {
         position,
         left,
+        static_arguments,
         dynamic_arguments,
     } = f.context().tree.get(node_id)
     {
         write!(f, [*left])?;
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
+        }
+        if let Some(static_arguments) = static_arguments {
+            write!(f, [list_like("<", ">", ",", static_arguments)])?;
         }
         write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
     } else {
@@ -1817,7 +1821,7 @@ mod tests {
     #[test]
     fn test_format_expression_tree_literal_with_arguments() {
         assert_format!(
-            "<Entity a=1, b = 2 />",
+            "<Entity a=1 b = 2 />",
             "<Entity a=1 b=2 />",
             |p| p.eat_expression(),
             DystFormatOptions::default()

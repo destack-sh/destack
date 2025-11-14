@@ -205,14 +205,14 @@ impl Type {
     }
 }
 
-/// The polymorphism of some type or definition.
+/// The polymorphism of some type or declaration.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Generics {
-    /// The static parameters of the definition.
+    /// The static parameters of the declaration.
     pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
-    /// The with clauses of the definition.
+    /// The with clauses of the declaration.
     pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
-    /// The where clauses of the definition.
+    /// The where clauses of the declaration.
     pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
 }
 

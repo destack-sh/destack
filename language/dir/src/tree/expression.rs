@@ -4,7 +4,7 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
     DependencyItem, DependencyKind, ExportType, MatchCase, MatchFile, Mutability, Node, NodeId,
     NodeType, Parameter, Path, Pattern, ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator,
-    TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -46,6 +46,7 @@ pub enum Expression {
     },
     /// Type alias binding.
     LetType {
+        kind: TypeKind,
         mutability: Option<Mutability>,
         name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -61,6 +62,11 @@ pub enum Expression {
     TypeBinary {
         left: NodeId<Expression>,
         operator: TypeBinaryOperator,
+        right: NodeId<Expression>,
+    },
+    /// Unevaluated unary operation (may be operator-overloaded).
+    UnevaluatedUnary {
+        operator: UnaryOperator,
         right: NodeId<Expression>,
     },
     /// Unary operation (except reference/dereference, e.g., `-x`).
@@ -80,6 +86,12 @@ pub enum Expression {
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
+    /// Unevaluated binary operation (may be operator-overloaded).
+    UnevaluatedBinary {
+        left: NodeId<Expression>,
+        operator: BinaryOperator,
+        right: NodeId<Expression>,
+    },
     /// Binary operation.
     Binary {
         left: NodeId<Expression>,
@@ -89,6 +101,12 @@ pub enum Expression {
     /// Assignment (e.g., `x = y`).
     AssignDirect {
         left: NodeId<Expression>,
+        right: NodeId<Expression>,
+    },
+    /// Unevaluated assignment with operator (may be operator-overloaded).
+    UnevaluatedAssign {
+        left: NodeId<Expression>,
+        operator: AssignOperator,
         right: NodeId<Expression>,
     },
     /// Assignment with operator (except direct assignment, e.g., `x += y`).
@@ -107,6 +125,7 @@ pub enum Expression {
     /// Call to a function.
     Call {
         left: NodeId<Expression>,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// Index into an array or slice.
@@ -118,13 +137,13 @@ pub enum Expression {
     Maybe { left: NodeId<Expression> },
     /// Force unwrap an expression with `!` and propagate.
     Must { left: NodeId<Expression> },
-    /// New constructor call (for #Compatibility).
+    /// New constructor call.
     New {
         left: Path,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
-    /// Delete expression (for #Compatibility).
+    /// Delete expression.
     Delete { value: NodeId<Expression> },
 
     /// --------------------------------
@@ -214,7 +233,7 @@ pub enum Expression {
     Continue { target: Option<BlockTarget> },
     /// Defer expression.
     Defer { expression: NodeId<Expression> },
-    /// Throw expression (for #Compatibility).
+    /// Throw expression.
     Throw { value: Option<NodeId<Expression>> },
     /// Return expression.
     Return { value: Option<NodeId<Expression>> },

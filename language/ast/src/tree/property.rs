@@ -1,6 +1,7 @@
 use crate::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability,
-    Name, Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key,
+    Keyword, Mutability, Node, NodeId, NodeType, Parameter, Visibility, WhereClause,
+    WithClause,
 };
 
 /// The type of a binding.
@@ -167,23 +168,4 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
-}
-
-/// A EnumField is a enum field declaration.
-///
-/// Examples:
-/// ```
-/// A
-/// B = 4
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct EnumField {
-    /// The name of the enum field.
-    pub name: Name,
-    /// The default value of the enum field.
-    pub value: Option<NodeId<Expression>>,
-}
-
-impl Node for EnumField {
-    const TYPE: NodeType = NodeType::EnumField;
 }
