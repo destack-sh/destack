@@ -103,8 +103,8 @@ pub enum Expression {
         left: NodeId<Expression>,
         right: NodeId<Expression>,
     },
-    /// Unevaluated assignment with operator (may be operator-overloaded).
-    UnevaluatedAssign {
+    /// Unevaluated binary assignment with operator (may be operator-overloaded).
+    UnevaluatedAssignBinary {
         left: NodeId<Expression>,
         operator: AssignOperator,
         right: NodeId<Expression>,

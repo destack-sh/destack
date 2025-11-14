@@ -501,9 +501,6 @@ impl Dump for BlockTarget {
             BlockTarget::Definition { .. } => {
                 dumper.object("BlockTarget::Definition").end();
             }
-            BlockTarget::Error => {
-                dumper.object("BlockTarget::Error").end();
-            }
         }
     }
 }
@@ -554,9 +551,6 @@ impl Dump for Path {
             }
             Path::Definition { .. } => {
                 dumper.object("Path::Definition").end();
-            }
-            Path::Error => {
-                dumper.object("Path::Error").end();
             }
         }
     }
@@ -898,6 +892,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
+            Expression::UnevaluatedUnary { operator, right: _ } => {
+                self.node("Expression::UnevaluatedUnary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
@@ -928,6 +927,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
+            Expression::UnevaluatedBinary {
+                left: _,
+                operator,
+                right: _,
+            } => {
+                self.node("Expression::UnevaluatedBinary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
             Expression::Binary {
                 left: _,
                 operator,
@@ -949,6 +957,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::AssignDirect { left: _, right: _ } => {
                 self.node("Expression::AssignDirect", id.id).end();
             }
+            Expression::UnevaluatedAssignBinary {
+                left: _,
+                operator,
+                right: _,
+            } => {
+                self.node("Expression::UnevaluatedAssignBinary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
             Expression::AssignBinary {
                 left: _,
                 operator,
@@ -969,6 +986,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Call {
                 left: _,
+                static_arguments: _,
                 dynamic_arguments: _,
             } => {
                 self.node("Expression::Call", id.id).end();
@@ -1159,8 +1177,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 generics,
                 embedded_definitions: _,
-                variant: _,
-                definitions: _,
+                properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
@@ -1172,22 +1189,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 meta,
                 generics,
                 embedded_definitions: _,
-                variants: _,
-                definitions: _,
+                fields: _,
+                properties: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("meta", meta)
-                    .field_optional("generics", generics)
-                    .end();
-            }
-            Definition::Union {
-                meta,
-                generics,
-                embedded_definitions: _,
-                variants: _,
-                definitions: _,
-            } => {
-                self.node("Definition::Union", id.id)
                     .field("meta", meta)
                     .field_optional("generics", generics)
                     .end();
@@ -1196,8 +1201,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 meta,
                 generics,
                 embedded_definitions: _,
-                fields: _,
-                definitions: _,
+                properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
                     .field("meta", meta)
@@ -1206,14 +1210,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Function {
                 meta,
-                generics,
                 signature,
                 definitions: _,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
                     .field("meta", meta)
-                    .field_optional("generics", generics)
                     .field("signature", signature)
                     .end();
             }
@@ -1336,83 +1338,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_type(dumper, tree, id, ty);
-        });
-    }
-
-    fn visit_variant(&mut self, tree: &MutableNodeTree, id: NodeId<Variant>, variant: &Variant) {
-        match variant {
-            Variant::Struct {
-                name,
-                ty: _,
-                fields: _,
-                value: _,
-            } => {
-                self.node("Variant::Struct", id.id)
-                    .field_optional("name", name)
-                    .end();
-            }
-            Variant::Tuple {
-                name,
-                ty: _,
-                fields: _,
-                value: _,
-            } => {
-                self.node("Variant::Tuple", id.id)
-                    .field_optional("name", name)
-                    .end();
-            }
-            Variant::Unit {
-                name,
-                ty: _,
-                value: _,
-            } => {
-                self.node("Variant::Unit", id.id)
-                    .field_optional("name", name)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_variant(dumper, tree, id, variant);
-        });
-    }
-
-    fn visit_field(&mut self, tree: &MutableNodeTree, id: NodeId<Field>, field: &Field) {
-        match field {
-            Field::Named {
-                modifiers,
-                name,
-                ty: _,
-                default: _,
-            } => {
-                self.node("Field::Named", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("name", name)
-                    .end();
-            }
-            Field::Positional {
-                modifiers,
-                ty: _,
-                default: _,
-            } => {
-                self.node("Field::Positional", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
-            }
-            Field::Dynamic {
-                modifiers,
-                name,
-                ty: _,
-                key: _,
-                default: _,
-            } => {
-                self.node("Field::Dynamic", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_field(dumper, tree, id, field);
         });
     }
 

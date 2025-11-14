@@ -5,9 +5,7 @@ use dyst_ast as ast;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, Expression, Field, MatchCase,
-    ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Type, Variant,
-    WhereClause, WithClause,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase, ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type, WhereClause, WithClause
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -36,8 +34,8 @@ pub struct MutableNodeTree {
     pub(crate) blocks: NodeArena<Block>,
     pub(crate) definitions: NodeArena<Definition>,
     pub(crate) types: NodeArena<Type>,
-    pub(crate) variants: NodeArena<Variant>,
-    pub(crate) fields: NodeArena<Field>,
+    pub(crate) properties: NodeArena<Property>,
+    pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
@@ -85,8 +83,8 @@ impl MutableNodeTree {
             blocks: NodeArena::new(),
             definitions: NodeArena::new(),
             types: NodeArena::new(),
-            variants: NodeArena::new(),
-            fields: NodeArena::new(),
+            properties: NodeArena::new(),
+            enum_fields: NodeArena::new(),
             where_clauses: NodeArena::new(),
             with_clauses: NodeArena::new(),
             dependency_items: NodeArena::new(),
@@ -301,8 +299,8 @@ impl_node_tree_stores! {
     Block => blocks,
     Definition => definitions,
     Type => types,
-    Variant => variants,
-    Field => fields,
+    Property => properties,
+    EnumField => enum_fields,
     WhereClause => where_clauses,
     WithClause => with_clauses,
     DependencyItem => dependency_items,
