@@ -46,8 +46,8 @@ impl<'a> Parser<'a> {
             let property = Property::Field {
                 modifiers,
                 key: Some(key),
-                ty: Some(ty),
-                value: None,
+                value: Some(ty),
+                default: None,
             };
             Ok(self.tree.insert(property, self.get_span_from(start)))
         }
@@ -61,8 +61,8 @@ impl<'a> Parser<'a> {
             let property = Property::Field {
                 modifiers,
                 key: None,
-                ty: Some(ty),
-                value: None,
+                value: Some(ty),
+                default: None,
             };
             Ok(self.tree.insert(property, self.get_span_from(start)))
         }
@@ -299,67 +299,43 @@ impl<'a> Parser<'a> {
         }
         // field
         else {
-            // field type / value
-            if self.options.in_variant || self.options.in_type {
-                // type
-                let ty = if self.peek_colon().is_ok() {
-                    self.bump(); // eat colon
-                    let ty = self
-                        .with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-                    Some(ty)
+            // value
+            let value = if self.peek_colon().is_ok() {
+                self.bump(); // eat colon
+                let value = if self.options.in_variant {
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?
                 } else {
-                    None
+                    self.eat_expression()?
                 };
-
-                // value
-                let value = if self.peek_token(TokenType::Assign).is_ok() {
-                    self.bump(); // eat assign
-                    Some(self.eat_expression()?)
-                } else {
-                    None
-                };
-
-                // property
-                if modifiers.is_none() && key.is_none() && ty.is_none() && value.is_none() {
-                    // not a property
-                    return Err(ParseError::expected(
-                        self.peek()?.span,
-                        TokenType::Identifier,
-                    ));
-                }
-                let property = Property::Field {
-                    modifiers,
-                    key,
-                    ty,
-                    value,
-                };
-                Ok(self.tree.insert(property, self.get_span_from(start)))
+                Some(value)
             } else {
-                let start = self.mark();
-                // value
-                let value = if self.peek_colon().is_ok() {
-                    self.bump(); // eat colon
-                    Some(self.eat_expression()?)
-                } else {
-                    None
-                };
+                None
+            };
 
-                // field property
-                if modifiers.is_none() && key.is_none() && value.is_none() {
-                    // not a property
-                    return Err(ParseError::expected(
-                        self.peek()?.span,
-                        TokenType::Identifier,
-                    ));
-                }
-                let property = Property::Field {
-                    modifiers,
-                    key,
-                    ty: None,
-                    value,
-                };
-                Ok(self.tree.insert(property, self.get_span_from(start)))
+            // default
+            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                let default = self.eat_expression()?;
+                Some(default)
+            } else {
+                None
+            };
+
+            // property
+            if modifiers.is_none() && key.is_none() && value.is_none() && default.is_none() {
+                // not a property
+                return Err(ParseError::expected(
+                    self.peek()?.span,
+                    TokenType::Identifier,
+                ));
             }
+            let property = Property::Field {
+                modifiers,
+                key,
+                value,
+                default,
+            };
+            Ok(self.tree.insert(property, self.get_span_from(start)))
         }
     }
 
@@ -396,7 +372,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Expression, FunctionMode, IntType, Key, Name, Parameter, Property, TypeLiteral, Visibility,
+        Expression, FunctionMode, IntType, Key, Name, Parameter, Property, ScalarLiteral,
+        TypeLiteral, Visibility,
     };
     use dyst_source::{LanguageCompatibility, LanguageOptions};
 
@@ -413,13 +390,49 @@ mod tests {
         parser.options.in_type = true;
 
         let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: None, .. } => {
+        assert_node!(parser.tree, property, Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
             // #name means private for #Compatibility
             assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
             // name
             assert_string!(parser, *name, "name");
             // string
             assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+        });
+    }
+
+    #[test]
+    fn test_parse_property_with_value() {
+        let mut test = TestParser::new("x: int32");
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+        let property = parser.eat_property().unwrap();
+        assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        });
+    }
+
+    #[test]
+    fn test_parse_property_with_default_value() {
+        let mut test = TestParser::new("x = 42");
+        let mut parser = test.prepare();
+        let property = parser.eat_property().unwrap();
+        assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: None, default: Some(default), .. } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+        });
+    }
+
+    #[test]
+    fn test_parse_property_with_value_and_default_value() {
+        let mut test = TestParser::new("x: int32 = 42");
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+        let property = parser.eat_property().unwrap();
+        assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: Some(default), .. } => {
+            assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
     }
 

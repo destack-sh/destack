@@ -140,8 +140,8 @@ pub enum Property {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        ty: Option<NodeId<Expression>>,
         value: Option<NodeId<Expression>>,
+        default: Option<NodeId<Expression>>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {

@@ -1687,11 +1687,11 @@ const shapes = (
         assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, properties, .. } => {
                 assert_eq!(properties.len(), 2);
-                assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
+                assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
                     assert_string!(parser, *name, "x");
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });
-                assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
+                assert_node!(parser.tree, properties[1], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: None, default: None, .. } => {
                     assert_string!(parser, *name, "y");
                 });
             });
@@ -2023,7 +2023,7 @@ const shapes = (
                 assert_node!(
                     parser.tree,
                     properties[0],
-                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
                         assert_string!(parser, *name, "x");
                         assert_node!(
                             parser.tree,
@@ -2038,7 +2038,7 @@ const shapes = (
                 assert_node!(
                     parser.tree,
                     properties[1],
-                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: None, default: None, .. } => {
                         assert_string!(parser, *name, "y");
                     }
                 );
@@ -2078,7 +2078,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     properties[0],
-                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: Some(value), .. } => {
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
                         assert_string!(parser, *name, "vertices");
                         assert_node!(
                             parser.tree,
@@ -2091,7 +2091,7 @@ geom.Mesh<2, Dims: 4> {
                 assert_node!(
                     parser.tree,
                     properties[1],
-                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), ty: None, value: None, .. } => {
+                    Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: None, default: None, .. } => {
                         assert_string!(parser, *name, "y");
                     }
                 );

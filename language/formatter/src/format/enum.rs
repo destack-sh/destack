@@ -52,32 +52,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_enum_with_type_fields_and_values() {
-        assert_format!(
-            "enum(int4) { A = 1, B = 2, C, D = 4 }",
-            "enum(int4) {\n\tA = 1\n\tB = 2\n\tC\n\tD = 4\n}",
-            |p| p.eat_enum(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
     fn test_format_enum_with_annotations() {
         assert_format!(
             "enum { A }",
             "enum {\n\tA\n}",
-            |p| p.eat_enum(DefinitionMeta::default()),
-            DystFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_enum_with_expressions() {
-        assert_format!(
-            r"enum { 
-				const X = 1
-			}",
-            "enum {\n\tconst X = 1\n}",
             |p| p.eat_enum(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );

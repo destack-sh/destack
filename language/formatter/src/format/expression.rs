@@ -710,14 +710,15 @@ pub fn is_trivial_argument(tree: &MutableNodeTree, argument: &Argument) -> bool 
         Argument::Shorthand { name: _, .. } => true,
         Argument::Positional { value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Argument::Spread { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        _ => false,
     }
 }
 
 /// Whether a property is "trivial" (prefers to be inline).
 pub fn is_trivial_property(tree: &MutableNodeTree, property: &Property) -> bool {
     match property {
-        Property::Field { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Property::Field { default: value, .. } => {
+            value.is_some_and(|value| is_trivial_expression(tree, tree.get(value)))
+        }
         Property::Method { body, .. } => body.is_none(),
         Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
@@ -730,7 +731,6 @@ pub fn is_complex_argument(tree: &MutableNodeTree, argument: &Argument) -> bool 
         Argument::Shorthand { name: _, .. } => false,
         Argument::Positional { value, .. } => is_complex_expression(tree, tree.get(*value)),
         Argument::Spread { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
-        _ => false,
     }
 }
 
@@ -785,7 +785,7 @@ pub(crate) fn format_struct_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     ty: &Option<NodeId<Expression>>,
-    properties_ids: &Vec<NodeId<Argument>>,
+    properties_ids: &Vec<NodeId<Property>>,
 ) -> FormatResult<()> {
     if let Some(ty) = ty {
         write!(f, [ty, space()])?;
@@ -800,7 +800,7 @@ pub(crate) fn format_struct_literal<'ast>(
         || properties.len() <= 5
             && properties
                 .iter()
-                .all(|property| is_trivial_argument(f.context().tree, property));
+                .all(|property| is_trivial_property(f.context().tree, property));
     let has_annotations = f.context().has_infix_annotation(expression_id)
         || properties_ids
             .iter()
@@ -1690,8 +1690,8 @@ mod tests {
     #[test]
     fn test_format_expression_struct_literal_trivial() {
         assert_format!(
-            "{ a: 1, ...B }",
-            "{ a: 1, ...B }",
+            "({ a: 1, ...B })",
+            "({ a: 1, ...B })",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );

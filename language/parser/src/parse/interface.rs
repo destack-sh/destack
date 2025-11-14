@@ -159,15 +159,15 @@ interface Foo extends Baz {
             });
 
             // readonly value: int32
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value, .. } => {
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default, .. } => {
                 assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
                 assert_string!(parser, *name, "value");
-                assert!(value.is_none());
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+                assert!(default.is_none());
             });
 
             // count: int32 = 4
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), ty: Some(ty), value: Some(value), .. } => {
+            assert_node!(parser.tree, properties[1], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
                 assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));

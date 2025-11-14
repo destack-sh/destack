@@ -37,8 +37,8 @@ mod tests {
     #[test]
     fn test_format_interface_with_body() {
         assert_format!(
-            "interface Foo { const X = 1 }",
-            "interface Foo {\n\tconst X = 1\n}",
+            "interface Foo { static X = 1 }",
+            "interface Foo {\n\tstatic X = 1\n}",
             |p| p.eat_interface(DefinitionMeta::default()),
             DystFormatOptions::default_tab()
         );

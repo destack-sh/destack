@@ -1,5 +1,5 @@
 use crate::{DystFormatContext, DystFormatter};
-use dyst_ast::{Keyword, Name};
+use dyst_ast::{Key, Keyword, Name};
 use dyst_fir::format::text;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
@@ -20,6 +20,31 @@ impl<'ast> Format<DystFormatContext<'ast>> for Name {
             Name::Identifier(string) => string.format(f),
             Name::String(string) => write!(f, [token("\""), string, token("\"")]),
         }
+    }
+}
+
+impl<'ast> Format<DystFormatContext<'ast>> for Key {
+    #[inline]
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        match self {
+            Key::Name(name) => {
+                write!(f, [name])?;
+            }
+            Key::Expression(expression) => {
+                write!(f, [token("[")])?;
+                write!(f, [expression])?;
+                write!(f, [token("]")])?;
+            }
+            Key::NamedExpression { name, key } => {
+                write!(f, [token("[")])?;
+                write!(f, [name])?;
+                write!(f, [token(":"), space()])?;
+                write!(f, [key])?;
+                write!(f, [token("]")])?;
+            }
+        }
+
+        Ok(())
     }
 }
 

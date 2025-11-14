@@ -916,19 +916,19 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         Property::Field {
             modifiers: _,
             key,
-            ty,
             value,
+            default,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
-            if let Some(ty) = ty {
-                let ty_expr = tree.get(*ty);
-                visitor.visit_expression(tree, *ty, ty_expr);
-            }
             if let Some(value) = value {
                 let value_expr = tree.get(*value);
                 visitor.visit_expression(tree, *value, value_expr);
+            }
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
             }
         }
         Property::Method {
