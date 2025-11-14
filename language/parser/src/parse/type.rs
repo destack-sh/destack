@@ -1,8 +1,8 @@
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
     DefinitionMeta, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability, NodeId,
-    TokenType, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 impl<'a> Parser<'a> {
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
             Keyword::Enum => Ok(TypeLiteral::Composite(DefinitionType::Enum)),
             Keyword::Union => Ok(TypeLiteral::Composite(DefinitionType::Union)),
             Keyword::Interface => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
-            Keyword::Extension => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
+            Keyword::Implement => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
             Keyword::Function => Ok(TypeLiteral::Composite(DefinitionType::Function)),
             _ => Err(ParseError::unexpected(self.peek()?.span)),
         }
@@ -216,13 +216,24 @@ impl<'a> Parser<'a> {
     /// type T = int32
     /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
-    ///
     /// type 1 | 2 | 3
     /// readonly T
+    /// newtype T = int32
+    /// newtype Foo<T> = Baz<T> | null
+    /// newtype T = { a: int32, b: boolean } | true
     /// ```
     pub fn eat_type(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
-        let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly])?;
+        let keyword: Keyword =
+            self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
+
+        // kind
+        let kind = match keyword {
+            Keyword::Type => TypeKind::Structural,
+            Keyword::Readonly => TypeKind::Structural,
+            Keyword::Newtype => TypeKind::Nominal,
+            _ => unreachable!(),
+        };
 
         // mutability
         let mutability = if keyword == Keyword::Readonly {
@@ -254,6 +265,7 @@ impl<'a> Parser<'a> {
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 // type
                 let expression = Expression::LetType {
+                    kind,
                     mutability,
                     meta,
                     static_parameters,
@@ -269,6 +281,8 @@ impl<'a> Parser<'a> {
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
+                } else if kind == TypeKind::Nominal {
+                    TypeUnaryOperator::Newtype
                 } else {
                     TypeUnaryOperator::Type
                 };
@@ -282,6 +296,8 @@ impl<'a> Parser<'a> {
                 self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
+            } else if kind == TypeKind::Nominal {
+                TypeUnaryOperator::Newtype
             } else {
                 TypeUnaryOperator::Type
             };
@@ -449,6 +465,18 @@ mod tests {
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_newtype_type_expression() {
+        let mut test = TestParser::new("newtype T = int32");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // newtype T = int32
+        assert_node!(parser.tree, expr_id, Expression::LetType { meta, value, .. } => {
+            assert_string!(parser, meta.name.unwrap().string(), "T");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 }

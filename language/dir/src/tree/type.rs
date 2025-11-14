@@ -83,6 +83,8 @@ pub enum TypeUnaryOperator {
     Maybe,
     /// Must 'T!'.
     Must,
+    /// `newtype`
+    Newtype,
     /// `type`
     Type,
     /// `readonly`
@@ -212,6 +214,15 @@ pub struct Generics {
     pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
     /// The where clauses of the definition.
     pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
+}
+
+/// A TypeKind determines nominal vs. structural typing.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TypeKind {
+    /// Structural typing (like `type T = { a: int32, b: boolean }`).
+    Structural,
+    /// Nominal typing (like `newtype T = int32`).
+    Nominal,
 }
 
 /// A TypeBound is a type bound for a reference operation.

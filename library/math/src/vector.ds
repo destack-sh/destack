@@ -10,7 +10,7 @@ export async function clampScalar(v: float32, lo: float32, hi: float32): float32
     if v < lo { lo } else if v > hi { hi } else { v }
 }
 
-extension Vector2 {
+implement Vector2 {
     /// The zero Vector2 (0, 0).
     const Zero = Vector2 { x: 0.0, y: 0.0 }
     /// The one Vector2 (1, 1).
@@ -121,7 +121,7 @@ extension Vector2 {
     }
 }
 
-extension Vector2 implements Numeric<float32> {
+implement Vector2 implements Numeric<float32> {
     function add(other: float32): Vector2 {
         Vector2 {
             x: this.x + other,
@@ -151,7 +151,7 @@ extension Vector2 implements Numeric<float32> {
     }
 }
 
-extension Vector2 implements Numeric<Vector2> {
+implement Vector2 implements Numeric<Vector2> {
     function add(other: Vector2): Vector2 {
         Vector2 {
             x: this.x + other.x,
@@ -188,7 +188,7 @@ export struct Vector3 {
     z: float32
 }
 
-extension Vector3 {
+implement Vector3 {
     /// The zero Vector3 (0, 0, 0).
     const Zero = Vector3 { x: 0.0, y: 0.0, z: 0.0 }
     /// The one Vector3 (1, 1, 1).
@@ -308,7 +308,7 @@ extension Vector3 {
     }
 }
 
-extension Vector3 implements (
+implement Vector3 implements (
     Add<float32>,
     Subtract<float32>,
     Multiply<float32>,
@@ -383,7 +383,7 @@ export struct Vector4 {
     w: float32
 }
 
-extension Vector4 {
+implement Vector4 {
     /// The zero Vector4 (0, 0, 0, 0).
     const Zero = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
     /// The one Vector4 (1, 1, 1, 1).
@@ -527,7 +527,7 @@ extension Vector4 {
     }
 }
 
-extension Vector4 implements Add<float32> {
+implement Vector4 implements Add<float32> {
     function add(other: float32): Vector4 {
         Vector4 {
             x: this.x + other,
@@ -538,7 +538,7 @@ extension Vector4 implements Add<float32> {
     }
 }
 
-extension Vector4 implements Add<Vector4> {
+implement Vector4 implements Add<Vector4> {
     function add(other: Vector4): Vector4 {
         Vector4 {
             x: this.x + other.x,
@@ -549,7 +549,7 @@ extension Vector4 implements Add<Vector4> {
     }
 }
 
-extension Vector4 implements Subtract<float32> {
+implement Vector4 implements Subtract<float32> {
     function subtract(other: float32): Vector4 {
         Vector4 {
             x: this.x - other,
@@ -560,7 +560,7 @@ extension Vector4 implements Subtract<float32> {
     }
 }
 
-extension Vector4 implements Subtract<Vector4> {
+implement Vector4 implements Subtract<Vector4> {
     function subtract(other: Vector4): Vector4 {
         Vector4 {
             x: this.x - other.x,
@@ -571,7 +571,7 @@ extension Vector4 implements Subtract<Vector4> {
     }
 }
 
-extension Vector4 implements Multiply<float32> {
+implement Vector4 implements Multiply<float32> {
     function multiply(other: float32): Vector4 {
         Vector4 {
             x: this.x * other,
@@ -582,7 +582,7 @@ extension Vector4 implements Multiply<float32> {
     }
 }
 
-extension Vector4 implements Multiply<Vector4> {
+implement Vector4 implements Multiply<Vector4> {
     function multiply(other: Vector4): Vector4 {
         Vector4 {
             x: this.x * other.x,
@@ -593,7 +593,7 @@ extension Vector4 implements Multiply<Vector4> {
     }
 }
 
-extension Vector4 implements Divide<float32> {
+implement Vector4 implements Divide<float32> {
     function divide(other: float32): Vector4 {
         Vector4 {
             x: this.x / other,
@@ -610,7 +610,7 @@ export struct Vector2i {
     y: int32
 }
 
-extension Vector2i {
+implement Vector2i {
     /// The zero Vector2i (0, 0).
     const Zero = Vector2i { x: 0, y: 0 }
     /// The one Vector2i (1, 1).
@@ -705,7 +705,7 @@ extension Vector2i {
     }
 }
 
-extension Vector2i implements Add<int32> {
+implement Vector2i implements Add<int32> {
     function add(other: int32): Vector2i {
         Vector2i {
             x: this.x + other,
@@ -714,7 +714,7 @@ extension Vector2i implements Add<int32> {
     }
 }
 
-extension Vector2i implements Add<Vector2i> {
+implement Vector2i implements Add<Vector2i> {
     function add(other: Vector2i): Vector2i {
         Vector2i {
             x: this.x + other.x,
@@ -723,7 +723,7 @@ extension Vector2i implements Add<Vector2i> {
     }
 }
 
-extension Vector2i implements Subtract<int32> {
+implement Vector2i implements Subtract<int32> {
     function subtract(other: int32): Vector2i {
         Vector2i {
             x: this.x - other,
@@ -732,7 +732,7 @@ extension Vector2i implements Subtract<int32> {
     }
 }
 
-extension Vector2i implements Subtract<Vector2i> {
+implement Vector2i implements Subtract<Vector2i> {
     function subtract(other: Vector2i): Vector2i {
         Vector2i {
             x: this.x - other.x,
@@ -741,7 +741,7 @@ extension Vector2i implements Subtract<Vector2i> {
     }
 }
 
-extension Vector2i implements Multiply<int32> {
+implement Vector2i implements Multiply<int32> {
     function multiply(other: int32): Vector2i {
         Vector2i {
             x: this.x * other,
@@ -750,7 +750,7 @@ extension Vector2i implements Multiply<int32> {
     }
 }
 
-extension Vector2i implements Multiply<Vector2i> {
+implement Vector2i implements Multiply<Vector2i> {
     function multiply(other: Vector2i): Vector2i {
         Vector2i {
             x: this.x * other.x,
@@ -759,7 +759,7 @@ extension Vector2i implements Multiply<Vector2i> {
     }
 }
 
-extension Vector2i implements Divide<int32> {
+implement Vector2i implements Divide<int32> {
     function divide(other: int32): Vector2i {
         Vector2i {
             x: this.x / other,
@@ -775,7 +775,7 @@ export struct Vector3i {
     z: int32
 }
 
-extension Vector3i {
+implement Vector3i {
     /// The zero Vector3i (0, 0, 0).
     const Zero = Vector3i { x: 0, y: 0, z: 0 }
     /// The one Vector3i (1, 1, 1).
@@ -890,7 +890,7 @@ extension Vector3i {
     }
 }
 
-extension Vector3i implements Add<int32> {
+implement Vector3i implements Add<int32> {
     function add(other: int32): Vector3i {
         Vector3i {
             x: this.x + other,
@@ -900,7 +900,7 @@ extension Vector3i implements Add<int32> {
     }
 }
 
-extension Vector3i implements Add<Vector3i> {
+implement Vector3i implements Add<Vector3i> {
     function add(other: Vector3i): Vector3i {
         Vector3i {
             x: this.x + other.x,
@@ -910,7 +910,7 @@ extension Vector3i implements Add<Vector3i> {
     }
 }
 
-extension Vector3i implements Subtract<int32> {
+implement Vector3i implements Subtract<int32> {
     function subtract(other: int32): Vector3i {
         Vector3i {
             x: this.x - other,
@@ -920,7 +920,7 @@ extension Vector3i implements Subtract<int32> {
     }
 }
 
-extension Vector3i implements Subtract<Vector3i> {
+implement Vector3i implements Subtract<Vector3i> {
     function subtract(other: Vector3i): Vector3i {
         Vector3i {
             x: this.x - other.x,
@@ -930,7 +930,7 @@ extension Vector3i implements Subtract<Vector3i> {
     }
 }
 
-extension Vector3i implements Multiply<int32> {
+implement Vector3i implements Multiply<int32> {
     function multiply(other: int32): Vector3i {
         Vector3i {
             x: this.x * other,
@@ -940,7 +940,7 @@ extension Vector3i implements Multiply<int32> {
     }
 }
 
-extension Vector3i implements Multiply<Vector3i> {
+implement Vector3i implements Multiply<Vector3i> {
     function multiply(other: Vector3i): Vector3i {
         Vector3i {
             x: this.x * other.x,
@@ -950,7 +950,7 @@ extension Vector3i implements Multiply<Vector3i> {
     }
 }
 
-extension Vector3i implements Divide<int32> {
+implement Vector3i implements Divide<int32> {
     function divide(other: int32): Vector3i {
         Vector3i {
             x: this.x / other,
@@ -1013,7 +1013,7 @@ export struct Vector4i {
     }
 }
 
-extension Vector4i {
+implement Vector4i {
     /// Construct struct a Vector4i with all components set to the same value.
     function splat(v: int32): Vector4i {
         Vector4i { x: v, y: v, z: v, w: v }
@@ -1109,7 +1109,7 @@ extension Vector4i {
     }
 }
 
-extension Vector4i implements Add<int32> {
+implement Vector4i implements Add<int32> {
     function add(other: int32): Vector4i {
         Vector4i {
             x: this.x + other,
@@ -1120,7 +1120,7 @@ extension Vector4i implements Add<int32> {
     }
 }
 
-extension Vector4i implements Add<Vector4i> {
+implement Vector4i implements Add<Vector4i> {
     function add(other: Vector4i): Vector4i {
         Vector4i {
             x: this.x + other.x,
@@ -1131,7 +1131,7 @@ extension Vector4i implements Add<Vector4i> {
     }
 }
 
-extension Vector4i implements Subtract<int32> {
+implement Vector4i implements Subtract<int32> {
     function subtract(other: int32): Vector4i {
         Vector4i {
             x: this.x - other,
@@ -1142,7 +1142,7 @@ extension Vector4i implements Subtract<int32> {
     }
 }
 
-extension Vector4i implements Subtract<Vector4i> {
+implement Vector4i implements Subtract<Vector4i> {
     function subtract(other: Vector4i): Vector4i {
         Vector4i {
             x: this.x - other.x,
@@ -1153,7 +1153,7 @@ extension Vector4i implements Subtract<Vector4i> {
     }
 }
 
-extension Vector4i implements Multiply<int32> {
+implement Vector4i implements Multiply<int32> {
     function multiply(other: int32): Vector4i {
         Vector4i {
             x: this.x * other,
@@ -1164,7 +1164,7 @@ extension Vector4i implements Multiply<int32> {
     }
 }
 
-extension Vector4i implements Multiply<Vector4i> {
+implement Vector4i implements Multiply<Vector4i> {
     function multiply(other: Vector4i): Vector4i {
         Vector4i {
             x: this.x * other.x,
@@ -1175,7 +1175,7 @@ extension Vector4i implements Multiply<Vector4i> {
     }
 }
 
-extension Vector4i implements Divide<int32> {
+implement Vector4i implements Divide<int32> {
     function divide(other: int32): Vector4i {
         Vector4i {
             x: this.x / other,

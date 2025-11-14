@@ -1,8 +1,7 @@
-use dyst_source::StringId;
-
 use crate::tree::variant::VariantFormat;
 use crate::{
-    Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId, NodeType, Parameter, Property, UnionField, Visibility, WhereClause, WithClause
+    Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId,
+    NodeType, Parameter, Property, Visibility, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -144,7 +143,7 @@ pub enum Definition {
     /// An Enum is an enumeration definition.
     /// Like with structs, the ',' separator is optional if newline-delimited.
     /// Like other types, enums can extend other enums (sugar for `use`-ing them) and
-    /// extension interfaces.
+    /// implement interfaces.
     ///
     /// Examples:
     /// ```
@@ -188,46 +187,6 @@ pub enum Definition {
         properties: Vec<NodeId<Property>>,
     },
 
-    /// A Union is a tagged sum type of structs.
-    /// Like with structs, the ',' separator is optional if newline-delimited.
-    ///
-    /// Examples:
-    /// ```
-    /// union { // anonymous union (for use as a value)
-    ///     myField: int32
-    ///     myOtherField: boolean
-    /// }
-    ///
-    /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
-    ///     A
-    ///     B { x: int32, y: T } = 4
-    ///     C(boolean)
-    ///     D(boolean, count: int32) = 6
-    /// }
-    ///
-    /// // unions can be tagged with enums and include other types with use (like structs)
-    /// union(TetrisShapeType) TetrisShape { // TetrisShape extends Entity
-    ///     ..TetrisGameObject
-    ///
-    ///     myFunc() { // nested declaration
-    ///     }
-    /// }
-    /// ```
-    Union {
-        meta: DefinitionMeta,
-        tag_name: Option<StringId>,
-        tag_type: Option<NodeId<Expression>>,
-        representation_name: Option<StringId>,
-        representation_type: Option<NodeId<Expression>>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        extends_types: Option<Vec<NodeId<Expression>>>,
-        implements_types: Option<Vec<NodeId<Expression>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
-        fields: Vec<NodeId<UnionField>>,
-        properties: Vec<NodeId<Property>>,
-    },
-
     /// A Interface is interface definition node defining behavior and constants.
     /// Interfaces can `use` other interfaces to include them (just like structs / unions).
     /// Interfaces can also have super interfaces as semantic sugar for `use`-ing other interfaces.
@@ -267,29 +226,29 @@ pub enum Definition {
         properties: Vec<NodeId<Property>>,
     },
 
-    /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
-    /// There may be multiple Extensions for the same type, and even extensions for different modules.
+    /// An Implement defines the implementation of a concrete type, optionally for some specific super types.
+    /// There may be multiple Implements for the same type, and even implements for different modules.
     /// (To add a module's implementation to your own just use the corresponding module.)
     ///
     /// Examples:
     /// ```
-    /// extension Foo {
+    /// implement Foo {
     ///     ...
     /// }
     ///
-    /// extension Foo<int32> {
+    /// implement Foo<int32> {
     ///     ...
     /// }
     ///
-    /// extension Bar<int32> extends Baz {
+    /// implement Bar<int32> extends Baz {
     ///     ...
     /// }
     ///
-    /// extension<T> Bar<T> extends Baz {
+    /// implement<T> Bar<T> extends Baz {
     ///     ...
     /// }
     /// ```
-    Extension {
+    Implement {
         meta: DefinitionMeta,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         target_type: NodeId<Expression>,
@@ -381,9 +340,8 @@ impl Definition {
             Definition::Namespace { meta, .. } => meta,
             Definition::Struct { meta, .. } => meta,
             Definition::Enum { meta, .. } => meta,
-            Definition::Union { meta, .. } => meta,
             Definition::Interface { meta, .. } => meta,
-            Definition::Extension { meta, .. } => meta,
+            Definition::Implement { meta, .. } => meta,
             Definition::Function { meta, .. } => meta,
         }
     }

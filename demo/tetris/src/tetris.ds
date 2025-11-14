@@ -302,7 +302,7 @@ export struct TetrisPiece {
     }
 }
 
-extension TetrisGame {
+implement TetrisGame {
     /// Create a new Tetris game.
     constructor(width: int32, height: int32): TetrisGame {
         TetrisGame {
@@ -463,7 +463,7 @@ extension TetrisGame {
     }
 }
 
-extension TetrisGame implements Tick {
+implement TetrisGame implements Tick {
     tick() with Time, Random {
         // spawn initial piece if needed
         if this.currentPiece == null {
