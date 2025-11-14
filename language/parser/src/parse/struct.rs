@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
         let properties = self
-            .with_options(self.options.nested_in_variant(), |parser| {
+            .with_options(self.options.nested().in_variant(), |parser| {
                 parser.eat_properties()
             })
             .for_node_type(NodeType::Definition)?;

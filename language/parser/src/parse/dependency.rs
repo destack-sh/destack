@@ -279,8 +279,8 @@ impl<'a> Parser<'a> {
                 .eat_dependency_item()
                 .for_node_type(NodeType::DependencyItem)?;
             items.push(item);
-            if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
             }
         }
 

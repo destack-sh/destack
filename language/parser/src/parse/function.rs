@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
 
                 // return type
-                let return_type = self.with_options(self.options.nested_in_type(), |parser| {
+                let return_type = self.with_options(self.options.nested().in_type(), |parser| {
                     parser.eat_expression()
                 })?;
 
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
                     let return_type = self
-                        .with_options(self.options.nested_type_in_before_block(), |parser| {
+                        .with_options(self.options.nested().in_type().in_before_block(), |parser| {
                             parser.eat_expression()
                         })?;
                     Some(return_type)

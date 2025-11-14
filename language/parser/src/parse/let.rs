@@ -1,4 +1,4 @@
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{DefinitionMeta, Expression, Keyword, Mutability, NodeId, TokenType};
 
@@ -94,13 +94,17 @@ impl<'a> Parser<'a> {
         let mutability = self.eat_mutability()?;
 
         // pattern
-        let pattern =
-            self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
+        let pattern = self
+            .with_options(self.options.not_in_position().in_before_type(), |parser| {
+                parser.eat_pattern()
+            })?;
 
         // type
         let ty = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
-            let ty = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+            let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
+                parser.eat_expression()
+            })?;
             Some(ty)
         } else {
             None
@@ -110,7 +114,9 @@ impl<'a> Parser<'a> {
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            Some(self.eat_expression()?)
+            Some(self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?)
         } else {
             None
         };
@@ -294,7 +300,7 @@ const x =
 const registry: Map<
   string,
   Set<{count: number}>
-> = new Map();
+> = new Map()
 "###,
         );
         let mut parser = test.prepare();

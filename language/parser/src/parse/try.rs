@@ -1,4 +1,4 @@
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 use dyst_ast::{Expression, Keyword, NodeId};
 
 impl<'a> Parser<'a> {
@@ -48,22 +48,22 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat keyword
                 // no pattern or catch match
                 if self.peek_block().is_ok() || self.peek_keyword(Keyword::Match).is_ok() {
-                    let catch_expression = self
-                        .with_options(self.options.in_block_position(), |parser| {
-                            parser.eat_expression()
-                        })?;
+                    let catch_expression = self.with_options(
+                        self.options.not_in_position().in_block_position(),
+                        |parser| parser.eat_expression(),
+                    )?;
                     (Some(catch_expression), None)
                 }
                 // catch pattern with expression content
                 else {
-                    let catch_pattern = self
-                        .with_options(self.options.in_before_block(), |parser| {
-                            parser.eat_pattern()
-                        })?;
-                    let catch_expression = self
-                        .with_options(self.options.in_block_position(), |parser| {
-                            parser.eat_expression()
-                        })?;
+                    let catch_pattern = self.with_options(
+                        self.options.not_in_position().in_before_block(),
+                        |parser| parser.eat_pattern(),
+                    )?;
+                    let catch_expression = self.with_options(
+                        self.options.not_in_position().in_block_position(),
+                        |parser| parser.eat_expression(),
+                    )?;
                     (Some(catch_expression), Some(catch_pattern))
                 }
             } else {
@@ -73,10 +73,10 @@ impl<'a> Parser<'a> {
             // finally
             let finally_expression = if self.peek_keyword(Keyword::Finally).is_ok() {
                 self.bump(); // eat keyword
-                let finally_expression = self
-                    .with_options(self.options.in_block_position(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let finally_expression = self.with_options(
+                    self.options.not_in_position().in_block_position(),
+                    |parser| parser.eat_expression(),
+                )?;
                 Some(finally_expression)
             } else {
                 None
@@ -96,7 +96,9 @@ impl<'a> Parser<'a> {
         }
         // try expression
         else {
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let try_id = self.tree.insert(
                 Expression::Try {
                     try_expression: expression_id,

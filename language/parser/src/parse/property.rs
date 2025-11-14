@@ -39,7 +39,9 @@ impl<'a> Parser<'a> {
             // colon
             self.eat_token(TokenType::Colon)?;
             // type
-            let ty = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+            let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
+                parser.eat_expression()
+            })?;
             // modifiers postfix
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
             // property
@@ -141,7 +143,9 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Spread).is_ok() {
             let start = self.mark();
             self.bump(); // eat spread
-            let value = self.eat_expression()?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let property = Property::Spread {
                 modifiers: None,
                 value,
@@ -247,10 +251,10 @@ impl<'a> Parser<'a> {
             // return type
             let return_type = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
-                let return_type = self
-                    .with_options(self.options.nested_type_in_before_block(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let return_type = self.with_options(
+                    self.options.nested().in_type().in_before_block(),
+                    |parser| parser.eat_expression(),
+                )?;
                 Some(return_type)
             } else {
                 None
@@ -264,9 +268,10 @@ impl<'a> Parser<'a> {
 
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(self.options.in_block_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let body = self.with_options(
+                    self.options.not_in_position().in_block_position(),
+                    |parser| parser.eat_expression(),
+                )?;
                 Some(body)
             } else {
                 None
@@ -303,9 +308,13 @@ impl<'a> Parser<'a> {
             let value = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
                 let value = if self.options.in_variant {
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?
+                    self.with_options(self.options.not_in_position().in_type(), |parser| {
+                        parser.eat_expression()
+                    })?
                 } else {
-                    self.eat_expression()?
+                    self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })?
                 };
                 Some(value)
             } else {
@@ -315,7 +324,9 @@ impl<'a> Parser<'a> {
             // default
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
-                let default = self.eat_expression()?;
+                let default = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
                 Some(default)
             } else {
                 None
