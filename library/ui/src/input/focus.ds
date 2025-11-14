@@ -11,10 +11,3 @@ export struct FocusInEvent extends FocusEvent { }
 /// Focus lost
 @event
 export struct FocusOutEvent extends FocusEvent { }
-
-// union FocusEvent {
-// @event
-// FocusInEvent
-// @event
-// FocusOutEvent
-// }

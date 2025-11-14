@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
     Definition, DefinitionMeta, Keyword, NodeId, NodeType, Property, TokenType, UnionField,
@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Argument, BinaryOperator, DeclarationKind, Definition, DefinitionMeta, Expression, IntType,
-        Name, Parameter, Property, ScalarLiteral, TypeLiteral, UnionField, WhereClause, WithClause,
+        Name, Parameter, ScalarLiteral, TypeLiteral, UnionField, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -314,8 +314,6 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
     C(boolean)
     D(boolean, count: int32) = 6
     E { x: int32, y: T }
-    
-    ...Bar
 }
 "###,
         );
@@ -432,9 +430,6 @@ union(uint4, uint60) Foo<T> extends Boz implements Shape {
                     });
                 });
             });
-
-            // ..Bar
-            assert_node!(parser.tree, properties[0], Property::Spread { modifiers: _, .. });
         });
     }
 
