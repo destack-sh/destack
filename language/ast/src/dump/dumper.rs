@@ -444,7 +444,6 @@ impl_dump_display! {
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
-    VariantFormat,
     TypeKind,
     VarianceBound,
     Visibility,
@@ -1091,10 +1090,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Struct {
                 meta,
                 kind,
-                format,
                 extends_types: _,
                 implements_types: _,
-                representation_type: _,
                 static_parameters: _,
                 with_clauses: _,
                 where_clauses: _,
@@ -1102,13 +1099,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Definition::Struct", id.id)
                     .field("meta", meta)
-                    .field("format", format)
                     .field("kind", kind)
                     .end();
             }
             Definition::Enum {
                 meta,
-                tag_type: _,
                 static_parameters: _,
                 extends_types: _,
                 implements_types: _,

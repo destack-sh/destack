@@ -1,9 +1,8 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    Definition, DefinitionMeta, EnumField, Expression, Keyword, NodeId, NodeType, Property,
-    TokenType,
+    Definition, DefinitionMeta, EnumField, Keyword, NodeId, NodeType, Property, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -25,7 +24,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     ///
-    /// enum(u8) Foo {
+    /// enum Foo {
     ///     Baz = 1
     ///     Qux = 2
     /// }
@@ -42,19 +41,6 @@ impl<'a> Parser<'a> {
 
         // keyword
         self.eat_keyword(Keyword::Enum)?;
-
-        // optional explicit tag type in `(Type)`
-        let tag_type: Option<NodeId<Expression>> =
-            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                self.bump(); // eat open parenthesis
-                let ty = self
-                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
-                    .for_node_type(NodeType::Definition)?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                Some(ty)
-            } else {
-                None
-            };
 
         // optional name
         meta = meta.with_name_maybe(self.eat_name_maybe()?);
@@ -92,7 +78,6 @@ impl<'a> Parser<'a> {
         let enum_id = self.tree.insert(
             Definition::Enum {
                 meta,
-                tag_type,
                 static_parameters,
                 extends_types,
                 implements_types,
@@ -182,8 +167,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        DeclarationKind, Definition, DefinitionMeta, EnumField, Expression, IntType, Parameter,
-        ScalarLiteral, TypeLiteral, WhereClause, WithClause,
+        DeclarationKind, Definition, DefinitionMeta, EnumField, Expression, Parameter,
+        ScalarLiteral, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -231,10 +216,9 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, fields, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             assert!(meta.name.is_none());
-            assert!(tag_type.is_none());
             assert_eq!(fields.len(), 2);
 
             // Success
@@ -255,7 +239,7 @@ enum {
     fn test_parse_enum_with_type_name_and_values() {
         let mut test = TestParser::new(
             r###"
-enum(uint8) Foo extends Day {
+enum Foo extends Day {
 
     Baz = 1
 
@@ -270,14 +254,11 @@ enum(uint8) Foo extends Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, tag_type, fields, extends_types, implements_types, where_clauses, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { meta, fields, extends_types, implements_types, where_clauses, .. } => {
             assert_eq!(meta.kind, DeclarationKind::Definition);
             // enum name
             assert_string!(parser, meta.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
-
-            // enum type
-            assert_node!(parser.tree, tag_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false })));
 
             // extends: Day
             let supers = extends_types.as_ref().expect("expected extends types");

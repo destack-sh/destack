@@ -18,7 +18,6 @@ pub mod operator;
 pub mod path;
 pub mod pattern;
 pub mod r#try;
-pub mod union;
 pub mod variant;
 pub mod r#where;
 pub mod with;

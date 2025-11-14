@@ -145,28 +145,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Struct {
                 meta,
                 kind: style,
-                format,
                 extends_types,
                 implements_types,
                 representation_type,
                 static_parameters,
                 with_clauses,
                 where_clauses,
-                fields,
-                expressions,
+                properties,
             } => {
-                // split tuple / struct fields
-                let tuple_fields: &[NodeId<Field>] = if *format == VariantFormat::Tuple {
-                    fields
-                } else {
-                    &[]
-                };
-                let fields: &[NodeId<Field>] = if *format == VariantFormat::Struct {
-                    fields
-                } else {
-                    &[]
-                };
-
                 // export
                 if let Some(export) = meta.export {
                     write!(f, [export, space()])?;
@@ -310,7 +296,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 with_clauses,
                 where_clauses,
                 fields,
-                expressions,
+                properties,
             } => {
                 // export
                 if let Some(export) = meta.export {
@@ -425,8 +411,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 extends_types,
                 with_clauses: with,
                 where_clauses,
-                fields,
-                expressions,
+                properties,
             } => {
                 // export
                 if let Some(export) = meta.export {
@@ -671,7 +656,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 implements_types,
                 with_clauses,
                 where_clauses,
-                expressions,
+                properties,
             } => {
                 // export
                 if let Some(export) = meta.export {
@@ -755,7 +740,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             // function
             Definition::Function {
                 meta,
-                abstraction,
                 asynchrony,
                 cardinality,
                 mode: kind,
@@ -780,34 +764,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // visibility
                 if let Some(visibility) = meta.visibility {
                     write!(f, [visibility, space()])?;
-                }
-
-                // abstraction / static
-                match *abstraction {
-                    FunctionAbstraction::Abstract => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        if meta.scope == BindingScope::Static {
-                            write!(f, [Keyword::Static, space()])?;
-                        }
-                    }
-                    FunctionAbstraction::AbstractOverride => {
-                        write!(f, [Keyword::Abstract, space()])?;
-                        if meta.scope == BindingScope::Static {
-                            write!(f, [Keyword::Static, space()])?;
-                        }
-                        write!(f, [Keyword::Override, space()])?;
-                    }
-                    FunctionAbstraction::ConcreteOverride => {
-                        write!(f, [Keyword::Override, space()])?;
-                        if meta.scope == BindingScope::Static {
-                            write!(f, [Keyword::Static, space()])?;
-                        }
-                    }
-                    FunctionAbstraction::Concrete => {
-                        if meta.scope == BindingScope::Static {
-                            write!(f, [Keyword::Static, space()])?;
-                        }
-                    }
                 }
 
                 // asynchrony

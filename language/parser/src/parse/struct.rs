@@ -1,11 +1,9 @@
 #![allow(clippy::type_complexity)]
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
-use dyst_ast::{
-    Definition, DefinitionMeta, Keyword, NodeId, NodeType, StructKind, TokenType, VariantFormat,
-};
+use dyst_ast::{Definition, DefinitionMeta, Keyword, NodeId, NodeType, StructKind, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -14,14 +12,6 @@ impl<'a> Parser<'a> {
     /// ```
     /// struct {} // empty anonymous struct
     ///
-    /// struct A() // unit struct (no fields)
-    ///
-    /// struct Number(int32) // tuple struct (1 field)
-    ///
-    /// struct Number(int32, isAwesome: boolean) { // tuple struct (2 fields)
-    ///     ...
-    /// }
-    ///
     /// struct { a: int32, b: boolean }
     ///
     /// struct { // anonymous struct (for use as a value)
@@ -29,7 +19,7 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct(uint64) Bar { // 64-bit representation
+    /// struct Bar {
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
@@ -59,31 +49,8 @@ impl<'a> Parser<'a> {
             _ => unreachable!(),
         };
 
-        // optional representation type: ( ... )
-        let representation_type = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.bump(); // eat open parenthesis
-            let representation_type = self.eat_expression().for_node_type(NodeType::Definition)?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-            Some(representation_type)
-        } else {
-            None
-        };
-
         // optional name / key
         meta = meta.with_name_maybe(self.eat_name_maybe()?);
-
-        // format
-        let (format, tuple_properties) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.bump(); // eat open parenthesis
-            let tuple_properties = self
-                .with_options(self.options.nested_in_variant(), |parser| {
-                    parser.eat_tuple_property_list(TokenType::CloseParenthesis)
-                })?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-            (VariantFormat::Tuple, Some(tuple_properties))
-        } else {
-            (VariantFormat::Struct, None)
-        };
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -111,15 +78,11 @@ impl<'a> Parser<'a> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
         self.eat_newlines_maybe()?;
-        let mut properties = self
+        let properties = self
             .with_options(self.options.nested_in_variant(), |parser| {
                 parser.eat_properties()
             })
             .for_node_type(NodeType::Definition)?;
-        if let Some(tuple_properties) = tuple_properties {
-            // merge in tuple properties at the beginning
-            properties.extend(tuple_properties);
-        }
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Definition)?;
 
@@ -127,11 +90,9 @@ impl<'a> Parser<'a> {
             Definition::Struct {
                 meta,
                 kind,
-                format,
                 extends_types,
                 implements_types,
                 static_parameters,
-                representation_type,
                 with_clauses,
                 where_clauses,
                 properties,
@@ -147,8 +108,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         BinaryOperator, BindingKind, DeclarationKind, Definition, DefinitionMeta, Expression,
-        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, StructKind,
-        TypeLiteral, VariantFormat, Visibility, WhereClause, WithClause,
+        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
+        Visibility, WhereClause, WithClause,
     };
 
     use crate::parse::tests::TestParser;
@@ -215,38 +176,6 @@ struct Foo extends Bar {}
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_struct_with_tuple_format() {
-        let mut test = TestParser::new(
-            r###"
-struct Foo(int32, public boolean) {}
-"###,
-        );
-        let mut parser = test.prepare();
-        parser.eat_newline().unwrap();
-
-        let struct_id = parser.eat_struct(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { meta, kind, format, properties, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
-            assert_eq!(*kind, StructKind::Struct);
-            assert_eq!(*format, VariantFormat::Tuple);
-            assert_eq!(properties.len(), 2);
-            assert!(where_clauses.is_none());
-
-            // int32
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: None, key: None, ty: Some(ty), value: None, .. } => {
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
-            });
-
-            // public boolean
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: None, ty: Some(ty), value: None, .. } => {
-                assert_eq!(modifiers.visibility.unwrap(), Visibility::Public);
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
         });
     }
