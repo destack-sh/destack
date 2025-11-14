@@ -28,6 +28,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
 impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
+            TypeUnaryOperator::Newtype => token("newtype"),
             TypeUnaryOperator::Type => token("type"),
             TypeUnaryOperator::Readonly => token("readonly"),
             TypeUnaryOperator::Typeof => token("typeof"),

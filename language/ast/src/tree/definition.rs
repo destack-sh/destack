@@ -1,4 +1,3 @@
-use crate::tree::variant::VariantFormat;
 use crate::{
     Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId,
     NodeType, Parameter, Property, WhereClause, WithClause,
@@ -93,14 +92,6 @@ pub enum Definition {
     ///
     /// struct {} // empty anonymous struct
     ///
-    /// struct A() // unit struct (no fields)
-    ///
-    /// struct Number(int32) // tuple struct (1 field)
-    ///
-    /// struct Number(int32, isAwesome: boolean) { // tuple struct (2 fields)
-    ///     ...
-    /// }
-    ///
     /// struct { a: int32, b: boolean }
     ///
     /// struct { // anonymous struct (for use as a value)
@@ -108,7 +99,7 @@ pub enum Definition {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct(uint64) Bar { // 64-bit representation
+    /// struct Bar {
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
@@ -127,10 +118,8 @@ pub enum Definition {
     Struct {
         meta: DefinitionMeta,
         kind: StructKind,
-        format: VariantFormat,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
-        representation_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
@@ -156,7 +145,7 @@ pub enum Definition {
     ///     }
     /// }
     ///
-    /// enum(u8) Foo {
+    /// enum Foo {
     ///     Baz = 1
     ///     Qux = 2
     /// }
@@ -174,7 +163,6 @@ pub enum Definition {
     /// ```
     Enum {
         meta: DefinitionMeta,
-        tag_type: Option<NodeId<Expression>>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,

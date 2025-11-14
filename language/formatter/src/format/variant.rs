@@ -1,9 +1,7 @@
-use dyst_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, Field, Keyword, Mutability, NodeId,
-};
+use dyst_ast::{BindingKind, BindingModifier, BindingOperator, BindingScope, Keyword, Mutability};
 use dyst_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode};
+use crate::DystFormatter;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -63,81 +61,6 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
         format_binding_modifiers_postfix(f, modifiers)?;
     }
     Ok(())
-}
-
-impl<'ast> FormatNode<'ast, Field> for Field {
-    fn format_node(
-        &self,
-        node_id: NodeId<Field>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
-
-        match self {
-            Field::Named {
-                modifiers,
-                name,
-                ty,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // name
-                write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                write!(f, [token(":"), space()])?;
-                // type
-                write!(f, [ty])?;
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-            Field::Positional {
-                modifiers,
-                ty,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // type
-                write!(f, [ty])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-            Field::Dynamic {
-                modifiers,
-                name,
-                ty,
-                key,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // key
-                write!(f, [token("[")])?;
-                if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
-                }
-                write!(f, [key, token("]"), token(":"), space(), ty])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-            }
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]

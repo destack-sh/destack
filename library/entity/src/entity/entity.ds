@@ -1,88 +1,90 @@
 import * as ds from "destack"
 
 /// An Entity Epoch.
-export struct Epoch {
-    const Zero = Epoch(0)
+export newtype Epoch = number;
+
+implement Epoch {
+    static Zero: Epoch = Epoch(0)
 }
 
 /// The materialization level of an Entity.
 export enum Materialization {
-    String
-    Partial
-    Full
-    Root
+    String,
+    Partial,
+    Full,
+    Root,
 }
 
 /// How an Entity should be treated for processing by the system.
 @flag
 export enum ProcessFlag {
-    Default = 0
-    Deleted
-    Inactive
-    InactiveInput
-    Sleeping
+    Default = 0,
+    Deleted,
+    Inactive,
+    InactiveInput,
+    Sleeping,
 }
 
 /// How an Entity can be extended.
 @flag
 export enum ExtensionFlag {
-    Default = 0
-    Instantiable
+    Default = 0,
+    Instantiable,
     Extensible
 }
 
 /// A reference to an Entity.
 export struct Reference<T> {
     /// The universally unique identifier of this Entity.
-    id: Uuid
+    id: Uuid,
     /// The Space this Entity is in.
-    spaceId: Uuid
+    spaceId: Uuid,
     /// The Branch this Entity is part of (in its Space).
-    branchId: Uuid
+    branchId: Uuid,
 }
 
 /// An Identity is globally unique identifier for an Entity.
 export struct Identity {
     /// The universally unique identifier of this Entity.
-    id: Uuid
+    id: Uuid,
     /// The Space the Entity is in.
-    space: Reference<Space>
+    space: Reference<Space>,
     /// The Branch this Entity is part of (in its Space).
-    branch: Reference<Branch>
+    branch: Reference<Branch>,
 }
 
 /// A named, versioned, mutable object in the system.
 export struct Entity {
     /// The materialization level of the `Entity`.
-    materialization: Materialization = Materialization.Root
+    materialization: Materialization = Materialization.Root,
     /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
-    snapshot: Reference<Snapshot>
+    snapshot: Reference<Snapshot>,
     /// The definition the `Entity` is an instance of.
-    definition: Reference<Entity>?
+    definition: Reference<Entity>?,
     /// The (root) `Entity` that is being instantiated.
-    instance: Reference<Entity>?
+    instance: Reference<Entity>?,
     /// The logical time the `Entity` was created.
-    createdAt: Epoch
+    createdAt: Epoch,
     /// The logical time the `Entity` was last updated.
-    updatedAt: Epoch
+    updatedAt: Epoch,
     /// The exclusive owner of the `Entity` (the authority on access).
-    owner: Reference<Entity>
+    owner: Reference<Entity>,
     /// The exclusive controller of the `Entity` (the authority on changes).
-    controller: Reference<Entity>
+    controller: Reference<Entity>,
     /// The process flags of the `Entity`.
-    processing: ProcessFlag = ProcessFlag.Default
+    processing: ProcessFlag = ProcessFlag.Default,
 
     /// The parent of the `Entity`. Most `Entity`s can be attached to any other `Entity`.
-    parent: Reference<Entity>?
+    parent: Reference<Entity>?,
     /// The name of the `Entity`.
-    name: string
+    name: string,
     /// The key of the `Entity` (for reconciliation and querying).
-    key: string?
+    key: string?,
 
     /// The implement flags of the `Entity`.
-    extensibility: ExtensionFlag
+    extensibility: ExtensionFlag,
     /// The Script of the `Entity`.
-    script: Reference<Script>?
+    script: Reference<Script>?,
 
     /// The identity of the `Entity`.
     ...Identity

@@ -1,8 +1,5 @@
 use dyst_ast::{
-    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, Field, MatchCase, MutableNodeTree,
-    MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeParentIndex, NodeType, Parameter, Pattern,
-    PatternField, Tag, TokenSpan, TokenType, UnionField, WhereClause, WithClause,
+    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc, EnumField, Expression, Field, MatchCase, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property, Tag, TokenSpan, TokenType, UnionField, WhereClause, WithClause
 };
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use dyst_fir::print::PrintOptions;
@@ -463,18 +460,13 @@ impl<'a> Format<DystFormatContext<'a>> for NodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
-            NodeType::Field => {
-                let node_id = NodeId::<Field>::new(self.id);
+            NodeType::Property => {
+                let node_id = NodeId::<Property>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::EnumField => {
                 let node_id = NodeId::<EnumField>::new(self.id);
-                let node = context.tree.get(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::UnionField => {
-                let node_id = NodeId::<UnionField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

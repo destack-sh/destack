@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::{BindingScope, DeclarationKind, DefinitionMeta, Visibility};
+    use dyst_ast::DefinitionMeta;
 
     #[test]
     fn test_format_function_lambda_empty() {
@@ -41,24 +41,6 @@ mod tests {
             "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
             |p| p.eat_function(DefinitionMeta::default(), false, false),
             DystFormatOptions::default_tab_with_line_width(40)
-        );
-    }
-
-    #[test]
-    fn test_format_function_with_modifiers() {
-        assert_format!(
-            "abstract override async function* baz(): int32 {}",
-            "declare public abstract static override async function* baz(): int32 { }",
-            |p| p.eat_function(
-                DefinitionMeta {
-                    visibility: Some(Visibility::Public),
-                    kind: DeclarationKind::Declaration,
-                    scope: BindingScope::Static,
-                    ..DefinitionMeta::default()
-                },
-                false,
-                false
-            )
         );
     }
 

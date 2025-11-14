@@ -1,6 +1,7 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    MutableNodeTree, NodeId, Path, PostfixPosition, TypeUnaryOperator, WhileKind, YieldCardinality,
+    MutableNodeTree, NodeId, Path, PostfixPosition, Property, TypeKind, TypeUnaryOperator,
+    WhileKind, YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
@@ -56,48 +57,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
                 write!(f, [token("...")])?;
                 // value
                 write!(f, [value])?;
-            }
-            Argument::Dynamic {
-                modifiers: _,
-                name,
-                key,
-                value,
-            } => {
-                // key
-                write!(f, [token("[")])?;
-                // name
-                if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
-                }
-                write!(f, [key, token("]")])?;
-                // value
-                write!(f, [token("="), value])?;
-            }
-            Argument::Function {
-                modifiers: _,
-                name,
-                value,
-            } => {
-                // name
-                write!(f, [name])?;
-                // value
-                write!(f, [token("="), value])?;
-            }
-            Argument::DynamicFunction {
-                modifiers: _,
-                name,
-                key,
-                value,
-            } => {
-                // key
-                write!(f, [token("[")])?;
-                // name
-                if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
-                }
-                write!(f, [key, token("]")])?;
-                // value
-                write!(f, [token("="), value])?;
             }
         }
 
@@ -707,12 +666,12 @@ fn is_chain_expression(expression: &Expression) -> bool {
 pub fn is_trivial_expression(tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
-        Expression::StructLiteral { ty, fields, .. } => {
+        Expression::StructLiteral { ty, properties, .. } => {
             ty.is_none()
-                && fields.len() <= 5
-                && fields
+                && properties.len() <= 5
+                && properties
                     .iter()
-                    .all(|field| is_trivial_argument(tree, tree.get(*field)))
+                    .all(|property| is_trivial_property(tree, tree.get(*property)))
         }
         Expression::Unary { operator: _, right } => is_trivial_expression(tree, tree.get(*right)),
         Expression::Index { left, index, .. } => {
@@ -738,7 +697,7 @@ pub fn is_trivial_expression(tree: &MutableNodeTree, expression: &Expression) ->
 /// Whether an expression is "complex" (prefers to be multiline).
 pub fn is_complex_expression(_tree: &MutableNodeTree, expression: &Expression) -> bool {
     match expression {
-        Expression::StructLiteral { ty, fields, .. } => ty.is_some() || fields.len() > 1,
+        Expression::StructLiteral { ty, properties, .. } => ty.is_some() || properties.len() > 1,
         Expression::TreeLiteral { .. } => true,
         _ => false,
     }
@@ -752,6 +711,15 @@ pub fn is_trivial_argument(tree: &MutableNodeTree, argument: &Argument) -> bool 
         Argument::Positional { value, .. } => is_trivial_expression(tree, tree.get(*value)),
         Argument::Spread { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
         _ => false,
+    }
+}
+
+/// Whether a property is "trivial" (prefers to be inline).
+pub fn is_trivial_property(tree: &MutableNodeTree, property: &Property) -> bool {
+    match property {
+        Property::Field { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Property::Method { body, .. } => body.is_none(),
+        Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
 }
 
@@ -771,8 +739,9 @@ pub fn is_expression_breakable(tree: &MutableNodeTree, expression: &Expression) 
     match expression {
         Expression::ArrayLiteral { elements, .. } => !elements.is_empty(),
         Expression::TupleLiteral { elements, .. } => !elements.is_empty(),
-        Expression::StructLiteral { ty, fields, .. } => {
-            ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty))) || !fields.is_empty()
+        Expression::StructLiteral { ty, properties, .. } => {
+            ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty)))
+                || !properties.is_empty()
         }
         Expression::TreeLiteral {
             arguments,
@@ -816,32 +785,32 @@ pub(crate) fn format_struct_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
     ty: &Option<NodeId<Expression>>,
-    fields_ids: &Vec<NodeId<Argument>>,
+    properties_ids: &Vec<NodeId<Argument>>,
 ) -> FormatResult<()> {
     if let Some(ty) = ty {
         write!(f, [ty, space()])?;
     }
 
-    let fields = fields_ids
+    let properties = properties_ids
         .iter()
-        .map(|field| f.context().tree.get(*field))
+        .map(|property| f.context().tree.get(*property))
         .collect::<SmallVec<_, 3>>();
 
-    let is_trivial = fields.is_empty()
-        || fields.len() <= 5
-            && fields
+    let is_trivial = properties.is_empty()
+        || properties.len() <= 5
+            && properties
                 .iter()
-                .all(|field| is_trivial_argument(f.context().tree, field));
+                .all(|property| is_trivial_argument(f.context().tree, property));
     let has_annotations = f.context().has_infix_annotation(expression_id)
-        || fields_ids
+        || properties_ids
             .iter()
-            .any(|field| f.context().has_annotation(*field));
+            .any(|property| f.context().has_annotation(*property));
     let keep_newline =
-        f.context().has_newline(f.context().get_span(expression_id)) && fields.len() > 1;
+        f.context().has_newline(f.context().get_span(expression_id)) && properties.len() > 1;
 
     write!(
         f,
-        [list_like("{", "}", ",", fields_ids)
+        [list_like("{", "}", ",", properties_ids)
             .include_space()
             .should_expand(!is_trivial || has_annotations || keep_newline)]
     )?;
@@ -1056,10 +1025,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     if let Some(export) = meta.export {
                         write!(f, [export, space()])?;
                     }
-                    // visibility
-                    if let Some(visibility) = meta.visibility {
-                        write!(f, [visibility, space()])?;
-                    }
                     // keyword
                     if *mutability == Mutability::Immutable {
                         write!(f, [Keyword::Const])?;
@@ -1120,6 +1085,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // type
             Expression::LetType {
+                kind,
                 mutability,
                 meta,
                 static_parameters,
@@ -1130,16 +1096,14 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     if let Some(export) = meta.export {
                         write!(f, [export, space()])?;
                     }
-                    // visibility
-                    if let Some(visibility) = meta.visibility {
-                        write!(f, [visibility, space()])?;
-                    }
                     // keyword
                     if *mutability == Some(Mutability::Immutable) {
                         // for readonly type expression
                         write!(f, [Keyword::Readonly])?;
-                    } else {
+                    } else if *kind == TypeKind::Structural {
                         write!(f, [Keyword::Type])?;
+                    } else {
+                        write!(f, [Keyword::Newtype])?;
                     }
                     // name
                     if let Some(name) = meta.name {
@@ -1482,8 +1446,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
 
             // struct literal
-            Expression::StructLiteral { ty, fields } => {
-                format_struct_literal(f, node_id, ty, fields)?;
+            Expression::StructLiteral { ty, properties } => {
+                format_struct_literal(f, node_id, ty, properties)?;
             }
 
             // tree literal
@@ -1516,7 +1480,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             // type unary
             Expression::TypeUnary { operator, right } => match operator {
-                TypeUnaryOperator::Type
+                TypeUnaryOperator::Newtype
+                | TypeUnaryOperator::Type
                 | TypeUnaryOperator::Readonly
                 | TypeUnaryOperator::Typeof
                 | TypeUnaryOperator::Keyof

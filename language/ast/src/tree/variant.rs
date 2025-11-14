@@ -3,15 +3,6 @@ use crate::{
     Name, Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
 };
 
-/// The format of a variant (tuple or struct).
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum VariantFormat {
-    /// A tuple struct with explicit representation.
-    Tuple,
-    /// A struct with explicit representation.
-    Struct,
-}
-
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingKind {
