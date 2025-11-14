@@ -716,10 +716,13 @@ pub fn is_trivial_argument(tree: &MutableNodeTree, argument: &Argument) -> bool 
 /// Whether a property is "trivial" (prefers to be inline).
 pub fn is_trivial_property(tree: &MutableNodeTree, property: &Property) -> bool {
     match property {
-        Property::Field { default: value, .. } => {
-            value.is_some_and(|value| is_trivial_expression(tree, tree.get(value)))
+        Property::Field { value, default, .. } => {
+            value.is_none_or(|value| is_trivial_expression(tree, tree.get(value)))
+                && default.is_none_or(|default| is_trivial_expression(tree, tree.get(default)))
+        }   
+        Property::Method { body, .. } => {
+            body.is_none_or(|body| is_trivial_expression(tree, tree.get(body)))
         }
-        Property::Method { body, .. } => body.is_none(),
         Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
 }

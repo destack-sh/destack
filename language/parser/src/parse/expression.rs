@@ -784,7 +784,7 @@ impl<'a> Parser<'a> {
             //
             // array literal
             else if token_type == TokenType::OpenBracket {
-                let elements = self.with_options(self.options.not_in_parenthesis(), |parser| {
+                let elements = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_array_literal()
                 })?;
                 self.tree.insert(
@@ -800,7 +800,7 @@ impl<'a> Parser<'a> {
                         && !self.options.in_block_position)
             {
                 let properties = self
-                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                    .with_options(self.options.not_in_position(), |parser| {
                         parser.eat_struct_literal()
                     })?;
                 self.tree.insert(
@@ -822,7 +822,7 @@ impl<'a> Parser<'a> {
                 && token_type == TokenType::LessThan
                 && self.peek_tree_literal().is_ok()
             {
-                self.with_options(self.options.not_in_parenthesis(), |parser| {
+                self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_tree_literal()
                 })?
             }
@@ -962,7 +962,7 @@ impl<'a> Parser<'a> {
                     false
                 };
                 let right_expression_id = self
-                    .with_options(self.options.not_in_parenthesis(), |parser| {
+                    .with_options(self.options.not_in_position(), |parser| {
                         parser.eat_expression()
                     })?;
                 left_expression_id = self.tree.insert(
@@ -1089,7 +1089,7 @@ impl<'a> Parser<'a> {
                     self.eat_newlines_maybe()?;
                     // else expression
                     let else_expression_id = self
-                        .with_options(self.options.not_in_parenthesis(), |parser| {
+                        .with_options(self.options.not_in_position(), |parser| {
                             parser.eat_expression()
                         })?;
                     // ternary if
@@ -1137,7 +1137,7 @@ impl<'a> Parser<'a> {
                 );
                 // parse remaining elements
                 let tuple_elements =
-                    self.with_options(self.options.not_in_parenthesis(), |parser| {
+                    self.with_options(self.options.not_in_position(), |parser| {
                         parser.eat_sequence_literal_body(
                             Some(first_element_id),
                             TokenType::CloseParenthesis,
