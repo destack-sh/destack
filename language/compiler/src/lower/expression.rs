@@ -1,7 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    Asynchrony, DependencySource, Expression, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
+    DependencySource, Expression, IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
 };
 
 use crate::Compiler;
@@ -32,62 +31,6 @@ impl<'a> Compiler<'a> {
         match kind {
             ast::IfKind::If => IfKind::If,
             ast::IfKind::Ternary => IfKind::Ternary,
-        }
-    }
-
-    /// Lower function kind into a DIR function kind.
-    #[inline]
-    pub fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
-        match kind {
-            ast::FunctionKind::Function => FunctionKind::Function,
-            ast::FunctionKind::Lambda => FunctionKind::Lambda,
-        }
-    }
-
-    /// Lower asynchrony into a DIR asynchrony.
-    #[inline]
-    pub fn lower_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
-        match asynchrony {
-            ast::Asynchrony::Sync => Asynchrony::Sync,
-            ast::Asynchrony::Async => Asynchrony::Async,
-        }
-    }
-
-    /// Lower function cardinality into a DIR function cardinality.
-    #[inline]
-    pub fn lower_function_cardinality(
-        &self,
-        cardinality: ast::FunctionCardinality,
-    ) -> FunctionCardinality {
-        match cardinality {
-            ast::FunctionCardinality::Scalar => FunctionCardinality::Scalar,
-            ast::FunctionCardinality::Generator => FunctionCardinality::Generator,
-        }
-    }
-
-    /// Lower function mode into a DIR function mode.
-    #[inline]
-    pub fn lower_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
-        match mode {
-            ast::FunctionMode::Getter => FunctionMode::Getter,
-            ast::FunctionMode::Setter => FunctionMode::Setter,
-            ast::FunctionMode::Constructor => FunctionMode::Constructor,
-            ast::FunctionMode::New => FunctionMode::New,
-            ast::FunctionMode::Call => FunctionMode::Call,
-        }
-    }
-
-    /// Lower function abstraction into a DIR function abstraction.
-    #[inline]
-    pub fn lower_function_abstraction(
-        &self,
-        abstraction: ast::FunctionAbstraction,
-    ) -> FunctionAbstraction {
-        match abstraction {
-            ast::FunctionAbstraction::Abstract => FunctionAbstraction::Abstract,
-            ast::FunctionAbstraction::AbstractOverride => FunctionAbstraction::AbstractOverride,
-            ast::FunctionAbstraction::ConcreteOverride => FunctionAbstraction::ConcreteOverride,
-            ast::FunctionAbstraction::Concrete => FunctionAbstraction::Concrete,
         }
     }
 
@@ -329,15 +272,23 @@ impl<'a> Compiler<'a> {
             ast::Expression::Call {
                 position: _,
                 left,
+                static_arguments,
                 dynamic_arguments,
             } => {
-                let receiver = self.lower_expression(module, *left);
+                let left = self.lower_expression(module, *left);
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(module, *argument))
+                        .collect()
+                });
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| self.lower_argument(module, *argument))
                     .collect();
                 Expression::Call {
-                    left: receiver,
+                    left,
+                    static_arguments,
                     dynamic_arguments,
                 }
             }
@@ -346,12 +297,9 @@ impl<'a> Compiler<'a> {
                 left,
                 index,
             } => {
-                let receiver = self.lower_expression(module, *left);
+                let left = self.lower_expression(module, *left);
                 let index = index.map(|index| self.lower_expression(module, index));
-                Expression::Index {
-                    left: receiver,
-                    right: index,
-                }
+                Expression::Index { left, right: index }
             }
             ast::Expression::Maybe { position: _, left } => {
                 let left = self.lower_expression(module, *left);

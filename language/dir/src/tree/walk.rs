@@ -571,20 +571,9 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
-        Definition::Type {
-            descriptor: _,
-            generics,
-            heritage,
-            value,
-        } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
-            if let Some(heritage) = heritage.as_ref() {
-                walk_heritage(visitor, tree, heritage);
-            }
-            let value_type = tree.get(*value);
-            visitor.visit_type(tree, *value, value_type);
+        Definition::UnevaluatedExpression { expression } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
         }
         Definition::Namespace {
             descriptor: _,
@@ -845,11 +834,16 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             modifiers: _,
             key,
             signature,
+            body,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
             walk_function_signature(visitor, tree, signature);
+            if let Some(body) = body {
+                let body_expr = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_expr);
+            }
         }
         Property::Spread {
             modifiers: _,

@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, Type, TypeLiteral, VarianceBound};
+use dyst_dir::{Generics, Heritage, Module, NodeId, Type, TypeKind, TypeLiteral, VarianceBound};
 use dyst_source::StringId;
 
 impl<'a> Compiler<'a> {
@@ -22,12 +22,71 @@ impl<'a> Compiler<'a> {
         type_id
     }
 
-    /// Lower a VarianceBound to a TypeUnaryOperator.
+    /// Lower a TypeKind to a DIR type kind.
+    pub fn lower_type_kind(&mut self, kind: ast::TypeKind) -> TypeKind {
+        match kind {
+            ast::TypeKind::Structural => TypeKind::Structural,
+            ast::TypeKind::Nominal => TypeKind::Nominal,
+        }
+    }
+
+    /// Lower a VarianceBound to a DIR variance bound.
     pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
         match bound {
             ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
             ast::VarianceBound::Super => VarianceBound::Super,
+        }
+    }
+
+    /// Lower AST definition generics into DIR definition generics.
+    pub fn lower_generics(&mut self, module: &Module, generics: &ast::Generics) -> Generics {
+        let static_parameters = generics
+            .static_parameters
+            .as_ref()
+            .map(|static_parameters| {
+                static_parameters
+                    .iter()
+                    .map(|static_parameter| self.lower_parameter(module, *static_parameter))
+                    .collect()
+            });
+        let with_clauses = generics.with_clauses.as_ref().map(|with_clauses| {
+            with_clauses
+                .iter()
+                .map(|with_clause| self.lower_with_clause(module, *with_clause))
+                .collect()
+        });
+        let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
+            where_clauses
+                .iter()
+                .map(|where_clause| self.lower_where_clause(module, *where_clause))
+                .collect()
+        });
+        Generics {
+            static_parameters,
+            with_clauses,
+            where_clauses,
+        }
+    }
+
+    /// Lower AST heritage into DIR heritage.
+    pub fn lower_heritage(&mut self, module: &Module, heritage: &ast::Heritage) -> Heritage {
+        let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
+            extends_types
+                .iter()
+                .map(|extends_type| self.lower_expression_to_type(module, *extends_type))
+                .collect()
+        });
+        let implements_types = heritage.implements_types.as_ref().map(|implements_types| {
+            implements_types
+                .iter()
+                .map(|implements_type| self.lower_expression_to_type(module, *implements_type))
+                .collect()
+        });
+        Heritage {
+            extends_types,
+            implements_types,
+            embedded_types: None,
         }
     }
 

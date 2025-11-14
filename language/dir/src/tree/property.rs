@@ -78,6 +78,7 @@ pub enum Property {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
+        body: Option<NodeId<Expression>>,
     },
     /// Spread property (like `...a`).
     Spread {

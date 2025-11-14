@@ -1162,17 +1162,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &Definition,
     ) {
         match definition {
-            Definition::Type {
-                descriptor,
-                generics,
-                heritage,
-                value: _,
-            } => {
-                self.node("Definition::Type", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+            Definition::UnevaluatedExpression { expression: _ } => {
+                self.node("Definition::UnevaluatedExpression", id.id).end();
             }
             Definition::Namespace {
                 descriptor,
