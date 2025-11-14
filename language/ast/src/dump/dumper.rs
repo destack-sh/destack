@@ -458,7 +458,6 @@ impl Dump for DefinitionMeta {
             .object("DefinitionMeta")
             .field("kind", &self.kind)
             .field_optional("name", &self.name)
-            .field_optional("visibility", &self.visibility)
             .field_optional("export", &self.export)
             .end();
     }
@@ -1240,42 +1239,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             walk_enum_field(dumper, _tree, _id, field);
-        });
-    }
-
-    fn visit_union_field(
-        &mut self,
-        _tree: &MutableNodeTree,
-        _id: NodeId<UnionField>,
-        field: &UnionField,
-    ) {
-        match field {
-            UnionField::Unit { name, value: _ } => {
-                self.node("UnionField::Unit", _id.id)
-                    .field("name", name)
-                    .end();
-            }
-            UnionField::Tuple {
-                name,
-                fields: _,
-                value: _,
-            } => {
-                self.node("UnionField::Tuple", _id.id)
-                    .field("name", name)
-                    .end();
-            }
-            UnionField::Struct {
-                name,
-                fields: _,
-                value: _,
-            } => {
-                self.node("UnionField::Struct", _id.id)
-                    .field("name", name)
-                    .end();
-            }
-        };
-        self.with_depth(|dumper| {
-            walk_union_field(dumper, _tree, _id, field);
         });
     }
 

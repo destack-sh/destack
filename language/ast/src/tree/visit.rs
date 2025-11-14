@@ -3,11 +3,10 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc,
     EnumField, Expression, MatchCase, MutableNodeTree, NodeId, NodeType, Parameter, Pattern,
-    PatternField, Property, Tag, UnionField, WhereClause, WithClause, walk_annotation,
-    walk_argument, walk_blank, walk_block, walk_comment, walk_decorator, walk_definition,
-    walk_dependency_item, walk_doc, walk_enum_field, walk_expression, walk_match_case,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_tag, walk_union_field,
-    walk_where_clause, walk_with_clause,
+    PatternField, Property, Tag, WhereClause, WithClause, walk_annotation, walk_argument,
+    walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_dependency_item,
+    walk_doc, walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_tag, walk_where_clause, walk_with_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -66,16 +65,6 @@ pub trait NodeVisitor {
         enum_field: &EnumField,
     ) {
         walk_enum_field(self, tree, id, enum_field);
-    }
-
-    /// Visit a UnionField.
-    fn visit_union_field(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<UnionField>,
-        union_field: &UnionField,
-    ) {
-        walk_union_field(self, tree, id, union_field);
     }
 
     /// Visit a WithClause.
@@ -266,15 +255,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         enum_field: &EnumField,
     ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
-    }
-
-    fn visit_union_field(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<UnionField>,
-        union_field: &UnionField,
-    ) {
-        self.visit_any(tree, NodeType::UnionField, id.id);
     }
 
     fn visit_with_clause(

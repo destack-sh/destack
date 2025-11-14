@@ -11,7 +11,6 @@ pub enum NodeType {
     Definition,
     Property,
     EnumField,
-    UnionField,
     WithClause,
     WhereClause,
     DependencyItem,
