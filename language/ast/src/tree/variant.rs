@@ -1,7 +1,6 @@
-use dyst_source::StringId;
-
 use crate::{
-    Argument, Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability, Name, Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability,
+    Name, Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
 };
 
 /// The format of a variant (tuple or struct).
@@ -196,37 +195,4 @@ pub struct EnumField {
 
 impl Node for EnumField {
     const TYPE: NodeType = NodeType::EnumField;
-}
-
-/// A UnionField is a union field declaration.
-///
-/// Examples:
-/// ```
-/// A
-/// A(int32)
-/// A { x: int32, y: int32 } = 4
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnionField {
-    /// Unit union field (like `A` or `A = 2`).
-    Unit {
-        name: StringId,
-        value: Option<NodeId<Expression>>,
-    },
-    /// Tuple union field (like `A(int32)`).
-    Tuple {
-        name: StringId,
-        fields: Vec<NodeId<Argument>>,
-        value: Option<NodeId<Expression>>,
-    },
-    /// Struct union field (like `A { x: int32, y: int32 }`).
-    Struct {
-        name: StringId,
-        fields: Vec<NodeId<Argument>>,
-        value: Option<NodeId<Expression>>,
-    },
-}
-
-impl Node for UnionField {
-    const TYPE: NodeType = NodeType::UnionField;
 }

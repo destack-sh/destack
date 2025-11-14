@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DefinitionMeta,
     DependencyItem, Doc, EnumField, Expression, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, Tag, TemplateLiteral, UnionField,
-    WhereClause, WithClause,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, Tag, TemplateLiteral, WhereClause,
+    WithClause,
 };
 
 /// Walk any node.
@@ -39,10 +39,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
             walk_enum_field(visitor, tree, NodeId::new(node_id), enum_field);
-        }
-        NodeType::UnionField => {
-            let union_field = tree.union_fields.get(local_idx);
-            walk_union_field(visitor, tree, NodeId::new(node_id), union_field);
         }
         // --------------------------------------------------------------------
         // Context
@@ -1016,52 +1012,6 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
         let expression = tree.get(*value);
         visitor.visit_expression(tree, *value, expression);
     }
-}
-
-/// Walk the UnionField.
-pub fn walk_union_field<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &MutableNodeTree,
-    id: NodeId<UnionField>,
-    field: &UnionField,
-) {
-    visitor.visit_any(tree, NodeType::UnionField, id.id);
-    match field {
-        UnionField::Unit { name: _, value } => {
-            if let Some(value) = value {
-                let expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, expression);
-            }
-        }
-        UnionField::Tuple {
-            name: _,
-            fields,
-            value,
-        } => {
-            for field in fields {
-                let field_node = tree.get(*field);
-                visitor.visit_argument(tree, *field, field_node);
-            }
-            if let Some(value) = value {
-                let expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, expression);
-            }
-        }
-        UnionField::Struct {
-            name: _,
-            fields,
-            value,
-        } => {
-            for field in fields {
-                let field_node = tree.get(*field);
-                visitor.visit_argument(tree, *field, field_node);
-            }
-            if let Some(value) = value {
-                let expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, expression);
-            }
-        }
-    };
 }
 
 // ----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{BlockFormat, Definition, DefinitionMeta, Keyword, NodeId, NodeType, TokenType};
 
@@ -63,7 +63,6 @@ mod tests {
         assert_node!(parser.tree, namespace_id, Definition::Namespace { meta, expressions, with_clauses, where_clauses, .. } => {
             assert_eq!(meta.kind, dyst_ast::DeclarationKind::Definition);
             assert!(meta.name.is_none());
-            assert!(meta.visibility.is_none());
             assert!(meta.export.is_none());
             assert!(expressions.is_empty());
             assert!(with_clauses.is_none());

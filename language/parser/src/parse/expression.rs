@@ -339,15 +339,6 @@ impl<'a> Parser<'a> {
             DeclarationKind::Definition
         };
 
-        // visibility
-        meta.visibility = match self.peek_visibility() {
-            Ok(Some(visibility)) => {
-                self.bump(); // eat visibility
-                Some(visibility)
-            }
-            _ => None,
-        };
-
         // scope
         meta.scope = if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
@@ -1453,9 +1444,8 @@ type = type * 2
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::LetType { meta: DefinitionMeta { name, visibility, export, .. }, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::LetType { meta: DefinitionMeta { name, export, .. }, .. } => {
             assert_string!(parser, name.unwrap().string(), "NonNullValue");
-            assert!(visibility.is_none());
             assert!(export.is_some());
         });
     }

@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use crate::{
     Expression, Keyword, LiteralType, MutableNodeTree, Node, NodeId, NodeVisitor,
-    NodeVisitorOptions, Parameter, ScalarLiteral, TokenSpan, TokenType, UnionField,
-    walk_expression, walk_parameter, walk_union_field,
+    NodeVisitorOptions, Parameter, ScalarLiteral, TokenSpan, TokenType, walk_expression,
+    walk_parameter,
 };
 use dyst_source::File;
 
@@ -309,24 +309,6 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
         walk_expression(self, tree, id, expression);
     }
 
-    // ------------------------------------------------------------
-    // Types
-    // ------------------------------------------------------------
-
-    fn visit_union_field(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<UnionField>,
-        union_field: &UnionField,
-    ) {
-        walk_union_field(self, tree, id, union_field);
-        self.set_semantic_span(tree, id, SemanticType::Variable);
-    }
-
-    // ------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------
-
     fn visit_parameter(
         &mut self,
         tree: &MutableNodeTree,
@@ -367,8 +349,4 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
             }
         }
     }
-
-    // ------------------------------------------------------------
-    // Matching
-    // ------------------------------------------------------------
 }

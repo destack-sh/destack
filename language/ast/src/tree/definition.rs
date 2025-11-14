@@ -1,7 +1,7 @@
 use crate::tree::variant::VariantFormat;
 use crate::{
     Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId,
-    NodeType, Parameter, Property, Visibility, WhereClause, WithClause,
+    NodeType, Parameter, Property, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -22,8 +22,6 @@ pub struct DefinitionMeta {
     pub scope: BindingScope = BindingScope::Instance,
     /// The name of the definition.
     pub name: Option<Name> = None,
-    /// The visibility of the definition.
-    pub visibility: Option<Visibility> = None,
     /// The export type of the definition.
     pub export: Option<ExportType> = None,
 }
@@ -35,7 +33,6 @@ impl DefinitionMeta {
             kind: DeclarationKind::Definition,
             scope: BindingScope::Instance,
             name: Some(name),
-            visibility: None,
             export: None,
         }
     }

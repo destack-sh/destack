@@ -5,8 +5,8 @@ use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeArena, NodeId,
-    NodeType, Parameter, Pattern, PatternField, Property, Tag, UnionField, WhereClause, WithClause,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeArena, NodeId, NodeType,
+    Parameter, Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
@@ -29,7 +29,6 @@ pub struct MutableNodeTree {
     pub(crate) definitions: NodeArena<Definition>,
     pub(crate) properties: NodeArena<Property>,
     pub(crate) enum_fields: NodeArena<EnumField>,
-    pub(crate) union_fields: NodeArena<UnionField>,
     pub(crate) with_clauses: NodeArena<WithClause>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
@@ -80,7 +79,6 @@ impl MutableNodeTree {
             definitions: NodeArena::new(),
             properties: NodeArena::new(),
             enum_fields: NodeArena::new(),
-            union_fields: NodeArena::new(),
             with_clauses: NodeArena::new(),
             where_clauses: NodeArena::new(),
             dependency_items: NodeArena::new(),
@@ -266,7 +264,6 @@ impl MutableNodeTree {
             NodeType::Definition => self.definitions.deallocate(local_ids),
             NodeType::Property => self.properties.deallocate(local_ids),
             NodeType::EnumField => self.enum_fields.deallocate(local_ids),
-            NodeType::UnionField => self.union_fields.deallocate(local_ids),
             NodeType::WithClause => self.with_clauses.deallocate(local_ids),
             NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
             NodeType::DependencyItem => self.dependency_items.deallocate(local_ids),
@@ -405,7 +402,6 @@ impl_node_tree_stores! {
     Definition => definitions,
     Property => properties,
     EnumField => enum_fields,
-    UnionField => union_fields,
     WithClause => with_clauses,
     WhereClause => where_clauses,
     DependencyItem => dependency_items,
