@@ -835,18 +835,7 @@ impl<'a> Parser<'a> {
                 )
             }
             // anonymous struct literal
-            else if token_type == TokenType::OpenBrace
-                && (self.options.in_parenthesis
-                    || self.options.in_type
-                        && !self.options.in_statement_position
-                        && !self.options.in_block_position
-                    || self.options.in_static
-                        && !self.options.in_statement_position
-                        && !self.options.in_block_position
-                    || !self.options.in_before_block
-                        && !self.options.in_statement_position
-                        && !self.options.in_block_position)
-            {
+            else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
                 let properties = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_struct_literal()
                 })?;

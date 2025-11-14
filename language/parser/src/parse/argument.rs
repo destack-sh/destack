@@ -247,6 +247,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
+        self.eat_newlines_maybe()?;
         while self.peek_token(TokenType::Identifier).is_ok()
             // spread
             || self.peek_token(TokenType::Spread).is_ok()
@@ -258,6 +259,7 @@ impl<'a> Parser<'a> {
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
+            self.eat_newlines_maybe()?;
             if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
             } else {
@@ -586,12 +588,14 @@ impl<'a> Parser<'a> {
         terminator: TokenType,
     ) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
+        self.eat_newlines_maybe()?;
         while self.peek().is_ok() {
             if self.peek_token(terminator).is_ok() {
                 break;
             }
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
+            self.eat_newlines_maybe()?;
             if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
             } else {

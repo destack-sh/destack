@@ -269,7 +269,7 @@ impl<'a> Parser<'a> {
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
                 let body = self.with_options(
-                    self.options.not_in_position().in_block_position(),
+                    self.options.not_in_position().in_statement_position(),
                     |parser| parser.eat_expression(),
                 )?;
                 Some(body)

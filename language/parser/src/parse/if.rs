@@ -1,4 +1,4 @@
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 use dyst_ast::{Block, BlockFormat, Expression, IfKind, Keyword, NodeId};
 
 impl<'a> Parser<'a> {
@@ -63,24 +63,27 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition_id = self.with_options(self.options.nested().in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
+        let condition_id = self
+            .with_options(self.options.nested().in_before_block(), |parser| {
+                parser.eat_expression()
+            })?;
         self.eat_newlines_maybe()?;
 
         // then block
-        let then_expression_id = self.with_options(self.options.in_block_position(), |parser| {
-            parser.eat_expression_as_block()
-        })?;
+        let then_expression_id = self
+            .with_options(self.options.in_statement_position(), |parser| {
+                parser.eat_expression_as_block()
+            })?;
 
         // if / else if / else node
         let if_node = if self.peek_keyword_after_newlines(Keyword::Else).is_ok() {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
-            let else_expr_id = self.with_options(self.options.in_block_position(), |parser| {
-                parser.eat_expression_as_block()
-            })?;
+            let else_expr_id = self
+                .with_options(self.options.in_statement_position(), |parser| {
+                    parser.eat_expression_as_block()
+                })?;
             Expression::If {
                 kind: IfKind::If,
                 condition: condition_id,
