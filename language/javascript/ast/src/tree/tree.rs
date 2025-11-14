@@ -5,7 +5,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_source::NodeArena;
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Field, Node,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Property, Node,
     NodeId, NodeType, Parameter, Pattern, PatternField, Statement, SwitchCase, Type,
 };
 
@@ -33,7 +33,7 @@ pub struct MutableNodeTree {
     pub(crate) statements: NodeArena<Statement>,
     pub(crate) expressions: NodeArena<Expression>,
     pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) fields: NodeArena<Field>,
+    pub(crate) fields: NodeArena<Property>,
     pub(crate) types: NodeArena<Type>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
@@ -245,7 +245,7 @@ impl_node_tree_stores! {
     Statement => statements,
     Expression => expressions,
     Definition => definitions,
-    Field => fields,
+    Property => fields,
     Type => types,
     EnumField => enum_fields,
     DependencyItem => dependency_items,

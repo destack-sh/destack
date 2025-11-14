@@ -111,6 +111,7 @@ pub enum Keyword {
     Async,
     Await,
     Get,
+    Constructor,
     Set,
 }
 
@@ -130,6 +131,7 @@ impl Keyword {
                 | Keyword::Async
                 | Keyword::Await
                 | Keyword::Get
+                | Keyword::Constructor
                 | Keyword::Set
                 | Keyword::Do
                 | Keyword::While
@@ -232,6 +234,7 @@ impl Keyword {
             Keyword::Async => "async",
             Keyword::Await => "await",
             Keyword::Get => "get",
+            Keyword::Constructor => "constructor",
             Keyword::Set => "set",
         }
     }
@@ -330,6 +333,7 @@ impl FromStr for Keyword {
             "async" => Ok(Keyword::Async),
             "await" => Ok(Keyword::Await),
             "get" => Ok(Keyword::Get),
+            "constructor" => Ok(Keyword::Constructor),
             "set" => Ok(Keyword::Set),
 
             _ => Err(()),

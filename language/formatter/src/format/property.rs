@@ -146,7 +146,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
 
                 // mode
                 if let Some(mode) = signature.mode {
-                    write!(f, [mode.to_keyword()])?;
+                    if let Some(keyword) = mode.to_keyword() {
+                        write!(f, [keyword])?;
+                    }
                     if key.is_some() {
                         write!(f, [space()])?;
                     }

@@ -34,8 +34,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::ArrayLiteral { elements } => {
                 write!(f, [list_like("[", "]", ",", elements)])?;
             }
-            Expression::ObjectLiteral { fields } => {
-                write!(f, [list_like("{", "}", ",", fields).include_space()])?;
+            Expression::ObjectLiteral { properties } => {
+                write!(f, [list_like("{", "}", ",", properties).include_space()])?;
             }
 
             Expression::Parenthesized { expression } => {
@@ -111,11 +111,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Call {
                 position,
                 left,
+                static_arguments,
                 dynamic_arguments,
             } => {
                 write!(f, [left])?;
                 if *position == PostfixPosition::Indirect {
                     write!(f, [token(".")])?;
+                }
+                if f.context().include_types()
+                    && let Some(static_arguments) = static_arguments
+                {
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
                 }
                 write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
             }

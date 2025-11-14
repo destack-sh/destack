@@ -16,10 +16,10 @@ pub enum TranspileError {
     } = 3,
     /// Unsupported type.
     UnsupportedType { node: dir::NodeId<dir::Type> } = 4,
-    /// Unsupported variant.
-    UnsupportedVariant { node: dir::NodeId<dir::Variant> } = 5,
-    /// Unsupported field.
-    UnsupportedField { node: dir::NodeId<dir::Field> } = 6,
+    /// Unsupported property.
+    UnsupportedProperty { node: dir::NodeId<dir::Property> } = 5,
+    /// Unsupported enum field.
+    UnsupportedEnumField { node: dir::NodeId<dir::EnumField> } = 6,
     /// Unsupported dependency item.
     UnsupportedDependencyItem {
         node: dir::NodeId<dir::DependencyItem>,
@@ -56,8 +56,8 @@ impl TranspileError {
             Self::UnsupportedDefinition { .. } => "unsupported definition",
             Self::UnsupportedPath { .. } => "unsupported path",
             Self::UnsupportedType { .. } => "unsupported type",
-            Self::UnsupportedVariant { .. } => "unsupported variant",
-            Self::UnsupportedField { .. } => "unsupported field",
+            Self::UnsupportedProperty { .. } => "unsupported property",
+            Self::UnsupportedEnumField { .. } => "unsupported enum field",
             Self::UnsupportedDependencyItem { .. } => "unsupported dependency item",
             Self::UnsupportedParameter { .. } => "unsupported parameter",
             Self::UnsupportedArgument { .. } => "unsupported argument",
@@ -74,8 +74,8 @@ impl TranspileError {
             Self::UnsupportedDefinition { .. } => 2,
             Self::UnsupportedPath { .. } => 3,
             Self::UnsupportedType { .. } => 4,
-            Self::UnsupportedVariant { .. } => 5,
-            Self::UnsupportedField { .. } => 6,
+            Self::UnsupportedProperty { .. } => 5,
+            Self::UnsupportedEnumField { .. } => 6,
             Self::UnsupportedDependencyItem { .. } => 7,
             Self::UnsupportedParameter { .. } => 8,
             Self::UnsupportedArgument { .. } => 9,
@@ -97,8 +97,8 @@ impl TranspileError {
             Self::UnsupportedDefinition { node } => node.into_any(),
             Self::UnsupportedPath { node, .. } => *node,
             Self::UnsupportedType { node } => node.into_any(),
-            Self::UnsupportedVariant { node } => node.into_any(),
-            Self::UnsupportedField { node } => node.into_any(),
+            Self::UnsupportedProperty { node } => node.into_any(),
+            Self::UnsupportedEnumField { node } => node.into_any(),
             Self::UnsupportedDependencyItem { node } => node.into_any(),
             Self::UnsupportedParameter { node } => node.into_any(),
             Self::UnsupportedArgument { node } => node.into_any(),

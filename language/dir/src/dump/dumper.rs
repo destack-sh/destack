@@ -467,6 +467,26 @@ impl Dump for DeclarationDescriptor {
     }
 }
 
+/// Dump a Key as a structured representation.
+impl Dump for Key {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Key::Name(name) => {
+                dumper.object("Key::Name").value(name).end();
+            }
+            Key::Expression(_) => {
+                dumper.object("Key::Expression").end();
+            }
+            Key::NamedExpression { name, key: _ } => {
+                dumper
+                    .object("Key::NamedExpression")
+                    .field("name", name)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump a Generics as a structured object.
 impl Dump for Generics {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {

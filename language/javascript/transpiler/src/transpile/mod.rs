@@ -3,10 +3,12 @@ mod argument;
 mod artifact;
 mod diagnostic;
 mod expression;
+mod key;
 mod literal;
 mod module;
 mod operator;
 mod path;
+mod property;
 mod transpile;
 mod transpiler;
 

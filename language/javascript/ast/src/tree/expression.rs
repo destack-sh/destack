@@ -1,6 +1,6 @@
 use crate::{
-    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, ScalarLiteral,
-    TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, Property,
+    ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 /// The position of a postfix expression.
@@ -36,7 +36,7 @@ pub enum Expression {
     /// Array literal.
     ArrayLiteral { elements: Vec<NodeId<Expression>> },
     /// Object literal.
-    ObjectLiteral { fields: Vec<NodeId<Argument>> },
+    ObjectLiteral { properties: Vec<NodeId<Property>> },
 
     /// Parenthesized expression.
     Parenthesized { expression: NodeId<Expression> },
@@ -90,6 +90,7 @@ pub enum Expression {
     Call {
         position: PostfixPosition,
         left: NodeId<Expression>,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
     /// New.

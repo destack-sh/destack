@@ -7,22 +7,45 @@ use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR type unary operator to a JavaScript type unary operator.
-    pub fn transpile_type_unary_operator(
+    pub fn transpile_type_unary_expression(
         &self,
+        module: &'a Module,
+        expression_id: dir::NodeId<dir::Expression>,
         operator: dir::TypeUnaryOperator,
-    ) -> TypeUnaryOperator {
-        match operator {
-            dir::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
-            dir::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
-            dir::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
-            dir::TypeUnaryOperator::Maybe => TypeUnaryOperator::Maybe,
-            dir::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
-            dir::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
-            dir::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
-            dir::TypeUnaryOperator::Infer => TypeUnaryOperator::Infer,
-            dir::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
-            dir::TypeUnaryOperator::Asserts => TypeUnaryOperator::Asserts,
-        }
+        right_id: dir::NodeId<dir::Expression>,
+        unit: &mut TranspilerUnit,
+    ) -> TranspileResult<NodeId<Expression>> {
+        let right_id = self.transpile_expression(module, right_id, unit)?;
+
+        // transpile a trivial unary expression to a JavaScript unary expression
+        let mut unary = |operator: TypeUnaryOperator| -> NodeId<Expression> {
+            let expression = Expression::TypeUnary {
+                operator,
+                right: right_id,
+            };
+            unit.ast
+                .insert_from_dir(expression, module.id, expression_id)
+        };
+
+        let expression_id = match operator {
+            dir::TypeUnaryOperator::Newtype => {
+                return Err(TranspileError::UnsupportedExpression {
+                    node: expression_id,
+                });
+            }
+            dir::TypeUnaryOperator::Type => unary(TypeUnaryOperator::Type),
+            dir::TypeUnaryOperator::Readonly => unary(TypeUnaryOperator::Readonly),
+            dir::TypeUnaryOperator::Not => unary(TypeUnaryOperator::Not),
+            dir::TypeUnaryOperator::Maybe => unary(TypeUnaryOperator::Maybe),
+            dir::TypeUnaryOperator::Must => unary(TypeUnaryOperator::Must),
+            dir::TypeUnaryOperator::Typeof => unary(TypeUnaryOperator::Typeof),
+            dir::TypeUnaryOperator::Keyof => unary(TypeUnaryOperator::Keyof),
+            dir::TypeUnaryOperator::Infer => unary(TypeUnaryOperator::Infer),
+            dir::TypeUnaryOperator::AsConst => unary(TypeUnaryOperator::AsConst),
+            dir::TypeUnaryOperator::Asserts => unary(TypeUnaryOperator::Asserts),
+        };
+
+        Ok(expression_id)
     }
 
     /// Transpile a DIR type binary expression to a JavaScript type binary expression.
