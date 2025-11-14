@@ -257,10 +257,12 @@ impl ParserOptions {
         }
     }
 
-    /// Not in parenthesis.
-    pub(crate) fn not_in_parenthesis(self) -> Self {
+    /// Not in parenthesis or previous position.
+    pub(crate) fn not_in_position(self) -> Self {
         Self {
             in_parenthesis: false,
+            in_statement_position: false,
+            in_block_position: false,
             ..self
         }
     }

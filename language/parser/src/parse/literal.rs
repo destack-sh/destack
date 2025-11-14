@@ -409,7 +409,7 @@ impl<'a> Parser<'a> {
         let elements = if self.peek_token(TokenType::CloseBracket).is_ok() {
             vec![]
         } else {
-            self.with_options(self.options.not_in_parenthesis(), |parser| {
+            self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
             })?
         };
