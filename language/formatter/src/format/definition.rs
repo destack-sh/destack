@@ -120,7 +120,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(
                         f,
                         [group(&block_indent(&format_with(|f| {
-                            format_block_of_statements(f, expressions)
+                            format_block_of_statements(f, node_id.into_any(), expressions)
                         })))]
                     )?;
                     write!(

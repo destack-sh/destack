@@ -1,7 +1,10 @@
 use dyst_fir::format::FormatResult;
 
+use crate::expression::format_expression;
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Block, Expression, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeType};
+use dyst_ast::{
+    Block, Expression, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeType,
+};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
@@ -100,6 +103,7 @@ pub(crate) fn format_block_body_wide<'ast>(
             hard_line_break(),
             soft_block_indent(&format_with(|f| format_block_of_statements(
                 f,
+                block_id.into_any(),
                 &block.expressions
             ))),
             hard_line_break(),
@@ -109,22 +113,25 @@ pub(crate) fn format_block_body_wide<'ast>(
     )
 }
 
-
-/// Format a block of expression statements (with appropriate empty annotations)
+/// Format a block of expression statements (with appropriate empty annotations).
+/// Automatically inserts semicolons for value-ignored non-statement expressions.
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DystFormatter<'ast, '_>,
+    scope_id: NodeIdAny,
     expressions: &[NodeId<Expression>],
 ) -> FormatResult<()> {
+    let is_root_like = f
+        .context()
+        .get_parent_by_id(scope_id.id)
+        .is_none_or(|(_, parent_type)| parent_type == NodeType::Definition);
     for (i, &expression_id) in expressions.iter().enumerate() {
-        let is_definition = matches!(
-            f.context().tree.get(expression_id),
-            Expression::Definition(_)
-        );
+        let expression = f.context().tree.get(expression_id);
+
         // blank line between expressions
         if i > 0 {
             write!(f, [hard_line_break()])?;
             // extra blank line between definitions
-            if is_definition
+            if matches!(expression, Expression::Definition(_))
                 && !f
                     .context()
                     .has_blank_prefix_annotation_in_first_position(expression_id)
@@ -132,7 +139,20 @@ pub(crate) fn format_block_of_statements<'ast>(
                 write!(f, [empty_line()])?;
             }
         }
-        expression_id.format(f)?;
+
+        // expression itself (with prefix annotations)
+        write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+        format_expression(f, expression_id, expression)?;
+
+        // insert semicolon for value-ignored non-statement expressions
+        if !expression.is_statement_like() && (i < expressions.len() - 1 || is_root_like)
+            || expression.is_statement_like_at_root()
+        {
+            write!(f, [token(";")])?;
+        }
+
+        // postfix annotations
+        write!(f, [f.context().any_infix_or_postfix_annotations(expression_id)])?;
     }
     Ok(())
 }
@@ -225,6 +245,72 @@ mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
 
+    /// Semicolons should be automatically inserted for every value-ignored expression.
+    /// Control flow forms like if and let only get semicolons if used as statements.
+    #[test]
+    fn test_format_block_insert_semicolon() {
+        assert_format!(
+            r#"{
+    import "foo"
+    import * as baz from "foo"
+
+    let x = 1;
+    let y = 2
+    y
+
+    if x {
+        y
+    } else {
+        print("foo")
+        z(x) 
+    }
+
+    loop {
+       break;
+    }
+
+    let x = z()
+    let x = if let y = 1 {
+        z()
+    } else {
+        w()
+    };
+
+    return 5;
+}"#,
+            r#"{
+    import "foo";
+    import * as baz from "foo";
+
+    let x = 1;
+    let y = 2;
+    y;
+
+    if x {
+        y
+    } else {
+        print("foo");
+        z(x)
+    }
+
+    loop {
+        break;
+    }
+
+    let x = z();
+    let x = if let y = 1 {
+        z()
+    } else {
+        w()
+    };
+
+    return 5;
+}"#,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
     #[test]
     fn test_format_empty_block_with_comment() {
         let source = "{
@@ -242,7 +328,7 @@ mod tests {
     fn test_format_mixed_block_with_prefix_postfix_comment() {
         let source = "{
     // prefix comment
-    const X = 1 // suffix comment
+    const X = 1; // suffix comment
     // postfix comment
 }";
         assert_format!(
@@ -256,9 +342,9 @@ mod tests {
     #[test]
     fn test_format_mixed_block_with_postfix_comment() {
         let source = "{
-    const X = 1 // this is my X
-    const Y = 2 // this is my Y
-    const Z = 3 // this is my Z
+    const X = 1; // this is my X
+    const Y = 2; // this is my Y
+    const Z = 3; // this is my Z
 }";
         assert_format!(
             source,
@@ -271,9 +357,9 @@ mod tests {
     #[test]
     fn test_format_mixed_block_with_postfix_annotations_mixed() {
         let source = "{
-    const X = 1 #x // this is my X
-    const Y = 2 #y // this is my Y
-    const Z = 3 #z // this is my Z
+    const X = 1; #x // this is my X
+    const Y = 2; #y // this is my Y
+    const Z = 3; #z // this is my Z
 }";
         assert_format!(
             source,
@@ -298,8 +384,8 @@ mod tests {
     #[test]
     fn test_format_block_statement_like() {
         assert_format!(
-            "if y { z } else { w }",
-            "if y {\n\tz\n} else {\n\tw\n}",
+            "if y { z } else { w; }",
+            "if y {\n\tz\n} else {\n\tw;\n}",
             |p| p.eat_if(),
             DystFormatOptions::default_tab()
         );
@@ -308,7 +394,7 @@ mod tests {
     /// Block should retain the explicit newline.
     #[test]
     fn test_format_block_statement_retain_newline() {
-        let source = "{\n\tconst X = 1\n\tconst Y = 2\n\tconst Z = 3\n}";
+        let source = "{\n\tconst X = 1;\n\tconst Y = 2;\n\tconst Z = 3;\n}";
         assert_format!(
             source,
             source,
