@@ -1,6 +1,6 @@
 use crate::{
-    ExportType, Expression, FunctionSignature, Generics, Node, NodeId, NodeType, Property,
-    StringId, Type, Visibility,
+    ExportType, Expression, FunctionSignature, Generics, Heritage, Node, NodeId, NodeType,
+    Property, StringId, Type,
 };
 
 /// An embedded definition is a definition that is embedded in another definition.
@@ -43,8 +43,6 @@ pub struct DeclarationDescriptor {
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The name of the definition.
     pub name: Option<StringId> = None,
-    /// The visibility of the definition.
-    pub visibility: Option<Visibility> = None,
     /// The export type of the definition.
     pub export: Option<ExportType> = None,
 }
@@ -56,6 +54,7 @@ pub enum Definition {
     Type {
         descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
+        heritage: Option<Heritage>,
         value: NodeId<Type>,
     },
     /// Namespace definition.
@@ -69,14 +68,14 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         kind: StructKind,
         generics: Option<Generics>,
-        embedded_definitions: Vec<EmbeddedDefinition>,
+        heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
     },
     /// Enum definition.
     Enum {
         descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
-        embedded_definitions: Vec<EmbeddedDefinition>,
+        heritage: Option<Heritage>,
         fields: Vec<NodeId<EnumField>>,
         properties: Vec<NodeId<Property>>,
     },
@@ -84,7 +83,7 @@ pub enum Definition {
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
-        embedded_definitions: Vec<EmbeddedDefinition>,
+        heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
@@ -99,8 +98,8 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         target_type: NodeId<Type>,
-        implements_types: Option<Vec<NodeId<Type>>>,
-        definitions: Vec<NodeId<Definition>>,
+        heritage: Option<Heritage>,
+        properties: Vec<NodeId<Property>>,
     },
 }
 

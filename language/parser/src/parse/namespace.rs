@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    BlockFormat, DeclarationDescriptor, Definition, Keyword, NodeId, NodeType, TokenType,
+    BlockFormat, DeclarationDescriptor, Definition, Generics, Keyword, NodeId, NodeType, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -26,6 +26,7 @@ impl<'a> Parser<'a> {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
+        let generics = Generics::maybe(None, with_clauses, where_clauses);
         let namespace = {
             let expressions = if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.eat_token(TokenType::OpenBrace)?; // eat open brace
@@ -40,8 +41,7 @@ impl<'a> Parser<'a> {
             };
             Definition::Namespace {
                 descriptor,
-                with_clauses,
-                where_clauses,
+                generics,
                 expressions,
             }
         };
@@ -67,13 +67,12 @@ mod tests {
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, with_clauses, where_clauses, .. } => {
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-            assert!(with_clauses.is_none());
-            assert!(where_clauses.is_none());
+            assert!(generics.is_none());
         });
     }
 
@@ -92,13 +91,13 @@ namespace Foo with Context where Guard > Limit {
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, with_clauses, where_clauses, .. } => {
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-
-            let with_items = with_clauses.as_ref().expect("expected with clauses");
+            let generics = generics.as_ref().expect("expected generics");
+            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
 
             // with Context
@@ -108,8 +107,7 @@ namespace Foo with Context where Guard > Limit {
                     assert!(static_arguments.is_none());
                 });
             });
-
-            let where_items = where_clauses.as_ref().expect("expected where clauses");
+            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 
             // where Guard > Limit
@@ -132,12 +130,13 @@ namespace Foo with Context where Guard > Limit {
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
 
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, with_clauses, where_clauses, .. } => {
+        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-            let with_items = with_clauses.as_ref().expect("expected with clauses");
+            let generics = generics.as_ref().expect("expected generics");
+            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
 
             // with Context
@@ -147,8 +146,7 @@ namespace Foo with Context where Guard > Limit {
                     assert!(static_arguments.is_none());
                 });
             });
-
-            let where_items = where_clauses.as_ref().expect("expected where clauses");
+            let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 
             // where Requirement: Interface

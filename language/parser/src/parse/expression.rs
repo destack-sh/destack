@@ -1914,14 +1914,10 @@ const shapes = (
             .with_options(parser.options.in_type(), |parser| parser.eat_expression())
             .unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function {
-                kind: FunctionKind::Lambda,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                assert_eq!(dynamic_parameters.len(), 0);
-                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+            assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.dynamic_parameters.len(), 0);
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
             });
         });
     }
@@ -1935,22 +1931,22 @@ const shapes = (
             .with_options(parser.options.in_type(), |parser| parser.eat_expression())
             .unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function {
-                kind: FunctionKind::Lambda,
-                dynamic_parameters,
-                return_type,
-                with_clauses,
-                ..
-            } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
                 // (a: int32)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "a");
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 });
                 // int32
-                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 // with Time
-                assert_node!(parser.tree, with_clauses.as_ref().unwrap()[0], WithClause { right, .. } => {
+                let with_clauses = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.with_clauses.as_ref())
+                    .expect("expected with clauses");
+                assert_node!(parser.tree, with_clauses[0], WithClause { right, .. } => {
                     assert_expr_path!(parser, parser.tree.get(*right), "Time");
                 });
             });
@@ -1964,17 +1960,13 @@ const shapes = (
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function {
-                kind: FunctionKind::Lambda,
-                dynamic_parameters,
-                return_type: None,
-                body,
-                ..
-            } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(signature.return_type.is_none());
                 assert!(body.is_some());
-                assert_eq!(dynamic_parameters.len(), 1);
+                assert_eq!(signature.dynamic_parameters.len(), 1);
                 // (a)
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                     assert_string!(parser, *name, "a");
                 });
                 // a > 2
@@ -1994,20 +1986,16 @@ const shapes = (
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function {
-                kind: FunctionKind::Lambda,
-                dynamic_parameters,
-                return_type: None,
-                body: Some(_),
-                ..
-            } => {
-                assert_eq!(dynamic_parameters.len(), 2);
+            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body: Some(_), .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(signature.return_type.is_none());
+                assert_eq!(signature.dynamic_parameters.len(), 2);
                 // _
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Pattern { pattern, ty: None, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Pattern { pattern, ty: None, .. } => {
                     assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 });
                 // { x, y }: T
-                assert_node!(parser.tree, dynamic_parameters[1], Parameter::Pattern { pattern, ty, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Pattern { pattern, ty, .. } => {
                     // { x, y }
                     assert_node!(parser.tree, *pattern, Pattern::Struct { fields, .. } => {
                         assert_eq!(fields.len(), 2);
@@ -2036,16 +2024,12 @@ const shapes = (
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function {
-                kind: FunctionKind::Lambda,
-                dynamic_parameters,
-                return_type: None,
-                body,
-                ..
-            } => {
-                assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(signature.return_type.is_none());
+                assert_eq!(signature.dynamic_parameters.len(), 1);
                 // x
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                     assert_string!(parser, *name, "x");
                 });
                 // x
@@ -2787,17 +2771,17 @@ function isStringy(value: any): asserts value is string {
         let expr_id = parser.eat_expression().unwrap();
         // function isStringy(value: any): asserts value is string { .. }
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { descriptor, dynamic_parameters, return_type, .. } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { descriptor, signature, .. } => {
                 // isStringy
                 assert_string!(parser, descriptor.name.unwrap().string(), "isStringy");
-                assert_eq!(dynamic_parameters.len(), 1);
+                assert_eq!(signature.dynamic_parameters.len(), 1);
                 // value: any
-                assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "value");
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 // asserts value is string
-                assert_node!(parser.tree, return_type.unwrap(), Expression::TypeUnary { operator, right } => {
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeUnary { operator, right } => {
                     assert_eq!(*operator, TypeUnaryOperator::Asserts);
                     assert_node!(parser.tree, *right, Expression::TypeBinary { left, operator, right, .. } => {
                         // value is string

@@ -2,8 +2,9 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    Asynchrony, DeclarationDescriptor, Definition, FunctionCardinality, FunctionKind, FunctionMode,
-    Keyword, NodeId, NodeType, Parameter, TokenType,
+    Asynchrony, DeclarationDescriptor, Definition, FunctionAbstraction, FunctionCardinality,
+    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, NodeId, NodeType, Parameter,
+    TokenType,
 };
 
 /// The keywords that can appear before a function definition.
@@ -267,6 +268,7 @@ impl<'a> Parser<'a> {
         };
 
         // function
+        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
         let asynchrony = if is_async {
             Asynchrony::Async
         } else {
@@ -277,18 +279,20 @@ impl<'a> Parser<'a> {
         } else {
             FunctionCardinality::Scalar
         };
+        let signature = FunctionSignature {
+            abstraction: FunctionAbstraction::Concrete,
+            asynchrony,
+            cardinality,
+            kind,
+            mode,
+            generics,
+            dynamic_parameters,
+            return_type,
+        };
         let function_id = self.tree.insert(
             Definition::Function {
                 descriptor,
-                asynchrony,
-                cardinality,
-                kind,
-                mode,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                with_clauses,
-                where_clauses,
+                signature,
                 body,
             },
             self.get_span_from(start),
@@ -317,17 +321,17 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x: number): number => x
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, body: Some(body), .. } => {
             assert_eq!(descriptor.name, None);
-            assert_eq!(*kind, FunctionKind::Lambda);
+            assert_eq!(signature.kind, FunctionKind::Lambda);
             // x: number
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
             });
             // number
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
@@ -344,16 +348,16 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x): int32 => x
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, kind, dynamic_parameters, return_type, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, body: Some(body), .. } => {
             assert_eq!(descriptor.name, None);
-            assert_eq!(*kind, FunctionKind::Lambda);
+            assert_eq!(signature.kind, FunctionKind::Lambda);
             // x
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                 assert_string!(parser, *name, "x");
             });
             // int32
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
@@ -371,12 +375,12 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new (x) => int32
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, mode, kind, dynamic_parameters, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             assert!(descriptor.name.is_none());
-            assert_eq!(*mode, Some(FunctionMode::New));
-            assert_eq!(*kind, FunctionKind::Lambda);
-            assert!(dynamic_parameters.is_empty());
-            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "$");
+            assert_eq!(signature.mode, Some(FunctionMode::New));
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert!(signature.dynamic_parameters.is_empty());
+            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "$");
         });
     }
 
@@ -390,25 +394,30 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new <T>(x: int32) => T
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, mode, kind, static_parameters, dynamic_parameters, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             assert!(descriptor.name.is_none());
             // new
-            assert_eq!(*mode, Some(FunctionMode::New));
-            assert_eq!(*kind, FunctionKind::Lambda);
+            assert_eq!(signature.mode, Some(FunctionMode::New));
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
             // <T>
-            assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
-            assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "T");
                 assert!(ty.is_none());
             });
             // x: int32
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
             // T
-            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
+            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
     }
 
@@ -429,11 +438,11 @@ function foo() => int32 with (
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, with_clauses, where_clauses, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             // function name
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
-
-            let with_clauses = with_clauses.as_ref().unwrap();
+            let generics = signature.generics.as_ref().expect("expected generics");
+            let with_clauses = generics.with_clauses.as_ref().unwrap();
             assert_eq!(with_clauses.len(), 2);
 
             // Time
@@ -451,9 +460,8 @@ function foo() => int32 with (
                     assert_path!(parser, *path, "Numeric");
                 });
             });
-
             // where Guard > Limit
-            let where_clauses = where_clauses.as_ref().expect("expected where clauses");
+            let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
@@ -462,9 +470,8 @@ function foo() => int32 with (
                     assert_expr_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
-
             // return type
-            let ret = return_type.expect("expected return type");
+            let ret = signature.return_type.expect("expected return type");
             assert_node!(parser.tree, ret, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
@@ -484,12 +491,15 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, static_parameters, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             // compute
             assert_string!(parser, descriptor.name.unwrap().string(), "compute");
-
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
             // <Validate: bool, Precision: uint8>
-            let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 2);
 
             // Validate: bool
@@ -503,10 +513,9 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
                 assert_string!(parser, *name, "Precision");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false })));
             });
-
             // data: uint8[]
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "data");
             });
         });
@@ -521,22 +530,22 @@ function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             // foo
-        assert_string!(parser, descriptor.name.unwrap().string() , "foo");
+            assert_string!(parser, descriptor.name.unwrap().string() , "foo");
 
             // (str: string) => boolean
-            assert_node!(parser.tree, return_type.unwrap(), Expression::Definition(definition_id) => {
-                assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
-                    assert_eq!(dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Definition(definition_id) => {
+                assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
                     // str: string
-                    assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                         assert_string!(parser, *name, "str");
                         assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                     });
 
                     // boolean
-                    assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
             });
         });
@@ -559,11 +568,11 @@ async function* foo() => int32 {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, asynchrony, cardinality, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             // foo
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
-            assert_eq!(*asynchrony, Asynchrony::Async);
-            assert_eq!(*cardinality, FunctionCardinality::Generator);
+            assert_eq!(signature.asynchrony, Asynchrony::Async);
+            assert_eq!(signature.cardinality, FunctionCardinality::Generator);
         });
     }
 
@@ -585,21 +594,21 @@ function onResolve(
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, dynamic_parameters, return_type, .. } => {
+        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
             assert_string!(parser, descriptor.name.unwrap().string(), "onResolve");
             // callback: (args) => { .. } | void
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "callback");
                 assert_node!(parser.tree, ty.unwrap(), Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { dynamic_parameters, return_type, .. } => {
-                        assert_eq!(dynamic_parameters.len(), 1);
+                    assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
                         // args
-                        assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {
                             assert_string!(parser, *name, "args");
                         });
                         // { .. } | void
-                        assert_node!(parser.tree, return_type.unwrap(), Expression::Binary { operator, left, right } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Binary { operator, left, right } => {
                             // { .. }
                             assert_node!(parser.tree, *left, Expression::StructLiteral { ty: None, properties } => {
                                 assert_eq!(properties.len(), 2);
@@ -613,7 +622,7 @@ function onResolve(
                 });
             });
             // void
-            assert_node!(parser.tree, return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
         });
     }
 }

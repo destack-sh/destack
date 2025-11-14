@@ -1,8 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 use dyst_ast::{
-    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionMode, Keyword, NodeId, NodeType,
-    Property, TokenType,
+    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Generics, Keyword, NodeId, NodeType, Property, TokenType,
 };
 
 use crate::{ParseError, ParseResult, Parser, ParserMark};
@@ -266,6 +266,8 @@ impl<'a> Parser<'a> {
             // where clauses
             let where_clauses = self.eat_where_maybe()?;
 
+            let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
+
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
                 let body = self.with_options(
@@ -281,23 +283,24 @@ impl<'a> Parser<'a> {
             let property = Property::Method {
                 modifiers,
                 key,
-                asynchrony: if is_async {
-                    Asynchrony::Async
-                } else {
-                    Asynchrony::Sync
+                signature: FunctionSignature {
+                    abstraction: abstraction.unwrap_or(FunctionAbstraction::Concrete),
+                    asynchrony: if is_async {
+                        Asynchrony::Async
+                    } else {
+                        Asynchrony::Sync
+                    },
+                    cardinality: if is_generator {
+                        FunctionCardinality::Generator
+                    } else {
+                        FunctionCardinality::Scalar
+                    },
+                    mode,
+                    kind: FunctionKind::Function,
+                    generics,
+                    dynamic_parameters,
+                    return_type,
                 },
-                abstraction: abstraction.unwrap_or(FunctionAbstraction::Concrete),
-                cardinality: if is_generator {
-                    FunctionCardinality::Generator
-                } else {
-                    FunctionCardinality::Scalar
-                },
-                mode,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                with_clauses,
-                where_clauses,
                 body,
             };
             Ok(self.tree.insert(property, self.get_span_from(start)))
@@ -453,28 +456,27 @@ mod tests {
         let mut parser = test.prepare();
         let property_id = parser.eat_property().unwrap();
         // <T = any>(x: T): T
-        assert_node!(parser.tree, property_id, Property::Method {
-            mode,
-            static_parameters,
-            dynamic_parameters,
-            return_type,
-            ..
-        } => {
-            assert_eq!(*mode, Some(FunctionMode::Call));
+        assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
+            assert_eq!(signature.mode, Some(FunctionMode::Call));
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
             // <T = any>
-            assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
-            assert_node!(parser.tree, static_parameters.as_ref().unwrap()[0], Parameter::Named { name, ty: None, default, .. } => {
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, default, .. } => {
                 assert_string!(parser, *name, "T");
                 assert_node!(parser.tree, default.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
             });
             // x: T
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
             });
             // T
-            assert_expr_path!(parser, parser.tree.get(return_type.unwrap()), "T");
+            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
     }
 
@@ -484,13 +486,13 @@ mod tests {
         let mut parser = test.prepare();
 
         let property_id = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property_id, Property::Method { mode, static_parameters, dynamic_parameters, .. } => {
+        assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
             // constructor
-            assert_eq!(*mode, Some(FunctionMode::Constructor));
-            assert!(static_parameters.is_none());
+            assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+            assert!(signature.generics.is_none());
             // x: int32
-            assert_eq!(dynamic_parameters.len(), 1);
-            assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });

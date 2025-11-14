@@ -26,6 +26,7 @@ impl<'a> Compiler<'a> {
         type_unary_operator: ast::TypeUnaryOperator,
     ) -> TypeUnaryOperator {
         match type_unary_operator {
+            ast::TypeUnaryOperator::Newtype => TypeUnaryOperator::Newtype,
             ast::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             ast::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
             ast::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,

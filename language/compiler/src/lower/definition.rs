@@ -37,75 +37,22 @@ impl<'a> Compiler<'a> {
         definition
     }
 
-    /// Lower embedded definitions of a definition.
-    /// Includes both super types and include types (with spread syntax).
-    pub fn lower_embedded_definitions(
-        &mut self,
-        module: &Module,
-        _definition_id: ast::NodeId<ast::Definition>,
-        extends_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
-        implements_types: &Option<Vec<ast::NodeId<ast::Expression>>>,
-        expressions: &[ast::NodeId<ast::Expression>],
-    ) -> Vec<EmbeddedDefinition> {
-        let mut embedded_definitions: Vec<EmbeddedDefinition> = vec![];
-        if let Some(extends_types) = extends_types.as_ref() {
-            embedded_definitions.extend(
-                extends_types
-                    .iter()
-                    .map(|ty| self.lower_expression_to_type(module, *ty))
-                    .map(|ty| EmbeddedDefinition::Extends { ty }),
-            );
-        }
-        if let Some(implements_types) = implements_types.as_ref() {
-            embedded_definitions.extend(
-                implements_types
-                    .iter()
-                    .map(|ty| self.lower_expression_to_type(module, *ty))
-                    .map(|ty| EmbeddedDefinition::Implements { ty }),
-            );
-        }
-        // include types (from expressions)
-        embedded_definitions.extend(expressions.iter().filter_map(|expression_id| {
-            let expression = module.get(*expression_id);
-            match expression {
-                ast::Expression::Unary {
-                    operator: ast::UnaryOperator::Spread,
-                    right,
-                } => {
-                    let right = self.lower_expression_to_type(module, *right);
-                    self.session
-                        .tree
-                        .alias_from_ast(module.id, expression_id.id, right);
-                    Some(EmbeddedDefinition::Include { ty: right })
-                }
-                _ => None,
-            }
-        }));
-        embedded_definitions
-    }
-
-    /// Lower AST definition meta into DIR definition meta.
+    /// Lower AST definition descriptor into DIR definition descriptor.
     pub fn lower_declaration_descriptor(
         &mut self,
         module: &Module,
-        meta: &ast::DeclarationDescriptor,
+        descriptor: &ast::DeclarationDescriptor,
     ) -> DeclarationDescriptor {
-        let kind = self.lower_declaration_kind(meta.kind);
-        let name = meta.name.map(|name| {
+        let kind = self.lower_declaration_kind(descriptor.kind);
+        let name = descriptor.name.map(|name| {
             self.session
                 .strings
                 .intern_from(&module.strings, name.string())
         });
-        let visibility = meta
-            .visibility
-            .map(|visibility| self.lower_visibility(visibility));
-        let export = meta.export.map(|export| self.lower_export_type(export));
-        DeclarationDescriptor {
-            kind,
-            name,
-            visibility,
-            export,
-        }
+        let export = descriptor
+            .export
+            .map(|export| self.lower_export_type(export));
+        DeclarationDescriptor { kind, name, export }
     }
 
     /// Lower AST definition generics into DIR definition generics.
@@ -159,42 +106,6 @@ impl<'a> Compiler<'a> {
         })
     }
 
-    /// Lower function signature components into a DIR function signature.
-    #[allow(clippy::too_many_arguments)]
-    pub fn lower_function_signature(
-        &mut self,
-        module: &Module,
-        abstraction: ast::FunctionAbstraction,
-        asynchrony: ast::Asynchrony,
-        cardinality: ast::FunctionCardinality,
-        mode: Option<ast::FunctionMode>,
-        kind: ast::FunctionKind,
-        dynamic_parameters: &[ast::NodeId<ast::Parameter>],
-        return_type: &Option<ast::NodeId<ast::Expression>>,
-    ) -> FunctionSignature {
-        let abstraction = self.lower_function_abstraction(abstraction);
-        let asynchrony = self.lower_asynchrony(asynchrony);
-        let cardinality = self.lower_function_cardinality(cardinality);
-        let kind = self.lower_function_kind(kind);
-        let mode = mode.map(|mode| self.lower_function_mode(mode));
-        let dynamic_parameters = dynamic_parameters
-            .iter()
-            .map(|parameter| self.lower_parameter(module, *parameter))
-            .collect();
-        let return_type = return_type
-            .as_ref()
-            .map(|ty| self.lower_expression_to_type(module, *ty));
-        FunctionSignature {
-            abstraction,
-            asynchrony,
-            cardinality,
-            mode,
-            kind,
-            dynamic_parameters,
-            return_type,
-        }
-    }
-
     /// Lower a definition to a DIR definition.
     /// Lower an AST definition to a DIR definition.
     /// Handles modules, structs, and enums.
@@ -207,12 +118,12 @@ impl<'a> Compiler<'a> {
         match definition {
             // Module definition
             ast::Definition::Namespace {
-                descriptor: meta,
+                descriptor,
                 with_clauses,
                 where_clauses,
                 expressions,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let generics = self.lower_generics(
                     module,
                     None,
@@ -225,7 +136,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.session.tree.insert_from_ast(
                     Definition::Namespace {
-                        descriptor: meta,
+                        descriptor,
                         generics,
                         definitions,
                     },
@@ -236,7 +147,7 @@ impl<'a> Compiler<'a> {
 
             // Struct definition
             ast::Definition::Struct {
-                descriptor: meta,
+                descriptor,
                 kind,
                 format,
                 extends_types,
@@ -248,7 +159,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
@@ -269,7 +180,7 @@ impl<'a> Compiler<'a> {
                 let representation_type = representation_type
                     .as_ref()
                     .map(|repr| self.lower_expression_to_type(module, *repr));
-                let struct_name = meta.name;
+                let struct_name = descriptor.name;
                 let variant = self.lower_struct_to_variant(
                     module,
                     definition_id,
@@ -284,7 +195,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.session.tree.insert_from_ast(
                     Definition::Struct {
-                        descriptor: meta,
+                        descriptor,
                         kind,
                         generics,
                         embedded_definitions,
@@ -298,7 +209,7 @@ impl<'a> Compiler<'a> {
 
             // Enum definition
             ast::Definition::Enum {
-                descriptor: meta,
+                descriptor,
                 extends_types,
                 implements_types,
                 static_parameters,
@@ -308,7 +219,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let generics = self.lower_generics(
                     module,
                     static_parameters.as_ref(),
@@ -332,64 +243,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.session.tree.insert_from_ast(
                     Definition::Enum {
-                        descriptor: meta,
-                        generics,
-                        embedded_definitions,
-                        variants,
-                        definitions,
-                    },
-                    module.id,
-                    definition_id,
-                )
-            }
-
-            // Union definition
-            ast::Definition::Union {
-                meta,
-                tag_type,
-                representation_type,
-                static_parameters,
-                extends_types,
-                implements_types,
-                with_clauses,
-                where_clauses,
-                fields,
-                expressions,
-            } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
-                let generics = self.lower_generics(
-                    module,
-                    static_parameters.as_ref(),
-                    with_clauses.as_ref(),
-                    where_clauses.as_ref(),
-                );
-                let embedded_definitions = self.lower_embedded_definitions(
-                    module,
-                    definition_id,
-                    extends_types,
-                    implements_types,
-                    expressions,
-                );
-                let tag_type = tag_type
-                    .as_ref()
-                    .map(|tag| self.lower_expression_to_type(module, *tag));
-                let representation_type = representation_type
-                    .as_ref()
-                    .map(|repr| self.lower_expression_to_type(module, *repr));
-                let variants = self.lower_union_to_variant(
-                    module,
-                    definition_id,
-                    representation_type,
-                    tag_type,
-                    fields,
-                );
-                let definitions = expressions
-                    .iter()
-                    .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
-                    .collect();
-                self.session.tree.insert_from_ast(
-                    Definition::Union {
-                        meta,
+                        descriptor,
                         generics,
                         embedded_definitions,
                         variants,
@@ -402,7 +256,7 @@ impl<'a> Compiler<'a> {
 
             // Interface definition
             ast::Definition::Interface {
-                descriptor: meta,
+                descriptor,
                 extends_types,
                 static_parameters,
                 with_clauses,
@@ -410,7 +264,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 expressions,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let generics = self.lower_generics(
                     module,
                     static_parameters.as_ref(),
@@ -434,7 +288,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.session.tree.insert_from_ast(
                     Definition::Interface {
-                        descriptor: meta,
+                        descriptor,
                         generics,
                         embedded_definitions,
                         fields,
@@ -447,7 +301,7 @@ impl<'a> Compiler<'a> {
 
             // Function definition
             ast::Definition::Function {
-                descriptor: meta,
+                descriptor,
                 abstraction,
                 asynchrony,
                 cardinality,
@@ -460,7 +314,7 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 body,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let generics = self.lower_generics(
                     module,
                     static_parameters.as_ref(),
@@ -483,7 +337,7 @@ impl<'a> Compiler<'a> {
                     .map(|body| self.lower_expression(module, *body));
                 self.session.tree.insert_from_ast(
                     Definition::Function {
-                        descriptor: meta,
+                        descriptor,
                         generics,
                         signature,
                         definitions,
@@ -496,7 +350,7 @@ impl<'a> Compiler<'a> {
 
             // Implement definition
             ast::Definition::Implement {
-                descriptor: meta,
+                descriptor,
                 static_parameters,
                 target_type,
                 implements_types,
@@ -504,7 +358,7 @@ impl<'a> Compiler<'a> {
                 where_clauses,
                 expressions,
             } => {
-                let meta = self.lower_declaration_descriptor(module, meta);
+                let descriptor = self.lower_declaration_descriptor(module, descriptor);
                 let generics = self.lower_generics(
                     module,
                     static_parameters.as_ref(),
@@ -526,7 +380,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 self.session.tree.insert_from_ast(
                     Definition::Implement {
-                        descriptor: meta,
+                        descriptor,
                         generics,
                         target_type,
                         implements_types,

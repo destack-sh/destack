@@ -216,6 +216,17 @@ pub struct Generics {
     pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
 }
 
+/// The polymoprhic relations.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Heritage {
+    /// The extends types of the declaration.
+    pub extends_types: Option<Vec<NodeId<Type>>> = None,
+    /// The implements types of the declaration.
+    pub implements_types: Option<Vec<NodeId<Type>>> = None,
+    /// The embedded types of the declaration.
+    pub embedded_types: Option<Vec<NodeId<Type>>> = None,
+}
+
 /// A TypeKind determines nominal vs. structural typing.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TypeKind {
