@@ -450,11 +450,11 @@ impl_dump_display! {
     YieldCardinality,
 }
 
-/// Dump a DefinitionMeta as a string.
-impl Dump for DefinitionMeta {
+/// Dump a DeclarationDescriptor as a string.
+impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
-            .object("DefinitionMeta")
+            .object("DeclarationDescriptor")
             .field("kind", &self.kind)
             .field_optional("name", &self.name)
             .field_optional("export", &self.export)
@@ -779,27 +779,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Let {
                 mutability,
-                meta,
+                descriptor,
                 pattern: _,
                 ty: _,
                 value: _,
             } => {
                 self.node("Expression::Let", _id.id)
                     .field("mutability", mutability)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Expression::LetType {
                 kind,
                 mutability,
-                meta,
+                descriptor,
                 static_parameters: _,
                 value: _,
             } => {
                 self.node("Expression::LetType", _id.id)
                     .field("kind", kind)
                     .field_optional("mutability", mutability)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Expression::If {
@@ -1079,17 +1079,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Namespace {
-                meta,
+                descriptor,
                 expressions: _,
                 with_clauses: _,
                 where_clauses: _,
             } => {
                 self.node("Definition::Namespace", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Struct {
-                meta,
+                descriptor,
                 kind,
                 extends_types: _,
                 implements_types: _,
@@ -1099,12 +1099,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
             } => {
                 self.node("Definition::Struct", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field("kind", kind)
                     .end();
             }
             Definition::Enum {
-                meta,
+                descriptor,
                 static_parameters: _,
                 extends_types: _,
                 implements_types: _,
@@ -1114,11 +1114,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
             } => {
                 self.node("Definition::Enum", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Interface {
-                meta,
+                descriptor,
                 extends_types: _,
                 static_parameters: _,
                 with_clauses: _,
@@ -1126,11 +1126,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
             } => {
                 self.node("Definition::Interface", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Implement {
-                meta,
+                descriptor,
                 static_parameters: _,
                 target_type: _,
                 implements_types: _,
@@ -1139,11 +1139,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
             } => {
                 self.node("Definition::Extension", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Function {
-                meta,
+                descriptor,
                 asynchrony,
                 cardinality,
                 kind,
@@ -1156,7 +1156,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .field("asynchrony", asynchrony)
                     .field("cardinality", cardinality)
                     .field("kind", kind)

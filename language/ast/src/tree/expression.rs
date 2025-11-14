@@ -1,7 +1,7 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DefinitionMeta,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, DeclarationDescriptor, Definition,
     DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, NodeId, NodeType,
     Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
     TypeLiteral, TypeUnaryOperator, UnaryOperator,
@@ -104,7 +104,7 @@ pub enum Expression {
     ///     ...
     /// }
     Let {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         mutability: Mutability,
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Expression>>,
@@ -125,7 +125,7 @@ pub enum Expression {
     /// newtype T = { a: int32, b: boolean } | true
     /// ```
     LetType {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         kind: TypeKind,
         mutability: Option<Mutability>,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -510,7 +510,7 @@ pub enum Expression {
     },
 
     /// Parenthesized expression.
-    /// 
+    ///
     /// Examples:
     /// ```
     /// (x)
@@ -519,7 +519,7 @@ pub enum Expression {
     Parenthesized { expression: NodeId<Expression> },
 
     /// Type unary operation (prefix or postfix).
-    /// 
+    ///
     /// Examples:
     /// ```
     /// type x
@@ -532,7 +532,7 @@ pub enum Expression {
     },
 
     /// Type binary operation (infix).
-    /// 
+    ///
     /// Examples:
     /// ```
     /// x as int32
@@ -549,7 +549,7 @@ pub enum Expression {
     },
 
     /// Unary operation (prefix or postfix).
-    /// 
+    ///
     /// Examples:
     /// ```
     /// !x
@@ -562,7 +562,7 @@ pub enum Expression {
     },
 
     /// Value of operation (e.g., `^x`).
-    /// 
+    ///
     /// Examples:
     /// ```
     /// ^x
@@ -576,7 +576,7 @@ pub enum Expression {
     },
 
     /// Reference of operation (e.g., `&x`).
-    /// 
+    ///
     /// Examples:
     /// ```
     /// &x

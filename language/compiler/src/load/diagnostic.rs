@@ -4,7 +4,7 @@ use dyst_source::{FileId, Uri};
 
 use dyst_source::StringId;
 
-use crate::{CompilerDiagnostic, CompileError};
+use crate::{CompileDiagnostic, CompileError};
 
 /// Error when loading something into the compiler.
 #[derive(Debug, Clone)]
@@ -56,7 +56,7 @@ impl From<LoadError> for CompileError {
     }
 }
 
-impl CompilerDiagnostic for LoadError {
+impl CompileDiagnostic for LoadError {
     #[inline]
     fn family_letter(&self) -> &'static str {
         "L"

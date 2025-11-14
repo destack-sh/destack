@@ -1020,7 +1020,7 @@ pub(crate) fn format_expression<'ast>(
         // let
         Expression::Let {
             mutability,
-            meta,
+            descriptor: meta,
             pattern,
             ty,
             value: value_id,
@@ -1093,7 +1093,7 @@ pub(crate) fn format_expression<'ast>(
         Expression::LetType {
             kind,
             mutability,
-            meta,
+            descriptor: meta,
             static_parameters,
             value: value_id,
         } => {

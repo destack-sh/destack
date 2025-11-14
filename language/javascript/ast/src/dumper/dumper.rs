@@ -548,12 +548,12 @@ impl Dump for BindingModifier {
     }
 }
 
-/// Dump a DefinitionMeta.
-impl Dump for DefinitionMeta {
+/// Dump a DeclarationDescriptor.
+impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let has_key = self.key.is_some();
         dumper
-            .object("DefinitionMeta")
+            .object("DeclarationDescriptor")
             .field("kind", &self.kind)
             .field("scope", &self.scope)
             .field_optional("name", &self.name)
@@ -878,47 +878,50 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match definition {
             Definition::Namespace {
-                meta,
+                descriptor,
                 definitions: _,
             } => {
                 self.node("Definition::Namespace", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Class {
-                meta,
+                descriptor,
                 static_parameters: _,
                 fields: _,
                 definitions: _,
             } => {
                 self.node("Definition::Class", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Interface {
-                meta,
+                descriptor,
                 static_parameters: _,
                 fields: _,
                 definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Enum { meta, fields: _ } => {
+            Definition::Enum {
+                descriptor,
+                fields: _,
+            } => {
                 self.node("Definition::Enum", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Definition::Function {
-                meta,
+                descriptor,
                 static_parameters: _,
                 dynamic_parameters: _,
                 return_type: _,
                 body: _,
             } => {
                 self.node("Definition::Function", id.id)
-                    .field("meta", meta)
+                    .field("descriptor", descriptor)
                     .end();
             }
         }

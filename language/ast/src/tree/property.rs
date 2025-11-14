@@ -1,7 +1,6 @@
 use crate::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key,
-    Keyword, Mutability, Node, NodeId, NodeType, Parameter, Visibility, WhereClause,
-    WithClause,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, Key, Keyword, Mutability,
+    Node, NodeId, NodeType, Parameter, Visibility, WhereClause, WithClause,
 };
 
 /// The type of a binding.

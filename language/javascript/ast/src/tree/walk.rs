@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, Block, Definition, DefinitionMeta, DependencyItem, EnumField, Expression,
-    Field, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Statement, SwitchCase, TemplateLiteral, Type,
+    Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField,
+    Expression, Field, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, Statement, SwitchCase, TemplateLiteral, Type,
 };
 
 /// Walk any node.
@@ -479,12 +479,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     }
 }
 
-fn walk_definition_meta<V: NodeVisitor + ?Sized>(
+fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &MutableNodeTree,
-    meta: &DefinitionMeta,
+    descriptor: &DeclarationDescriptor,
 ) {
-    if let Some(key) = meta.key {
+    if let Some(key) = descriptor.key {
         let key_expr = tree.get(key);
         visitor.visit_expression(tree, key, key_expr);
     }
@@ -500,20 +500,23 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Definition, id.id);
 
     match definition {
-        Definition::Namespace { meta, definitions } => {
-            walk_definition_meta(visitor, tree, meta);
+        Definition::Namespace {
+            descriptor,
+            definitions,
+        } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
             for definition_id in definitions {
                 let definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, definition);
             }
         }
         Definition::Class {
-            meta,
+            descriptor,
             static_parameters,
             fields,
             definitions,
         } => {
-            walk_definition_meta(visitor, tree, meta);
+            walk_declaration_descriptor(visitor, tree, descriptor);
             if let Some(parameters) = static_parameters {
                 for parameter_id in parameters {
                     let parameter = tree.get(*parameter_id);
@@ -530,12 +533,12 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
-            meta,
+            descriptor,
             static_parameters,
             fields,
             definitions,
         } => {
-            walk_definition_meta(visitor, tree, meta);
+            walk_declaration_descriptor(visitor, tree, descriptor);
             if let Some(parameters) = static_parameters {
                 for parameter_id in parameters {
                     let parameter = tree.get(*parameter_id);
@@ -551,21 +554,21 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_definition(tree, *definition_id, definition);
             }
         }
-        Definition::Enum { meta, fields } => {
-            walk_definition_meta(visitor, tree, meta);
+        Definition::Enum { descriptor, fields } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_enum_field(tree, *field_id, field);
             }
         }
         Definition::Function {
-            meta,
+            descriptor,
             static_parameters,
             dynamic_parameters,
             return_type,
             body,
         } => {
-            walk_definition_meta(visitor, tree, meta);
+            walk_declaration_descriptor(visitor, tree, descriptor);
             if let Some(parameters) = static_parameters {
                 for parameter_id in parameters {
                     let parameter = tree.get(*parameter_id);

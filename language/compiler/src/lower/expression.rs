@@ -174,7 +174,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Let {
-                meta: _,
+                descriptor: _,
                 mutability,
                 pattern,
                 ty,
@@ -192,7 +192,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::LetType {
-                meta,
+                descriptor: meta,
                 mutability,
                 static_parameters,
                 value,

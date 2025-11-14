@@ -284,10 +284,9 @@ impl<'a> Parser<'a> {
         };
 
         // value
-        let value_id = self
-            .with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+        let value_id = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // yield
         let yield_id = self.tree.insert(
@@ -312,10 +311,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Throw)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self
-                .with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+            let value_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             Some(value_id)
         } else {
             None

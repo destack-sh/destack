@@ -1,4 +1,4 @@
-use crate::{CompilerDiagnostic, CompileError, SourceNodeIdAny};
+use crate::{CompileDiagnostic, CompileError, SourceNodeIdAny};
 use dyst_dir::ModuleId;
 
 /// Error when evaluating something statically.
@@ -47,7 +47,7 @@ impl From<EvaluateError> for CompileError {
     }
 }
 
-impl CompilerDiagnostic for EvaluateError {
+impl CompileDiagnostic for EvaluateError {
     #[inline]
     fn family_letter(&self) -> &'static str {
         "E"

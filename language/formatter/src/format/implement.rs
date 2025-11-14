@@ -2,14 +2,14 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_implement_empty() {
         assert_format!(
             "implement Foo {}",
             "implement Foo { }",
-            |p| p.eat_implement(DefinitionMeta::default()),
+            |p| p.eat_implement(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -19,7 +19,7 @@ mod tests {
         assert_format!(
             "implement Foo implements Bar { static X = 1 }",
             "implement Foo implements Bar {\n\tstatic X = 1\n}",
-            |p| p.eat_implement(DefinitionMeta::default()),
+            |p| p.eat_implement(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -29,7 +29,7 @@ mod tests {
         assert_format!(
             "implement<T> Foo<T> { }",
             "implement<T> Foo<T> { }",
-            |p| p.eat_implement(DefinitionMeta::default()),
+            |p| p.eat_implement(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }

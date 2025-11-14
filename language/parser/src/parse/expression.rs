@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use dyst_ast::{
-    Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationKind, DefinitionMeta,
+    Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationDescriptor, DeclarationKind,
     ExportType, Expression, IfKind, InfixOperator, Keyword, NodeId, NodeType, PostfixPosition,
     TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
@@ -337,7 +337,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        let mut meta: DefinitionMeta = DefinitionMeta::default();
+        let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
 
         // export
         if self.peek_keyword(Keyword::Export).is_ok() {
@@ -361,11 +361,11 @@ impl<'a> Parser<'a> {
                 return self.eat_export(mode);
             }
 
-            meta.export = mode;
+            descriptor.export = mode;
         }
 
         // kind
-        meta.kind = if self.peek_keyword(Keyword::Declare).is_ok() {
+        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok() {
             self.bump(); // eat declare
             DeclarationKind::Declaration
         } else {
@@ -373,7 +373,7 @@ impl<'a> Parser<'a> {
         };
 
         // scope
-        meta.scope = if self.peek_keyword(Keyword::Static).is_ok() {
+        descriptor.scope = if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
             BindingScope::Static
         } else {
@@ -454,7 +454,7 @@ impl<'a> Parser<'a> {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(meta, false, false)?;
+                let lambda_id = self.eat_function(descriptor, false, false)?;
                 self.tree
                     .insert(Expression::Definition(lambda_id), self.get_span_from(start))
             }
@@ -481,7 +481,7 @@ impl<'a> Parser<'a> {
                     })
                     .unwrap_or(false)
                 {
-                    let lambda_id = self.eat_function(meta, false, false)?;
+                    let lambda_id = self.eat_function(descriptor, false, false)?;
                     self.tree
                         .insert(Expression::Definition(lambda_id), self.get_span_from(start))
                 }
@@ -632,7 +632,7 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Namespace)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let namespace_id = self.eat_namespace(meta)?;
+                let namespace_id = self.eat_namespace(descriptor)?;
                 self.tree.insert(
                     Expression::Definition(namespace_id),
                     self.get_span_from(start),
@@ -642,7 +642,7 @@ impl<'a> Parser<'a> {
             else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let struct_id = self.eat_struct(meta)?;
+                let struct_id = self.eat_struct(descriptor)?;
                 self.tree
                     .insert(Expression::Definition(struct_id), self.get_span_from(start))
             }
@@ -650,7 +650,7 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Enum)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let enum_id = self.eat_enum(meta)?;
+                let enum_id = self.eat_enum(descriptor)?;
                 self.tree
                     .insert(Expression::Definition(enum_id), self.get_span_from(start))
             }
@@ -658,7 +658,7 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Interface)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let interface_id = self.eat_interface(meta)?;
+                let interface_id = self.eat_interface(descriptor)?;
                 self.tree.insert(
                     Expression::Definition(interface_id),
                     self.get_span_from(start),
@@ -668,7 +668,7 @@ impl<'a> Parser<'a> {
             else if keyword == Some(Keyword::Implement)
                 && DEFINITION_START_TOKENS.contains(&next_token_type)
             {
-                let implement_id = self.eat_implement(meta)?;
+                let implement_id = self.eat_implement(descriptor)?;
                 self.tree.insert(
                     Expression::Definition(implement_id),
                     self.get_span_from(start),
@@ -695,7 +695,7 @@ impl<'a> Parser<'a> {
                 ]
                 .contains(&next_token_type)
             {
-                let function_id = self.eat_function(meta, false, false)?;
+                let function_id = self.eat_function(descriptor, false, false)?;
                 self.tree.insert(
                     Expression::Definition(function_id),
                     self.get_span_from(start),
@@ -735,7 +735,7 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                self.eat_let(meta)?
+                self.eat_let(descriptor)?
             }
             // type
             else if (keyword == Some(Keyword::Type)
@@ -750,7 +750,7 @@ impl<'a> Parser<'a> {
                 ]
                 .contains(&next_token_type))
             {
-                self.eat_type(meta)?
+                self.eat_type(descriptor)?
             }
             // if
             else if keyword == Some(Keyword::If) {
@@ -1263,7 +1263,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, AssignOperator, BinaryOperator, Block, Definition, DefinitionMeta,
+        Argument, AssignOperator, BinaryOperator, Block, DeclarationDescriptor, Definition,
         DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
         IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
         Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
@@ -1276,10 +1276,14 @@ mod tests {
     /// Disambiguate using import as a path.
     #[test]
     fn test_parse_import_as_path() {
-        let mut test = TestParser::new("import.meta.env");
+        let mut test = TestParser::new("import.descriptor.env");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_expr_path!(parser, parser.tree.get(expression_id), "import.meta.env");
+        assert_expr_path!(
+            parser,
+            parser.tree.get(expression_id),
+            "import.descriptor.env"
+        );
     }
 
     /// Disambiguate using `type` as a variable.
@@ -1496,7 +1500,7 @@ type = type * 2
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::LetType { meta: DefinitionMeta { name, export, .. }, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::LetType { descriptor: DeclarationDescriptor { name, export, .. }, .. } => {
             assert_string!(parser, name.unwrap().string(), "NonNullValue");
             assert!(export.is_some());
         });
@@ -2783,9 +2787,9 @@ function isStringy(value: any): asserts value is string {
         let expr_id = parser.eat_expression().unwrap();
         // function isStringy(value: any): asserts value is string { .. }
         assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { meta, dynamic_parameters, return_type, .. } => {
+            assert_node!(parser.tree, *definition_id, Definition::Function { descriptor, dynamic_parameters, return_type, .. } => {
                 // isStringy
-                assert_string!(parser, meta.name.unwrap().string(), "isStringy");
+                assert_string!(parser, descriptor.name.unwrap().string(), "isStringy");
                 assert_eq!(dynamic_parameters.len(), 1);
                 // value: any
                 assert_node!(parser.tree, dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
@@ -2823,7 +2827,7 @@ type Value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // type Value = | string | number | boolean
-        assert_node!(parser.tree, expr_id, Expression::LetType { meta: DefinitionMeta { name, .. }, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor: DeclarationDescriptor { name, .. }, value, .. } => {
             // value
             assert_string!(parser, name.unwrap().string(), "Value");
             // | string | number | boolean
@@ -2857,7 +2861,7 @@ const value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // const value = | 1 | 2 | 3
-        assert_node!(parser.tree, expr_id, Expression::Let { mutability, meta: DefinitionMeta { name: _, .. }, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Let { mutability, descriptor: DeclarationDescriptor { name: _, .. }, value, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
             // | 1 | 2 | 3
             assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {

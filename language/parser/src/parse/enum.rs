@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    Definition, DefinitionMeta, EnumField, Keyword, NodeId, NodeType, Property, TokenType,
+    DeclarationDescriptor, Definition, EnumField, Keyword, NodeId, NodeType, Property, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -36,14 +36,17 @@ impl<'a> Parser<'a> {
     ///     C = 3
     /// }
     /// ```
-    pub fn eat_enum(&mut self, mut meta: DefinitionMeta) -> ParseResult<NodeId<Definition>> {
+    pub fn eat_enum(
+        &mut self,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<NodeId<Definition>> {
         let start = self.mark();
 
         // keyword
         self.eat_keyword(Keyword::Enum)?;
 
         // optional name
-        meta = meta.with_name_maybe(self.eat_name_maybe()?);
+        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -77,7 +80,7 @@ impl<'a> Parser<'a> {
 
         let enum_id = self.tree.insert(
             Definition::Enum {
-                meta,
+                descriptor,
                 static_parameters,
                 extends_types,
                 implements_types,
@@ -170,7 +173,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        DeclarationKind, Definition, DefinitionMeta, EnumField, Expression, Parameter,
+        DeclarationDescriptor, DeclarationKind, Definition, EnumField, Expression, Parameter,
         ScalarLiteral, WhereClause, WithClause,
     };
 
@@ -187,10 +190,10 @@ enum Foo extends Day {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, extends_types, implements_types, fields, properties, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+        let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, extends_types, implements_types, fields, properties, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
             assert!(fields.is_empty());
             assert!(where_clauses.is_none());
@@ -218,10 +221,10 @@ enum {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, fields, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
-            assert!(meta.name.is_none());
+        let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert!(descriptor.name.is_none());
             assert_eq!(fields.len(), 2);
 
             // Success
@@ -256,11 +259,11 @@ enum Foo extends Day {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, fields, extends_types, implements_types, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, extends_types, implements_types, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // enum name
-            assert_string!(parser, meta.name.unwrap().string(), "Foo");
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(where_clauses.is_none());
 
             // extends: Day
@@ -302,11 +305,11 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, static_parameters, fields, where_clauses, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, static_parameters, fields, where_clauses, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Machine
-            assert_string!(parser, meta.name.unwrap().string(), "Machine");
+            assert_string!(parser, descriptor.name.unwrap().string(), "Machine");
             assert!(where_clauses.is_none());
 
             // <T: int32 = 3, IsSomething: boolean = true>
@@ -338,9 +341,9 @@ enum Foo with Context where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(DefinitionMeta::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { meta, with_clauses, where_clauses, fields, .. } => {
-            assert_eq!(meta.kind, DeclarationKind::Definition);
+        let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, with_clauses, where_clauses, fields, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // with Context
             let with_clauses = with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_clauses.len(), 1);

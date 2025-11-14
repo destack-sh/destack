@@ -2,14 +2,14 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_interface_empty() {
         assert_format!(
             "interface {}",
             "interface { }",
-            |p| p.eat_interface(DefinitionMeta::default()),
+            |p| p.eat_interface(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -19,7 +19,7 @@ mod tests {
         assert_format!(
             "interface Foo extends Bar, Baz {}",
             "interface Foo extends Bar, Baz { }",
-            |p| p.eat_interface(DefinitionMeta::default()),
+            |p| p.eat_interface(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -29,7 +29,7 @@ mod tests {
         assert_format!(
             "interface Foo with Bar { }",
             "interface Foo with Bar { }",
-            |p| p.eat_interface(DefinitionMeta::default()),
+            |p| p.eat_interface(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -39,7 +39,7 @@ mod tests {
         assert_format!(
             "interface Foo { static X = 1 }",
             "interface Foo {\n\tstatic X = 1\n}",
-            |p| p.eat_interface(DefinitionMeta::default()),
+            |p| p.eat_interface(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab()
         );
     }

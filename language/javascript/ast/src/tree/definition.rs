@@ -6,18 +6,26 @@ use crate::{
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
+    /// Declare without link.
     Declaration,
+    /// Inline definition.
     Definition,
 }
 
-/// The meta data for a definition.
+/// The descriptor for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct DefinitionMeta {
+pub struct DeclarationDescriptor {
+    /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
+    /// The scope of the declaration.
     pub scope: BindingScope = BindingScope::Container,
+    /// The name of the definition.
     pub name: Option<Name> = None,
+    /// The key of the definition.
     pub key: Option<NodeId<Expression>> = None,
+    /// The visibility of the definition.
     pub visibility: Option<Visibility> = None,
+    /// The export type of the definition.
     pub export: Option<ExportType> = None,
 }
 
@@ -26,31 +34,31 @@ pub struct DefinitionMeta {
 pub enum Definition {
     /// Namespace definition (TS-only).
     Namespace {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Class definition.
     Class {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         fields: Vec<NodeId<Field>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Interface definition.
     Interface {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         fields: Vec<NodeId<Field>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.
     Enum {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         fields: Vec<NodeId<EnumField>>,
     },
     /// Function definition.
     Function {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         dynamic_parameters: Vec<NodeId<Parameter>>,
         return_type: Option<NodeId<Type>>,
@@ -64,7 +72,8 @@ impl Node for Definition {
 
 /// A Field is a named property of a definition.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Field { // nocheckin: turn JS Field -> Property
+pub enum Field {
+    // nocheckin: turn JS Field -> Property
     /// Named field (like `x: int32`).
     Named {
         modifiers: Option<BindingModifier>,

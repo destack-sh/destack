@@ -1,4 +1,4 @@
-use crate::{CompilerDiagnostic, CompileError, SourceNodeIdAny};
+use crate::{CompileDiagnostic, CompileError, SourceNodeIdAny};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl From<ExecuteError> for CompileError {
     }
 }
 
-impl CompilerDiagnostic for ExecuteError {
+impl CompileDiagnostic for ExecuteError {
     #[inline]
     fn family_letter(&self) -> &'static str {
         "X"

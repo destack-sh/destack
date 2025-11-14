@@ -408,7 +408,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]
@@ -447,7 +447,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_struct(DefinitionMeta::default()),
+            |p| p.eat_struct(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -496,7 +496,7 @@ mod tests {
         assert_format!(
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct(DefinitionMeta::default()),
+            |p| p.eat_struct(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab()
         );
     }

@@ -2,12 +2,12 @@
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_function_lambda_empty() {
         assert_format!("() => void", "() => void", |p| p.eat_function(
-            DefinitionMeta::default(),
+            DeclarationDescriptor::default(),
             false,
             false
         ));
@@ -16,13 +16,13 @@ mod tests {
     #[test]
     fn test_format_function_lambda_with_parameters() {
         assert_format!("(a: int32) => a > 2", "(a: int32) => a > 2", |p| p
-            .eat_function(DefinitionMeta::default(), false, false));
+            .eat_function(DeclarationDescriptor::default(), false, false));
     }
 
     #[test]
     fn test_format_function_simple() {
         assert_format!("function foo() {}", "function foo() { }", |p| p
-            .eat_function(DefinitionMeta::default(), false, false));
+            .eat_function(DeclarationDescriptor::default(), false, false));
     }
 
     #[test]
@@ -30,7 +30,7 @@ mod tests {
         assert_format!(
             "function bar(x: int32, y: boolean) {}",
             "function bar(x: int32, y: boolean) { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }
 
@@ -39,7 +39,7 @@ mod tests {
         assert_format!(
             "function bar(x: int32, y: boolean, z: string) {}",
             "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false),
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
     }
@@ -49,7 +49,7 @@ mod tests {
         assert_format!(
             "function baz(): int32 {}",
             "function baz(): int32 { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }
 
@@ -58,7 +58,7 @@ mod tests {
         assert_format!(
             "function generic<T, U>() {}",
             "function generic<T, U>() { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }
 
@@ -67,7 +67,7 @@ mod tests {
         assert_format!(
             "function foo() with Time, Place, Something, Foo, Baz {}",
             "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false),
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false),
             DystFormatOptions::default_tab_with_line_width(40)
         );
     }
@@ -77,7 +77,7 @@ mod tests {
         assert_format!(
             "function external(): int32",
             "function external(): int32",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }
 
@@ -86,7 +86,7 @@ mod tests {
         assert_format!(
             "function foo(): int32 with Disk {}",
             "function foo(): int32 with Disk { }",
-            |p| p.eat_function(DefinitionMeta::default(), false, false)
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }
 
@@ -94,7 +94,7 @@ mod tests {
     fn test_format_function_with_self_parameter() {
         let source = r"function foo(self: int32): void";
         assert_format!(source, source, |p| p.eat_function(
-            DefinitionMeta::default(),
+            DeclarationDescriptor::default(),
             false,
             false
         ));
@@ -104,7 +104,7 @@ mod tests {
     fn test_format_function_with_this_parameter() {
         let source = r"function foo(this: int32): void";
         assert_format!(source, source, |p| p.eat_function(
-            DefinitionMeta::default(),
+            DeclarationDescriptor::default(),
             false,
             false
         ));
@@ -124,7 +124,7 @@ mod tests {
     }
 }";
         assert_format!(source, source, |p| p.eat_function(
-            DefinitionMeta::default(),
+            DeclarationDescriptor::default(),
             false,
             false
         ));

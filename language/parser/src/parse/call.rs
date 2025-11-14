@@ -201,7 +201,9 @@ mod tests {
         let mut test = TestParser::new("(1, x: 2)");
         let mut parser = test.prepare();
         let recv = make_receiver(&mut parser);
-        let call_id = parser.eat_call(recv, None, PostfixPosition::Direct).unwrap();
+        let call_id = parser
+            .eat_call(recv, None, PostfixPosition::Direct)
+            .unwrap();
 
         assert_node!(parser.tree, call_id, Expression::Call { position, left, static_arguments: None, dynamic_arguments } => {
             assert_eq!(*position, PostfixPosition::Direct);

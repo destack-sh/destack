@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{
     DependencyItem, DependencyKind, ExportType, Expression, Keyword, NodeId, NodeType,

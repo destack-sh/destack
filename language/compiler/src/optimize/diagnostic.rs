@@ -1,6 +1,6 @@
 use dyst_dir::NodeIdAny;
 
-use crate::{CompilerDiagnostic, CompileError};
+use crate::{CompileDiagnostic, CompileError};
 
 /// Error when optimizeing something into the compiler.
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ impl From<OptimizeError> for CompileError {
     }
 }
 
-impl CompilerDiagnostic for OptimizeError {
+impl CompileDiagnostic for OptimizeError {
     #[inline]
     fn family_letter(&self) -> &'static str {
         "O"

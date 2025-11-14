@@ -38,7 +38,7 @@ pub enum DeclarationKind {
 
 /// The meta data for a definition.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct DefinitionMeta {
+pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The name of the definition.
@@ -54,19 +54,19 @@ pub struct DefinitionMeta {
 pub enum Definition {
     /// Type definition.
     Type {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         value: NodeId<Type>,
     },
     /// Namespace definition.
     Namespace {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Struct or class definition.
     Struct {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         kind: StructKind,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
@@ -74,7 +74,7 @@ pub enum Definition {
     },
     /// Enum definition.
     Enum {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         fields: Vec<NodeId<EnumField>>,
@@ -82,21 +82,21 @@ pub enum Definition {
     },
     /// Interface definition.
     Interface {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         embedded_definitions: Vec<EmbeddedDefinition>,
         properties: Vec<NodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
         definitions: Vec<NodeId<Definition>>,
         body: Option<NodeId<Expression>>,
     },
     /// Implement definition.
     Implement {
-        meta: DefinitionMeta,
+        descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
         target_type: NodeId<Type>,
         implements_types: Option<Vec<NodeId<Type>>>,

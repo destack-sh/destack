@@ -1,5 +1,7 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, EnumField, Expression, FunctionSignature, Generics, Key, MatchCase, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, WhereClause, WithClause
+    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, EnumField, Expression,
+    FunctionSignature, Generics, Key, MatchCase, MutableNodeTree, NodeId, NodeType, NodeVisitor,
+    Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -543,7 +545,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
         Definition::Type {
-            meta: _,
+            descriptor: _,
             generics,
             value,
         } => {
@@ -554,7 +556,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *value, value_type);
         }
         Definition::Namespace {
-            meta: _,
+            descriptor: _,
             generics,
             definitions,
         } => {
@@ -567,7 +569,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Struct {
-            meta: _,
+            descriptor: _,
             kind: _,
             generics,
             embedded_definitions,
@@ -587,7 +589,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Enum {
-            meta: _,
+            descriptor: _,
             generics,
             embedded_definitions,
             fields,
@@ -611,7 +613,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Interface {
-            meta: _,
+            descriptor: _,
             generics,
             embedded_definitions,
             properties,
@@ -630,7 +632,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Function {
-            meta: _,
+            descriptor: _,
             signature,
             definitions,
             body,
@@ -646,7 +648,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             }
         }
         Definition::Implement {
-            meta: _,
+            descriptor: _,
             generics,
             target_type,
             implements_types,

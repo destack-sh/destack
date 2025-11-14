@@ -152,7 +152,10 @@ pub(crate) fn format_block_of_statements<'ast>(
         }
 
         // postfix annotations
-        write!(f, [f.context().any_infix_or_postfix_annotations(expression_id)])?;
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(expression_id)]
+        )?;
     }
     Ok(())
 }

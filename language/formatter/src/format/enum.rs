@@ -29,14 +29,14 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 mod tests {
     use crate::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
-    use dyst_ast::DefinitionMeta;
+    use dyst_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_enum_empty() {
         assert_format!(
             "enum { }",
             "enum { }",
-            |p| p.eat_enum(DefinitionMeta::default()),
+            |p| p.eat_enum(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }
@@ -46,7 +46,7 @@ mod tests {
         assert_format!(
             "enum { A, B }",
             "enum {\n\tA\n\tB\n}",
-            |p| p.eat_enum(DefinitionMeta::default()),
+            |p| p.eat_enum(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -56,7 +56,7 @@ mod tests {
         assert_format!(
             "enum { A }",
             "enum {\n\tA\n}",
-            |p| p.eat_enum(DefinitionMeta::default()),
+            |p| p.eat_enum(DeclarationDescriptor::default()),
             DystFormatOptions::default_tab()
         );
     }
@@ -72,7 +72,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_enum(DefinitionMeta::default()),
+            |p| p.eat_enum(DeclarationDescriptor::default()),
             DystFormatOptions::default()
         );
     }

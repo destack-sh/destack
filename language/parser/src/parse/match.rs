@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{
     Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, NodeId, NodeType, Pattern,
