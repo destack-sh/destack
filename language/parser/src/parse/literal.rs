@@ -434,7 +434,7 @@ impl<'a> Parser<'a> {
                 break;
             }
             // consume any stop
-            else if self.peek_item_stop().is_ok() {
+            else if self.peek_comma().is_ok() {
                 self.eat_item_stop_with_newlines()?;
                 continue;
             }
@@ -515,13 +515,12 @@ impl<'a> Parser<'a> {
                 while self.peek_token(TokenType::Divide).is_err()
                     && self.peek_token(TokenType::GreaterThan).is_err()
                 {
-                    let argument = self.with_options(self.options.in_tree_literal(), |parser| {
-                        parser.eat_tree_literal_argument()
-                    })?;
+                    let argument = self.with_options(
+                        self.options.not_in_position().in_tree_literal(),
+                        |parser| parser.eat_tree_literal_argument(),
+                    )?;
                     arguments.push(argument);
-                    if self.peek_any_stop().is_ok() {
-                        self.eat_any_stop_with_newlines()?;
-                    }
+                    self.eat_newlines_maybe()?;
                 }
                 Some(arguments)
             }
@@ -585,13 +584,14 @@ impl<'a> Parser<'a> {
 
                     // keep eating child elements
                     let element = self.with_options(
-                        self.options.in_statement_position_in_tree_literal(),
+                        self.options
+                            .not_in_position()
+                            .in_tree_literal()
+                            .in_statement_position(),
                         |parser| parser.eat_argument(),
                     )?;
                     elements.push(element);
-                    if self.peek_any_stop().is_ok() {
-                        self.eat_any_stop_with_newlines()?;
-                    }
+                    self.eat_newlines_maybe()?;
                 }
 
                 Some(elements)

@@ -1,5 +1,5 @@
 //! Parse use and with declarations.
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{Expression, Keyword, NodeId, TokenType, WithClause};
 
@@ -141,9 +141,10 @@ impl<'a> Parser<'a> {
             };
 
         // right
-        let right = self.with_options(self.options.static_in_before_block(), |parser| {
-            parser.eat_expression()
-        })?;
+        let right = self.with_options(
+            self.options.not_in_position().in_static().in_before_block(),
+            |parser| parser.eat_expression(),
+        )?;
 
         // clause
         let clause = self

@@ -3,7 +3,7 @@ use dyst_ast::{
 };
 
 use crate::parse::prelude::*;
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
             else {
                 let expression_id = self
                     .with_options(self.options.nested(), |parser| {
-                        parser.try_eat_expression(TokenType::Newline)
+                        parser.try_eat_statement_expression()
                     })
                     .for_node_type(NodeType::Expression)?;
                 expressions.push(expression_id);
@@ -222,7 +222,9 @@ impl<'a> Parser<'a> {
         }
         // expression
         else {
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let defer_id = self.tree.insert(
                 Expression::Defer {
                     expression: Some(expression_id),
@@ -246,7 +248,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Await)?;
 
         // expression
-        let expression_id = self.eat_expression()?;
+        let expression_id = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // await
         let await_id = self.tree.insert(
@@ -280,7 +284,10 @@ impl<'a> Parser<'a> {
         };
 
         // value
-        let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+        let value_id = self
+            .with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
 
         // yield
         let yield_id = self.tree.insert(
@@ -305,7 +312,10 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Throw)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+            let value_id = self
+                .with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
             Some(value_id)
         } else {
             None

@@ -2,7 +2,7 @@
 
 use dyst_ast::{Asynchrony, Expression, ForEachKind, Keyword, NodeId, TokenType, WhileKind};
 
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -135,10 +135,13 @@ impl<'a> Parser<'a> {
             }
 
             // pattern
-            let pattern_id = self
-                .with_options(self.options.in_for_each_before_block(), |parser| {
-                    parser.eat_pattern()
-                })?;
+            let pattern_id = self.with_options(
+                self.options
+                    .not_in_position()
+                    .in_for_each()
+                    .in_before_block(),
+                |parser| parser.eat_pattern(),
+            )?;
 
             // in
             let kind = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
@@ -149,7 +152,7 @@ impl<'a> Parser<'a> {
 
             // iterator
             let iterator_id = self
-                .with_options(self.options.nested_in_before_block(), |parser| {
+                .with_options(self.options.nested().in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
 
@@ -208,7 +211,9 @@ impl<'a> Parser<'a> {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_id = self.eat_expression()?;
+            let condition_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
 
             // while
             let while_id = self.tree.insert(
@@ -227,9 +232,10 @@ impl<'a> Parser<'a> {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_id = self.with_options(self.options.in_before_block(), |parser| {
-                parser.eat_expression()
-            })?;
+            let condition_id = self
+                .with_options(self.options.not_in_position().in_before_block(), |parser| {
+                    parser.eat_expression()
+                })?;
 
             // body
             let body_id = self.eat_block()?;

@@ -1,4 +1,4 @@
-use crate::{Parser, ParseError, ParseResult};
+use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{TokenSpan, TokenType};
 
 impl<'a> Parser<'a> {
@@ -6,7 +6,8 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
-            && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
+            && (token.token.ty == TokenType::Comma
+                || token.token.ty == TokenType::Newline)
         {
             Ok(token)
         } else {
@@ -17,12 +18,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat an item stop (comma or newline).
+    /// Eat a comma with newlines.
     /// Eats all following newlines.
     #[inline]
     pub fn eat_item_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
-            && (token.token.ty == TokenType::Newline || token.token.ty == TokenType::Comma)
+            && (token.token.ty == TokenType::Comma)
         {
             self.bump();
         } else {

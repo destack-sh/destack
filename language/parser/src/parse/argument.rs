@@ -161,7 +161,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
                 let ty = self
-                    .with_options(self.options.in_type(), |parser| parser.eat_expression())
+                    .with_options(self.options.not_in_position().in_type(), |parser| {
+                        parser.eat_expression()
+                    })
                     .for_node_type(NodeType::Parameter)?;
                 Some(ty)
             } else {
@@ -175,7 +177,11 @@ impl<'a> Parser<'a> {
             if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let value = self.eat_expression().for_node_type(NodeType::Parameter)?;
+                let value = self
+                    .with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })
+                    .for_node_type(NodeType::Parameter)?;
                 // named with default
                 if let Some(name) = name {
                     Parameter::Named {
@@ -252,8 +258,8 @@ impl<'a> Parser<'a> {
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
-            if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
             } else {
                 break;
             }
@@ -281,7 +287,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular static parameters
-        let parameters = self.with_options(self.options.nested_in_static(), |parser| {
+        let parameters = self.with_options(self.options.nested().in_static(), |parser| {
             parser.eat_parameters_body()
         })?;
         self.eat_token(TokenType::GreaterThan)?;
@@ -351,7 +357,9 @@ impl<'a> Parser<'a> {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             // value
-            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self.tree.insert(
                 Argument::Named {
                     modifiers,
@@ -373,8 +381,9 @@ impl<'a> Parser<'a> {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             // value
-            let value =
-                self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self.tree.insert(
                 Argument::Named {
                     modifiers,
@@ -389,7 +398,9 @@ impl<'a> Parser<'a> {
         else if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat range
             let name = self.eat_argument_name_maybe()?;
-            let value = self.eat_expression().for_node_type(NodeType::Argument)?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
                     modifiers,
@@ -518,7 +529,7 @@ impl<'a> Parser<'a> {
         }
 
         // regular static arguments
-        let static_arguments = self.with_options(self.options.nested_in_static(), |parser| {
+        let static_arguments = self.with_options(self.options.nested().in_static(), |parser| {
             parser.eat_arguments_body(TokenType::GreaterThan)
         })?;
 
@@ -581,8 +592,8 @@ impl<'a> Parser<'a> {
             }
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
-            if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
             } else {
                 break;
             }

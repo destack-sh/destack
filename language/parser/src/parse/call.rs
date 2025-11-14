@@ -2,7 +2,7 @@
 
 use dyst_ast::{Expression, Keyword, NodeId, PostfixPosition, TokenType};
 
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
@@ -106,7 +106,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Delete)?;
 
         // value
-        let value = self.eat_expression()?;
+        let value = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // delete
         let delete_id = self

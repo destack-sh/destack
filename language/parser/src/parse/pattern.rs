@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{Parser, ParseResult};
+use crate::{ParseResult, Parser};
 
 use dyst_ast::{Expression, NodeId, NodeType, Pattern, PatternField, TokenType};
 
@@ -124,7 +124,7 @@ impl<'a> Parser<'a> {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 let inner_pattern_id = self
-                    .with_options(self.options.static_in_before_block(), |parser| {
+                    .with_options(self.options.in_static().in_before_block(), |parser| {
                         parser.eat_pattern()
                     })
                     .for_node_type(NodeType::Pattern)?;
@@ -294,7 +294,11 @@ impl<'a> Parser<'a> {
                             // default
                             let default = if self.peek_token(TokenType::Assign).is_ok() {
                                 self.bump(); // eat assign
-                                Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                                let default = self
+                                    .with_options(self.options.not_in_position(), |parser| {
+                                        parser.eat_expression()
+                                    })?;
+                                Some(default)
                             } else {
                                 None
                             };
@@ -311,7 +315,11 @@ impl<'a> Parser<'a> {
                             // default
                             let default = if self.peek_token(TokenType::Assign).is_ok() {
                                 self.bump(); // eat assign
-                                Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                                let default = self
+                                    .with_options(self.options.not_in_position(), |parser| {
+                                        parser.eat_expression()
+                                    })?;
+                                Some(default)
                             } else {
                                 None
                             };
@@ -328,7 +336,11 @@ impl<'a> Parser<'a> {
                         // default
                         let default = if self.peek_token(TokenType::Assign).is_ok() {
                             self.bump(); // eat assign
-                            Some(self.eat_expression().for_node_type(NodeType::Expression)?)
+                            let default = self
+                                .with_options(self.options.not_in_position(), |parser| {
+                                    parser.eat_expression()
+                                })?;
+                            Some(default)
                         } else {
                             None
                         };

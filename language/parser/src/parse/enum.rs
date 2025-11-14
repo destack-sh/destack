@@ -115,7 +115,7 @@ impl<'a> Parser<'a> {
             // eat properties
             else {
                 let property_id = self
-                    .with_options(self.options.nested_in_variant(), |parser| {
+                    .with_options(self.options.nested().in_variant(), |parser| {
                         parser.try_eat_property(TokenType::Newline)
                     })
                     .for_node_type(NodeType::Property)?;
@@ -152,7 +152,10 @@ impl<'a> Parser<'a> {
         // optional `= <expr>` value
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(self.eat_expression().for_node_type(NodeType::EnumField)?)
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
+            Some(value)
         } else {
             None
         };

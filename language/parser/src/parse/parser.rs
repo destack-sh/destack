@@ -63,7 +63,17 @@ pub(crate) struct ParserOptions {
 
 #[allow(unused)]
 impl ParserOptions {
+    /// Set `in_static=true`.
+    #[inline]
+    pub(crate) fn in_static(self) -> Self {
+        Self {
+            in_static: true,
+            ..self
+        }
+    }
+
     /// Set `in_type=true`.
+    #[inline]
     pub(crate) fn in_type(self) -> Self {
         Self {
             in_type: true,
@@ -72,6 +82,7 @@ impl ParserOptions {
     }
 
     /// Set `in_super_type=true`.
+    #[inline]
     pub(crate) fn in_super_type(self) -> Self {
         Self {
             in_type: true,
@@ -80,15 +91,17 @@ impl ParserOptions {
         }
     }
 
-    /// Set `in_union_pattern=true`.
-    pub(crate) fn in_implicit_union(self) -> Self {
+    /// Set `in_variant=true`.
+    #[inline]
+    pub(crate) fn in_variant(self) -> Self {
         Self {
-            in_union_pattern: true,
+            in_variant: true,
             ..self
         }
     }
 
     /// Set `in_before_type=true`.
+    #[inline]
     pub(crate) fn in_before_type(self) -> Self {
         Self {
             in_before_type: true,
@@ -96,7 +109,35 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_match_case=true`.
+    #[inline]
+    pub(crate) fn in_match_case(self) -> Self {
+        Self {
+            in_match_case: true,
+            ..self
+        }
+    }
+
+    /// Set `in_union_pattern=true`.
+    #[inline]
+    pub(crate) fn in_implicit_union(self) -> Self {
+        Self {
+            in_union_pattern: true,
+            ..self
+        }
+    }
+
+    /// Set `in_parenthesis=true`.
+    #[inline]
+    pub(crate) fn in_parenthesis(self) -> Self {
+        Self {
+            in_parenthesis: true,
+            ..self
+        }
+    }
+
     /// Set `in_statement_position=true`.
+    #[inline]
     pub(crate) fn in_statement_position(self) -> Self {
         Self {
             in_statement_position: true,
@@ -105,6 +146,7 @@ impl ParserOptions {
     }
 
     /// Set `in_before_block=true`.
+    #[inline]
     pub(crate) fn in_before_block(self) -> Self {
         Self {
             in_before_block: true,
@@ -112,25 +154,8 @@ impl ParserOptions {
         }
     }
 
-    /// Set `in_before_block=true` and `in_type=true`.
-    pub(crate) fn type_in_before_block(self) -> Self {
-        Self {
-            in_before_block: true,
-            in_type: true,
-            ..self
-        }
-    }
-
-    /// Set `in_for_each=true`, `in_before_block=true`.
-    pub(crate) fn in_for_each_before_block(self) -> Self {
-        Self {
-            in_for_each: true,
-            in_before_block: true,
-            ..self
-        }
-    }
-
     /// Set `in_block_position=true`.
+    #[inline]
     pub(crate) fn in_block_position(self) -> Self {
         Self {
             in_block_position: true,
@@ -138,42 +163,35 @@ impl ParserOptions {
         }
     }
 
-    /// Set `in_static=true` and `in_before_block=true`.
-    pub(crate) fn static_in_before_block(self) -> Self {
-        Self {
-            in_static: true,
-            in_before_block: true,
-            ..self
-        }
-    }
-
     /// Set `in_tree_literal=true` and `in_parenthesis=false`.
+    #[inline]
     pub(crate) fn in_tree_literal(self) -> Self {
         Self {
             in_tree_literal: true,
-            in_parenthesis: false,
             ..self
         }
     }
 
-    /// Set `in_statement_position=true`, `in_tree_literal=true`.
-    pub(crate) fn in_statement_position_in_tree_literal(self) -> Self {
+    /// Set `in_ternary_condition=true`.
+    #[inline]
+    pub(crate) fn in_ternary_condition(self) -> Self {
         Self {
-            in_statement_position: true,
-            in_tree_literal: true,
+            in_ternary_condition: true,
             ..self
         }
     }
 
-    /// Set `in_match_case=true`.
-    pub(crate) fn in_match_case(self) -> Self {
+    /// Set `in_for_each=true`.
+    #[inline]
+    pub(crate) fn in_for_each(self) -> Self {
         Self {
-            in_match_case: true,
+            in_for_each: true,
             ..self
         }
     }
 
     /// Set `left_precedence=precedence`.
+    #[inline]
     pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
         Self {
             left_precedence: Some(precedence),
@@ -181,97 +199,13 @@ impl ParserOptions {
         }
     }
 
-    /// Set `left_precedence=precedence`, `in_type=true`.
-    pub(crate) fn type_in_left_precedence(self, precedence: u16) -> Self {
-        Self {
-            left_precedence: Some(precedence),
-            in_type: true,
-            ..self
-        }
-    }
-
-    /// Set `in_variant=true`.
-    pub(crate) fn in_variant(self) -> Self {
-        Self {
-            in_variant: true,
-            ..self
-        }
-    }
-
-    /// Reset, set `in_variant=true`.
-    pub(crate) fn nested_in_variant(self) -> Self {
-        Self {
-            in_variant: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_static=true`.
-    pub(crate) fn nested_in_static(self) -> Self {
-        Self {
-            in_static: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_before_block=true`.
-    pub(crate) fn nested_in_before_block(self) -> Self {
-        Self {
-            in_before_block: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_type=true`.
-    pub(crate) fn nested_in_type(self) -> Self {
-        Self {
-            in_type: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_type=true` and `in_before_block=true`.
-    pub(crate) fn nested_type_in_before_block(self) -> Self {
-        Self {
-            in_type: true,
-            in_before_block: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_type=true` and `in_super_type=true` and `in_before_block=true`.
-    pub(crate) fn nested_super_type_in_before_block(self) -> Self {
-        Self {
-            in_type: true,
-            in_super_type: true,
-            in_before_block: true,
-            ..Self::default()
-        }
-    }
-
-    /// Reset, set `in_parenthesis=true`.
-    pub(crate) fn nested_in_parenthesis(self) -> Self {
-        Self {
-            in_parenthesis: true,
-            ..Self::default()
-        }
-    }
-
-    /// Not in parenthesis or previous position.
+    /// Not previous position.
+    #[inline]
     pub(crate) fn not_in_position(self) -> Self {
         Self {
             in_parenthesis: false,
             in_statement_position: false,
             in_block_position: false,
-            ..self
-        }
-    }
-
-    /// Set `in_ternary_condition=true`, `in_parenthesis=false`.
-    pub(crate) fn in_ternary_condition(self) -> Self {
-        Self {
-            in_ternary_condition: true,
-            in_parenthesis: false,
             ..self
         }
     }

@@ -262,7 +262,7 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
                 // value
                 let value_id =
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                    self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
                 // type
                 let expression = Expression::LetType {
                     kind,
@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
                 // re-parse from before the static parameters to get them as a arguments
                 self.restore(speculative_start.0, speculative_start.1);
                 let right =
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                    self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -293,7 +293,7 @@ impl<'a> Parser<'a> {
         // type expression
         else {
             let right =
-                self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                self.with_options(self.options.not_in_position().in_type(), |parser| parser.eat_expression())?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -311,7 +311,7 @@ impl<'a> Parser<'a> {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
-            self.eat_super_type_body_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+            self.eat_super_types_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
         } else {
             Ok(None)
         }
@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
-            self.eat_super_type_body_maybe(&[Keyword::With, Keyword::Where])
+            self.eat_super_types_maybe(&[Keyword::With, Keyword::Where])
         } else {
             Ok(None)
         }
@@ -331,7 +331,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a super type clause maybe.
     #[inline]
-    fn eat_super_type_body_maybe(
+    fn eat_super_types_maybe(
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
             false
         };
         let types = self.with_options(self.options.in_super_type(), |parser| {
-            parser.eat_super_type_body(terminators)
+            parser.eat_super_types(terminators)
         })?;
         if is_parenthesized {
             self.eat_newlines_maybe()?;
@@ -352,11 +352,8 @@ impl<'a> Parser<'a> {
         Ok(Some(types))
     }
 
-    /// Eat a type clause body (without the leading keyword).
-    fn eat_super_type_body(
-        &mut self,
-        terminators: &[Keyword],
-    ) -> ParseResult<Vec<NodeId<Expression>>> {
+    /// Eat super types (without the leading keyword).
+    fn eat_super_types(&mut self, terminators: &[Keyword]) -> ParseResult<Vec<NodeId<Expression>>> {
         let mut types: Vec<NodeId<Expression>> = Vec::new();
         while self.peek().is_ok() {
             // eat until open brace or close parenthesis
@@ -369,8 +366,8 @@ impl<'a> Parser<'a> {
                 break;
             }
             // consume any stop
-            else if self.peek_any_stop().is_ok() {
-                self.eat_any_stop_with_newlines()?;
+            else if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
             }
             // keep eating super types
             else {

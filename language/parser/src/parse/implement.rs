@@ -34,10 +34,10 @@ impl<'a> Parser<'a> {
         let static_parameters = self.eat_static_parameters_maybe()?;
 
         // target type
-        let target_type = self
-            .with_options(self.options.nested_super_type_in_before_block(), |parser| {
-                parser.eat_expression()
-            })?;
+        let target_type = self.with_options(
+            self.options.nested().in_super_type().in_before_block(),
+            |parser| parser.eat_expression(),
+        )?;
 
         // implements types
         let implements_types = self.eat_implements_types_maybe()?;

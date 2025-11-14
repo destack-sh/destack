@@ -273,6 +273,39 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
+    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
+    #[inline]
+    pub fn try_eat_statement_expression(&mut self) -> ParseResult<NodeId<Expression>> {
+        let start = self.mark();
+        match self.with_options(self.options.in_statement_position(), |parser| {
+            parser.eat_expression()
+        }) {
+            Ok(expression_id) => {
+                if self.peek_token(TokenType::Semicolon).is_ok() {
+                    self.bump(); // eat semicolon
+                    let expression_id = self.tree.insert(
+                        Expression::Statement(expression_id),
+                        self.get_span_from(start),
+                    );
+                    Ok(expression_id)
+                } else {
+                    Ok(expression_id)
+                }
+            }
+            Err(err) => {
+                let err = err.for_node_type(NodeType::Expression);
+                let span = err.leaf_span();
+                let start = ParserMark::new(span.start as usize);
+                self.try_recover(start, TokenType::Newline, Some(err))?;
+                let error_id = self
+                    .tree
+                    .insert(Expression::Error, self.get_span_from(start));
+                Ok(error_id)
+            }
+        }
+    }
+
     /// Peek a member access of the given token type.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]
@@ -484,7 +517,7 @@ impl<'a> Parser<'a> {
                     else {
                         let inner_start = self.pos();
                         let expression_id = self
-                            .with_options(self.options.nested_in_parenthesis(), |parser| {
+                            .with_options(self.options.nested().in_parenthesis(), |parser| {
                                 parser.eat_expression()
                             })?;
                         self.eat_newlines_maybe()?;
@@ -520,7 +553,9 @@ impl<'a> Parser<'a> {
             else if let Ok(operator) = self.peek_unary_prefix_operator() {
                 self.bump(); // eat unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options.in_left_precedence(operator.precedence()),
+                    self.options
+                        .not_in_position()
+                        .in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::Unary { operator, right };
@@ -530,7 +565,10 @@ impl<'a> Parser<'a> {
             else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
                 self.bump(); // eat type unary operator (always because right associative)
                 let right = self.with_options(
-                    self.options.type_in_left_precedence(operator.precedence()),
+                    self.options
+                        .not_in_position()
+                        .in_type()
+                        .in_left_precedence(operator.precedence()),
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::TypeUnary { operator, right };
@@ -541,7 +579,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat ^
                 let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
-                let right = self.eat_expression()?;
+                let right = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
                 let expression = Expression::ValueOf {
                     mutability,
                     variance,
@@ -554,7 +594,9 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat &
                 let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
-                let right = self.eat_expression()?;
+                let right = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
                 let expression = Expression::ReferenceOf {
                     mutability,
                     variance,
@@ -795,14 +837,19 @@ impl<'a> Parser<'a> {
             // anonymous struct literal
             else if token_type == TokenType::OpenBrace
                 && (self.options.in_parenthesis
-                    || !self.options.in_statement_position
-                        && !self.options.in_before_block
+                    || self.options.in_type
+                        && !self.options.in_statement_position
+                        && !self.options.in_block_position
+                    || self.options.in_static
+                        && !self.options.in_statement_position
+                        && !self.options.in_block_position
+                    || !self.options.in_before_block
+                        && !self.options.in_statement_position
                         && !self.options.in_block_position)
             {
-                let properties = self
-                    .with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_struct_literal()
-                    })?;
+                let properties = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_struct_literal()
+                })?;
                 self.tree.insert(
                     Expression::StructLiteral {
                         ty: None,
@@ -1079,10 +1126,10 @@ impl<'a> Parser<'a> {
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
                     // then expression
-                    let then_expression_id = self
-                        .with_options(self.options.in_ternary_condition(), |parser| {
-                            parser.eat_expression()
-                        })?;
+                    let then_expression_id = self.with_options(
+                        self.options.not_in_position().in_ternary_condition(),
+                        |parser| parser.eat_expression(),
+                    )?;
                     // :
                     self.eat_newlines_maybe()?;
                     self.eat_colon()?;
@@ -1194,7 +1241,9 @@ impl<'a> Parser<'a> {
 
             // eat right expression
             let right_expression_id = self.with_options(
-                self.options.in_left_precedence(right_operator.precedence()),
+                self.options
+                    .not_in_position()
+                    .in_left_precedence(right_operator.precedence()),
                 |parser| parser.eat_expression(),
             )?;
 
@@ -2821,6 +2870,18 @@ const value =
                 // 3
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
+        });
+    }
+
+    /// Parse a statement expression.
+    #[test]
+    fn test_parse_statement_expression() {
+        let mut test = TestParser::new("a;");
+        let mut parser = test.prepare();
+        let expr_id = parser.try_eat_statement_expression().unwrap();
+        // a;
+        assert_node!(parser.tree, expr_id, Expression::Statement(expression_id) => {
+            assert_expr_path!(parser, parser.tree.get(*expression_id), "a");
         });
     }
 }
