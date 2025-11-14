@@ -995,6 +995,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Call {
                 position,
+                static_arguments: _,
                 left: _,
                 dynamic_arguments: _,
             } => {

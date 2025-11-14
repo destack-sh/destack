@@ -19,7 +19,6 @@ pub mod path;
 pub mod pattern;
 pub mod property;
 pub mod r#try;
-pub mod variant;
 pub mod r#where;
 pub mod with;
 

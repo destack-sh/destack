@@ -36,8 +36,6 @@ pub enum Path {
     Intrinsic { intrinsic: Intrinsic },
     /// Evaluated to a Definition.
     Definition { definition: NodeId<Definition> },
-    /// Error path.
-    Error,
 }
 
 impl Path {
@@ -54,8 +52,6 @@ pub enum BlockTarget {
     UnevaluatedString { label: StringId },
     /// Evaluated block target to a Definition.
     Definition { definition: NodeId<Definition> },
-    /// Error target.
-    Error,
 }
 
 impl BlockTarget {

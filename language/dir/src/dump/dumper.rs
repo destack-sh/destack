@@ -448,7 +448,7 @@ impl Dump for ArgumentSlot {
             ArgumentSlot::Parameter { parameter: _ } => {
                 dumper.object("ArgumentSlot::Parameter").end();
             }
-            ArgumentSlot::Field { field: _ } => {
+            ArgumentSlot::Property { property: _ } => {
                 dumper.object("ArgumentSlot::Field").end();
             }
         }
@@ -885,12 +885,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::LetType {
+                kind,
                 mutability,
                 name,
                 static_parameters: _,
                 value: _,
             } => {
                 self.node("Expression::Type", id.id)
+                    .field("kind", kind)
                     .field_optional("mutability", mutability)
                     .field("name", name)
                     .end();
@@ -1215,7 +1217,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("signature", signature)
                     .end();
             }
-            Definition::Extension {
+            Definition::Implement {
                 meta,
                 generics,
                 target_type: _,

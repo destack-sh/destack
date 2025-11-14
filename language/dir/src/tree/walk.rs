@@ -690,7 +690,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *body, body_expression);
             }
         }
-        Definition::Extension {
+        Definition::Implement {
             meta: _,
             generics,
             target_type,
@@ -1074,7 +1074,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
                     let parameter_node = tree.get(*parameter);
                     visitor.visit_parameter(tree, *parameter, parameter_node);
                 }
-                ArgumentSlot::Field { field } => {
+                ArgumentSlot::Property { property: field } => {
                     let field_node = tree.get(*field);
                     visitor.visit_field(tree, *field, field_node);
                 }

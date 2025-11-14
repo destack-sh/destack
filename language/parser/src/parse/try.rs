@@ -132,7 +132,7 @@ try foo()
 
         let try_id = parser.eat_try().unwrap();
         assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern: None, catch_expression: None, finally_expression: None } => {
-            assert_node!(parser.tree, *try_expression, Expression::Call { position: _, left, dynamic_arguments: _ } => {
+            assert_node!(parser.tree, *try_expression, Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                 assert_expr_path!(parser, parser.tree.get(*left), "foo");
             });
         });
@@ -155,7 +155,7 @@ try {
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "foo");
                     });
                 });
@@ -185,7 +185,7 @@ try {
             assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "foo");
                     });
                 });
@@ -198,7 +198,7 @@ try {
             assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "bar");
                     });
                 });
@@ -207,7 +207,7 @@ try {
             assert_node!(parser.tree, *finally_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, dynamic_arguments: _ } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Call { position: _, left, static_arguments: _, dynamic_arguments: _ } => {
                         assert_expr_path!(parser, parser.tree.get(*left), "baz");
                     });
                 });

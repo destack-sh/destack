@@ -13,6 +13,6 @@ mod pattern;
 mod statement;
 mod switch;
 mod r#type;
-mod variant;
+mod property;
 
 pub use context::*;

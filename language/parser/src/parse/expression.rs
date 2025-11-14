@@ -887,9 +887,10 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // alias / path
+            // alias / path / statically parameterized call
             else if token_type == TokenType::Identifier {
                 let path = self.eat_path().for_node_type(NodeType::Expression)?;
+
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
                 let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
@@ -905,11 +906,24 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                let expression = Expression::Path {
-                    path,
-                    static_arguments,
-                };
-                self.tree.insert(expression, self.get_span_from(start))
+
+                // immediately parse call if we have static arguments
+                // (so we can stuff the arguments into the call expression)
+                if static_arguments.is_some() && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                {
+                    let receiver = Expression::Path {
+                        path,
+                        static_arguments: None,
+                    };
+                    let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                    self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
+                } else {
+                    let expression = Expression::Path {
+                        path,
+                        static_arguments,
+                    };
+                    self.tree.insert(expression, self.get_span_from(start))
+                }
             }
             //
             // ------------------------------------------------------------
@@ -1064,7 +1078,7 @@ impl<'a> Parser<'a> {
                 } else {
                     PostfixPosition::Direct
                 };
-                left_expression_id = self.eat_call(left_expression_id, position)?;
+                left_expression_id = self.eat_call(left_expression_id, None, position)?;
             }
             // maybe or ternary if
             // (like `x?`, `x.?`, `x?.` or `cond ? then : else`)

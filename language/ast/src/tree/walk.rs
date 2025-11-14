@@ -538,11 +538,18 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Call {
             position: _,
-            left: receiver,
+            left,
+            static_arguments,
             dynamic_arguments,
         } => {
-            let receiver_expr = tree.get(*receiver);
-            visitor.visit_expression(tree, *receiver, receiver_expr);
+            let receiver_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, receiver_expr);
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
             for argument_id in dynamic_arguments {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);

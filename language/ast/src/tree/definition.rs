@@ -1,5 +1,5 @@
 use crate::{
-    Asynchrony, BindingScope, EnumField, ExportType, Expression, FunctionMode, Name, Node, NodeId,
+    Asynchrony, BindingScope, ExportType, Expression, FunctionMode, Name, Node, NodeId,
     NodeType, Parameter, Property, WhereClause, WithClause,
 };
 
@@ -376,4 +376,24 @@ pub enum FunctionKind {
     Function,
     /// A lambda function.
     Lambda,
+}
+
+
+/// A EnumField is a enum field declaration.
+///
+/// Examples:
+/// ```
+/// A
+/// B = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumField {
+    /// The name of the enum field.
+    pub name: Name,
+    /// The default value of the enum field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for EnumField {
+    const TYPE: NodeType = NodeType::EnumField;
 }

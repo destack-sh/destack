@@ -525,7 +525,7 @@ impl<'a> Compiler<'a> {
                     .filter_map(|expr| self.lower_expression_to_definition(module, *expr))
                     .collect();
                 self.session.tree.insert_from_ast(
-                    Definition::Extension {
+                    Definition::Implement {
                         meta,
                         generics,
                         target_type,

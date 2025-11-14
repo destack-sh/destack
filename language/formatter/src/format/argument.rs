@@ -2,9 +2,7 @@ use std::marker::PhantomData;
 
 use dyst_fir::format::{BestFittingMode, FormatResult};
 
-use crate::variant::{
-    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
-};
+use crate::property::{format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe};
 use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_ast::{Argument, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, Parameter};
 use dyst_fir::prelude::*;
