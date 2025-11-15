@@ -4,3 +4,4 @@ mod warning;
 
 pub use diagnostic::*;
 pub use error::*;
+pub use warning::*;

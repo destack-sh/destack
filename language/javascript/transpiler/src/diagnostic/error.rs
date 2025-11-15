@@ -1,5 +1,6 @@
-use dyst_dir::{self as dir, Session};
-use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
+use dyst_dir::{self as dir};
+
+use crate::TranspileDiagnostic;
 
 /// Error when transpiling something into JS/TS
 #[derive(Debug, Clone)]
@@ -97,41 +98,12 @@ impl TranspileError {
             Self::UnsupportedAnnotation { node } => node.into_any(),
         }
     }
+}
 
-    /// Get the message of the error.
-    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>) -> Diagnostic {
-        // get source information
-        let node_id = self.node_id();
-        let (module_id, ast_id) = session.tree.get_source(node_id.id);
-        let module = session
-            .modules
-            .get(module_id)
-            .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
-        let file_id = module.file_id;
-        let file = session
-            .files
-            .get(file_id)
-            .unwrap_or_else(|| panic!("file not found: {file_id:?}"));
-
-        // make diagnostic
-        let message = self.message().to_string();
-        let code = self.full_code();
-        let primary_span = ast_id
-            .map(|ast_id| module.ast.get_span_by_id(ast_id))
-            .unwrap_or_else(|| file.span());
-        let primary_span = LabeledSpan {
-            span: primary_span,
-            label: message.clone(),
-        };
-
-        Diagnostic {
-            code,
-            severity: DiagnosticSeverity::Error,
-            message,
-            file_id,
-            primary_span,
-            secondary_spans: None,
-            suggestions: None,
-        }
+impl From<TranspileError> for TranspileDiagnostic {
+    fn from(error: TranspileError) -> Self {
+        TranspileDiagnostic::Error(error)
     }
 }
+
+pub type TranspileResult<T> = Result<T, TranspileError>;

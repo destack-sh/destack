@@ -1,11 +1,11 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Property,
-    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Statement, SwitchCase,
-    Type, walk_annotation, walk_argument, walk_block, walk_definition, walk_dependency_item,
-    walk_enum_field, walk_expression, walk_property, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_statement, walk_switch_case, walk_type,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
+    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Statement,
+    SwitchCase, Type, walk_annotation, walk_argument, walk_block, walk_definition,
+    walk_dependency_item, walk_enum_field, walk_expression, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_type,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -68,7 +68,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a property.
-    fn visit_property(&mut self, tree: &MutableNodeTree, id: NodeId<Property>, property: &Property) {
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        property: &Property,
+    ) {
         walk_property(self, tree, id, property);
     }
 

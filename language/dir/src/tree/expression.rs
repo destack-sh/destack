@@ -247,7 +247,10 @@ pub enum Expression {
     /// Await expression.
     Await { expression: NodeId<Expression> },
     /// Yield expression.
-    Yield { cardinality: YieldCardinality, value: NodeId<Expression> },
+    Yield {
+        cardinality: YieldCardinality,
+        value: NodeId<Expression>,
+    },
     /// Return expression.
     Return { value: Option<NodeId<Expression>> },
 

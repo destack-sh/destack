@@ -18,8 +18,5 @@ pub enum Key {
     /// Dynamic key (like `["Content-Type"]`).
     Expression(NodeId<Expression>),
     /// Named dynamic key (like `[x: string]: any`).
-    NamedExpression {
-        name: Name,
-        key: NodeId<Expression>,
-    },
+    NamedExpression { name: Name, key: NodeId<Expression> },
 }
