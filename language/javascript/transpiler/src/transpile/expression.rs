@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{Expression, NodeId, PostfixPosition};
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, TranspileWarning, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Get the position of a postfix expression.
@@ -28,6 +28,14 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
         let expression = self.session.tree.get(expression_id);
+
+        // report unresolved warning
+        if !expression.is_resolved() {
+            unit.add_warning(TranspileWarning::UnresolvedExpression {
+                node: expression_id,
+            });
+        }
+
         let expression = match expression.as_ref() {
             dir::Expression::Path {
                 path,

@@ -6,7 +6,7 @@ pub struct ResolveOptions {
     /// Default float width.
     pub default_float_width: u16 = 32,
     /// Whether to implicitly type unannotated expressions as any.
-    pub implicit_any_type: bool = true,
+    pub implicit_any_type: bool = false,
     /// Whether to resolve overimported operators.
     pub overimport_operators: bool = true,
     /// Whether to resolve overimported functions.

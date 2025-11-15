@@ -41,7 +41,7 @@ impl TranspileWarning {
         match self {
             Self::UnresolvedExpression { node } => node.into_any(),
             Self::UnresolvedPath { node, .. } => *node,
-            Self::UnresolvedType { node } => *node,
+            Self::UnresolvedType { node } => node.into_any(),
         }
     }
 

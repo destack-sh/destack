@@ -163,7 +163,7 @@ impl<'a> Compiler<'a> {
             ast::Expression::Unary { operator, right } => {
                 let right = self.lower_expression(module, *right);
                 let operator = self.lower_unary_operator(*operator);
-                Expression::Unary { operator, right }
+                Expression::UnresolvedUnary { operator, right }
             }
 
             ast::Expression::TypeUnary { operator, right } => {
@@ -208,7 +208,7 @@ impl<'a> Compiler<'a> {
                 let left = self.lower_expression(module, *left);
                 let right = self.lower_expression(module, *right);
                 let operator = self.lower_binary_operator(*operator);
-                Expression::Binary {
+                Expression::UnresolvedBinary {
                     left,
                     operator,
                     right,
@@ -237,7 +237,7 @@ impl<'a> Compiler<'a> {
                 let right = self.lower_expression(module, *right);
                 let operator = self.lower_assign_operator(*operator);
                 if let Some(operator) = operator {
-                    Expression::AssignBinary {
+                    Expression::UnresolvedAssignBinary {
                         left,
                         operator,
                         right,
