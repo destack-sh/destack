@@ -295,6 +295,20 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     write!(f, [token("*")])?;
                 }
 
+                // static parameters
+                if f.context().include_types()
+                    && let Some(static_parameters) = signature
+                        .generics
+                        .as_ref()
+                        .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+
                 // name / key
                 if let Some(name) = descriptor.name {
                     write!(f, [name])?;

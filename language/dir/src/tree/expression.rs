@@ -99,7 +99,7 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
     /// Assignment (e.g., `x = y`).
-    AssignDirect {
+    Assign {
         left: NodeId<Expression>,
         right: NodeId<Expression>,
     },

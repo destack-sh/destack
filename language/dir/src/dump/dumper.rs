@@ -983,8 +983,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::AssignDirect { left: _, right: _ } => {
-                self.node("Expression::AssignDirect", id.id).end();
+            Expression::Assign { left: _, right: _ } => {
+                self.node("Expression::Assign", id.id).end();
             }
             Expression::UnevaluatedAssignBinary {
                 left: _,

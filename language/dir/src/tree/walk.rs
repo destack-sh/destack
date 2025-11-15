@@ -280,7 +280,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             operator: _,
             right,
         }
-        | Expression::AssignDirect { left, right }
+        | Expression::Assign { left, right }
         | Expression::UnevaluatedAssignBinary {
             left,
             operator: _,

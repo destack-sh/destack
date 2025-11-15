@@ -1,6 +1,7 @@
 use crate::{
-    Argument, BinaryOperator, Definition, Node, NodeId, NodeType, Parameter, Path, Property,
-    ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, Node, NodeId,
+    NodeType, Path, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 /// The position of a postfix expression.
@@ -19,8 +20,7 @@ pub enum Expression {
     Definition { definition: NodeId<Definition> },
     /// Arrow function expression.
     ArrowFunction {
-        dynamic_parameters: Vec<NodeId<Parameter>>,
-        return_type: Option<NodeId<Type>>,
+        signature: FunctionSignature,
         body: NodeId<Expression>,
     },
 
@@ -61,6 +61,17 @@ pub enum Expression {
     Binary {
         left: NodeId<Expression>,
         operator: BinaryOperator,
+        right: NodeId<Expression>,
+    },
+    /// Assignment operation.
+    Assign {
+        left: NodeId<Expression>,
+        right: NodeId<Expression>,
+    },
+    /// Assignment binary operation.
+    AssignBinary {
+        left: NodeId<Expression>,
+        operator: AssignOperator,
         right: NodeId<Expression>,
     },
 

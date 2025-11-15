@@ -1,12 +1,13 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{
-    BinaryOperator, Expression, NodeId, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    AssignOperator, BinaryOperator, Expression, NodeId, TypeBinaryOperator, TypeUnaryOperator,
+    UnaryOperator,
 };
 
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
-    /// Transpile a DIR type unary operator to a JavaScript type unary operator.
+    /// Transpile a DIR type unary operator to a JS type unary operator.
     pub fn transpile_type_unary_expression(
         &self,
         module: &'a Module,
@@ -17,7 +18,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<NodeId<Expression>> {
         let right_id = self.transpile_expression(module, right_id, unit)?;
 
-        // transpile a trivial unary expression to a JavaScript unary expression
+        // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: TypeUnaryOperator| -> NodeId<Expression> {
             let expression = Expression::TypeUnary {
                 operator,
@@ -48,7 +49,7 @@ impl<'a> Transpiler<'a> {
         Ok(expression_id)
     }
 
-    /// Transpile a DIR type binary expression to a JavaScript type binary expression.
+    /// Transpile a DIR type binary expression to a JS type binary expression.
     pub fn transpile_type_binary_expression(
         &self,
         module: &'a Module,
@@ -80,7 +81,7 @@ impl<'a> Transpiler<'a> {
         Ok(expression_id)
     }
 
-    /// Transpile a DIR unary expression to a JavaScript unary expression.
+    /// Transpile a DIR unary expression to a JS unary expression.
     pub fn transpile_unary_expression(
         &self,
         module: &'a Module,
@@ -91,7 +92,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<NodeId<Expression>> {
         let right_id = self.transpile_expression(module, right_id, unit)?;
 
-        // transpile a trivial unary expression to a JavaScript unary expression
+        // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: UnaryOperator| -> NodeId<Expression> {
             let expression = Expression::Unary {
                 operator,
@@ -110,13 +111,9 @@ impl<'a> Transpiler<'a> {
             dir::UnaryOperator::Plus => unary(UnaryOperator::Plus),
             dir::UnaryOperator::Negate => unary(UnaryOperator::Negate),
             dir::UnaryOperator::WrappingNegate => {
-                // NOTE #Broken: transpile UnaryOperator.WrappingNegate
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::Negate,
-                    right: right_id,
-                };
-                unit.ast
-                    .insert_from_dir(expression, module.id, expression_id)
+                return Err(TranspileError::UnsupportedExpression {
+                    node: expression_id,
+                });
             }
             dir::UnaryOperator::ElementwiseNot => unary(UnaryOperator::ElementwiseNot),
             dir::UnaryOperator::Dereference => {
@@ -133,7 +130,7 @@ impl<'a> Transpiler<'a> {
         Ok(expression_id)
     }
 
-    /// Transpile a DIR binary expression to a JavaScript binary expression.
+    /// Transpile a DIR binary expression to a JS binary expression.
     pub fn transpile_binary_expression(
         &self,
         module: &'a Module,
@@ -195,6 +192,76 @@ impl<'a> Transpiler<'a> {
             // container
             dir::BinaryOperator::In => binary(BinaryOperator::In),
             dir::BinaryOperator::InstanceOf => binary(BinaryOperator::InstanceOf),
+
+            _ => {
+                return Err(TranspileError::UnsupportedExpression {
+                    node: expression_id,
+                });
+            }
+        };
+
+        Ok(expression_id)
+    }
+
+    /// Transpile a DIR assign binary expression to a JS assign binary expression.
+    pub fn transpile_assign_binary_expression(
+        &self,
+        module: &'a Module,
+        expression_id: dir::NodeId<dir::Expression>,
+        left_id: dir::NodeId<dir::Expression>,
+        operator: dir::AssignOperator,
+        right_id: dir::NodeId<dir::Expression>,
+        unit: &mut TranspilerUnit,
+    ) -> TranspileResult<NodeId<Expression>> {
+        let left_id = self.transpile_expression(module, left_id, unit)?;
+        let right_id = self.transpile_expression(module, right_id, unit)?;
+
+        // transpile a trivial assign binary expression to a JS assign binary expression
+        let mut assign_binary = |operator: AssignOperator| -> NodeId<Expression> {
+            let expression = Expression::AssignBinary {
+                left: left_id,
+                operator,
+                right: right_id,
+            };
+            unit.ast
+                .insert_from_dir(expression, module.id, expression_id)
+        };
+
+        let expression_id = match operator {
+            // assignment multiplication
+            dir::AssignOperator::MultiplyAssign => assign_binary(AssignOperator::MultiplyAssign),
+            dir::AssignOperator::DivideAssign => assign_binary(AssignOperator::DivideAssign),
+            dir::AssignOperator::RemainderAssign => assign_binary(AssignOperator::RemainderAssign),
+            dir::AssignOperator::ExponentAssign => assign_binary(AssignOperator::ExponentAssign),
+
+            // assignment addition
+            dir::AssignOperator::AddAssign => assign_binary(AssignOperator::AddAssign),
+            dir::AssignOperator::SubtractAssign => assign_binary(AssignOperator::SubtractAssign),
+
+            // assignment shift
+            dir::AssignOperator::ShiftLeftAssign => assign_binary(AssignOperator::ShiftLeftAssign),
+            dir::AssignOperator::ShiftRightAssign => {
+                assign_binary(AssignOperator::ShiftRightAssign)
+            }
+            dir::AssignOperator::UnsignedShiftRightAssign => {
+                assign_binary(AssignOperator::UnsignedShiftRightAssign)
+            }
+
+            // assignment elementwise
+            dir::AssignOperator::ElementwiseAndAssign => {
+                assign_binary(AssignOperator::ElementwiseAndAssign)
+            }
+            dir::AssignOperator::ElementwiseXorAssign => {
+                assign_binary(AssignOperator::ElementwiseXorAssign)
+            }
+            dir::AssignOperator::ElementwiseOrAssign => {
+                assign_binary(AssignOperator::ElementwiseOrAssign)
+            }
+
+            // assignment boolean
+            dir::AssignOperator::AndAssign => assign_binary(AssignOperator::AndAssign),
+            dir::AssignOperator::OrAssign => assign_binary(AssignOperator::OrAssign),
+            dir::AssignOperator::CoalesceAssign => assign_binary(AssignOperator::CoalesceAssign),
 
             _ => {
                 return Err(TranspileError::UnsupportedExpression {

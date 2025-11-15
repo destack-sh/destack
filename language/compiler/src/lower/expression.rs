@@ -234,7 +234,7 @@ impl<'a> Compiler<'a> {
                         right,
                     }
                 } else {
-                    Expression::AssignDirect { left, right }
+                    Expression::Assign { left, right }
                 }
             }
 

@@ -100,14 +100,47 @@ impl<'a> Transpiler<'a> {
                 *right,
                 unit,
             )?,
-            dir::Expression::Unary { operator, right } => {
+            dir::Expression::UnevaluatedUnary { operator, right }
+            | dir::Expression::Unary { operator, right } => {
                 self.transpile_unary_expression(module, expression_id, *operator, *right, unit)?
             }
-            dir::Expression::Binary {
+            dir::Expression::UnevaluatedBinary {
+                left,
+                operator,
+                right,
+            }
+            | dir::Expression::Binary {
                 left,
                 operator,
                 right,
             } => self.transpile_binary_expression(
+                module,
+                expression_id,
+                *left,
+                *operator,
+                *right,
+                unit,
+            )?,
+            dir::Expression::Assign { left, right } => {
+                let left_id = self.transpile_expression(module, *left, unit)?;
+                let right_id = self.transpile_expression(module, *right, unit)?;
+                let expression = Expression::Assign {
+                    left: left_id,
+                    right: right_id,
+                };
+                unit.ast
+                    .insert_from_dir(expression, module.id, expression_id)
+            }
+            dir::Expression::UnevaluatedAssignBinary {
+                left,
+                operator,
+                right,
+            }
+            | dir::Expression::AssignBinary {
+                left,
+                operator,
+                right,
+            } => self.transpile_assign_binary_expression(
                 module,
                 expression_id,
                 *left,
@@ -214,7 +247,11 @@ impl<'a> Transpiler<'a> {
                     .insert_from_dir(expression, module.id, expression_id)
             }
 
-            _ => todo!("unsupported expression {expression:?}"),
+            _ => {
+                return Err(TranspileError::UnsupportedExpression {
+                    node: expression_id,
+                });
+            }
         };
 
         Ok(expression)
