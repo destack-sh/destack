@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<Type> {
         let expression = self.lower_expression(module, expression_id);
         let type_id = self.session.tree.insert_from_ast(
-            Type::UnevaluatedExpression(expression),
+            Type::UnresolvedExpression(expression),
             module.id,
             expression_id,
         );

@@ -26,8 +26,8 @@ pub struct DeclarationDescriptor {
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    /// Unevaluated expression as a definition.
-    UnevaluatedExpression { expression: NodeId<Expression> },
+    /// Unresolved expression as a definition.
+    UnresolvedExpression { expression: NodeId<Expression> },
     /// Namespace definition.
     Namespace {
         descriptor: DeclarationDescriptor,

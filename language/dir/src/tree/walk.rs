@@ -249,7 +249,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Expression::UnevaluatedUnary { operator: _, right }
+        Expression::UnresolvedUnary { operator: _, right }
         | Expression::Unary { operator: _, right }
         | Expression::ValueOf {
             mutability: _,
@@ -265,7 +265,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
         }
-        Expression::UnevaluatedBinary {
+        Expression::UnresolvedBinary {
             left,
             operator: _,
             right,
@@ -281,7 +281,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             right,
         }
         | Expression::Assign { left, right }
-        | Expression::UnevaluatedAssignBinary {
+        | Expression::UnresolvedAssignBinary {
             left,
             operator: _,
             right,
@@ -610,7 +610,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
-        Definition::UnevaluatedExpression { expression } => {
+        Definition::UnresolvedExpression { expression } => {
             let expression_node = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_node);
         }
@@ -817,11 +817,11 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             walk_function_signature(visitor, tree, signature);
         }
 
-        Type::UnevaluatedExpression(expression_id) => {
+        Type::UnresolvedExpression(expression_id) => {
             let expression = tree.get(*expression_id);
             visitor.visit_expression(tree, *expression_id, expression);
         }
-        Type::UnevaluatedSelf => {}
+        Type::UnresolvedSelf => {}
 
         Type::Error => {}
     }
@@ -1013,16 +1013,16 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::UnevaluatedNamed {
+        Argument::UnresolvedNamed {
             modifiers: _,
             name: _,
             value,
         }
-        | Argument::UnevaluatedPositional {
+        | Argument::UnresolvedPositional {
             modifiers: _,
             value,
         }
-        | Argument::UnevaluatedSpread {
+        | Argument::UnresolvedSpread {
             modifiers: _,
             name: _,
             value,
@@ -1030,7 +1030,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Argument::UnevaluatedDynamic {
+        Argument::UnresolvedDynamic {
             modifiers: _,
             name: _,
             key,

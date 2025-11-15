@@ -64,8 +64,8 @@ pub enum Expression {
         operator: TypeBinaryOperator,
         right: NodeId<Expression>,
     },
-    /// Unevaluated unary operation (may be operator-overloaded).
-    UnevaluatedUnary {
+    /// Unresolved unary operation (may be operator-overloaded).
+    UnresolvedUnary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
     },
@@ -86,8 +86,8 @@ pub enum Expression {
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
-    /// Unevaluated binary operation (may be operator-overloaded).
-    UnevaluatedBinary {
+    /// Unresolved binary operation (may be operator-overloaded).
+    UnresolvedBinary {
         left: NodeId<Expression>,
         operator: BinaryOperator,
         right: NodeId<Expression>,
@@ -103,8 +103,8 @@ pub enum Expression {
         left: NodeId<Expression>,
         right: NodeId<Expression>,
     },
-    /// Unevaluated binary assignment with operator (may be operator-overloaded).
-    UnevaluatedAssignBinary {
+    /// Unresolved binary assignment with operator (may be operator-overloaded).
+    UnresolvedAssignBinary {
         left: NodeId<Expression>,
         operator: AssignOperator,
         right: NodeId<Expression>,
@@ -263,11 +263,11 @@ impl Node for Expression {
 }
 
 impl Expression {
-    // nocheckin #Broken: revisit Compiler is_evaluated/evaluate logic (after load, ...)
-    // (also see all the :Unevaluated* variants, and Type::Definition, ...)
+    // nocheckin #Broken: revisit Compiler is_resolved/resolve logic (after load, ...)
+    // (also see all the :Unresolved* variants, and Type::Definition, ...)
 
-    /// Whether the expression is considered evaluated at the outermost level (ignoring child nodes).
-    pub fn is_evaluated(&self) -> bool {
+    /// Whether the expression is considered resolved at the outermost level (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         false
     }
 }

@@ -104,7 +104,7 @@ pub enum TypeBinaryOperator {
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
-    /// Evaluated definition type.
+    /// Resolved definition type.
     Definition(NodeId<Definition>),
 
     /// Type unary operator.

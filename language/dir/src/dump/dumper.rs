@@ -522,9 +522,9 @@ impl Dump for FunctionSignature {
 impl Dump for BlockTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            BlockTarget::UnevaluatedString { label } => {
+            BlockTarget::UnresolvedString { label } => {
                 dumper
-                    .object("BlockTarget::UnevaluatedString")
+                    .object("BlockTarget::UnresolvedString")
                     .field("label", label)
                     .end();
             }
@@ -553,22 +553,22 @@ impl Dump for PathBase {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::UnevaluatedBase { base } => {
+            Path::UnresolvedBase { base } => {
                 dumper
-                    .object("Path::UnevaluatedBase")
+                    .object("Path::UnresolvedBase")
                     .field("base", base)
                     .end();
             }
-            Path::UnevaluatedRelativeString { base, segments } => {
+            Path::UnresolvedRelativeString { base, segments } => {
                 dumper
-                    .object("Path::UnevaluatedRelativeString")
+                    .object("Path::UnresolvedRelativeString")
                     .field("base", base)
                     .value(segments)
                     .end();
             }
-            Path::UnevaluatedAbsoluteString { segments } => {
+            Path::UnresolvedAbsoluteString { segments } => {
                 dumper
-                    .object("Path::UnevaluatedAbsoluteString")
+                    .object("Path::UnresolvedAbsoluteString")
                     .value(segments)
                     .end();
             }
@@ -925,8 +925,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::UnevaluatedUnary { operator, right: _ } => {
-                self.node("Expression::UnevaluatedUnary", id.id)
+            Expression::UnresolvedUnary { operator, right: _ } => {
+                self.node("Expression::UnresolvedUnary", id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -960,12 +960,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::UnevaluatedBinary {
+            Expression::UnresolvedBinary {
                 left: _,
                 operator,
                 right: _,
             } => {
-                self.node("Expression::UnevaluatedBinary", id.id)
+                self.node("Expression::UnresolvedBinary", id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -990,12 +990,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Assign { left: _, right: _ } => {
                 self.node("Expression::Assign", id.id).end();
             }
-            Expression::UnevaluatedAssignBinary {
+            Expression::UnresolvedAssignBinary {
                 left: _,
                 operator,
                 right: _,
             } => {
-                self.node("Expression::UnevaluatedAssignBinary", id.id)
+                self.node("Expression::UnresolvedAssignBinary", id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -1212,8 +1212,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &Definition,
     ) {
         match definition {
-            Definition::UnevaluatedExpression { expression: _ } => {
-                self.node("Definition::UnevaluatedExpression", id.id).end();
+            Definition::UnresolvedExpression { expression: _ } => {
+                self.node("Definition::UnresolvedExpression", id.id).end();
             }
             Definition::Namespace {
                 descriptor,
@@ -1382,11 +1382,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Type::Function", id.id).value(signature).end();
             }
 
-            Type::UnevaluatedExpression(_) => {
-                self.node("Type::UnevaluatedExpression", id.id).end();
+            Type::UnresolvedExpression(_) => {
+                self.node("Type::UnresolvedExpression", id.id).end();
             }
-            Type::UnevaluatedSelf => {
-                self.node("Type::UnevaluatedSelf", id.id).end();
+            Type::UnresolvedSelf => {
+                self.node("Type::UnresolvedSelf", id.id).end();
             }
 
             Type::Error => {
@@ -1527,41 +1527,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
         argument: &Argument,
     ) {
         match argument {
-            Argument::UnevaluatedNamed {
+            Argument::UnresolvedNamed {
                 modifiers,
                 name,
                 value: _,
             } => {
-                self.node("Argument::UnevaluatedNamed", id.id)
+                self.node("Argument::UnresolvedNamed", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::UnevaluatedPositional {
+            Argument::UnresolvedPositional {
                 modifiers,
                 value: _,
             } => {
-                self.node("Argument::UnevaluatedPositional", id.id)
+                self.node("Argument::UnresolvedPositional", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }
-            Argument::UnevaluatedSpread {
+            Argument::UnresolvedSpread {
                 modifiers,
                 name,
                 value: _,
             } => {
-                self.node("Argument::UnevaluatedSpread", id.id)
+                self.node("Argument::UnresolvedSpread", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();
             }
-            Argument::UnevaluatedDynamic {
+            Argument::UnresolvedDynamic {
                 modifiers,
                 name,
                 key: _,
                 value: _,
             } => {
-                self.node("Argument::UnevaluatedDynamic", id.id)
+                self.node("Argument::UnresolvedDynamic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
                     .end();

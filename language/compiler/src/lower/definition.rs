@@ -25,13 +25,13 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower expression to DIR definition (if it's maybe a definition).
-    /// If the expression can't possibly evaluate to a definition, returns `None`.
+    /// If the expression can't possibly resolve to a definition, returns `None`.
     /// (Like for a scalar literal)
     pub fn lower_expression_to_definition(
         &mut self,
         module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
-        evaluate_expressions: bool,
+        resolve_expressions: bool,
     ) -> Option<NodeId<Definition>> {
         let expression = module.get(expression_id);
         let definition_id = match expression {
@@ -41,8 +41,8 @@ impl<'a> Compiler<'a> {
             ast::Expression::Import { .. } | ast::Expression::Export { .. } => {
                 return None;
             }
-            _ if evaluate_expressions => {
-                let definition = Definition::UnevaluatedExpression {
+            _ if resolve_expressions => {
+                let definition = Definition::UnresolvedExpression {
                     expression: self.lower_expression(module, expression_id),
                 };
                 self.session

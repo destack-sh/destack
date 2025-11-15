@@ -100,11 +100,11 @@ impl<'a> Transpiler<'a> {
                 *right,
                 unit,
             )?,
-            dir::Expression::UnevaluatedUnary { operator, right }
+            dir::Expression::UnresolvedUnary { operator, right }
             | dir::Expression::Unary { operator, right } => {
                 self.transpile_unary_expression(module, expression_id, *operator, *right, unit)?
             }
-            dir::Expression::UnevaluatedBinary {
+            dir::Expression::UnresolvedBinary {
                 left,
                 operator,
                 right,
@@ -131,7 +131,7 @@ impl<'a> Transpiler<'a> {
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
             }
-            dir::Expression::UnevaluatedAssignBinary {
+            dir::Expression::UnresolvedAssignBinary {
                 left,
                 operator,
                 right,

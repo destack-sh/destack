@@ -137,7 +137,7 @@ impl<'a> Compiler<'a> {
                     .intern_from(&module.strings, name.string());
                 let value = self.lower_expression(module, *value);
                 self.session.tree.insert_from_ast(
-                    Argument::UnevaluatedNamed {
+                    Argument::UnresolvedNamed {
                         modifiers,
                         name,
                         value,
@@ -150,7 +150,7 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let path = Path::UnevaluatedAbsoluteString {
+                let path = Path::UnresolvedAbsoluteString {
                     segments: smallvec![name],
                 };
                 let value = self.session.tree.insert_from_ast(
@@ -162,7 +162,7 @@ impl<'a> Compiler<'a> {
                     argument_id,
                 );
                 self.session.tree.insert_from_ast(
-                    Argument::UnevaluatedNamed {
+                    Argument::UnresolvedNamed {
                         modifiers,
                         name,
                         value,
@@ -176,7 +176,7 @@ impl<'a> Compiler<'a> {
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let value = self.lower_expression(module, *value);
                 self.session.tree.insert_from_ast(
-                    Argument::UnevaluatedPositional { modifiers, value },
+                    Argument::UnresolvedPositional { modifiers, value },
                     module.id,
                     argument_id,
                 )
@@ -191,7 +191,7 @@ impl<'a> Compiler<'a> {
                 let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
                 let value = self.lower_expression(module, *value);
                 self.session.tree.insert_from_ast(
-                    Argument::UnevaluatedSpread {
+                    Argument::UnresolvedSpread {
                         modifiers,
                         name,
                         value,
