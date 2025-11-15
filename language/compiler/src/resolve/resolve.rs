@@ -30,6 +30,8 @@ pub enum ResolveTask {
 impl<'a> Compiler<'a> {
     /// Resolve a node.
     pub fn process_resolve(&mut self, task: ResolveTask) -> ResolveResult<()> {
+        // nocheckin #Broken: revisit Compiler is_resolved/resolve logic (after load, ...)
+        // (also see all the :Unresolved* variants, and Type::Definition, ...)
         todo!("process_resolve({task:?})")
     }
 }

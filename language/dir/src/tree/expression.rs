@@ -263,12 +263,42 @@ impl Node for Expression {
 }
 
 impl Expression {
-    // nocheckin #Broken: revisit Compiler is_resolved/resolve logic (after load, ...)
-    // (also see all the :Unresolved* variants, and Type::Definition, ...)
-
     /// Whether the expression is considered resolved at the outermost level (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        false
+        match self {
+            Expression::Path {
+                path,
+                static_arguments: _,
+            } => path.is_resolved(),
+            Expression::TemplateLiteral { value } => value.is_resolved(),
+            Expression::TreeLiteral {
+                path,
+                arguments: _,
+                elements: _,
+            } => path.as_ref().is_none_or(|path| path.is_resolved()),
+
+            Expression::UnresolvedUnary { .. } => false,
+            Expression::UnresolvedBinary { .. } => false,
+            Expression::UnresolvedAssignBinary { .. } => false,
+
+            Expression::Member {
+                left: _,
+                path,
+                static_arguments: _,
+            } => path.is_resolved(),
+            Expression::New {
+                left,
+                static_arguments: _,
+                dynamic_arguments: _,
+            } => left.is_resolved(),
+
+            Expression::Break { target, value: _ } => {
+                target.is_none_or(|target| target.is_resolved())
+            }
+            Expression::Continue { target } => target.is_none_or(|target| target.is_resolved()),
+
+            _ => true,
+        }
     }
 }
 
