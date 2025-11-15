@@ -1,5 +1,5 @@
 use crate::{
-    BuildWarning, ResolveWarning, ExecuteWarning, ImportWarning, OptimizeWarning, ValidateWarning,
+    BuildWarning, ExecuteWarning, ImportWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -52,4 +52,3 @@ impl CompileWarning {
         format!("{}W{:03}", self.family_letter(), self.sub_code())
     }
 }
-

@@ -4,4 +4,3 @@ pub struct ImportOptions {
     /// Whether to follow imports automatically.
     pub follow_imports: bool = true,
 }
-

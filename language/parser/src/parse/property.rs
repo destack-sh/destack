@@ -266,7 +266,8 @@ impl<'a> Parser<'a> {
             // where clauses
             let where_clauses = self.eat_where_maybe()?;
 
-            let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
+            let generics =
+                Generics::new(static_parameters, with_clauses, where_clauses).into_option();
 
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {

@@ -61,4 +61,3 @@ impl From<ResolveError> for CompileError {
 }
 
 pub type ResolveResult<T> = Result<T, ResolveError>;
-

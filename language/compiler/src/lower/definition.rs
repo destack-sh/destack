@@ -93,9 +93,7 @@ impl<'a> Compiler<'a> {
                 expressions,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, descriptor);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.lower_generics(module, generics));
+                let generics = self.lower_generics(module, generics);
                 let definitions = expressions
                     .iter()
                     .flat_map(|expression| {
@@ -120,12 +118,8 @@ impl<'a> Compiler<'a> {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
                 };
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.lower_generics(module, generics));
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.lower_heritage(module, heritage));
+                let generics = self.lower_generics(module, generics);
+                let heritage = self.lower_heritage(module, heritage);
                 let properties = properties
                     .iter()
                     .map(|property| self.lower_property(module, *property))
@@ -146,12 +140,8 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, descriptor);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.lower_generics(module, generics));
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.lower_heritage(module, heritage));
+                let generics = self.lower_generics(module, generics);
+                let heritage = self.lower_heritage(module, heritage);
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_enum_field(module, *field))
@@ -175,12 +165,8 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, descriptor);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.lower_generics(module, generics));
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.lower_heritage(module, heritage));
+                let generics = self.lower_generics(module, generics);
+                let heritage = self.lower_heritage(module, heritage);
                 let properties = properties
                     .iter()
                     .map(|property| self.lower_property(module, *property))
@@ -200,13 +186,9 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, descriptor);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.lower_generics(module, generics));
+                let generics = self.lower_generics(module, generics);
                 let target_type = self.lower_expression_to_type(module, *target_type);
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.lower_heritage(module, heritage));
+                let heritage = self.lower_heritage(module, heritage);
                 let properties = properties
                     .iter()
                     .map(|property| self.lower_property(module, *property))

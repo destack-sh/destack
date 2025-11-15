@@ -48,4 +48,3 @@ impl From<ValidateError> for CompileError {
 }
 
 pub type ValidateResult<T> = Result<T, ValidateError>;
-

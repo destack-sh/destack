@@ -93,8 +93,8 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // struct
-        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
-        let heritage = Heritage::maybe(extends_types, implements_types);
+        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::new(extends_types, implements_types);
         let struct_id = self.tree.insert(
             Definition::Struct {
                 descriptor,
@@ -137,7 +137,7 @@ struct { public x: int32, readonly y: boolean
         assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
-            assert!(generics.is_none());
+            assert!(generics.is_empty());
             assert_eq!(properties.len(), 2);
 
             // public x: int32
@@ -173,7 +173,7 @@ struct Foo extends Bar {}
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
-            let heritage = heritage.as_ref().expect("expected heritage");
+            assert!(!heritage.is_empty());
             assert!(heritage.implements_types.is_none());
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
@@ -206,7 +206,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
 
             // T: Numeric
             let static_parameters = generics
@@ -223,7 +223,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                     assert_path!(parser, *path, "Numeric");
                 });
             });
-            let heritage = heritage.as_ref().expect("expected heritage");
+            assert!(!heritage.is_empty());
 
             // Boz
             let extends_types = heritage.extends_types.as_ref().unwrap();
@@ -298,7 +298,7 @@ struct Foo with Context where Guard > Limit {
         assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(properties.is_empty());
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
 
             // with Context
             let with_clauses = generics.with_clauses.as_ref().expect("expected with clauses");

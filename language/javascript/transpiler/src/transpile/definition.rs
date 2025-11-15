@@ -99,14 +99,8 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.transpile_generics(module, generics, unit))
-                    .transpose()?;
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.transpile_heritage(module, heritage, unit))
-                    .transpose()?;
+                let generics = self.transpile_generics(module, generics, unit)?;
+                let heritage = self.transpile_heritage(module, heritage, unit)?;
                 let properties = properties
                     .iter()
                     .map(|property| self.transpile_property(module, *property, unit))
@@ -126,14 +120,8 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
-                let generics = generics
-                    .as_ref()
-                    .map(|generics| self.transpile_generics(module, generics, unit))
-                    .transpose()?;
-                let heritage = heritage
-                    .as_ref()
-                    .map(|heritage| self.transpile_heritage(module, heritage, unit))
-                    .transpose()?;
+                let generics = self.transpile_generics(module, generics, unit)?;
+                let heritage = self.transpile_heritage(module, heritage, unit)?;
                 let properties = properties
                     .iter()
                     .map(|property| self.transpile_property(module, *property, unit))

@@ -6,4 +6,3 @@ pub struct ExecuteOptions {
     /// Whether to resolve static expressions.
     pub resolve_static_expressions: bool = true,
 }
-

@@ -74,8 +74,8 @@ impl<'a> Parser<'a> {
             .for_node_type(NodeType::Definition)?;
 
         // interface
-        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
-        let heritage = Heritage::maybe(extends_types, None);
+        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::new(extends_types, None);
         let interface_id = self.tree.insert(
             Definition::Interface {
                 descriptor,
@@ -111,7 +111,7 @@ mod tests {
         assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
-            assert!(generics.is_none());
+            assert!(generics.is_empty());
             assert!(properties.is_empty());
         });
     }
@@ -128,8 +128,8 @@ mod tests {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
-            assert!(generics.is_none());
-            let heritage = heritage.as_ref().expect("expected heritage");
+            assert!(generics.is_empty());
+            assert!(!heritage.is_empty());
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
@@ -160,10 +160,10 @@ interface Foo extends Baz {
         assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(generics.is_none());
+            assert!(generics.is_empty());
 
             // extends Baz
-            let heritage = heritage.as_ref().expect("expected heritage");
+            assert!(!heritage.is_empty());
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
@@ -199,8 +199,8 @@ interface Foo extends Baz {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
             let params = generics
+                .static_parameters
                 .as_ref()
-                .and_then(|generics| generics.static_parameters.as_ref())
                 .expect("expected static params");
             assert_eq!(params.len(), 1);
         });
@@ -223,7 +223,7 @@ interface Baz<T> with T: Copy where Requirement: Interface {
         assert_node!(parser.tree, interface_id, Definition::Interface { descriptor, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
             let params = generics
                 .static_parameters
                 .as_ref()

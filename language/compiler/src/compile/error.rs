@@ -1,6 +1,4 @@
-use crate::{
-    BuildError, ResolveError, ExecuteError, ImportError, OptimizeError, ValidateError,
-};
+use crate::{BuildError, ExecuteError, ImportError, OptimizeError, ResolveError, ValidateError};
 
 /// Error during compilation.
 #[derive(Debug, Clone)]
@@ -54,4 +52,3 @@ impl CompileError {
 }
 
 pub type CompileResult<T> = Result<T, CompileError>;
-

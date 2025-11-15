@@ -268,7 +268,7 @@ impl<'a> Parser<'a> {
         };
 
         // function
-        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
+        let generics = Generics::new(static_parameters, with_clauses, where_clauses).into_option();
         let asynchrony = if is_async {
             Asynchrony::Async
         } else {

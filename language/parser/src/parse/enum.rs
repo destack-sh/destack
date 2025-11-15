@@ -79,8 +79,8 @@ impl<'a> Parser<'a> {
         let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
-        let heritage = Heritage::maybe(extends_types, implements_types);
+        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::new(extends_types, implements_types);
         let enum_id = self.tree.insert(
             Definition::Enum {
                 descriptor,
@@ -191,12 +191,12 @@ enum Foo extends Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, heritage: Some(heritage), fields, properties, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, heritage, fields, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
             assert!(fields.is_empty());
-            assert!(generics.is_none());
+            assert!(generics.is_empty());
 
             assert!(heritage.implements_types.is_none());
 
@@ -258,12 +258,14 @@ enum Foo extends Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, generics: None, heritage: Some(heritage), .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, generics, heritage, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Foo
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
 
             // extends: Day
+            assert!(generics.is_empty());
+
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
@@ -303,12 +305,13 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics: Some(generics), fields, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Machine
             assert_string!(parser, descriptor.name.unwrap().string(), "Machine");
 
             // <T: int32 = 3, IsSomething: boolean = true>
+            assert!(!generics.is_empty());
             assert!(generics.static_parameters.is_some());
             let static_parameters = generics.static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 2);
@@ -338,9 +341,10 @@ enum Foo with Context where Requirement: Interface {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics: Some(generics), fields, .. } => {
+        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // with Context
+            assert!(!generics.is_empty());
             let with_clauses = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_clauses.len(), 1);
             assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {

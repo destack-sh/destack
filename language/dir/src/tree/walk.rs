@@ -655,9 +655,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             generics,
             definitions,
         } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
+            walk_generics(visitor, tree, generics);
             for definition_id in definitions {
                 let child_definition = tree.get(*definition_id);
                 visitor.visit_definition(tree, *definition_id, child_definition);
@@ -670,12 +668,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             heritage,
             properties,
         } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
-            if let Some(heritage) = heritage.as_ref() {
-                walk_heritage(visitor, tree, heritage);
-            }
+            walk_generics(visitor, tree, generics);
+            walk_heritage(visitor, tree, heritage);
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_property(tree, *property_id, property);
@@ -688,12 +682,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             fields,
             properties,
         } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
-            if let Some(heritage) = heritage.as_ref() {
-                walk_heritage(visitor, tree, heritage);
-            }
+            walk_generics(visitor, tree, generics);
+            walk_heritage(visitor, tree, heritage);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_enum_field(tree, *field_id, field);
@@ -709,12 +699,8 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             heritage,
             properties,
         } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
-            if let Some(heritage) = heritage.as_ref() {
-                walk_heritage(visitor, tree, heritage);
-            }
+            walk_generics(visitor, tree, generics);
+            walk_heritage(visitor, tree, heritage);
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_property(tree, *property_id, property);
@@ -743,14 +729,10 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             heritage,
             properties,
         } => {
-            if let Some(generics) = generics.as_ref() {
-                walk_generics(visitor, tree, generics);
-            }
+            walk_generics(visitor, tree, generics);
             let target_type_expr = tree.get(*target_type);
             visitor.visit_type(tree, *target_type, target_type_expr);
-            if let Some(heritage) = heritage.as_ref() {
-                walk_heritage(visitor, tree, heritage);
-            }
+            walk_heritage(visitor, tree, heritage);
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_property(tree, *property_id, property);

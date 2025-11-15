@@ -76,8 +76,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 generics,
                 expressions,
             } => {
-                let generics = generics.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -97,8 +95,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // with
-                if let Some(with_clauses) =
-                    generics.and_then(|generics| generics.with_clauses.as_ref())
+                if let Some(with_clauses) = generics.with_clauses.as_ref()
                     && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -106,8 +103,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -146,9 +142,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 heritage,
                 properties,
             } => {
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -171,32 +164,28 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                if let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) =
-                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                if let Some(extends_types) = heritage.extends_types.as_ref()
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
-                if let Some(implements_types) =
-                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
+                if let Some(implements_types) = heritage.implements_types.as_ref()
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with clauses
-                if let Some(with_clauses) =
-                    generics.and_then(|generics| generics.with_clauses.as_ref())
+                if let Some(with_clauses) = generics.with_clauses.as_ref()
                     && !with_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -204,8 +193,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where clauses
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -247,9 +235,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 fields,
                 properties,
             } => {
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -269,31 +254,28 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                if let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) =
-                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                if let Some(extends_types) = heritage.extends_types.as_ref()
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
-                if let Some(implements_types) =
-                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
+                if let Some(implements_types) = heritage.implements_types.as_ref()
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
-                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
+                if let Some(with) = generics.with_clauses.as_ref()
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -301,8 +283,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -356,9 +337,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 heritage,
                 properties,
             } => {
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -378,23 +356,21 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                if let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) =
-                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                if let Some(extends_types) = heritage.extends_types.as_ref()
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // with clauses
-                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
+                if let Some(with) = generics.with_clauses.as_ref()
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -402,8 +378,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where clauses
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;
@@ -446,9 +421,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 heritage,
                 properties,
             } => {
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -463,8 +435,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Implement])?;
 
                 // static arguments
-                if let Some(static_arguments) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                if let Some(static_arguments) = generics.static_parameters.as_ref()
                     && !static_arguments.is_empty()
                 {
                     write!(
@@ -485,15 +456,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [space(), target_type])?;
 
                 // implements types
-                if let Some(implements_types) =
-                    heritage.and_then(|heritage| heritage.implements_types.as_ref())
+                if let Some(implements_types) = heritage.implements_types.as_ref()
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
-                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
+                if let Some(with) = generics.with_clauses.as_ref()
                     && !with.is_empty()
                 {
                     write!(f, [space()])?;
@@ -501,8 +471,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // where
-                if let Some(where_clauses) =
-                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
                     write!(f, [space()])?;

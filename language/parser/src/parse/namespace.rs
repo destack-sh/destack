@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        let generics = Generics::maybe(None, with_clauses, where_clauses);
+        let generics = Generics::new(None, with_clauses, where_clauses);
         let namespace = {
             let expressions = if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.eat_token(TokenType::OpenBrace)?; // eat open brace
@@ -72,7 +72,7 @@ mod tests {
             assert!(descriptor.name.is_none());
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-            assert!(generics.is_none());
+            assert!(generics.is_empty());
         });
     }
 
@@ -96,7 +96,7 @@ namespace Foo with Context where Guard > Limit {
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
             let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
 
@@ -135,7 +135,7 @@ namespace Foo with Context where Guard > Limit {
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
             let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
             assert_eq!(with_items.len(), 1);
 

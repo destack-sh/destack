@@ -131,6 +131,13 @@ pub struct Generics {
     pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
 }
 
+impl Generics {
+    /// Check whether there are any generic parameters.
+    pub fn is_empty(&self) -> bool {
+        self.static_parameters.is_none()
+    }
+}
+
 /// The polymoprhic relations.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
@@ -138,4 +145,11 @@ pub struct Heritage {
     pub extends_types: Option<Vec<NodeId<Type>>> = None,
     /// The implements types of the declaration.
     pub implements_types: Option<Vec<NodeId<Type>>> = None,
+}
+
+impl Heritage {
+    /// Check whether the heritage lists any relations.
+    pub fn is_empty(&self) -> bool {
+        self.extends_types.is_none() && self.implements_types.is_none()
+    }
 }
