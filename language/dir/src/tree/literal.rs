@@ -30,18 +30,18 @@ pub enum ScalarLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemplateLiteral {
     /// Template string value.
-    String { template: StringId },
+    String { string: StringId },
     /// Tagged template literal value.
-    TaggedString { tag: Path, template: StringId },
+    TaggedString { tag: Path, string: StringId },
     /// Interpolated template literal value.
     InterpolatedString {
-        template: Vec<StringId>,
+        strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },
     /// Tagged interpolated template literal value.
     TaggedInterpolatedString {
         tag: Path,
-        template: Vec<StringId>,
+        strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },
 }

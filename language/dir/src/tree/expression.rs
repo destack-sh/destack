@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
-    DependencyItem, DependencyKind, ExportType, MatchCase, MatchFile, Mutability, Node, NodeId,
+    DependencyItem, DependencyKind, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
     NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, Type,
     TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -185,6 +185,8 @@ pub enum Expression {
         arguments: Option<Vec<NodeId<Argument>>>,
         elements: Option<Vec<NodeId<Argument>>>,
     },
+    /// Parenthesized expression.
+    Parenthesized { expression: NodeId<Expression> },
 
     /// --------------------------------
     /// Control flow.
@@ -199,9 +201,9 @@ pub enum Expression {
     },
     /// Loop expression.
     Loop {
-        condition: NodeId<Expression>,
+        kind: LoopKind,
+        condition: Option<NodeId<Expression>>,
         body: NodeId<Block>,
-        source: LoopFile,
     },
     /// For each loop.
     ForEach {
@@ -218,11 +220,18 @@ pub enum Expression {
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
     },
+    /// Try expression.
+    Try {
+        try_expression: NodeId<Expression>,
+        catch_pattern: Option<NodeId<Pattern>>,
+        catch_expression: Option<NodeId<Expression>>,
+        finally_expression: Option<NodeId<Expression>>,
+    },
     /// Match expression.
     Match {
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
-        source: MatchFile,
+        source: MatchSource,
     },
     /// Break expression.
     Break {
@@ -235,6 +244,10 @@ pub enum Expression {
     Defer { expression: NodeId<Expression> },
     /// Throw expression.
     Throw { value: Option<NodeId<Expression>> },
+    /// Await expression.
+    Await { expression: NodeId<Expression> },
+    /// Yield expression.
+    Yield { cardinality: YieldCardinality, value: NodeId<Expression> },
     /// Return expression.
     Return { value: Option<NodeId<Expression>> },
 
@@ -256,17 +269,15 @@ impl Expression {
     }
 }
 
-/// A LoopFile is where the loop was lowered from.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum LoopFile {
-    /// For loop.
-    For,
-    /// For loop.
-    ForEach,
-    /// While loop.
-    While,
-    /// Loop loop.
-    Loop,
+/// The kind of a loop expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LoopKind {
+    /// No-test loop (like `loop <body>`)
+    NoTest,
+    /// Pre-test loop (like `while <condition> <body>`)
+    PreTest,
+    /// Post-test loop (like `do <body> while <condition>`)
+    PostTest,
 }
 
 /// The style of if expression.
@@ -294,6 +305,15 @@ pub enum ForEachKind {
     In,
     /// Of expression.
     Of,
+}
+
+/// The kind of a yield expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum YieldCardinality {
+    /// Generator yield expression.
+    Generator,
+    /// Scalar yield expression.
+    Scalar,
 }
 
 /// A WithClause is a single clause in a with Context declaration or definition.

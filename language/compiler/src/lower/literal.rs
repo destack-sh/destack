@@ -1,11 +1,12 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DefinitionType, FloatType, IntType, Module, PrimitiveType, ScalarLiteral, TypeLiteral,
+    DefinitionType, FloatType, IntType, Module, PrimitiveType, ScalarLiteral, TemplateLiteral,
+    TypeLiteral,
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower a path to a DIR path.
+    /// Lower a scalar literal to a DIR scalar literal.
     pub fn lower_scalar_literal(
         &mut self,
         module: &Module,
@@ -30,6 +31,56 @@ impl<'a> Compiler<'a> {
             }
             ast::ScalarLiteral::ByteString(byte_string) => {
                 ScalarLiteral::ByteString(byte_string.clone())
+            }
+        }
+    }
+
+    /// Lower a template literal to a DIR template literal.
+    pub fn lower_template_literal(
+        &mut self,
+        module: &Module,
+        template_literal: &ast::TemplateLiteral,
+    ) -> TemplateLiteral {
+        match template_literal {
+            ast::TemplateLiteral::String { string } => {
+                let string = self.session.strings.intern_from(&module.strings, *string);
+                TemplateLiteral::String { string }
+            }
+            ast::TemplateLiteral::TaggedString { tag, string } => {
+                let tag = self.lower_path(module, tag);
+                let string = self.session.strings.intern_from(&module.strings, *string);
+                TemplateLiteral::TaggedString { tag, string }
+            }
+            ast::TemplateLiteral::InterpolatedString { strings, arguments } => {
+                let strings = strings
+                    .iter()
+                    .map(|string| self.session.strings.intern_from(&module.strings, *string))
+                    .collect();
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| self.lower_argument(module, *argument))
+                    .collect();
+                TemplateLiteral::InterpolatedString { strings, arguments }
+            }
+            ast::TemplateLiteral::TaggedInterpolatedString {
+                tag,
+                strings,
+                arguments,
+            } => {
+                let tag = self.lower_path(module, tag);
+                let strings = strings
+                    .iter()
+                    .map(|string| self.session.strings.intern_from(&module.strings, *string))
+                    .collect();
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| self.lower_argument(module, *argument))
+                    .collect();
+                TemplateLiteral::TaggedInterpolatedString {
+                    tag,
+                    strings,
+                    arguments,
+                }
             }
         }
     }

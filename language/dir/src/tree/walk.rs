@@ -449,6 +449,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
+        Expression::Parenthesized { expression } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+        }
+
         Expression::If {
             kind: _,
             condition,
@@ -465,12 +470,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Loop {
+            kind: _,
             condition,
             body,
-            source: _,
         } => {
-            let condition_expression = tree.get(*condition);
-            visitor.visit_expression(tree, *condition, condition_expression);
+            if let Some(condition_id) = condition {
+                let condition_expression = tree.get(*condition_id);
+                visitor.visit_expression(tree, *condition_id, condition_expression);
+            }
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
@@ -509,6 +516,27 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
         }
+        Expression::Try {
+            try_expression,
+            catch_pattern,
+            catch_expression,
+            finally_expression,
+        } => {
+            let try_expression_node = tree.get(*try_expression);
+            visitor.visit_expression(tree, *try_expression, try_expression_node);
+            if let Some(catch_pattern_id) = catch_pattern {
+                let catch_pattern_node = tree.get(*catch_pattern_id);
+                visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+            }
+            if let Some(catch_expression_id) = catch_expression {
+                let catch_expression_node = tree.get(*catch_expression_id);
+                visitor.visit_expression(tree, *catch_expression_id, catch_expression_node);
+            }
+            if let Some(finally_expression_id) = finally_expression {
+                let finally_expression_node = tree.get(*finally_expression_id);
+                visitor.visit_expression(tree, *finally_expression_id, finally_expression_node);
+            }
+        }
         Expression::Match {
             value,
             cases,
@@ -531,6 +559,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Defer { expression } => {
             let body_expression = tree.get(*expression);
             visitor.visit_expression(tree, *expression, body_expression);
+        }
+        Expression::Await { expression } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+        }
+        Expression::Yield {
+            cardinality: _,
+            value,
+        } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
         }
         Expression::Throw { value } => {
             if let Some(value_id) = value {

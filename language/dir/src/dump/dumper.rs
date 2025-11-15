@@ -414,8 +414,8 @@ impl_dump_display! {
     FunctionKind,
     FunctionMode,
     IfKind,
-    LoopFile,
-    MatchFile,
+    LoopKind,
+    MatchSource,
     Mutability,
     ReferenceType,
     Runtime,
@@ -427,6 +427,7 @@ impl_dump_display! {
     VarianceBound,
     Visibility,
     WhileKind,
+    YieldCardinality,
 }
 
 /// Dump a BindingModifier as a string.
@@ -799,13 +800,16 @@ impl Dump for ScalarLiteral {
 impl Dump for TemplateLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TemplateLiteral::String { template } => {
+            TemplateLiteral::String { string: template } => {
                 dumper
                     .object("TemplateLiteral::String")
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString { tag, template } => {
+            TemplateLiteral::TaggedString {
+                tag,
+                string: template,
+            } => {
                 dumper
                     .object("TemplateLiteral::TaggedString")
                     .field("tag", tag)
@@ -813,7 +817,7 @@ impl Dump for TemplateLiteral {
                     .end();
             }
             TemplateLiteral::InterpolatedString {
-                template,
+                strings: template,
                 arguments: _,
             } => {
                 dumper
@@ -823,7 +827,7 @@ impl Dump for TemplateLiteral {
             }
             TemplateLiteral::TaggedInterpolatedString {
                 tag,
-                template,
+                strings: template,
                 arguments: _,
             } => {
                 dumper
@@ -1096,6 +1100,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("path", path)
                     .end();
             }
+            Expression::Parenthesized { expression: _ } => {
+                self.node("Expression::Parenthesized", id.id).end();
+            }
+
             Expression::If {
                 kind,
                 condition: _,
@@ -1105,12 +1113,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::If", id.id).field("kind", kind).end();
             }
             Expression::Loop {
+                kind,
                 condition: _,
                 body: _,
-                source,
             } => {
                 self.node("Expression::Loop", id.id)
-                    .field("source", source)
+                    .field("kind", kind)
                     .end();
             }
             Expression::ForEach {
@@ -1132,6 +1140,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
             } => {
                 self.node("Expression::For", id.id).end();
+            }
+            Expression::Try {
+                try_expression: _,
+                catch_pattern: _,
+                catch_expression: _,
+                finally_expression: _,
+            } => {
+                self.node("Expression::Try", id.id).end();
             }
             Expression::Match {
                 value: _,
@@ -1158,6 +1174,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Throw { value: _ } => {
                 self.node("Expression::Throw", id.id).end();
             }
+            Expression::Await { expression: _ } => {
+                self.node("Expression::Await", id.id).end();
+            }
+            Expression::Yield {
+                cardinality,
+                value: _,
+            } => {
+                self.node("Expression::Yield", id.id)
+                    .field("cardinality", cardinality)
+                    .end();
+            }
+
             Expression::Return { value: _ } => {
                 self.node("Expression::Return", id.id).end();
             }

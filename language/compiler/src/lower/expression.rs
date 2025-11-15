@@ -1,5 +1,8 @@
-use dyst_ast as ast;
-use dyst_dir::{DependencySource, Expression, IfKind, Module, NodeId, Path, PathBase, Runtime};
+use dyst_ast::{self as ast};
+use dyst_dir::{
+    DependencySource, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, NodeId, Path,
+    PathBase, Runtime, YieldCardinality,
+};
 
 use crate::Compiler;
 
@@ -38,6 +41,12 @@ impl<'a> Compiler<'a> {
                 let definition_id = self.lower_definition(module, *definition_id);
                 Expression::Definition {
                     definition: definition_id,
+                }
+            }
+            ast::Expression::Statement(expression_id) => {
+                let expression_id = self.lower_expression(module, *expression_id);
+                Expression::Statement {
+                    statement: expression_id,
                 }
             }
 
@@ -280,6 +289,32 @@ impl<'a> Compiler<'a> {
                     dynamic_arguments,
                 }
             }
+            ast::Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                let left = self.lower_path(module, left);
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(module, *argument))
+                        .collect()
+                });
+                let dynamic_arguments = dynamic_arguments
+                    .iter()
+                    .map(|argument| self.lower_argument(module, *argument))
+                    .collect();
+                Expression::New {
+                    left,
+                    static_arguments,
+                    dynamic_arguments,
+                }
+            }
+            ast::Expression::Delete { value } => {
+                let value = self.lower_expression(module, *value);
+                Expression::Delete { value }
+            }
             ast::Expression::Index {
                 position: _,
                 left,
@@ -318,6 +353,10 @@ impl<'a> Compiler<'a> {
                 let value = self.lower_scalar_literal(module, value);
                 Expression::ScalarLiteral { value }
             }
+            ast::Expression::TemplateLiteral(value) => {
+                let value = self.lower_template_literal(module, value);
+                Expression::TemplateLiteral { value }
+            }
             ast::Expression::TypeLiteral(value) => {
                 if *value == ast::TypeLiteral::Self_ {
                     Expression::Path {
@@ -329,6 +368,19 @@ impl<'a> Compiler<'a> {
                 } else {
                     let value = self.lower_type_literal(value);
                     Expression::TypeLiteral { value }
+                }
+            }
+            ast::Expression::RangeLiteral {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                let start = self.lower_expression(module, *start);
+                let end = self.lower_expression(module, *end);
+                Expression::RangeLiteral {
+                    start,
+                    end,
+                    is_inclusive: *is_inclusive,
                 }
             }
             ast::Expression::StructLiteral { ty, properties } => {
@@ -353,6 +405,34 @@ impl<'a> Compiler<'a> {
                     .collect();
                 Expression::ArrayLiteral { elements }
             }
+            ast::Expression::TreeLiteral {
+                path,
+                arguments,
+                elements,
+            } => {
+                let path = path.as_ref().map(|path| self.lower_path(module, path));
+                let arguments = arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(module, *argument))
+                        .collect()
+                });
+                let elements = elements.as_ref().map(|elements| {
+                    elements
+                        .iter()
+                        .map(|element| self.lower_argument(module, *element))
+                        .collect()
+                });
+                Expression::TreeLiteral {
+                    path,
+                    arguments,
+                    elements,
+                }
+            }
+            ast::Expression::Parenthesized { expression } => {
+                let expression = self.lower_expression(module, *expression);
+                Expression::Parenthesized { expression }
+            }
 
             ast::Expression::If {
                 kind,
@@ -372,6 +452,109 @@ impl<'a> Compiler<'a> {
                     else_expression,
                 }
             }
+            ast::Expression::While {
+                kind,
+                condition,
+                body,
+            } => {
+                let kind = match *kind {
+                    ast::WhileKind::While => LoopKind::PreTest,
+                    ast::WhileKind::DoWhile => LoopKind::PostTest,
+                };
+                let condition = self.lower_expression(module, *condition);
+                let body = self.lower_block(module, *body);
+                Expression::Loop {
+                    kind,
+                    condition: Some(condition),
+                    body,
+                }
+            }
+            ast::Expression::ForEach {
+                asynchrony,
+                kind,
+                pattern,
+                iterator,
+                body,
+            } => {
+                let asynchrony = self.lower_asynchrony(*asynchrony);
+                let kind = match *kind {
+                    ast::ForEachKind::In => ForEachKind::In,
+                    ast::ForEachKind::Of => ForEachKind::Of,
+                };
+                let pattern = self.lower_pattern(module, *pattern);
+                let iterator = self.lower_expression(module, *iterator);
+                let body = self.lower_block(module, *body);
+                Expression::ForEach {
+                    asynchrony,
+                    kind,
+                    pattern,
+                    iterator,
+                    body,
+                }
+            }
+            ast::Expression::For {
+                initialization,
+                condition,
+                increment,
+                body,
+            } => {
+                let initialization = initialization
+                    .map(|initialization| self.lower_expression(module, initialization));
+                let condition = condition.map(|condition| self.lower_expression(module, condition));
+                let increment = increment.map(|increment| self.lower_expression(module, increment));
+                let body = self.lower_block(module, *body);
+                Expression::For {
+                    initialization,
+                    condition,
+                    increment,
+                    body,
+                }
+            }
+            ast::Expression::Loop { body } => {
+                let body = self.lower_block(module, *body);
+                Expression::Loop {
+                    kind: LoopKind::NoTest,
+                    condition: None,
+                    body,
+                }
+            }
+            ast::Expression::Try {
+                try_expression,
+                catch_pattern,
+                catch_expression,
+                finally_expression,
+            } => {
+                let try_expression = self.lower_expression(module, *try_expression);
+                let catch_pattern =
+                    catch_pattern.map(|catch_pattern| self.lower_pattern(module, catch_pattern));
+                let catch_expression = catch_expression
+                    .map(|catch_expression| self.lower_expression(module, catch_expression));
+                let finally_expression = finally_expression
+                    .map(|finally_expression| self.lower_expression(module, finally_expression));
+                Expression::Try {
+                    try_expression,
+                    catch_pattern,
+                    catch_expression,
+                    finally_expression,
+                }
+            }
+            ast::Expression::Match {
+                kind: _,
+                value,
+                cases,
+            } => {
+                let value = self.lower_expression(module, *value);
+                let cases = cases
+                    .iter()
+                    .map(|case| self.lower_match_case(module, *case))
+                    .collect();
+                Expression::Match {
+                    value,
+                    cases,
+                    source: MatchSource::Match,
+                }
+            }
+
             ast::Expression::Break { label, value } => {
                 let target = label.map(|label| self.lower_label(module, label));
                 let value = value.map(|value| self.lower_expression(module, value));
@@ -385,10 +568,28 @@ impl<'a> Compiler<'a> {
                 let value = value.map(|value| self.lower_expression(module, value));
                 Expression::Return { value }
             }
+            ast::Expression::Defer { expression } => {
+                let expression = self.lower_expression(module, *expression);
+                Expression::Defer { expression }
+            }
+            ast::Expression::Await { expression } => {
+                let expression = self.lower_expression(module, *expression);
+                Expression::Await { expression }
+            }
+            ast::Expression::Yield { cardinality, value } => {
+                let cardinality = match *cardinality {
+                    ast::YieldCardinality::Generator => YieldCardinality::Generator,
+                    ast::YieldCardinality::Scalar => YieldCardinality::Scalar,
+                };
+                let value = self.lower_expression(module, *value);
+                Expression::Yield { cardinality, value }
+            }
+            ast::Expression::Throw { value } => {
+                let value = value.map(|value| self.lower_expression(module, value));
+                Expression::Throw { value }
+            }
 
             ast::Expression::Error => Expression::Error,
-
-            _ => todo!("Compiler::lower_expression {:?}", expression),
         };
         self.session
             .tree

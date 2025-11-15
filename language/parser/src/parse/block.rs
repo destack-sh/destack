@@ -214,7 +214,7 @@ impl<'a> Parser<'a> {
                 .insert(Expression::Block(block_id), self.get_span_from(start));
             let defer_id = self.tree.insert(
                 Expression::Defer {
-                    expression: Some(block_id),
+                    expression: block_id,
                 },
                 self.get_span_from(start),
             );
@@ -227,7 +227,7 @@ impl<'a> Parser<'a> {
             })?;
             let defer_id = self.tree.insert(
                 Expression::Defer {
-                    expression: Some(expression_id),
+                    expression: expression_id,
                 },
                 self.get_span_from(start),
             );
@@ -451,7 +451,7 @@ mod tests {
         let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Expression::Defer { expression } => {
-            assert_node!(parser.tree, expression.unwrap(), Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
+            assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
                 assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
