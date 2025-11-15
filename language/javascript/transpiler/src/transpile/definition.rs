@@ -138,22 +138,19 @@ impl<'a> Transpiler<'a> {
                 generics: _,
                 heritage: _,
                 fields,
-                properties,
+                properties: _,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
                 let fields = fields
                     .iter()
                     .map(|field| self.transpile_enum_field(module, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                let properties = properties
-                    .iter()
-                    .map(|property| self.transpile_property(module, *property, unit))
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Enum { descriptor, fields }
             }
             _ => {
-                return Err(TranspileError::UnsupportedDefinition {
-                    node: definition_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: definition_id.into_any(),
+                    message: None,
                 });
             }
         };
