@@ -48,8 +48,13 @@ impl DependencySource {
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {
+    /// Unresolved default from a target (like `import * as foo from "foo"`).
+    UnresolvedDefault {
+        kind: DependencyKind,
+        alias: StringId,
+    },
     /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
-    UnresolvedNamed {
+    UnresolvedItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,

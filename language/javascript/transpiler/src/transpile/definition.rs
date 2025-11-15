@@ -151,23 +151,7 @@ impl<'a> Transpiler<'a> {
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Enum { descriptor, fields }
             }
-            dir::Definition::Function {
-                descriptor,
-                signature,
-                definitions: _,
-                body,
-            } => {
-                return Err(TranspileError::UnsupportedDefinition {
-                    node: definition_id,
-                });
-            }
-            dir::Definition::Implement {
-                descriptor,
-                generics: _,
-                target_type,
-                heritage: _,
-                properties,
-            } => {
+            _ => {
                 return Err(TranspileError::UnsupportedDefinition {
                     node: definition_id,
                 });
