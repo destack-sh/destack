@@ -26,8 +26,6 @@ pub struct DeclarationDescriptor {
 /// Definition introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    /// Unresolved expression as a definition.
-    UnresolvedExpression { expression: NodeId<Expression> },
     /// Namespace definition.
     Namespace {
         descriptor: DeclarationDescriptor,
@@ -76,6 +74,20 @@ pub enum Definition {
 
 impl Node for Definition {
     const TYPE: NodeType = NodeType::Definition;
+}
+
+impl Definition {
+    /// Get the descriptor of the definition.
+    pub fn descriptor(&self) -> &DeclarationDescriptor {
+        match self {
+            Definition::Namespace { descriptor, .. } => descriptor,
+            Definition::Struct { descriptor, .. } => descriptor,
+            Definition::Enum { descriptor, .. } => descriptor,
+            Definition::Interface { descriptor, .. } => descriptor,
+            Definition::Function { descriptor, .. } => descriptor,
+            Definition::Implement { descriptor, .. } => descriptor,
+        }
+    }
 }
 
 /// The style of a struct or class.

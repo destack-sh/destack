@@ -230,7 +230,8 @@ impl<'a> Compiler<'a> {
                 Definition::Function {
                     descriptor,
                     signature,
-                    definitions: Vec::new(), // nocheckin
+                    // nocheckin unpack definitions from function body DIR
+                    definitions: Vec::new(),
                     body,
                 }
             }

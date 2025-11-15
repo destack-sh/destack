@@ -1212,9 +1212,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         definition: &Definition,
     ) {
         match definition {
-            Definition::UnresolvedExpression { expression: _ } => {
-                self.node("Definition::UnresolvedExpression", id.id).end();
-            }
             Definition::Namespace {
                 descriptor,
                 generics,
