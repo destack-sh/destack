@@ -183,8 +183,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_block(tree, *body_id, block);
             }
         }
-        Expression::Import {
+        Expression::UnresolvedImport {
             kind: _,
+            target: _,
+            source: _,
             items,
             arguments,
         } => {
@@ -199,11 +201,30 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Expression::Export {
-            mode: _,
+        Expression::Import {
             kind: _,
+            target: _,
+            source: _,
             items,
-            value,
+            arguments,
+        } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
+            }
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
+        Expression::UnresolvedReExport {
+            mode: _,
+            target: _,
+            kind: _,
+            source: _,
+            items,
         } => {
             if let Some(items) = items {
                 for item_id in items {
@@ -211,9 +232,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_dependency_item(tree, *item_id, item);
                 }
             }
-            if let Some(value_id) = value {
-                let value_expr = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expr);
+        }
+        Expression::ReExport {
+            mode: _,
+            target: _,
+            kind: _,
+            source: _,
+            items,
+        } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
+            }
+        }
+        Expression::Export {
+            mode: _,
+            kind: _,
+            source: _,
+            items,
+        } => {
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
         Expression::Let {
@@ -941,9 +981,26 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &MutableNodeTree,
     id: NodeId<DependencyItem>,
-    _dependency_item: &DependencyItem,
+    dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
+    match dependency_item {
+        DependencyItem::UnresolvedNamed {
+            kind: _,
+            name: _,
+            alias: _,
+        } => {
+            // nothing to do
+        }
+        DependencyItem::Definition { value } => {
+            let value_definition = tree.get(*value);
+            visitor.visit_definition(tree, *value, value_definition);
+        }
+        DependencyItem::Expression { value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+    }
 }
 
 /// Walk the Parameter.

@@ -2,41 +2,68 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
-    DependencyItem, DependencyKind, ExportType, MatchCase, MatchSource, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, Type,
+    DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node,
+    NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, Type,
     TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Definition as a value (with a name or anonymous)
+    /// Definition as a value (with a name or anonymous).
     Definition { definition: NodeId<Definition> },
 
-    /// Block of "statements" (inside `{}` usually)
+    /// Block of "statements" (inside `{}` usually).
     Block { block: NodeId<Block> },
 
     /// Statement expression (explicit statement with a `;` terminator).
     Statement { statement: NodeId<Expression> },
 
-    /// With context declaration (flattened, like `with Foo, Bar` for `with Foo.Bar`)
+    /// With context declaration (like `with Foo, Bar` for `with Foo.Bar`).
     With {
         clauses: Vec<NodeId<WithClause>>,
         body: Option<NodeId<Block>>,
     },
-    /// Import dependency declaration (flattened `foo.{bar, baz}``)
-    Import {
+    /// Unresolved import dependency declaration (like `import "foo"`).
+    UnresolvedImport {
         kind: DependencyKind,
+        target: StringId,
+        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// Export dependency declaration (flattened for items like `export { bar } from foo`)
+    /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
+    UnresolvedReExport {
+        mode: ExportType,
+        target: StringId,
+        kind: DependencyKind,
+        source: DependencySource,
+        items: Option<Vec<NodeId<DependencyItem>>>,
+    },
+    /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
+    Import {
+        kind: DependencyKind,
+        target: ModuleId,
+        source: DependencySource,
+        items: Vec<NodeId<DependencyItem>>,
+        arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
+    ReExport {
+        mode: ExportType,
+        target: ModuleId,
+        kind: DependencyKind,
+        source: DependencySource,
+        items: Vec<NodeId<DependencyItem>>,
+    },
+    /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
         mode: ExportType,
         kind: DependencyKind,
-        items: Option<Vec<NodeId<DependencyItem>>>,
-        value: Option<NodeId<Expression>>,
+        source: DependencySource,
+        items: Vec<NodeId<DependencyItem>>,
     },
+
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: Mutability,
@@ -263,9 +290,12 @@ impl Node for Expression {
 }
 
 impl Expression {
-    /// Whether the expression is considered resolved at the outermost level (ignoring child nodes).
+    /// Whether the expression is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
         match self {
+            Expression::UnresolvedImport { .. } => false,
+            Expression::UnresolvedReExport { .. } => false,
+
             Expression::Path {
                 path,
                 static_arguments: _,

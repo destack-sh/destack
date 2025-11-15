@@ -9,8 +9,8 @@ pub enum ExportType {
     Item,
     /// Export as default item (export default foo)
     Default,
-    /// Export as entire module (export = foo)
-    Module,
+    /// Export as entire namespace (export = foo)
+    Namespace,
 }
 
 /// The type of a dependency item.

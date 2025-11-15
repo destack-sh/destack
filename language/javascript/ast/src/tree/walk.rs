@@ -547,14 +547,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
 /// Walk the DeclarationDescriptor.
 fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &MutableNodeTree,
-    descriptor: &DeclarationDescriptor,
+    _visitor: &mut V,
+    _tree: &MutableNodeTree,
+    _descriptor: &DeclarationDescriptor,
 ) {
-    if let Some(key) = descriptor.key {
-        let key_expr = tree.get(key);
-        visitor.visit_expression(tree, key, key_expr);
-    }
+    // nothing to do
 }
 
 /// Walk a definition.

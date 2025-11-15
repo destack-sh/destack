@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Node, NodeType};
+use crate::{Definition, Expression, Node, NodeId, NodeType};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -9,8 +9,8 @@ pub enum ExportType {
     Item,
     /// Export as default item (export default foo)
     Default,
-    /// Export as entire module (export * from foo)
-    Module,
+    /// Export as entire namespace (export * from foo)
+    Namespace,
 }
 
 /// The type of a dependency item.
@@ -26,7 +26,9 @@ pub enum DependencyKind {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
-    Import,
+    ImportStatement,
+    /// Re-export statement (like `export { bar } from "foo"`).
+    ReExportStatement,
     /// Import call (like `await import("foo")`).
     ImportCall,
     /// Require call (like `require("foo")`).
@@ -46,26 +48,28 @@ impl DependencySource {
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {
-    /// Import a target as a side effect without alias (like `import "foo"`)
-    SideEffect {
-        kind: DependencyKind,
-        target: StringId,
-    },
-    /// Import or export all items from a target (`import * from "foo"` or `export * from "foo"`).
-    Namespace {
-        kind: DependencyKind,
-        target: StringId,
-        alias: StringId,
-    },
     /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
-    Named {
+    UnresolvedNamed {
         kind: DependencyKind,
-        target: Option<StringId>,
         name: StringId,
         alias: Option<StringId>,
     },
+    /// Resolved to a Definition.
+    Definition { value: NodeId<Definition> },
+    /// Resolved to an Expression.
+    Expression { value: NodeId<Expression> },
 }
 
 impl Node for DependencyItem {
     const TYPE: NodeType = NodeType::DependencyItem;
+}
+
+impl DependencyItem {
+    /// Whether the dependency item is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
+        matches!(
+            self,
+            DependencyItem::Definition { .. } | DependencyItem::Expression { .. }
+        )
+    }
 }

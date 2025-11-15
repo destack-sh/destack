@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId, StructKind,
-    Visibility,
+    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
+    StructKind, Visibility,
 };
 
 impl<'a> Compiler<'a> {
@@ -24,34 +24,28 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// Lower binding scope to DIR binding scope.
+    pub fn lower_binding_scope(&mut self, scope: ast::BindingScope) -> BindingScope {
+        match scope {
+            ast::BindingScope::Static => BindingScope::Static,
+            ast::BindingScope::Instance => BindingScope::Instance,
+        }
+    }
+
     /// Lower expression to DIR definition (if it's maybe a definition).
     /// If the expression can't possibly resolve to a definition, returns `None`.
     /// (Like for a scalar literal)
-    pub fn lower_expression_to_definition(
+    pub fn lower_expression_to_definition_maybe(
         &mut self,
         module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
-        resolve_expressions: bool,
     ) -> Option<NodeId<Definition>> {
         let expression = module.get(expression_id);
         let definition_id = match expression {
             ast::Expression::Definition(definition_id) => {
                 self.lower_definition(module, *definition_id)
             }
-            ast::Expression::Import { .. } | ast::Expression::Export { .. } => {
-                return None;
-            }
-            _ if resolve_expressions => {
-                let definition = Definition::UnresolvedExpression {
-                    expression: self.lower_expression(module, expression_id),
-                };
-                self.session
-                    .tree
-                    .insert_from_ast(definition, module.id, expression_id)
-            }
-            _ => {
-                return None;
-            }
+            _ => return None,
         };
         self.session
             .tree
@@ -66,6 +60,7 @@ impl<'a> Compiler<'a> {
         descriptor: &ast::DeclarationDescriptor,
     ) -> DeclarationDescriptor {
         let kind = self.lower_declaration_kind(descriptor.kind);
+        let scope = self.lower_binding_scope(descriptor.scope);
         let name = descriptor.name.map(|name| {
             self.session
                 .strings
@@ -74,7 +69,12 @@ impl<'a> Compiler<'a> {
         let export = descriptor
             .export
             .map(|export| self.lower_export_type(export));
-        DeclarationDescriptor { kind, name, export }
+        DeclarationDescriptor {
+            kind,
+            scope,
+            name,
+            export,
+        }
     }
 
     /// Lower a definition to a DIR definition.
@@ -99,7 +99,7 @@ impl<'a> Compiler<'a> {
                 let definitions = expressions
                     .iter()
                     .flat_map(|expression| {
-                        self.lower_expression_to_definition(module, *expression, true)
+                        self.lower_expression_to_definition_maybe(module, *expression)
                     })
                     .collect();
                 Definition::Namespace {

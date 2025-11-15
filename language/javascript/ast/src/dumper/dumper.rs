@@ -604,15 +604,12 @@ impl Dump for BindingModifier {
 /// Dump a DeclarationDescriptor.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let has_key = self.key.is_some();
         dumper
             .object("DeclarationDescriptor")
             .field("kind", &self.kind)
             .field("scope", &self.scope)
             .field_optional("name", &self.name)
-            .field_optional("visibility", &self.visibility)
             .field_optional("export", &self.export)
-            .field("has_key", &has_key)
             .end();
     }
 }

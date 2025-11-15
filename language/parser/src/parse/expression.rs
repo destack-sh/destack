@@ -347,14 +347,14 @@ impl<'a> Parser<'a> {
                 Some(ExportType::Default)
             } else if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
-                Some(ExportType::Module)
+                Some(ExportType::Namespace)
             } else {
                 Some(ExportType::Item)
             };
 
             // just parse the export if followed by dependency items or module export
             let keyword = self.peek_any_keyword().ok();
-            if mode == Some(ExportType::Module)
+            if mode == Some(ExportType::Namespace)
                 || (keyword.is_none() || !DEFINITION_KEYWORDS.contains(&keyword.unwrap()))
                     && self.peek_import_clause().is_ok()
             {
@@ -1489,7 +1489,7 @@ type = type * 2
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression_id, Expression::Export { mode, kind: DependencyKind::Value, target: None, value: Some(value), .. } => {
-            assert_eq!(*mode, ExportType::Module);
+            assert_eq!(*mode, ExportType::Namespace);
             assert_expr_path!(parser, parser.tree.get(*value), "foo");
         });
     }

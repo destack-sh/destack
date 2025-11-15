@@ -62,7 +62,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
         match self {
             ExportType::Item => write!(f, [Keyword::Export]),
             ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
-            ExportType::Module => write!(f, [Keyword::Export]),
+            ExportType::Namespace => write!(f, [Keyword::Export]),
         }
     }
 }
