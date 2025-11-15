@@ -142,6 +142,7 @@ pub enum Definition {
     Namespace {
         descriptor: DeclarationDescriptor,
         generics: Option<Generics>,
+        // nocheckin: turn Option<Generics> / Option<Heritage> into just Generics / Heritage
         expressions: Vec<NodeId<Expression>>,
     },
 

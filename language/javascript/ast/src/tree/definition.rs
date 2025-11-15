@@ -1,6 +1,6 @@
 use crate::{
     BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage, Name, Node,
-    NodeId, NodeType, Property, StringId, Visibility,
+    NodeId, NodeType, Property, StringId,
 };
 
 /// The kind of declaration.
@@ -21,10 +21,6 @@ pub struct DeclarationDescriptor {
     pub scope: BindingScope = BindingScope::Instance,
     /// The name of the definition.
     pub name: Option<Name> = None,
-    /// The key of the definition.
-    pub key: Option<NodeId<Expression>> = None,
-    /// The visibility of the definition.
-    pub visibility: Option<Visibility> = None,
     /// The export type of the definition.
     pub export: Option<ExportType> = None,
 }

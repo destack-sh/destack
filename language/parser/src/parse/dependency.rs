@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
                     ExportType::Default
                 } else if self.peek_token(TokenType::Assign).is_ok() {
                     self.bump(); // eat assign
-                    ExportType::Module
+                    ExportType::Namespace
                 } else {
                     ExportType::Item
                 }
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
         };
 
         // value for module export
-        if mode == ExportType::Module {
+        if mode == ExportType::Namespace {
             let value = self.eat_expression()?;
             return Ok(self.tree.insert(
                 Expression::Export {
@@ -542,7 +542,7 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export(None).unwrap();
         assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target: None, value: Some(value), .. } => {
-            assert_eq!(*mode, ExportType::Module);
+            assert_eq!(*mode, ExportType::Namespace);
             assert_eq!(*kind, DependencyKind::Value);
             assert_expr_path!(parser, parser.tree.get(*value), "foo");
         });

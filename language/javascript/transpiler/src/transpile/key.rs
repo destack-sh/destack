@@ -11,13 +11,13 @@ impl<'a> Transpiler<'a> {
         _module: &'a Module,
         string_id: StringId,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Name> {
+    ) -> Name {
         let string_id = unit.strings.intern_from(&self.session.strings, string_id);
         let string = self.session.strings.get(string_id);
         if is_identifier(string.as_ref()) {
-            Ok(Name::Identifier(string_id))
+            Name::Identifier(string_id)
         } else {
-            Ok(Name::String(string_id))
+            Name::String(string_id)
         }
     }
 
@@ -30,7 +30,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<Key> {
         let key = match key {
             dir::Key::Name(name) => {
-                let name = self.transpile_string_to_name(module, name, unit)?;
+                let name = self.transpile_string_to_name(module, name, unit);
                 Key::Name(name)
             }
             dir::Key::Expression(expression) => {
@@ -38,7 +38,7 @@ impl<'a> Transpiler<'a> {
                 Key::Expression(expression)
             }
             dir::Key::NamedExpression { name, key } => {
-                let name = self.transpile_string_to_name(module, name, unit)?;
+                let name = self.transpile_string_to_name(module, name, unit);
                 let key = self.transpile_expression(module, key, unit)?;
                 Key::NamedExpression { name, key }
             }

@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencySource, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, NodeId, Path,
-    PathBase, Runtime, YieldCardinality,
+    DependencyItem, DependencySource, Expression, ForEachKind, IfKind, LoopKind, MatchSource,
+    Module, NodeId, Path, PathBase, Runtime, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -65,15 +65,16 @@ impl<'a> Compiler<'a> {
                 items,
                 arguments,
             } => {
-                let items = self.lower_dependency_items(
-                    module,
-                    expression_id,
-                    *kind,
-                    DependencySource::Import,
-                    Some(*target),
-                    alias.as_ref().copied(),
-                    items.as_ref().map(|items| items.as_slice()),
-                );
+                let target = self.session.strings.intern_from(&module.strings, *target);
+                let items = items
+                    .as_ref()
+                    .map(|items| {
+                        items
+                            .iter()
+                            .map(|item| self.lower_dependency_item(module, *kind, *item))
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -81,8 +82,10 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let kind = self.lower_dependency_kind(*kind);
-                Expression::Import {
+                Expression::UnresolvedImport {
                     kind,
+                    target,
+                    source: DependencySource::ImportStatement,
                     items,
                     arguments,
                 }
@@ -95,22 +98,61 @@ impl<'a> Compiler<'a> {
                 items,
                 value,
             } => {
-                let items = self.lower_dependency_items(
-                    module,
-                    expression_id,
-                    *kind,
-                    DependencySource::Import,
-                    target.as_ref().copied(),
-                    alias.as_ref().copied(),
-                    items.as_ref().map(|items| items.as_slice()),
-                );
-                let value = value.map(|value| self.lower_expression(module, value));
-                let kind = self.lower_dependency_kind(*kind);
-                Expression::Export {
-                    mode: self.lower_export_type(*mode),
-                    kind,
-                    items: if items.is_empty() { None } else { Some(items) },
-                    value,
+                let mode = self.lower_export_type(*mode);
+                let target =
+                    target.map(|target| self.session.strings.intern_from(&module.strings, target));
+                // re-export from import
+                if let Some(target) = target {
+                    let items = items.as_ref().map(|items| {
+                        items
+                            .iter()
+                            .map(|item| self.lower_dependency_item(module, *kind, *item))
+                            .collect()
+                    });
+                    let kind = self.lower_dependency_kind(*kind);
+                    Expression::UnresolvedReExport {
+                        mode,
+                        target,
+                        kind,
+                        source: DependencySource::ReExportStatement,
+                        items,
+                    }
+                }
+                // export from module
+                else {
+                    // export = value
+                    let items = {
+                        if let Some(value_id) = value {
+                            let value = self.lower_expression(module, *value_id);
+                            let item = DependencyItem::Expression { value };
+                            let item_id = self
+                                .session
+                                .tree
+                                .insert_from_ast(item, module.id, *value_id);
+                            vec![item_id]
+                        }
+                        // export items
+                        else {
+                            items
+                                .as_ref()
+                                .map(|items| {
+                                    items
+                                        .iter()
+                                        .map(|item| {
+                                            self.lower_dependency_item(module, *kind, *item)
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default()
+                        }
+                    };
+                    let kind = self.lower_dependency_kind(*kind);
+                    Expression::Export {
+                        mode,
+                        kind,
+                        source: DependencySource::ReExportStatement,
+                        items,
+                    }
                 }
             }
             ast::Expression::Let {

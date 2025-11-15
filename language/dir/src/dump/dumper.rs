@@ -396,6 +396,13 @@ where
     }
 }
 
+/// Dump a ModuleId as a string.
+impl Dump for ModuleId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(self.0.to_string(), Some(Color::White));
+    }
+}
+
 impl_dump_display! {
     AnnotationPosition,
     Asynchrony,
@@ -881,24 +888,70 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::With", id.id).end();
             }
+            Expression::UnresolvedImport {
+                kind,
+                target,
+                source,
+                items: _,
+                arguments: _,
+            } => {
+                self.node("Expression::UnresolvedImport", id.id)
+                    .field("kind", kind)
+                    .field("target", target)
+                    .field("source", source)
+                    .end();
+            }
             Expression::Import {
                 kind,
+                target,
+                source,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
                     .field("kind", kind)
+                    .field("target", target)
+                    .field("source", source)
+                    .end();
+            }
+            Expression::UnresolvedReExport {
+                mode,
+                target,
+                kind,
+                source,
+                items: _,
+            } => {
+                self.node("Expression::UnresolvedReExport", id.id)
+                    .field("mode", mode)
+                    .field("kind", kind)
+                    .field("target", target)
+                    .field("source", source)
+                    .end();
+            }
+            Expression::ReExport {
+                mode,
+                target,
+                kind,
+                source,
+                items: _,
+            } => {
+                self.node("Expression::ReExport", id.id)
+                    .field("mode", mode)
+                    .field("kind", kind)
+                    .field("target", target)
+                    .field("source", source)
                     .end();
             }
             Expression::Export {
                 mode,
                 kind,
+                source,
                 items: _,
-                value: _,
             } => {
                 self.node("Expression::Export", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
+                    .field("source", source)
                     .end();
             }
             Expression::Let {
@@ -1437,35 +1490,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::SideEffect { kind, target } => {
-                self.node("DependencyItem::SideEffect", id.id)
+            DependencyItem::UnresolvedNamed { kind, name, alias } => {
+                self.node("DependencyItem::UnresolvedNamed", id.id)
                     .field("kind", kind)
-                    .field("target", target)
-                    .end();
-            }
-            DependencyItem::Namespace {
-                kind,
-                target,
-                alias,
-            } => {
-                self.node("DependencyItem::Glob", id.id)
-                    .field("kind", kind)
-                    .field("target", target)
-                    .field("alias", alias)
-                    .end();
-            }
-            DependencyItem::Named {
-                kind,
-                target,
-                name,
-                alias,
-            } => {
-                self.node("DependencyItem::Scalar", id.id)
-                    .field("kind", kind)
-                    .field_optional("target", target)
                     .field("name", name)
                     .field_optional("alias", alias)
                     .end();
+            }
+            DependencyItem::Definition { value: _ } => {
+                self.node("DependencyItem::Definition", id.id).end();
+            }
+            DependencyItem::Expression { value: _ } => {
+                self.node("DependencyItem::Expression", id.id).end();
             }
         }
         self.with_depth(|dumper| {
