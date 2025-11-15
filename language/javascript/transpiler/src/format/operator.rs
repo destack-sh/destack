@@ -105,8 +105,6 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeBinaryOperator {
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for AssignOperator {
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
-            AssignOperator::Assign => "=",
-
             // addition
             AssignOperator::AddAssign => "+=",
             AssignOperator::SubtractAssign => "-=",

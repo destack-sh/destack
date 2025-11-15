@@ -112,9 +112,6 @@ pub enum BinaryOperator {
 /// Assignment operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
-    /// `=`
-    Assign,
-
     /// `+=`
     AddAssign,
     /// `-=`

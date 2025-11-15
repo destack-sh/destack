@@ -1,7 +1,9 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::{Expression, NodeId, PostfixPosition};
+use dyst_javascript_ast::{
+    Asynchrony, Expression, FunctionCardinality, Keyword, NodeId, PostfixPosition,
+};
 
 use crate::format::argument::list_like;
 use crate::format::literal::{format_scalar_literal, format_template_literal};
@@ -14,6 +16,44 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
+            Expression::Definition { definition } => {
+                write!(f, [definition])?;
+            }
+            Expression::ArrowFunction { signature, body } => {
+                // asynchrony
+                if signature.asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Async, space()])?;
+                }
+
+                // cardinality
+                if signature.cardinality == FunctionCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+
+                // static parameters
+                if f.context().include_types()
+                    && let Some(static_parameters) = signature
+                        .generics
+                        .as_ref()
+                        .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+
+                // return type
+                if f.context().include_types()
+                    && let Some(return_type) = signature.return_type
+                {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+
+                // body
+                write!(f, [space(), token("=>"), space(), body])?;
+            }
             Expression::Path {
                 path,
                 static_arguments,
@@ -64,6 +104,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             }
             Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, [left, space(), operator, space(), right])?;
+            }
+            Expression::Assign { left, right } => {
+                write!(f, [left, space(), token("="), space(), right])?;
+            }
+            Expression::AssignBinary {
                 left,
                 operator,
                 right,
@@ -159,8 +209,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     ]
                 )?;
             }
-
-            _ => todo!("format_node{self:?}"),
         }
 
         Ok(())

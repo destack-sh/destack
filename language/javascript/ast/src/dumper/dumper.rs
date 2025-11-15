@@ -463,8 +463,8 @@ impl Dump for FunctionSignature {
 
 impl_dump_display! {
     AnnotationPosition,
-    Asynchrony,
     AssignOperator,
+    Asynchrony,
     BinaryOperator,
     BindingKind,
     BindingOperator,
@@ -790,12 +790,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Definition { definition: _ } => {
                 self.node("Expression::Definition", id.id).end();
             }
-            Expression::ArrowFunction {
-                dynamic_parameters: _,
-                return_type: _,
-                body: _,
-            } => {
-                self.node("Expression::ArrowFunction", id.id).end();
+            Expression::ArrowFunction { signature, body: _ } => {
+                self.node("Expression::ArrowFunction", id.id)
+                    .field("signature", signature)
+                    .end();
             }
             Expression::Path {
                 path,
@@ -849,6 +847,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 right: _,
             } => {
                 self.node("Expression::Binary", id.id)
+                    .field("operator", operator)
+                    .end();
+            }
+            Expression::Assign { left: _, right: _ } => {
+                self.node("Expression::Assign", id.id).end();
+            }
+            Expression::AssignBinary {
+                operator,
+                left: _,
+                right: _,
+            } => {
+                self.node("Expression::AssignBinary", id.id)
                     .field("operator", operator)
                     .end();
             }

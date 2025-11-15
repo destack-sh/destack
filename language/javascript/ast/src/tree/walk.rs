@@ -1,5 +1,8 @@
 use crate::{
-    Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField, Expression, FunctionSignature, Generics, Heritage, Key, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TemplateLiteral, Type
+    Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField,
+    Expression, FunctionSignature, Generics, Heritage, Key, MutableNodeTree, NodeId, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    TemplateLiteral, Type,
 };
 
 /// Walk any node.
@@ -355,19 +358,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let definition_node = tree.get(*definition);
             visitor.visit_definition(tree, *definition, definition_node);
         }
-        Expression::ArrowFunction {
-            dynamic_parameters,
-            return_type,
-            body,
-        } => {
-            for parameter_id in dynamic_parameters {
-                let parameter = tree.get(*parameter_id);
-                visitor.visit_parameter(tree, *parameter_id, parameter);
-            }
-            if let Some(return_type) = return_type {
-                let ty = tree.get(*return_type);
-                visitor.visit_type(tree, *return_type, ty);
-            }
+        Expression::ArrowFunction { signature, body } => {
+            walk_function_signature(visitor, tree, signature);
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }
@@ -444,6 +436,22 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
         Expression::Binary {
+            left,
+            operator: _,
+            right,
+        } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+        Expression::Assign { left, right } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+        }
+        Expression::AssignBinary {
             left,
             operator: _,
             right,

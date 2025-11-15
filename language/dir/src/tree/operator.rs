@@ -119,10 +119,6 @@ pub enum BinaryOperator {
 /// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
-    // assignment
-    /// `=`
-    Assign,
-
     // assignment multiplication
     /// `*=`
     MultiplyAssign,
