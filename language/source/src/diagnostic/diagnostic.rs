@@ -1,4 +1,4 @@
-use crate::{FileId, LabeledSpan, Suggestion};
+use crate::{Color, FileId, LabeledSpan, Suggestion};
 
 /// The level of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Hash)]
@@ -12,12 +12,30 @@ pub enum DiagnosticSeverity {
 }
 
 impl DiagnosticSeverity {
+    /// Get the family name of the severity.
+    pub fn family_name(&self) -> &'static str {
+        match self {
+            Self::Note => "Note",
+            Self::Warning => "Warning",
+            Self::Error => "Error",
+        }
+    }
+
     /// Get the family letter of the severity.
     pub fn family_letter(&self) -> &'static str {
         match self {
             Self::Note => "N",
             Self::Warning => "W",
             Self::Error => "E",
+        }
+    }
+
+    /// Get the color of the severity.
+    pub fn color(&self) -> Color {
+        match self {
+            Self::Note => Color::BrightBlue,
+            Self::Warning => Color::BrightYellow,
+            Self::Error => Color::BrightRed,
         }
     }
 }

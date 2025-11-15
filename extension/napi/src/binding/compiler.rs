@@ -8,6 +8,7 @@ pub struct CompilerOptions {
     pub resolve: ResolveOptions,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for CompilerOptions {
     fn default() -> Self {
         Self {

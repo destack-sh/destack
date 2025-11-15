@@ -317,12 +317,7 @@ mod tests {
                 let annotated = dyst_source::annotate_source(
                     source,
                     &diagnostic.primary_span,
-                    dyst_source::AnnotateOptions {
-                        max_line_width: 100,
-                        prefix_lines: 1,
-                        suffix_lines: 1,
-                        use_color: false,
-                    },
+                    dyst_source::AnnotateOptions::default(),
                 );
                 let diagnostic_header = format!("{}: {}", diagnostic.code, diagnostic.message);
                 eprintln!("{diagnostic_header}");
