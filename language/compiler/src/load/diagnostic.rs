@@ -4,7 +4,7 @@ use dyst_source::{FileId, Uri};
 
 use dyst_source::StringId;
 
-use crate::{CompileDiagnostic, CompileError};
+use crate::CompileError;
 
 /// Error when loading something into the compiler.
 #[derive(Debug, Clone)]
@@ -26,9 +26,9 @@ pub enum LoadError {
 }
 
 impl LoadError {
-    /// Get the numeric sub-code of the error.
+    /// Get the numeric sub-code of the error (e.g., `1` for `LE001`).
     #[inline]
-    fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u8 {
         match self {
             Self::FileIdNotFound { .. } => 1,
             Self::FileUriNotFound { .. } => 2,
@@ -42,7 +42,7 @@ impl LoadError {
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoadError")
-            .field("code", &self.full_code())
+            .field("code", &format!("LE{:03}", self.sub_code()))
             .finish()
     }
 }
@@ -56,19 +56,35 @@ impl From<LoadError> for CompileError {
     }
 }
 
-impl CompileDiagnostic for LoadError {
+/// Warning when loading something.
+#[derive(Debug, Clone, PartialEq)]
+#[repr(u8)]
+pub enum LoadWarning {
+    /// Missing configuration for a file.
+    MissingConfiguration { module: ModuleId } = 1,
+}
+
+impl LoadWarning {
+    /// Get the numeric sub-code of the warning.
     #[inline]
-    fn family_letter(&self) -> &'static str {
-        "L"
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::MissingConfiguration { .. } => 1,
+        }
     }
 
-    #[inline]
-    fn family_number(&self) -> u8 {
-        1
+    /// Get the message of the warning.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::MissingConfiguration { .. } => "missing configuration for a module",
+        }
     }
+}
 
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        self.sub_code()
+impl std::fmt::Display for LoadWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoadWarning")
+            .field("code", &format!("LW{:03}", self.sub_code()))
+            .finish()
     }
 }

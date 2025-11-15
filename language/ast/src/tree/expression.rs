@@ -337,9 +337,7 @@ pub enum Expression {
     ///     someOtherFunction()
     /// }
     /// ```
-    Defer {
-        expression: NodeId<Expression>,
-    },
+    Defer { expression: NodeId<Expression> },
 
     /// Await an expression.
     /// This is more similar to `go` than classic `await`, but the meaning is context & runtime specific.

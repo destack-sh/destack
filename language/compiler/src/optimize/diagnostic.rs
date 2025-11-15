@@ -1,21 +1,28 @@
-use dyst_dir::NodeIdAny;
+use dyst_dir::{Expression, NodeId, NodeIdAny};
 
-use crate::{CompileDiagnostic, CompileError};
+use crate::CompileError;
 
 /// Error when optimizeing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum OptimizeError {
     /// Optimization is impossible for this node.
-    OptimizationImpossible { node_id: NodeIdAny } = 1,
+    OptimizationImpossible { node: NodeIdAny } = 1,
 }
 
 impl OptimizeError {
     /// Get the numeric sub-code of the error.
     #[inline]
-    fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u8 {
         match self {
             Self::OptimizationImpossible { .. } => 1,
+        }
+    }
+
+    /// Get the message of the error.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::OptimizationImpossible { .. } => "optimization is impossible",
         }
     }
 }
@@ -23,7 +30,7 @@ impl OptimizeError {
 impl std::fmt::Display for OptimizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OptimizeError")
-            .field("code", &self.full_code())
+            .field("code", &format!("OE{:03}", self.sub_code()))
             .finish()
     }
 }
@@ -37,19 +44,35 @@ impl From<OptimizeError> for CompileError {
     }
 }
 
-impl CompileDiagnostic for OptimizeError {
+/// Warning when optimizing something.
+#[derive(Debug, Clone, PartialEq)]
+#[repr(u8)]
+pub enum OptimizeWarning {
+    /// Unknown type for an expression.
+    MissingType { node: NodeId<Expression> } = 1,
+}
+
+impl OptimizeWarning {
+    /// Get the numeric sub-code of the warning.
     #[inline]
-    fn family_letter(&self) -> &'static str {
-        "O"
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::MissingType { .. } => 1,
+        }
     }
 
-    #[inline]
-    fn family_number(&self) -> u8 {
-        5
+    /// Get the message of the warning.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::MissingType { .. } => "unknown type for an expression",
+        }
     }
+}
 
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        self.sub_code()
+impl std::fmt::Display for OptimizeWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OptimizeWarning")
+            .field("code", &format!("OW{:03}", self.sub_code()))
+            .finish()
     }
 }

@@ -25,7 +25,7 @@ impl<'a> Transpiler<'a> {
                         roots: Vec::new(),
                         strings: SharedStringPool::new(),
                         sources: vec![module.id],
-                        errors: Vec::new(),
+                        diagnostics: Vec::new(),
                         artifacts: Vec::new(),
                     };
                     units.push(unit);
@@ -40,7 +40,7 @@ impl<'a> Transpiler<'a> {
                     roots: Vec::new(),
                     strings: SharedStringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
-                    errors: Vec::new(),
+                    diagnostics: Vec::new(),
                     artifacts: Vec::new(),
                 };
                 units.push(unit);
@@ -80,8 +80,8 @@ impl<'a> Transpiler<'a> {
                 }
             }
             // add all the diagnostics to the session
-            for error in &unit.errors {
-                let diagnostic = error.to_diagnostic(self.session);
+            for diagnostic in &unit.diagnostics {
+                let diagnostic = diagnostic.to_diagnostic(self.session);
                 self.session.diagnostics.insert_diagnostic(diagnostic);
             }
             self.units.write().insert(unit.uri.clone(), unit);

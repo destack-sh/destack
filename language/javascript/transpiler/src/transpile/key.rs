@@ -12,9 +12,9 @@ impl<'a> Transpiler<'a> {
         string_id: StringId,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Name> {
-		let string_id = unit.strings.intern_from(&self.session.strings, string_id);
+        let string_id = unit.strings.intern_from(&self.session.strings, string_id);
         let string = self.session.strings.get(string_id);
-		if is_identifier(string.as_ref()) {
+        if is_identifier(string.as_ref()) {
             Ok(Name::Identifier(string_id))
         } else {
             Ok(Name::String(string_id))

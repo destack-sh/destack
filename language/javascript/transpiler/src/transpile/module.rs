@@ -3,7 +3,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
 use dyst_source::{SharedStringPool, Uri};
 
-use crate::{TranspileError, TranspileResult, Transpiler};
+use crate::{TranspileDiagnostic, TranspileError, TranspileResult, TranspileWarning, Transpiler};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,8 +30,8 @@ pub struct TranspilerUnit {
     pub strings: SharedStringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
-    /// The errors encountered during transpilation.
-    pub errors: Vec<TranspileError>,
+    /// The diagnostics encountered during transpilation.
+    pub diagnostics: Vec<TranspileDiagnostic>,
     /// The artifacts produced by the transpilation unit.
     pub artifacts: Vec<Uri>,
 }
@@ -48,7 +48,12 @@ impl TranspilerUnit {
 
     /// Add an error to the transpilation unit.
     pub(crate) fn add_error(&mut self, error: TranspileError) {
-        self.errors.push(error);
+        self.diagnostics.push(error.into());
+    }
+
+    /// Add a warning to the transpilation unit.
+    pub(crate) fn add_warning(&mut self, warning: TranspileWarning) {
+        self.diagnostics.push(warning.into());
     }
 
     /// Try to do something and remember the TranspilerError if it fails.

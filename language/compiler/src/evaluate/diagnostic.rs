@@ -1,31 +1,46 @@
-use crate::{CompileDiagnostic, CompileError, SourceNodeIdAny};
-use dyst_dir::ModuleId;
+use crate::CompileError;
+use dyst_dir::{Expression, ModuleId, NodeId, NodeIdAny};
 
 /// Error when evaluating something statically.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum EvaluateError {
     /// Dependent nodes are not ready to be evaluated.
     NotReady {
-        module_id: ModuleId,
-        node_id: SourceNodeIdAny,
-        depends_on: Vec<SourceNodeIdAny>,
+        module: ModuleId,
+        node: NodeIdAny,
+        depends_on: Vec<NodeIdAny>,
     } = 1,
     /// Circular dependency.
     CircularDependency {
-        module_id: ModuleId,
-        node_id: SourceNodeIdAny,
-        depends_on: Vec<SourceNodeIdAny>,
+        module: ModuleId,
+        node: NodeIdAny,
+        depends_on: Vec<NodeIdAny>,
     } = 2,
+    /// Unevaluatable expression.
+    UnevaluatableExpression {
+        module: ModuleId,
+        node: NodeId<Expression>,
+    } = 3,
 }
 
 impl EvaluateError {
     /// Get the numeric sub-code of the error.
     #[inline]
-    fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u8 {
         match self {
             Self::NotReady { .. } => 1,
             Self::CircularDependency { .. } => 2,
+            Self::UnevaluatableExpression { .. } => 3,
+        }
+    }
+
+    /// Get the message of the error.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::NotReady { .. } => "dependent nodes are not ready to be evaluated",
+            Self::CircularDependency { .. } => "circular dependency",
+            Self::UnevaluatableExpression { .. } => "unevaluatable expression",
         }
     }
 }
@@ -33,12 +48,10 @@ impl EvaluateError {
 impl std::fmt::Display for EvaluateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EvaluateError")
-            .field("code", &self.full_code())
+            .field("code", &format!("XE{:03}", self.sub_code()))
             .finish()
     }
 }
-
-pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
 impl From<EvaluateError> for CompileError {
     #[inline]
@@ -47,19 +60,40 @@ impl From<EvaluateError> for CompileError {
     }
 }
 
-impl CompileDiagnostic for EvaluateError {
+pub type EvaluateResult<T> = Result<T, EvaluateError>;
+
+/// Warning when evaluating something statically.
+#[derive(Debug, Clone, PartialEq)]
+#[repr(u8)]
+pub enum EvaluateWarning {
+    /// Unknown import.
+    UnknownImport {
+        module: ModuleId,
+        node: NodeId<Expression>,
+    } = 1,
+}
+
+impl EvaluateWarning {
+    /// Get the numeric sub-code of the warning.
     #[inline]
-    fn family_letter(&self) -> &'static str {
-        "E"
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::UnknownImport { .. } => 1,
+        }
     }
 
-    #[inline]
-    fn family_number(&self) -> u8 {
-        2
+    /// Get the message of the warning.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::UnknownImport { .. } => "unknown import",
+        }
     }
+}
 
-    #[inline]
-    fn sub_code(&self) -> u8 {
-        self.sub_code()
+impl std::fmt::Display for EvaluateWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EvaluateWarning")
+            .field("code", &format!("XE{:03}", self.sub_code()))
+            .finish()
     }
 }
