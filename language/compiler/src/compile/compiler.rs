@@ -2,8 +2,8 @@ use dyst_dir::Session;
 use dyst_source::FileId;
 
 use crate::{
-    BuildOptions, CompilerQueue, CompilerTask, ResolveOptions, ExecuteOptions, ImportOptions,
-    ImportTask, OptimizeOptions, ValidateOptions,
+    BuildOptions, CompilerQueue, CompilerTask, ExecuteOptions, ImportOptions, ImportTask,
+    OptimizeOptions, ResolveOptions, ValidateOptions,
 };
 
 /// The options for compiling a Workspace.
@@ -55,7 +55,9 @@ impl<'s> Compiler<'s> {
         };
         compiler
             .queue
-            .push_back(CompilerTask::Import(ImportTask::ImportFileFromId { file_id }));
+            .push_back(CompilerTask::Import(ImportTask::ImportFileFromId {
+                file_id,
+            }));
         compiler
     }
 }

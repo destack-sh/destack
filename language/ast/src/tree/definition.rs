@@ -74,21 +74,29 @@ pub struct Generics {
 }
 
 impl Generics {
-    /// Create a new generics maybe.
-    pub fn maybe(
+    /// Create generics from the provided parts.
+    pub fn new(
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         with_clauses: Option<Vec<NodeId<WithClause>>>,
         where_clauses: Option<Vec<NodeId<WhereClause>>>,
-    ) -> Option<Self> {
-        if static_parameters.is_none() && with_clauses.is_none() && where_clauses.is_none() {
-            None
-        } else {
-            Some(Self {
-                static_parameters,
-                with_clauses,
-                where_clauses,
-            })
+    ) -> Self {
+        Self {
+            static_parameters,
+            with_clauses,
+            where_clauses,
         }
+    }
+
+    /// Check whether the generics are empty.
+    pub fn is_empty(&self) -> bool {
+        self.static_parameters.is_none()
+            && self.with_clauses.is_none()
+            && self.where_clauses.is_none()
+    }
+
+    /// Convert the generics into an Option, dropping empty instances.
+    pub fn into_option(self) -> Option<Self> {
+        if self.is_empty() { None } else { Some(self) }
     }
 
     /// Create a new generics from the given static parameters.
@@ -111,19 +119,20 @@ pub struct Heritage {
 }
 
 impl Heritage {
-    /// Create a new heritage maybe.
-    pub fn maybe(
+    /// Create a new heritage value.
+    pub fn new(
         extends_types: Option<Vec<NodeId<Expression>>>,
         implements_types: Option<Vec<NodeId<Expression>>>,
-    ) -> Option<Self> {
-        if extends_types.is_none() && implements_types.is_none() {
-            None
-        } else {
-            Some(Self {
-                extends_types,
-                implements_types,
-            })
+    ) -> Self {
+        Self {
+            extends_types,
+            implements_types,
         }
+    }
+
+    /// Check whether the heritage includes any relationships.
+    pub fn is_empty(&self) -> bool {
+        self.extends_types.is_none() && self.implements_types.is_none()
     }
 }
 
@@ -141,8 +150,7 @@ pub enum Definition {
     /// ```
     Namespace {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        // nocheckin: turn Option<Generics> / Option<Heritage> into just Generics / Heritage
+        generics: Generics,
         expressions: Vec<NodeId<Expression>>,
     },
 
@@ -183,8 +191,8 @@ pub enum Definition {
     Struct {
         descriptor: DeclarationDescriptor,
         kind: StructKind,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
 
@@ -225,8 +233,8 @@ pub enum Definition {
     /// ```
     Enum {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         fields: Vec<NodeId<EnumField>>,
         properties: Vec<NodeId<Property>>,
     },
@@ -263,8 +271,8 @@ pub enum Definition {
     /// ```
     Interface {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
 
@@ -292,9 +300,9 @@ pub enum Definition {
     /// ```
     Implement {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
+        generics: Generics,
         target_type: NodeId<Expression>,
-        heritage: Option<Heritage>,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
 

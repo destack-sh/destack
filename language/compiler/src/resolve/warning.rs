@@ -35,4 +35,3 @@ impl std::fmt::Display for ResolveWarning {
             .finish()
     }
 }
-

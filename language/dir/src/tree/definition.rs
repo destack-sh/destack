@@ -31,30 +31,30 @@ pub enum Definition {
     /// Namespace definition.
     Namespace {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
+        generics: Generics,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Struct or class definition.
     Struct {
         descriptor: DeclarationDescriptor,
         kind: StructKind,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
     /// Enum definition.
     Enum {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         fields: Vec<NodeId<EnumField>>,
         properties: Vec<NodeId<Property>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
@@ -67,9 +67,9 @@ pub enum Definition {
     /// Implement definition.
     Implement {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
+        generics: Generics,
         target_type: NodeId<Type>,
-        heritage: Option<Heritage>,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
 }

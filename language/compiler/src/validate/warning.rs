@@ -32,4 +32,3 @@ impl std::fmt::Display for ValidateWarning {
             .finish()
     }
 }
-

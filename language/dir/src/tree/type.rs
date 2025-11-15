@@ -216,6 +216,15 @@ pub struct Generics {
     pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
 }
 
+impl Generics {
+    /// Check whether the generics contain any clauses.
+    pub fn is_empty(&self) -> bool {
+        self.static_parameters.is_none()
+            && self.with_clauses.is_none()
+            && self.where_clauses.is_none()
+    }
+}
+
 /// The polymoprhic relations.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
@@ -225,6 +234,15 @@ pub struct Heritage {
     pub implements_types: Option<Vec<NodeId<Type>>> = None,
     /// The embedded types of the declaration.
     pub embedded_types: Option<Vec<NodeId<Type>>> = None,
+}
+
+impl Heritage {
+    /// Check whether the heritage carries any relations.
+    pub fn is_empty(&self) -> bool {
+        self.extends_types.is_none()
+            && self.implements_types.is_none()
+            && self.embedded_types.is_none()
+    }
 }
 
 /// A TypeKind determines nominal vs. structural typing.

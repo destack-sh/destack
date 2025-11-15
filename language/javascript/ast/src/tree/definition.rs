@@ -36,15 +36,15 @@ pub enum Definition {
     /// Class definition.
     Class {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
-        generics: Option<Generics>,
-        heritage: Option<Heritage>,
+        generics: Generics,
+        heritage: Heritage,
         properties: Vec<NodeId<Property>>,
     },
     /// Enum definition.

@@ -4,4 +4,3 @@ pub struct OptimizeOptions {
     /// Whether to enable aggressive optimizations.
     pub aggressive: bool = false,
 }
-

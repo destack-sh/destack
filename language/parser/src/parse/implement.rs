@@ -61,8 +61,8 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // implement
-        let generics = Generics::maybe(static_parameters, with_clauses, where_clauses);
-        let heritage = Heritage::maybe(None, implements_types);
+        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let heritage = Heritage::new(None, implements_types);
         let implement_id = self.tree.insert(
             Definition::Implement {
                 descriptor,
@@ -103,8 +103,8 @@ implement Foo {
             .unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(generics.is_none());
-            assert!(heritage.is_none());
+            assert!(generics.is_empty());
+            assert!(heritage.is_empty());
 
             // Foo
             assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
@@ -129,8 +129,8 @@ implement Foo<int32> {
             .unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(generics.is_none());
-            assert!(heritage.is_none());
+            assert!(generics.is_empty());
+            assert!(heritage.is_empty());
 
             // Foo<int32>
             assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
@@ -165,8 +165,8 @@ implement Bar<int32> implements Baz {
             .unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(generics.is_none());
-            let heritage = heritage.as_ref().expect("expected heritage");
+            assert!(generics.is_empty());
+            assert!(!heritage.is_empty());
 
             // Bar<int32>
             assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
@@ -210,7 +210,7 @@ implement<U> Bar<T> implements Baz<T> {
             .unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
 
             // implement<U>
             let static_parameters = generics
@@ -239,9 +239,10 @@ implement<U> Bar<T> implements Baz<T> {
             });
 
             // : Baz<T>
+            assert!(!heritage.is_empty());
             let implements = heritage
+                .implements_types
                 .as_ref()
-                .and_then(|h| h.implements_types.as_ref())
                 .expect("expected implements types");
             assert_eq!(implements.len(), 1);
             assert_node!(parser.tree, implements[0], Expression::Path { path, static_arguments } => {
@@ -275,7 +276,7 @@ implement Foo with Context where Guard > Limit {
             .unwrap();
         assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            let generics = generics.as_ref().expect("expected generics");
+            assert!(!generics.is_empty());
 
             // with Context
             let with_items = generics.with_clauses.as_ref().expect("expected with clauses");

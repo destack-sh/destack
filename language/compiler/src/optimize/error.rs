@@ -43,4 +43,3 @@ impl From<OptimizeError> for CompileError {
         CompileError::Optimize(error)
     }
 }
-

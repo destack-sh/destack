@@ -118,9 +118,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 heritage,
                 properties,
             } => {
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -141,16 +138,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // static parameters
                 if f.context().include_types()
-                    && let Some(static_parameters) =
-                        generics.and_then(|generics| generics.static_parameters.as_ref())
+                    && let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) =
-                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                if let Some(extends_types) = heritage.extends_types.as_ref()
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
@@ -158,8 +153,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // implements types
                 if f.context().include_types()
-                    && let Some(implements_types) =
-                        heritage.and_then(|heritage| heritage.implements_types.as_ref())
+                    && let Some(implements_types) = heritage.implements_types.as_ref()
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
@@ -187,9 +181,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     "interface in non-type context: {node_id:?}"
                 );
 
-                let generics = generics.as_ref();
-                let heritage = heritage.as_ref();
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -209,16 +200,14 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // static parameters
-                if let Some(static_parameters) =
-                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                if let Some(static_parameters) = generics.static_parameters.as_ref()
                     && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
                 // extends types
-                if let Some(extends_types) =
-                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                if let Some(extends_types) = heritage.extends_types.as_ref()
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;

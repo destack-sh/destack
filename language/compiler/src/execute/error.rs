@@ -36,4 +36,3 @@ impl From<ExecuteError> for CompileError {
         CompileError::Execute(error)
     }
 }
-

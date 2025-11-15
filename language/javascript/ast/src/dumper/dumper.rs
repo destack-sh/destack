@@ -952,11 +952,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                self.node("Definition::Class", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Class", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
             Definition::Interface {
                 descriptor,
@@ -964,11 +968,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                self.node("Definition::Interface", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Interface", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
             Definition::Enum {
                 descriptor,

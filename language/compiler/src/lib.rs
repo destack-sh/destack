@@ -3,17 +3,17 @@
 
 mod build;
 mod compile;
-mod resolve;
 mod execute;
 mod import;
 mod lower;
 mod optimize;
+mod resolve;
 mod validate;
 
 pub use build::*;
 pub use compile::*;
-pub use resolve::*;
 pub use execute::*;
 pub use import::*;
 pub use optimize::*;
+pub use resolve::*;
 pub use validate::*;

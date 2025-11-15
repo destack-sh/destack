@@ -1270,10 +1270,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 generics,
                 definitions: _,
             } => {
-                self.node("Definition::Module", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .end();
+                let mut node = self.node("Definition::Module", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                node.end();
             }
             Definition::Struct {
                 descriptor,
@@ -1282,12 +1284,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                self.node("Definition::Struct", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Struct", id.id);
+                node.field("descriptor", descriptor).field("kind", kind);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
             Definition::Enum {
                 descriptor,
@@ -1296,11 +1301,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 fields: _,
                 properties: _,
             } => {
-                self.node("Definition::Enum", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Enum", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
             Definition::Interface {
                 descriptor,
@@ -1308,11 +1317,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                self.node("Definition::Interface", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Interface", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
             Definition::Function {
                 descriptor,
@@ -1332,11 +1345,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                self.node("Definition::Extension", id.id)
-                    .field("descriptor", descriptor)
-                    .field_optional("generics", generics)
-                    .field_optional("heritage", heritage)
-                    .end();
+                let mut node = self.node("Definition::Extension", id.id);
+                node.field("descriptor", descriptor);
+                if !generics.is_empty() {
+                    node.field("generics", generics);
+                }
+                if !heritage.is_empty() {
+                    node.field("heritage", heritage);
+                }
+                node.end();
             }
         }
         self.with_depth(|dumper| {

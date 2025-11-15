@@ -1,4 +1,4 @@
-use crate::{BuildTask, ResolveTask, ExecuteTask, ImportTask, OptimizeTask, ValidateTask};
+use crate::{BuildTask, ExecuteTask, ImportTask, OptimizeTask, ResolveTask, ValidateTask};
 
 /// Task for the compiler during compilation.
 #[derive(Debug, Clone)]
