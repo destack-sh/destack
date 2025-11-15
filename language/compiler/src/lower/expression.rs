@@ -66,7 +66,8 @@ impl<'a> Compiler<'a> {
                 arguments,
             } => {
                 let target = self.session.strings.intern_from(&module.strings, *target);
-                let items = items
+                // items
+                let mut items: Vec<_> = items
                     .as_ref()
                     .map(|items| {
                         items
@@ -75,6 +76,20 @@ impl<'a> Compiler<'a> {
                             .collect()
                     })
                     .unwrap_or_default();
+                // default item
+                if let Some(alias) = alias {
+                    let alias = self.session.strings.intern_from(&module.strings, *alias);
+                    let item = DependencyItem::UnresolvedDefault {
+                        kind: self.lower_dependency_kind(*kind),
+                        alias,
+                    };
+                    items.push(
+                        self.session
+                            .tree
+                            .insert_from_ast(item, module.id, expression_id),
+                    );
+                }
+                // arguments
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -82,6 +97,7 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let kind = self.lower_dependency_kind(*kind);
+                // import
                 Expression::UnresolvedImport {
                     kind,
                     target,
@@ -103,13 +119,31 @@ impl<'a> Compiler<'a> {
                     target.map(|target| self.session.strings.intern_from(&module.strings, target));
                 // re-export from import
                 if let Some(target) = target {
-                    let items = items.as_ref().map(|items| {
-                        items
-                            .iter()
-                            .map(|item| self.lower_dependency_item(module, *kind, *item))
-                            .collect()
-                    });
+                    // items
+                    let mut items: Vec<_> = items
+                        .as_ref()
+                        .map(|items| {
+                            items
+                                .iter()
+                                .map(|item| self.lower_dependency_item(module, *kind, *item))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    // default item
+                    if let Some(alias) = alias {
+                        let alias = self.session.strings.intern_from(&module.strings, *alias);
+                        let item = DependencyItem::UnresolvedDefault {
+                            kind: self.lower_dependency_kind(*kind),
+                            alias,
+                        };
+                        items.push(self.session.tree.insert_from_ast(
+                            item,
+                            module.id,
+                            expression_id,
+                        ));
+                    }
                     let kind = self.lower_dependency_kind(*kind);
+                    // re-export
                     Expression::UnresolvedReExport {
                         mode,
                         target,

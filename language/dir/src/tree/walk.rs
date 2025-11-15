@@ -226,11 +226,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             source: _,
             items,
         } => {
-            if let Some(items) = items {
-                for item_id in items {
-                    let item = tree.get(*item_id);
-                    visitor.visit_dependency_item(tree, *item_id, item);
-                }
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
         Expression::ReExport {
@@ -967,7 +965,10 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
-        DependencyItem::UnresolvedNamed {
+        DependencyItem::UnresolvedDefault { kind: _, alias: _ } => {
+            // nothing to do
+        }
+        DependencyItem::UnresolvedItem {
             kind: _,
             name: _,
             alias: _,

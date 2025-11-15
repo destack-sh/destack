@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
         let alias = item
             .alias
             .map(|alias| self.session.strings.intern_from(&module.strings, alias));
-        let item = DependencyItem::UnresolvedNamed { kind, name, alias };
+        let item = DependencyItem::UnresolvedItem { kind, name, alias };
         self.session.tree.insert_from_ast(item, module.id, item_id)
     }
 }

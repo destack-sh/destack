@@ -39,7 +39,7 @@ pub enum Expression {
         target: StringId,
         kind: DependencyKind,
         source: DependencySource,
-        items: Option<Vec<NodeId<DependencyItem>>>,
+        items: Vec<NodeId<DependencyItem>>,
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {

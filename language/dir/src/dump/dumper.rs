@@ -1507,7 +1507,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::UnresolvedNamed { kind, name, alias } => {
+            DependencyItem::UnresolvedDefault { kind: _, alias } => {
+                self.node("DependencyItem::UnresolvedDefault", id.id)
+                    .field("alias", alias)
+                    .end();
+            }
+            DependencyItem::UnresolvedItem { kind, name, alias } => {
                 self.node("DependencyItem::UnresolvedNamed", id.id)
                     .field("kind", kind)
                     .field("name", name)
