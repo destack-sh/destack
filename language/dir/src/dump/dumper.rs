@@ -402,6 +402,7 @@ impl_dump_display! {
     AssignOperator,
     BindingKind,
     BindingOperator,
+    BindingScope,
     BinaryOperator,
     DeclarationKind,
     DependencyKind,
@@ -434,6 +435,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
+            .field_optional("scope", &self.scope)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)
             .field_optional("operator", &self.operator)

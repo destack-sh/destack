@@ -1,29 +1,35 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Argument, NodeId, Property};
+use dyst_javascript_ast::{
+    BindingKind, BindingModifier, BindingOperator, BindingScope, NodeId, Property,
+};
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a binding modifier from DIR into JS AST.
     pub fn transpile_binding_modifier(
         &self,
-        module: &'a Module,
+        _module: &'a Module,
         modifier: dir::BindingModifier,
-        unit: &mut TranspilerUnit,
+        _unit: &mut TranspilerUnit,
     ) -> TranspileResult<BindingModifier> {
-        let kind = modifier.kind.map(|kind| self.transpile_binding_kind(kind));
-        let scope = modifier
-            .scope
-            .map(|scope| self.transpile_binding_scope(scope));
+        let kind = modifier.kind.map(|kind| match kind {
+            dir::BindingKind::Must => BindingKind::Must,
+            dir::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let scope = modifier.scope.map(|scope| match scope {
+            dir::BindingScope::Static => BindingScope::Static,
+            dir::BindingScope::Instance => BindingScope::Instance,
+        });
         let mutability = modifier
             .mutability
             .map(|mutability| self.transpile_mutability(mutability));
         let visibility = modifier
             .visibility
             .map(|visibility| self.transpile_visibility(visibility));
-        let operator = modifier
-            .operator
-            .map(|operator| self.transpile_binding_operator(operator));
+        let operator = modifier.operator.map(|operator| match operator {
+            dir::BindingOperator::AsConst => BindingOperator::AsConst,
+        });
         Ok(BindingModifier {
             kind,
             scope,
@@ -97,8 +103,9 @@ impl<'a> Transpiler<'a> {
             }
             dir::Property::Spread { modifiers, value } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))?;
-                let value = self.transpile_expression(module, value, unit)?;
+                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
+                    .transpose()?;
+                let value = self.transpile_expression(module, *value, unit)?;
                 Property::Spread { modifiers, value }
             }
         };

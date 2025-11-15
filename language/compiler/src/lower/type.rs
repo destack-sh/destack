@@ -1,6 +1,9 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Generics, Heritage, Module, NodeId, Type, TypeKind, TypeLiteral, VarianceBound};
+use dyst_dir::{
+    Generics, Heritage, Module, Mutability, NodeId, ReferenceType, Type, TypeKind, TypeLiteral,
+    VarianceBound,
+};
 use dyst_source::StringId;
 
 impl<'a> Compiler<'a> {
@@ -20,6 +23,24 @@ impl<'a> Compiler<'a> {
             .tree
             .alias_from_ast(module.id, expression_id.id, type_id);
         type_id
+    }
+
+    /// Lower reference type into a DIR reference type.
+    #[inline]
+    pub fn lower_reference_type(&self, reference_type: ast::ReferenceType) -> ReferenceType {
+        match reference_type {
+            ast::ReferenceType::Value => ReferenceType::Value,
+            ast::ReferenceType::Reference => ReferenceType::Reference,
+        }
+    }
+
+    /// Lower mutability into a DIR mutability.
+    #[inline]
+    pub fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
+        match mutability {
+            ast::Mutability::Immutable => Mutability::Immutable,
+            ast::Mutability::Mutable => Mutability::Mutable,
+        }
     }
 
     /// Lower a TypeKind to a DIR type kind.

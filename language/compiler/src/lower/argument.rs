@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Argument, BindingKind, BindingModifier, BindingOperator, Expression, Module, Mutability,
-    NodeId, Parameter, Path, Visibility,
+    Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Module,
+    Mutability, NodeId, Parameter, Path, Visibility,
 };
 use dyst_source::smallvec;
 
@@ -16,6 +16,10 @@ impl<'a> Compiler<'a> {
         let kind = modifiers.kind.map(|kind| match kind {
             ast::BindingKind::Must => BindingKind::Must,
             ast::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let scope = modifiers.scope.map(|scope| match scope {
+            ast::BindingScope::Static => BindingScope::Static,
+            ast::BindingScope::Instance => BindingScope::Instance,
         });
         let mutability = modifiers.mutability.map(|mutability| match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
@@ -31,6 +35,7 @@ impl<'a> Compiler<'a> {
         });
         BindingModifier {
             kind,
+            scope,
             mutability,
             visibility,
             operator,

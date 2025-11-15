@@ -1,4 +1,4 @@
-use crate::{Asynchrony, Keyword, NodeId, Parameter, Type};
+use crate::{Asynchrony, Generics, Keyword, NodeId, Parameter, Type};
 
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -74,7 +74,7 @@ pub struct FunctionSignature {
     /// The kind of the function.
     pub kind: FunctionKind,
     /// The generics of the function.
-    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    pub generics: Option<Generics>,
     /// The dynamic parameters of the function.
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.

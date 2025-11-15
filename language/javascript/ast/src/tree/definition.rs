@@ -1,6 +1,5 @@
 use crate::{
-    BindingScope, Block, ExportType, Expression, FunctionSignature, Name, Node, NodeId, NodeType,
-    Parameter, Property, StringId, Visibility,
+    BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage, Name, Node, NodeId, NodeType, Parameter, Property, StringId, Visibility
 };
 
 /// The kind of declaration.
@@ -18,7 +17,7 @@ pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The scope of the declaration.
-    pub scope: BindingScope = BindingScope::Container,
+    pub scope: BindingScope = BindingScope::Instance,
     /// The name of the definition.
     pub name: Option<Name> = None,
     /// The key of the definition.
@@ -40,15 +39,17 @@ pub enum Definition {
     /// Class definition.
     Class {
         descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        fields: Vec<NodeId<Property>>,
+        generics: Option<Generics>,
+        heritage: Option<Heritage>,
+        properties: Vec<NodeId<Property>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        fields: Vec<NodeId<Property>>,
+        generics: Option<Generics>,
+        heritage: Option<Heritage>,
+        properties: Vec<NodeId<Property>>,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.

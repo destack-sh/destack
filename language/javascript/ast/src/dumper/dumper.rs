@@ -928,7 +928,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Class {
                 descriptor,
                 static_parameters: _,
-                fields: _,
+                properties: _,
                 definitions: _,
             } => {
                 self.node("Definition::Class", id.id)
@@ -938,7 +938,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Definition::Interface {
                 descriptor,
                 static_parameters: _,
-                fields: _,
+                properties: _,
                 definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)

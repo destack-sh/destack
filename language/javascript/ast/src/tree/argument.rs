@@ -13,7 +13,7 @@ pub enum BindingKind {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingScope {
     /// Container scope.
-    Container,
+    Instance,
     /// Static scope.
     Static,
 }

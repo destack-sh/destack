@@ -79,8 +79,7 @@ impl<'a> Transpiler<'a> {
             dir::Expression::StructLiteral { ty: _, properties } => {
                 let properties = properties
                     .iter()
-                    .map(|property_id| self.session.tree.get(*property_id))
-                    .map(|property| self.transpile_property(module, property, unit))
+                    .map(|property_id| self.transpile_property(module, *property_id, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ObjectLiteral { properties };
                 unit.ast

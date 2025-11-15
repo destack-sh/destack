@@ -1,26 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, Mutability, NodeId, Pattern, PatternField, ReferenceType};
+use dyst_dir::{Module, NodeId, Pattern, PatternField};
 
 impl<'a> Compiler<'a> {
-    /// Lower reference type into a DIR reference type.
-    #[inline]
-    pub fn lower_reference_type(&self, reference_type: ast::ReferenceType) -> ReferenceType {
-        match reference_type {
-            ast::ReferenceType::Value => ReferenceType::Value,
-            ast::ReferenceType::Reference => ReferenceType::Reference,
-        }
-    }
-
-    /// Lower mutability into a DIR mutability.
-    #[inline]
-    pub fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
-        match mutability {
-            ast::Mutability::Immutable => Mutability::Immutable,
-            ast::Mutability::Mutable => Mutability::Mutable,
-        }
-    }
-
     /// Lower a pattern to a DIR pattern.
     pub fn lower_pattern(
         &mut self,
