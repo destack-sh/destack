@@ -1,5 +1,6 @@
 use crate::{
-    BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage, Name, Node, NodeId, NodeType, Parameter, Property, StringId, Visibility
+    BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage, Name, Node,
+    NodeId, NodeType, Property, StringId, Visibility,
 };
 
 /// The kind of declaration.
@@ -42,7 +43,6 @@ pub enum Definition {
         generics: Option<Generics>,
         heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
-        definitions: Vec<NodeId<Definition>>,
     },
     /// Interface definition.
     Interface {
@@ -50,7 +50,6 @@ pub enum Definition {
         generics: Option<Generics>,
         heritage: Option<Heritage>,
         properties: Vec<NodeId<Property>>,
-        definitions: Vec<NodeId<Definition>>,
     },
     /// Enum definition.
     Enum {

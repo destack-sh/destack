@@ -11,6 +11,17 @@ pub enum DiagnosticSeverity {
     Error = 3,
 }
 
+impl DiagnosticSeverity {
+    /// Get the family letter of the severity.
+    pub fn family_letter(&self) -> &'static str {
+        match self {
+            Self::Note => "N",
+            Self::Warning => "W",
+            Self::Error => "E",
+        }
+    }
+}
+
 /// A Diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Diagnostic {

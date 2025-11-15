@@ -1,5 +1,5 @@
 use crate::{
-    Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField, Expression, FunctionSignature, Key, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TemplateLiteral, Type
+    Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField, Expression, FunctionSignature, Generics, Heritage, Key, MutableNodeTree, NodeId, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TemplateLiteral, Type
 };
 
 /// Walk any node.
@@ -288,17 +288,48 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the Generics.
+fn walk_generics<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    generics: &Generics,
+) {
+    if let Some(static_parameters) = generics.static_parameters.as_ref() {
+        for parameter_id in static_parameters {
+            let parameter = tree.get(*parameter_id);
+            visitor.visit_parameter(tree, *parameter_id, parameter);
+        }
+    }
+}
+
+/// Walk the Heritage.
+fn walk_heritage<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    heritage: &Heritage,
+) {
+    if let Some(extends_types) = heritage.extends_types.as_ref() {
+        for extends_type_id in extends_types {
+            let extends_type = tree.get(*extends_type_id);
+            visitor.visit_type(tree, *extends_type_id, extends_type);
+        }
+    }
+    if let Some(implements_types) = heritage.implements_types.as_ref() {
+        for implements_type_id in implements_types {
+            let implements_type = tree.get(*implements_type_id);
+            visitor.visit_type(tree, *implements_type_id, implements_type);
+        }
+    }
+}
+
 /// Walk the FunctionSignature.
 fn walk_function_signature<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &MutableNodeTree,
     signature: &FunctionSignature,
 ) {
-    if let Some(static_parameters) = signature.static_parameters.as_ref() {
-        for parameter_id in static_parameters {
-            let parameter = tree.get(*parameter_id);
-            visitor.visit_parameter(tree, *parameter_id, parameter);
-        }
+    if let Some(generics) = signature.generics.as_ref() {
+        walk_generics(visitor, tree, generics);
     }
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);
@@ -506,6 +537,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the DeclarationDescriptor.
 fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &MutableNodeTree,
@@ -539,46 +571,38 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         }
         Definition::Class {
             descriptor,
-            static_parameters,
-            properties: fields,
-            definitions,
+            generics,
+            heritage,
+            properties,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
-            if let Some(parameters) = static_parameters {
-                for parameter_id in parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_property(tree, *field_id, field);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
-            for definition_id in definitions {
-                let definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, definition);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Interface {
             descriptor,
-            static_parameters,
-            properties: fields,
-            definitions,
+            generics,
+            heritage,
+            properties,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
-            if let Some(parameters) = static_parameters {
-                for parameter_id in parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
+            if let Some(generics) = generics.as_ref() {
+                walk_generics(visitor, tree, generics);
             }
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_property(tree, *field_id, field);
+            if let Some(heritage) = heritage.as_ref() {
+                walk_heritage(visitor, tree, heritage);
             }
-            for definition_id in definitions {
-                let definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, definition);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Definition::Enum { descriptor, fields } => {

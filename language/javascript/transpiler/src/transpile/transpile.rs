@@ -81,7 +81,7 @@ impl<'a> Transpiler<'a> {
             }
             // add all the diagnostics to the session
             for error in &unit.errors {
-                let diagnostic = error.to_diagnostic(&self.session);
+                let diagnostic = error.to_diagnostic(self.session);
                 self.session.diagnostics.insert_diagnostic(diagnostic);
             }
             self.units.write().insert(unit.uri.clone(), unit);

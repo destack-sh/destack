@@ -77,8 +77,8 @@ impl CompileError {
 
     /// Get the full code of the error (e.g., `L001`).
     #[inline]
-    pub fn string_code(&self) -> String {
-        format!("{}{:03}", self.family_letter(), self.sub_code())
+    pub fn full_code(&self) -> String {
+        format!("{}E{:03}", self.family_letter(), self.sub_code())
     }
 
     /// Get the numeric code of the error (e.g., `1001` for `L001`).
