@@ -12,7 +12,8 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
-pub(crate) fn format_type_clause<'ast>(
+/// Format a super type clause.
+pub(crate) fn format_super_type_clause<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[NodeId<Expression>],
@@ -71,19 +72,19 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
         match self {
             // module
             Definition::Namespace {
-                descriptor: meta,
+                descriptor,
                 generics,
                 expressions,
             } => {
                 let generics = generics.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -91,7 +92,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Namespace])?;
 
                 // name / key
-                if let Some(name) = meta.name {
+                if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -139,7 +140,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // struct
             Definition::Struct {
-                descriptor: meta,
+                descriptor,
                 kind,
                 generics,
                 heritage,
@@ -149,12 +150,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 let heritage = heritage.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -165,7 +166,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 }
 
                 // name / key
-                if let Some(name) = meta.name {
+                if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -182,7 +183,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
@@ -190,7 +191,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Implements, implements_types)?;
+                    format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with clauses
@@ -240,7 +241,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // enum
             Definition::Enum {
-                descriptor: meta,
+                descriptor,
                 generics,
                 heritage,
                 fields,
@@ -250,12 +251,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 let heritage = heritage.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -263,7 +264,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Enum])?;
 
                 // name / key
-                if let Some(name) = meta.name {
+                if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -280,7 +281,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // implements types
@@ -288,7 +289,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Implements, implements_types)?;
+                    format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
@@ -350,7 +351,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // interface
             Definition::Interface {
-                descriptor: meta,
+                descriptor,
                 generics,
                 heritage,
                 properties,
@@ -359,12 +360,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 let heritage = heritage.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -372,7 +373,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [Keyword::Interface])?;
 
                 // name / key
-                if let Some(name) = meta.name {
+                if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
                 }
 
@@ -389,7 +390,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.extends_types.as_ref())
                     && !extends_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Extends, extends_types)?;
+                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
                 }
 
                 // with clauses
@@ -439,7 +440,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // implement
             Definition::Implement {
-                descriptor: meta,
+                descriptor,
                 generics,
                 target_type,
                 heritage,
@@ -449,12 +450,12 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 let heritage = heritage.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -488,7 +489,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     heritage.and_then(|heritage| heritage.implements_types.as_ref())
                     && !implements_types.is_empty()
                 {
-                    format_type_clause(f, Keyword::Implements, implements_types)?;
+                    format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
                 // with
@@ -527,19 +528,19 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
             // function
             Definition::Function {
-                descriptor: meta,
+                descriptor,
                 signature,
                 body,
             } => {
                 let generics = signature.generics.as_ref();
 
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
 
                 // kind
-                if meta.kind == DeclarationKind::Declaration {
+                if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
@@ -565,7 +566,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 // kind
                 if let Some(kind) = signature.mode {
                     write!(f, [kind.to_keyword()])?;
-                    if meta.name.is_some() || kind == FunctionMode::New {
+                    if descriptor.name.is_some() || kind == FunctionMode::New {
                         write!(f, [space()])?;
                     }
                 }
@@ -590,7 +591,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 
                 // name / key
                 if signature.kind == FunctionKind::Function
-                    && let Some(name) = meta.name
+                    && let Some(name) = descriptor.name
                 {
                     write!(f, [name])?;
                 }

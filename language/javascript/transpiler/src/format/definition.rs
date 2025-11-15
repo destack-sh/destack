@@ -1,11 +1,43 @@
 use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{Definition, EnumField, ExportType, Keyword, NodeId, Visibility};
+use dyst_javascript_ast::{
+    Asynchrony, DeclarationKind, Definition, EnumField, ExportType, FunctionCardinality, Keyword,
+    NodeId, Type, Visibility,
+};
 
 use dyst_fir::prelude::*;
-use dyst_fir::write;
+use dyst_fir::{format_args, write};
 
 use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
+
+/// Format a super type clause.
+pub(crate) fn format_super_type_clause<'ast>(
+    f: &mut JavaScriptFormatter<'ast, '_>,
+    keyword: Keyword,
+    types: &[NodeId<Type>],
+) -> FormatResult<()> {
+    assert!(!types.is_empty());
+
+    write!(
+        f,
+        [
+            space(),
+            keyword,
+            space(),
+            group(&format_args![
+                if_group_breaks(&token("(")),
+                soft_block_indent(&format_with(|f| {
+                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                        .entries(types)
+                        .finish()?;
+                    write!(f, [if_group_breaks(&token(","))])?;
+                    Ok(())
+                })),
+                if_group_breaks(&token(")")),
+            ]),
+        ]
+    )
+}
 
 /// Format a block of definitions.
 pub(crate) fn format_block_of_definitions<'ast>(
@@ -43,14 +75,29 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
     ) -> FormatResult<()> {
         match self {
             Definition::Namespace {
-                descriptor: meta,
+                descriptor,
                 definitions,
             } => {
-                assert!(
-                    f.context().include_types(),
-                    "namespace in non-type context: {node_id:?}"
-                );
-                write!(f, [Keyword::Namespace, space(), meta.name, space()])?;
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Namespace])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // body
+                write!(f, [space()])?;
                 write!(
                     f,
                     [
@@ -64,20 +111,155 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         token("}"),
                     ]
                 )?;
-                Ok(())
             }
             Definition::Class {
-                descriptor: meta,
-                static_parameters,
-                properties: fields,
-                definitions,
+                descriptor,
+                generics,
+                heritage,
+                properties,
             } => {
-                write!(f, [Keyword::Class, space(), meta.name, space()])?;
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Class])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // static parameters
                 if f.context().include_types()
-                    && let Some(static_parameters) = static_parameters
+                    && let Some(static_parameters) =
+                        generics.and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
                 {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
+
+                // extends types
+                if let Some(extends_types) =
+                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                    && !extends_types.is_empty()
+                {
+                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
+                }
+
+                // implements types
+                if f.context().include_types()
+                    && let Some(implements_types) =
+                        heritage.and_then(|heritage| heritage.implements_types.as_ref())
+                    && !implements_types.is_empty()
+                {
+                    format_super_type_clause(f, Keyword::Implements, implements_types)?;
+                }
+
+                // body
+                write!(f, [token("{"), hard_line_break()])?;
+                write!(
+                    f,
+                    [block_indent(&format_with(|f| f
+                        .join_with(hard_line_break())
+                        .entries(properties)
+                        .finish()))]
+                )?;
+                write!(f, [hard_line_break(), token("}"),])?;
+            }
+            Definition::Interface {
+                descriptor,
+                generics,
+                heritage,
+                properties,
+            } => {
+                assert!(
+                    f.context().include_types(),
+                    "interface in non-type context: {node_id:?}"
+                );
+
+                let generics = generics.as_ref();
+                let heritage = heritage.as_ref();
+
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Interface])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // static parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+
+                // extends types
+                if let Some(extends_types) =
+                    heritage.and_then(|heritage| heritage.extends_types.as_ref())
+                    && !extends_types.is_empty()
+                {
+                    format_super_type_clause(f, Keyword::Extends, extends_types)?;
+                }
+
+                // body
+                write!(f, [token("{"), hard_line_break()])?;
+                write!(
+                    f,
+                    [block_indent(&format_with(|f| f
+                        .join_with(hard_line_break())
+                        .entries(properties)
+                        .finish()))]
+                )?;
+                write!(f, [hard_line_break(), token("}"),])?;
+            }
+            Definition::Enum { descriptor, fields } => {
+                assert!(
+                    f.context().include_types(),
+                    "enum in non-type context: {node_id:?}"
+                );
+
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Enum])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // body
                 write!(f, [token("{"), hard_line_break()])?;
                 write!(
                     f,
@@ -86,70 +268,53 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                         .entries(fields)
                         .finish()))]
                 )?;
-                write!(
-                    f,
-                    [block_indent(&format_with(|f| format_block_of_definitions(
-                        f,
-                        definitions
-                    )))]
-                )?;
                 write!(f, [hard_line_break(), token("}"),])?;
-                Ok(())
             }
-            Definition::Interface {
-                descriptor: meta,
-                static_parameters,
-                properties: fields,
-                definitions,
+            Definition::Function {
+                descriptor,
+                signature,
+                body,
             } => {
-                assert!(
-                    f.context().include_types(),
-                    "interface in non-type context: {node_id:?}"
-                );
-                write!(f, [Keyword::Interface, space(), meta.name, space()])?;
-                if let Some(static_parameters) = static_parameters {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
                 }
-                write!(f, [token("{")])?;
-                write!(
-                    f,
-                    [block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(fields)
-                        .finish()))]
-                )?;
-                write!(
-                    f,
-                    [block_indent(&format_with(|f| format_block_of_definitions(
-                        f,
-                        definitions
-                    )))]
-                )?;
-                write!(f, [hard_line_break(), token("}"),])?;
-                Ok(())
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // asynchrony
+                if signature.asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Async, space()])?;
+                }
+
+                // cardinality
+                if signature.cardinality == FunctionCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [name])?;
+                }
+
+                // return type
+                if f.context().include_types()
+                    && let Some(return_type) = signature.return_type
+                {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+
+                // body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
             }
-            Definition::Enum {
-                descriptor: meta,
-                fields,
-            } => {
-                assert!(
-                    f.context().include_types(),
-                    "enum in non-type context: {node_id:?}"
-                );
-                write!(f, [Keyword::Enum, space(), meta.name, space()])?;
-                write!(f, [token("{")])?;
-                write!(
-                    f,
-                    [block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(fields)
-                        .finish()))]
-                )?;
-                write!(f, [hard_line_break(), token("}"),])?;
-                Ok(())
-            }
-            _ => unimplemented!("format_node: {self:?}"),
         }
+
+        Ok(())
     }
 }
 

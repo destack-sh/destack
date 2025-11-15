@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, NodeId, PostfixPosition,
+    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature,
 };
 
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
@@ -72,10 +72,10 @@ impl<'a> Transpiler<'a> {
             .mode
             .map(|mode| self.transpile_function_mode(mode));
         let kind = self.transpile_function_kind(function_signature.kind);
-        let static_parameters = function_signature
+        let generics = function_signature
             .generics
-			.unwrap_or_default()
-            .map(|generics| self.transpile_generics_to_static_parameters(module, generics, unit))
+            .as_ref()
+            .map(|generics| self.transpile_generics(module, generics, unit))
             .transpose()?;
         let dynamic_parameters = function_signature
             .dynamic_parameters
@@ -85,14 +85,14 @@ impl<'a> Transpiler<'a> {
         let return_type = function_signature
             .return_type
             .map(|return_type| self.transpile_type(module, return_type, unit))
-			.transpose()?;
+            .transpose()?;
         Ok(FunctionSignature {
             abstraction,
             asynchrony,
             cardinality,
             mode,
             kind,
-            static_parameters,
+            generics,
             dynamic_parameters,
             return_type,
         })

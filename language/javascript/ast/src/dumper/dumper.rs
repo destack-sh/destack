@@ -433,6 +433,20 @@ impl Dump for Key {
     }
 }
 
+/// Dump a Generics as a structured object.
+impl Dump for Generics {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Generics").end();
+    }
+}
+
+/// Dump a Heritage as a structured object.
+impl Dump for Heritage {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.object("Heritage").end();
+    }
+}
+
 /// Dump a FunctionSignature as a structured object.
 impl Dump for FunctionSignature {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -927,22 +941,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Definition::Class {
                 descriptor,
-                static_parameters: _,
+                generics,
+                heritage,
                 properties: _,
-                definitions: _,
             } => {
                 self.node("Definition::Class", id.id)
                     .field("descriptor", descriptor)
+                    .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Interface {
                 descriptor,
-                static_parameters: _,
+                generics,
+                heritage,
                 properties: _,
-                definitions: _,
             } => {
                 self.node("Definition::Interface", id.id)
                     .field("descriptor", descriptor)
+                    .field_optional("generics", generics)
+                    .field_optional("heritage", heritage)
                     .end();
             }
             Definition::Enum {
