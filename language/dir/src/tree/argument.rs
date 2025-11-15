@@ -43,25 +43,25 @@ pub enum ArgumentSlot {
 /// An Argument is a named or positional argument to a function or method call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Unevaluated named argument.
-    UnevaluatedNamed {
+    /// Unresolved named argument.
+    UnresolvedNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
         value: NodeId<Expression>,
     },
-    /// Unevaluated positional argument.
-    UnevaluatedPositional {
+    /// Unresolved positional argument.
+    UnresolvedPositional {
         modifiers: Option<BindingModifier>,
         value: NodeId<Expression>,
     },
-    /// Unevaluated positional spread argument.
-    UnevaluatedSpread {
+    /// Unresolved positional spread argument.
+    UnresolvedSpread {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         value: NodeId<Expression>,
     },
-    /// Unevaluated dynamic argument.
-    UnevaluatedDynamic {
+    /// Unresolved dynamic argument.
+    UnresolvedDynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
         key: NodeId<Expression>,
@@ -94,10 +94,10 @@ impl Argument {
     /// Get the value of the Argument.
     pub fn value(&self) -> NodeId<Expression> {
         match self {
-            Argument::UnevaluatedNamed { value, .. } => *value,
-            Argument::UnevaluatedPositional { value, .. } => *value,
-            Argument::UnevaluatedSpread { value, .. } => *value,
-            Argument::UnevaluatedDynamic { value, .. } => *value,
+            Argument::UnresolvedNamed { value, .. } => *value,
+            Argument::UnresolvedPositional { value, .. } => *value,
+            Argument::UnresolvedSpread { value, .. } => *value,
+            Argument::UnresolvedDynamic { value, .. } => *value,
             Argument::Direct { value, .. } => *value,
             Argument::Spread { value, .. } => *value,
             Argument::Dynamic { value, .. } => *value,
@@ -110,8 +110,8 @@ impl Node for Argument {
 }
 
 impl Argument {
-    /// Whether the argument is evaluated (ignoring child nodes).
-    pub fn is_evaluated(&self) -> bool {
+    /// Whether the argument is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
     }
 }

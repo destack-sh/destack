@@ -1,9 +1,10 @@
 mod error;
+mod import;
 mod options;
-mod optimize;
+mod source;
 mod warning;
 
 pub use error::*;
+pub use import::*;
 pub use options::*;
-pub use optimize::*;
 pub use warning::*;

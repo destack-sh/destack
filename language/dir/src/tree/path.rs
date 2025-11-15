@@ -19,28 +19,28 @@ pub enum PathBase {
     Package,
 }
 
-/// A evaluated path.
+/// A resolved path.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
-    /// Unevaluated base.
-    UnevaluatedBase { base: PathBase },
-    /// Unevaluated relative string path.
-    UnevaluatedRelativeString {
+    /// Unresolved base.
+    UnresolvedBase { base: PathBase },
+    /// Unresolved relative string path.
+    UnresolvedRelativeString {
         base: PathBase,
         segments: SmallVec<StringId, 3>,
     },
-    /// Unevaluated absolute string path.
-    UnevaluatedAbsoluteString { segments: SmallVec<StringId, 3> },
+    /// Unresolved absolute string path.
+    UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
 
-    /// Evaluated Path to an intrinsic.
+    /// Resolved Path to an intrinsic.
     Intrinsic { intrinsic: Intrinsic },
-    /// Evaluated to a Definition.
+    /// Resolved to a Definition.
     Definition { definition: NodeId<Definition> },
 }
 
 impl Path {
-    /// Whether the path is evaluated (ignoring child nodes).
-    pub fn is_evaluated(&self) -> bool {
+    /// Whether the path is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, Path::Intrinsic { .. } | Path::Definition { .. })
     }
 }
@@ -48,15 +48,15 @@ impl Path {
 /// A block target for a control flow statement.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockTarget {
-    /// Unevaluated block target with a string label.
-    UnevaluatedString { label: StringId },
-    /// Evaluated block target to a Definition.
+    /// Unresolved block target with a string label.
+    UnresolvedString { label: StringId },
+    /// Resolved block target to a Definition.
     Definition { definition: NodeId<Definition> },
 }
 
 impl BlockTarget {
-    /// Whether the target is evaluated (ignoring child nodes).
-    pub fn is_evaluated(&self) -> bool {
+    /// Whether the target is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
         matches!(self, BlockTarget::Definition { .. })
     }
 }

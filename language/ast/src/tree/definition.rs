@@ -299,7 +299,7 @@ pub enum Definition {
 
     /// A Function is function or "lambda" declaration or definition.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
-    /// In type contexts, lambda return evaluates to a type, otherwise it's a function definition.
+    /// In type contexts, lambda return resolves to a type, otherwise it's a function definition.
     /// Functions can have four cardinalities: async/sync, scalar/generator.
     ///
     /// Examples:

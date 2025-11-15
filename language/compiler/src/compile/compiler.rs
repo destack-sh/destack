@@ -1,19 +1,30 @@
 use dyst_dir::Session;
 use dyst_source::FileId;
 
-use crate::{CompilerQueue, CompilerTask, LoadTask};
+use crate::{
+    BuildOptions, CompilerQueue, CompilerTask, ResolveOptions, ExecuteOptions, ImportOptions,
+    ImportTask, OptimizeOptions, ValidateOptions,
+};
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
-    /// Default integer width.
-    pub default_int_width: u16 = 32,
-    /// Default float width.
-    pub default_float_width: u16 = 32,
+    /// The options for importing.
+    pub import: ImportOptions,
+    /// The options for evaluating.
+    pub resolve: ResolveOptions,
+    /// The options for validating.
+    pub validate: ValidateOptions,
+    /// The options for executing.
+    pub execute: ExecuteOptions,
+    /// The options for optimizing.
+    pub optimize: OptimizeOptions,
+    /// The options for building.
+    pub build: BuildOptions,
 }
 
 /// Compile files and sources into something (via DIR).
-/// Includes module loading, parsing, evaluation, validation, execution, and building.
+/// Includes module importing, parsing, evaluation, validation, execution, and building.
 #[derive(Debug)]
 pub struct Compiler<'s> {
     /// The session.
@@ -44,7 +55,7 @@ impl<'s> Compiler<'s> {
         };
         compiler
             .queue
-            .push_back(CompilerTask::Load(LoadTask::LoadFileFromId { file_id }));
+            .push_back(CompilerTask::Import(ImportTask::ImportFileFromId { file_id }));
         compiler
     }
 }

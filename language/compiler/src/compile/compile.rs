@@ -4,8 +4,8 @@ use crate::{Compiler, CompilerTask};
 impl<'s> Compiler<'s> {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&mut self) {
-        // process all unevaluated nodes
-        self.queue_all_unevaluated();
+        // process all unresolved nodes
+        self.queue_all_unresolved();
         while let Some(task) = self.queue.pop_front() {
             self.process(task);
         }
@@ -16,8 +16,8 @@ impl<'s> Compiler<'s> {
         self.queue.push_back(task);
     }
 
-    /// Generate tasks for all unevaluated nodes.
-    pub(super) fn queue_all_unevaluated(&mut self) {
+    /// Generate tasks for all unresolved nodes.
+    pub(super) fn queue_all_unresolved(&mut self) {
         // expressions, types, arguments, annotations, ...
     }
 
@@ -25,11 +25,11 @@ impl<'s> Compiler<'s> {
     #[inline]
     pub(super) fn process(&mut self, task: CompilerTask) {
         match task {
-            CompilerTask::Load(task) => {
-                self.process_load(task);
+            CompilerTask::Import(task) => {
+                self.process_import(task);
             }
-            CompilerTask::Evaluate(task) => {
-                self.process_evaluate(task);
+            CompilerTask::Resolve(task) => {
+                self.process_resolve(task);
             }
             CompilerTask::Validate(task) => {
                 self.process_validate(task);

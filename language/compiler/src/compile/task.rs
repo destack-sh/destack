@@ -1,19 +1,19 @@
-use crate::{BuildTask, EvaluateTask, ExecuteTask, LoadTask, OptimizeTask, ValidateTask};
+use crate::{BuildTask, ResolveTask, ExecuteTask, ImportTask, OptimizeTask, ValidateTask};
 
 /// Task for the compiler during compilation.
 #[derive(Debug, Clone)]
 pub enum CompilerTask {
-    /// Load/parse/lower something into the compiler.
-    Load(LoadTask),
-    /// Evaluate something.
-    Evaluate(EvaluateTask),
-    /// Validate something.
+    /// Import/parse/lower source into DIR.
+    Import(ImportTask),
+    /// Resolve references and static DIR constructs.
+    Resolve(ResolveTask),
+    /// Validate and check all DIR constructs.
     Validate(ValidateTask),
-    /// Execute something.
+    /// Execute something statically.
     Execute(ExecuteTask),
-    /// Optimize something.
+    /// Optimize the DIR.
     Optimize(OptimizeTask),
-    /// Build something.
+    /// Build the DIR into something (JS/TS/MIR/...).
     Build(BuildTask),
 }
 

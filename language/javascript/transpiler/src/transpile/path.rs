@@ -28,13 +28,13 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
         let path = match path {
-            dir::Path::UnevaluatedBase { base } => {
+            dir::Path::UnresolvedBase { base } => {
                 let base = self.transpile_path_base(*base, unit);
                 Path {
                     segments: smallvec![base],
                 }
             }
-            dir::Path::UnevaluatedRelativeString { base, segments } => {
+            dir::Path::UnresolvedRelativeString { base, segments } => {
                 let base = self.transpile_path_base(*base, unit);
                 let mut segments: SmallVec<StringId, 3> = segments
                     .iter()
@@ -43,7 +43,7 @@ impl<'a> Transpiler<'a> {
                 segments.insert(0, base);
                 Path { segments }
             }
-            dir::Path::UnevaluatedAbsoluteString { segments } => {
+            dir::Path::UnresolvedAbsoluteString { segments } => {
                 let segments = segments
                     .iter()
                     .map(|segment| unit.strings.intern_from(&module.strings, *segment))

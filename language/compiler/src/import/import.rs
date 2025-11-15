@@ -1,28 +1,28 @@
-use crate::{Compiler, LoadError, LoadResult};
+use crate::{Compiler, ImportError, ImportResult};
 
 use dyst_dir::Module;
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, FileId, Uri};
 
-/// Task to load a file into the compiler.
+/// Task to import a file into the compiler.
 #[derive(Debug, Clone)]
-pub enum LoadTask {
+pub enum ImportTask {
     /// Feed a file from a file id.
-    LoadFileFromId { file_id: FileId },
-    /// Load a file from a URI.
-    LoadFileFromUri { path: Uri },
+    ImportFileFromId { file_id: FileId },
+    /// Import a file from a URI.
+    ImportFileFromUri { path: Uri },
 }
 
 impl<'a> Compiler<'a> {
-    /// Process a load task.
-    pub fn process_load(&mut self, task: LoadTask) -> LoadResult<()> {
+    /// Process a import task.
+    pub fn process_import(&mut self, task: ImportTask) -> ImportResult<()> {
         let file = match task {
-            LoadTask::LoadFileFromId { file_id } => match self.session.files.get(file_id) {
+            ImportTask::ImportFileFromId { file_id } => match self.session.files.get(file_id) {
                 Some(file) => file,
-                None => return Err(LoadError::FileIdNotFound { file_id }),
+                None => return Err(ImportError::FileIdNotFound { file_id }),
             },
-            LoadTask::LoadFileFromUri { path } => {
-                todo!("process_load_from_disk({path:?})")
+            ImportTask::ImportFileFromUri { path } => {
+                todo!("process_import_from_disk({path:?})")
             }
         };
 

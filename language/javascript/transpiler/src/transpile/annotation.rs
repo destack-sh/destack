@@ -38,7 +38,7 @@ impl<'a> Transpiler<'a> {
             }
 
             // NOTE: transpile tag/decorator annotations to plain comments
-            // (since there is no real equivalent in JS for remaining unevaluated tags/decorators)
+            // (since there is no real equivalent in JS for remaining unresolved tags/decorators)
             dir::Annotation::Tag {
                 position,
                 receiver,
