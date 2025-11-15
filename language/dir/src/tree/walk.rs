@@ -610,10 +610,6 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
     match definition {
-        Definition::UnresolvedExpression { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expression_node);
-        }
         Definition::Namespace {
             descriptor: _,
             generics,
