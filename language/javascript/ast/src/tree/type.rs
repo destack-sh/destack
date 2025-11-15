@@ -1,4 +1,4 @@
-use crate::{Definition, Node, NodeId, NodeType, ScalarLiteral};
+use crate::{Definition, Node, NodeId, NodeType, Parameter, ScalarLiteral};
 
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
@@ -122,4 +122,20 @@ pub enum Type {
 
 impl Node for Type {
     const TYPE: NodeType = NodeType::Type;
+}
+
+/// The polymorphism of some type or declaration.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Generics {
+    /// The static parameters of the declaration.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+}
+
+/// The polymoprhic relations.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Heritage {
+    /// The extends types of the declaration.
+    pub extends_types: Option<Vec<NodeId<Type>>> = None,
+    /// The implements types of the declaration.
+    pub implements_types: Option<Vec<NodeId<Type>>> = None,
 }

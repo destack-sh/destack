@@ -540,7 +540,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Class {
             descriptor,
             static_parameters,
-            fields,
+            properties: fields,
             definitions,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
@@ -562,7 +562,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
         Definition::Interface {
             descriptor,
             static_parameters,
-            fields,
+            properties: fields,
             definitions,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);

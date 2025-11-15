@@ -1,8 +1,10 @@
 mod annotation;
 mod argument;
 mod artifact;
+mod definition;
 mod diagnostic;
 mod expression;
+mod function;
 mod key;
 mod literal;
 mod module;
@@ -11,6 +13,7 @@ mod path;
 mod property;
 mod transpile;
 mod transpiler;
+mod r#type;
 
 pub use artifact::*;
 pub use diagnostic::*;

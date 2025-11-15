@@ -9,6 +9,15 @@ pub enum BindingKind {
     Maybe,
 }
 
+/// The scope of a binding (dynamic or static).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BindingScope {
+    /// Static scope (static in relation to the container).
+    Static,
+    /// Container scope (whatever contains the declaration).
+    Instance,
+}
+
 /// The operator to apply to the binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingOperator {
@@ -21,6 +30,8 @@ pub enum BindingOperator {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
+    /// The scope of the binding.
+    pub scope: Option<BindingScope>,
     /// The mutability of the field.
     pub mutability: Option<Mutability>,
     /// The visibility of the field.

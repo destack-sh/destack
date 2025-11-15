@@ -1,21 +1,9 @@
 use dyst_ast as ast;
-use dyst_dir::{
-    DependencySource, Expression, IfKind, Module, NodeId, Path, PathBase, Runtime, Visibility,
-};
+use dyst_dir::{DependencySource, Expression, IfKind, Module, NodeId, Path, PathBase, Runtime};
 
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower visibility into a DIR visibility.
-    #[inline]
-    pub fn lower_visibility(&self, visibility: ast::Visibility) -> Visibility {
-        match visibility {
-            ast::Visibility::Public => Visibility::Public,
-            ast::Visibility::Protected => Visibility::Protected,
-            ast::Visibility::Private => Visibility::Private,
-        }
-    }
-
     /// Lower runtime into a DIR runtime.
     #[inline]
     pub fn lower_runtime(&self, runtime: ast::Runtime) -> Runtime {

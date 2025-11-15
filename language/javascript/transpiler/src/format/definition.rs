@@ -69,7 +69,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Class {
                 descriptor: meta,
                 static_parameters,
-                fields,
+                properties: fields,
                 definitions,
             } => {
                 write!(f, [Keyword::Class, space(), meta.name, space()])?;
@@ -99,7 +99,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             Definition::Interface {
                 descriptor: meta,
                 static_parameters,
-                fields,
+                properties: fields,
                 definitions,
             } => {
                 assert!(
