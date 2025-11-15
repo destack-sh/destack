@@ -11,13 +11,47 @@ const ELIDE: &str = "..";
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnnotateOptions {
     /// Maximum number of characters to show from a source line. 0 disables clipping.
-    pub max_line_width: u32 = 100,
+    pub line_width: u32 = 100,
     /// Number of context lines to show before the start line.
-    pub prefix_lines: u8 = 1,
+    pub prefix_lines: u8 = 2,
     /// Number of context lines to show after the end line.
     pub suffix_lines: u8 = 1,
     /// Whether to emit ANSI color escape sequences.
-    pub use_color: bool = false,
+    pub use_color: bool = true,
+    /// Color for normal text (default: White).
+    pub color_normal: Color = Color::BrightWhite,
+    /// Color for dim/less prominent text (default: White).
+    pub color_dim: Color = Color::White,
+    /// Color for metadata like line numbers and separators (default: BrightMagenta).
+    pub color_meta: Color = Color::BrightMagenta,
+    /// Color for highlights and labels (default: BrightYellow).
+    pub color_highlight: Color = Color::BrightYellow,
+}
+
+impl AnnotateOptions {
+    /// Create a new annotate options with the default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the maximum line width.
+    pub fn with_line_width(mut self, line_width: u32) -> Self {
+        self.line_width = line_width;
+        self
+    }
+
+    /// Set the highlight color.
+    pub fn with_highlight_color(mut self, color: Color) -> Self {
+        self.color_highlight = color;
+        self
+    }
+
+    /// Set the surrounding lines.
+    pub fn with_context_lines(mut self, prefix_lines: u8, suffix_lines: u8) -> Self {
+        self.prefix_lines = prefix_lines;
+        self.suffix_lines = suffix_lines;
+        self
+    }
 }
 
 /// Annotate source lines around a labeled span.
@@ -71,8 +105,10 @@ pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptio
         span_start_line,
         start_col,
         options.use_color,
+        options.color_normal,
+        options.color_meta,
     );
-    write_body_separator(&mut buffer, options.use_color);
+    write_body_separator(&mut buffer, options.use_color, options.color_meta);
     for line in window_start_line..=window_end_line {
         let (line_str, bounds, truncate_left, truncate_right) = get_visible_source_slice(
             source,
@@ -80,7 +116,7 @@ pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptio
             span,
             span_start_line,
             span_end_line,
-            options.max_line_width,
+            options.line_width,
         );
         let is_in_span = line >= span_start_line && line <= span_end_line;
         write_source_line(
@@ -92,6 +128,9 @@ pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptio
             truncate_left,
             truncate_right,
             options.use_color,
+            options.color_normal,
+            options.color_dim,
+            options.color_meta,
         );
         if is_in_span {
             let (offset_spaces, highlight_count, left_trunc, right_trunc) =
@@ -106,29 +145,39 @@ pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptio
                 left_trunc,
                 right_trunc,
                 options.use_color,
+                options.color_meta,
+                options.color_highlight,
             );
         }
     }
-    write_body_separator(&mut buffer, options.use_color);
+    write_body_separator(&mut buffer, options.use_color, options.color_meta);
 
     buffer
 }
 
 /// Write the header line: `==> name:line:col`.
 #[inline]
-fn write_header(buffer: &mut String, source: &File, line: u32, col: u32, use_color: bool) {
+fn write_header(
+    buffer: &mut String,
+    source: &File,
+    line: u32,
+    col: u32,
+    use_color: bool,
+    color_normal: Color,
+    color_meta: Color,
+) {
     if use_color {
         // prefix
-        buffer.push_str(&Color::White.apply(HEADER_PREFIX));
-        buffer.push_str(&Color::White.apply(" "));
+        buffer.push_str(&color_normal.apply(HEADER_PREFIX));
+        buffer.push_str(&color_normal.apply(" "));
         // name
-        buffer.push_str(&Color::BrightWhite.apply(source.uri.as_ref()));
-        buffer.push_str(&Color::White.apply(":"));
+        buffer.push_str(&color_normal.apply(source.uri.as_ref()));
+        buffer.push_str(&color_normal.apply(":"));
         // line
-        buffer.push_str(&Color::BrightMagenta.apply(&line.saturating_add(1).to_string()));
-        buffer.push_str(&Color::White.apply(":"));
+        buffer.push_str(&color_meta.apply(&line.saturating_add(1).to_string()));
+        buffer.push_str(&color_normal.apply(":"));
         // column
-        buffer.push_str(&Color::BrightMagenta.apply(&col.saturating_add(1).to_string()));
+        buffer.push_str(&color_meta.apply(&col.saturating_add(1).to_string()));
     } else {
         // prefix
         buffer.push_str(HEADER_PREFIX);
@@ -147,9 +196,9 @@ fn write_header(buffer: &mut String, source: &File, line: u32, col: u32, use_col
 
 /// Write a blank body separator line: ` | `.
 #[inline]
-fn write_body_separator(buffer: &mut String, use_color: bool) {
+fn write_body_separator(buffer: &mut String, use_color: bool, color_meta: Color) {
     if use_color {
-        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+        buffer.push_str(&color_meta.apply(BODY_PREFIX));
     } else {
         buffer.push_str(BODY_PREFIX);
     }
@@ -167,10 +216,13 @@ fn write_source_line(
     truncate_left: bool,
     truncate_right: bool,
     use_color: bool,
+    color_normal: Color,
+    color_dim: Color,
+    color_meta: Color,
 ) {
     // prefix
     if use_color {
-        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+        buffer.push_str(&color_meta.apply(BODY_PREFIX));
     } else {
         buffer.push_str(BODY_PREFIX);
     }
@@ -181,11 +233,11 @@ fn write_source_line(
     // line number
     if use_color {
         if is_in_span {
-            buffer.push_str(&Color::BrightMagenta.apply(&line));
+            buffer.push_str(&color_meta.apply(&line));
         } else {
-            buffer.push_str(&Color::White.apply(&line));
+            buffer.push_str(&color_dim.apply(&line));
         }
-        buffer.push_str(&Color::BrightMagenta.apply(" | "));
+        buffer.push_str(&color_meta.apply(" | "));
     } else {
         buffer.push_str(&line);
         buffer.push_str(" | ");
@@ -201,9 +253,9 @@ fn write_source_line(
     }
     if use_color {
         if is_in_span {
-            buffer.push_str(&Color::BrightWhite.apply(&content));
+            buffer.push_str(&color_normal.apply(&content));
         } else {
-            buffer.push_str(&Color::White.apply(&content));
+            buffer.push_str(&color_dim.apply(&content));
         }
     } else {
         buffer.push_str(&content);
@@ -222,10 +274,12 @@ fn write_highlight_line(
     truncate_left: bool,
     truncate_right: bool,
     use_color: bool,
+    color_meta: Color,
+    color_highlight: Color,
 ) {
     // prefix
     if use_color {
-        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+        buffer.push_str(&color_meta.apply(BODY_PREFIX));
     } else {
         buffer.push_str(BODY_PREFIX);
     }
@@ -233,7 +287,7 @@ fn write_highlight_line(
         buffer.push(' ');
     }
     if use_color {
-        buffer.push_str(&Color::BrightMagenta.apply(" | "));
+        buffer.push_str(&color_meta.apply(" | "));
     } else {
         buffer.push_str(" | ");
     }
@@ -253,7 +307,7 @@ fn write_highlight_line(
         caret_text.push_str(ELIDE);
     }
     if use_color {
-        buffer.push_str(&Color::BrightYellow.apply_bold(&caret_text));
+        buffer.push_str(&color_highlight.apply_bold(&caret_text));
     } else {
         buffer.push_str(&caret_text);
     }
@@ -261,7 +315,7 @@ fn write_highlight_line(
     if is_first && !label.is_empty() {
         buffer.push(' ');
         if use_color {
-            buffer.push_str(&Color::BrightYellow.apply_bold(label));
+            buffer.push_str(&color_highlight.apply_bold(label));
         } else {
             buffer.push_str(label);
         }
@@ -441,10 +495,14 @@ mod tests {
             label: "variable name".to_string(),
         };
         let options = AnnotateOptions {
-            max_line_width: 80,
+            line_width: 80,
             prefix_lines: 1,
             suffix_lines: 1,
             use_color: false,
+            color_normal: Color::White,
+            color_dim: Color::White,
+            color_meta: Color::BrightMagenta,
+            color_highlight: Color::BrightYellow,
         };
         let annotated = annotate_source(&source, &span, options);
 
@@ -478,10 +536,14 @@ mod tests {
             label: "tail".to_string(),
         };
         let options = AnnotateOptions {
-            max_line_width: 60,
+            line_width: 60,
             prefix_lines: 0,
             suffix_lines: 0,
             use_color: false,
+            color_normal: Color::White,
+            color_dim: Color::White,
+            color_meta: Color::BrightMagenta,
+            color_highlight: Color::BrightYellow,
         };
         let annotated = annotate_source(&source, &span, options);
 
