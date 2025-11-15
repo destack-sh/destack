@@ -74,6 +74,9 @@ impl<'a> Transpiler<'a> {
         type_id: dir::NodeId<dir::Type>,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Type>> {
-        Err(TranspileError::UnsupportedType { node: type_id })
+        Err(TranspileError::UnsupportedNode {
+            node: type_id.into_any(),
+            message: None,
+        })
     }
 }

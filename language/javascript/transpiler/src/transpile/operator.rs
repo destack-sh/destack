@@ -30,8 +30,9 @@ impl<'a> Transpiler<'a> {
 
         let expression_id = match operator {
             dir::TypeUnaryOperator::Newtype => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
             dir::TypeUnaryOperator::Type => unary(TypeUnaryOperator::Type),
@@ -111,8 +112,9 @@ impl<'a> Transpiler<'a> {
             dir::UnaryOperator::Plus => unary(UnaryOperator::Plus),
             dir::UnaryOperator::Negate => unary(UnaryOperator::Negate),
             dir::UnaryOperator::WrappingNegate => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
             dir::UnaryOperator::ElementwiseNot => unary(UnaryOperator::ElementwiseNot),
@@ -121,8 +123,9 @@ impl<'a> Transpiler<'a> {
                 right_id
             }
             dir::UnaryOperator::Spread => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
         };
@@ -194,8 +197,9 @@ impl<'a> Transpiler<'a> {
             dir::BinaryOperator::InstanceOf => binary(BinaryOperator::InstanceOf),
 
             _ => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
         };
@@ -264,8 +268,9 @@ impl<'a> Transpiler<'a> {
             dir::AssignOperator::CoalesceAssign => assign_binary(AssignOperator::CoalesceAssign),
 
             _ => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
         };

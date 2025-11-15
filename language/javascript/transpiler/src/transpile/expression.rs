@@ -185,8 +185,9 @@ impl<'a> Transpiler<'a> {
                 let left_id = self.transpile_expression(module, *left, unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let &Some(right) = right else {
-                    return Err(TranspileError::UnsupportedExpression {
-                        node: expression_id,
+                    return Err(TranspileError::UnsupportedNode {
+                        node: expression_id.into_any(),
+                        message: None,
                     });
                 };
                 let right_id = self.transpile_expression(module, right, unit)?;
@@ -256,8 +257,9 @@ impl<'a> Transpiler<'a> {
             }
 
             _ => {
-                return Err(TranspileError::UnsupportedExpression {
-                    node: expression_id,
+                return Err(TranspileError::UnsupportedNode {
+                    node: expression_id.into_any(),
+                    message: None,
                 });
             }
         };

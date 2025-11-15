@@ -61,6 +61,7 @@ impl TranspileDiagnostic {
             .unwrap_or_else(|| panic!("file not found: {file_id:?}"));
 
         // make diagnostic
+        let severity = self.severity();
         let message = self.message().to_string();
         let code = self.full_code();
         let primary_span = ast_id
@@ -73,7 +74,7 @@ impl TranspileDiagnostic {
 
         Diagnostic {
             code,
-            severity: DiagnosticSeverity::Error,
+            severity,
             message,
             file_id,
             primary_span,

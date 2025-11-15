@@ -27,6 +27,34 @@ pub enum NodeType {
     Decorator,
 }
 
+impl NodeType {
+    /// Get the name of the node type.
+    #[inline]
+    pub fn name(&self) -> &'static str {
+        match self {
+            NodeType::Expression => "Expression",
+            NodeType::Block => "Block",
+            NodeType::Definition => "Definition",
+            NodeType::Property => "Property",
+            NodeType::EnumField => "EnumField",
+            NodeType::WithClause => "WithClause",
+            NodeType::WhereClause => "WhereClause",
+            NodeType::DependencyItem => "DependencyItem",
+            NodeType::Parameter => "Parameter",
+            NodeType::Argument => "Argument",
+            NodeType::MatchCase => "MatchCase",
+            NodeType::Pattern => "Pattern",
+            NodeType::PatternField => "PatternField",
+            NodeType::Annotation => "Annotation",
+            NodeType::Blank => "Blank",
+            NodeType::Doc => "Doc",
+            NodeType::Comment => "Comment",
+            NodeType::Tag => "Tag",
+            NodeType::Decorator => "Decorator",
+        }
+    }
+}
+
 /// Node types that are annotations.
 pub const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Annotation,

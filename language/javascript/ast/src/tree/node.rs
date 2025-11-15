@@ -20,6 +20,29 @@ pub enum NodeType {
     Annotation,
 }
 
+impl NodeType {
+    /// Get the name of the node type.
+    #[inline]
+    pub fn name(&self) -> &'static str {
+        match self {
+            NodeType::Block => "Block",
+            NodeType::Statement => "Statement",
+            NodeType::Expression => "Expression",
+            NodeType::Definition => "Definition",
+            NodeType::Property => "Property",
+            NodeType::Type => "Type",
+            NodeType::EnumField => "EnumField",
+            NodeType::DependencyItem => "DependencyItem",
+            NodeType::SwitchCase => "SwitchCase",
+            NodeType::Pattern => "Pattern",
+            NodeType::PatternField => "PatternField",
+            NodeType::Parameter => "Parameter",
+            NodeType::Argument => "Argument",
+            NodeType::Annotation => "Annotation",
+        }
+    }
+}
+
 /// Unique identifier for nodes with dynamic type.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeIdAny {
