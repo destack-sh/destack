@@ -1328,10 +1328,7 @@ pub(crate) fn format_expression<'ast>(
 
         // defer
         Expression::Defer { expression } => {
-            write!(f, [Keyword::Defer])?;
-            if let Some(expression) = expression {
-                write!(f, [space(), expression])?;
-            }
+            write!(f, [Keyword::Defer, space(), expression])?;
         }
 
         // await

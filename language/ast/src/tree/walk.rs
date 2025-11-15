@@ -351,10 +351,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Continue { label: _ } => {}
 
         Expression::Defer { expression } => {
-            if let Some(expr_id) = expression {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
-            }
+            let expr = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expr);
         }
 
         Expression::Await { expression } => {
