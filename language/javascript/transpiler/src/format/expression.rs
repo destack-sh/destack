@@ -209,6 +209,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     ]
                 )?;
             }
+
+            Expression::Error => {
+                write!(f, [token("/* ERROR */")])?;
+            }
         }
 
         Ok(())

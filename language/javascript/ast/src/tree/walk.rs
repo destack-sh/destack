@@ -542,6 +542,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *else_expression, else_expr);
             }
         }
+        Expression::Error => {}
     }
 }
 

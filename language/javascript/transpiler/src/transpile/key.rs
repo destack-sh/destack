@@ -1,8 +1,8 @@
 use dyst_ast::{StringId, is_identifier};
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Key, Name};
+use dyst_javascript_ast::{Expression, Key, Name};
 
-use crate::{TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a string to a name.
@@ -33,13 +33,17 @@ impl<'a> Transpiler<'a> {
                 let name = self.transpile_string_to_name(module, name, unit);
                 Key::Name(name)
             }
-            dir::Key::Expression(expression) => {
-                let expression = self.transpile_expression(module, expression, unit)?;
-                Key::Expression(expression)
+            dir::Key::Expression(expression_id) => {
+                let expression_id = self
+                    .transpile_expression(module, expression_id, unit)
+                    .expect_node::<Expression>(expression_id.into_any(), unit)?;
+                Key::Expression(expression_id)
             }
             dir::Key::NamedExpression { name, key } => {
                 let name = self.transpile_string_to_name(module, name, unit);
-                let key = self.transpile_expression(module, key, unit)?;
+                let key = self
+                    .transpile_expression(module, key, unit)
+                    .expect_node::<Expression>(key.into_any(), unit)?;
                 Key::NamedExpression { name, key }
             }
         };

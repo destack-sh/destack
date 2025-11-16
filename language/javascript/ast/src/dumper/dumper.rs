@@ -913,6 +913,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::IfTernary", id.id).end();
             }
+            Expression::Error => {
+                self.node("Expression::Error", id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_expression(dumper, tree, id, expression);

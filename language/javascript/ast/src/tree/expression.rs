@@ -117,6 +117,9 @@ pub enum Expression {
         then_expression: NodeId<Expression>,
         else_expression: Option<NodeId<Expression>>,
     },
+
+    /// Error placeholder.
+    Error,
 }
 
 impl Node for Expression {

@@ -4,7 +4,7 @@ use dyst_javascript_ast::{
     UnaryOperator,
 };
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR type unary operator to a JS type unary operator.
@@ -16,7 +16,9 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let right_id = self.transpile_expression(module, right_id, unit)?;
+        let right_id = self
+            .transpile_expression(module, right_id, unit)
+            .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: TypeUnaryOperator| -> NodeId<Expression> {
@@ -60,8 +62,12 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let left_id = self.transpile_expression(module, left_id, unit)?;
-        let right_id = self.transpile_expression(module, right_id, unit)?;
+        let left_id = self
+            .transpile_expression(module, left_id, unit)
+            .expect_node::<Expression>(left_id.into_any(), unit)?;
+        let right_id = self
+            .transpile_expression(module, right_id, unit)
+            .expect_node::<Expression>(right_id.into_any(), unit)?;
         let operator = match operator {
             dir::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
             dir::TypeBinaryOperator::In => TypeBinaryOperator::In,
@@ -91,7 +97,9 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let right_id = self.transpile_expression(module, right_id, unit)?;
+        let right_id = self
+            .transpile_expression(module, right_id, unit)
+            .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: UnaryOperator| -> NodeId<Expression> {
@@ -143,8 +151,12 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let left_id = self.transpile_expression(module, left_id, unit)?;
-        let right_id = self.transpile_expression(module, right_id, unit)?;
+        let left_id = self
+            .transpile_expression(module, left_id, unit)
+            .expect_node::<Expression>(left_id.into_any(), unit)?;
+        let right_id = self
+            .transpile_expression(module, right_id, unit)
+            .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         let mut binary = |operator: BinaryOperator| -> NodeId<Expression> {
             let expression = Expression::Binary {
@@ -217,8 +229,12 @@ impl<'a> Transpiler<'a> {
         right_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Expression>> {
-        let left_id = self.transpile_expression(module, left_id, unit)?;
-        let right_id = self.transpile_expression(module, right_id, unit)?;
+        let left_id = self
+            .transpile_expression(module, left_id, unit)
+            .expect_node::<Expression>(left_id.into_any(), unit)?;
+        let right_id = self
+            .transpile_expression(module, right_id, unit)
+            .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial assign binary expression to a JS assign binary expression
         let mut assign_binary = |operator: AssignOperator| -> NodeId<Expression> {

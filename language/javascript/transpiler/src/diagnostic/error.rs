@@ -1,6 +1,7 @@
 use dyst_dir::{self as dir};
+use dyst_javascript_ast::{Node, NodeId, NodeIdAny, NodeType};
 
-use crate::TranspileDiagnostic;
+use crate::{TranspileDiagnostic, TranspilerUnit};
 
 /// Error when transpiling something into JS/TS
 #[derive(Debug, Clone)]
@@ -16,10 +17,11 @@ pub enum TranspileError {
         node: dir::NodeIdAny,
         path: dir::Path,
     } = 2,
+
     /// Unexpected node.
     UnexpectedNode {
         node: dir::NodeIdAny,
-        wanted: dir::NodeType,
+        wanted: NodeType,
         message: Option<String>,
     } = 3,
 }
@@ -66,25 +68,38 @@ impl From<TranspileError> for TranspileDiagnostic {
 
 pub type TranspileResult<T> = Result<T, TranspileError>;
 
+/// Extension methods for TranspileResult.
 pub trait TranspileResultExt {
     /// Expect a node of the given type.
-    fn expect_node<T: dir::Node>(self) -> TranspileResult<dir::NodeId<T>>;
+    fn expect_node<T: Node>(
+        self,
+        source_id: dir::NodeIdAny,
+        unit: &mut TranspilerUnit,
+    ) -> TranspileResult<NodeId<T>>;
 
     /// Unwrap a node of the given type. None otherwise.
-    fn unwrap_node<T: dir::Node>(self) -> Option<dir::NodeId<T>>;
+    fn unwrap_node<T: Node>(
+        self,
+        source_id: dir::NodeIdAny,
+        unit: &mut TranspilerUnit,
+    ) -> Option<NodeId<T>>;
 }
 
-impl TranspileResultExt for TranspileResult<dir::NodeIdAny> {
+impl TranspileResultExt for TranspileResult<NodeIdAny> {
     /// Expect a node of the given type. Error with UnexpectedNode if the node type does not match.
-    fn expect_node<T: dir::Node>(self) -> TranspileResult<dir::NodeId<T>> {
+    fn expect_node<T: Node>(
+        self,
+        source_id: dir::NodeIdAny,
+        _unit: &mut TranspilerUnit,
+    ) -> TranspileResult<NodeId<T>> {
         match self {
             Ok(node_id) => {
                 // check the node type matches the expected type
                 if node_id.ty == T::TYPE {
-                    Ok(dir::NodeId::<T>::new(node_id.id))
+                    Ok(NodeId::<T>::new(node_id.id))
                 } else {
                     Err(TranspileError::UnexpectedNode {
-                        node: node_id,
+                        node: source_id,
                         wanted: T::TYPE,
                         message: None,
                     })
@@ -95,11 +110,15 @@ impl TranspileResultExt for TranspileResult<dir::NodeIdAny> {
     }
 
     /// Unwrap a node of the given type. None otherwise.
-    fn unwrap_node<T: dir::Node>(self) -> Option<dir::NodeId<T>> {
+    fn unwrap_node<T: Node>(
+        self,
+        _source_id: dir::NodeIdAny,
+        _unit: &mut TranspilerUnit,
+    ) -> Option<NodeId<T>> {
         match self {
             Ok(node_id) => {
                 if node_id.ty == T::TYPE {
-                    Some(dir::NodeId::<T>::new(node_id.id))
+                    Some(NodeId::<T>::new(node_id.id))
                 } else {
                     None
                 }

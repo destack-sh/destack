@@ -1,9 +1,9 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, NodeId, Property,
+    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, NodeId, Property,
 };
 
-use crate::{TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a binding modifier from DIR into JS AST.
@@ -63,11 +63,17 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let value = value
                     .as_ref()
-                    .map(|value| self.transpile_expression(module, *value, unit))
+                    .map(|value| {
+                        self.transpile_expression(module, *value, unit)
+                            .expect_node::<Expression>(value.into_any(), unit)
+                    })
                     .transpose()?;
                 let default = default
                     .as_ref()
-                    .map(|default| self.transpile_expression(module, *default, unit))
+                    .map(|default| {
+                        self.transpile_expression(module, *default, unit)
+                            .expect_node::<Expression>(default.into_any(), unit)
+                    })
                     .transpose()?;
                 Property::Field {
                     modifiers,
@@ -92,7 +98,10 @@ impl<'a> Transpiler<'a> {
                 let signature = self.transpile_function_signature(module, signature, unit)?;
                 let body = body
                     .as_ref()
-                    .map(|body| self.transpile_expression(module, *body, unit))
+                    .map(|body_id| {
+                        self.transpile_expression(module, *body_id, unit)
+                            .expect_node::<Expression>(body_id.into_any(), unit)
+                    })
                     .transpose()?;
                 Property::Method {
                     modifiers,
@@ -105,7 +114,9 @@ impl<'a> Transpiler<'a> {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let value = self.transpile_expression(module, *value, unit)?;
+                let value = self
+                    .transpile_expression(module, *value, unit)
+                    .expect_node::<Expression>(value.into_any(), unit)?;
                 Property::Spread { modifiers, value }
             }
         };
