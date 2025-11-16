@@ -904,6 +904,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Import {
                 kind,
                 target,
+                module,
                 source,
                 items: _,
                 arguments: _,
@@ -911,6 +912,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Import", id.id)
                     .field("kind", kind)
                     .field("target", target)
+                    .field("module", module)
                     .field("source", source)
                     .end();
             }
@@ -931,6 +933,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ReExport {
                 mode,
                 target,
+                module,
                 kind,
                 source,
                 items: _,
@@ -939,6 +942,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mode", mode)
                     .field("kind", kind)
                     .field("target", target)
+                    .field("module", module)
                     .field("source", source)
                     .end();
             }
@@ -1524,8 +1528,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             DependencyItem::Definition { value: _ } => {
                 self.node("DependencyItem::Definition", id.id).end();
             }
-            DependencyItem::Expression { value: _ } => {
-                self.node("DependencyItem::Expression", id.id).end();
+            DependencyItem::Value { value: _ } => {
+                self.node("DependencyItem::Value", id.id).end();
             }
         }
         self.with_depth(|dumper| {

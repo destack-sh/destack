@@ -28,8 +28,8 @@ impl<'a> Transpiler<'a> {
     }
 
     /// Transpile an export type from DIR into JS AST.
-    pub fn transpile_export_type(&self, export: dir::ExportType) -> ExportType {
-        match export {
+    pub fn transpile_export_type(&self, export_type: dir::ExportType) -> ExportType {
+        match export_type {
             dir::ExportType::Item => ExportType::Item,
             dir::ExportType::Default => ExportType::Default,
             dir::ExportType::Namespace => ExportType::Namespace,

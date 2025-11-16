@@ -59,10 +59,10 @@ pub enum DependencyItem {
         name: StringId,
         alias: Option<StringId>,
     },
+    /// Resolved to a value.
+    Value { value: NodeId<Expression> },
     /// Resolved to a Definition.
     Definition { value: NodeId<Definition> },
-    /// Resolved to an Expression.
-    Expression { value: NodeId<Expression> },
 }
 
 impl Node for DependencyItem {
@@ -74,7 +74,7 @@ impl DependencyItem {
     pub fn is_resolved(&self) -> bool {
         matches!(
             self,
-            DependencyItem::Definition { .. } | DependencyItem::Expression { .. }
+            DependencyItem::Definition { .. } | DependencyItem::Value { .. }
         )
     }
 }

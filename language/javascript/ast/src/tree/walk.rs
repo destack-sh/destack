@@ -129,17 +129,16 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             kind: _,
             target: _,
             alias: _,
-            value,
             items,
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
-            if let Some(value) = value {
-                let value_expr = tree.get(*value);
-                visitor.visit_expression(tree, *value, value_expr);
-            }
+        }
+        Statement::ExportValue { value } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
         Statement::Definition { definition } => {
             let definition_node = tree.get(*definition);

@@ -21,8 +21,9 @@ pub enum Statement {
         target: Option<StringId>,
         alias: Option<StringId>,
         items: Vec<NodeId<DependencyItem>>,
-        value: Option<NodeId<Expression>>,
     },
+    /// Export value.
+    ExportValue { value: NodeId<Expression> },
 
     /// Definition statement.
     Definition { definition: NodeId<Definition> },
