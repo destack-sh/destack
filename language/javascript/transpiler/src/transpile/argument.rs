@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Argument, NodeId, Parameter};
+use dyst_javascript_ast::{Argument, Expression, NodeId, Parameter};
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     // nocheckin TODO #Incomplete: transpile parameters and arguments
@@ -9,26 +9,158 @@ impl<'a> Transpiler<'a> {
     /// Transpile a parameter from DIR into JS AST.
     pub fn transpile_parameter(
         &self,
-        _module: &'a Module,
+        module: &'a Module,
         parameter_id: dir::NodeId<dir::Parameter>,
-        _unit: &mut TranspilerUnit,
+        unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Parameter>> {
-        Err(TranspileError::UnsupportedNode {
-            node: parameter_id.into_any(),
-            message: None,
-        })
+        let parameter = self.session.tree.get(parameter_id);
+        let parameter = match parameter.as_ref() {
+            dir::Parameter::Named {
+                modifiers,
+                name,
+                ty,
+                default,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
+                    .transpose()?;
+                let name = unit.strings.intern_from(&module.strings, *name);
+                let ty = ty
+                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .transpose()?;
+                let default = default
+                    .map(|default| {
+                        self.transpile_expression(module, default, unit)
+                            .expect_node::<Expression>(default.into_any(), unit)
+                    })
+                    .transpose()?;
+                Parameter::Named {
+                    modifiers,
+                    name,
+                    ty,
+                    default,
+                }
+            }
+            dir::Parameter::Pattern {
+                modifiers,
+                pattern,
+                ty,
+                default,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
+                    .transpose()?;
+                let pattern = self.transpile_pattern(module, *pattern, unit)?;
+                let ty = ty
+                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .transpose()?;
+                let default = default
+                    .map(|default| {
+                        self.transpile_expression(module, default, unit)
+                            .expect_node::<Expression>(default.into_any(), unit)
+                    })
+                    .transpose()?;
+                Parameter::Pattern {
+                    modifiers,
+                    pattern,
+                    ty,
+                    default,
+                }
+            }
+            dir::Parameter::Variadic {
+                modifiers,
+                name,
+                ty,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
+                    .transpose()?;
+                let name = unit.strings.intern_from(&module.strings, *name);
+                let ty = ty
+                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .transpose()?;
+                Parameter::Variadic {
+                    modifiers,
+                    name,
+                    ty,
+                }
+            }
+        };
+        let parameter_id = unit
+            .ast
+            .insert_from_source(parameter, module.id, parameter_id);
+        Ok(parameter_id)
     }
 
     /// Transpile a argument from DIR into JS AST.
     pub fn transpile_argument(
         &self,
-        _module: &'a Module,
+        module: &'a Module,
         argument_id: dir::NodeId<dir::Argument>,
-        _unit: &mut TranspilerUnit,
+        unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Argument>> {
-        Err(TranspileError::UnsupportedNode {
-            node: argument_id.into_any(),
-            message: None,
-        })
+        let argument = self.session.tree.get(argument_id);
+        let argument = match argument.as_ref() {
+            dir::Argument::UnresolvedNamed {
+                modifiers: _,
+                name: _,
+                value,
+            }
+            | dir::Argument::UnresolvedPositional {
+                modifiers: _,
+                value,
+            }
+            | dir::Argument::Direct {
+                modifiers: _,
+                name: _,
+                parameter: _,
+                value,
+            } => {
+                let value = self
+                    .transpile_expression(module, *value, unit)
+                    .expect_node::<Expression>(value.into_any(), unit)?;
+                Argument::Positional { value }
+            }
+            dir::Argument::UnresolvedSpread {
+                modifiers: _,
+                name: _,
+                value,
+            }
+            | dir::Argument::Spread {
+                modifiers: _,
+                name: _,
+                parameter: _,
+                value,
+            } => {
+                let value = self
+                    .transpile_expression(module, *value, unit)
+                    .expect_node::<Expression>(value.into_any(), unit)?;
+                Argument::Spread { value }
+            }
+            dir::Argument::UnresolvedDynamic {
+                modifiers: _,
+                name: _,
+                key,
+                value,
+            }
+            | dir::Argument::Dynamic {
+                modifiers: _,
+                name: _,
+                key,
+                value,
+            } => {
+                let key = self
+                    .transpile_expression(module, *key, unit)
+                    .expect_node::<Expression>(key.into_any(), unit)?;
+                let value = self
+                    .transpile_expression(module, *value, unit)
+                    .expect_node::<Expression>(value.into_any(), unit)?;
+                Argument::Dynamic { key, value }
+            }
+        };
+        let argument_id = unit
+            .ast
+            .insert_from_source(argument, module.id, argument_id);
+        Ok(argument_id)
     }
 }
