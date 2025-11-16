@@ -25,9 +25,9 @@ impl ValidateError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::AssignmentTypeMismatch { .. } => "assignment type mismatch",
+            Self::AssignmentTypeMismatch { .. } => "assignment type mismatch".to_string(),
         }
     }
 }

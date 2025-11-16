@@ -7,7 +7,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
     ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type,
-    WhereClause, WithClause,
+    TypeField, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -36,6 +36,7 @@ pub struct MutableNodeTree {
     pub(crate) blocks: NodeArena<Block>,
     pub(crate) definitions: NodeArena<Definition>,
     pub(crate) types: NodeArena<Type>,
+    pub(crate) type_fields: NodeArena<TypeField>,
     pub(crate) properties: NodeArena<Property>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) where_clauses: NodeArena<WhereClause>,
@@ -85,6 +86,7 @@ impl MutableNodeTree {
             blocks: NodeArena::new(),
             definitions: NodeArena::new(),
             types: NodeArena::new(),
+            type_fields: NodeArena::new(),
             properties: NodeArena::new(),
             enum_fields: NodeArena::new(),
             where_clauses: NodeArena::new(),
@@ -301,6 +303,7 @@ impl_node_tree_stores! {
     Block => blocks,
     Definition => definitions,
     Type => types,
+    TypeField => type_fields,
     Property => properties,
     EnumField => enum_fields,
     WhereClause => where_clauses,

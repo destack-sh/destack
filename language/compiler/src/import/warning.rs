@@ -18,9 +18,9 @@ impl ImportWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::MissingConfiguration { .. } => "missing configuration for a module",
+            Self::MissingConfiguration { .. } => "missing configuration for a module".to_string(),
         }
     }
 }

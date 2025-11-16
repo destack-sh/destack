@@ -6,7 +6,7 @@ use dyst_source::NodeArena;
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, NodeId,
-    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type,
+    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type, TypeField,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
@@ -37,6 +37,7 @@ pub struct MutableNodeTree {
     pub(crate) definitions: NodeArena<Definition>,
     pub(crate) fields: NodeArena<Property>,
     pub(crate) types: NodeArena<Type>,
+    pub(crate) type_fields: NodeArena<TypeField>,
     pub(crate) enum_fields: NodeArena<EnumField>,
     pub(crate) dependency_items: NodeArena<DependencyItem>,
     pub(crate) switch_cases: NodeArena<SwitchCase>,
@@ -86,6 +87,7 @@ impl MutableNodeTree {
             definitions: NodeArena::new(),
             fields: NodeArena::new(),
             types: NodeArena::new(),
+            type_fields: NodeArena::new(),
             enum_fields: NodeArena::new(),
             dependency_items: NodeArena::new(),
             switch_cases: NodeArena::new(),
@@ -273,6 +275,7 @@ impl_node_tree_stores! {
     Definition => definitions,
     Property => fields,
     Type => types,
+    TypeField => type_fields,
     EnumField => enum_fields,
     DependencyItem => dependency_items,
     SwitchCase => switch_cases,

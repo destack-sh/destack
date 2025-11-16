@@ -1,9 +1,15 @@
 use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{NodeId, PrimitiveType, Type, TypeLiteral};
+use dyst_javascript_ast::{
+    FunctionMode, Keyword, NodeId, PrimitiveType, Type, TypeField, TypeLiteral,
+};
 
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
+use crate::format::argument::list_like;
+use crate::format::property::{
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
+};
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for PrimitiveType {
@@ -34,6 +40,62 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeLiteral {
     }
 }
 
+impl<'ast> FormatNode<'ast, TypeField> for TypeField {
+    fn format_node(
+        &self,
+        _node_id: NodeId<TypeField>,
+        f: &mut JavaScriptFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        match self {
+            TypeField::Field { modifiers, key, ty } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(f, [key])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // type
+                write!(f, [token(":"), space(), ty])?;
+            }
+            TypeField::Method {
+                modifiers,
+                key,
+                signature,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(f, [key])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // mode
+                if let Some(mode) = signature.mode
+                    && mode == FunctionMode::New
+                {
+                    write!(f, [Keyword::New, space()])?;
+                }
+                // static parameters
+                if let Some(static_parameters) = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(
         &self,
@@ -50,6 +112,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     .get_alias_to_definition(node_id.into(), *definition);
                 write!(f, [alias])?;
             }
+
             Type::Unary { operator, right } => {
                 write!(f, [operator, space(), right])?;
             }
@@ -59,6 +122,49 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 right,
             } => {
                 write!(f, [left, space(), operator, space(), right])?;
+            }
+
+            Type::Array { element } => {
+                write!(f, [element, token("[]")])?;
+            }
+            Type::Tuple { elements } => {
+                write!(f, [list_like("[", "]", ",", elements)])?;
+            }
+            Type::Object { properties } => {
+                write!(f, [list_like("{", "}", ",", properties).include_space()])?;
+            }
+            Type::Union { elements } => {
+                write!(f, [list_like("|", "|", ",", elements)])?;
+            }
+            Type::Intersection { elements } => {
+                write!(f, [list_like("&", "&", ",", elements)])?;
+            }
+            Type::Function { signature } => {
+                // mode
+                if let Some(mode) = signature.mode
+                    && mode == FunctionMode::New
+                {
+                    write!(f, [Keyword::New, space()])?;
+                }
+                // static parameters
+                if let Some(static_parameters) = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+            }
+
+            Type::Error => {
+                write!(f, [token("/* ERROR */")])?;
             }
         }
         Ok(())

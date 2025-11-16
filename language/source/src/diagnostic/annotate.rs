@@ -15,7 +15,7 @@ pub struct AnnotateOptions {
     /// Number of context lines to show before the start line.
     pub prefix_lines: u8 = 2,
     /// Number of context lines to show after the end line.
-    pub suffix_lines: u8 = 1,
+    pub suffix_lines: u8 = 2,
     /// Whether to emit ANSI color escape sequences.
     pub use_color: bool = true,
     /// Color for normal text (default: White).

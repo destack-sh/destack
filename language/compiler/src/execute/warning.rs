@@ -18,9 +18,9 @@ impl ExecuteWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::ComplexExpression { .. } => "complex expression",
+            Self::ComplexExpression { .. } => "complex expression".to_string(),
         }
     }
 }

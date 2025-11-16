@@ -2,10 +2,10 @@
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
-    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type,
+    MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type, TypeField,
     WhereClause, WithClause, walk_annotation, walk_argument, walk_block, walk_definition,
     walk_dependency_item, walk_enum_field, walk_expression, walk_match_case, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_property, walk_type, walk_where_clause,
+    walk_pattern, walk_pattern_field, walk_property, walk_type, walk_type_field, walk_where_clause,
     walk_with_clause,
 };
 
@@ -53,6 +53,16 @@ pub trait NodeVisitor {
     /// Visit a Type.
     fn visit_type(&mut self, tree: &MutableNodeTree, id: NodeId<Type>, ty: &Type) {
         walk_type(self, tree, id, ty);
+    }
+
+    /// Visit a TypeField.
+    fn visit_type_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<TypeField>,
+        attribute: &TypeField,
+    ) {
+        walk_type_field(self, tree, id, attribute);
     }
 
     /// Visit a Property.
@@ -219,6 +229,15 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_type(&mut self, tree: &MutableNodeTree, id: NodeId<Type>, _ty: &Type) {
         self.visit_any(tree, NodeType::Type, id.id);
+    }
+
+    fn visit_type_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<TypeField>,
+        _attribute: &TypeField,
+    ) {
+        self.visit_any(tree, NodeType::TypeField, id.id);
     }
 
     fn visit_property(

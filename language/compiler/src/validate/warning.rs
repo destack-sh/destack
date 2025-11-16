@@ -18,9 +18,9 @@ impl ValidateWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::MissingType { .. } => "missing type for an expression",
+            Self::MissingType { .. } => "missing type for an expression".to_string(),
         }
     }
 }

@@ -20,9 +20,9 @@ impl OptimizeError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::OptimizationImpossible { .. } => "optimization is impossible",
+            Self::OptimizationImpossible { .. } => "optimization is impossible".to_string(),
         }
     }
 }

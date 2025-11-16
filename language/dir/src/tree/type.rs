@@ -1,6 +1,6 @@
 use crate::{
-    Definition, Expression, FunctionSignature, Mutability, Node, NodeId, NodeType, Parameter,
-    ScalarLiteral, StringId, WithClause,
+    BindingModifier, Definition, Expression, FunctionSignature, Key, Mutability, Node, NodeId,
+    NodeType, Parameter, ScalarLiteral, StringId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -165,23 +165,24 @@ pub enum Type {
         end: NodeId<Type>,
         is_inclusive: bool,
     },
-    /// Sized array type `T[N]`.
-    ArrayStatic {
+    /// Array type with fixed size (like `T[N]`).
+    ArraySized {
         element: NodeId<Type>,
         count: NodeId<Expression>,
     },
-    /// Array slice type `T[]`. Dynamically sized.
-    ArraySlice { element: NodeId<Type> },
-    /// Array type `[T1, T2, ...]`. May be fixed or dynamically sized.
-    ArrayDynamic { elements: Vec<NodeId<Type>> },
-    /// Tuple type `(T1, T2, ...)`. Fixed size.
-    Tuple(Vec<NodeId<Type>>),
+    /// Array type with dynamically sized elements (like `T[]`).
+    Array { element: Option<NodeId<Type>> },
+    /// Tuple type `[T1, T2, ...]`.
+    Tuple { elements: Vec<NodeId<Type>> },
+    /// Struct type `{ a: T1, b: T2, ... }`.
+    Struct { attributes: Vec<NodeId<TypeField>> },
     /// Union type `A | B | C`.
-    Union(Vec<NodeId<Type>>),
+    Union { elements: Vec<NodeId<Type>> },
     /// Intersection type `A & B & C`.
-    Intersection(Vec<NodeId<Type>>),
+    Intersection { elements: Vec<NodeId<Type>> },
     /// Function type `(T1, T2, ...) -> T`.
     Function { signature: FunctionSignature },
+
     /// Expression yet to be resolved into a Type (like a Path).
     UnresolvedExpression(NodeId<Expression>),
     /// Unresolved Self type.
@@ -203,6 +204,27 @@ impl Type {
             Type::UnresolvedExpression(_) | Type::UnresolvedSelf | Type::Error
         )
     }
+}
+
+/// The type of an attribute (like a property or field).
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeField {
+    /// Named field (like `a: T`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        ty: NodeId<Type>,
+    },
+    /// Named method (like `foo(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+    },
+}
+
+impl Node for TypeField {
+    const TYPE: NodeType = NodeType::TypeField;
 }
 
 /// The polymorphism of some type or declaration.

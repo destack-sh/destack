@@ -2,7 +2,7 @@ use crate::{
     Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField,
     Expression, FunctionSignature, Generics, Heritage, Key, MutableNodeTree, NodeId, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
-    TemplateLiteral, Type,
+    TemplateLiteral, Type, TypeField,
 };
 
 /// Walk any node.
@@ -37,6 +37,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Type => {
             let ty = tree.types.get(local_idx);
             walk_type(visitor, tree, NodeId::new(node_id), ty);
+        }
+        NodeType::TypeField => {
+            let attribute = tree.type_fields.get(local_idx);
+            walk_type_field(visitor, tree, NodeId::new(node_id), attribute);
         }
         NodeType::EnumField => {
             let field = tree.enum_fields.get(local_idx);
@@ -919,6 +923,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_definition(tree, *definition_id, definition);
             }
         }
+
         Type::Unary { operator: _, right } => {
             let right_ty = tree.get(*right);
             visitor.visit_type(tree, *right, right_ty);
@@ -932,6 +937,73 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *left, left_ty);
             let right_ty = tree.get(*right);
             visitor.visit_type(tree, *right, right_ty);
+        }
+
+        Type::Array { element } => {
+            let element_ty = tree.get(*element);
+            visitor.visit_type(tree, *element, element_ty);
+        }
+        Type::Tuple { elements } => {
+            for element_id in elements {
+                let element_ty = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_ty);
+            }
+        }
+        Type::Object { properties } => {
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_type_field(tree, *property_id, property);
+            }
+        }
+        Type::Union { elements } => {
+            for element_id in elements {
+                let element_ty = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_ty);
+            }
+        }
+        Type::Intersection { elements } => {
+            for element_id in elements {
+                let element_ty = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_ty);
+            }
+        }
+        Type::Function { signature } => {
+            walk_function_signature(visitor, tree, signature);
+        }
+
+        Type::Error => {}
+    }
+}
+
+/// Walk a type field.
+pub fn walk_type_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    id: NodeId<TypeField>,
+    attribute: &TypeField,
+) {
+    visitor.visit_any(tree, NodeType::TypeField, id.id);
+    match attribute {
+        TypeField::Field {
+            modifiers: _,
+            key,
+            ty,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            let ty_ty = tree.get(*ty);
+            visitor.visit_type(tree, *ty, ty_ty);
+        }
+        TypeField::Method {
+            modifiers: _,
+            key,
+            signature,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            walk_function_signature(visitor, tree, signature);
         }
     }
 }

@@ -18,9 +18,9 @@ impl OptimizeWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::MissingType { .. } => "unknown type for an expression",
+            Self::MissingType { .. } => "unknown type for an expression".to_string(),
         }
     }
 }
