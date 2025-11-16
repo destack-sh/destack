@@ -1,4 +1,7 @@
-use crate::{Definition, Node, NodeId, NodeType, Parameter, ScalarLiteral};
+use crate::{
+    BindingModifier, Definition, FunctionSignature, Key, Node, NodeId, NodeType, Parameter,
+    ScalarLiteral,
+};
 
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, PartialEq)]
@@ -112,16 +115,53 @@ pub enum Type {
         operator: TypeUnaryOperator,
         right: NodeId<Type>,
     },
-    /// Binary
+    /// Binary operator.
     Binary {
         left: NodeId<Type>,
         operator: TypeBinaryOperator,
         right: NodeId<Type>,
     },
+
+    /// Array type `T[]`.
+    Array { element: NodeId<Type> },
+    /// Tuple type `[T1, T2, ...]`.
+    Tuple { elements: Vec<NodeId<Type>> },
+    /// Object type `{ a: T1, b: T2, ... }`.
+    Object { properties: Vec<NodeId<TypeField>> },
+    /// Union type `A | B | C`.
+    Union { elements: Vec<NodeId<Type>> },
+    /// Intersection type `A & B & C`.
+    Intersection { elements: Vec<NodeId<Type>> },
+    /// Function type `(T1, T2, ...) -> T`.
+    Function { signature: FunctionSignature },
+
+    /// Error type that could not be resolved.
+    Error,
 }
 
 impl Node for Type {
     const TYPE: NodeType = NodeType::Type;
+}
+
+/// The type of an attribute (like a property or field).
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeField {
+    /// Named field (like `a: T`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        ty: NodeId<Type>,
+    },
+    /// Named method (like `foo(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+    },
+}
+
+impl Node for TypeField {
+    const TYPE: NodeType = NodeType::TypeField;
 }
 
 /// The polymorphism of some type or declaration.

@@ -10,6 +10,7 @@ pub enum NodeType {
     Definition,
     Property,
     Type,
+    TypeField,
     EnumField,
     DependencyItem,
     SwitchCase,
@@ -25,20 +26,21 @@ impl NodeType {
     #[inline]
     pub fn name(&self) -> &'static str {
         match self {
-            NodeType::Block => "Block",
-            NodeType::Statement => "Statement",
-            NodeType::Expression => "Expression",
-            NodeType::Definition => "Definition",
-            NodeType::Property => "Property",
-            NodeType::Type => "Type",
-            NodeType::EnumField => "EnumField",
-            NodeType::DependencyItem => "DependencyItem",
-            NodeType::SwitchCase => "SwitchCase",
-            NodeType::Pattern => "Pattern",
-            NodeType::PatternField => "PatternField",
-            NodeType::Parameter => "Parameter",
-            NodeType::Argument => "Argument",
-            NodeType::Annotation => "Annotation",
+            NodeType::Block => "block",
+            NodeType::Statement => "statement",
+            NodeType::Expression => "expression",
+            NodeType::Definition => "definition",
+            NodeType::Property => "property",
+            NodeType::Type => "type",
+            NodeType::TypeField => "type field",
+            NodeType::EnumField => "enum field",
+            NodeType::DependencyItem => "dependency item",
+            NodeType::SwitchCase => "switch case",
+            NodeType::Pattern => "pattern",
+            NodeType::PatternField => "pattern field",
+            NodeType::Parameter => "parameter",
+            NodeType::Argument => "argument",
+            NodeType::Annotation => "annotation",
         }
     }
 }

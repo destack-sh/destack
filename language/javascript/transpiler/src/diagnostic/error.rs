@@ -28,11 +28,13 @@ pub enum TranspileError {
 
 impl TranspileError {
     /// Get the message of the error.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::UnsupportedNode { .. } => "unsupported node",
-            Self::UnsupportedPath { .. } => "unsupported path",
-            Self::UnexpectedNode { .. } => "unexpected node",
+            Self::UnsupportedNode { node, .. } => format!("unsupported {}", node.ty.name()),
+            Self::UnsupportedPath { .. } => "unsupported path".to_string(),
+            Self::UnexpectedNode { node, wanted, .. } => {
+                format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
+            }
         }
     }
 

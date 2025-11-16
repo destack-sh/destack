@@ -1225,6 +1225,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Definition(_) => {
                 self.node("Type::Definition", id.id).end();
             }
+
             Type::Unary { operator, right: _ } => {
                 self.node("Type::Unary", id.id)
                     .field("operator", operator)
@@ -1238,6 +1239,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Type::Binary", id.id)
                     .field("operator", operator)
                     .end();
+            }
+
+            Type::Array { element: _ } => {
+                self.node("Type::Array", id.id).end();
+            }
+            Type::Tuple { elements: _ } => {
+                self.node("Type::Tuple", id.id).end();
+            }
+            Type::Object { properties: _ } => {
+                self.node("Type::Object", id.id).end();
+            }
+            Type::Union { elements: _ } => {
+                self.node("Type::Union", id.id).end();
+            }
+            Type::Intersection { elements: _ } => {
+                self.node("Type::Intersection", id.id).end();
+            }
+            Type::Function { signature } => {
+                self.node("Type::Function", id.id)
+                    .field("signature", signature)
+                    .end();
+            }
+
+            Type::Error => {
+                self.node("Type::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {

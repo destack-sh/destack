@@ -18,7 +18,7 @@ pub enum PostfixPosition {
 pub enum Expression {
     /// Definition expression.
     Definition { definition: NodeId<Definition> },
-    
+
     /// Path.
     Path {
         path: Path,

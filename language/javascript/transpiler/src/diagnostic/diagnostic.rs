@@ -22,7 +22,7 @@ impl TranspileDiagnostic {
     }
 
     /// Get the message of the diagnostic.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
             Self::Error(error) => error.message(),
             Self::Warning(warning) => warning.message(),
@@ -62,7 +62,7 @@ impl TranspileDiagnostic {
 
         // make diagnostic
         let severity = self.severity();
-        let message = self.message().to_string();
+        let message = self.message();
         let code = self.full_code();
         let primary_span = ast_id
             .map(|ast_id| module.ast.get_span_by_id(ast_id))

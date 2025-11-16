@@ -19,11 +19,11 @@ pub enum TranspileWarning {
 
 impl TranspileWarning {
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::UnresolvedExpression { .. } => "unresolved expression",
-            Self::UnresolvedPath { .. } => "unresolved path",
-            Self::UnresolvedType { .. } => "unresolved type",
+            Self::UnresolvedExpression { .. } => "unresolved expression".to_string(),
+            Self::UnresolvedPath { .. } => "unresolved path".to_string(),
+            Self::UnresolvedType { .. } => "unresolved type".to_string(),
         }
     }
 

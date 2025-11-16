@@ -21,9 +21,9 @@ impl ResolveWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::UnknownImport { .. } => "unknown import",
+            Self::UnknownImport { .. } => "unknown import".to_string(),
         }
     }
 }

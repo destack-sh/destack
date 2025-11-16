@@ -60,7 +60,10 @@ impl<'a> Transpiler<'a> {
                 statement_id.into_any()
             }
 
-            dir::Expression::With { clauses: _, body: _ } => {
+            dir::Expression::With {
+                clauses: _,
+                body: _,
+            } => {
                 return Err(TranspileError::UnsupportedNode {
                     node: expression_id.into_any(),
                     message: None,

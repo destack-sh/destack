@@ -35,6 +35,17 @@ impl ImportError {
             Self::CircularDependency { .. } => 5,
         }
     }
+
+    /// Get the message of the error.
+    pub fn message(&self) -> String {
+        match self {
+            Self::FileIdNotFound { .. } => "file not found".to_string(),
+            Self::FileUriNotFound { .. } => "file not found".to_string(),
+            Self::ModuleNotFound { .. } => "module not found".to_string(),
+            Self::ParseError { .. } => "parse error".to_string(),
+            Self::CircularDependency { .. } => "circular dependency".to_string(),
+        }
+    }
 }
 
 impl std::fmt::Display for ImportError {

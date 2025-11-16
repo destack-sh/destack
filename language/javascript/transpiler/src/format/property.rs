@@ -6,6 +6,7 @@ use dyst_javascript_ast::{
     FunctionCardinality, Keyword, Mutability, NodeId, Property,
 };
 
+use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatter};
 
 #[inline]
@@ -135,6 +136,17 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
                 // key
                 write!(f, [key])?;
+                // static parameters
+                if let Some(static_parameters) = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // return type

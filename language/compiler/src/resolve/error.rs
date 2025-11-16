@@ -36,11 +36,11 @@ impl ResolveError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::NotReady { .. } => "dependent nodes are not ready to be resolved",
-            Self::CircularDependency { .. } => "circular dependency",
-            Self::UnevaluatableExpression { .. } => "unevaluatable expression",
+            Self::NotReady { .. } => "dependent nodes are not ready to be resolved".to_string(),
+            Self::CircularDependency { .. } => "circular dependency".to_string(),
+            Self::UnevaluatableExpression { .. } => "unevaluatable expression".to_string(),
         }
     }
 }

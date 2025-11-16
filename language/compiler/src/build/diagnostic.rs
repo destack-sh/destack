@@ -37,9 +37,9 @@ impl BuildError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::BuildingImpossible { .. } => "building is impossible",
+            Self::BuildingImpossible { .. } => "building is impossible".to_string(),
         }
     }
 }
@@ -62,9 +62,9 @@ impl BuildWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::BuildingImpossible { .. } => "building is impossible for this node",
+            Self::BuildingImpossible { .. } => "building is impossible for this node".to_string(),
         }
     }
 }

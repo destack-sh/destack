@@ -1424,29 +1424,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Type::ArrayStatic {
+            Type::ArraySized {
                 element: _,
                 count: _,
             } => {
-                self.node("Type::ArrayStatic", id.id).end();
+                self.node("Type::ArraySized", id.id).end();
             }
-            Type::ArraySlice { element: _ } => {
-                self.node("Type::ArraySlice", id.id).end();
+            Type::Array { element: _ } => {
+                self.node("Type::Array", id.id).end();
             }
-            Type::ArrayDynamic { elements: _ } => {
-                self.node("Type::ArrayDynamic", id.id).end();
-            }
-            Type::Tuple(_) => {
+            Type::Tuple { elements: _ } => {
                 self.node("Type::Tuple", id.id).end();
             }
-            Type::Union(_) => {
+            Type::Struct { attributes: _ } => {
+                self.node("Type::Struct", id.id).end();
+            }
+            Type::Union { elements: _ } => {
                 self.node("Type::Union", id.id).end();
             }
-            Type::Intersection(_) => {
+            Type::Intersection { elements: _ } => {
                 self.node("Type::Intersection", id.id).end();
             }
             Type::Function { signature } => {
-                self.node("Type::Function", id.id).value(signature).end();
+                self.node("Type::Function", id.id)
+                    .field("signature", signature)
+                    .end();
             }
 
             Type::UnresolvedExpression(_) => {

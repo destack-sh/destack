@@ -3,9 +3,10 @@
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
     MutableNodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, Type, walk_annotation, walk_argument, walk_block, walk_definition,
+    SwitchCase, Type, TypeField, walk_annotation, walk_argument, walk_block, walk_definition,
     walk_dependency_item, walk_enum_field, walk_expression, walk_parameter, walk_pattern,
     walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_type,
+    walk_type_field,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -135,6 +136,16 @@ pub trait NodeVisitor {
     /// Visit a type.
     fn visit_type(&mut self, tree: &MutableNodeTree, id: NodeId<Type>, ty: &Type) {
         walk_type(self, tree, id, ty);
+    }
+
+    /// Visit a type field.
+    fn visit_type_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<TypeField>,
+        attribute: &TypeField,
+    ) {
+        walk_type_field(self, tree, id, attribute);
     }
 
     /// Visit an annotation.

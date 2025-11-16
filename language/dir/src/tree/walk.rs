@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, WhereClause,
-    WithClause,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
+    WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -29,6 +29,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Type => {
             let ty = tree.types.get(local_idx);
             walk_type(visitor, tree, NodeId::new(node_id), ty);
+        }
+        NodeType::TypeField => {
+            let attribute = tree.type_fields.get(local_idx);
+            walk_type_field(visitor, tree, NodeId::new(node_id), attribute);
         }
         NodeType::Property => {
             let property = tree.properties.get(local_idx);
@@ -795,35 +799,37 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let end_type = tree.get(*end);
             visitor.visit_type(tree, *end, end_type);
         }
-        Type::ArrayStatic { element, count } => {
+        Type::ArraySized { element, count } => {
             let element_type = tree.get(*element);
             visitor.visit_type(tree, *element, element_type);
             let count_expression = tree.get(*count);
             visitor.visit_expression(tree, *count, count_expression);
         }
-        Type::ArraySlice { element } => {
-            let element_type = tree.get(*element);
-            visitor.visit_type(tree, *element, element_type);
+        Type::Array { element } => {
+            if let Some(element_id) = element {
+                let element_type = tree.get(*element_id);
+                visitor.visit_type(tree, *element_id, element_type);
+            }
         }
-        Type::ArrayDynamic { elements } => {
+        Type::Tuple { elements } => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        Type::Tuple(elements) => {
+        Type::Struct { attributes } => {
+            for attribute_id in attributes {
+                let attribute = tree.get(*attribute_id);
+                visitor.visit_type_field(tree, *attribute_id, attribute);
+            }
+        }
+        Type::Union { elements } => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);
             }
         }
-        Type::Union(elements) => {
-            for element_id in elements {
-                let element_type = tree.get(*element_id);
-                visitor.visit_type(tree, *element_id, element_type);
-            }
-        }
-        Type::Intersection(elements) => {
+        Type::Intersection { elements } => {
             for element_id in elements {
                 let element_type = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_type);
@@ -840,6 +846,39 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::UnresolvedSelf => {}
 
         Type::Error => {}
+    }
+}
+
+/// Walk the TypeField.
+pub fn walk_type_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &MutableNodeTree,
+    id: NodeId<TypeField>,
+    attribute: &TypeField,
+) {
+    visitor.visit_any(tree, NodeType::TypeField, id.id);
+    match attribute {
+        TypeField::Field {
+            modifiers: _,
+            key,
+            ty,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            let ty_type = tree.get(*ty);
+            visitor.visit_type(tree, *ty, ty_type);
+        }
+        TypeField::Method {
+            modifiers: _,
+            key,
+            signature,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            walk_function_signature(visitor, tree, signature);
+        }
     }
 }
 
