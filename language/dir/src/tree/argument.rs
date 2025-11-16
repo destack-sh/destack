@@ -1,6 +1,4 @@
-use crate::{
-    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, Property, StringId, Type,
-};
+use crate::{BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, Type};
 
 /// A Parameter is a parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,15 +27,6 @@ pub enum Parameter {
 
 impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
-}
-
-/// A slot is the "position" target of an argument.
-#[derive(Debug, Clone, PartialEq)]
-pub enum ArgumentSlot {
-    /// Parameter slot.
-    Parameter { parameter: NodeId<Parameter> },
-    /// Property slot.
-    Property { property: NodeId<Property> },
 }
 
 /// An Argument is a named or positional argument to a function or method call.
@@ -72,13 +61,14 @@ pub enum Argument {
     Direct {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        slot: ArgumentSlot,
+        parameter: NodeId<Parameter>,
         value: NodeId<Expression>,
     },
     /// Spread argument.
     Spread {
         modifiers: Option<BindingModifier>,
-        slot: ArgumentSlot,
+        name: StringId,
+        parameter: NodeId<Parameter>,
         value: NodeId<Expression>,
     },
     /// Dynamic argument.

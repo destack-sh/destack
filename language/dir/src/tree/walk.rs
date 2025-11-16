@@ -1,5 +1,5 @@
 use crate::{
-    Annotation, Argument, ArgumentSlot, Block, Definition, DependencyItem, EnumField, Expression,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
     WhereClause, WithClause,
@@ -1121,24 +1121,17 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Direct {
             modifiers: _,
             name: _,
-            slot,
+            parameter,
             value,
         }
         | Argument::Spread {
             modifiers: _,
-            slot,
+            name: _,
+            parameter,
             value,
         } => {
-            match slot {
-                ArgumentSlot::Parameter { parameter } => {
-                    let parameter_node = tree.get(*parameter);
-                    visitor.visit_parameter(tree, *parameter, parameter_node);
-                }
-                ArgumentSlot::Property { property } => {
-                    let property_node = tree.get(*property);
-                    visitor.visit_property(tree, *property, property_node);
-                }
-            }
+            let parameter_node = tree.get(*parameter);
+            visitor.visit_parameter(tree, *parameter, parameter_node);
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

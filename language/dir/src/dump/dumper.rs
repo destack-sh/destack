@@ -451,20 +451,6 @@ impl Dump for BindingModifier {
     }
 }
 
-/// Dump an ArgumentSlot as a string.
-impl Dump for ArgumentSlot {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            ArgumentSlot::Parameter { parameter: _ } => {
-                dumper.object("ArgumentSlot::Parameter").end();
-            }
-            ArgumentSlot::Property { property: _ } => {
-                dumper.object("ArgumentSlot::Field").end();
-            }
-        }
-    }
-}
-
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1630,23 +1616,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Direct {
                 modifiers,
                 name,
-                slot,
+                parameter: _,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
-                    .field("slot", slot)
                     .end();
             }
             Argument::Spread {
                 modifiers,
-                slot,
+                name,
+                parameter: _,
                 value: _,
             } => {
                 self.node("Argument::Spread", id.id)
                     .field_optional("modifiers", modifiers)
-                    .field("slot", slot)
+                    .field("name", name)
                     .end();
             }
             Argument::Dynamic {
