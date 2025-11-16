@@ -37,12 +37,8 @@ pub struct TranspilerUnit {
 }
 
 impl TranspilerUnit {
-    /// Get alias for a definition from a given node.
-    pub fn get_alias_to_definition(
-        &self,
-        from_id: NodeIdAny,
-        to_id: NodeId<Definition>,
-    ) -> StringId {
+    /// Get alias for a symbol from a given node.
+    pub fn get_alias_to_symbol(&self, from_id: NodeIdAny, to_id: NodeId<Definition>) -> StringId {
         todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
     }
 
@@ -78,7 +74,7 @@ impl<'a> Transpiler<'a> {
             if let Some(root_id) =
                 unit.try_recover(|unit| self.transpile_expression(module, *expression_id, unit))
             {
-                unit.roots.push(root_id.into())
+                unit.roots.push(root_id)
             }
         }
     }

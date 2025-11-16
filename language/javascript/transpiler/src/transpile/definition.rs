@@ -1,10 +1,10 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{
     BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
-    NodeId, Visibility,
+    Expression, NodeId, Visibility,
 };
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile visibility from DIR into JS AST.
@@ -175,7 +175,10 @@ impl<'a> Transpiler<'a> {
         let value = field
             .value
             .as_ref()
-            .map(|value| self.transpile_expression(module, *value, unit))
+            .map(|value_id| {
+                self.transpile_expression(module, *value_id, unit)
+                    .expect_node::<Expression>(value_id.into_any(), unit)
+            })
             .transpose()?;
         let field = EnumField { name, value };
         let field_id = unit.ast.insert_from_dir(field, module.id, field_id);

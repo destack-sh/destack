@@ -1,7 +1,10 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Expression, NodeId, PostfixPosition};
+use dyst_javascript_ast::{Expression, NodeId, NodeIdAny, PostfixPosition};
 
-use crate::{TranspileError, TranspileResult, TranspileWarning, Transpiler, TranspilerUnit};
+use crate::{
+    TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,
+    TranspilerUnit,
+};
 
 impl<'a> Transpiler<'a> {
     /// Get the position of a postfix expression.
@@ -26,7 +29,7 @@ impl<'a> Transpiler<'a> {
         module: &'a Module,
         expression_id: dir::NodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<NodeIdAny> {
         let expression = self.session.tree.get(expression_id);
 
         // report unresolved warning
@@ -36,7 +39,7 @@ impl<'a> Transpiler<'a> {
             });
         }
 
-        let expression = match expression.as_ref() {
+        let transpiled_id = match expression.as_ref() {
             dir::Expression::Path {
                 path,
                 static_arguments,
@@ -57,32 +60,42 @@ impl<'a> Transpiler<'a> {
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::ScalarLiteral { value } => {
                 let value = self.transpile_scalar_literal(module, value, unit);
                 let expression = Expression::ScalarLiteral { value };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::TupleLiteral { ty: _, elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element_id| self.session.tree.get(*element_id))
-                    .map(|element| self.transpile_expression(module, element.value(), unit))
+                    .map(|element_id| {
+                        let element = self.session.tree.get(*element_id);
+                        self.transpile_expression(module, element.value(), unit)
+                            .expect_node::<Expression>(element_id.into_any(), unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::ArrayLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element_id| self.session.tree.get(*element_id))
-                    .map(|element| self.transpile_expression(module, element.value(), unit))
+                    .map(|element_id| {
+                        let element = self.session.tree.get(*element_id);
+                        self.transpile_expression(module, element.value(), unit)
+                            .expect_node::<Expression>(element_id.into_any(), unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::StructLiteral { ty: _, properties } => {
                 let properties = properties
@@ -92,26 +105,30 @@ impl<'a> Transpiler<'a> {
                 let expression = Expression::ObjectLiteral { properties };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
 
             dir::Expression::TypeUnary { operator, right } => self
-                .transpile_type_unary_expression(module, expression_id, *operator, *right, unit)?,
+                .transpile_type_unary_expression(module, expression_id, *operator, *right, unit)?
+                .into_any(),
             dir::Expression::TypeBinary {
                 left,
                 operator,
                 right,
-            } => self.transpile_type_binary_expression(
-                module,
-                expression_id,
-                *left,
-                *operator,
-                *right,
-                unit,
-            )?,
+            } => self
+                .transpile_type_binary_expression(
+                    module,
+                    expression_id,
+                    *left,
+                    *operator,
+                    *right,
+                    unit,
+                )?
+                .into_any(),
             dir::Expression::UnresolvedUnary { operator, right }
-            | dir::Expression::Unary { operator, right } => {
-                self.transpile_unary_expression(module, expression_id, *operator, *right, unit)?
-            }
+            | dir::Expression::Unary { operator, right } => self
+                .transpile_unary_expression(module, expression_id, *operator, *right, unit)?
+                .into_any(),
             dir::Expression::UnresolvedBinary {
                 left,
                 operator,
@@ -121,23 +138,23 @@ impl<'a> Transpiler<'a> {
                 left,
                 operator,
                 right,
-            } => self.transpile_binary_expression(
-                module,
-                expression_id,
-                *left,
-                *operator,
-                *right,
-                unit,
-            )?,
+            } => self
+                .transpile_binary_expression(module, expression_id, *left, *operator, *right, unit)?
+                .into_any(),
             dir::Expression::Assign { left, right } => {
-                let left_id = self.transpile_expression(module, *left, unit)?;
-                let right_id = self.transpile_expression(module, *right, unit)?;
+                let left_id = self
+                    .transpile_expression(module, *left, unit)
+                    .expect_node::<Expression>(left.into_any(), unit)?;
+                let right_id = self
+                    .transpile_expression(module, *right, unit)
+                    .expect_node::<Expression>(right.into_any(), unit)?;
                 let expression = Expression::Assign {
                     left: left_id,
                     right: right_id,
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::UnresolvedAssignBinary {
                 left,
@@ -148,21 +165,25 @@ impl<'a> Transpiler<'a> {
                 left,
                 operator,
                 right,
-            } => self.transpile_assign_binary_expression(
-                module,
-                expression_id,
-                *left,
-                *operator,
-                *right,
-                unit,
-            )?,
+            } => self
+                .transpile_assign_binary_expression(
+                    module,
+                    expression_id,
+                    *left,
+                    *operator,
+                    *right,
+                    unit,
+                )?
+                .into_any(),
 
             dir::Expression::Member {
                 left,
                 path,
                 static_arguments,
             } => {
-                let left_id = self.transpile_expression(module, *left, unit)?;
+                let left_id = self
+                    .transpile_expression(module, *left, unit)
+                    .expect_node::<Expression>(left.into_any(), unit)?;
                 let path = self.transpile_path(module, expression_id.into_any(), path, unit)?;
                 let static_arguments = static_arguments
                     .as_ref()
@@ -180,9 +201,12 @@ impl<'a> Transpiler<'a> {
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::Index { left, right } => {
-                let left_id = self.transpile_expression(module, *left, unit)?;
+                let left_id = self
+                    .transpile_expression(module, *left, unit)
+                    .expect_node::<Expression>(left.into_any(), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let &Some(right) = right else {
                     return Err(TranspileError::UnsupportedNode {
@@ -190,7 +214,9 @@ impl<'a> Transpiler<'a> {
                         message: None,
                     });
                 };
-                let right_id = self.transpile_expression(module, right, unit)?;
+                let right_id = self
+                    .transpile_expression(module, right, unit)
+                    .expect_node::<Expression>(right.into_any(), unit)?;
                 let expression = Expression::Index {
                     position,
                     left: left_id,
@@ -198,13 +224,16 @@ impl<'a> Transpiler<'a> {
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::Call {
                 left,
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left_id = self.transpile_expression(module, *left, unit)?;
+                let left_id = self
+                    .transpile_expression(module, *left, unit)
+                    .expect_node::<Expression>(left.into_any(), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let static_arguments = static_arguments
                     .as_ref()
@@ -227,6 +256,7 @@ impl<'a> Transpiler<'a> {
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::New {
                 left,
@@ -254,6 +284,14 @@ impl<'a> Transpiler<'a> {
                 };
                 unit.ast
                     .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
+            }
+
+            dir::Expression::Error => {
+                let expression = Expression::Error;
+                unit.ast
+                    .insert_from_dir(expression, module.id, expression_id)
+                    .into_any()
             }
 
             _ => {
@@ -264,6 +302,6 @@ impl<'a> Transpiler<'a> {
             }
         };
 
-        Ok(expression)
+        Ok(transpiled_id)
     }
 }

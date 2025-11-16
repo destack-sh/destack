@@ -197,7 +197,7 @@ impl<'ast> JavaScriptFormatContext<'ast> {
         from_id: NodeIdAny,
         to_id: NodeId<Definition>,
     ) -> StringId {
-        self.unit.get_alias_to_definition(from_id, to_id)
+        self.unit.get_alias_to_symbol(from_id, to_id)
     }
 
     /// Whether we need type annotations.
