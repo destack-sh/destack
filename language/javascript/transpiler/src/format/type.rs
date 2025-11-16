@@ -40,10 +40,6 @@ impl<'ast> FormatNode<'ast, Type> for Type {
         node_id: NodeId<Type>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        assert!(
-            f.context().include_types(),
-            "type in non-type context: {node_id:?}"
-        );
         match self {
             Type::Scalar(scalar) => {
                 write!(f, [scalar])?;

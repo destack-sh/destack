@@ -22,7 +22,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a DIR path into a JS path.
     pub fn transpile_path(
         &self,
-        module: &'a Module,
+        _module: &'a Module,
         scope_id: dir::NodeIdAny,
         path: &dir::Path,
         unit: &mut TranspilerUnit,
@@ -38,7 +38,7 @@ impl<'a> Transpiler<'a> {
                 let base = self.transpile_path_base(*base, unit);
                 let mut segments: SmallVec<StringId, 3> = segments
                     .iter()
-                    .map(|segment| unit.strings.intern_from(&module.strings, *segment))
+                    .map(|segment| unit.strings.intern_from(&self.session.strings, *segment))
                     .collect();
                 segments.insert(0, base);
                 Path { segments }
@@ -46,7 +46,7 @@ impl<'a> Transpiler<'a> {
             dir::Path::UnresolvedAbsoluteString { segments } => {
                 let segments = segments
                     .iter()
-                    .map(|segment| unit.strings.intern_from(&module.strings, *segment))
+                    .map(|segment| unit.strings.intern_from(&self.session.strings, *segment))
                     .collect();
                 Path { segments }
             }

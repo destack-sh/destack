@@ -137,6 +137,10 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value, value_expr);
             }
         }
+        Statement::Definition { definition } => {
+            let definition_node = tree.get(*definition);
+            visitor.visit_definition(tree, *definition, definition_node);
+        }
         Statement::Block { block } => {
             let block_node = tree.get(*block);
             visitor.visit_block(tree, *block, block_node);
@@ -859,17 +863,22 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Named {
             mutability: _,
             name: _,
-            alias: _,
+            pattern,
             default,
         } => {
+            if let Some(pattern) = pattern {
+                let pattern_node = tree.get(*pattern);
+                visitor.visit_pattern(tree, *pattern, pattern_node);
+            }
             if let Some(default) = default {
                 let default_expr = tree.get(*default);
                 visitor.visit_expression(tree, *default, default_expr);
             }
         }
-        PatternField::Pattern {
+        PatternField::Alias {
             mutability: _,
-            pattern: _,
+            name: _,
+            alias: _,
             default,
         } => {
             if let Some(default) = default {

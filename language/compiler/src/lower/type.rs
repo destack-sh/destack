@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
         );
         self.session
             .tree
-            .alias_from_ast(module.id, expression_id.id, type_id);
+            .alias_from_source(module.id, expression_id.id, type_id);
         type_id
     }
 

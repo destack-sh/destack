@@ -18,12 +18,7 @@ pub enum PostfixPosition {
 pub enum Expression {
     /// Definition expression.
     Definition { definition: NodeId<Definition> },
-    /// Arrow function expression.
-    ArrowFunction {
-        signature: FunctionSignature,
-        body: NodeId<Expression>,
-    },
-
+    
     /// Path.
     Path {
         path: Path,
@@ -110,7 +105,11 @@ pub enum Expression {
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
-
+    /// Arrow function expression.
+    ArrowFunction {
+        signature: FunctionSignature,
+        body: NodeId<Expression>,
+    },
     /// If ternary.
     IfTernary {
         condition: NodeId<Expression>,
