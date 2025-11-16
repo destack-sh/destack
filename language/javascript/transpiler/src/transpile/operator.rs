@@ -27,7 +27,7 @@ impl<'a> Transpiler<'a> {
                 right: right_id,
             };
             unit.ast
-                .insert_from_dir(expression, module.id, expression_id)
+                .insert_from_source(expression, module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -84,7 +84,7 @@ impl<'a> Transpiler<'a> {
         };
         let expression_id = unit
             .ast
-            .insert_from_dir(expression, module.id, expression_id);
+            .insert_from_source(expression, module.id, expression_id);
         Ok(expression_id)
     }
 
@@ -108,7 +108,7 @@ impl<'a> Transpiler<'a> {
                 right: right_id,
             };
             unit.ast
-                .insert_from_dir(expression, module.id, expression_id)
+                .insert_from_source(expression, module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -165,7 +165,7 @@ impl<'a> Transpiler<'a> {
                 right: right_id,
             };
             unit.ast
-                .insert_from_dir(expression, module.id, expression_id)
+                .insert_from_source(expression, module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -244,7 +244,7 @@ impl<'a> Transpiler<'a> {
                 right: right_id,
             };
             unit.ast
-                .insert_from_dir(expression, module.id, expression_id)
+                .insert_from_source(expression, module.id, expression_id)
         };
 
         let expression_id = match operator {

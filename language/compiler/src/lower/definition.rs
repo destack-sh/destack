@@ -49,7 +49,7 @@ impl<'a> Compiler<'a> {
         };
         self.session
             .tree
-            .alias_from_ast(module.id, expression_id.id, definition_id);
+            .alias_from_source(module.id, expression_id.id, definition_id);
         Some(definition_id)
     }
 

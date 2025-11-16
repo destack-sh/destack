@@ -674,6 +674,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("alias", alias)
                     .end();
             }
+            Statement::Definition { definition: _ } => {
+                self.node("Statement::Definition", id.id).end();
+            }
             Statement::Block { block: _ } => {
                 self.node("Statement::Block", id.id).end();
             }
@@ -1185,21 +1188,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
             PatternField::Named {
                 mutability,
                 name,
-                alias,
+                pattern: _,
                 default: _,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
-                    .field_optional("alias", alias)
                     .end();
             }
-            PatternField::Pattern {
+            PatternField::Alias {
                 mutability,
-                pattern: _,
+                name,
+                alias,
                 default: _,
             } => {
-                self.node("PatternField::Pattern", id.id)
+                self.node("PatternField::Alias", id.id)
+                    .field("name", name)
+                    .field("alias", alias)
                     .field_optional("mutability", mutability)
                     .end();
             }

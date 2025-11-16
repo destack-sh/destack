@@ -29,16 +29,17 @@ pub enum PatternField {
     Named {
         mutability: Option<Mutability>,
         name: StringId,
-        alias: Option<StringId>,
+        pattern: Option<NodeId<Pattern>>,
         default: Option<NodeId<Expression>>,
     },
-    /// Pattern pattern field (like `x: [y, ...]`).
-    Pattern {
+    /// Named field with an alias (like `x: y`).
+    Alias {
         mutability: Option<Mutability>,
-        pattern: NodeId<Pattern>,
+        name: StringId,
+        alias: StringId,
         default: Option<NodeId<Expression>>,
     },
-    /// Positional pattern field (like `4`).
+    /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: NodeId<Pattern> },
 }
 

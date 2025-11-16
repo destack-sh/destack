@@ -70,7 +70,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
 impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
         &self,
-        node_id: NodeId<Definition>,
+        _node_id: NodeId<Definition>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -176,11 +176,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 heritage,
                 properties,
             } => {
-                assert!(
-                    f.context().include_types(),
-                    "interface in non-type context: {node_id:?}"
-                );
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -225,11 +220,6 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 write!(f, [hard_line_break(), token("}"),])?;
             }
             Definition::Enum { descriptor, fields } => {
-                assert!(
-                    f.context().include_types(),
-                    "enum in non-type context: {node_id:?}"
-                );
-
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;

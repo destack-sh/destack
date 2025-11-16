@@ -156,7 +156,7 @@ impl<'a> Transpiler<'a> {
         };
         let definition_id = unit
             .ast
-            .insert_from_dir(definition, module.id, definition_id);
+            .insert_from_source(definition, module.id, definition_id);
         Ok(definition_id)
     }
 
@@ -181,7 +181,7 @@ impl<'a> Transpiler<'a> {
             })
             .transpose()?;
         let field = EnumField { name, value };
-        let field_id = unit.ast.insert_from_dir(field, module.id, field_id);
+        let field_id = unit.ast.insert_from_source(field, module.id, field_id);
         Ok(field_id)
     }
 }

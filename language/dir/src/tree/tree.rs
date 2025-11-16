@@ -115,7 +115,7 @@ impl MutableNodeTree {
     }
 
     /// Allocate a new node in the DIR tree lowered from a source AST node.
-    pub fn insert_from_ast<T, U>(
+    pub fn insert_from_source<T, U>(
         &mut self,
         node: T,
         module_id: ModuleId,
@@ -134,7 +134,7 @@ impl MutableNodeTree {
     }
 
     /// Allocate a new node in the DIR tree derived from another DIR node.
-    pub fn insert_from_dir<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
     where
         T: Node,
         Self: MutableNodeTreeImpl<T>,
@@ -148,7 +148,7 @@ impl MutableNodeTree {
     }
 
     /// Add an alias node for a lowered AST id.
-    pub fn alias_from_ast<T>(&mut self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
+    pub fn alias_from_source<T>(&mut self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
         Self: MutableNodeTreeImpl<T>,
@@ -158,7 +158,7 @@ impl MutableNodeTree {
     }
 
     /// Add an alias node for a derived DIR id.
-    pub fn alias_from_dir<T>(&mut self, dir_id: u32, alias: NodeId<T>)
+    pub fn alias_from<T>(&mut self, dir_id: u32, alias: NodeId<T>)
     where
         T: Node,
         Self: MutableNodeTreeImpl<T>,
@@ -373,7 +373,7 @@ impl SharedNodeTree {
         U: ast::Node,
     {
         let mut tree = self.write();
-        tree.insert_from_ast(node, module_id, ast_node_id)
+        tree.insert_from_source(node, module_id, ast_node_id)
     }
 
     /// Allocate a new node in the DIR tree derived from another DIR node.
@@ -384,17 +384,17 @@ impl SharedNodeTree {
         U: Node,
     {
         let mut tree = self.write();
-        tree.insert_from_dir(node, dir_node_id)
+        tree.insert_from(node, dir_node_id)
     }
 
     /// Add an alias node for a lowered AST id.
-    pub fn alias_from_ast<T>(&self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
+    pub fn alias_from_source<T>(&self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node,
         MutableNodeTree: MutableNodeTreeImpl<T>,
     {
         let mut tree = self.write();
-        tree.alias_from_ast(module_id, ast_id, alias)
+        tree.alias_from_source(module_id, ast_id, alias)
     }
 
     /// Get the type of an untyped node id.

@@ -28,12 +28,12 @@ impl<'a> Transpiler<'a> {
         let annotation = match annotation.as_ref() {
             dir::Annotation::Doc { position, string } => {
                 let position = self.transpile_annotation_position(*position);
-                let string = unit.strings.intern_from(&module.strings, *string);
+                let string = unit.strings.intern_from(&self.session.strings, *string);
                 Annotation::Doc { position, string }
             }
             dir::Annotation::Comment { position, string } => {
                 let position = self.transpile_annotation_position(*position);
-                let string = unit.strings.intern_from(&module.strings, *string);
+                let string = unit.strings.intern_from(&self.session.strings, *string);
                 Annotation::Comment { position, string }
             }
 
@@ -70,7 +70,7 @@ impl<'a> Transpiler<'a> {
         };
         let annotation_id = unit
             .ast
-            .insert_from_dir(annotation, module.id, annotation_id);
+            .insert_from_source(annotation, module.id, annotation_id);
         Ok(annotation_id)
     }
 }

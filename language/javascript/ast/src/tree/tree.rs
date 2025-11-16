@@ -22,8 +22,13 @@ pub struct MutableNodeTree {
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+
     /// The DIR ids of all nodes. Index is the global node id.
     pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
+    /// The alias node id by DIR node id.
+    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
+    /// The alias node id by JS AST node id.
+    pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
 
     // per-node arenas
     pub(crate) blocks: NodeArena<Block>,
@@ -72,6 +77,8 @@ impl MutableNodeTree {
             module_by_node_id: Vec::with_capacity(capacity),
             annotations_per_node_id: HashMap::new(),
             dir_id_by_node_id: Vec::with_capacity(capacity),
+            alias_node_id_by_dir_id: HashMap::new(),
+            alias_node_id_by_node_id: HashMap::new(),
             // per-node arenas
             blocks: NodeArena::new(),
             statements: NodeArena::new(),
@@ -106,7 +113,7 @@ impl MutableNodeTree {
     }
 
     /// Allocate a new node in the DIR tree derived from another node.
-    pub fn insert_from_dir<T, U>(
+    pub fn insert_from_source<T, U>(
         &mut self,
         node: T,
         module_id: ModuleId,
@@ -121,6 +128,39 @@ impl MutableNodeTree {
         let node_id = self.insert(node, module_id);
         self.dir_id_by_node_id.push(Some(dir_node_id.id));
         node_id
+    }
+
+    /// Allocate a new node in the JS AST tree derived from another DIR node.
+    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    where
+        T: Node,
+        Self: MutableNodeTreeImpl<T>,
+        U: Node,
+    {
+        let module_id = self.module_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, module_id);
+        self.dir_id_by_node_id.push(None);
+        self.alias_node_id_by_dir_id
+            .insert(dir_node_id.id, node_id.id);
+        node_id
+    }
+
+    /// Alias a node in the JS AST tree from a DIR node.
+    pub fn alias_from_source<T>(&mut self, dir_id: u32, alias: NodeId<T>)
+    where
+        T: Node,
+        Self: MutableNodeTreeImpl<T>,
+    {
+        self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
+    }
+
+    /// Alias a node in the JS AST tree from a JS AST node.
+    pub fn alias_from<T>(&mut self, node_id: u32, alias: NodeId<T>)
+    where
+        T: Node,
+        Self: MutableNodeTreeImpl<T>,
+    {
+        self.alias_node_id_by_node_id.insert(node_id, alias.id);
     }
 
     /// Get the next id.

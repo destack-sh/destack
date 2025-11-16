@@ -56,6 +56,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 }
             }
 
+            Statement::Definition { definition } => {
+                definition.format(f)?;
+            }
             Statement::Block { block } => {
                 block.format(f)?;
             }

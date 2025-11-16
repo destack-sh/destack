@@ -1,6 +1,7 @@
 mod annotation;
 mod argument;
 mod artifact;
+mod block;
 mod definition;
 mod expression;
 mod function;
@@ -9,6 +10,7 @@ mod literal;
 mod module;
 mod operator;
 mod path;
+mod pattern;
 mod property;
 mod transpile;
 mod transpiler;

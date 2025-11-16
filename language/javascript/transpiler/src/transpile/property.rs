@@ -120,7 +120,7 @@ impl<'a> Transpiler<'a> {
                 Property::Spread { modifiers, value }
             }
         };
-        let property_id = unit.ast.insert_from_dir(property, module.id, property_id);
+        let property_id = unit.ast.insert_from_source(property, module.id, property_id);
         Ok(property_id)
     }
 }
