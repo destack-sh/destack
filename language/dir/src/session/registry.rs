@@ -94,4 +94,16 @@ impl SharedModuleRegistry {
             .and_then(|id| state.modules_by_id.get(id))
             .cloned()
     }
+
+    /// Get the number of modules in the registry.
+    pub fn len(&self) -> usize {
+        let state = self.state.lock();
+        state.modules_by_id.len()
+    }
+
+    /// Whether the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        let state = self.state.lock();
+        state.modules_by_id.is_empty()
+    }
 }

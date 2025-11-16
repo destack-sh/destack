@@ -58,4 +58,14 @@ impl FileRegistry {
     pub fn iter(&self) -> impl Iterator<Item = &File> {
         self.files_by_id.values()
     }
+
+    /// Get the number of files in the registry.
+    pub fn len(&self) -> usize {
+        self.files_by_id.len()
+    }
+
+    /// Whether the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        self.files_by_id.is_empty()
+    }
 }

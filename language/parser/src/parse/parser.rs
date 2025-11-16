@@ -356,7 +356,7 @@ impl<'a> Parser<'a> {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.file, &self.tokens);
-            self.diagnostics.insert_diagnostic(diagnostic);
+            self.diagnostics.insert(diagnostic);
         }
     }
 

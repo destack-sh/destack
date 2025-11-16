@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use parking_lot::Mutex;
 
-use crate::{Diagnostic, DiagnosticSeverity, Suggestion};
+use crate::{Diagnostic, DiagnosticSeverity};
 
 /// Collector for diagnostics and suggestions.
 /// Uses an internal Mutex for thread safety.
@@ -13,8 +15,6 @@ pub struct DiagnosticCollector {
 struct DiagnosticCollection {
     /// The diagnostics.
     diagnostics: Vec<Diagnostic>,
-    /// The suggestions.
-    suggestions: Vec<Suggestion>,
 }
 
 impl Clone for DiagnosticCollector {
@@ -38,18 +38,12 @@ impl DiagnosticCollector {
         Self {
             inner: Mutex::new(DiagnosticCollection {
                 diagnostics: Vec::new(),
-                suggestions: Vec::new(),
             }),
         }
     }
 
-    /// Check whether the collector has any diagnostics.
-    pub fn is_empty(&self) -> bool {
-        self.inner.lock().diagnostics.is_empty()
-    }
-
     /// Add a Diagnostic.
-    pub fn insert_diagnostic(&self, diagnostic: Diagnostic) {
+    pub fn insert(&self, diagnostic: Diagnostic) {
         self.inner.lock().diagnostics.push(diagnostic);
     }
 
@@ -60,9 +54,6 @@ impl DiagnosticCollector {
         this_locked
             .diagnostics
             .extend(other_locked.diagnostics.iter().cloned());
-        this_locked
-            .suggestions
-            .extend(other_locked.suggestions.iter().cloned());
     }
 
     /// Check if diagnostics of the given DiagnosticSeverity are present.
@@ -74,21 +65,38 @@ impl DiagnosticCollector {
             .any(|d| d.severity == severity)
     }
 
-    /// Add a Suggestion.
-    pub fn insert_suggestion(&self, suggestion: Suggestion) {
-        self.inner.lock().suggestions.push(suggestion);
+    /// Get the highest severity of the diagnostics.
+    pub fn highest_severity(&self) -> Option<DiagnosticSeverity> {
+        self.inner
+            .lock()
+            .diagnostics
+            .iter()
+            .map(|d| d.severity)
+            .max()
     }
 
-    /// Convert the Collector into its diagnostics (move out).
-    pub fn into_vec(self) -> Vec<Diagnostic> {
-        // TODO @Robustness: This consumes the collector and exposes diagnostics only,
-        // so suggestions will be dropped.
-        self.inner.into_inner().diagnostics
+    /// Get the number of diagnostics by severity.
+    pub fn count_diagnostics_by_severity(&self) -> BTreeMap<DiagnosticSeverity, usize> {
+        let mut counts: BTreeMap<DiagnosticSeverity, usize> = BTreeMap::new();
+        for diagnostic in self.inner.lock().diagnostics.iter() {
+            *counts.entry(diagnostic.severity).or_insert(0) += 1;
+        }
+        counts
     }
 
     /// Get a vector clone of diagnostics.
     /// NOTE: This method clones the underlying vector.
     pub fn iter(&self) -> Vec<Diagnostic> {
         self.inner.lock().diagnostics.clone()
+    }
+
+    /// Get the number of diagnostics.
+    pub fn len(&self) -> usize {
+        self.inner.lock().diagnostics.len()
+    }
+
+    /// Whether the collector is empty.
+    pub fn is_empty(&self) -> bool {
+        self.inner.lock().diagnostics.is_empty()
     }
 }
