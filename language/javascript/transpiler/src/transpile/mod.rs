@@ -3,6 +3,7 @@ mod argument;
 mod artifact;
 mod block;
 mod definition;
+mod dependency;
 mod expression;
 mod function;
 mod key;

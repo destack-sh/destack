@@ -158,7 +158,7 @@ impl<'a> Compiler<'a> {
                     let items = {
                         if let Some(value_id) = value {
                             let value = self.lower_expression(module, *value_id);
-                            let item = DependencyItem::Expression { value };
+                            let item = DependencyItem::Value { value };
                             let item_id = self
                                 .session
                                 .tree

@@ -69,6 +69,76 @@ impl<'a> Transpiler<'a> {
                     message: None,
                 });
             }
+            dir::Expression::UnresolvedImport {
+                kind,
+                target,
+                source: _,
+                items,
+                arguments,
+            }
+            | dir::Expression::Import {
+                kind,
+                target,
+                module: _,
+                source: _,
+                items,
+                arguments,
+            } => {
+                let target = unit.strings.intern_from(&module.strings, *target);
+                let (default_alias, items) =
+                    self.transpile_dependency_items(module, *kind, items.as_slice(), unit)?;
+                let arguments = arguments
+                    .as_ref()
+                    .map(|arguments| {
+                        arguments
+                            .iter()
+                            .map(|argument| self.transpile_argument(module, *argument, unit))
+                            .collect::<Result<Vec<_>, TranspileError>>()
+                    })
+                    .transpose()?;
+                let kind = self.transpile_dependency_kind(*kind);
+                let statement = Statement::Import {
+                    kind,
+                    target,
+                    alias: default_alias,
+                    items,
+                    arguments,
+                };
+                unit.ast
+                    .insert_from_source(statement, module.id, expression_id)
+                    .into_any()
+            }
+            dir::Expression::UnresolvedReExport {
+                mode,
+                kind,
+                target,
+                source: _,
+                items,
+            }
+            | dir::Expression::ReExport {
+                mode,
+                kind,
+                target,
+                module: _,
+                source: _,
+                items,
+            } => {
+                let mode = self.transpile_export_type(*mode);
+                let target = unit.strings.intern_from(&module.strings, *target);
+                let (default_alias, items) =
+                    self.transpile_dependency_items(module, *kind, items.as_slice(), unit)?;
+                let kind = self.transpile_dependency_kind(*kind);
+                let statement = Statement::Export {
+                    mode,
+                    kind,
+                    target: Some(target),
+                    alias: default_alias,
+                    items,
+                };
+                unit.ast
+                    .insert_from_source(statement, module.id, expression_id)
+                    .into_any()
+            }
 
             dir::Expression::Let {
                 mutability,

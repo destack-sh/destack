@@ -44,7 +44,8 @@ pub enum Expression {
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
         kind: DependencyKind,
-        target: ModuleId,
+        target: StringId,
+        module: ModuleId,
         source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
@@ -52,7 +53,8 @@ pub enum Expression {
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
     ReExport {
         mode: ExportType,
-        target: ModuleId,
+        target: StringId,
+        module: ModuleId,
         kind: DependencyKind,
         source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,

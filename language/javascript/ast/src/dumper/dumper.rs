@@ -664,7 +664,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 target,
                 alias,
-                value: _,
                 items: _,
             } => {
                 self.node("Statement::Export", id.id)
@@ -673,6 +672,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("target", target)
                     .field_optional("alias", alias)
                     .end();
+            }
+            Statement::ExportValue { value: _ } => {
+                self.node("Statement::ExportValue", id.id).end();
             }
             Statement::Definition { definition: _ } => {
                 self.node("Statement::Definition", id.id).end();

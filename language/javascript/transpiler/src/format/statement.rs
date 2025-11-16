@@ -42,20 +42,17 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 kind,
                 target,
                 alias,
-                value,
                 items,
             } => {
                 write!(f, [mode, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                if let Some(value) = value {
-                    write!(f, [token("="), space(), value])?;
-                } else {
-                    format_dependency_binding(f, *target, *alias, Some(items), true)?;
-                }
+                format_dependency_binding(f, *target, *alias, Some(items), true)?;
             }
-
+            Statement::ExportValue { value } => {
+                write!(f, [Keyword::Export, space(), token("="), space(), value])?;
+            }
             Statement::Definition { definition } => {
                 definition.format(f)?;
             }
