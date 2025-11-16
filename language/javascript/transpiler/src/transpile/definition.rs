@@ -168,10 +168,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<EnumField>> {
         let field = self.session.tree.get(field_id);
-        let name = self
-            .session
-            .strings
-            .intern_from(&module.strings, field.name);
+        let name = unit.strings.intern_from(&module.strings, field.name);
         let value = field
             .value
             .as_ref()
