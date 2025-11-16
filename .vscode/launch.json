@@ -9,52 +9,16 @@
             "stopOnEntry": true
         },
         {
-            "name": "destack_tokei",
+            "name": "destack_cli_transpile",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["tokei"],
+            "args": ["transpile", "--file", "library/entity/src/entity/entity.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
-        {
-            "name": "destack_cli_ast",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": ["run", "--bin", "destack_cli"],
-                "filter": { "kind": "bin", "name": "destack_cli" }
-            },
-            "args": ["ast", "--string", "if y 2 else 4"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "destack_cli_fmt",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": ["run", "--bin", "destack_cli"],
-                "filter": { "kind": "bin", "name": "destack_cli" }
-            },
-            "args": ["fmt", "--file", "library/entity/scratch.ds"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "destack_cli_dir",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": ["run", "--bin", "destack_cli"],
-                "filter": { "kind": "bin", "name": "destack_cli" }
-            },
-            "args": ["dir", "--file", "library/view/view.ds"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
-        }
     ]
 }
