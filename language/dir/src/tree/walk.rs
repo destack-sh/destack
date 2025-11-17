@@ -877,7 +877,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let expression = tree.get(*expression_id);
             visitor.visit_expression(tree, *expression_id, expression);
         }
-        Type::UnresolvedSelf => {}
 
         Type::Error => {}
     }

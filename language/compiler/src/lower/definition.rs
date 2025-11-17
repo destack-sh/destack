@@ -1,7 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId, ScopeId, ScopeKind, StructKind, SymbolId, SymbolSpace
+    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
+    ScopeId, ScopeKind, StructKind, SymbolId, SymbolSpace,
 };
 
 impl<'a> Compiler<'a> {
@@ -230,7 +231,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST enum field into a DIR enum field.
     pub(super) fn lower_enum_field(
         &mut self,
-        module: &Module,    
+        module: &Module,
         scope_id: ScopeId,
         field_id: ast::NodeId<ast::EnumField>,
     ) -> NodeId<EnumField> {

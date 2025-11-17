@@ -1418,9 +1418,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::UnresolvedExpression(_) => {
                 self.node("Type::UnresolvedExpression", id.id).end();
             }
-            Type::UnresolvedSelf => {
-                self.node("Type::UnresolvedSelf", id.id).end();
-            }
 
             Type::Error => {
                 self.node("Type::Error", id.id).end();

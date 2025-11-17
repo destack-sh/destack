@@ -1,7 +1,6 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyItem, DependencyKind, ExportType, Module, NodeId, ScopeId, SymbolKey,
-    SymbolSpace,
+    DependencyItem, DependencyKind, ExportType, Module, NodeId, ScopeId, SymbolKey, SymbolSpace,
 };
 
 use crate::Compiler;

@@ -76,7 +76,7 @@ impl<'a> Transpiler<'a> {
                             .write()
                             .insert(artifact.file.uri.clone(), artifact);
                     }
-                    Err(error) => unit.add_error(error),
+                    Err(error) => unit.error(error),
                 }
             }
             // add all the diagnostics to the session

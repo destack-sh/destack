@@ -4,9 +4,9 @@ use std::fmt::{Debug, Formatter};
 use dyst_source::{FileSourceMap, Span};
 
 use crate::{
-    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, Arena, NodeId, NodeType,
-    Parameter, Pattern, PatternField, Property, Tag, WhereClause, WithClause,
+    Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Decorator, Definition,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeId, NodeType, Parameter,
+    Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.

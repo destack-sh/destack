@@ -1,4 +1,6 @@
-use crate::{BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, SymbolId, Type};
+use crate::{
+    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, SymbolId, Type,
+};
 
 /// A Parameter is a parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]

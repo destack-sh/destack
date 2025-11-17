@@ -43,12 +43,12 @@ impl TranspilerUnit {
     }
 
     /// Add an error to the transpilation unit.
-    pub(crate) fn add_error(&mut self, error: TranspileError) {
+    pub(crate) fn error(&mut self, error: TranspileError) {
         self.diagnostics.push(error.into());
     }
 
     /// Add a warning to the transpilation unit.
-    pub(crate) fn add_warning(&mut self, warning: TranspileWarning) {
+    pub(crate) fn warning(&mut self, warning: TranspileWarning) {
         self.diagnostics.push(warning.into());
     }
 
@@ -60,7 +60,7 @@ impl TranspilerUnit {
         match f(self) {
             Ok(result) => Some(result),
             Err(error) => {
-                self.add_error(error);
+                self.error(error);
                 None
             }
         }
