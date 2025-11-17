@@ -1,5 +1,6 @@
 use dyst_ast::StringId;
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
+use dyst_fir::prelude::*;
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
@@ -349,9 +350,9 @@ impl<'a> Format<JavaScriptFormatContext<'a>> for NodeIdAny {
 impl<'a> Format<JavaScriptFormatContext<'a>> for TranspilerUnit {
     #[inline]
     fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
-        for root in &self.roots {
-            root.format(f)?;
-        }
+        f.join_with(hard_line_break())
+            .entries(&self.roots)
+            .finish()?;
         Ok(())
     }
 }
