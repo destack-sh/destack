@@ -478,7 +478,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Member {
             left,
-            path: _,
+            name: _,
             static_arguments,
         } => {
             let left_expr = tree.get(*left);
@@ -520,10 +520,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::New {
-            left: _,
+            left,
             static_arguments,
             dynamic_arguments,
         } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
             if let Some(arguments) = static_arguments {
                 for argument_id in arguments {
                     let argument = tree.get(*argument_id);

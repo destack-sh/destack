@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast, SharedStringPool};
 use dyst_source::{FileId, Uri};
 
-use crate::{DependencyEdge, Expression, NodeId};
+use crate::{DependencyEdge, Expression, NodeId, ScopeId};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
@@ -36,6 +36,8 @@ pub struct Module {
     /// The URI of the Module.
     pub uri: Uri,
 
+    /// The scope of the Module.
+    pub scope: Option<ScopeId>,
     /// The AST of the Module (may be empty).
     pub ast: ast::MutableNodeTree,
     /// The AST parent index
@@ -66,6 +68,7 @@ impl Module {
             kind: ModuleKind::Script,
             file_id,
             uri,
+            scope: None,
             ast,
             parents,
             strings,

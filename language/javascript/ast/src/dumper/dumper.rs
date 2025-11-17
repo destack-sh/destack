@@ -876,11 +876,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Member {
                 left: _,
-                path,
+                name,
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
-                    .field("path", path)
+                    .field("name", name)
                     .end();
             }
             Expression::Index {
@@ -903,13 +903,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::New {
-                left,
+                left: _,
                 static_arguments: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::New", id.id)
-                    .field("path", left)
-                    .end();
+                self.node("Expression::New", id.id).end();
             }
             Expression::IfTernary {
                 condition: _,

@@ -330,6 +330,28 @@ impl Expression {
                 | Expression::UnresolvedContinue { .. }
         )
     }
+
+    /// Get the scope of the expression.
+    pub fn scope(&self) -> Option<ScopeId> {
+        match self {
+            Expression::With { scope, .. } => Some(*scope),
+            Expression::Loop { scope, .. } => Some(*scope),
+            Expression::ForEach { scope, .. } => Some(*scope),
+            Expression::For { scope, .. } => Some(*scope),
+            Expression::Try { scope, .. } => Some(*scope),
+            Expression::Match { scope, .. } => Some(*scope),
+            _ => None,
+        }
+    }
+
+    /// Get the symbol of the expression.
+    pub fn symbol(&self) -> Option<SymbolId> {
+        match self {
+            Expression::Let { symbol, .. } => Some(*symbol),
+            Expression::LetType { symbol, .. } => Some(*symbol),
+            _ => None,
+        }
+    }
 }
 
 /// The kind of a loop expression.

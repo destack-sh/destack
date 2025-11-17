@@ -473,7 +473,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
-        // path
+        // left
         let path: Option<Path> = {
             if self.peek_token(TokenType::Identifier).is_ok() {
                 Some(self.eat_path()?)
@@ -482,6 +482,7 @@ impl<'a> Parser<'a> {
             }
         };
         self.eat_newlines_maybe()?;
+        let header_start = self.mark();
 
         // header (arguments separated by `=`)
         let arguments: Option<Vec<NodeId<Argument>>> = {
@@ -581,8 +582,17 @@ impl<'a> Parser<'a> {
         };
 
         // tree literal
+        let left = path.map(|path| {
+            self.tree.insert(
+                Expression::Path {
+                    path,
+                    static_arguments: None,
+                },
+                self.get_span_between(start, header_start),
+            )
+        });
         let expression = Expression::TreeLiteral {
-            path,
+            left,
             arguments,
             elements,
         };
@@ -904,9 +914,9 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         // <A/>
-        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
             // A
-            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert_expr_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
             assert!(elements.is_none());
         });
@@ -918,9 +928,9 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         // <A a=1 annoying-b=2 c=3 />
-        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
             // A
-            assert_path!(parser, path.as_ref().unwrap(), "A");
+            assert_expr_path!(parser, parser.tree.get(*left), "A");
             assert_eq!(arguments.as_ref().unwrap().len(), 4);
             // a=1
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
@@ -964,8 +974,8 @@ mod tests {
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
         // <Tooltip>
-        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
-            assert_path!(parser, path.as_ref().unwrap(), "Tooltip");
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+            assert_expr_path!(parser, parser.tree.get(*left), "Tooltip");
             assert_eq!(arguments.as_ref().unwrap().len(), 3);
             // title=true
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
@@ -1019,26 +1029,26 @@ mod tests {
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
         // <A>
-        assert_node!(parser.tree, expression, Expression::TreeLiteral { path, arguments, elements } => {
-            assert_path!(parser, path.as_ref().unwrap(), "A");
+        assert_node!(parser.tree, expression, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+            assert_expr_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
             assert!(elements.is_some());
             // <B>
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
-                    assert_path!(parser, path.as_ref().unwrap(), "B");
+                assert_node!(parser.tree, *value, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+                    assert_expr_path!(parser, parser.tree.get(*left), "B");
                     assert!(arguments.is_none());
                     assert!(elements.is_some());
                     // <C>
                     assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                        assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
-                            assert_path!(parser, path.as_ref().unwrap(), "C");
+                        assert_node!(parser.tree, *value, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+                            assert_expr_path!(parser, parser.tree.get(*left), "C");
                             assert!(arguments.is_none());
                             assert!(elements.is_some());
                             // <D/>
                             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                                assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
-                                    assert_path!(parser, path.as_ref().unwrap(), "D");
+                                assert_node!(parser.tree, *value, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+                                    assert_expr_path!(parser, parser.tree.get(*left), "D");
                                     assert!(arguments.is_none());
                                     assert!(elements.is_none());
                                 });
@@ -1073,8 +1083,8 @@ mod tests {
         let expression = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
             // <div className="font-semibold">
-            assert_node!(parser.tree, *expression, Expression::TreeLiteral { path, arguments, elements } => {
-                assert_path!(parser, path.as_ref().unwrap(), "div");
+            assert_node!(parser.tree, *expression, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
+                assert_expr_path!(parser, parser.tree.get(*left), "div");
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 1);
                 // className="font-semibold"
@@ -1091,9 +1101,9 @@ mod tests {
                 assert_eq!(elements.as_ref().unwrap().len(), 2);
                 // <Link subtle to={urls.annotation(annotation.id)}>
                 assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::TreeLiteral { path, arguments, elements } => {
+                    assert_node!(parser.tree, *value, Expression::TreeLiteral { left: Some(left), arguments, elements } => {
                         // Link
-                        assert_path!(parser, path.as_ref().unwrap(), "Link");
+                        assert_expr_path!(parser, parser.tree.get(*left), "Link");
                         assert!(arguments.is_some());
                         assert_eq!(arguments.as_ref().unwrap().len(), 2);
                         // subtle

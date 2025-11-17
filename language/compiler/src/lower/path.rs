@@ -9,10 +9,7 @@ impl<'a> Compiler<'a> {
             "this" => Some(PathBase::SelfValue),
             "self" => Some(PathBase::SelfValue),
             "Self" => Some(PathBase::SelfType),
-            "super" => Some(PathBase::SuperValue),
-            "Super" => Some(PathBase::SuperType),
             "module" => Some(PathBase::Module),
-            "package" => Some(PathBase::Package),
             _ => None,
         }
     }

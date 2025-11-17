@@ -512,7 +512,7 @@ pub enum Expression {
     /// </Level>
     /// ```
     TreeLiteral {
-        path: Option<Path>,
+        left: Option<NodeId<Expression>>,
         arguments: Option<Vec<NodeId<Argument>>>,
         elements: Option<Vec<NodeId<Argument>>>,
     },

@@ -166,7 +166,7 @@ impl<'a> Transpiler<'a> {
                     .into_any()
             }
 
-            dir::Expression::Path {
+            dir::Expression::UnresolvedPath {
                 path,
                 static_arguments,
             } => {
@@ -311,7 +311,7 @@ impl<'a> Transpiler<'a> {
                 let left_id = self
                     .transpile_expression(module, *left, unit)
                     .expect_node::<Expression>(left.into_any(), unit)?;
-                let path = self.transpile_path(module, expression_id.into_any(), path, unit)?;
+                let name = unit.strings.intern_from(&module.strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -323,7 +323,7 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let expression = Expression::Member {
                     left: left_id,
-                    path,
+                    name,
                     static_arguments,
                 };
                 unit.ast
@@ -390,7 +390,9 @@ impl<'a> Transpiler<'a> {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left_id = self.transpile_path(module, expression_id.into_any(), left, unit)?;
+                let left_id = self
+                    .transpile_expression(module, *left, unit)
+                    .expect_node::<Expression>(left.into_any(), unit)?;
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {

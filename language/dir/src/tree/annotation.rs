@@ -39,12 +39,14 @@ pub enum Annotation {
     /// Tag annotation (like `#Foo` or `#Foo(x: 1)`).
     Tag {
         position: AnnotationPosition,
+        left: Path,
         symbol: SymbolId,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         position: AnnotationPosition,
+        left: Path,
         symbol: SymbolId,
         arguments: Option<Vec<NodeId<Argument>>>,
     },

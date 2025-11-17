@@ -1,12 +1,13 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, Property};
+use dyst_dir::{Module, NodeId, Property, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower a property to a DIR property.
     pub(super) fn lower_property(
         &mut self,
         module: &Module,
+        scope_id: ScopeId,
         property_id: ast::NodeId<ast::Property>,
     ) -> NodeId<Property> {
         let property = module.get(property_id);
@@ -19,9 +20,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.lower_key(module, key));
-                let value = value.map(|value| self.lower_expression(module, value));
-                let default = default.map(|default| self.lower_expression(module, default));
+                let key = key.map(|key| self.lower_key(module, scope_id, key));
+                let value = value.map(|value| self.lower_expression(module, scope_id, value));
+                let default =
+                    default.map(|default| self.lower_expression(module, scope_id, default));
                 Property::Field {
                     modifiers,
                     key,
@@ -37,9 +39,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.lower_key(module, key));
-                let signature = self.lower_function_signature(module, signature);
-                let body = body.map(|body| self.lower_expression(module, body));
+                let key = key.map(|key| self.lower_key(module, scope_id, key));
+                let signature = self.lower_function_signature(module, scope_id, signature);
+                let body = body.map(|body| self.lower_expression(module, scope_id, body));
                 Property::Method {
                     modifiers,
                     key,
@@ -50,12 +52,12 @@ impl<'a> Compiler<'a> {
             ast::Property::Spread { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let value = self.lower_expression(module, *value);
+                let value = self.lower_expression(module, scope_id, *value);
                 Property::Spread { modifiers, value }
             }
         };
         self.session
             .tree
-            .insert_from_ast(property, module.id, property_id)
+            .insert_from_source(property, module.id, property_id)
     }
 }

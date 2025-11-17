@@ -77,6 +77,7 @@ pub enum Definition {
         generics: Generics,
         target_type: NodeId<Type>,
         heritage: Heritage,
+        scope: ScopeId,
         properties: Vec<NodeId<Property>>,
     },
 }
@@ -104,14 +105,14 @@ impl Definition {
     }
 
     /// Get the scope of the definition.
-    pub fn scope(&self) -> Option<ScopeId> {
+    pub fn scope(&self) -> ScopeId {
         match self {
-            Definition::Namespace { scope, .. } => Some(*scope),
-            Definition::Struct { scope, .. } => Some(*scope),
-            Definition::Enum { scope, .. } => Some(*scope),
-            Definition::Interface { scope, .. } => Some(*scope),
-            Definition::Function { scope, .. } => Some(*scope),
-            Definition::Implement { .. } => None,
+            Definition::Namespace { scope, .. } => *scope,
+            Definition::Struct { scope, .. } => *scope,
+            Definition::Enum { scope, .. } => *scope,
+            Definition::Interface { scope, .. } => *scope,
+            Definition::Function { scope, .. } => *scope,
+            Definition::Implement { scope, .. } => *scope,
         }
     }
 }

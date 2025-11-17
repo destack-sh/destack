@@ -358,7 +358,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
         _node_id: NodeId<Tag>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [token("#"), self.receiver])?;
+        write!(f, [token("#"), self.left])?;
         if let Some(arguments) = &self.arguments
             && !arguments.is_empty()
         {
@@ -384,7 +384,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         _node_id: NodeId<Decorator>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [token("@"), self.receiver])?;
+        write!(f, [token("@"), self.left])?;
         if let Some(arguments) = &self.arguments
             && !arguments.is_empty()
         {

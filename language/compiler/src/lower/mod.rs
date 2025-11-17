@@ -7,7 +7,6 @@ mod expression;
 mod function;
 mod key;
 mod literal;
-mod r#loop;
 mod r#match;
 mod module;
 mod operator;

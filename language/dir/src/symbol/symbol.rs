@@ -1,4 +1,4 @@
-use crate::{NodeId, NodeIdAny, NodeType, ScopeId, StringId, Type};
+use crate::{NodeId, NodeIdAny, ScopeId, StringId, Type};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -20,11 +20,6 @@ pub enum SymbolSpace {
     Value,
 }
 
-/// The kind of a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum SymbolKind {
-}
-
 /// Unique identifier for Symbols.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -37,23 +32,22 @@ impl SymbolId {
     }
 }
 
-/// A Symbol is a named, bindable item in a scope.
+/// A Symbol is a bindable item in a scope (which may also declare a scope).
+/// Some symbols are virtual / anonymous (like block targets).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
     /// The id of the symbol.
     pub id: SymbolId,
-    /// The kind of the symbol.
-    pub kind: SymbolKind,
-    /// The name of the symbol.
-    pub name: Option<StringId>,
-    /// The key of the symbol.
-    pub key: SymbolKey,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
+    /// The key of the symbol.
+    pub key: Option<SymbolKey>,
     /// The scope that introduces the symbol.
     pub scope: ScopeId,
+    /// The owned scope of the symbol.
+    pub owned_scope: Option<ScopeId>,
     /// The main declaration node of the symbol.
-    pub primary_declaration: NodeIdAny,
+    pub primary_declaration: Option<NodeIdAny>,
     /// Secondary declaration nodes of the symbol.
     pub secondary_declarations: Vec<NodeIdAny>,
     /// The declared type of the symbol.
@@ -65,9 +59,12 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    /// Get the node type of the primary declaration.
+    /// Get the name of the symbol.
     #[inline]
-    pub fn primary_declaration_type(&self) -> NodeType {
-        self.primary_declaration.ty
+    pub fn name(&self) -> Option<StringId> {
+        match self.key {
+            Some(SymbolKey::Name(name)) => Some(name),
+            _ => None,
+        }
     }
 }

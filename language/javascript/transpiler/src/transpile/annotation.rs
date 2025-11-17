@@ -41,11 +41,17 @@ impl<'a> Transpiler<'a> {
             // (since there is no real equivalent in JS for remaining unresolved tags/decorators)
             dir::Annotation::Tag {
                 position,
-                symbol,
+                left,
+                symbol: _,
+                arguments: _,
+            }
+            | dir::Annotation::UnresolvedTag {
+                position,
+                left,
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, receiver, unit)?;
+                let receiver = self.transpile_path(module, scope_id, left, unit)?;
                 let receiver_str = format!("#{}", self.render_path(&receiver, unit));
                 let receiver_str = unit.strings.intern(receiver_str);
                 Annotation::Comment {
@@ -55,11 +61,17 @@ impl<'a> Transpiler<'a> {
             }
             dir::Annotation::Decorator {
                 position,
-                receiver,
+                left,
+                symbol: _,
+                arguments: _,
+            }
+            | dir::Annotation::UnresolvedDecorator {
+                position,
+                left,
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, receiver, unit)?;
+                let receiver = self.transpile_path(module, scope_id, left, unit)?;
                 let receiver_str = format!("@{}", self.render_path(&receiver, unit));
                 let receiver_str = unit.strings.intern(receiver_str);
                 Annotation::Comment {

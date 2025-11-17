@@ -3,18 +3,15 @@ use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::Path;
 use dyst_source::{SmallVec, smallvec};
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR path base into a JS string.
     pub fn transpile_path_base(&self, base: dir::PathBase, unit: &mut TranspilerUnit) -> StringId {
         let string = match base {
-            dir::PathBase::SelfType => "self",
+            dir::PathBase::SelfType => "Self",
             dir::PathBase::SelfValue => "this",
-            dir::PathBase::SuperType => "super",
-            dir::PathBase::SuperValue => "super",
             dir::PathBase::Module => "module",
-            dir::PathBase::Package => "package",
         };
         unit.strings.intern(string)
     }
@@ -23,7 +20,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_path(
         &self,
         _module: &'a Module,
-        scope_id: dir::NodeIdAny,
+        _scope_id: dir::NodeIdAny,
         path: &dir::Path,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
@@ -49,13 +46,6 @@ impl<'a> Transpiler<'a> {
                     .map(|segment| unit.strings.intern_from(&self.session.strings, *segment))
                     .collect();
                 Path { segments }
-            }
-
-            _ => {
-                return Err(TranspileError::UnsupportedPath {
-                    node: scope_id,
-                    path: path.clone(),
-                });
             }
         };
 

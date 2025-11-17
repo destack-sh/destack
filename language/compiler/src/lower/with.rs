@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, WithClause};
+use dyst_dir::{Module, NodeId, ScopeId, WithClause};
 
 use crate::Compiler;
 
@@ -8,15 +8,16 @@ impl<'a> Compiler<'a> {
     pub(super) fn lower_with_clause(
         &mut self,
         module: &Module,
+        scope_id: ScopeId,
         with_clause_id: ast::NodeId<ast::WithClause>,
     ) -> NodeId<WithClause> {
         let with_clause = module.get(with_clause_id);
         let alias = with_clause
             .alias
             .map(|alias| self.session.strings.intern_from(&module.strings, alias));
-        let right = self.lower_expression(module, with_clause.right);
+        let right = self.lower_expression(module, scope_id, with_clause.right);
         self.session
             .tree
-            .insert_from_ast(WithClause { alias, right }, module.id, with_clause_id)
+            .insert_from_source(WithClause { alias, right }, module.id, with_clause_id)
     }
 }

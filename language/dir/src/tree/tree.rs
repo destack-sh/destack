@@ -6,8 +6,9 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Scope,
-    ScopeId, Symbol, SymbolId, Type, TypeField, WhereClause, WithClause,
+    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField,
+    Property, Scope, ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField,
+    WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -124,7 +125,7 @@ impl MutableNodeTree {
             symbols: Arena::new(),
             scopes: Arena::new(),
 
-            symbol_by_node_id: Vec::with_capacity(capacity),    
+            symbol_by_node_id: Vec::with_capacity(capacity),
             scope_by_node_id: Vec::with_capacity(capacity),
             static_type_by_node_id: Vec::with_capacity(capacity),
         }
@@ -175,6 +176,24 @@ impl MutableNodeTree {
         let node_id = self.insert(node, module_id);
         self.source_id_by_node_id.push(None);
         self.alias_node_id_by_node_id.insert(node_id.id, node_id.id);
+        node_id
+    }
+
+    /// Allocate a new node in the DIR tree derived from a source AST node as the primary declaration.
+    pub fn insert_from_source_as_symbol<T, U>(
+        &mut self,
+        node: T,
+        module_id: ModuleId,
+        ast_node_id: ast::NodeId<U>,
+        symbol_id: SymbolId,
+    ) -> NodeId<T>
+    where
+        T: Node + Clone,
+        Self: MutableNodeTreeImpl<T>,
+        U: ast::Node,
+    {
+        let node_id = self.insert_from_source(node, module_id, ast_node_id);
+        self.symbols.get_mut(symbol_id.0).primary_declaration = Some(node_id.into_any());
         node_id
     }
 
@@ -288,12 +307,63 @@ impl MutableNodeTree {
             .unwrap_or_else(Vec::new)
     }
 
-    /// Insert a symbol into the tree.
-    pub fn insert_symbol(&mut self, symbol: Symbol) -> SymbolId {
-        let symbol_id = self.next_symbol_id;
-        self.next_symbol_id = symbol_id + 1;
+    /// Create a new symbol in the tree.
+    pub fn create_symbol(
+        &mut self,
+        space: SymbolSpace,
+        key: Option<SymbolKey>,
+        scope: ScopeId,
+    ) -> SymbolId {
+        let symbol_id = SymbolId::new(self.next_symbol_id);
+        self.next_symbol_id += 1;
+        let symbol = Symbol {
+            id: symbol_id,
+            space,
+            key,
+            scope,
+            owned_scope: None,
+            primary_declaration: None,
+            secondary_declarations: Vec::new(),
+            declared_ty: None,
+            inferred_ty: None,
+            target: None,
+        };
         self.symbols.push(symbol);
-        SymbolId::new(symbol_id)
+        symbol_id
+    }
+
+    /// Create a new scope in the tree.
+    pub fn create_scope(
+        &mut self,
+        kind: ScopeKind,
+        parent: Option<ScopeId>,
+        owner: Option<SymbolId>,
+    ) -> ScopeId {
+        let scope_id = ScopeId::new(self.next_scope_id);
+        self.next_scope_id += 1;
+        let scope = Scope {
+            id: scope_id,
+            kind,
+            owner,
+            parent,
+            symbols: HashMap::new(),
+            children: Vec::new(),
+        };
+        self.scopes.push(scope);
+        scope_id
+    }
+
+    /// Create a new symbol with a scope.
+    pub fn create_symbol_with_scope(
+        &mut self,
+        space: SymbolSpace,
+        key: Option<SymbolKey>,
+        kind: ScopeKind,
+        scope: ScopeId,
+    ) -> (SymbolId, ScopeId) {
+        let symbol_id = self.create_symbol(space, key, scope);
+        let scope_id = self.create_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id)
     }
 
     /// Set the symbol for a node.
@@ -308,12 +378,10 @@ impl MutableNodeTree {
         self.symbols.get(symbol_id.0)
     }
 
-    /// Insert a scope into the tree.
-    pub fn insert_scope(&mut self, scope: Scope) -> ScopeId {
-        let scope_id = self.next_scope_id;
-        self.next_scope_id = scope_id + 1;
-        self.scopes.push(scope);
-        ScopeId::new(scope_id)
+    /// Get the symbol mutable by its id.
+    #[inline]
+    pub fn get_symbol_mut(&mut self, symbol_id: SymbolId) -> &mut Symbol {
+        self.symbols.get_mut(symbol_id.0)
     }
 
     /// Get the scope for a node id.
@@ -331,6 +399,12 @@ impl MutableNodeTree {
     #[inline]
     pub fn get_scope_by_id(&self, scope_id: ScopeId) -> &Scope {
         self.scopes.get(scope_id.0)
+    }
+
+    /// Get the scope mutable by its id.
+    #[inline]
+    pub fn get_scope_by_id_mut(&mut self, scope_id: ScopeId) -> &mut Scope {
+        self.scopes.get_mut(scope_id.0)
     }
 
     /// Get the scope for a node by its id.
@@ -456,7 +530,8 @@ impl SharedNodeTree {
     }
 
     /// Allocate a new node in the DIR tree lowered from a source AST node.
-    pub fn insert_from_ast<T, U>(
+    #[inline]
+    pub fn insert_from_source<T, U>(
         &self,
         node: T,
         module_id: ModuleId,
@@ -471,10 +546,29 @@ impl SharedNodeTree {
         tree.insert_from_source(node, module_id, ast_node_id)
     }
 
-    /// Allocate a new node in the DIR tree derived from another DIR node.
-    pub fn insert_from_dir<T, U>(&self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    /// Allocate a new node in the DIR tree derived from a source AST node as the primary declaration.
+    #[inline]
+    pub fn insert_from_source_as_symbol<T, U>(
+        &self,
+        node: T,
+        module_id: ModuleId,
+        ast_node_id: ast::NodeId<U>,
+        symbol_id: SymbolId,
+    ) -> NodeId<T>
     where
-        T: Node,
+        T: Node + Clone,
+        MutableNodeTree: MutableNodeTreeImpl<T>,
+        U: ast::Node,
+    {
+        let mut tree = self.write();
+        tree.insert_from_source_as_symbol(node, module_id, ast_node_id, symbol_id)
+    }
+
+    /// Allocate a new node in the DIR tree derived from another DIR node.
+    #[inline]
+    pub fn insert_from<T, U>(&self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    where
+        T: Node + Clone,
         MutableNodeTree: MutableNodeTreeImpl<T>,
         U: Node,
     {
@@ -483,9 +577,10 @@ impl SharedNodeTree {
     }
 
     /// Add an alias node for a lowered AST id.
+    #[inline]
     pub fn alias_from_source<T>(&self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
     where
-        T: Node,
+        T: Node + Clone,
         MutableNodeTree: MutableNodeTreeImpl<T>,
     {
         let mut tree = self.write();
@@ -523,33 +618,75 @@ impl SharedNodeTree {
 
     /// Get the source and AST id of a node by its global id.
     /// Every DIR node has a source, but only some come directly from AST nodes.
+    #[inline]
     pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
         let tree = self.read();
         tree.get_source(node_id)
     }
 
     /// Get the node id by its source / AST id.
+    #[inline]
     pub fn get_node_id_by_source_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
         let tree = self.read();
         tree.get_node_id_by_source_id(module_id, ast_id)
     }
 
     /// Append a doc to a node by its global id.
+    #[inline]
     pub fn append_annotation(&self, target_id: u32, annotation: NodeId<Annotation>) {
         let mut tree = self.write();
         tree.append_annotation(target_id, annotation);
     }
 
     /// Whether there are any annotations attached to a node.
+    #[inline]
     pub fn has_annotations(&self, node_id: u32) -> bool {
         let tree = self.read();
         tree.has_annotations(node_id)
     }
 
     /// Get annotations attached to a node.
+    #[inline]
     pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
         let tree = self.read();
         tree.get_annotations(node_id)
+    }
+
+    /// Create a new symbol in the DIR tree.
+    #[inline]
+    pub fn create_symbol(
+        &self,
+        space: SymbolSpace,
+        key: Option<SymbolKey>,
+        scope: ScopeId,
+    ) -> SymbolId {
+        let mut tree = self.write();
+        tree.create_symbol(space, key, scope)
+    }
+
+    /// Create a new scope in the tree.
+    #[inline]
+    pub fn create_scope(
+        &self,
+        kind: ScopeKind,
+        parent: Option<ScopeId>,
+        owner: Option<SymbolId>,
+    ) -> ScopeId {
+        let mut tree = self.write();
+        tree.create_scope(kind, parent, owner)
+    }
+
+    /// Create a new symbol with a scope.
+    #[inline]
+    pub fn create_symbol_with_scope(
+        &self,
+        space: SymbolSpace,
+        key: Option<SymbolKey>,
+        kind: ScopeKind,
+        scope: ScopeId,
+    ) -> (SymbolId, ScopeId) {
+        let mut tree = self.write();
+        tree.create_symbol_with_scope(space, key, kind, scope)
     }
 }
 

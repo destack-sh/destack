@@ -189,7 +189,7 @@ impl ParserOptions {
             ..self
         }
     }
-    
+
     /// Set `left_precedence=precedence`.
     #[inline]
     pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
@@ -409,6 +409,14 @@ impl<'a> Parser<'a> {
             start: start_token.span.start,
             end: end_token.span.end,
         }
+    }
+
+    /// Get the span between two marks.
+    #[inline]
+    pub fn get_span_between(&self, start: ParserMark, end: ParserMark) -> Span {
+        let start_token = self.tokens[start.pos];
+        let end_token = self.tokens[end.pos];
+        Span::new(self.file_id, start_token.span.start, end_token.span.end)
     }
 
     /// Gets the str source backing a Span.
