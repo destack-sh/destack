@@ -106,11 +106,17 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             Type::Scalar(scalar) => {
                 write!(f, [scalar])?;
             }
-            Type::Definition(definition) => {
-                let alias = f
-                    .context()
-                    .get_alias_to_definition(node_id.into(), *definition);
-                write!(f, [alias])?;
+            Type::Path {
+                path,
+                static_arguments,
+            } => {
+                write!(f, [path])?;
+                if let Some(static_arguments) = static_arguments {
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                }
+            }
+            Type::Expression(expression) => {
+                write!(f, [expression])?;
             }
 
             Type::Unary { operator, right } => {

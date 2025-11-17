@@ -1,7 +1,7 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    MutableNodeTree, NodeId, PostfixPosition, Property, TypeKind, TypeUnaryOperator,
-    WhileKind, YieldCardinality,
+    MutableNodeTree, NodeId, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
+    YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
@@ -164,11 +164,11 @@ fn format_member_expression<'ast>(
 ) -> FormatResult<()> {
     if let Expression::Member {
         left,
-        path,
+        name,
         static_arguments,
     } = f.context().tree.get(node_id)
     {
-        write!(f, [*left, token("."), path.clone()])?;
+        write!(f, [*left, token("."), *name])?;
         if let Some(static_arguments) = static_arguments {
             write!(f, [list_like("<", ">", ",", static_arguments)])?;
         }
@@ -523,8 +523,8 @@ pub(crate) fn format_expression_chain<'ast>(
     // convert the chain into individual chain expression
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
-            Expression::Member { path, .. } => ChainExpression::Member {
-                segment: path.segments[0],
+            Expression::Member { name, .. } => ChainExpression::Member {
+                segment: *name,
                 static_arguments: None,
             },
             Expression::Call {
@@ -687,9 +687,7 @@ pub fn is_trivial_expression(tree: &MutableNodeTree, expression: &Expression) ->
             variance: _,
             right,
         } => is_trivial_expression(tree, tree.get(*right)),
-        Expression::Member { left, path, .. } => {
-            is_trivial_expression(tree, tree.get(*left)) && path.segments.len() <= 3
-        }
+        Expression::Member { left, .. } => is_trivial_expression(tree, tree.get(*left)),
         Expression::Path {
             path,
             static_arguments,

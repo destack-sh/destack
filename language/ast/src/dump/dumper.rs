@@ -987,11 +987,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Member {
                 left: _,
-                path,
+                name,
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", _id.id)
-                    .field("path", path)
+                    .field("name", name)
                     .end();
             }
             Expression::Index {

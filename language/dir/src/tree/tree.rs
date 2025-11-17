@@ -6,9 +6,9 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField,
-    Property, Scope, ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField,
-    WhereClause, WithClause,
+    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Scope,
+    ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField, WhereClause,
+    WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -329,6 +329,9 @@ impl MutableNodeTree {
             target: None,
         };
         self.symbols.push(symbol);
+        if let Some(key) = key {
+            self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
+        }
         symbol_id
     }
 
@@ -350,6 +353,9 @@ impl MutableNodeTree {
             children: Vec::new(),
         };
         self.scopes.push(scope);
+        if let Some(parent) = parent {
+            self.scopes.get_mut(parent.0).insert_child_scope(scope_id);
+        }
         scope_id
     }
 

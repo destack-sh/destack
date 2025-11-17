@@ -1,6 +1,6 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyItem, DependencySource, Expression, ForEachKind, IfKind, LoopKind, MatchSource,
+    DependencyItem, Expression, ForEachKind, IfKind, LoopKind, MatchSource,
     Module, NodeId, Path, PathBase, ScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
 };
 
@@ -348,23 +348,22 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::Member {
                 left,
-                path,
+                name,
                 static_arguments,
             } => {
-                // let left = self.lower_expression(module, scope_id, *left);
-                // let path = self.lower_path(module, path);
-                // let static_arguments = static_arguments.as_ref().map(|arguments| {
-                //     arguments
-                //         .iter()
-                //         .map(|argument| self.lower_argument(module, scope_id, *argument))
-                //         .collect()
-                // });
-                // Expression::UnresolvedMember {
-                //     left,
-                //     name,
-                //     static_arguments,
-                // }
-                todo!("nocheckin")
+                let left = self.lower_expression(module, scope_id, *left);
+                let name = self.session.strings.intern_from(&module.strings, *name);
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| self.lower_argument(module, scope_id, *argument))
+                        .collect()
+                });
+                Expression::UnresolvedMember {
+                    left,
+                    name,
+                    static_arguments,
+                }
             }
             ast::Expression::Call {
                 position: _,

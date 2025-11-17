@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Generics, Heritage, Mutability, NodeId, Type};
+use dyst_javascript_ast::{Expression, Generics, Heritage, Mutability, NodeId, Type, TypeLiteral};
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a mutability from DIR into JS AST.
@@ -67,16 +67,61 @@ impl<'a> Transpiler<'a> {
         Ok(heritage)
     }
 
+    /// Transpile a type literal from DIR into JS AST.
+    pub fn transpile_type_literal(
+        &self,
+        ty_id: dir::NodeId<dir::Type>,
+        literal: &dir::TypeLiteral,
+        unit: &mut TranspilerUnit,
+    ) -> TranspileResult<TypeLiteral> {
+        let literal = match literal {
+            dir::TypeLiteral::Never => TypeLiteral::Never,
+            dir::TypeLiteral::Any => TypeLiteral::Any,
+            dir::TypeLiteral::Undefined => TypeLiteral::Undefined,
+            dir::TypeLiteral::Unknown => TypeLiteral::Unknown,
+            dir::TypeLiteral::Void => TypeLiteral::Void,
+            dir::TypeLiteral::Null => TypeLiteral::Null,
+            _ => {
+                return Err(TranspileError::UnsupportedNode {
+                    node: ty_id.into_any(),
+                    message: None,
+                });
+            }
+        };
+        Ok(literal)
+    }
+
+    // nocheckin
+
     /// Transpile a type from DIR into JS AST.
     pub fn transpile_type(
         &self,
-        _module: &'a Module,
-        type_id: dir::NodeId<dir::Type>,
-        _unit: &mut TranspilerUnit,
+        module: &'a Module,
+        ty_id: dir::NodeId<dir::Type>,
+        unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Type>> {
-        Err(TranspileError::UnsupportedNode {
-            node: type_id.into_any(),
-            message: None,
-        })
+        let ty = self.session.tree.get(ty_id);
+        let ty = match ty.as_ref() {
+            dir::Type::Scalar(scalar) => {
+                let literal = self.transpile_type_literal(ty_id, scalar, unit)?;
+                Type::Scalar(literal)
+            }
+            dir::Type::UnresolvedExpression(expression) => {
+                let expression = self
+                    .transpile_expression(module, *expression, unit)
+                    .expect_node::<Expression>(expression.into_any(), unit)?;
+                Type::Expression(expression)
+            }
+
+            _ => {
+                return Err(TranspileError::UnsupportedNode {
+                    node: ty_id.into_any(),
+                    message: None,
+                });
+            }
+        };
+
+        let ty_id = unit.ast.insert_from_source(ty, module.id, ty_id);
+        Ok(ty_id)
     }
 }

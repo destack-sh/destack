@@ -918,10 +918,19 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
     match ty {
         Type::Scalar(_) => {}
-        Type::Definition(definition_id) => {
-            if visitor.options().visit_indirect {
-                let definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, definition);
+        Type::Expression(expression) => {
+            let expression_expr = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_expr);
+        }
+        Type::Path {
+            path: _,
+            static_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
             }
         }
 
