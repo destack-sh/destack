@@ -8,7 +8,7 @@ use dyst_dir::{
 impl<'a> Compiler<'a> {
     /// Lower visibility into a DIR visibility.
     #[inline]
-    pub fn lower_visibility(&self, visibility: ast::Visibility) -> Visibility {
+    pub(super) fn lower_visibility(&self, visibility: ast::Visibility) -> Visibility {
         match visibility {
             ast::Visibility::Public => Visibility::Public,
             ast::Visibility::Protected => Visibility::Protected,
@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower declaration kind to DIR declaration kind.
-    pub fn lower_declaration_kind(&mut self, kind: ast::DeclarationKind) -> DeclarationKind {
+    pub(super) fn lower_declaration_kind(&mut self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {
             ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
             ast::DeclarationKind::Definition => DeclarationKind::Definition,
@@ -25,7 +25,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower binding scope to DIR binding scope.
-    pub fn lower_binding_scope(&mut self, scope: ast::BindingScope) -> BindingScope {
+    pub(super) fn lower_binding_scope(&mut self, scope: ast::BindingScope) -> BindingScope {
         match scope {
             ast::BindingScope::Static => BindingScope::Static,
             ast::BindingScope::Instance => BindingScope::Instance,
@@ -35,7 +35,7 @@ impl<'a> Compiler<'a> {
     /// Lower expression to DIR definition (if it's maybe a definition).
     /// If the expression can't possibly resolve to a definition, returns `None`.
     /// (Like for a scalar literal)
-    pub fn lower_expression_to_definition_maybe(
+    pub(super) fn lower_expression_to_definition_maybe(
         &mut self,
         module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower AST definition descriptor into DIR definition descriptor.
-    pub fn lower_declaration_descriptor(
+    pub(super) fn lower_declaration_descriptor(
         &mut self,
         module: &Module,
         descriptor: &ast::DeclarationDescriptor,
@@ -80,7 +80,7 @@ impl<'a> Compiler<'a> {
     /// Lower a definition to a DIR definition.
     /// Lower an AST definition to a DIR definition.
     /// Handles modules, structs, and enums.
-    pub fn lower_definition(
+    pub(super) fn lower_definition(
         &mut self,
         module: &Module,
         definition_id: ast::NodeId<ast::Definition>,
@@ -224,7 +224,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an AST enum field into a DIR enum field.
-    pub fn lower_enum_field(
+    pub(super) fn lower_enum_field(
         &mut self,
         module: &Module,
         field_id: ast::NodeId<ast::EnumField>,

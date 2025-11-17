@@ -8,7 +8,7 @@ use dyst_source::StringId;
 
 impl<'a> Compiler<'a> {
     /// Lower a an expression into a type (without evaluating it at all).
-    pub fn lower_expression_to_type(
+    pub(super) fn lower_expression_to_type(
         &mut self,
         module: &Module,
         expression_id: ast::NodeId<ast::Expression>,
@@ -25,18 +25,9 @@ impl<'a> Compiler<'a> {
         type_id
     }
 
-    /// Lower reference type into a DIR reference type.
-    #[inline]
-    pub fn lower_reference_type(&self, reference_type: ast::ReferenceType) -> ReferenceType {
-        match reference_type {
-            ast::ReferenceType::Value => ReferenceType::Value,
-            ast::ReferenceType::Reference => ReferenceType::Reference,
-        }
-    }
-
     /// Lower mutability into a DIR mutability.
     #[inline]
-    pub fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
+    pub(super) fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
@@ -44,7 +35,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a TypeKind to a DIR type kind.
-    pub fn lower_type_kind(&mut self, kind: ast::TypeKind) -> TypeKind {
+    pub(super) fn lower_type_kind(&mut self, kind: ast::TypeKind) -> TypeKind {
         match kind {
             ast::TypeKind::Structural => TypeKind::Structural,
             ast::TypeKind::Nominal => TypeKind::Nominal,
@@ -52,7 +43,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a VarianceBound to a DIR variance bound.
-    pub fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
+    pub(super) fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
         match bound {
             ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
@@ -61,7 +52,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower AST definition generics into DIR definition generics.
-    pub fn lower_generics(&mut self, module: &Module, generics: &ast::Generics) -> Generics {
+    pub(super) fn lower_generics(&mut self, module: &Module, generics: &ast::Generics) -> Generics {
         let static_parameters = generics
             .static_parameters
             .as_ref()
@@ -91,7 +82,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower AST heritage into DIR heritage.
-    pub fn lower_heritage(&mut self, module: &Module, heritage: &ast::Heritage) -> Heritage {
+    pub(super) fn lower_heritage(&mut self, module: &Module, heritage: &ast::Heritage) -> Heritage {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
                 .iter()
@@ -121,7 +112,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an expression string into a DIR type literal.
-    pub fn lower_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
+    pub(super) fn lower_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
         let string = self.session.strings.get(string_id);
 
         // NOTE: we map the string to an AST type literal first

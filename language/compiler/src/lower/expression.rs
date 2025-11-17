@@ -7,18 +7,9 @@ use dyst_dir::{
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower runtime into a DIR runtime.
-    #[inline]
-    pub fn lower_runtime(&self, runtime: ast::Runtime) -> Runtime {
-        match runtime {
-            ast::Runtime::Dynamic => Runtime::Dynamic,
-            ast::Runtime::Static => Runtime::Static,
-        }
-    }
-
     /// Lower if kind into a DIR if kind.
     #[inline]
-    pub fn lower_if_kind(&self, kind: ast::IfKind) -> IfKind {
+    pub(super) fn lower_if_kind(&self, kind: ast::IfKind) -> IfKind {
         match kind {
             ast::IfKind::If => IfKind::If,
             ast::IfKind::Ternary => IfKind::Ternary,
@@ -26,7 +17,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an expression to a DIR expression.
-    pub fn lower_expression(
+    pub(super) fn lower_expression(
         &mut self,
         module: &Module,
         expression_id: ast::NodeId<ast::Expression>,

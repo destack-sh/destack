@@ -8,7 +8,7 @@ use dyst_dir::{
 impl<'a> Compiler<'a> {
     /// Lower function kind into a DIR function kind.
     #[inline]
-    pub fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
+    pub(super) fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
         match kind {
             ast::FunctionKind::Function => FunctionKind::Function,
             ast::FunctionKind::Lambda => FunctionKind::Lambda,
@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower asynchrony into a DIR asynchrony.
     #[inline]
-    pub fn lower_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
+    pub(super) fn lower_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
         match asynchrony {
             ast::Asynchrony::Sync => Asynchrony::Sync,
             ast::Asynchrony::Async => Asynchrony::Async,
@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower function cardinality into a DIR function cardinality.
     #[inline]
-    pub fn lower_function_cardinality(
+    pub(super) fn lower_function_cardinality(
         &self,
         cardinality: ast::FunctionCardinality,
     ) -> FunctionCardinality {
@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower function mode into a DIR function mode.
     #[inline]
-    pub fn lower_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
+    pub(super) fn lower_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
         match mode {
             ast::FunctionMode::Getter => FunctionMode::Getter,
             ast::FunctionMode::Setter => FunctionMode::Setter,
@@ -50,7 +50,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower function abstraction into a DIR function abstraction.
     #[inline]
-    pub fn lower_function_abstraction(
+    pub(super) fn lower_function_abstraction(
         &self,
         abstraction: ast::FunctionAbstraction,
     ) -> FunctionAbstraction {
@@ -63,7 +63,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower function signature into a DIR function signature.
-    pub fn lower_function_signature(
+    pub(super) fn lower_function_signature(
         &mut self,
         module: &Module,
         signature: &ast::FunctionSignature,

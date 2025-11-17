@@ -7,7 +7,7 @@ use dyst_dir::{
 
 impl<'a> Compiler<'a> {
     /// Lower a scalar literal to a DIR scalar literal.
-    pub fn lower_scalar_literal(
+    pub(super) fn lower_scalar_literal(
         &mut self,
         module: &Module,
         scalar_literal: &ast::ScalarLiteral,
@@ -36,7 +36,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a template literal to a DIR template literal.
-    pub fn lower_template_literal(
+    pub(super) fn lower_template_literal(
         &mut self,
         module: &Module,
         template_literal: &ast::TemplateLiteral,
@@ -86,7 +86,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an int type to a DIR int type.
-    pub fn lower_int_type(&self, int_type: &ast::IntType) -> IntType {
+    pub(super) fn lower_int_type(&self, int_type: &ast::IntType) -> IntType {
         match int_type {
             // pointer
             ast::IntType::Pointer { is_signed: true } => IntType::IntP,
@@ -159,7 +159,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a float type to a DIR float type.
-    pub fn lower_float_type(&self, float_type: &ast::FloatType) -> FloatType {
+    pub(super) fn lower_float_type(&self, float_type: &ast::FloatType) -> FloatType {
         match float_type {
             ast::FloatType { width: Some(16) } => FloatType::Float16,
             ast::FloatType { width: Some(32) } => FloatType::Float32,
@@ -174,7 +174,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a composite type to a DIR composite type.
-    pub fn lower_definition_type(&self, composite_type: &ast::DefinitionType) -> DefinitionType {
+    pub(super) fn lower_definition_type(&self, composite_type: &ast::DefinitionType) -> DefinitionType {
         match composite_type {
             ast::DefinitionType::Type => DefinitionType::Type,
             ast::DefinitionType::Namespace => DefinitionType::Namespace,
@@ -189,7 +189,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a type literal to a DIR type literal.
-    pub fn lower_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
+    pub(super) fn lower_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
         match type_literal {
             ast::TypeLiteral::Any => TypeLiteral::Any,
             ast::TypeLiteral::Never => TypeLiteral::Never,
