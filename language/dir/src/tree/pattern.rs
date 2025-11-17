@@ -1,4 +1,4 @@
-use crate::{Block, Expression, Mutability, Node, NodeId, NodeType, StringId, Type};
+use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId, SymbolId, Type};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -52,58 +52,25 @@ impl Node for Pattern {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
-    Named {
+    UnresolvedNamed {
         mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
         default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
     },
     /// Named field with an alias (like `x: y`).
-    Alias {
+    UnresolvedAlias {
         mutability: Option<Mutability>,
         name: StringId,
         alias: StringId,
         default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
-    Positional { pattern: NodeId<Pattern> },
+    UnresolvedPositional { pattern: NodeId<Pattern> },
 }
 
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
-}
-
-/// A MatchSource is where the match was lowered from.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum MatchSource {
-    /// Match expression (regular match with cases).
-    Match,
-    /// Explicit try expression or block (`try { ... }` with optional catch).
-    Try,
-    /// Maybe unary expression (postfix `?`).
-    Maybe,
-    /// Must unary expression (postfix `!`).
-    Must,
-}
-
-/// A MatchCase is a match case inside a Match expression.
-/// MatchCases can be any Pattern and can have an optional `if` guard.
-#[derive(Debug, Clone, PartialEq)]
-pub enum MatchCase {
-    /// A match case with an expression body.
-    Expression {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Expression>,
-        guard: Option<NodeId<Expression>>,
-    },
-    /// A match case with a block body.
-    Block {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Block>,
-        guard: Option<NodeId<Expression>>,
-    },
-}
-
-impl Node for MatchCase {
-    const TYPE: NodeType = NodeType::MatchCase;
 }

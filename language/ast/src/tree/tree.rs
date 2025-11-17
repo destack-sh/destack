@@ -5,7 +5,7 @@ use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeArena, NodeId, NodeType,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, Arena, NodeId, NodeType,
     Parameter, Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
 
@@ -19,30 +19,30 @@ pub struct MutableNodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
     /// The spans of the NodeTree.
     pub source_map: FileSourceMap,
 
-    // per-node arenas
-    pub(crate) expressions: NodeArena<Expression>,
-    pub(crate) blocks: NodeArena<Block>,
-    pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) properties: NodeArena<Property>,
-    pub(crate) enum_fields: NodeArena<EnumField>,
-    pub(crate) with_clauses: NodeArena<WithClause>,
-    pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) dependency_items: NodeArena<DependencyItem>,
-    pub(crate) parameters: NodeArena<Parameter>,
-    pub(crate) arguments: NodeArena<Argument>,
-    pub(crate) match_cases: NodeArena<MatchCase>,
-    pub(crate) patterns: NodeArena<Pattern>,
-    pub(crate) pattern_fields: NodeArena<PatternField>,
-    pub(crate) annotations: NodeArena<Annotation>,
-    pub(crate) blanks: NodeArena<Blank>,
-    pub(crate) docs: NodeArena<Doc>,
-    pub(crate) comments: NodeArena<Comment>,
-    pub(crate) tags: NodeArena<Tag>,
-    pub(crate) decorators: NodeArena<Decorator>,
+    // node arenas
+    pub(crate) expressions: Arena<Expression>,
+    pub(crate) blocks: Arena<Block>,
+    pub(crate) definitions: Arena<Definition>,
+    pub(crate) properties: Arena<Property>,
+    pub(crate) enum_fields: Arena<EnumField>,
+    pub(crate) with_clauses: Arena<WithClause>,
+    pub(crate) where_clauses: Arena<WhereClause>,
+    pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) parameters: Arena<Parameter>,
+    pub(crate) arguments: Arena<Argument>,
+    pub(crate) match_cases: Arena<MatchCase>,
+    pub(crate) patterns: Arena<Pattern>,
+    pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) annotations: Arena<Annotation>,
+    pub(crate) blanks: Arena<Blank>,
+    pub(crate) docs: Arena<Doc>,
+    pub(crate) comments: Arena<Comment>,
+    pub(crate) tags: Arena<Tag>,
+    pub(crate) decorators: Arena<Decorator>,
 }
 
 impl Debug for MutableNodeTree {
@@ -72,27 +72,27 @@ impl MutableNodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
-            annotations_per_node_id: HashMap::new(),
+            annotations_by_node_id: HashMap::new(),
             source_map: FileSourceMap::new(),
-            expressions: NodeArena::new(),
-            blocks: NodeArena::new(),
-            definitions: NodeArena::new(),
-            properties: NodeArena::new(),
-            enum_fields: NodeArena::new(),
-            with_clauses: NodeArena::new(),
-            where_clauses: NodeArena::new(),
-            dependency_items: NodeArena::new(),
-            parameters: NodeArena::new(),
-            arguments: NodeArena::new(),
-            match_cases: NodeArena::new(),
-            patterns: NodeArena::new(),
-            pattern_fields: NodeArena::new(),
-            annotations: NodeArena::new(),
-            blanks: NodeArena::new(),
-            docs: NodeArena::new(),
-            comments: NodeArena::new(),
-            tags: NodeArena::new(),
-            decorators: NodeArena::new(),
+            expressions: Arena::new(),
+            blocks: Arena::new(),
+            definitions: Arena::new(),
+            properties: Arena::new(),
+            enum_fields: Arena::new(),
+            with_clauses: Arena::new(),
+            where_clauses: Arena::new(),
+            dependency_items: Arena::new(),
+            parameters: Arena::new(),
+            arguments: Arena::new(),
+            match_cases: Arena::new(),
+            patterns: Arena::new(),
+            pattern_fields: Arena::new(),
+            annotations: Arena::new(),
+            blanks: Arena::new(),
+            docs: Arena::new(),
+            comments: Arena::new(),
+            tags: Arena::new(),
+            decorators: Arena::new(),
         }
     }
 
@@ -285,7 +285,7 @@ impl MutableNodeTree {
     #[inline]
     pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .entry(target_id)
             .or_default()
             .push(annotation);
@@ -294,13 +294,13 @@ impl MutableNodeTree {
     /// Whether there are any annotations attached to a node.
     #[inline]
     pub fn has_annotations(&self, node_id: u32) -> bool {
-        self.annotations_per_node_id.contains_key(&node_id)
+        self.annotations_by_node_id.contains_key(&node_id)
     }
 
     /// Get annotations attached to a node.
     #[inline]
     pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
@@ -309,13 +309,13 @@ impl MutableNodeTree {
     /// Get all annotations.
     #[inline]
     pub fn get_all_annotations(&self) -> &HashMap<u32, Vec<NodeId<Annotation>>> {
-        &self.annotations_per_node_id
+        &self.annotations_by_node_id
     }
 
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .values_mut()
             .for_each(|annotations| {
                 annotations.sort_by_key(|annotation| self.source_map.get(annotation.id).start)

@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Definition, Expression, Node, NodeId, NodeType};
+use crate::{ModuleId, Node, NodeType, SymbolId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,17 +52,23 @@ pub enum DependencyItem {
     UnresolvedDefault {
         kind: DependencyKind,
         alias: StringId,
+        local_symbol: SymbolId,
     },
     /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
     UnresolvedItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
+        local_symbol: SymbolId,
     },
-    /// Resolved to a value.
-    Value { value: NodeId<Expression> },
-    /// Resolved to a Definition.
-    Definition { value: NodeId<Definition> },
+    /// Internal to the module.
+    Local { local_symbol: SymbolId },
+    /// Remote to the module.
+    Remote {
+        local_symbol: SymbolId,
+        remote_symbol: SymbolId,
+        module: ModuleId,
+    },
 }
 
 impl Node for DependencyItem {
@@ -74,7 +80,7 @@ impl DependencyItem {
     pub fn is_resolved(&self) -> bool {
         matches!(
             self,
-            DependencyItem::Definition { .. } | DependencyItem::Value { .. }
+            DependencyItem::Local { .. } | DependencyItem::Remote { .. }
         )
     }
 }

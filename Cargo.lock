@@ -3043,6 +3043,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dyst_resolver"
+version = "2025.11.15-0"
+dependencies = [
+ "dyst_dir",
+ "dyst_source",
+ "dyst_unicode",
+]
+
+[[package]]
 name = "dyst_source"
 version = "2025.11.15-0"
 dependencies = [

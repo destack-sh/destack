@@ -5,7 +5,7 @@ use crate::{BuildTask, ExecuteTask, ImportTask, OptimizeTask, ResolveTask, Valid
 pub enum CompilerTask {
     /// Import/parse/lower source into DIR.
     Import(ImportTask),
-    /// Resolve references and static DIR constructs.
+    /// Resolve references, types and static DIR constructs.
     Resolve(ResolveTask),
     /// Validate and check all DIR constructs.
     Validate(ValidateTask),

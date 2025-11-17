@@ -12,7 +12,7 @@ pub struct Session<'a> {
     pub files: &'a FileRegistry,
     /// The modules.
     pub modules: SharedModuleRegistry,
-    /// The combined DIR node tree.
+    /// The combined DIR node tree (including derived metadata).
     pub tree: SharedNodeTree,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,

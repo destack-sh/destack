@@ -515,7 +515,7 @@ impl Dump for FunctionSignature {
 impl Dump for BlockTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            BlockTarget::UnresolvedString { label } => {
+            BlockTarget::Unresolved { label } => {
                 dumper
                     .object("BlockTarget::UnresolvedString")
                     .field("label", label)

@@ -15,6 +15,7 @@ members = [
 	"language/machine",
 	"language/mir",
 	"language/parser",
+	"language/resolver",
 	"language/source",
 	"language/test",
 	"language/unicode",
@@ -48,6 +49,7 @@ dyst_linter = { path = "language/linter" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }
 dyst_parser = { path = "language/parser" }
+dyst_resolver = { path = "language/resolver" }
 dyst_source = { path = "language/source" }
 dyst_test = { path = "language/test" }
 dyst_unicode = { path = "language/unicode" }

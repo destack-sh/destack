@@ -5,56 +5,73 @@ use dyst_ast as ast;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
-    ModuleId, Node, NodeArena, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type,
-    TypeField, WhereClause, WithClause,
+    Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
+    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Scope,
+    ScopeId, Symbol, SymbolId, Type, TypeField, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
 #[derive(Clone)]
 pub struct MutableNodeTree {
+    // node index
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes. Index is the global node id.
     pub(crate) local_id_by_node_id: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
+
+    // node arenas
+    pub(crate) expressions: Arena<Expression>,
+    pub(crate) blocks: Arena<Block>,
+    pub(crate) definitions: Arena<Definition>,
+    pub(crate) types: Arena<Type>,
+    pub(crate) type_fields: Arena<TypeField>,
+    pub(crate) properties: Arena<Property>,
+    pub(crate) enum_fields: Arena<EnumField>,
+    pub(crate) where_clauses: Arena<WhereClause>,
+    pub(crate) with_clauses: Arena<WithClause>,
+    pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) parameters: Arena<Parameter>,
+    pub(crate) arguments: Arena<Argument>,
+    pub(crate) match_cases: Arena<MatchCase>,
+    pub(crate) patterns: Arena<Pattern>,
+    pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) annotations: Arena<Annotation>,
+
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
-    /// The annotations attached to nodes.
-    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
-
     /// The source AST ids of all nodes. Index is the global node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
     /// The alias node id by AST source / node id.
     pub(crate) alias_node_id_by_source_id: HashMap<(ModuleId, u32), u32>,
     /// The alias node id by DIR source / node id.
     pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
+    /// The annotations attached to nodes.
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
-    // per-node arenas
-    pub(crate) expressions: NodeArena<Expression>,
-    pub(crate) blocks: NodeArena<Block>,
-    pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) types: NodeArena<Type>,
-    pub(crate) type_fields: NodeArena<TypeField>,
-    pub(crate) properties: NodeArena<Property>,
-    pub(crate) enum_fields: NodeArena<EnumField>,
-    pub(crate) where_clauses: NodeArena<WhereClause>,
-    pub(crate) with_clauses: NodeArena<WithClause>,
-    pub(crate) dependency_items: NodeArena<DependencyItem>,
-    pub(crate) parameters: NodeArena<Parameter>,
-    pub(crate) arguments: NodeArena<Argument>,
-    pub(crate) match_cases: NodeArena<MatchCase>,
-    pub(crate) patterns: NodeArena<Pattern>,
-    pub(crate) pattern_fields: NodeArena<PatternField>,
-    pub(crate) annotations: NodeArena<Annotation>,
+    // meta index
+    /// The next symbol id to allocate.
+    pub(crate) next_symbol_id: u32,
+    /// The next scope id to allocate.
+    pub(crate) next_scope_id: u32,
+
+    // meta arenas
+    pub(crate) symbols: Arena<Symbol>,
+    pub(crate) scopes: Arena<Scope>,
+
+    /// The symbols by node id. Index is the global node id.
+    pub(crate) symbol_by_node_id: Vec<Option<SymbolId>>,
+    /// The scopes by node id. Index is the global node id.
+    pub(crate) scope_by_node_id: Vec<ScopeId>,
+    /// The undisputed types by node id. Index is the global node id.
+    pub(crate) static_type_by_node_id: Vec<Option<NodeId<Type>>>,
 }
 
 impl Debug for MutableNodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("next_global_id", &self.next_global_id)
-            .field("node_count", &self.local_id_by_node_id.len())
+            .field("len", &self.local_id_by_node_id.len())
             .finish()
     }
 }
@@ -77,27 +94,39 @@ impl MutableNodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
+
+            expressions: Arena::new(),
+            blocks: Arena::new(),
+            definitions: Arena::new(),
+            types: Arena::new(),
+            type_fields: Arena::new(),
+            properties: Arena::new(),
+            enum_fields: Arena::new(),
+            where_clauses: Arena::new(),
+            with_clauses: Arena::new(),
+            dependency_items: Arena::new(),
+            parameters: Arena::new(),
+            arguments: Arena::new(),
+            match_cases: Arena::new(),
+            patterns: Arena::new(),
+            pattern_fields: Arena::new(),
+            annotations: Arena::new(),
+
             module_by_node_id: Vec::with_capacity(capacity),
             source_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
-            annotations_per_node_id: HashMap::new(),
-            expressions: NodeArena::new(),
-            blocks: NodeArena::new(),
-            definitions: NodeArena::new(),
-            types: NodeArena::new(),
-            type_fields: NodeArena::new(),
-            properties: NodeArena::new(),
-            enum_fields: NodeArena::new(),
-            where_clauses: NodeArena::new(),
-            with_clauses: NodeArena::new(),
-            dependency_items: NodeArena::new(),
-            parameters: NodeArena::new(),
-            arguments: NodeArena::new(),
-            match_cases: NodeArena::new(),
-            patterns: NodeArena::new(),
-            pattern_fields: NodeArena::new(),
-            annotations: NodeArena::new(),
+            annotations_by_node_id: HashMap::new(),
+
+            next_symbol_id: 0,
+            next_scope_id: 0,
+
+            symbols: Arena::new(),
+            scopes: Arena::new(),
+
+            symbol_by_node_id: Vec::with_capacity(capacity),
+            scope_by_node_id: Vec::with_capacity(capacity),
+            static_type_by_node_id: Vec::with_capacity(capacity),
         }
     }
 
@@ -238,7 +267,7 @@ impl MutableNodeTree {
     #[inline]
     pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .entry(target_id)
             .or_default()
             .push(annotation);
@@ -247,16 +276,79 @@ impl MutableNodeTree {
     /// Whether there are any annotations attached to a node.
     #[inline]
     pub fn has_annotations(&self, node_id: u32) -> bool {
-        self.annotations_per_node_id.contains_key(&node_id)
+        self.annotations_by_node_id.contains_key(&node_id)
     }
 
     /// Get annotations attached to a node.
     #[inline]
     pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
+    }
+
+    /// Insert a symbol into the tree.
+    pub fn insert_symbol(&mut self, symbol: Symbol) -> SymbolId {
+        let symbol_id = self.next_symbol_id;
+        self.next_symbol_id = symbol_id + 1;
+        self.symbols.push(symbol);
+        SymbolId::new(symbol_id)
+    }
+
+    /// Set the symbol for a node.
+    #[inline]
+    pub fn set_symbol(&mut self, node_id: u32, symbol_id: SymbolId) {
+        self.symbol_by_node_id[node_id as usize] = Some(symbol_id);
+    }
+
+    /// Get a symbol by its id.
+    #[inline]
+    pub fn get_symbol(&self, symbol_id: SymbolId) -> &Symbol {
+        self.symbols.get(symbol_id.0)
+    }
+
+    /// Insert a scope into the tree.
+    pub fn insert_scope(&mut self, scope: Scope) -> ScopeId {
+        let scope_id = self.next_scope_id;
+        self.next_scope_id = scope_id + 1;
+        self.scopes.push(scope);
+        ScopeId::new(scope_id)
+    }
+
+    /// Get the scope for a node id.
+    #[inline]
+    pub fn get_scope<T>(&self, node_id: NodeId<T>) -> &Scope
+    where
+        T: Node,
+        Self: MutableNodeTreeImpl<T>,
+    {
+        let scope_id = self.scope_by_node_id[node_id.id as usize];
+        self.get_scope_by_id(scope_id)
+    }
+
+    /// Get a scope by its id.
+    #[inline]
+    pub fn get_scope_by_id(&self, scope_id: ScopeId) -> &Scope {
+        self.scopes.get(scope_id.0)
+    }
+
+    /// Get the scope for a node by its id.
+    #[inline]
+    pub fn get_scope_by_node_id(&self, node_id: u32) -> ScopeId {
+        self.scope_by_node_id[node_id as usize]
+    }
+
+    /// Set the static type for a node.
+    #[inline]
+    pub fn set_static_type(&mut self, node_id: u32, type_id: NodeId<Type>) {
+        self.static_type_by_node_id[node_id as usize] = Some(type_id);
+    }
+
+    /// Get a static type by its id.
+    #[inline]
+    pub fn get_static_type(&self, node_id: u32) -> Option<NodeId<Type>> {
+        self.static_type_by_node_id[node_id as usize]
     }
 }
 
