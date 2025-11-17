@@ -1,7 +1,11 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition, DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
+    DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId,
+    Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId,
+    SymbolId, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
+    UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -70,6 +74,7 @@ pub enum Expression {
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         value: Option<NodeId<Expression>>,
+        symbol: SymbolId,
     },
     /// Type alias binding.
     LetType {
@@ -78,6 +83,7 @@ pub enum Expression {
         name: StringId,
         static_parameters: Option<Vec<NodeId<Parameter>>>,
         value: NodeId<Expression>,
+        symbol: SymbolId,
     },
 
     /// Type unary operation.
@@ -144,9 +150,16 @@ pub enum Expression {
     },
 
     /// Member access.
+    UnresolvedMember {
+        left: NodeId<Expression>,
+        name: StringId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Member access.
     Member {
         left: NodeId<Expression>,
-        path: Path,
+        name: StringId,
+        symbol: SymbolId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Call to a function.
@@ -166,7 +179,7 @@ pub enum Expression {
     Must { left: NodeId<Expression> },
     /// New constructor call.
     New {
-        left: Path,
+        left: NodeId<Expression>,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -177,8 +190,8 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    /// Path.
-    Path {
+    /// Unresolved path.
+    UnresolvedPath {
         path: Path,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
@@ -186,6 +199,11 @@ pub enum Expression {
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal value.
     TemplateLiteral { value: TemplateLiteral },
+    /// Tagged template literal value.
+    TaggedTemplateLiteral {
+        tag: NodeId<Expression>,
+        value: TemplateLiteral,
+    },
     /// Type literal value.
     TypeLiteral { value: TypeLiteral },
     /// Range literal value.
@@ -208,7 +226,7 @@ pub enum Expression {
     },
     /// Tree creation.
     TreeLiteral {
-        path: Option<Path>,
+        left: Option<NodeId<Expression>>,
         arguments: Option<Vec<NodeId<Argument>>>,
         elements: Option<Vec<NodeId<Argument>>>,
     },
@@ -300,32 +318,11 @@ impl Expression {
         match self {
             Expression::UnresolvedImport { .. } => false,
             Expression::UnresolvedReExport { .. } => false,
-
-            Expression::Path {
-                path,
-                static_arguments: _,
-            } => path.is_resolved(),
-            Expression::TemplateLiteral { value } => value.is_resolved(),
-            Expression::TreeLiteral {
-                path,
-                arguments: _,
-                elements: _,
-            } => path.as_ref().is_none_or(|path| path.is_resolved()),
-
+            Expression::UnresolvedMember { .. } => false,
+            Expression::UnresolvedPath { .. } => false,
             Expression::UnresolvedUnary { .. } => false,
             Expression::UnresolvedBinary { .. } => false,
             Expression::UnresolvedAssignBinary { .. } => false,
-
-            Expression::Member {
-                left: _,
-                path,
-                static_arguments: _,
-            } => path.is_resolved(),
-            Expression::New {
-                left,
-                static_arguments: _,
-                dynamic_arguments: _,
-            } => left.is_resolved(),
 
             Expression::Break { target, value: _ } => {
                 target.is_none_or(|target| target.is_resolved())

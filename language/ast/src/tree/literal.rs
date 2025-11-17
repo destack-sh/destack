@@ -1,4 +1,4 @@
-use crate::{Argument, NodeId, Path, StringId};
+use crate::{Argument, NodeId, StringId};
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -58,16 +58,8 @@ pub enum ScalarLiteral {
 pub enum TemplateLiteral {
     /// Template string value.
     String { string: StringId },
-    /// Tagged template literal value.
-    TaggedString { tag: Path, string: StringId },
     /// Interpolated template literal value.
     InterpolatedString {
-        strings: Vec<StringId>,
-        arguments: Vec<NodeId<Argument>>,
-    },
-    /// Tagged interpolated template literal value.
-    TaggedInterpolatedString {
-        tag: Path,
         strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },

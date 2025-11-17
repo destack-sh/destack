@@ -638,33 +638,12 @@ impl Dump for TemplateLiteral {
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString {
-                tag,
-                string: template,
-            } => {
-                dumper
-                    .object("TemplateLiteral::TaggedString")
-                    .field("tag", tag)
-                    .field("template", template)
-                    .end();
-            }
             TemplateLiteral::InterpolatedString {
                 strings: template,
                 arguments: _,
             } => {
                 dumper
                     .object("TemplateLiteral::InterpolatedString")
-                    .field("template", template)
-                    .end();
-            }
-            TemplateLiteral::TaggedInterpolatedString {
-                tag,
-                strings: template,
-                arguments: _,
-            } => {
-                dumper
-                    .object("TemplateLiteral::TaggedInterpolatedString")
-                    .field("tag", tag)
                     .field("template", template)
                     .end();
             }
@@ -930,8 +909,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(value)
                     .end();
             }
-            Expression::TemplateLiteral(value) => {
+            Expression::TemplateLiteral { value } => {
                 self.node("Expression::TemplateLiteral", _id.id)
+                    .value(value)
+                    .end();
+            }
+            Expression::TaggedTemplateLiteral { tag: _, value } => {
+                self.node("Expression::TaggedTemplateLiteral", _id.id)
                     .value(value)
                     .end();
             }
@@ -1032,13 +1016,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::New {
-                left,
+                left: _,
                 static_arguments: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::New", _id.id)
-                    .field("left", left)
-                    .end();
+                self.node("Expression::New", _id.id).end();
             }
             Expression::Delete { value: _ } => {
                 self.node("Expression::Delete", _id.id).end();

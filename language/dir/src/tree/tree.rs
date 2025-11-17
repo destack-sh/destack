@@ -124,7 +124,7 @@ impl MutableNodeTree {
             symbols: Arena::new(),
             scopes: Arena::new(),
 
-            symbol_by_node_id: Vec::with_capacity(capacity),
+            symbol_by_node_id: Vec::with_capacity(capacity),    
             scope_by_node_id: Vec::with_capacity(capacity),
             static_type_by_node_id: Vec::with_capacity(capacity),
         }

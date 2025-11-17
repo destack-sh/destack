@@ -326,11 +326,11 @@ impl<'a> Parser<'a> {
     /// ```
     /// `hello`
     /// `hello ${name}`
-    /// sql`SELECT * FROM users`
-    /// sql`${stmt}`
-    /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// `SELECT * FROM users`
+    /// `${stmt}`
+    /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
-    pub fn eat_template_literal(&mut self, tag: Option<Path>) -> ParseResult<TemplateLiteral> {
+    pub fn eat_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
         let next = *self.eat()?;
         let next_str = self.get_span_str(next.span);
 
@@ -338,17 +338,7 @@ impl<'a> Parser<'a> {
         if next.token.ty == TokenType::TemplateString {
             let string = next_str.trim_start_matches('`').trim_end_matches('`');
             let string_id = self.strings.intern(string);
-            // tagged template string
-            if let Some(tag) = tag {
-                Ok(TemplateLiteral::TaggedString {
-                    tag,
-                    string: string_id,
-                })
-            }
-            // plain template string
-            else {
-                Ok(TemplateLiteral::String { string: string_id })
-            }
+            Ok(TemplateLiteral::String { string: string_id })
         }
         // template string with interpolation
         else if next.token.ty == TokenType::TemplateStringStart {
@@ -386,15 +376,7 @@ impl<'a> Parser<'a> {
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
-            if let Some(tag) = tag {
-                Ok(TemplateLiteral::TaggedInterpolatedString {
-                    tag,
-                    strings,
-                    arguments,
-                })
-            } else {
-                Ok(TemplateLiteral::InterpolatedString { strings, arguments })
-            }
+            Ok(TemplateLiteral::InterpolatedString { strings, arguments })
         }
         // error
         else {
@@ -751,7 +733,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // `hello`
-        let literal = parser.eat_template_literal(None).unwrap();
+        let literal = parser.eat_template_literal().unwrap();
         match literal {
             TemplateLiteral::String { string: template } => {
                 // hello
@@ -762,7 +744,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // `hello ${name}`
-        let literal = parser.eat_template_literal(None).unwrap();
+        let literal = parser.eat_template_literal().unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
                 assert_eq!(arguments.len(), 1);
@@ -781,7 +763,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // `${stmt}`
-        let literal = parser.eat_template_literal(None).unwrap();
+        let literal = parser.eat_template_literal().unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
                 assert_eq!(strings.len(), 2);
@@ -799,7 +781,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // `${start}${middle}${end}`
-        let literal = parser.eat_template_literal(None).unwrap();
+        let literal = parser.eat_template_literal().unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
                 assert_eq!(strings.len(), 4);
@@ -827,7 +809,7 @@ mod tests {
         parser.eat_newline().unwrap();
 
         // `SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`
-        let literal = parser.eat_template_literal(None).unwrap();
+        let literal = parser.eat_template_literal().unwrap();
         match literal {
             TemplateLiteral::InterpolatedString { strings, arguments } => {
                 assert_eq!(arguments.len(), 2);
@@ -855,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_literal() {
-        let mut test = TestParser::new("int32 uint8 float bool symbol unique symbol");
+        let mut test = TestParser::new("int32 uint8 float boolean symbol unique symbol");
         let mut parser = test.prepare();
         parser.options.in_type = true;
 

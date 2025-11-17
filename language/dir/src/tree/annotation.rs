@@ -1,4 +1,4 @@
-use crate::{Argument, Node, NodeId, NodeType, Path, StringId};
+use crate::{Argument, Node, NodeId, NodeType, Path, StringId, SymbolId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -14,26 +14,38 @@ pub enum AnnotationPosition {
 /// An annotation to a DIR node (like a comment or doc comment).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// A doc annotation (like `///` or `/**`).
+    /// Doc annotation (like `///` or `/**`).
     Doc {
         position: AnnotationPosition,
         string: StringId,
     },
-    /// A comment annotation (like `//` or `/*`).
+    /// Comment annotation (like `//` or `/*`).
     Comment {
         position: AnnotationPosition,
         string: StringId,
     },
-    /// A tag annotation (like `#Foo` or `#Foo(x: 1)`).
-    Tag {
+    /// Unresolved tag annotation (like `#Foo` or `#Foo(x: 1)`).
+    UnresolvedTag {
         position: AnnotationPosition,
         receiver: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
-    Decorator {
+    /// Unresolved decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
+    UnresolvedDecorator {
         position: AnnotationPosition,
         receiver: Path,
+        arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Tag annotation (like `#Foo` or `#Foo(x: 1)`).
+    Tag {
+        position: AnnotationPosition,
+        symbol: SymbolId,
+        arguments: Option<Vec<NodeId<Argument>>>,
+    },
+    /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
+    Decorator {
+        position: AnnotationPosition,
+        symbol: SymbolId,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
 }
@@ -48,25 +60,21 @@ impl Annotation {
         match self {
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
+            Annotation::UnresolvedTag { position, .. } => *position,
+            Annotation::UnresolvedDecorator { position, .. } => *position,
             Annotation::Tag { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }
 
-    /// Get the receiver path of the annotation.
-    pub fn receiver(&self) -> Option<&Path> {
-        match self {
-            Annotation::Tag { receiver, .. } => Some(receiver),
-            Annotation::Decorator { receiver, .. } => Some(receiver),
-            _ => None,
-        }
-    }
-
     /// Whether this annotation is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        match self.receiver() {
-            Some(receiver) => receiver.is_resolved(),
-            None => true,
-        }
+        matches!(
+            self,
+            Annotation::Doc { .. }
+                | Annotation::Comment { .. }
+                | Annotation::Tag { .. }
+                | Annotation::Decorator { .. }
+        )
     }
 }

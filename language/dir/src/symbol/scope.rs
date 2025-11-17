@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use dyst_ast::StringId;
-
-use crate::SymbolId;
+use crate::{SymbolId, SymbolKey};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -23,7 +21,7 @@ pub struct Scope {
     /// The parent scope.
     pub parent: Option<ScopeId>,
     /// The symbols in the scope.
-    pub symbols: HashMap<StringId, SymbolId>,
+    pub symbols: HashMap<SymbolKey, SymbolId>,
     /// The children scopes.
     pub children: Vec<ScopeId>,
 }

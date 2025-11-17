@@ -48,7 +48,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeIdAny {
     pub id: u32,
     pub ty: NodeType,

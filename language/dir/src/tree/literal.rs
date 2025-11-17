@@ -1,7 +1,7 @@
-use crate::{Argument, NodeId, Path, StringId};
+use crate::{Argument, NodeId, StringId};
 
 /// A ScalarLiteral is literal scalar value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ScalarLiteral {
     /// Boolean value.
     Boolean(bool),
@@ -31,28 +31,9 @@ pub enum ScalarLiteral {
 pub enum TemplateLiteral {
     /// Template string value.
     String { string: StringId },
-    /// Tagged template literal value.
-    TaggedString { tag: Path, string: StringId },
     /// Interpolated template literal value.
     InterpolatedString {
         strings: Vec<StringId>,
         arguments: Vec<NodeId<Argument>>,
     },
-    /// Tagged interpolated template literal value.
-    TaggedInterpolatedString {
-        tag: Path,
-        strings: Vec<StringId>,
-        arguments: Vec<NodeId<Argument>>,
-    },
-}
-
-impl TemplateLiteral {
-    /// Whether the template literal is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        match self {
-            TemplateLiteral::String { .. } | TemplateLiteral::InterpolatedString { .. } => true,
-            TemplateLiteral::TaggedString { tag, .. }
-            | TemplateLiteral::TaggedInterpolatedString { tag, .. } => tag.is_resolved(),
-        }
-    }
 }

@@ -53,6 +53,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a for each expression.
     /// Disallows container operators.
     pub in_for_each: bool = false,
+    /// Whether we're parsing a new receiver.
+    /// Disallows call-like expressions to disambiguate dynamic arguments.
+    pub in_new_receiver: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
@@ -117,7 +120,7 @@ impl ParserOptions {
 
     /// Set `in_union_pattern=true`.
     #[inline]
-    pub(crate) fn in_implicit_union(self) -> Self {
+    pub(crate) fn in_union_pattern(self) -> Self {
         Self {
             in_union_pattern: true,
             ..self
@@ -178,6 +181,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_new_receiver=true`.
+    #[inline]
+    pub(crate) fn in_new_receiver(self) -> Self {
+        Self {
+            in_new_receiver: true,
+            ..self
+        }
+    }
+    
     /// Set `left_precedence=precedence`.
     #[inline]
     pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {

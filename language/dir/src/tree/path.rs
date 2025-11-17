@@ -1,6 +1,6 @@
 use dyst_source::SmallVec;
 
-use crate::{Definition, Intrinsic, NodeId, ScopeId, StringId};
+use crate::{ScopeId, StringId};
 
 /// The base of a path.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,7 +19,7 @@ pub enum PathBase {
     Package,
 }
 
-/// A resolved path.
+/// Path to something. Resolves to symbols, expressions, etc.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
     /// Unresolved base.
@@ -31,18 +31,6 @@ pub enum Path {
     },
     /// Unresolved absolute string path.
     UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
-
-    /// Resolved Path to an intrinsic.
-    Intrinsic { intrinsic: Intrinsic },
-    /// Resolved to a Definition.
-    Definition { definition: NodeId<Definition> },
-}
-
-impl Path {
-    /// Whether the path is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        matches!(self, Path::Intrinsic { .. } | Path::Definition { .. })
-    }
 }
 
 /// A block target for a control flow statement.
