@@ -36,6 +36,7 @@ pub struct TranspilerUnit {
     pub artifacts: Vec<Uri>,
 }
 
+#[allow(unused)]
 impl TranspilerUnit {
     /// Get alias for a symbol from a given node.
     pub fn get_alias_to_symbol(&self, from_id: NodeIdAny, to_id: NodeId<Definition>) -> StringId {

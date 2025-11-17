@@ -24,6 +24,7 @@ pub enum Expression {
     With {
         clauses: Vec<NodeId<WithClause>>,
         scope: ScopeId,
+        symbol: SymbolId,
         body: Option<NodeId<Block>>,
     },
     /// Unresolved import dependency declaration (like `import "foo"`).
@@ -245,6 +246,7 @@ pub enum Expression {
         condition: Option<NodeId<Expression>>,
         body: NodeId<Block>,
         scope: ScopeId,
+        symbol: SymbolId,
     },
     /// For each loop.
     ForEach {
@@ -254,6 +256,7 @@ pub enum Expression {
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
         scope: ScopeId,
+        symbol: SymbolId,
     },
     /// For three-part loop.
     For {
@@ -262,6 +265,7 @@ pub enum Expression {
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
         scope: ScopeId,
+        symbol: SymbolId,
     },
     /// Try expression.
     Try {
@@ -270,6 +274,7 @@ pub enum Expression {
         catch_expression: Option<NodeId<Expression>>,
         finally_expression: Option<NodeId<Expression>>,
         scope: ScopeId,
+        symbol: SymbolId,
     },
     /// Match expression.
     Match {
@@ -277,6 +282,7 @@ pub enum Expression {
         cases: Vec<NodeId<MatchCase>>,
         source: MatchSource,
         scope: ScopeId,
+        symbol: SymbolId,
     },
     /// Break expression.
     UnresolvedBreak {
@@ -315,6 +321,69 @@ impl Node for Expression {
 }
 
 impl Expression {
+    /// Get the name of this kind of expression.
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Expression::Definition { .. } => "definition",
+            Expression::Block { .. } => "block",
+            Expression::Statement { .. } => "statement",
+            Expression::With { .. } => "with",
+            Expression::UnresolvedImport { .. } => "unresolved import",
+            Expression::UnresolvedReExport { .. } => "unresolved re-export",
+            Expression::Import { .. } => "import",
+            Expression::ReExport { .. } => "re-export",
+            Expression::Export { .. } => "export",
+            Expression::Let { .. } => "let",
+            Expression::LetType { .. } => "let type",
+            Expression::TypeUnary { .. } => "type unary",
+            Expression::TypeBinary { .. } => "type binary",
+            Expression::UnresolvedUnary { .. } => "unresolved unary",
+            Expression::Unary { .. } => "unary",
+            Expression::ValueOf { .. } => "value of",
+            Expression::ReferenceOf { .. } => "reference of",
+            Expression::UnresolvedBinary { .. } => "unresolved binary",
+            Expression::Binary { .. } => "binary",
+            Expression::Assign { .. } => "assign",
+            Expression::UnresolvedAssignBinary { .. } => "unresolved assign binary",
+            Expression::AssignBinary { .. } => "assign binary",
+            Expression::UnresolvedMember { .. } => "unresolved member",
+            Expression::Member { .. } => "member",
+            Expression::Call { .. } => "call",
+            Expression::Index { .. } => "index",
+            Expression::Maybe { .. } => "maybe",
+            Expression::Must { .. } => "must",
+            Expression::New { .. } => "new",
+            Expression::Delete { .. } => "delete",
+            Expression::UnresolvedPath { .. } => "unresolved path",
+            Expression::ScalarLiteral { .. } => "scalar literal",
+            Expression::TemplateLiteral { .. } => "template literal",
+            Expression::TaggedTemplateLiteral { .. } => "tagged template literal",
+            Expression::TypeLiteral { .. } => "type literal",
+            Expression::RangeLiteral { .. } => "range literal",
+            Expression::ArrayLiteral { .. } => "array literal",
+            Expression::TupleLiteral { .. } => "tuple literal",
+            Expression::StructLiteral { .. } => "struct literal",
+            Expression::TreeLiteral { .. } => "tree literal",
+            Expression::Parenthesized { .. } => "parenthesized",
+            Expression::If { .. } => "if",
+            Expression::Loop { .. } => "loop",
+            Expression::ForEach { .. } => "for each",
+            Expression::For { .. } => "for",
+            Expression::Try { .. } => "try",
+            Expression::Match { .. } => "match",
+            Expression::UnresolvedBreak { .. } => "unresolved break",
+            Expression::Break { .. } => "break",
+            Expression::UnresolvedContinue { .. } => "unresolved continue",
+            Expression::Continue { .. } => "continue",
+            Expression::Defer { .. } => "defer",
+            Expression::Throw { .. } => "throw",
+            Expression::Await { .. } => "await",
+            Expression::Yield { .. } => "yield",
+            Expression::Return { .. } => "return",
+            Expression::Error => "error",
+        }
+    }
+
     /// Whether the expression is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
         !matches!(

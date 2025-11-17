@@ -1,5 +1,5 @@
 use crate::{CompileError, CompilerStage};
-use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId};
+use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId, Visibility};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -10,14 +10,14 @@ pub enum ResolveError {
         module: ModuleId,
         node: NodeIdAny,
         depends_on: Vec<NodeIdAny>,
-    } = 1,
+    },
 
     /// Circular dependency.
     CircularDependency {
         module: ModuleId,
         node: NodeIdAny,
         depends_on: Vec<NodeIdAny>,
-    } = 2,
+    },
 
     /// Use of undeclared symbol.
     UndeclaredSymbol {
@@ -25,14 +25,14 @@ pub enum ResolveError {
         node: NodeIdAny,
         scope: ScopeId,
         name: StringId,
-    } = 3,
+    },
     /// Use of missing symbol.
     MissingSymbol {
         module: ModuleId,
         node: NodeIdAny,
         scope: ScopeId,
         name: StringId,
-    } = 4,
+    },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
         module: ModuleId,
@@ -40,7 +40,38 @@ pub enum ResolveError {
         scope: ScopeId,
         symbol: SymbolId,
         name: StringId,
-    } = 5,
+    },
+    /// Unresolved module.
+    UnresolvedModule {
+        module: ModuleId,
+        node: NodeIdAny,
+        target: StringId,
+    },
+    /// Unresolved member.
+    UnresolvedMember {
+        module: ModuleId,
+        node: NodeIdAny,
+        member: StringId,
+    },
+    /// Visibility violation (private/internal/module boundaries).
+    InaccessibleSymbol {
+        module: ModuleId,
+        node: NodeIdAny,
+        visibility: Visibility,
+        symbol: SymbolId,
+    },
+    /// Conflicting declarations in the same scope.
+    ConflictingDeclaration {
+        module: ModuleId,
+        node: NodeIdAny,
+        name: StringId,
+    },
+    /// Duplicate export name in the same module.
+    DuplicateExport {
+        module: ModuleId,
+        node: NodeIdAny,
+        name: StringId,
+    },
 }
 
 impl ResolveError {
@@ -53,6 +84,11 @@ impl ResolveError {
             Self::UndeclaredSymbol { .. } => 3,
             Self::MissingSymbol { .. } => 4,
             Self::AmbiguousSymbol { .. } => 5,
+            Self::UnresolvedModule { .. } => 6,
+            Self::UnresolvedMember { .. } => 7,
+            Self::InaccessibleSymbol { .. } => 8,
+            Self::ConflictingDeclaration { .. } => 9,
+            Self::DuplicateExport { .. } => 10,
         }
     }
 
@@ -64,6 +100,11 @@ impl ResolveError {
             Self::UndeclaredSymbol { node, .. } => Some(*node),
             Self::MissingSymbol { node, .. } => Some(*node),
             Self::AmbiguousSymbol { node, .. } => Some(*node),
+            Self::UnresolvedModule { node, .. } => Some(*node),
+            Self::UnresolvedMember { node, .. } => Some(*node),
+            Self::InaccessibleSymbol { node, .. } => Some(*node),
+            Self::ConflictingDeclaration { node, .. } => Some(*node),
+            Self::DuplicateExport { node, .. } => Some(*node),
         }
     }
 
@@ -75,6 +116,11 @@ impl ResolveError {
             Self::UndeclaredSymbol { .. } => "use of undeclared symbol".to_string(),
             Self::MissingSymbol { .. } => "missing symbol".to_string(),
             Self::AmbiguousSymbol { .. } => "ambiguous symbol".to_string(),
+            Self::UnresolvedModule { .. } => "unresolved module".to_string(),
+            Self::UnresolvedMember { .. } => "unresolved member".to_string(),
+            Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
+            Self::ConflictingDeclaration { .. } => "conflicting declaration".to_string(),
+            Self::DuplicateExport { .. } => "duplicate export".to_string(),
         }
     }
 }

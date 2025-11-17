@@ -2,12 +2,16 @@ use dyst_dir::{NodeIdAny, Session};
 
 use crate::{CompileError, CompilerStage};
 
-/// Error when optimizeing something into the compiler.
+/// Error when optimizing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum OptimizeError {
     /// Optimization is impossible for this node.
-    OptimizationImpossible { node: NodeIdAny } = 1,
+    UnsupportedNode { node: NodeIdAny },
+    /// Unsupported optimization.
+    UnsupportedOptimization { node: NodeIdAny },
+    /// Undefined behavior possible.
+    PossibleUndefinedBehavior { node: NodeIdAny, behavior: String },
 }
 
 impl OptimizeError {
@@ -15,23 +19,27 @@ impl OptimizeError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::OptimizationImpossible { .. } => 1,
+            Self::UnsupportedNode { .. } => 1,
+            Self::UnsupportedOptimization { .. } => 2,
+            Self::PossibleUndefinedBehavior { .. } => 3,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::OptimizationImpossible { node, .. } => Some(*node),
+            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::UnsupportedOptimization { node, .. } => Some(*node),
+            Self::PossibleUndefinedBehavior { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::OptimizationImpossible { .. } => {
-                "requested optimization is not possible".to_string()
-            }
+            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),
+            Self::PossibleUndefinedBehavior { .. } => "possible undefined behavior".to_string(),
         }
     }
 }
@@ -41,7 +49,11 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilerStage::Optimize.letter(), self.sub_code()),
+                &format!(
+                    "{}E{:03}",
+                    CompilerStage::Optimize.letter(),
+                    self.sub_code()
+                ),
             )
             .finish()
     }

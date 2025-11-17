@@ -6,42 +6,28 @@ use crate::TranspileDiagnostic;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum TranspileWarning {
-    /// Unresolved expression.
-    UnresolvedExpression { node: dir::NodeId<dir::Expression> } = 1,
-    /// Unresolved path.
-    UnresolvedPath {
-        node: dir::NodeIdAny,
-        path: dir::Path,
-    } = 2,
-    /// Unresolved type.
-    UnresolvedType { node: dir::NodeId<dir::Type> } = 3,
+    ImpreciseType { node: dir::NodeIdAny },
 }
 
 impl TranspileWarning {
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::UnresolvedExpression { .. } => "unresolved expression".to_string(),
-            Self::UnresolvedPath { .. } => "unresolved path".to_string(),
-            Self::UnresolvedType { .. } => "unresolved type".to_string(),
+            Self::ImpreciseType { .. } => "imprecise type".to_string(),
         }
     }
 
     /// Get the number of the warning.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnresolvedExpression { .. } => 1,
-            Self::UnresolvedPath { .. } => 2,
-            Self::UnresolvedType { .. } => 3,
+            Self::ImpreciseType { .. } => 1,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> dir::NodeIdAny {
         match self {
-            Self::UnresolvedExpression { node } => node.into_any(),
-            Self::UnresolvedPath { node, .. } => *node,
-            Self::UnresolvedType { node } => node.into_any(),
+            Self::ImpreciseType { node, .. } => *node,
         }
     }
 

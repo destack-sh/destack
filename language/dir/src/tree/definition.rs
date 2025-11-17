@@ -87,6 +87,18 @@ impl Node for Definition {
 }
 
 impl Definition {
+    /// Get the name of this kind of definition.
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Definition::Namespace { .. } => "namespace",
+            Definition::Struct { .. } => "struct",
+            Definition::Enum { .. } => "enum",
+            Definition::Interface { .. } => "interface",
+            Definition::Function { .. } => "function",
+            Definition::Implement { .. } => "implement",
+        }
+    }
+
     /// Get the descriptor of the definition.
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {

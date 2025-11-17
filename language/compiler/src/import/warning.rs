@@ -6,8 +6,8 @@ use crate::CompilerStage;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportWarning {
-    /// Missing configuration for a file.
-    MissingConfiguration { module: ModuleId } = 1,
+    /// Huge file.
+    HugeFile { module: ModuleId, len: usize },
 }
 
 impl ImportWarning {
@@ -15,21 +15,21 @@ impl ImportWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingConfiguration { .. } => 1,
+            Self::HugeFile { .. } => 1,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::MissingConfiguration { .. } => None,
+            Self::HugeFile { .. } => None,
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingConfiguration { .. } => "missing configuration for a module".to_string(),
+            Self::HugeFile { .. } => "huge file".to_string(),
         }
     }
 }

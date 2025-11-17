@@ -1,10 +1,7 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{Expression, NodeId, NodeIdAny, PostfixPosition, Statement};
 
-use crate::{
-    TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,
-    TranspilerUnit,
-};
+use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Get the position of a postfix expression.
@@ -34,8 +31,9 @@ impl<'a> Transpiler<'a> {
 
         // report unresolved warning
         if !expression.is_resolved() {
-            unit.warning(TranspileWarning::UnresolvedExpression {
-                node: expression_id,
+            unit.error(TranspileError::UnresolvedNode {
+                node: expression_id.into_any(),
+                message: Some(expression.kind_name().to_string()),
             });
         }
 
@@ -64,6 +62,7 @@ impl<'a> Transpiler<'a> {
                 clauses: _,
                 body: _,
                 scope: _,
+                symbol: _,
             } => {
                 return Err(TranspileError::UnsupportedNode {
                     node: expression_id.into_any(),

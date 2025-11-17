@@ -58,6 +58,7 @@ impl<'a> Compiler<'a> {
                     clauses,
                     body,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::Import {
@@ -577,8 +578,9 @@ impl<'a> Compiler<'a> {
                 Expression::Loop {
                     kind,
                     condition: Some(condition),
-                    scope: scope_id,
                     body,
+                    scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::ForEach {
@@ -595,6 +597,12 @@ impl<'a> Compiler<'a> {
                 };
                 let pattern = self.lower_pattern(module, scope_id, *pattern);
                 let iterator = self.lower_expression(module, scope_id, *iterator);
+                let (symbol_id, scope_id) = self.session.tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Block,
+                    scope_id,
+                );
                 let body = self.lower_block(module, scope_id, *body);
                 Expression::ForEach {
                     asynchrony,
@@ -603,6 +611,7 @@ impl<'a> Compiler<'a> {
                     iterator,
                     body,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::For {
@@ -623,12 +632,6 @@ impl<'a> Compiler<'a> {
                     condition.map(|condition| self.lower_expression(module, scope_id, condition));
                 let increment =
                     increment.map(|increment| self.lower_expression(module, scope_id, increment));
-                let (symbol_id, scope_id) = self.session.tree.create_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Block,
-                    scope_id,
-                );
                 let body = self.lower_block(module, scope_id, *body);
                 Expression::For {
                     initialization,
@@ -636,6 +639,7 @@ impl<'a> Compiler<'a> {
                     increment,
                     body,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::Loop { body } => {
@@ -651,6 +655,7 @@ impl<'a> Compiler<'a> {
                     condition: None,
                     body,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::Try {
@@ -680,6 +685,7 @@ impl<'a> Compiler<'a> {
                     catch_expression,
                     finally_expression,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
             ast::Expression::Match {
@@ -703,6 +709,7 @@ impl<'a> Compiler<'a> {
                     cases,
                     source: MatchSource::Match,
                     scope: scope_id,
+                    symbol: symbol_id,
                 }
             }
 

@@ -11,19 +11,23 @@ pub enum TranspileError {
     UnsupportedNode {
         node: dir::NodeIdAny,
         message: Option<String>,
-    } = 1,
-    /// Unsupported path.
-    UnsupportedPath {
-        node: dir::NodeIdAny,
-        path: dir::Path,
-    } = 2,
-
+    },
     /// Unexpected node.
     UnexpectedNode {
         node: dir::NodeIdAny,
         wanted: NodeType,
         message: Option<String>,
-    } = 3,
+    },
+    /// Unresolved node.
+    UnresolvedNode {
+        node: dir::NodeIdAny,
+        message: Option<String>,
+    },
+    /// Missing type.
+    MissingType {
+        node: dir::NodeIdAny,
+        message: Option<String>,
+    },
 }
 
 impl TranspileError {
@@ -31,10 +35,17 @@ impl TranspileError {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnsupportedNode { node, .. } => format!("unsupported {}", node.ty.name()),
-            Self::UnsupportedPath { .. } => "unsupported path".to_string(),
             Self::UnexpectedNode { node, wanted, .. } => {
                 format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
             }
+            Self::UnresolvedNode { message, .. } => message
+                .as_ref()
+                .cloned()
+                .unwrap_or("unresolved node".to_string()),
+            Self::MissingType { message, .. } => message
+                .as_ref()
+                .cloned()
+                .unwrap_or("missing type".to_string()),
         }
     }
 
@@ -42,8 +53,9 @@ impl TranspileError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::UnsupportedNode { .. } => 1,
-            Self::UnsupportedPath { .. } => 2,
-            Self::UnexpectedNode { .. } => 3,
+            Self::UnexpectedNode { .. } => 2,
+            Self::UnresolvedNode { .. } => 3,
+            Self::MissingType { .. } => 4,
         }
     }
 
@@ -56,8 +68,9 @@ impl TranspileError {
     pub fn node_id(&self) -> dir::NodeIdAny {
         match self {
             Self::UnsupportedNode { node, .. } => *node,
-            Self::UnsupportedPath { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,
+            Self::UnresolvedNode { node, .. } => *node,
+            Self::MissingType { node, .. } => *node,
         }
     }
 }

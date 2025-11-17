@@ -7,7 +7,20 @@ use crate::{CompileWarning, CompilerStage};
 #[repr(u8)]
 pub enum ResolveWarning {
     /// Unknown import.
-    UnknownImport { module: ModuleId, node: NodeIdAny } = 1,
+    UnknownImport {
+        module: ModuleId,
+        node: NodeIdAny,
+    },
+    /// Unused imports / unused re-exports.
+    UnusedImport {
+        module: ModuleId,
+        node: NodeIdAny,
+    },
+    /// Import that resolves but is only used for side effects.
+    SideEffectOnlyImport {
+        module: ModuleId,
+        node: NodeIdAny,
+    },
 }
 
 impl ResolveWarning {
@@ -16,6 +29,8 @@ impl ResolveWarning {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::UnknownImport { .. } => 1,
+            Self::UnusedImport { .. } => 2,
+            Self::SideEffectOnlyImport { .. } => 3,
         }
     }
 
@@ -23,6 +38,8 @@ impl ResolveWarning {
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
             Self::UnknownImport { node, .. } => Some(*node),
+            Self::UnusedImport { node, .. } => Some(*node),
+            Self::SideEffectOnlyImport { node, .. } => Some(*node),
         }
     }
 
@@ -30,6 +47,8 @@ impl ResolveWarning {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnknownImport { .. } => "unknown import".to_string(),
+            Self::UnusedImport { .. } => "unused import".to_string(),
+            Self::SideEffectOnlyImport { .. } => "side effect only import".to_string(),
         }
     }
 }
