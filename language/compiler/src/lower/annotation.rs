@@ -35,7 +35,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an annotation position into a DIR annotation position.
-    pub fn lower_annotation_position(
+    pub(super) fn lower_annotation_position(
         &mut self,
         annotation_position: ast::AnnotationPosition,
     ) -> AnnotationPosition {

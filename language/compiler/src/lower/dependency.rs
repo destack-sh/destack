@@ -6,7 +6,7 @@ use crate::Compiler;
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Lower an export type to a DIR export type.
-    pub fn lower_export_type(&mut self, export_type: ast::ExportType) -> ExportType {
+    pub(super) fn lower_export_type(&mut self, export_type: ast::ExportType) -> ExportType {
         match export_type {
             ast::ExportType::Item => ExportType::Item,
             ast::ExportType::Default => ExportType::Default,
@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a dependency type into a DIR dependency type.
-    pub fn lower_dependency_kind(
+    pub(super) fn lower_dependency_kind(
         &mut self,
         dependency_type: ast::DependencyKind,
     ) -> DependencyKind {
@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a dependency item into a DIR dependency item.
-    pub fn lower_dependency_item(
+    pub(super) fn lower_dependency_item(
         &mut self,
         module: &Module,
         kind: ast::DependencyKind,

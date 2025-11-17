@@ -6,13 +6,13 @@ use crate::Compiler;
 
 impl<'a> Compiler<'a> {
     /// Lower a label to a DIR block target.
-    pub fn lower_label(&mut self, module: &Module, label: StringId) -> BlockTarget {
+    pub(super) fn lower_label(&mut self, module: &Module, label: StringId) -> BlockTarget {
         let label = self.session.strings.intern_from(&module.strings, label);
         BlockTarget::UnresolvedString { label }
     }
 
     /// Lower a block to a DIR block.
-    pub fn lower_block(
+    pub(super) fn lower_block(
         &mut self,
         module: &Module,
         block_id: ast::NodeId<ast::Block>,

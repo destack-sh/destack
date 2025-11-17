@@ -4,8 +4,6 @@ use dyst_javascript_ast::{Argument, Expression, NodeId, Parameter};
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
-    // nocheckin TODO #Incomplete: transpile parameters and arguments
-
     /// Transpile a parameter from DIR into JS AST.
     pub fn transpile_parameter(
         &self,

@@ -5,7 +5,7 @@ use crate::Compiler;
 
 impl<'a> Compiler<'a> {
     /// Lower a where clause to a DIR where clause.
-    pub fn lower_where_clause(
+    pub(super) fn lower_where_clause(
         &mut self,
         module: &Module,
         where_clause_id: ast::NodeId<ast::WhereClause>,

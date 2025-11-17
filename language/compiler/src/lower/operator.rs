@@ -4,7 +4,7 @@ use dyst_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOpera
 
 impl<'a> Compiler<'a> {
     /// Lower a unary operator to a DIR unary operator.
-    pub fn lower_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {
+    pub(super) fn lower_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {
         match unary_operator {
             ast::UnaryOperator::PostIncrement => UnaryOperator::PostIncrement,
             ast::UnaryOperator::PostDecrement => UnaryOperator::PostDecrement,
@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a type unary operator to a DIR type unary operator.
-    pub fn lower_type_unary_operator(
+    pub(super) fn lower_type_unary_operator(
         &self,
         type_unary_operator: ast::TypeUnaryOperator,
     ) -> TypeUnaryOperator {
@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a binary operator to a DIR binary operator.
-    pub fn lower_binary_operator(
+    pub(super) fn lower_binary_operator(
         &self,
         binary_operator: ast::BinaryOperator,
     ) -> dyst_dir::BinaryOperator {
@@ -95,7 +95,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a type binary operator to a DIR type binary operator.
-    pub fn lower_type_binary_operator(
+    pub(super) fn lower_type_binary_operator(
         &self,
         type_binary_operator: ast::TypeBinaryOperator,
     ) -> TypeBinaryOperator {
@@ -110,7 +110,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an assign operator to a DIR assignment operator.
-    pub fn lower_assign_operator(
+    pub(super) fn lower_assign_operator(
         &self,
         assign_operator: ast::AssignOperator,
     ) -> Option<AssignOperator> {

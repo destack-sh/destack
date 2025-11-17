@@ -4,7 +4,7 @@ use dyst_dir::{Module, NodeId, Pattern, PatternField};
 
 impl<'a> Compiler<'a> {
     /// Lower a pattern to a DIR pattern.
-    pub fn lower_pattern(
+    pub(super) fn lower_pattern(
         &mut self,
         module: &Module,
         pattern_id: ast::NodeId<ast::Pattern>,
@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a pattern field to a DIR pattern field.
-    pub fn lower_pattern_field(
+    pub(super) fn lower_pattern_field(
         &mut self,
         module: &Module,
         pattern_field_id: ast::NodeId<ast::PatternField>,

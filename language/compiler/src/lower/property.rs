@@ -4,7 +4,7 @@ use dyst_dir::{Module, NodeId, Property};
 
 impl<'a> Compiler<'a> {
     /// Lower a property to a DIR property.
-    pub fn lower_property(
+    pub(super) fn lower_property(
         &mut self,
         module: &Module,
         property_id: ast::NodeId<ast::Property>,

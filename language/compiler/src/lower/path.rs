@@ -18,7 +18,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a path to a DIR path.
-    pub fn lower_path(&mut self, module: &Module, path: &ast::Path) -> Path {
+    pub(super) fn lower_path(&mut self, module: &Module, path: &ast::Path) -> Path {
         assert!(!path.segments.is_empty());
         let segments: SmallVec<StringId, 3> = path
             .segments

@@ -184,9 +184,7 @@ export struct Vector3 {
     x: float32
     y: float32
     z: float32
-}
 
-implement Vector3 {
     /// The zero Vector3 (0, 0, 0).
     static Zero: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 0.0 }
     /// The one Vector3 (1, 1, 1).
@@ -387,9 +385,7 @@ export struct Vector4 {
     y: float32
     z: float32
     w: float32
-}
 
-implement Vector4 {
     /// The zero Vector4 (0, 0, 0, 0).
     static Zero: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
     /// The one Vector4 (1, 1, 1, 1).
@@ -593,9 +589,7 @@ implement Vector4 implements (
 export struct Vector2i {
     x: int32
     y: int32
-}
 
-implement Vector2i {
     /// The zero Vector2i (0, 0).
     static Zero: Vector2i = Vector2i { x: 0, y: 0 }
     /// The one Vector2i (1, 1).
@@ -748,9 +742,7 @@ export struct Vector3i {
     x: int32
     y: int32
     z: int32
-}
 
-implement Vector3i {
     /// The zero Vector3i (0, 0, 0).
     static Zero: Vector3i = Vector3i { x: 0, y: 0, z: 0 }
     /// The one Vector3i (1, 1, 1).
