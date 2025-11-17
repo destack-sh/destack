@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
     pub fn lower_module(
         &mut self,
         mut module: Module,
-        expressions: &Vec<ast::NodeId<ast::Expression>>,
+        expressions: &[ast::NodeId<ast::Expression>],
     ) {
         let expressions: Vec<_> = expressions
             .iter()

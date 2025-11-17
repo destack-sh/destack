@@ -125,11 +125,11 @@ impl<'a> Parser<'a> {
         // regular single-token type literals (also only inside static/type context)
         match next_str {
             // boolean
-            "boolean" | "bool" => Ok(TypeLiteral::Boolean),
+            "boolean" => Ok(TypeLiteral::Boolean),
             // character
-            "character" | "char" => Ok(TypeLiteral::Character),
+            "character" => Ok(TypeLiteral::Character),
             // string
-            "string" | "str" => Ok(TypeLiteral::String),
+            "string" => Ok(TypeLiteral::String),
             // bigint
             "bigint" => Ok(TypeLiteral::Bigint),
             // number
@@ -141,12 +141,6 @@ impl<'a> Parser<'a> {
             })),
             "intp" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
             int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
-                Ok(TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(width),
-                    is_signed: true,
-                }))
-            }
-            int_str if let Some(width) = self.is_type_with_width("i", int_str) => {
                 Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
                     is_signed: true,
@@ -173,9 +167,6 @@ impl<'a> Parser<'a> {
             // float (followed by number or nothing)
             "float" => Ok(TypeLiteral::Float(FloatType { width: None })),
             float_str if let Some(width) = self.is_type_with_width("float", float_str) => {
-                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
-            }
-            float_str if let Some(width) = self.is_type_with_width("f", float_str) => {
                 Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
             }
             // symbol

@@ -1,5 +1,9 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{Expression, NodeId, Type, TypeLiteral, TypeUnaryOperator, UnaryOperator};
+use dyst_ast::StringId;
+use dyst_dir::{
+    Expression, FloatType, IntType, NodeId, PrimitiveType, Type, TypeLiteral, TypeUnaryOperator,
+    UnaryOperator,
+};
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
@@ -177,5 +181,104 @@ impl<'a> Compiler<'a> {
         };
 
         Ok(Some(ty))
+    }
+
+    /// Whether the token string encodes a type literal with an explicit width.
+    fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
+        if let Some(target) = target.strip_prefix(prefix) {
+            target.parse::<u16>().ok()
+        } else {
+            None
+        }
+    }
+
+    /// Resolve an expression string into a DIR type literal.
+    pub fn resolve_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
+        let string = self.session.strings.get(string_id);
+        match string.as_ref() {
+            // undefined
+            "undefined" => Some(TypeLiteral::Undefined),
+            // unknown
+            "unknown" => Some(TypeLiteral::Unknown),
+            // void
+            "void" => Some(TypeLiteral::Void),
+            // null
+            "null" => Some(TypeLiteral::Null),
+            // any
+            "any" => Some(TypeLiteral::Any),
+            // never
+            "never" => Some(TypeLiteral::Never),
+            // boolean
+            "boolean" => Some(TypeLiteral::Primitive(PrimitiveType::Boolean)),
+            // character
+            "character" => Some(TypeLiteral::Primitive(PrimitiveType::Character)),
+            // string
+            "string" => Some(TypeLiteral::Primitive(PrimitiveType::String)),
+            // bigint
+            "bigint" => Some(TypeLiteral::Primitive(PrimitiveType::Bigint)),
+            // number
+            "number" => Some(TypeLiteral::Primitive(PrimitiveType::Number)),
+            // Self
+            "Self" => panic!("self type can't be resolved"),
+            // int (followed by number or nothing)
+            "int" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
+                IntType::Arbitrary {
+                    width: self.options.resolve.default_int_width,
+                    is_signed: true,
+                }
+                .simplify(),
+            ))),
+            "intp" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::IntP))),
+            int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
+                Some(TypeLiteral::Primitive(PrimitiveType::Int(
+                    IntType::Arbitrary {
+                        width,
+                        is_signed: true,
+                    }
+                    .simplify(),
+                )))
+            }
+            // uint (followed by number or nothing)
+            "uint" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
+                IntType::Arbitrary {
+                    width: self.options.resolve.default_int_width,
+                    is_signed: false,
+                }
+                .simplify(),
+            ))),
+            "uintp" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::UintP))),
+            uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
+                Some(TypeLiteral::Primitive(PrimitiveType::Int(
+                    IntType::Arbitrary {
+                        width,
+                        is_signed: false,
+                    }
+                    .simplify(),
+                )))
+            }
+            uint_str if let Some(width) = self.is_type_with_width("u", uint_str) => {
+                Some(TypeLiteral::Primitive(PrimitiveType::Int(
+                    IntType::Arbitrary {
+                        width,
+                        is_signed: false,
+                    }
+                    .simplify(),
+                )))
+            }
+            // float (followed by number or nothing)
+            "float" => Some(TypeLiteral::Primitive(PrimitiveType::Float(
+                FloatType::Arbitrary {
+                    width: self.options.resolve.default_float_width,
+                }
+                .simplify(),
+            ))),
+            float_str if let Some(width) = self.is_type_with_width("float", float_str) => {
+                Some(TypeLiteral::Primitive(PrimitiveType::Float(
+                    FloatType::Arbitrary { width }.simplify(),
+                )))
+            }
+            // composite type
+            _ => None,
+        }
     }
 }
