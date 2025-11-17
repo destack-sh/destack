@@ -194,7 +194,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::UnresolvedImport {
             kind: _,
             target: _,
-            source: _,
             items,
             arguments,
         } => {
@@ -213,7 +212,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             kind: _,
             target: _,
             module: _,
-            source: _,
             items,
             arguments,
         } => {
@@ -232,7 +230,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             mode: _,
             target: _,
             kind: _,
-            source: _,
             items,
         } => {
             for item_id in items {
@@ -245,7 +242,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             target: _,
             module: _,
             kind: _,
-            source: _,
             items,
         } => {
             for item_id in items {
@@ -256,7 +252,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Export {
             mode: _,
             kind: _,
-            source: _,
             items,
         } => {
             for item_id in items {

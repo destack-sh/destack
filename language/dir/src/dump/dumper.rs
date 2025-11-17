@@ -826,21 +826,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::UnresolvedImport {
                 kind,
                 target,
-                source,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::UnresolvedImport", id.id)
                     .field("kind", kind)
                     .field("target", target)
-                    .field("source", source)
                     .end();
             }
             Expression::Import {
                 kind,
                 target,
                 module,
-                source,
                 items: _,
                 arguments: _,
             } => {
@@ -848,21 +845,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("kind", kind)
                     .field("target", target)
                     .field("module", module)
-                    .field("source", source)
                     .end();
             }
             Expression::UnresolvedReExport {
                 mode,
                 target,
                 kind,
-                source,
                 items: _,
             } => {
                 self.node("Expression::UnresolvedReExport", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
                     .field("target", target)
-                    .field("source", source)
                     .end();
             }
             Expression::ReExport {
@@ -870,7 +864,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 module,
                 kind,
-                source,
                 items: _,
             } => {
                 self.node("Expression::ReExport", id.id)
@@ -878,19 +871,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("kind", kind)
                     .field("target", target)
                     .field("module", module)
-                    .field("source", source)
                     .end();
             }
             Expression::Export {
                 mode,
                 kind,
-                source,
                 items: _,
             } => {
                 self.node("Expression::Export", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
-                    .field("source", source)
                     .end();
             }
             Expression::Let {
