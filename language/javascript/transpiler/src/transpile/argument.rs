@@ -18,6 +18,7 @@ impl<'a> Transpiler<'a> {
                 name,
                 ty,
                 default,
+                symbol: _,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
@@ -44,6 +45,7 @@ impl<'a> Transpiler<'a> {
                 pattern,
                 ty,
                 default,
+                symbol: _,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
@@ -69,6 +71,7 @@ impl<'a> Transpiler<'a> {
                 modifiers,
                 name,
                 ty,
+                symbol: _,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
@@ -146,6 +149,7 @@ impl<'a> Transpiler<'a> {
                 name: _,
                 key,
                 value,
+                parameter: _,
             } => {
                 let key = self
                     .transpile_expression(module, *key, unit)

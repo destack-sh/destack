@@ -25,7 +25,11 @@ impl<'a> Transpiler<'a> {
         for item_id in item_ids {
             let item = self.session.tree.get(*item_id);
             match item.as_ref() {
-                dir::DependencyItem::UnresolvedDefault { kind: _, alias } => {
+                dir::DependencyItem::UnresolvedDefault {
+                    kind: _,
+                    alias,
+                    local_symbol: _,
+                } => {
                     let alias = unit.strings.intern_from(&module.strings, *alias);
                     if default_alias.is_some() {
                         return Err(TranspileError::UnsupportedNode {
@@ -39,6 +43,7 @@ impl<'a> Transpiler<'a> {
                     kind: inner_kind,
                     name,
                     alias,
+                    local_symbol: _,
                 } => {
                     let name = unit.strings.intern_from(&module.strings, *name);
                     let alias = alias.map(|alias| unit.strings.intern_from(&module.strings, alias));

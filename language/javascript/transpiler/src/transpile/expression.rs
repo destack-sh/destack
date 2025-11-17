@@ -63,6 +63,7 @@ impl<'a> Transpiler<'a> {
             dir::Expression::With {
                 clauses: _,
                 body: _,
+                scope: _,
             } => {
                 return Err(TranspileError::UnsupportedNode {
                     node: expression_id.into_any(),
@@ -72,7 +73,6 @@ impl<'a> Transpiler<'a> {
             dir::Expression::UnresolvedImport {
                 kind,
                 target,
-                source: _,
                 items,
                 arguments,
             }
@@ -80,7 +80,6 @@ impl<'a> Transpiler<'a> {
                 kind,
                 target,
                 module: _,
-                source: _,
                 items,
                 arguments,
             } => {
@@ -112,7 +111,6 @@ impl<'a> Transpiler<'a> {
                 mode,
                 kind,
                 target,
-                source: _,
                 items,
             }
             | dir::Expression::ReExport {
@@ -120,7 +118,6 @@ impl<'a> Transpiler<'a> {
                 kind,
                 target,
                 module: _,
-                source: _,
                 items,
             } => {
                 let mode = self.transpile_export_type(*mode);
@@ -145,6 +142,7 @@ impl<'a> Transpiler<'a> {
                 pattern,
                 ty,
                 value,
+                symbol: _,
             } => {
                 let mutability = self.transpile_mutability(*mutability);
                 let pattern = self.transpile_pattern(module, *pattern, unit)?;
@@ -306,7 +304,8 @@ impl<'a> Transpiler<'a> {
 
             dir::Expression::Member {
                 left,
-                path,
+                name,
+                symbol: _,
                 static_arguments,
             } => {
                 let left_id = self
