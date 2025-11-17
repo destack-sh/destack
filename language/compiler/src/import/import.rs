@@ -36,7 +36,7 @@ impl<'a> Compiler<'a> {
             parser.tree,
             parser.strings,
         );
-        self.lower_module(module, expressions.as_slice());
+        self.lower_module(module, self.session.root_scope_id, expressions.as_slice());
 
         Ok(())
     }

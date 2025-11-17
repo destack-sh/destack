@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{ModuleId, Node, NodeType, SymbolId};
+use crate::{Expression, ModuleId, Node, NodeId, NodeType, SymbolId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -38,6 +38,8 @@ pub enum DependencyItem {
         alias: Option<StringId>,
         local_symbol: SymbolId,
     },
+    /// Value expression dependency (like `export = foo`).
+    Value { value: NodeId<Expression> },
     /// Internal to the module (i.e., plain exports).
     Local { local_symbol: SymbolId },
     /// Remote to the module (i.e., imports and re-exports).
@@ -57,7 +59,9 @@ impl DependencyItem {
     pub fn is_resolved(&self) -> bool {
         matches!(
             self,
-            DependencyItem::Local { .. } | DependencyItem::Remote { .. }
+            DependencyItem::Local { .. }
+                | DependencyItem::Remote { .. }
+                | DependencyItem::Value { .. }
         )
     }
 }

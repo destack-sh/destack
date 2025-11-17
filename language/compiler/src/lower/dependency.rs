@@ -1,5 +1,8 @@
 use dyst_ast as ast;
-use dyst_dir::{DependencyItem, DependencyKind, ExportType, Module, NodeId};
+use dyst_dir::{
+    DependencyItem, DependencyKind, ExportType, Module, NodeId, ScopeId, SymbolKey,
+    SymbolSpace,
+};
 
 use crate::Compiler;
 
@@ -29,6 +32,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn lower_dependency_item(
         &mut self,
         module: &Module,
+        scope_id: ScopeId,
         kind: ast::DependencyKind,
         item_id: ast::NodeId<ast::DependencyItem>,
     ) -> NodeId<DependencyItem> {
@@ -38,7 +42,19 @@ impl<'a> Compiler<'a> {
         let alias = item
             .alias
             .map(|alias| self.session.strings.intern_from(&module.strings, alias));
-        let item = DependencyItem::UnresolvedItem { kind, name, alias };
-        self.session.tree.insert_from_ast(item, module.id, item_id)
+        let symbol_id = self.session.tree.create_symbol(
+            SymbolSpace::Value,
+            Some(SymbolKey::Name(name)),
+            scope_id,
+        );
+        let item = DependencyItem::UnresolvedItem {
+            kind,
+            name,
+            alias,
+            local_symbol: symbol_id,
+        };
+        self.session
+            .tree
+            .insert_from_source_as_symbol(item, module.id, item_id, symbol_id)
     }
 }

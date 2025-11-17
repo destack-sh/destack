@@ -78,6 +78,7 @@ impl<'a> Transpiler<'a> {
         let definition = match definition.as_ref() {
             dir::Definition::Namespace {
                 descriptor,
+                scope: _,
                 generics: _,
                 definitions,
             } => {
@@ -93,6 +94,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Definition::Struct {
                 descriptor,
+                scope: _,
                 kind: _,
                 generics,
                 heritage,
@@ -115,6 +117,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Definition::Interface {
                 descriptor,
+                scope: _,
                 generics,
                 heritage,
                 properties,
@@ -135,6 +138,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Definition::Enum {
                 descriptor,
+                scope: _,
                 generics: _,
                 heritage: _,
                 fields,

@@ -1,6 +1,6 @@
 use crate::{
     Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, Node, NodeId,
-    NodeType, Path, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
     TypeUnaryOperator, UnaryOperator,
 };
 
@@ -83,7 +83,7 @@ pub enum Expression {
     /// Member access.
     Member {
         left: NodeId<Expression>,
-        path: Path,
+        name: StringId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Index.
@@ -101,7 +101,7 @@ pub enum Expression {
     },
     /// New.
     New {
-        left: Path,
+        left: NodeId<Expression>,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },

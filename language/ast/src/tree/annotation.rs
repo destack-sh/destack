@@ -145,7 +145,7 @@ impl Node for Comment {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tag {
     /// The tag name / path.
-    pub receiver: Path,
+    pub left: Path,
     /// The arguments (if any).
     pub arguments: Option<Vec<NodeId<Argument>>>,
 }
@@ -165,7 +165,7 @@ impl Node for Tag {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Decorator {
     /// The decorator name / path.
-    pub receiver: Path,
+    pub left: Path,
     /// The arguments (if any).
     pub arguments: Option<Vec<NodeId<Argument>>>,
 }

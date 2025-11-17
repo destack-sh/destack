@@ -11,6 +11,8 @@ pub enum ScopeKind {
     Module,
     /// Namespace.
     Namespace,
+    /// Block.
+    Block,
 }
 
 /// Unique identifier for Scopes.
@@ -34,6 +36,8 @@ pub struct Scope {
     pub kind: ScopeKind,
     /// The parent scope.
     pub parent: Option<ScopeId>,
+    /// The owner of the scope.
+    pub owner: Option<SymbolId>,
     /// The symbols in the scope.
     pub symbols: HashMap<SymbolKey, SymbolId>,
     /// The children scopes.

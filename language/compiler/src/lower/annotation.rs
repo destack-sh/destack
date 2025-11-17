@@ -1,13 +1,13 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId};
+use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower and attach all annotations for a module.
-    pub fn attach_annotations(&mut self, module: &Module) {
+    pub fn attach_annotations(&mut self, module: &Module, scope_id: ScopeId) {
         // lower them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.lower_annotation(module, ast_annotation_id);
+            self.lower_annotation(module, scope_id, ast_annotation_id);
         }
 
         // attach them
@@ -53,6 +53,7 @@ impl<'a> Compiler<'a> {
     fn lower_annotation(
         &mut self,
         module: &Module,
+        scope_id: ScopeId,
         annotation_id: ast::NodeId<ast::Annotation>,
     ) -> Option<NodeId<Annotation>> {
         let annotation = module.get(annotation_id);
@@ -81,32 +82,32 @@ impl<'a> Compiler<'a> {
             ast::Annotation::Tag { node, position } => {
                 let tag = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(module, &tag.receiver);
+                let left = self.lower_path(module, &tag.left);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, *argument))
+                        .map(|argument| self.lower_argument(module, scope_id, *argument))
                         .collect()
                 });
-                Annotation::Tag {
+                Annotation::UnresolvedTag {
                     position,
-                    receiver,
+                    left,
                     arguments,
                 }
             }
             ast::Annotation::Decorator { node, position } => {
                 let decorator = module.get(*node);
                 let position = self.lower_annotation_position(*position);
-                let receiver = self.lower_path(module, &decorator.receiver);
+                let left = self.lower_path(module, &decorator.left);
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, *argument))
+                        .map(|argument| self.lower_argument(module, scope_id, *argument))
                         .collect()
                 });
-                Annotation::Decorator {
+                Annotation::UnresolvedDecorator {
                     position,
-                    receiver,
+                    left,
                     arguments,
                 }
             }
@@ -114,7 +115,7 @@ impl<'a> Compiler<'a> {
         Some(
             self.session
                 .tree
-                .insert_from_ast(annotation, module.id, annotation_id),
+                .insert_from_source(annotation, module.id, annotation_id),
         )
     }
 }

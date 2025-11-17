@@ -768,6 +768,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             target_type,
             heritage,
             properties,
+            scope: _,
         } => {
             walk_generics(visitor, tree, generics);
             let target_type_expr = tree.get(*target_type);
@@ -1056,6 +1057,10 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             local_symbol: _,
         } => {
             // nothing to do
+        }
+        DependencyItem::Value { value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
         }
         DependencyItem::Local { local_symbol: _ } => {
             // nothing to do
@@ -1398,6 +1403,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         } => {}
         Annotation::Tag {
             position: _,
+            left: _,
             symbol: _,
             arguments,
         }
@@ -1408,6 +1414,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         }
         | Annotation::Decorator {
             position: _,
+            left: _,
             symbol: _,
             arguments,
         }

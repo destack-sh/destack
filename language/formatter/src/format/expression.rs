@@ -1,6 +1,6 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    MutableNodeTree, NodeId, Path, PostfixPosition, Property, TypeKind, TypeUnaryOperator,
+    MutableNodeTree, NodeId, PostfixPosition, Property, TypeKind, TypeUnaryOperator,
     WhileKind, YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
@@ -830,7 +830,7 @@ pub(crate) fn format_struct_literal<'ast>(
 pub(crate) fn format_tree_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     expression_id: NodeId<Expression>,
-    path: &Option<Path>,
+    left: &Option<NodeId<Expression>>,
     arguments: &Option<Vec<NodeId<Argument>>>,
     elements: &Option<Vec<NodeId<Argument>>>,
 ) -> FormatResult<()> {
@@ -843,9 +843,9 @@ pub(crate) fn format_tree_literal<'ast>(
                 [group(&format_with(|f| {
                     // <
                     write!(f, [token("<")])?;
-                    // path
-                    if let Some(path) = path {
-                        write!(f, [path])?;
+                    // left
+                    if let Some(left) = left {
+                        write!(f, [left])?;
                     }
                     // arguments
                     if let Some(arguments) = arguments {
@@ -867,7 +867,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     }
                     // /
                     if elements.is_none() {
-                        if path.is_some() {
+                        if left.is_some() {
                             write!(f, [if_group_fits_on_line(&space())])?;
                         }
                         write!(f, [token("/")])?;
@@ -903,8 +903,8 @@ pub(crate) fn format_tree_literal<'ast>(
 
                 // closing tag
                 write!(f, [token("</")])?;
-                if let Some(path) = path {
-                    write!(f, [path])?;
+                if let Some(left) = left {
+                    write!(f, [left])?;
                 }
                 write!(f, [token(">")])?;
             }
@@ -1461,11 +1461,11 @@ pub(crate) fn format_expression<'ast>(
 
         // tree literal
         Expression::TreeLiteral {
-            path,
+            left,
             arguments,
             elements,
         } => {
-            format_tree_literal(f, node_id, path, arguments, elements)?;
+            format_tree_literal(f, node_id, left, arguments, elements)?;
         }
 
         // parenthesized

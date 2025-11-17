@@ -137,10 +137,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             }
             Expression::Member {
                 left,
-                path,
+                name,
                 static_arguments,
             } => {
-                write!(f, [left, token("."), path])?;
+                write!(f, [left, token("."), *name])?;
                 if f.context().include_types()
                     && let Some(static_arguments) = static_arguments
                 {

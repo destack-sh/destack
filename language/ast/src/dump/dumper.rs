@@ -946,13 +946,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::StructLiteral", _id.id).end();
             }
             Expression::TreeLiteral {
-                path,
+                left: _,
                 arguments: _,
                 elements: _,
             } => {
-                self.node("Expression::TreeLiteral", _id.id)
-                    .field_optional("path", path)
-                    .end();
+                self.node("Expression::TreeLiteral", _id.id).end();
             }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
@@ -1548,9 +1546,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_tag(&mut self, _tree: &MutableNodeTree, _id: NodeId<Tag>, tag: &Tag) {
-        self.node("Tag", _id.id)
-            .field("receiver", &tag.receiver)
-            .end();
+        self.node("Tag", _id.id).field("left", &tag.left).end();
         self.with_depth(|dumper| {
             walk_tag(dumper, _tree, _id, tag);
         });
@@ -1563,7 +1559,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         decorator: &Decorator,
     ) {
         self.node("Decorator", _id.id)
-            .field("receiver", &decorator.receiver)
+            .field("left", &decorator.left)
             .end();
         self.with_depth(|dumper| {
             walk_decorator(dumper, _tree, _id, decorator);

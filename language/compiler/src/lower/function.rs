@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Module,
+    FunctionSignature, Module, ScopeId,
 };
 
 impl<'a> Compiler<'a> {
@@ -66,6 +66,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn lower_function_signature(
         &mut self,
         module: &Module,
+        scope_id: ScopeId,
         signature: &ast::FunctionSignature,
     ) -> FunctionSignature {
         let abstraction = self.lower_function_abstraction(signature.abstraction);
@@ -76,15 +77,15 @@ impl<'a> Compiler<'a> {
         let generics = signature
             .generics
             .as_ref()
-            .map(|generics| self.lower_generics(module, generics));
+            .map(|generics| self.lower_generics(module, scope_id, generics));
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.lower_parameter(module, *parameter))
+            .map(|parameter| self.lower_parameter(module, scope_id, *parameter))
             .collect();
         let return_type = signature
             .return_type
-            .map(|return_type| self.lower_expression_to_type(module, return_type));
+            .map(|return_type| self.lower_expression_to_type(module, scope_id, return_type));
         FunctionSignature {
             abstraction,
             asynchrony,

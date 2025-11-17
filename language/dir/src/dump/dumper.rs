@@ -1308,11 +1308,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_type: _,
                 heritage,
                 properties: _,
+                scope,
             } => {
                 self.node("Definition::Extension", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
+                    .field("scope", &scope.0)
                     .end();
             }
         }
@@ -1491,6 +1493,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("alias", alias)
                     .field("local_symbol", local_symbol)
                     .end();
+            }
+            DependencyItem::Value { value: _ } => {
+                self.node("DependencyItem::Value", id.id).end();
             }
             DependencyItem::Local { local_symbol } => {
                 self.node("DependencyItem::Definition", id.id)
@@ -1856,21 +1861,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Annotation::Tag {
                 position,
+                left,
                 symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Tag", id.id)
                     .field("position", position)
+                    .field("left", left)
                     .field("symbol", symbol)
                     .end();
             }
             Annotation::Decorator {
                 position,
+                left,
                 symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
+                    .field("left", left)
                     .field("symbol", symbol)
                     .end();
             }

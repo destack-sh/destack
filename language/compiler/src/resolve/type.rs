@@ -27,7 +27,7 @@ impl<'a> Compiler<'a> {
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<NodeId<Type>> {
         let ty = self.try_resolve_expression_to_type_value(expression_id)?;
-        Ok(self.session.tree.insert_from_dir(ty, expression_id))
+        Ok(self.session.tree.insert_from(ty, expression_id))
     }
 
     /// Try to Resolve an Expression as a Type.
