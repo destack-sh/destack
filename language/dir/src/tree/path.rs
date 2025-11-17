@@ -1,6 +1,6 @@
 use dyst_source::SmallVec;
 
-use crate::{Definition, Intrinsic, NodeId, StringId};
+use crate::{Definition, Intrinsic, NodeId, ScopeId, StringId};
 
 /// The base of a path.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -49,14 +49,14 @@ impl Path {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockTarget {
     /// Unresolved block target with a string label.
-    UnresolvedString { label: StringId },
-    /// Resolved block target to a Definition.
-    Definition { definition: NodeId<Definition> },
+    Unresolved { label: StringId },
+    /// Resolved block target to a Scope.
+    Scope { scope: ScopeId },
 }
 
 impl BlockTarget {
     /// Whether the target is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        matches!(self, BlockTarget::Definition { .. })
+        matches!(self, BlockTarget::Scope { .. })
     }
 }

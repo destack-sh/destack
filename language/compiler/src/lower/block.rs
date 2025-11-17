@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
     /// Lower a label to a DIR block target.
     pub(super) fn lower_label(&mut self, module: &Module, label: StringId) -> BlockTarget {
         let label = self.session.strings.intern_from(&module.strings, label);
-        BlockTarget::UnresolvedString { label }
+        BlockTarget::Unresolved { label }
     }
 
     /// Lower a block to a DIR block.

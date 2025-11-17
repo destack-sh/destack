@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use dyst_dir::{self as dir, ModuleId};
-use dyst_source::NodeArena;
+use dyst_source::Arena;
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, NodeId,
@@ -21,7 +21,7 @@ pub struct MutableNodeTree {
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_per_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The DIR ids of all nodes. Index is the global node id.
     pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
@@ -30,22 +30,22 @@ pub struct MutableNodeTree {
     /// The alias node id by JS AST node id.
     pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
 
-    // per-node arenas
-    pub(crate) blocks: NodeArena<Block>,
-    pub(crate) statements: NodeArena<Statement>,
-    pub(crate) expressions: NodeArena<Expression>,
-    pub(crate) definitions: NodeArena<Definition>,
-    pub(crate) fields: NodeArena<Property>,
-    pub(crate) types: NodeArena<Type>,
-    pub(crate) type_fields: NodeArena<TypeField>,
-    pub(crate) enum_fields: NodeArena<EnumField>,
-    pub(crate) dependency_items: NodeArena<DependencyItem>,
-    pub(crate) switch_cases: NodeArena<SwitchCase>,
-    pub(crate) parameters: NodeArena<Parameter>,
-    pub(crate) arguments: NodeArena<Argument>,
-    pub(crate) patterns: NodeArena<Pattern>,
-    pub(crate) pattern_fields: NodeArena<PatternField>,
-    pub(crate) annotations: NodeArena<Annotation>,
+    // node arenas
+    pub(crate) blocks: Arena<Block>,
+    pub(crate) statements: Arena<Statement>,
+    pub(crate) expressions: Arena<Expression>,
+    pub(crate) definitions: Arena<Definition>,
+    pub(crate) fields: Arena<Property>,
+    pub(crate) types: Arena<Type>,
+    pub(crate) type_fields: Arena<TypeField>,
+    pub(crate) enum_fields: Arena<EnumField>,
+    pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) switch_cases: Arena<SwitchCase>,
+    pub(crate) parameters: Arena<Parameter>,
+    pub(crate) arguments: Arena<Argument>,
+    pub(crate) patterns: Arena<Pattern>,
+    pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) annotations: Arena<Annotation>,
 }
 
 impl Debug for MutableNodeTree {
@@ -76,26 +76,26 @@ impl MutableNodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             type_by_node_id: Vec::with_capacity(capacity),
             module_by_node_id: Vec::with_capacity(capacity),
-            annotations_per_node_id: HashMap::new(),
+            annotations_by_node_id: HashMap::new(),
             dir_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_dir_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
-            // per-node arenas
-            blocks: NodeArena::new(),
-            statements: NodeArena::new(),
-            expressions: NodeArena::new(),
-            definitions: NodeArena::new(),
-            fields: NodeArena::new(),
-            types: NodeArena::new(),
-            type_fields: NodeArena::new(),
-            enum_fields: NodeArena::new(),
-            dependency_items: NodeArena::new(),
-            switch_cases: NodeArena::new(),
-            parameters: NodeArena::new(),
-            arguments: NodeArena::new(),
-            patterns: NodeArena::new(),
-            pattern_fields: NodeArena::new(),
-            annotations: NodeArena::new(),
+            // node arenas
+            blocks: Arena::new(),
+            statements: Arena::new(),
+            expressions: Arena::new(),
+            definitions: Arena::new(),
+            fields: Arena::new(),
+            types: Arena::new(),
+            type_fields: Arena::new(),
+            enum_fields: Arena::new(),
+            dependency_items: Arena::new(),
+            switch_cases: Arena::new(),
+            parameters: Arena::new(),
+            arguments: Arena::new(),
+            patterns: Arena::new(),
+            pattern_fields: Arena::new(),
+            annotations: Arena::new(),
         }
     }
 
@@ -224,7 +224,7 @@ impl MutableNodeTree {
 
     /// Get the annotations for a node.
     pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
-        self.annotations_per_node_id
+        self.annotations_by_node_id
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)

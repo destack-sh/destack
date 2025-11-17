@@ -1,6 +1,6 @@
 use crate::{
     BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, Node, NodeId,
-    NodeType, Property, StringId, Type,
+    NodeType, Property, ScopeId, StringId, Type,
 };
 
 /// The kind of declaration.
@@ -32,6 +32,7 @@ pub enum Definition {
     Namespace {
         descriptor: DeclarationDescriptor,
         generics: Generics,
+        scope: ScopeId,
         definitions: Vec<NodeId<Definition>>,
     },
     /// Struct or class definition.
@@ -40,6 +41,7 @@ pub enum Definition {
         kind: StructKind,
         generics: Generics,
         heritage: Heritage,
+        scope: ScopeId,
         properties: Vec<NodeId<Property>>,
     },
     /// Enum definition.
@@ -47,6 +49,7 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
+        scope: ScopeId,
         fields: Vec<NodeId<EnumField>>,
         properties: Vec<NodeId<Property>>,
     },
@@ -55,12 +58,14 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
+        scope: ScopeId,
         properties: Vec<NodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
+        scope: ScopeId,
         definitions: Vec<NodeId<Definition>>,
         body: Option<NodeId<Expression>>,
     },
@@ -70,6 +75,7 @@ pub enum Definition {
         generics: Generics,
         target_type: NodeId<Type>,
         heritage: Heritage,
+        scope: ScopeId,
         properties: Vec<NodeId<Property>>,
     },
 }

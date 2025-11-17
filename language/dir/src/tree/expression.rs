@@ -1,11 +1,7 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
-    DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId,
-    Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral,
-    TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition, DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound
 };
 
 /// An Expression is a generic container for all constructs.
@@ -23,6 +19,7 @@ pub enum Expression {
     /// With context declaration (like `with Foo, Bar` for `with Foo.Bar`).
     With {
         clauses: Vec<NodeId<WithClause>>,
+        scope: ScopeId,
         body: Option<NodeId<Block>>,
     },
     /// Unresolved import dependency declaration (like `import "foo"`).
@@ -234,6 +231,7 @@ pub enum Expression {
         kind: LoopKind,
         condition: Option<NodeId<Expression>>,
         body: NodeId<Block>,
+        scope: ScopeId,
     },
     /// For each loop.
     ForEach {
@@ -242,6 +240,7 @@ pub enum Expression {
         pattern: NodeId<Pattern>,
         iterator: NodeId<Expression>,
         body: NodeId<Block>,
+        scope: ScopeId,
     },
     /// For three-part loop.
     For {
@@ -249,6 +248,7 @@ pub enum Expression {
         condition: Option<NodeId<Expression>>,
         increment: Option<NodeId<Expression>>,
         body: NodeId<Block>,
+        scope: ScopeId,
     },
     /// Try expression.
     Try {
@@ -256,12 +256,14 @@ pub enum Expression {
         catch_pattern: Option<NodeId<Pattern>>,
         catch_expression: Option<NodeId<Expression>>,
         finally_expression: Option<NodeId<Expression>>,
+        scope: ScopeId,
     },
     /// Match expression.
     Match {
         value: NodeId<Expression>,
         cases: Vec<NodeId<MatchCase>>,
         source: MatchSource,
+        scope: ScopeId,
     },
     /// Break expression.
     Break {

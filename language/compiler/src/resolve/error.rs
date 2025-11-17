@@ -1,27 +1,46 @@
 use crate::CompileError;
-use dyst_dir::{Expression, ModuleId, NodeId, NodeIdAny};
+use dyst_dir::{Expression, ModuleId, NodeId, NodeIdAny, ScopeId, Session, StringId, SymbolId};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveError {
-    /// Dependent nodes are not ready to be resolved.
+    /// Dependent nodes are not ready to be resolved. May be retried.
     NotReady {
         module: ModuleId,
         node: NodeIdAny,
         depends_on: Vec<NodeIdAny>,
     } = 1,
+
     /// Circular dependency.
     CircularDependency {
         module: ModuleId,
         node: NodeIdAny,
         depends_on: Vec<NodeIdAny>,
     } = 2,
-    /// Unevaluatable expression.
-    UnevaluatableExpression {
+
+    /// Use of undeclared symbol.
+    UndeclaredSymbol {
         module: ModuleId,
-        node: NodeId<Expression>,
+        node: NodeIdAny,
+        scope: ScopeId,
+        name: StringId,
     } = 3,
+    /// Use of missing symbol.
+    MissingSymbol {
+        module: ModuleId,
+        node: NodeIdAny,
+        scope: ScopeId,
+        name: StringId,
+    } = 4,
+    /// Use of ambiguous symbol.
+    AmbiguousSymbol {
+        module: ModuleId,
+        node: NodeIdAny,
+        scope: ScopeId,
+        symbol: SymbolId,
+        name: StringId,
+    } = 5,
 }
 
 impl ResolveError {
@@ -31,16 +50,20 @@ impl ResolveError {
         match self {
             Self::NotReady { .. } => 1,
             Self::CircularDependency { .. } => 2,
-            Self::UnevaluatableExpression { .. } => 3,
+            Self::UndeclaredSymbol { .. } => 3,
+            Self::MissingSymbol { .. } => 4,
+            Self::AmbiguousSymbol { .. } => 5,
         }
     }
 
     /// Get the message of the error.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
         match self {
             Self::NotReady { .. } => "dependent nodes are not ready to be resolved".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
-            Self::UnevaluatableExpression { .. } => "unevaluatable expression".to_string(),
+            Self::UndeclaredSymbol { .. } => "use of undeclared symbol".to_string(),
+            Self::MissingSymbol { .. } => "missing symbol".to_string(),
+            Self::AmbiguousSymbol { .. } => "ambiguous symbol".to_string(),
         }
     }
 }

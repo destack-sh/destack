@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 
-/// NodeArena for storing nodes.
+/// Arena for storing nodes and node-like things.
 #[derive(Clone)]
-pub struct NodeArena<T> {
+pub struct Arena<T> {
     /// The nodes in the arena.
     pub(super) nodes: Vec<T>,
 }
 
-impl<T> Debug for NodeArena<T>
+impl<T> Debug for Arena<T>
 where
     T: Debug,
 {
@@ -16,13 +16,13 @@ where
     }
 }
 
-impl<T> Default for NodeArena<T> {
+impl<T> Default for Arena<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> NodeArena<T> {
+impl<T> Arena<T> {
     /// Create a new empty Arena.
     #[inline]
     pub fn new() -> Self {
