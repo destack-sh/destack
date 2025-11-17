@@ -1,4 +1,4 @@
-use crate::CompileError;
+use crate::{CompileError, CompilerStage};
 use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId};
 
 /// Error when evaluating something statically.
@@ -56,6 +56,17 @@ impl ResolveError {
         }
     }
 
+    /// Get the node id of the error.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::NotReady { node, .. } => Some(*node),
+            Self::CircularDependency { node, .. } => Some(*node),
+            Self::UndeclaredSymbol { node, .. } => Some(*node),
+            Self::MissingSymbol { node, .. } => Some(*node),
+            Self::AmbiguousSymbol { node, .. } => Some(*node),
+        }
+    }
+
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
@@ -71,7 +82,10 @@ impl ResolveError {
 impl std::fmt::Display for ResolveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ResolveError")
-            .field("code", &format!("XE{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}E{:03}", CompilerStage::Resolve.letter(), self.sub_code()),
+            )
             .finish()
     }
 }

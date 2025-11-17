@@ -2,15 +2,15 @@ use dyst_dir::{ModuleId, NodeIdAny, Session};
 
 use crate::CompilerStage;
 
-/// Warning when importing something.
+/// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
-pub enum ImportWarning {
+pub enum BuildWarning {
     /// Missing configuration for a file.
     MissingConfiguration { module: ModuleId } = 1,
 }
 
-impl ImportWarning {
+impl BuildWarning {
     /// Get the numeric sub-code of the warning.
     #[inline]
     pub fn sub_code(&self) -> u8 {
@@ -29,17 +29,17 @@ impl ImportWarning {
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingConfiguration { .. } => "missing configuration for a module".to_string(),
+            Self::MissingConfiguration { .. } => "missing configuration for a file".to_string(),
         }
     }
 }
 
-impl std::fmt::Display for ImportWarning {
+impl std::fmt::Display for BuildWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ImportWarning")
+        f.debug_struct("BuildWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Import.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompilerStage::Build.letter(), self.sub_code()),
             )
             .finish()
     }

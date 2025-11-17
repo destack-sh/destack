@@ -1,8 +1,8 @@
-use dyst_dir::ModuleId;
+use dyst_dir::{ModuleId, NodeIdAny, Session};
 use dyst_parser::ParseError;
 use dyst_source::{FileId, StringId, Uri};
 
-use crate::CompileError;
+use crate::{CompileError, CompilerStage};
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone)]
@@ -16,11 +16,12 @@ pub enum ImportError {
     ModuleNotFound { target: StringId } = 3,
     /// Failed to parse a module.
     ParseError {
-        module_id: ModuleId,
+        module: ModuleId,
+        node: NodeIdAny,
         diagnostics: Vec<ParseError>,
     } = 4,
     /// Circular dependency.
-    CircularDependency { module_id: ModuleId } = 5,
+    CircularDependency { module: ModuleId, node: NodeIdAny } = 5,
 }
 
 impl ImportError {
@@ -36,8 +37,19 @@ impl ImportError {
         }
     }
 
+    /// Get the node id of the error.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::FileIdNotFound { .. } => None,
+            Self::FileUriNotFound { .. } => None,
+            Self::ModuleNotFound { .. } => None,
+            Self::ParseError { node, .. } => Some(*node),
+            Self::CircularDependency { node, .. } => Some(*node),
+        }
+    }
+
     /// Get the message of the error.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::FileUriNotFound { .. } => "file not found".to_string(),
@@ -51,7 +63,10 @@ impl ImportError {
 impl std::fmt::Display for ImportError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ImportError")
-            .field("code", &format!("LE{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}E{:03}", CompilerStage::Import.letter(), self.sub_code()),
+            )
             .finish()
     }
 }

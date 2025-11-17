@@ -1,9 +1,9 @@
 use dyst_dir::Session;
-use dyst_source::FileId;
+use dyst_source::{Diagnostic, FileId};
 
 use crate::{
-    BuildOptions, CompilerQueue, CompilerTask, ExecuteOptions, ImportOptions, ImportTask,
-    OptimizeOptions, ResolveOptions, ValidateOptions,
+    BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, CompilerTask,
+    ExecuteOptions, ImportOptions, ImportTask, OptimizeOptions, ResolveOptions, ValidateOptions,
 };
 
 /// The options for compiling a Workspace.
@@ -59,5 +59,21 @@ impl<'s> Compiler<'s> {
                 file_id,
             }));
         compiler
+    }
+
+    /// Add an error to the compiler.
+    pub fn error<T: Into<CompileError>>(&mut self, error: T) {
+        let error: CompileError = error.into();
+        let diagnostic: CompileDiagnostic = error.into();
+        let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
+        self.session.diagnostics.insert(diagnostic);
+    }
+
+    /// Add a warning to the compiler.
+    pub fn warning<T: Into<CompileWarning>>(&mut self, warning: T) {
+        let warning: CompileWarning = warning.into();
+        let diagnostic: CompileDiagnostic = warning.into();
+        let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
+        self.session.diagnostics.insert(diagnostic);
     }
 }

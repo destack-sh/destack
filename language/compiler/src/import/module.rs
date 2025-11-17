@@ -4,8 +4,8 @@ use dyst_dir::{Module, ScopeId, ScopeKind};
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a module into DIR in a given parent/root scope.
-    pub fn lower_module(
+    /// Import a module from AST into DIR in a given parent/root scope.
+    pub fn import_module(
         &mut self,
         mut module: Module,
         scope_id: Option<ScopeId>,

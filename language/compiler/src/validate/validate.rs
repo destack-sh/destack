@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::{Compiler, ValidateResult};
 
 use dyst_dir::{ModuleId, NodeId, Pattern, Type};
 
@@ -19,7 +19,7 @@ pub enum ValidateTask {
 
 impl<'a> Compiler<'a> {
     /// Process a validate task.
-    pub fn process_validate(&mut self, task: ValidateTask) {
+    pub fn process_validate(&mut self, task: ValidateTask) -> ValidateResult<()> {
         todo!("process_validate({task:?})")
     }
 }

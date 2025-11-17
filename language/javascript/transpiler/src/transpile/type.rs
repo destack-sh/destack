@@ -76,7 +76,7 @@ impl<'a> Transpiler<'a> {
         _module: &'a Module,
         _ty_id: dir::NodeId<dir::Type>,
         primitive: dir::PrimitiveType,
-        unit: &mut TranspilerUnit,
+        _unit: &mut TranspilerUnit,
     ) -> TranspileResult<PrimitiveType> {
         let primitive = match primitive {
             dir::PrimitiveType::Boolean => PrimitiveType::Boolean,

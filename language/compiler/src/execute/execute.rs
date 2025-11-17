@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::{Compiler, ExecuteResult};
 
 use dyst_dir::{Expression, NodeId};
 
@@ -11,7 +11,7 @@ pub enum ExecuteTask {
 
 impl<'a> Compiler<'a> {
     /// Execute a node.
-    pub fn process_execute(&mut self, task: ExecuteTask) {
+    pub fn process_execute(&mut self, task: ExecuteTask) -> ExecuteResult<()> {
         todo!("process_execute({task:?})")
     }
 }

@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir};
+use dyst_dir::{self as dir, Session};
 
 use crate::TranspileDiagnostic;
 
@@ -19,7 +19,7 @@ pub enum TranspileWarning {
 
 impl TranspileWarning {
     /// Get the message of the warning.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnresolvedExpression { .. } => "unresolved expression".to_string(),
             Self::UnresolvedPath { .. } => "unresolved path".to_string(),

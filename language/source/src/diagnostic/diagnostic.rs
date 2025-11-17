@@ -21,8 +21,8 @@ impl DiagnosticSeverity {
         }
     }
 
-    /// Get the family letter of the severity.
-    pub fn family_letter(&self) -> &'static str {
+    /// Get the stage letter of the severity.
+    pub fn stage_letter(&self) -> &'static str {
         match self {
             Self::Note => "N",
             Self::Warning => "W",

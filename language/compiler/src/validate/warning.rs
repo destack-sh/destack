@@ -1,4 +1,6 @@
-use dyst_dir::{Expression, NodeId};
+use dyst_dir::{Expression, NodeId, NodeIdAny, Session};
+
+use crate::{CompileWarning, CompilerStage};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,8 +19,15 @@ impl ValidateWarning {
         }
     }
 
+    /// Get the node id of the warning.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::MissingType { node, .. } => Some(node.into_any()),
+        }
+    }
+
     /// Get the message of the warning.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::MissingType { .. } => "missing type for an expression".to_string(),
         }
@@ -28,7 +37,16 @@ impl ValidateWarning {
 impl std::fmt::Display for ValidateWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ValidateWarning")
-            .field("code", &format!("VW{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}W{:03}", CompilerStage::Validate.letter(), self.sub_code()),
+            )
             .finish()
+    }
+}
+
+impl From<ValidateWarning> for CompileWarning {
+    fn from(warning: ValidateWarning) -> Self {
+        CompileWarning::Validate(warning)
     }
 }

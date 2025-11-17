@@ -1,34 +1,49 @@
-use crate::{BuildError, ExecuteError, ImportError, OptimizeError, ResolveError, ValidateError};
+use dyst_dir::{NodeIdAny, Session};
+
+use crate::{
+    BuildError, CompilerStage, ExecuteError, ImportError, LinkError, LowerError, OptimizeError,
+    ResolveError, ValidateError,
+};
 
 /// Error during compilation.
 #[derive(Debug, Clone)]
-#[repr(u8)]
 pub enum CompileError {
-    /// Error during importing (code `I`).
-    Import(ImportError) = 1,
-    /// Error during evaluation (code `E`).
-    Resolve(ResolveError) = 2,
-    /// Error during validation (code `V`).
-    Validate(ValidateError) = 3,
-    /// Error during execution (code `X`).
-    Execute(ExecuteError) = 4,
-    /// Error during optimization (code `O`).
-    Optimize(OptimizeError) = 5,
-    /// Error during building (code `B`).
-    Build(BuildError) = 6,
+    /// Error during importing.
+    Import(ImportError),
+    /// Error during evaluation.
+    Resolve(ResolveError),
+    /// Error during validation.
+    Validate(ValidateError),
+    /// Error during lower.
+    Lower(LowerError),
+    /// Error during execution.
+    Execute(ExecuteError),
+    /// Error during optimization.
+    Optimize(OptimizeError),
+    /// Error during building.
+    Build(BuildError),
+    /// Error during linking.
+    Link(LinkError),
 }
 
 impl CompileError {
-    /// Get the family letter of the error.
-    pub fn family_letter(&self) -> &str {
+    /// Get the stage of the error.
+    pub fn stage(&self) -> CompilerStage {
         match self {
-            Self::Import(_) => "I",
-            Self::Resolve(_) => "E",
-            Self::Validate(_) => "V",
-            Self::Execute(_) => "X",
-            Self::Optimize(_) => "O",
-            Self::Build(_) => "B",
+            Self::Import(_) => CompilerStage::Import,
+            Self::Resolve(_) => CompilerStage::Resolve,
+            Self::Validate(_) => CompilerStage::Validate,
+            Self::Lower(_) => CompilerStage::Lower,
+            Self::Execute(_) => CompilerStage::Execute,
+            Self::Optimize(_) => CompilerStage::Optimize,
+            Self::Build(_) => CompilerStage::Build,
+            Self::Link(_) => CompilerStage::Link,
         }
+    }
+
+    /// Get the stage letter of the error.
+    pub fn stage_letter(&self) -> char {
+        self.stage().letter()
     }
 
     /// Get the numeric sub-code of the error (e.g., `1` for `IE001`).
@@ -38,16 +53,46 @@ impl CompileError {
             Self::Import(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
             Self::Validate(error) => error.sub_code(),
+            Self::Lower(error) => error.sub_code(),
             Self::Execute(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Build(error) => error.sub_code(),
+            Self::Link(error) => error.sub_code(),
+        }
+    }
+
+    /// Get the node id of the error.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::Import(error) => error.node_id(),
+            Self::Resolve(error) => error.node_id(),
+            Self::Validate(error) => error.node_id(),
+            Self::Lower(error) => error.node_id(),
+            Self::Execute(error) => error.node_id(),
+            Self::Optimize(error) => error.node_id(),
+            Self::Build(error) => error.node_id(),
+            Self::Link(error) => error.node_id(),
+        }
+    }
+
+    /// Get the message of the error.
+    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+        match self {
+            Self::Import(error) => error.message(session),
+            Self::Resolve(error) => error.message(session),
+            Self::Validate(error) => error.message(session),
+            Self::Lower(error) => error.message(session),
+            Self::Execute(error) => error.message(session),
+            Self::Optimize(error) => error.message(session),
+            Self::Build(error) => error.message(session),
+            Self::Link(error) => error.message(session),
         }
     }
 
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        format!("{}E{:03}", self.family_letter(), self.sub_code())
+        format!("{}E{:03}", self.stage_letter(), self.sub_code())
     }
 }
 
