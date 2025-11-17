@@ -181,6 +181,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             clauses,
             body,
             scope: _,
+            symbol: _,
         } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);
@@ -543,6 +544,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             condition,
             body,
             scope: _,
+            symbol: _,
         } => {
             if let Some(condition_id) = condition {
                 let condition_expression = tree.get(*condition_id);
@@ -558,6 +560,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             iterator,
             body,
             scope: _,
+            symbol: _,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
@@ -572,6 +575,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             increment,
             body,
             scope: _,
+            symbol: _,
         } => {
             if let Some(initialization_id) = initialization {
                 let initialization_expression = tree.get(*initialization_id);
@@ -594,6 +598,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             catch_expression,
             finally_expression,
             scope: _,
+            symbol: _,
         } => {
             let try_expression_node = tree.get(*try_expression);
             visitor.visit_expression(tree, *try_expression, try_expression_node);
@@ -615,6 +620,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             cases,
             source: _,
             scope: _,
+            symbol: _,
         } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);

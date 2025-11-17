@@ -2,12 +2,24 @@ use dyst_dir::{NodeIdAny, Session};
 
 use crate::{CompileWarning, CompilerStage};
 
-/// Warning when optimizing something.
+/// Warning when linking something.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LinkWarning {
-    /// Unknown type for an expression.
-    MissingType { node: NodeIdAny } = 1,
+    /// Missing target for a symbol.
+    MissingTarget {
+        node: NodeIdAny,
+    },
+    /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
+    WeakSymbol {
+        node: NodeIdAny,
+        symbol: String,
+    },
+    /// Large binary / large static data section.
+    LargeBinary {
+        node: NodeIdAny,
+        size_mb: u64,
+    },
 }
 
 impl LinkWarning {
@@ -15,21 +27,27 @@ impl LinkWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingType { .. } => 1,
+            Self::MissingTarget { .. } => 1,
+            Self::WeakSymbol { .. } => 2,
+            Self::LargeBinary { .. } => 3,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::MissingType { node, .. } => Some(*node),
+            Self::MissingTarget { node, .. } => Some(*node),
+            Self::WeakSymbol { node, .. } => Some(*node),
+            Self::LargeBinary { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingType { .. } => "unknown type for an expression".to_string(),
+            Self::MissingTarget { .. } => "missing target for a symbol".to_string(),
+            Self::WeakSymbol { .. } => "weak symbol".to_string(),
+            Self::LargeBinary { .. } => "large binary".to_string(),
         }
     }
 }

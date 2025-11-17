@@ -1,13 +1,17 @@
-use dyst_dir::{ModuleId, NodeIdAny, Session};
+use dyst_dir::{NodeIdAny, Session};
 
-use crate::CompilerStage;
+use crate::{CompileWarning, CompilerStage};
 
 /// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BuildWarning {
-    /// Missing configuration for a file.
-    MissingConfiguration { module: ModuleId } = 1,
+    /// Use of deprecated target / CPU / ABI.
+    DeprecatedTarget { node: NodeIdAny },
+    /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
+    WeakSymbol { node: NodeIdAny, symbol: String },
+    /// Large binary / large static data section ("binary size exceeded X MB").
+    LargeBinary { node: NodeIdAny, size_mb: u64 },
 }
 
 impl BuildWarning {
@@ -15,21 +19,27 @@ impl BuildWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingConfiguration { .. } => 1,
+            Self::DeprecatedTarget { .. } => 1,
+            Self::WeakSymbol { .. } => 2,
+            Self::LargeBinary { .. } => 3,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::MissingConfiguration { .. } => None,
+            Self::DeprecatedTarget { node, .. } => Some(*node),
+            Self::WeakSymbol { node, .. } => Some(*node),
+            Self::LargeBinary { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingConfiguration { .. } => "missing configuration for a file".to_string(),
+            Self::DeprecatedTarget { .. } => "deprecated target".to_string(),
+            Self::WeakSymbol { .. } => "weak symbol".to_string(),
+            Self::LargeBinary { .. } => "large binary".to_string(),
         }
     }
 }
@@ -42,5 +52,11 @@ impl std::fmt::Display for BuildWarning {
                 &format!("{}W{:03}", CompilerStage::Build.letter(), self.sub_code()),
             )
             .finish()
+    }
+}
+
+impl From<BuildWarning> for CompileWarning {
+    fn from(warning: BuildWarning) -> Self {
+        CompileWarning::Build(warning)
     }
 }

@@ -6,8 +6,10 @@ use crate::{CompileWarning, CompilerStage};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LowerWarning {
-    /// Unknown type for an expression.
-    MissingType { node: NodeIdAny } = 1,
+    /// Complex type in target language.
+    ComplexType { node: NodeIdAny },
+    /// This feature will be emulated slowly on this target.
+    SlowEmulation { node: NodeIdAny, feature: String },
 }
 
 impl LowerWarning {
@@ -15,21 +17,24 @@ impl LowerWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingType { .. } => 1,
+            Self::ComplexType { .. } => 1,
+            Self::SlowEmulation { .. } => 2,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::MissingType { node, .. } => Some(*node),
+            Self::ComplexType { node, .. } => Some(*node),
+            Self::SlowEmulation { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingType { .. } => "unknown type for an expression".to_string(),
+            Self::ComplexType { .. } => "complex type in target".to_string(),
+            Self::SlowEmulation { .. } => "slow emulation in target".to_string(),
         }
     }
 }

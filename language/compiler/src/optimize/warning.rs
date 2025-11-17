@@ -6,8 +6,18 @@ use crate::{CompileWarning, CompilerStage};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OptimizeWarning {
-    /// Unknown type for an expression.
-    MissingType { node: NodeIdAny } = 1,
+    /// Inscrutable type for an expression.
+    InscrutableType { node: NodeIdAny },
+    /// Hint ignored.
+    IgnoredHint {
+        node: NodeIdAny,
+        message: Option<String>,
+    },
+    /// Optimization skipped.
+    SkippedOptimization {
+        node: NodeIdAny,
+        message: Option<String>,
+    },
 }
 
 impl OptimizeWarning {
@@ -15,21 +25,33 @@ impl OptimizeWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingType { .. } => 1,
+            Self::InscrutableType { .. } => 1,
+            Self::IgnoredHint { .. } => 2,
+            Self::SkippedOptimization { .. } => 3,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::MissingType { node, .. } => Some(*node),
+            Self::InscrutableType { node, .. } => Some(*node),
+            Self::IgnoredHint { node, .. } => Some(*node),
+            Self::SkippedOptimization { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::MissingType { .. } => "unknown type for an expression".to_string(),
+            Self::InscrutableType { .. } => "inscrutable type".to_string(),
+            Self::IgnoredHint { message, .. } => message
+                .as_ref()
+                .cloned()
+                .unwrap_or("ignored hint".to_string()),
+            Self::SkippedOptimization { message, .. } => message
+                .as_ref()
+                .cloned()
+                .unwrap_or("optimization skipped".to_string()),
         }
     }
 }
@@ -39,7 +61,11 @@ impl std::fmt::Display for OptimizeWarning {
         f.debug_struct("OptimizeWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Optimize.letter(), self.sub_code()),
+                &format!(
+                    "{}W{:03}",
+                    CompilerStage::Optimize.letter(),
+                    self.sub_code()
+                ),
             )
             .finish()
     }

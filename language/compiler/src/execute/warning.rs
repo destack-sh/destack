@@ -6,8 +6,10 @@ use crate::{CompileWarning, CompilerStage};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ExecuteWarning {
-    /// Complex expression.
-    ComplexExpression { node: NodeIdAny } = 1,
+    /// Complex node.
+    ComplexNode { node: NodeIdAny },
+    /// Slow evaluation.
+    SlowEvaluation { node: NodeIdAny },
 }
 
 impl ExecuteWarning {
@@ -15,21 +17,24 @@ impl ExecuteWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::ComplexExpression { .. } => 1,
+            Self::ComplexNode { .. } => 1,
+            Self::SlowEvaluation { .. } => 2,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::ComplexExpression { node, .. } => Some(*node),
+            Self::ComplexNode { node, .. } => Some(*node),
+            Self::SlowEvaluation { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::ComplexExpression { .. } => "complex expression".to_string(),
+            Self::ComplexNode { .. } => "complex node".to_string(),
+            Self::SlowEvaluation { .. } => "slow evaluation".to_string(),
         }
     }
 }

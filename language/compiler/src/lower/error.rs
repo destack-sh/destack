@@ -6,8 +6,8 @@ use crate::{CompileError, CompilerStage};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum LowerError {
-    /// Lowering is impossible for this node.
-    LoweringImpossible { node: NodeIdAny } = 1,
+    /// Unsupported node.
+    UnsupportedNode { node: NodeIdAny } = 1,
 }
 
 impl LowerError {
@@ -15,21 +15,21 @@ impl LowerError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::LoweringImpossible { .. } => 1,
+            Self::UnsupportedNode { .. } => 1,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::LoweringImpossible { node, .. } => Some(*node),
+            Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::LoweringImpossible { .. } => "lowering is impossible".to_string(),
+            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }
 }

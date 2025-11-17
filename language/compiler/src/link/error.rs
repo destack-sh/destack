@@ -6,8 +6,12 @@ use crate::{CompileError, CompilerStage};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum LinkError {
-    /// Optimization is impossible for this node.
-    OptimizationImpossible { node: NodeIdAny } = 1,
+    /// Missing target for a symbol.
+    MissingTarget { node: NodeIdAny, symbol: String },
+    /// Unresolved external symbol.
+    UnresolvedSymbol { node: NodeIdAny, symbol: String },
+    /// Duplicate symbols with incompatible definitions.
+    ConflictingSymbol { node: NodeIdAny, symbol: String },
 }
 
 impl LinkError {
@@ -15,21 +19,27 @@ impl LinkError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::OptimizationImpossible { .. } => 1,
+            Self::MissingTarget { .. } => 1,
+            Self::UnresolvedSymbol { .. } => 2,
+            Self::ConflictingSymbol { .. } => 3,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::OptimizationImpossible { node, .. } => Some(*node),
+            Self::MissingTarget { node, .. } => Some(*node),
+            Self::UnresolvedSymbol { node, .. } => Some(*node),
+            Self::ConflictingSymbol { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::OptimizationImpossible { .. } => "optimization is impossible".to_string(),
+            Self::MissingTarget { .. } => "missing target".to_string(),
+            Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
+            Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),
         }
     }
 }

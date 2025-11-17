@@ -817,10 +817,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::With {
                 clauses: _,
                 scope,
+                symbol,
                 body: _,
             } => {
                 self.node("Expression::With", id.id)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::UnresolvedImport {
@@ -1114,11 +1116,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 condition: _,
                 body: _,
+                symbol,
                 scope,
             } => {
                 self.node("Expression::Loop", id.id)
                     .field("kind", kind)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::ForEach {
@@ -1128,11 +1132,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 iterator: _,
                 body: _,
                 scope,
+                symbol,
             } => {
                 self.node("Expression::ForEach", id.id)
                     .field("asynchrony", asynchrony)
                     .field("kind", kind)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::For {
@@ -1141,9 +1147,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 increment: _,
                 body: _,
                 scope,
+                symbol,
             } => {
                 self.node("Expression::For", id.id)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::Try {
@@ -1152,9 +1160,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 catch_expression: _,
                 finally_expression: _,
                 scope,
+                symbol,
             } => {
                 self.node("Expression::Try", id.id)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::Match {
@@ -1162,10 +1172,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 cases: _,
                 source,
                 scope,
+                symbol,
             } => {
                 self.node("Expression::Match", id.id)
                     .field("source", source)
                     .field("scope", scope)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::UnresolvedBreak { target, value: _ } => {

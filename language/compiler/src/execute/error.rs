@@ -6,8 +6,8 @@ use crate::{CompileError, CompilerStage};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum ExecuteError {
-    /// Dynamic dependency cannot be statically resolved.
-    NotExecutable { node: NodeIdAny } = 1,
+    /// Unsupported node.
+    UnsupportedNode { node: NodeIdAny } = 1,
 }
 
 impl ExecuteError {
@@ -15,21 +15,21 @@ impl ExecuteError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::NotExecutable { .. } => 1,
+            Self::UnsupportedNode { .. } => 1,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
-            Self::NotExecutable { node, .. } => Some(*node),
+            Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::NotExecutable { .. } => "not executable".to_string(),
+            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }
 }
