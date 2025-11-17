@@ -29,7 +29,7 @@ impl DependencySource {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyEdge {
     /// Unresolved default dependency edge.
-	/// Edges where the target is not found remain unresolved (we just resolve the module in place).
+    /// Edges where the target is not found remain unresolved (we just resolve the module in place).
     UnresolvedDefault {
         kind: DependencyKind,
         target: StringId,
@@ -40,7 +40,7 @@ pub enum DependencyEdge {
         local_symbol: SymbolId,
     },
     /// Unresolved item dependency edge.
-	/// Edges where the target is not found remain unresolved (we just resolve the module in place).
+    /// Edges where the target is not found remain unresolved (we just resolve the module in place).
     UnresolvedItem {
         kind: DependencyKind,
         target: StringId,

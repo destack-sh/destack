@@ -34,7 +34,7 @@ impl<'a> Transpiler<'a> {
 
         // report unresolved warning
         if !expression.is_resolved() {
-            unit.add_warning(TranspileWarning::UnresolvedExpression {
+            unit.warning(TranspileWarning::UnresolvedExpression {
                 node: expression_id,
             });
         }

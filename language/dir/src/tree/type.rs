@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// A PrimitiveType is a primitive type node.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
@@ -27,7 +27,7 @@ pub enum PrimitiveType {
 }
 
 /// A DefinitionType represents composite types.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DefinitionType {
     /// Root type `type`.
     Type,
@@ -183,8 +183,6 @@ pub enum Type {
 
     /// Expression yet to be resolved into a Type (like a Path).
     UnresolvedExpression(NodeId<Expression>),
-    /// Unresolved Self type.
-    UnresolvedSelf,
 
     /// Error type that could not be resolved.
     Error,
@@ -197,10 +195,7 @@ impl Node for Type {
 impl Type {
     /// Whether the type is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        !matches!(
-            self,
-            Type::UnresolvedExpression(_) | Type::UnresolvedSelf | Type::Error
-        )
+        !matches!(self, Type::UnresolvedExpression(_) | Type::Error)
     }
 }
 

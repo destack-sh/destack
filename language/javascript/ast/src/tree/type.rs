@@ -128,7 +128,7 @@ pub enum Type {
     },
 
     /// Array type `T[]`.
-    Array { element: NodeId<Type> },
+    Array { element: Option<NodeId<Type>> },
     /// Tuple type `[T1, T2, ...]`.
     Tuple { elements: Vec<NodeId<Type>> },
     /// Object type `{ a: T1, b: T2, ... }`.

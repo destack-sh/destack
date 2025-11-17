@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DefinitionType, FloatType, IntType, Module, PrimitiveType, ScopeId, ScalarLiteral, TemplateLiteral,
-    TypeLiteral,
+    DefinitionType, FloatType, IntType, Module, PrimitiveType, ScalarLiteral, ScopeId,
+    TemplateLiteral, TypeLiteral,
 };
 
 impl<'a> Compiler<'a> {
@@ -150,7 +150,10 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a composite type to a DIR composite type.
-    pub(super) fn lower_definition_type(&self, composite_type: &ast::DefinitionType) -> DefinitionType {
+    pub(super) fn lower_definition_type(
+        &self,
+        composite_type: &ast::DefinitionType,
+    ) -> DefinitionType {
         match composite_type {
             ast::DefinitionType::Type => DefinitionType::Type,
             ast::DefinitionType::Namespace => DefinitionType::Namespace,

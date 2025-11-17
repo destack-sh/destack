@@ -950,8 +950,10 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
 
         Type::Array { element } => {
-            let element_ty = tree.get(*element);
-            visitor.visit_type(tree, *element, element_ty);
+            if let Some(element) = element {
+                let element_ty = tree.get(*element);
+                visitor.visit_type(tree, *element, element_ty);
+            }
         }
         Type::Tuple { elements } => {
             for element_id in elements {

@@ -99,7 +99,7 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
 impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(
         &self,
-        node_id: NodeId<Type>,
+        _node_id: NodeId<Type>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -131,7 +131,11 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             }
 
             Type::Array { element } => {
-                write!(f, [element, token("[]")])?;
+                if let Some(element) = element {
+                    write!(f, [element, token("[]")])?;
+                } else {
+                    write!(f, [token("Array<any>")])?;
+                }
             }
             Type::Tuple { elements } => {
                 write!(f, [list_like("[", "]", ",", elements)])?;
