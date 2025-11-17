@@ -792,12 +792,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
     match ty {
         Type::Scalar(_) => {}
-        Type::Definition(definition_id) => {
-            if visitor.options().visit_indirect {
-                let definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, definition);
-            }
-        }
+        Type::Symbol(_) => {}
 
         Type::Unary { operator: _, right }
         | Type::Mutable {

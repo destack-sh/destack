@@ -50,4 +50,19 @@ impl Scope {
     pub fn is_root(&self) -> bool {
         self.parent.is_none()
     }
+
+    /// Insert a symbol into the scope.
+    pub fn insert_symbol(&mut self, key: SymbolKey, symbol_id: SymbolId) {
+        self.symbols.insert(key, symbol_id);
+    }
+
+    /// Get a symbol from the scope.
+    pub fn get_symbol(&self, key: SymbolKey) -> Option<SymbolId> {
+        self.symbols.get(&key).cloned()
+    }
+
+    /// Insert a child scope into the scope.
+    pub fn insert_child_scope(&mut self, scope_id: ScopeId) {
+        self.children.push(scope_id);
+    }
 }

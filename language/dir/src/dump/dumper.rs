@@ -1330,8 +1330,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("scalar", scalar)
                     .end();
             }
-            Type::Definition(_) => {
-                self.node("Type::Definition", id.id).end();
+            Type::Symbol(symbol) => {
+                self.node("Type::Symbol", id.id)
+                    .field("symbol", symbol)
+                    .end();
             }
 
             Type::Unary { operator, right: _ } => {

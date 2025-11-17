@@ -1023,7 +1023,7 @@ impl<'a> Parser<'a> {
             // member (also works across newline)
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
-                let path = self.eat_path()?;
+                let name = self.eat_identifier()?;
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
                 let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
@@ -1042,7 +1042,7 @@ impl<'a> Parser<'a> {
                 left_expression_id = self.tree.insert(
                     Expression::Member {
                         left: left_expression_id,
-                        path,
+                        name,
                         static_arguments,
                     },
                     self.get_span_from(start),
@@ -1875,9 +1875,9 @@ const shapes = (
                 // ?
                 assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
                     // .y
-                    assert_node!(parser.tree, *left, Expression::Member { left, path, static_arguments: Some(static_arguments) } => {
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, static_arguments: Some(static_arguments) } => {
                         // y
-                        assert_path!(parser, *path, "y");
+                        assert_string!(parser, *name, "y");
                         // <T>
                         assert_eq!(static_arguments.len(), 1);
                         // ?
@@ -2377,8 +2377,8 @@ self
                 assert_node!(
                     parser.tree,
                     *baz_recv,
-                    Expression::Member { left, path, .. } => {
-                        assert_path!(parser, *path, "baz");
+                    Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "baz");
                         assert_node!(parser.tree, *left, Expression::Call { left: foo_recv, .. } => {
                             // self.foo
                             assert_expr_path!(parser, parser.tree.get(*foo_recv), "self.foo");

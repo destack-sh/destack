@@ -519,7 +519,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Member {
             left: receiver,
-            path: _,
+            name: _,
             static_arguments,
         } => {
             let receiver_expr = tree.get(*receiver);

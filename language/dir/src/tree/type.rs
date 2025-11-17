@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Definition, Expression, FunctionSignature, Key, Mutability, Node, NodeId,
-    NodeType, Parameter, ScalarLiteral, StringId, WithClause,
+    BindingModifier, Expression, FunctionSignature, Key, Mutability, Node, NodeId, NodeType,
+    Parameter, ScalarLiteral, StringId, SymbolId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -125,10 +125,8 @@ pub enum TypeBinaryOperator {
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
-    /// Resolved definition type.
-    /// NOTE: shouldn't Type::Definition be an instance (statically parameterized)?
-    ///  (same with all statically parameterized instantiations like Functions etc.?)
-    Definition(NodeId<Definition>),
+    /// Resolved symbol type.
+    Symbol(SymbolId),
 
     /// Type unary operator.
     Unary {

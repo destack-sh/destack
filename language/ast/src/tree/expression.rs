@@ -606,7 +606,7 @@ pub enum Expression {
     /// ```
     Member {
         left: NodeId<Expression>,
-        path: Path,
+        name: StringId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
 

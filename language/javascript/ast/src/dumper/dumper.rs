@@ -1222,8 +1222,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Scalar(literal) => {
                 self.node("Type::Scalar", id.id).value(literal).end();
             }
-            Type::Definition(_) => {
-                self.node("Type::Definition", id.id).end();
+            Type::Path {
+                path,
+                static_arguments: _,
+            } => {
+                self.node("Type::Path", id.id).field("path", path).end();
+            }
+            Type::Expression(_) => {
+                self.node("Type::Expression", id.id).end();
             }
 
             Type::Unary { operator, right: _ } => {

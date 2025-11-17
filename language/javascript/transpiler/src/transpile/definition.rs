@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::{
-    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
+    BindingScope, Block, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
     Expression, NodeId, Visibility,
 };
 
@@ -150,6 +150,27 @@ impl<'a> Transpiler<'a> {
                     .map(|field| self.transpile_enum_field(module, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Enum { descriptor, fields }
+            }
+            dir::Definition::Function {
+                descriptor,
+                scope: _,
+                signature,
+                definitions: _,
+                body,
+            } => {
+                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let signature = self.transpile_function_signature(module, signature, unit)?;
+                let body = body
+                    .map(|body| {
+                        self.transpile_expression(module, body, unit)
+                            .expect_node::<Block>(body.into_any(), unit)
+                    })
+                    .transpose()?;
+                Definition::Function {
+                    descriptor,
+                    signature,
+                    body,
+                }
             }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
