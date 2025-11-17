@@ -115,18 +115,7 @@ pub(crate) fn format_template_literal<'ast>(
         TemplateLiteral::String { string } => {
             write!(f, [token("`"), string, token("`")])?;
         }
-        TemplateLiteral::TaggedString { tag, string } => {
-            write!(f, [tag, token("`"), string, token("`")])?;
-        }
         TemplateLiteral::InterpolatedString { strings, arguments } => {
-            format_interpolated_template_literal(strings, arguments, f)?;
-        }
-        TemplateLiteral::TaggedInterpolatedString {
-            tag,
-            strings,
-            arguments,
-        } => {
-            write!(f, [tag])?;
             format_interpolated_template_literal(strings, arguments, f)?;
         }
     }

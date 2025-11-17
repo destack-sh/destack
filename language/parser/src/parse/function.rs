@@ -480,7 +480,7 @@ function foo() => int32 with (
     fn test_parse_function_with_static_and_dynamic_parameters() {
         let mut test = TestParser::new(
             r"
-function compute<Validate: bool, Precision: uint8>(data: uint8[]) {
+function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
     body
 }
         ",

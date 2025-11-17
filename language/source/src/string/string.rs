@@ -6,7 +6,7 @@ use std::num::NonZeroU32;
 
 /// Unique identifier for interned strings in a StringPool.
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct StringId(pub NonZeroU32);
 
 impl StringId {

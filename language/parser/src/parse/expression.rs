@@ -864,9 +864,11 @@ impl<'a> Parser<'a> {
             }
             // template literal
             else if self.peek_template_literal().is_ok() {
-                let template_literal = self.eat_template_literal(None)?;
+                let template_literal = self.eat_template_literal()?;
                 self.tree.insert(
-                    Expression::TemplateLiteral(template_literal),
+                    Expression::TemplateLiteral {
+                        value: template_literal,
+                    },
                     self.get_span_from(start),
                 )
             }
@@ -893,7 +895,9 @@ impl<'a> Parser<'a> {
 
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
-                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                let static_arguments = if !self.options.in_new_receiver
+                    && self.peek_token(TokenType::LessThan).is_ok()
+                {
                     let speculative_start = self.mark();
                     let speculative_start_idx = self.tree.next_id();
                     match self.eat_static_arguments() {
@@ -956,21 +960,13 @@ impl<'a> Parser<'a> {
             );
         }
         // template literal postfix with `sql` (like `sql`SELECT * FROM users`)
-        else if let Expression::Path {
-            path,
-            static_arguments: None, // no static arguments allowed in template literals
-        } = self.tree.get(left_expression_id)
-            && self.peek_template_literal().is_ok()
-        {
-            // remove path expression
-            let path = path.clone();
-            debug_assert!(self.tree.next_id() == left_expression_id.id + 1);
-            self.tree.reset_to(left_expression_id.id);
-
-            // replace with template literal expression
-            let template_literal = self.eat_template_literal(Some(path))?;
+        else if self.peek_template_literal().is_ok() {
+            let template_literal = self.eat_template_literal()?;
             left_expression_id = self.tree.insert(
-                Expression::TemplateLiteral(template_literal),
+                Expression::TaggedTemplateLiteral {
+                    tag: left_expression_id,
+                    value: template_literal,
+                },
                 self.get_span_from(start),
             );
         }
@@ -1069,6 +1065,7 @@ impl<'a> Parser<'a> {
             // call (like `()`)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok()
                 && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+                && !self.options.in_new_receiver
                 || self.peek_token(TokenType::Dot).is_ok()
                     && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
             {
@@ -2264,7 +2261,7 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::New { left, static_arguments, dynamic_arguments } => {
-            assert_path!(parser, *left, "Foo");
+            assert_expr_path!(parser, parser.tree.get(*left), "Foo");
             assert!(static_arguments.is_none());
             assert!(dynamic_arguments.is_empty());
         });

@@ -1,5 +1,16 @@
 use crate::{NodeId, NodeIdAny, ScopeId, StringId, Type};
 
+/// Key for a symbol.
+#[derive(Debug, Clone, PartialEq, Hash, PartialOrd, Eq)]
+pub enum SymbolKey {
+    /// Regular name key (like `x` or `"weird identifier"`).
+    Name(StringId),
+    /// Unique symbol expression (like `let x = Symbol(1);`).
+    UniqueSymbol(NodeIdAny),
+    /// Global symbol key (like `Symbol.iterator`).
+    GlobalSymbol(StringId),
+}
+
 /// The space of a symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolSpace {
@@ -27,7 +38,9 @@ pub struct Symbol {
     /// The id of the symbol.
     pub id: SymbolId,
     /// The name of the symbol.
-    pub name: StringId,
+    pub name: Option<StringId>,
+    /// The key of the symbol.
+    pub key: SymbolKey,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
     /// The scope that introduces the symbol.

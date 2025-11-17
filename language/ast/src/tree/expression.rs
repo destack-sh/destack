@@ -410,11 +410,21 @@ pub enum Expression {
     /// ```
     /// `hello`
     /// `hello ${name}`
+    /// ```
+    TemplateLiteral { value: TemplateLiteral },
+
+    /// Tagged template literal value. Might include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
     /// sql`SELECT * FROM users`
     /// sql`${stmt}`
-    /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
-    TemplateLiteral(TemplateLiteral),
+    TaggedTemplateLiteral {
+        tag: NodeId<Expression>,
+        value: TemplateLiteral,
+    },
 
     /// Type literal.
     ///
@@ -645,7 +655,7 @@ pub enum Expression {
     /// new Foo.Baz(2, 3)
     /// ```
     New {
-        left: Path,
+        left: NodeId<Expression>,
         static_arguments: Option<Vec<NodeId<Argument>>>,
         dynamic_arguments: Vec<NodeId<Argument>>,
     },

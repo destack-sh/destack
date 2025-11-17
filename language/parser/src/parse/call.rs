@@ -70,7 +70,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::New)?;
 
         // receiver
-        let left = self.eat_path()?;
+        let left = self.with_options(self.options.in_new_receiver(), |parser| {
+            parser.eat_expression()
+        })?;
 
         // static arguments (may be empty)
         let static_arguments = self.eat_static_arguments_maybe()?;

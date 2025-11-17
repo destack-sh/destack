@@ -1382,8 +1382,14 @@ pub(crate) fn format_expression<'ast>(
         }
 
         // template literal
-        Expression::TemplateLiteral(node) => {
-            format_template_literal(node, tree.get_span(node_id), f)?;
+        Expression::TemplateLiteral { value } => {
+            format_template_literal(value, tree.get_span(node_id), f)?;
+        }
+
+        // tagged template literal
+        Expression::TaggedTemplateLiteral { tag, value } => {
+            write!(f, [tag])?;
+            format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
         // type literal

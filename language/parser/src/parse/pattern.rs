@@ -246,7 +246,7 @@ impl<'a> Parser<'a> {
             while self.peek_token(TokenType::ElementwiseOr).is_ok() {
                 self.bump(); // eat '|'
                 let field_pattern_id = self
-                    .with_options(self.options.in_implicit_union(), |parser| {
+                    .with_options(self.options.in_union_pattern(), |parser| {
                         parser.eat_pattern()
                     })
                     .for_node_type(NodeType::Pattern)?;

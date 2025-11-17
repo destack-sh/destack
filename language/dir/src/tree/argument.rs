@@ -1,4 +1,4 @@
-use crate::{BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, Type};
+use crate::{BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, SymbolId, Type};
 
 /// A Parameter is a parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,6 +9,7 @@ pub enum Parameter {
         name: StringId,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
     Pattern {
@@ -16,12 +17,14 @@ pub enum Parameter {
         pattern: NodeId<Pattern>,
         ty: Option<NodeId<Type>>,
         default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
     },
     /// Variadic parameter (like `..T` or `...x: int32[]`).
     Variadic {
         modifiers: Option<BindingModifier>,
         name: StringId,
         ty: Option<NodeId<Type>>,
+        symbol: SymbolId,
     },
 }
 

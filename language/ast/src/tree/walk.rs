@@ -398,16 +398,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // no child nodes to visit
         }
 
-        Expression::TemplateLiteral(template_literal) => match template_literal {
-            TemplateLiteral::String { .. } | TemplateLiteral::TaggedString { .. } => {}
-            TemplateLiteral::InterpolatedString { arguments, .. }
-            | TemplateLiteral::TaggedInterpolatedString { arguments, .. } => {
+        Expression::TemplateLiteral { value } => match value {
+            TemplateLiteral::String { .. } => {}
+            TemplateLiteral::InterpolatedString { arguments, .. } => {
                 for argument_id in arguments {
                     let argument = tree.get(*argument_id);
                     visitor.visit_argument(tree, *argument_id, argument);
                 }
             }
         },
+        Expression::TaggedTemplateLiteral { tag, value } => {
+            let tag_expr = tree.get(*tag);
+            visitor.visit_expression(tree, *tag, tag_expr);
+            match value {
+                TemplateLiteral::String { .. } => {}
+                TemplateLiteral::InterpolatedString { arguments, .. } => {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+        }
 
         Expression::TypeLiteral(_) => {
             // no child nodes to visit
