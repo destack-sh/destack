@@ -1,18 +1,18 @@
-use crate::{NodeId, NodeIdAny, ScopeId, StringId, Type};
+use crate::{NodeId, NodeIdAny, NodeType, ScopeId, StringId, Type};
 
 /// Key for a symbol.
-#[derive(Debug, Clone, PartialEq, Hash, PartialOrd, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
 pub enum SymbolKey {
     /// Regular name key (like `x` or `"weird identifier"`).
     Name(StringId),
-    /// Unique symbol expression (like `let x = Symbol(1);`).
+    /// Unique symbol expression (like `const x = Symbol("x");`).
     UniqueSymbol(NodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
     GlobalSymbol(StringId),
 }
 
 /// The space of a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolSpace {
     /// The type space.
     Type,
@@ -20,9 +20,14 @@ pub enum SymbolSpace {
     Value,
 }
 
+/// The kind of a symbol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SymbolKind {
+}
+
 /// Unique identifier for Symbols.
 #[repr(transparent)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SymbolId(pub u32);
 
 impl SymbolId {
@@ -37,6 +42,8 @@ impl SymbolId {
 pub struct Symbol {
     /// The id of the symbol.
     pub id: SymbolId,
+    /// The kind of the symbol.
+    pub kind: SymbolKind,
     /// The name of the symbol.
     pub name: Option<StringId>,
     /// The key of the symbol.
@@ -55,4 +62,12 @@ pub struct Symbol {
     pub inferred_ty: Option<NodeId<Type>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
     pub target: Option<SymbolId>,
+}
+
+impl Symbol {
+    /// Get the node type of the primary declaration.
+    #[inline]
+    pub fn primary_declaration_type(&self) -> NodeType {
+        self.primary_declaration.ty
+    }
 }

@@ -27,13 +27,13 @@ pub enum Annotation {
     /// Unresolved tag annotation (like `#Foo` or `#Foo(x: 1)`).
     UnresolvedTag {
         position: AnnotationPosition,
-        receiver: Path,
+        left: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Unresolved decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     UnresolvedDecorator {
         position: AnnotationPosition,
-        receiver: Path,
+        left: Path,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
     /// Tag annotation (like `#Foo` or `#Foo(x: 1)`).

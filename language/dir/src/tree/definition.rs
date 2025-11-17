@@ -1,6 +1,6 @@
 use crate::{
     BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, Node, NodeId,
-    NodeType, Property, ScopeId, StringId, Type,
+    NodeType, Property, ScopeId, StringId, SymbolId, Type,
 };
 
 /// The kind of declaration.
@@ -13,16 +13,18 @@ pub enum DeclarationKind {
 }
 
 /// The meta data for a definition.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
-    pub kind: DeclarationKind = DeclarationKind::Definition,
+    pub kind: DeclarationKind,
     /// The scope of the declaration.
-    pub scope: BindingScope = BindingScope::Instance,
+    pub scope: BindingScope,
     /// The name of the definition.
-    pub name: Option<StringId> = None,
+    pub name: Option<StringId>,
     /// The export type of the definition.
-    pub export: Option<ExportType> = None,
+    pub export: Option<ExportType>,
+    /// The symbol of the definition.
+    pub symbol: SymbolId,
 }
 
 /// Definition introduces a type or function into its scope.
@@ -75,7 +77,6 @@ pub enum Definition {
         generics: Generics,
         target_type: NodeId<Type>,
         heritage: Heritage,
-        scope: ScopeId,
         properties: Vec<NodeId<Property>>,
     },
 }
@@ -94,6 +95,23 @@ impl Definition {
             Definition::Interface { descriptor, .. } => descriptor,
             Definition::Function { descriptor, .. } => descriptor,
             Definition::Implement { descriptor, .. } => descriptor,
+        }
+    }
+
+    /// Get the symbol of the definition.
+    pub fn symbol(&self) -> SymbolId {
+        self.descriptor().symbol
+    }
+
+    /// Get the scope of the definition.
+    pub fn scope(&self) -> Option<ScopeId> {
+        match self {
+            Definition::Namespace { scope, .. } => Some(*scope),
+            Definition::Struct { scope, .. } => Some(*scope),
+            Definition::Enum { scope, .. } => Some(*scope),
+            Definition::Interface { scope, .. } => Some(*scope),
+            Definition::Function { scope, .. } => Some(*scope),
+            Definition::Implement { .. } => None,
         }
     }
 }

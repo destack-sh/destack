@@ -2,6 +2,18 @@ use std::collections::HashMap;
 
 use crate::{SymbolId, SymbolKey};
 
+/// The kind of a scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ScopeKind {
+    /// Global root scope.
+    Root,
+    /// Module.
+    Module,
+    /// Namespace.
+    Namespace,
+}
+
+/// Unique identifier for Scopes.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ScopeId(pub u32);
@@ -18,6 +30,8 @@ impl ScopeId {
 pub struct Scope {
     /// The id of the scope.
     pub id: ScopeId,
+    /// The kind of the scope.
+    pub kind: ScopeKind,
     /// The parent scope.
     pub parent: Option<ScopeId>,
     /// The symbols in the scope.

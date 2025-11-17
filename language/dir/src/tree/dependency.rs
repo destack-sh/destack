@@ -61,9 +61,9 @@ pub enum DependencyItem {
         alias: Option<StringId>,
         local_symbol: SymbolId,
     },
-    /// Internal to the module.
+    /// Internal to the module (i.e., plain exports).
     Local { local_symbol: SymbolId },
-    /// Remote to the module.
+    /// Remote to the module (i.e., imports and re-exports).
     Remote {
         local_symbol: SymbolId,
         remote_symbol: SymbolId,

@@ -57,7 +57,6 @@ pub enum PatternField {
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
         default: Option<NodeId<Expression>>,
-        symbol: SymbolId,
     },
     /// Named field with an alias (like `x: y`).
     UnresolvedAlias {
@@ -65,12 +64,44 @@ pub enum PatternField {
         name: StringId,
         alias: StringId,
         default: Option<NodeId<Expression>>,
-        symbol: SymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     UnresolvedPositional { pattern: NodeId<Pattern> },
+    /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
+    Named {
+        mutability: Option<Mutability>,
+        name: StringId,
+        pattern: Option<NodeId<Pattern>>,
+        default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
+    },
+    /// Named field with an alias (like `x: y`).
+    Alias {
+        mutability: Option<Mutability>,
+        name: StringId,
+        alias: StringId,
+        default: Option<NodeId<Expression>>,
+        symbol: SymbolId,
+    },
+    /// Positional field with just a pattern (like `4` or `int32`).
+    Positional {
+        pattern: NodeId<Pattern>,
+        symbol: SymbolId,
+    },
 }
 
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
+}
+
+impl PatternField {
+    /// Whether the pattern field is resolved (ignoring child nodes).
+    pub fn is_resolved(&self) -> bool {
+        matches!(
+            self,
+            PatternField::Named { .. }
+                | PatternField::Alias { .. }
+                | PatternField::Positional { .. }
+        )
+    }
 }
