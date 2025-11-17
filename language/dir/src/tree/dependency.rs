@@ -22,29 +22,6 @@ pub enum DependencyKind {
     Value,
 }
 
-/// The source of the import.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DependencySource {
-    /// Plain import statement (like `import "foo"`).
-    ImportStatement,
-    /// Re-export statement (like `export { bar } from "foo"`).
-    ReExportStatement,
-    /// Import call (like `await import("foo")`).
-    ImportCall,
-    /// Require call (like `require("foo")`).
-    RequireCall,
-}
-
-impl DependencySource {
-    /// Whether the source is dynamic (like `await import("foo")` or `require("foo")`).
-    pub fn is_dynamic(&self) -> bool {
-        matches!(
-            self,
-            DependencySource::ImportCall | DependencySource::RequireCall
-        )
-    }
-}
-
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {

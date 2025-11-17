@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId, Mutability,
-    Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, SymbolId,
+    DependencyKind, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeId,
+    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, SymbolId,
     TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
     UnaryOperator, VarianceBound,
 };
@@ -30,7 +30,6 @@ pub enum Expression {
     UnresolvedImport {
         kind: DependencyKind,
         target: StringId,
-        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
@@ -39,7 +38,6 @@ pub enum Expression {
         mode: ExportType,
         target: StringId,
         kind: DependencyKind,
-        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
@@ -47,7 +45,6 @@ pub enum Expression {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
-        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
         arguments: Option<Vec<NodeId<Argument>>>,
     },
@@ -57,14 +54,12 @@ pub enum Expression {
         target: StringId,
         module: ModuleId,
         kind: DependencyKind,
-        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
         mode: ExportType,
         kind: DependencyKind,
-        source: DependencySource,
         items: Vec<NodeId<DependencyItem>>,
     },
 
