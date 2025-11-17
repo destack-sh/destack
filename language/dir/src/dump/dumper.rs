@@ -427,6 +427,7 @@ impl_dump_display! {
     ReferenceType,
     Runtime,
     StructKind,
+    PathBase,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -511,37 +512,6 @@ impl Dump for FunctionSignature {
     }
 }
 
-/// Dump a BlockTarget as a structured representation.
-impl Dump for BlockTarget {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            BlockTarget::Unresolved { label } => {
-                dumper
-                    .object("BlockTarget::UnresolvedString")
-                    .field("label", label)
-                    .end();
-            }
-            BlockTarget::Definition { .. } => {
-                dumper.object("BlockTarget::Definition").end();
-            }
-        }
-    }
-}
-
-/// Dump a PathBase as a string.
-impl Dump for PathBase {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            PathBase::SelfValue => dumper.write_str("PathBase::SelfValue", Some(Color::Yellow)),
-            PathBase::SelfType => dumper.write_str("PathBase::SelfType", Some(Color::Yellow)),
-            PathBase::SuperValue => dumper.write_str("PathBase::SuperValue", Some(Color::Yellow)),
-            PathBase::SuperType => dumper.write_str("PathBase::SuperType", Some(Color::Yellow)),
-            PathBase::Module => dumper.write_str("PathBase::Module", Some(Color::Yellow)),
-            PathBase::Package => dumper.write_str("PathBase::Package", Some(Color::Yellow)),
-        }
-    }
-}
-
 /// Dump a Path as a structured representation.
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -565,24 +535,21 @@ impl Dump for Path {
                     .value(segments)
                     .end();
             }
-
-            Path::Intrinsic { intrinsic } => {
-                dumper
-                    .object("Path::Intrinsic")
-                    .field("intrinsic", intrinsic)
-                    .end();
-            }
-            Path::Definition { .. } => {
-                dumper.object("Path::Definition").end();
-            }
         }
     }
 }
 
-/// Dump an Intrinsic. This cannot occur yet, but keep the match exhaustive.
-impl Dump for Intrinsic {
-    fn dump<'a>(&self, _dumper: &mut Dumper<'a>) {
-        match *self {}
+/// Dump a ScopeId as a structured representation.
+impl Dump for ScopeId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(self.0.to_string(), Some(Color::White));
+    }
+}
+
+/// Dump a SymbolId as a structured representation.
+impl Dump for SymbolId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(self.0.to_string(), Some(Color::White));
     }
 }
 
@@ -799,33 +766,12 @@ impl Dump for TemplateLiteral {
                     .field("template", template)
                     .end();
             }
-            TemplateLiteral::TaggedString {
-                tag,
-                string: template,
-            } => {
-                dumper
-                    .object("TemplateLiteral::TaggedString")
-                    .field("tag", tag)
-                    .field("template", template)
-                    .end();
-            }
             TemplateLiteral::InterpolatedString {
                 strings: template,
                 arguments: _,
             } => {
                 dumper
                     .object("TemplateLiteral::InterpolatedString")
-                    .field("template", template)
-                    .end();
-            }
-            TemplateLiteral::TaggedInterpolatedString {
-                tag,
-                strings: template,
-                arguments: _,
-            } => {
-                dumper
-                    .object("TemplateLiteral::TaggedInterpolatedString")
-                    .field("tag", tag)
                     .field("template", template)
                     .end();
             }
@@ -870,9 +816,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
             Expression::With {
                 clauses: _,
+                scope,
                 body: _,
             } => {
-                self.node("Expression::With", id.id).end();
+                self.node("Expression::With", id.id)
+                    .field("scope", scope)
+                    .end();
             }
             Expression::UnresolvedImport {
                 kind,
@@ -949,9 +898,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 pattern: _,
                 ty: _,
                 value: _,
+                symbol,
             } => {
                 self.node("Expression::Let", id.id)
                     .field("mutability", mutability)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::LetType {
@@ -960,11 +911,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 static_parameters: _,
                 value: _,
+                symbol,
             } => {
                 self.node("Expression::Type", id.id)
                     .field("kind", kind)
                     .field_optional("mutability", mutability)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
 
@@ -1051,13 +1004,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::UnresolvedMember {
+                left: _,
+                name,
+                static_arguments: _,
+            } => {
+                self.node("Expression::UnresolvedMember", id.id)
+                    .field("name", name)
+                    .end();
+            }
             Expression::Member {
                 left: _,
-                path,
+                name,
+                symbol,
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
-                    .field("path", path)
+                    .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::Call {
@@ -1068,13 +1032,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Call", id.id).end();
             }
             Expression::New {
-                left,
+                left: _,
                 static_arguments: _,
                 dynamic_arguments: _,
             } => {
-                self.node("Expression::New", id.id)
-                    .field("left", left)
-                    .end();
+                self.node("Expression::New", id.id).end();
             }
             Expression::Delete { value: _ } => {
                 self.node("Expression::Delete", id.id).end();
@@ -1090,7 +1052,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Must", id.id).end();
             }
 
-            Expression::Path {
+            Expression::UnresolvedPath {
                 path,
                 static_arguments: _,
             } => {
@@ -1100,6 +1062,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
+                    .field("value", value)
+                    .end();
+            }
+            Expression::TaggedTemplateLiteral { tag: _, value } => {
+                self.node("Expression::TaggedTemplateLiteral", id.id)
                     .field("value", value)
                     .end();
             }
@@ -1135,13 +1102,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::StructLiteral", id.id).end();
             }
             Expression::TreeLiteral {
-                path,
+                left: _,
                 arguments: _,
                 elements: _,
             } => {
-                self.node("Expression::TreeLiteral", id.id)
-                    .field_optional("path", path)
-                    .end();
+                self.node("Expression::TreeLiteral", id.id).end();
             }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", id.id).end();
@@ -1159,9 +1124,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 condition: _,
                 body: _,
+                scope,
             } => {
                 self.node("Expression::Loop", id.id)
                     .field("kind", kind)
+                    .field("scope", scope)
                     .end();
             }
             Expression::ForEach {
@@ -1170,10 +1137,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 pattern: _,
                 iterator: _,
                 body: _,
+                scope,
             } => {
                 self.node("Expression::ForEach", id.id)
                     .field("asynchrony", asynchrony)
                     .field("kind", kind)
+                    .field("scope", scope)
                     .end();
             }
             Expression::For {
@@ -1181,29 +1150,47 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 condition: _,
                 increment: _,
                 body: _,
+                scope,
             } => {
-                self.node("Expression::For", id.id).end();
+                self.node("Expression::For", id.id)
+                    .field("scope", scope)
+                    .end();
             }
             Expression::Try {
                 try_expression: _,
                 catch_pattern: _,
                 catch_expression: _,
                 finally_expression: _,
+                scope,
             } => {
-                self.node("Expression::Try", id.id).end();
+                self.node("Expression::Try", id.id)
+                    .field("scope", scope)
+                    .end();
             }
             Expression::Match {
                 value: _,
                 cases: _,
                 source,
+                scope,
             } => {
                 self.node("Expression::Match", id.id)
                     .field("source", source)
+                    .field("scope", scope)
+                    .end();
+            }
+            Expression::UnresolvedBreak { target, value: _ } => {
+                self.node("Expression::UnresolvedBreak", id.id)
+                    .field_optional("target", target)
                     .end();
             }
             Expression::Break { target, value: _ } => {
                 self.node("Expression::Break", id.id)
                     .field("target", target)
+                    .end();
+            }
+            Expression::UnresolvedContinue { target } => {
+                self.node("Expression::UnresolvedContinue", id.id)
+                    .field_optional("target", target)
                     .end();
             }
             Expression::Continue { target } => {
@@ -1259,13 +1246,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 definitions: _,
+                scope,
             } => {
-                let mut node = self.node("Definition::Module", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                node.end();
+                self.node("Definition::Module", id.id)
+                    .field("descriptor", descriptor)
+                    .field("generics", generics)
+                    .field("scope", &scope.0)
+                    .end();
             }
             Definition::Struct {
                 descriptor,
@@ -1273,16 +1260,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 generics,
                 heritage,
                 properties: _,
+                scope,
             } => {
-                let mut node = self.node("Definition::Struct", id.id);
-                node.field("descriptor", descriptor).field("kind", kind);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+                self.node("Definition::Struct", id.id)
+                    .field("descriptor", descriptor)
+                    .field("kind", kind)
+                    .field("generics", generics)
+                    .field("heritage", heritage)
+                    .field("scope", &scope.0)
+                    .end();
             }
             Definition::Enum {
                 descriptor,
@@ -1290,42 +1276,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 fields: _,
                 properties: _,
+                scope,
             } => {
-                let mut node = self.node("Definition::Enum", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+                self.node("Definition::Enum", id.id)
+                    .field("descriptor", descriptor)
+                    .field("generics", generics)
+                    .field("heritage", heritage)
+                    .field("scope", &scope.0)
+                    .end();
             }
             Definition::Interface {
                 descriptor,
                 generics,
                 heritage,
                 properties: _,
+                scope,
             } => {
-                let mut node = self.node("Definition::Interface", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+                self.node("Definition::Interface", id.id)
+                    .field("descriptor", descriptor)
+                    .field("generics", generics)
+                    .field("heritage", heritage)
+                    .field("scope", &scope.0)
+                    .end();
             }
             Definition::Function {
                 descriptor,
                 signature,
                 definitions: _,
                 body: _,
+                scope,
             } => {
                 self.node("Definition::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
+                    .field("scope", &scope.0)
                     .end();
             }
             Definition::Implement {
@@ -1335,15 +1319,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 heritage,
                 properties: _,
             } => {
-                let mut node = self.node("Definition::Extension", id.id);
-                node.field("descriptor", descriptor);
-                if !generics.is_empty() {
-                    node.field("generics", generics);
-                }
-                if !heritage.is_empty() {
-                    node.field("heritage", heritage);
-                }
-                node.end();
+                self.node("Definition::Extension", id.id)
+                    .field("descriptor", descriptor)
+                    .field("generics", generics)
+                    .field("heritage", heritage)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1499,23 +1479,44 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::UnresolvedDefault { kind: _, alias } => {
+            DependencyItem::UnresolvedDefault {
+                kind: _,
+                alias,
+                local_symbol,
+            } => {
                 self.node("DependencyItem::UnresolvedDefault", id.id)
                     .field("alias", alias)
+                    .field("local_symbol", local_symbol)
                     .end();
             }
-            DependencyItem::UnresolvedItem { kind, name, alias } => {
+            DependencyItem::UnresolvedItem {
+                kind,
+                name,
+                alias,
+                local_symbol,
+            } => {
                 self.node("DependencyItem::UnresolvedNamed", id.id)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
+                    .field("local_symbol", local_symbol)
                     .end();
             }
-            DependencyItem::Definition { value: _ } => {
-                self.node("DependencyItem::Definition", id.id).end();
+            DependencyItem::Local { local_symbol } => {
+                self.node("DependencyItem::Definition", id.id)
+                    .field("local_symbol", local_symbol)
+                    .end();
             }
-            DependencyItem::Value { value: _ } => {
-                self.node("DependencyItem::Value", id.id).end();
+            DependencyItem::Remote {
+                local_symbol,
+                remote_symbol,
+                module,
+            } => {
+                self.node("DependencyItem::Remote", id.id)
+                    .field("local_symbol", local_symbol)
+                    .field("remote_symbol", remote_symbol)
+                    .field("module", module)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1533,32 +1534,38 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Parameter::Named {
                 modifiers,
                 name,
+                symbol,
                 ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Scalar", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Parameter::Pattern {
                 modifiers,
                 pattern: _,
+                symbol,
                 ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Pattern", id.id)
                     .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
                     .end();
             }
             Parameter::Variadic {
                 modifiers,
                 name,
+                symbol,
                 ty: _,
             } => {
                 self.node("Parameter::Variadic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
         }
@@ -1639,6 +1646,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 modifiers,
                 name,
                 key: _,
+                parameter: _,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
@@ -1720,7 +1728,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         pattern_field: &PatternField,
     ) {
         match pattern_field {
-            PatternField::Named {
+            PatternField::UnresolvedNamed {
                 mutability,
                 name,
                 default: _,
@@ -1731,7 +1739,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Alias {
+            PatternField::UnresolvedAlias {
                 mutability,
                 name,
                 alias,
@@ -1743,8 +1751,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Positional { pattern: _ } => {
+            PatternField::UnresolvedPositional { pattern: _ } => {
                 self.node("PatternField::Positional", id.id).end();
+            }
+            PatternField::Named {
+                mutability,
+                name,
+                pattern: _,
+                default: _,
+                symbol,
+            } => {
+                self.node("PatternField::Named", id.id)
+                    .field("name", name)
+                    .field_optional("mutability", mutability)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            PatternField::Alias {
+                mutability,
+                name,
+                alias,
+                default: _,
+                symbol,
+            } => {
+                self.node("PatternField::Alias", id.id)
+                    .field("name", name)
+                    .field("alias", alias)
+                    .field_optional("mutability", mutability)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            PatternField::Positional { pattern: _, symbol } => {
+                self.node("PatternField::Positional", id.id)
+                    .field("symbol", symbol)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1763,15 +1803,21 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 pattern: _,
                 body: _,
                 guard: _,
+                scope,
             } => {
-                self.node("MatchCase::Expression", id.id).end();
+                self.node("MatchCase::Expression", id.id)
+                    .field("scope", scope)
+                    .end();
             }
             MatchCase::Block {
                 pattern: _,
                 body: _,
                 guard: _,
+                scope,
             } => {
-                self.node("MatchCase::Block", id.id).end();
+                self.node("MatchCase::Block", id.id)
+                    .field("scope", scope)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1798,24 +1844,44 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("string", string)
                     .end();
             }
-            Annotation::Tag {
+            Annotation::UnresolvedTag {
                 position,
-                receiver,
+                left,
                 arguments: _,
             } => {
                 self.node("Annotation::Tag", id.id)
                     .field("position", position)
-                    .field("receiver", receiver)
+                    .field("left", left)
                     .end();
             }
-            Annotation::Decorator {
+            Annotation::UnresolvedDecorator {
                 position,
-                receiver,
+                left,
                 arguments: _,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
-                    .field("receiver", receiver)
+                    .field("left", left)
+                    .end();
+            }
+            Annotation::Tag {
+                position,
+                symbol,
+                arguments: _,
+            } => {
+                self.node("Annotation::Tag", id.id)
+                    .field("position", position)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Annotation::Decorator {
+                position,
+                symbol,
+                arguments: _,
+            } => {
+                self.node("Annotation::Decorator", id.id)
+                    .field("position", position)
+                    .field("symbol", symbol)
                     .end();
             }
         }

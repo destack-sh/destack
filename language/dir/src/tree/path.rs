@@ -1,6 +1,6 @@
 use dyst_source::SmallVec;
 
-use crate::{ScopeId, StringId};
+use crate::StringId;
 
 /// The base of a path.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -9,14 +9,8 @@ pub enum PathBase {
     SelfType,
     /// The self base value.
     SelfValue,
-    /// The super base type.
-    SuperType,
-    /// The super base value.
-    SuperValue,
     /// The module base.
     Module,
-    /// The package base.
-    Package,
 }
 
 /// Path to something. Resolves to symbols, expressions, etc.
@@ -31,20 +25,4 @@ pub enum Path {
     },
     /// Unresolved absolute string path.
     UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
-}
-
-/// A block target for a control flow statement.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BlockTarget {
-    /// Unresolved block target with a string label.
-    Unresolved { label: StringId },
-    /// Resolved block target to a Scope.
-    Scope { scope: ScopeId },
-}
-
-impl BlockTarget {
-    /// Whether the target is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        matches!(self, BlockTarget::Scope { .. })
-    }
 }

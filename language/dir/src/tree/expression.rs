@@ -1,10 +1,10 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, BlockTarget, Definition,
-    DependencyItem, DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId,
-    Mutability, Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId,
-    SymbolId, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
+    DependencyKind, DependencySource, ExportType, MatchCase, MatchSource, ModuleId, Mutability,
+    Node, NodeId, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, SymbolId,
+    TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
     UnaryOperator, VarianceBound,
 };
 
@@ -284,12 +284,19 @@ pub enum Expression {
         scope: ScopeId,
     },
     /// Break expression.
+    UnresolvedBreak {
+        target: Option<StringId>,
+        value: Option<NodeId<Expression>>,
+    },
+    /// Break expression.
     Break {
-        target: Option<BlockTarget>,
+        target: ScopeId,
         value: Option<NodeId<Expression>>,
     },
     /// Continue expression.
-    Continue { target: Option<BlockTarget> },
+    UnresolvedContinue { target: Option<StringId> },
+    /// Continue expression.
+    Continue { target: ScopeId },
     /// Defer expression.
     Defer { expression: NodeId<Expression> },
     /// Throw expression.
@@ -315,22 +322,18 @@ impl Node for Expression {
 impl Expression {
     /// Whether the expression is resolved (ignoring child nodes).
     pub fn is_resolved(&self) -> bool {
-        match self {
-            Expression::UnresolvedImport { .. } => false,
-            Expression::UnresolvedReExport { .. } => false,
-            Expression::UnresolvedMember { .. } => false,
-            Expression::UnresolvedPath { .. } => false,
-            Expression::UnresolvedUnary { .. } => false,
-            Expression::UnresolvedBinary { .. } => false,
-            Expression::UnresolvedAssignBinary { .. } => false,
-
-            Expression::Break { target, value: _ } => {
-                target.is_none_or(|target| target.is_resolved())
-            }
-            Expression::Continue { target } => target.is_none_or(|target| target.is_resolved()),
-
-            _ => true,
-        }
+        !matches!(
+            self,
+            Expression::UnresolvedImport { .. }
+                | Expression::UnresolvedReExport { .. }
+                | Expression::UnresolvedMember { .. }
+                | Expression::UnresolvedPath { .. }
+                | Expression::UnresolvedUnary { .. }
+                | Expression::UnresolvedBinary { .. }
+                | Expression::UnresolvedAssignBinary { .. }
+                | Expression::UnresolvedBreak { .. }
+                | Expression::UnresolvedContinue { .. }
+        )
     }
 }
 

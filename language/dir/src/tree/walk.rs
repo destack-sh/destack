@@ -177,7 +177,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let statement = tree.get(*statement_id);
             visitor.visit_expression(tree, *statement_id, statement);
         }
-        Expression::With { clauses, body } => {
+        Expression::With {
+            clauses,
+            body,
+            scope: _,
+        } => {
             for clause_id in clauses {
                 let clause = tree.get(*clause_id);
                 visitor.visit_with_clause(tree, *clause_id, clause);
@@ -265,6 +269,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             pattern: pattern_id,
             ty: ty_id,
             value: value_id,
+            symbol: _,
         } => {
             let pattern = tree.get(*pattern_id);
             visitor.visit_pattern(tree, *pattern_id, pattern);
@@ -283,6 +288,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             name: _,
             static_parameters,
             value,
+            symbol: _,
         } => {
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters {
@@ -342,7 +348,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::Member {
             left,
-            path: _,
+            name: _,
+            symbol: _,
+            static_arguments,
+        }
+        | Expression::UnresolvedMember {
+            left,
+            name: _,
             static_arguments,
         } => {
             let left_expression = tree.get(*left);
@@ -408,7 +420,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
         }
-        Expression::Path {
+        Expression::UnresolvedPath {
             path: _,
             static_arguments,
         } => {
@@ -424,11 +436,25 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::TemplateLiteral { value } => {
             match value {
-                TemplateLiteral::String { .. } | TemplateLiteral::TaggedString { .. } => {
+                TemplateLiteral::String { .. } => {
                     // nothing to do
                 }
-                TemplateLiteral::InterpolatedString { arguments, .. }
-                | TemplateLiteral::TaggedInterpolatedString { arguments, .. } => {
+                TemplateLiteral::InterpolatedString { arguments, .. } => {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+        }
+        Expression::TaggedTemplateLiteral { tag, value } => {
+            let tag_expression = tree.get(*tag);
+            visitor.visit_expression(tree, *tag, tag_expression);
+            match value {
+                TemplateLiteral::String { .. } => {
+                    // nothing to do
+                }
+                TemplateLiteral::InterpolatedString { arguments, .. } => {
                     for argument_id in arguments {
                         let argument = tree.get(*argument_id);
                         visitor.visit_argument(tree, *argument_id, argument);
@@ -476,10 +502,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::TreeLiteral {
-            path: _,
+            left,
             arguments,
             elements,
         } => {
+            if let Some(left_id) = left {
+                let left_expression = tree.get(*left_id);
+                visitor.visit_expression(tree, *left_id, left_expression);
+            }
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
                     let argument = tree.get(*argument_id);
@@ -517,6 +547,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             kind: _,
             condition,
             body,
+            scope: _,
         } => {
             if let Some(condition_id) = condition {
                 let condition_expression = tree.get(*condition_id);
@@ -531,6 +562,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             pattern,
             iterator,
             body,
+            scope: _,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
@@ -544,6 +576,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             condition,
             increment,
             body,
+            scope: _,
         } => {
             if let Some(initialization_id) = initialization {
                 let initialization_expression = tree.get(*initialization_id);
@@ -565,6 +598,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             catch_pattern,
             catch_expression,
             finally_expression,
+            scope: _,
         } => {
             let try_expression_node = tree.get(*try_expression);
             visitor.visit_expression(tree, *try_expression, try_expression_node);
@@ -585,6 +619,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             value,
             cases,
             source: _,
+            scope: _,
         } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
@@ -593,13 +628,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_match_case(tree, *case_id, case);
             }
         }
-        Expression::Break { target: _, value } => {
+        Expression::Break { target: _, value }
+        | Expression::UnresolvedBreak { target: _, value } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 visitor.visit_expression(tree, *value_id, value_expression);
             }
         }
-        Expression::Continue { target: _ } => {}
+        Expression::Continue { target: _ } | Expression::UnresolvedContinue { target: _ } => {}
         Expression::Defer { expression } => {
             let body_expression = tree.get(*expression);
             visitor.visit_expression(tree, *expression, body_expression);
@@ -658,6 +694,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             descriptor: _,
             generics,
             definitions,
+            scope: _,
         } => {
             walk_generics(visitor, tree, generics);
             for definition_id in definitions {
@@ -671,6 +708,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             generics,
             heritage,
             properties,
+            scope: _,
         } => {
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
@@ -685,6 +723,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             heritage,
             fields,
             properties,
+            scope: _,
         } => {
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
@@ -702,6 +741,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             generics,
             heritage,
             properties,
+            scope: _,
         } => {
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
@@ -715,6 +755,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
             signature,
             definitions,
             body,
+            scope: _,
         } => {
             walk_function_signature(visitor, tree, signature);
             for definition_id in definitions.iter() {
@@ -1006,23 +1047,30 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
-        DependencyItem::UnresolvedDefault { kind: _, alias: _ } => {
+        DependencyItem::UnresolvedDefault {
+            kind: _,
+            alias: _,
+            local_symbol: _,
+        } => {
             // nothing to do
         }
         DependencyItem::UnresolvedItem {
             kind: _,
             name: _,
             alias: _,
+            local_symbol: _,
         } => {
             // nothing to do
         }
-        DependencyItem::Definition { value } => {
-            let value_definition = tree.get(*value);
-            visitor.visit_definition(tree, *value, value_definition);
+        DependencyItem::Local { local_symbol: _ } => {
+            // nothing to do
         }
-        DependencyItem::Value { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
+        DependencyItem::Remote {
+            local_symbol: _,
+            remote_symbol: _,
+            module: _,
+        } => {
+            // nothing to do
         }
     }
 }
@@ -1041,6 +1089,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
             name: _,
             ty,
             default,
+            symbol: _,
         } => {
             if let Some(ty) = ty {
                 let type_node = tree.get(*ty);
@@ -1054,6 +1103,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         Parameter::Pattern {
             modifiers: _,
             pattern,
+            symbol: _,
             ty,
             default,
         } => {
@@ -1071,6 +1121,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         Parameter::Variadic {
             modifiers: _,
             name: _,
+            symbol: _,
             ty,
         } => {
             if let Some(ty) = ty {
@@ -1138,6 +1189,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Dynamic {
             modifiers: _,
             name: _,
+            parameter: _,
             key,
             value,
         } => {
@@ -1245,6 +1297,13 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Named {
             mutability: _,
             name: _,
+            symbol: _,
+            pattern,
+            default,
+        }
+        | PatternField::UnresolvedNamed {
+            mutability: _,
+            name: _,
             pattern,
             default,
         } => {
@@ -1261,6 +1320,13 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
             alias: _,
+            symbol: _,
+            default,
+        }
+        | PatternField::UnresolvedAlias {
+            mutability: _,
+            name: _,
+            alias: _,
             default,
         } => {
             if let Some(default) = default {
@@ -1268,7 +1334,8 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        PatternField::Positional { pattern } => {
+        PatternField::Positional { pattern, symbol: _ }
+        | PatternField::UnresolvedPositional { pattern } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
@@ -1288,6 +1355,7 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
             pattern,
             body,
             guard,
+            scope: _,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
@@ -1302,6 +1370,7 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
             pattern,
             body,
             guard,
+            scope: _,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
@@ -1334,12 +1403,22 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         } => {}
         Annotation::Tag {
             position: _,
-            receiver: _,
+            symbol: _,
+            arguments,
+        }
+        | Annotation::UnresolvedTag {
+            position: _,
+            left: _,
             arguments,
         }
         | Annotation::Decorator {
             position: _,
-            receiver: _,
+            symbol: _,
+            arguments,
+        }
+        | Annotation::UnresolvedDecorator {
+            position: _,
+            left: _,
             arguments,
         } => {
             if let Some(arguments) = arguments {

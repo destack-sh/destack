@@ -1,5 +1,5 @@
 use crate::CompileError;
-use dyst_dir::{Expression, ModuleId, NodeId, NodeIdAny, ScopeId, Session, StringId, SymbolId};
+use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,7 +57,7 @@ impl ResolveError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::NotReady { .. } => "dependent nodes are not ready to be resolved".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),

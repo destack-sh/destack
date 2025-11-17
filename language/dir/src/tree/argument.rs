@@ -78,6 +78,7 @@ pub enum Argument {
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
+        parameter: NodeId<Parameter>,
         key: NodeId<Expression>,
         value: NodeId<Expression>,
     },

@@ -41,7 +41,7 @@ impl<'a> Transpiler<'a> {
             // (since there is no real equivalent in JS for remaining unresolved tags/decorators)
             dir::Annotation::Tag {
                 position,
-                receiver,
+                symbol,
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
