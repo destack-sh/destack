@@ -1,14 +1,13 @@
-use dyst_dir::{Expression, ModuleId, NodeId};
+use dyst_dir::{ModuleId, NodeIdAny, Session};
+
+use crate::{CompileWarning, CompilerStage};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveWarning {
     /// Unknown import.
-    UnknownImport {
-        module: ModuleId,
-        node: NodeId<Expression>,
-    } = 1,
+    UnknownImport { module: ModuleId, node: NodeIdAny } = 1,
 }
 
 impl ResolveWarning {
@@ -20,8 +19,15 @@ impl ResolveWarning {
         }
     }
 
+    /// Get the node id of the warning.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::UnknownImport { node, .. } => Some(*node),
+        }
+    }
+
     /// Get the message of the warning.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnknownImport { .. } => "unknown import".to_string(),
         }
@@ -31,7 +37,16 @@ impl ResolveWarning {
 impl std::fmt::Display for ResolveWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ResolveWarning")
-            .field("code", &format!("XE{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}W{:03}", CompilerStage::Resolve.letter(), self.sub_code()),
+            )
             .finish()
+    }
+}
+
+impl From<ResolveWarning> for CompileWarning {
+    fn from(warning: ResolveWarning) -> Self {
+        CompileWarning::Resolve(warning)
     }
 }

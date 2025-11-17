@@ -25,23 +25,45 @@ impl<'s> Compiler<'s> {
     #[inline]
     pub(super) fn process(&mut self, task: CompilerTask) {
         match task {
-            CompilerTask::Import(task) => {
-                self.process_import(task);
+            CompilerTask::Import(import_task) => {
+                if let Err(error) = self.process_import(import_task) {
+                    self.error(error);
+                }
             }
-            CompilerTask::Resolve(task) => {
-                self.process_resolve(task);
+            CompilerTask::Resolve(resolve_task) => {
+                if let Err(error) = self.process_resolve(resolve_task) {
+                    self.error(error);
+                }
             }
-            CompilerTask::Validate(task) => {
-                self.process_validate(task);
+            CompilerTask::Validate(validate_task) => {
+                if let Err(error) = self.process_validate(validate_task) {
+                    self.error(error);
+                }
             }
-            CompilerTask::Execute(task) => {
-                self.process_execute(task);
+            CompilerTask::Lower(lower_task) => {
+                if let Err(error) = self.process_lower(lower_task) {
+                    self.error(error);
+                }
             }
-            CompilerTask::Optimize(task) => {
-                self.process_optimize(task);
+            CompilerTask::Execute(execute_task) => {
+                if let Err(error) = self.process_execute(execute_task) {
+                    self.error(error);
+                }
             }
-            CompilerTask::Build(task) => {
-                self.process_build(task);
+            CompilerTask::Optimize(optimize_task) => {
+                if let Err(error) = self.process_optimize(optimize_task) {
+                    self.error(error);
+                }
+            }
+            CompilerTask::Build(build_task) => {
+                if let Err(error) = self.process_build(build_task) {
+                    self.error(error);
+                }
+            }
+            CompilerTask::Link(link_task) => {
+                if let Err(error) = self.process_link(link_task) {
+                    self.error(error);
+                }
             }
         }
     }

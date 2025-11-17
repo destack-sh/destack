@@ -1,6 +1,6 @@
-use dyst_dir::NodeIdAny;
+use dyst_dir::{NodeIdAny, Session};
 
-use crate::CompileError;
+use crate::{CompileError, CompilerStage};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone)]
@@ -18,12 +18,29 @@ impl ExecuteError {
             Self::NotExecutable { .. } => 1,
         }
     }
+
+    /// Get the node id of the error.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::NotExecutable { node, .. } => Some(*node),
+        }
+    }
+
+    /// Get the message of the error.
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+        match self {
+            Self::NotExecutable { .. } => "not executable".to_string(),
+        }
+    }
 }
 
 impl std::fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExecuteError")
-            .field("code", &format!("XE{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}E{:03}", CompilerStage::Execute.letter(), self.sub_code()),
+            )
             .finish()
     }
 }

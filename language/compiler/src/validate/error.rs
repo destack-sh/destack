@@ -1,6 +1,6 @@
-use dyst_dir::{NodeId, NodeIdAny, Type};
+use dyst_dir::{NodeId, NodeIdAny, Session, Type};
 
-use crate::CompileError;
+use crate::{CompileError, CompilerStage};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone)]
@@ -24,8 +24,15 @@ impl ValidateError {
         }
     }
 
+    /// Get the node id of the error.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::AssignmentTypeMismatch { left, .. } => Some(*left),
+        }
+    }
+
     /// Get the message of the error.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::AssignmentTypeMismatch { .. } => "assignment type mismatch".to_string(),
         }
@@ -35,7 +42,10 @@ impl ValidateError {
 impl std::fmt::Display for ValidateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ValidateError")
-            .field("code", &format!("VE{:03}", self.sub_code()))
+            .field(
+                "code",
+                &format!("{}E{:03}", CompilerStage::Validate.letter(), self.sub_code()),
+            )
             .finish()
     }
 }

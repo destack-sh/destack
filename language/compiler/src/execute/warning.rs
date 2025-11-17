@@ -1,11 +1,13 @@
-use dyst_dir::{Expression, NodeId};
+use dyst_dir::{NodeIdAny, Session};
+
+use crate::{CompileWarning, CompilerStage};
 
 /// Warning when executing something.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ExecuteWarning {
     /// Complex expression.
-    ComplexExpression { node: NodeId<Expression> } = 1,
+    ComplexExpression { node: NodeIdAny } = 1,
 }
 
 impl ExecuteWarning {
@@ -17,10 +19,34 @@ impl ExecuteWarning {
         }
     }
 
+    /// Get the node id of the warning.
+    pub fn node_id(&self) -> Option<NodeIdAny> {
+        match self {
+            Self::ComplexExpression { node, .. } => Some(*node),
+        }
+    }
+
     /// Get the message of the warning.
-    pub fn message(&self) -> String {
+    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::ComplexExpression { .. } => "complex expression".to_string(),
         }
+    }
+}
+
+impl std::fmt::Display for ExecuteWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExecuteWarning")
+            .field(
+                "code",
+                &format!("{}W{:03}", CompilerStage::Execute.letter(), self.sub_code()),
+            )
+            .finish()
+    }
+}
+
+impl From<ExecuteWarning> for CompileWarning {
+    fn from(warning: ExecuteWarning) -> Self {
+        CompileWarning::Execute(warning)
     }
 }
