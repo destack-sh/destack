@@ -2,20 +2,10 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
-    StructKind, Visibility,
+    StructKind,
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower visibility into a DIR visibility.
-    #[inline]
-    pub(super) fn lower_visibility(&self, visibility: ast::Visibility) -> Visibility {
-        match visibility {
-            ast::Visibility::Public => Visibility::Public,
-            ast::Visibility::Protected => Visibility::Protected,
-            ast::Visibility::Private => Visibility::Private,
-        }
-    }
-
     /// Lower declaration kind to DIR declaration kind.
     pub(super) fn lower_declaration_kind(&mut self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {

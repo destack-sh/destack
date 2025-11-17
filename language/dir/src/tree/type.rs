@@ -323,6 +323,46 @@ pub enum IntType {
 }
 
 impl IntType {
+    /// Try to simplify an arbitrary width integer type to a fixed width integer type.
+    pub fn try_simplify(&self) -> Option<IntType> {
+        match *self {
+            IntType::Arbitrary {
+                width,
+                is_signed: true,
+            } => match width {
+                8 => Some(IntType::Int8),
+                16 => Some(IntType::Int16),
+                32 => Some(IntType::Int32),
+                64 => Some(IntType::Int64),
+                128 => Some(IntType::Int128),
+                256 => Some(IntType::Int256),
+                _ => None,
+            },
+            IntType::Arbitrary {
+                width,
+                is_signed: false,
+            } => match width {
+                8 => Some(IntType::Uint8),
+                16 => Some(IntType::Uint16),
+                32 => Some(IntType::Uint32),
+                64 => Some(IntType::Uint64),
+                128 => Some(IntType::Uint128),
+                256 => Some(IntType::Uint256),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Simplify this integer type if possible.
+    pub fn simplify(self) -> Self {
+        match self.try_simplify() {
+            Some(int_type) => int_type,
+            None => self,
+        }
+    }
+
+    /// Get the width of the integer type.
     pub fn width(&self) -> Option<u16> {
         let width = match self {
             IntType::Int8 => 8,
@@ -347,6 +387,7 @@ impl IntType {
         Some(width)
     }
 
+    /// Whether the integer type is signed.
     pub fn is_signed(&self) -> bool {
         match self {
             IntType::Int8 => true,
@@ -370,6 +411,7 @@ impl IntType {
         }
     }
 
+    /// Get the string representation of the integer type.
     #[inline]
     pub fn as_str(self) -> String {
         match self {
@@ -418,6 +460,30 @@ pub enum FloatType {
 }
 
 impl FloatType {
+    /// Try to simplify an arbitrary width float type to a fixed width float type.
+    pub fn try_simplify(&self) -> Option<FloatType> {
+        match self {
+            &FloatType::Arbitrary { width } => match width {
+                16 => Some(FloatType::Float16),
+                32 => Some(FloatType::Float32),
+                64 => Some(FloatType::Float64),
+                80 => Some(FloatType::Float80),
+                128 => Some(FloatType::Float128),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Simplify this float type if possible.
+    pub fn simplify(self) -> Self {
+        match self.try_simplify() {
+            Some(float_type) => float_type,
+            None => self,
+        }
+    }
+
+    /// Get the width of the float type.
     pub fn width(&self) -> u16 {
         match self {
             FloatType::Float16 => 16,
@@ -429,6 +495,7 @@ impl FloatType {
         }
     }
 
+    /// Get the string representation of the float type.
     #[inline]
     pub fn as_str(self) -> String {
         match self {
