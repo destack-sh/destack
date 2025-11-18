@@ -1,13 +1,17 @@
+use dyst_source::PhysicalFileSystem;
+
 use super::{fixture, fixture_root};
 use crate::resolve::{Resolution, ResolveError, ResolveOptions};
 use crate::tests::Resolver;
+
+type TestResolver = Resolver<PhysicalFileSystem>;
 
 /// Run the tests from the enhanced-resolve test suite (webpack).
 /// https://github.com/webpack/enhanced-resolve/tree/main/test/fixtures
 #[test]
 fn test_resolve_enhanced_resolve() {
     let f = fixture();
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
 
     #[rustfmt::skip]
@@ -76,7 +80,7 @@ fn test_resolve_enhanced_resolve() {
 #[test]
 fn test_resolve_issue238() {
     let f = fixture().join("issue-238");
-    let resolver = Resolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into(), ".jsx".into(), ".ts".into(), ".tsx".into()],
         modules: vec![
             "src/a".into(),
@@ -100,7 +104,7 @@ fn test_resolve_issue238() {
 fn test_resolve_prefer_relative() {
     let f = fixture();
 
-    let resolver = Resolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         prefer_relative: true,
         ..ResolveOptions::default()
     });
@@ -120,7 +124,7 @@ fn test_resolve_prefer_relative() {
 #[test]
 fn test_resolve_to_context() {
     let f = fixture();
-    let resolver = Resolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         resolve_to_context: true,
         ..ResolveOptions::default()
     });
@@ -143,7 +147,7 @@ fn test_resolve_to_context() {
 #[test]
 fn test_resolve_hash_as_module() {
     let f = fixture();
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
     let resolution = resolver.resolve(f, "#a");
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
 }
@@ -151,7 +155,7 @@ fn test_resolve_hash_as_module() {
 #[test]
 fn test_resolve_edge_cases() {
     let f = fixture();
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
 
     #[rustfmt::skip]
     let data = [(
@@ -172,7 +176,7 @@ fn test_resolve_edge_cases() {
 fn test_resolve_dot_spelled_out() {
     let f = fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
     let foo_index = foo_dir.join("index.js");
 
     #[rustfmt::skip]
@@ -185,7 +189,7 @@ fn test_resolve_dot_spelled_out() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
-    let resolver = Resolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         main_files: vec![],
         ..ResolveOptions::default()
     });
@@ -217,7 +221,7 @@ fn test_resolve_abnormal_relative() {
 
     let base = f.join("foo/bar/baz");
 
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
 
     #[rustfmt::skip]
     let data = [
@@ -283,7 +287,7 @@ fn test_resolve_abnormal_relative() {
 fn test_resolve_chinese() {
     let dir = fixture_root();
     let specifier = "./misc/中文/中文.js";
-    let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
+    let resolution = TestResolver::new(ResolveOptions::default()).resolve(&dir, specifier);
     assert_eq!(
         resolution.map(Resolution::into_path_buf),
         Ok(dir.join("misc/中文/中文.js"))
@@ -306,7 +310,7 @@ fn test_resolve_styled_components() {
         alias_fields: vec![vec!["browser".into()]],
         ..ResolveOptions::default()
     };
-    let resolution = Resolver::new(options).resolve(&path, specifier);
+    let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("dist/styled-components.browser.cjs.js"))
@@ -317,7 +321,7 @@ fn test_resolve_styled_components() {
         main_fields: vec!["module".into()],
         ..ResolveOptions::default()
     };
-    let resolution = Resolver::new(options).resolve(&path, specifier);
+    let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("dist/styled-components.browser.esm.js"))
@@ -333,7 +337,7 @@ fn test_resolve_axios() {
     let specifier = "axios";
 
     let options = ResolveOptions::default();
-    let resolution = Resolver::new(options).resolve(&path, specifier);
+    let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("index.js"))
@@ -343,7 +347,7 @@ fn test_resolve_axios() {
         condition_names: vec!["browser".into(), "require".into()],
         ..ResolveOptions::default()
     };
-    let resolution = Resolver::new(options).resolve(&path, specifier);
+    let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("dist/browser/axios.cjs"))
@@ -353,7 +357,7 @@ fn test_resolve_axios() {
         condition_names: vec!["node".into(), "require".into()],
         ..ResolveOptions::default()
     };
-    let resolution = Resolver::new(options).resolve(&path, specifier);
+    let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("dist/node/axios.cjs"))
@@ -366,7 +370,7 @@ fn test_resolve_postcss() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
     let module_path = path.join("node_modules/postcss");
-    let resolver = Resolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
         symlinks: false,
         ..ResolveOptions::default()
@@ -393,18 +397,18 @@ fn test_resolve_ipaddr_js() {
         path.join("node_modules/.pnpm/ipaddr.js@2.2.0/node_modules/ipaddr.js/lib/ipaddr.js");
 
     let resolvers = [
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             extension_alias: vec![(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )],
             ..ResolveOptions::default()
         }),
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             extensions: vec![".ts".into()],
             ..ResolveOptions::default()
         }),
-        Resolver::default(),
+        TestResolver::default(),
     ];
 
     for resolver in resolvers {
@@ -422,7 +426,7 @@ fn test_resolve_decimal_js() {
         path.join("node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             extension_alias: vec![(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
@@ -430,7 +434,7 @@ fn test_resolve_decimal_js() {
             condition_names: vec!["import".into()],
             ..ResolveOptions::default()
         }),
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             condition_names: vec!["import".into()],
             ..ResolveOptions::default()
         }),
@@ -451,7 +455,7 @@ fn test_resolve_decimal_js_from_mathjs() {
         dir.join("pnpm/node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             extension_alias: vec![(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
@@ -459,7 +463,7 @@ fn test_resolve_decimal_js_from_mathjs() {
             condition_names: vec!["import".into()],
             ..ResolveOptions::default()
         }),
-        Resolver::new(ResolveOptions {
+        TestResolver::new(ResolveOptions {
             condition_names: vec!["import".into()],
             ..ResolveOptions::default()
         }),
@@ -476,7 +480,7 @@ fn test_resolve_decimal_js_from_mathjs() {
 fn test_resolve_minimatch() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
-    let esm_resolver = Resolver::new(ResolveOptions {
+    let esm_resolver = TestResolver::new(ResolveOptions {
         condition_names: vec!["import".into()],
         ..ResolveOptions::default()
     });
@@ -506,13 +510,13 @@ fn test_resolve_minimatch() {
 fn test_resolve_nested_symlinks() {
     let dir = fixture_root().join("nested-symlink");
     assert_eq!(
-        Resolver::new(ResolveOptions::default())
+        TestResolver::new(ResolveOptions::default())
             .resolve(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
             .map(Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
     );
     assert_eq!(
-        Resolver::new(ResolveOptions::default())
+        TestResolver::new(ResolveOptions::default())
             .resolve(&dir, "./apps/tooling/typescript-config/index.js")
             .map(Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
@@ -524,7 +528,7 @@ fn test_resolve_nested_symlinks() {
 fn test_resolve_package_json_with_bom() {
     let dir = fixture_root().join("misc");
     assert_eq!(
-        Resolver::new(ResolveOptions::default())
+        TestResolver::new(ResolveOptions::default())
             .resolve(&dir, "./package-json-with-bom")
             .map(Resolution::into_path_buf),
         Ok(dir.join("package-json-with-bom/index.js"))
@@ -541,7 +545,7 @@ fn test_resolve_normalized_on_windows() {
     let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_string_lossy();
     let normalized_absolute = absolute_str.replace('\\', "/");
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
 
     let resolution = resolver
         .resolve(&f, &normalized_absolute)
@@ -572,7 +576,7 @@ fn test_resolve_file_protocol() {
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
     let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
 
-    let resolver = Resolver::default();
+    let resolver = TestResolver::default();
 
     let resolution = resolver.resolve(&f, file_protocol_path.as_str()).ok();
     let resolved_path = resolution.as_ref().map(Resolution::full_path);

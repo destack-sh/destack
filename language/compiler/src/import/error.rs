@@ -9,19 +9,17 @@ use crate::{CompileError, CompilerStage};
 #[repr(u8)]
 pub enum ImportError {
     /// File ID not found.
-    FileIdNotFound { file_id: FileId } = 1,
-    /// File URI not found.
-    FileUriNotFound { uri: Uri } = 2,
-    /// Module not found.
-    ModuleNotFound { target: StringId } = 3,
+    FileIdNotFound { file_id: FileId },
+    /// Module could not be resolved.
+    ModuleUnresolved { target: StringId },
     /// Failed to parse a module.
     ParseError {
         module: ModuleId,
         node: NodeIdAny,
         diagnostics: Vec<ParseError>,
-    } = 4,
+    },
     /// Circular dependency.
-    CircularDependency { module: ModuleId, node: NodeIdAny } = 5,
+    CircularDependency { module: ModuleId, node: NodeIdAny },
 }
 
 impl ImportError {
@@ -30,10 +28,9 @@ impl ImportError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::FileIdNotFound { .. } => 1,
-            Self::FileUriNotFound { .. } => 2,
-            Self::ModuleNotFound { .. } => 3,
-            Self::ParseError { .. } => 4,
-            Self::CircularDependency { .. } => 5,
+            Self::ModuleUnresolved { .. } => 2,
+            Self::ParseError { .. } => 3,
+            Self::CircularDependency { .. } => 4,
         }
     }
 
@@ -41,8 +38,7 @@ impl ImportError {
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
             Self::FileIdNotFound { .. } => None,
-            Self::FileUriNotFound { .. } => None,
-            Self::ModuleNotFound { .. } => None,
+            Self::ModuleUnresolved { .. } => None,
             Self::ParseError { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
         }
@@ -52,8 +48,7 @@ impl ImportError {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
-            Self::FileUriNotFound { .. } => "file not found".to_string(),
-            Self::ModuleNotFound { .. } => "module not found".to_string(),
+            Self::ModuleUnresolved { .. } => format!("module '{}' not found", target),
             Self::ParseError { .. } => "parse error".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
         }

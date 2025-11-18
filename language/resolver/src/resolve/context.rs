@@ -20,7 +20,7 @@ pub struct ResolveContext {
     /// Current depth of the resolver.
     pub depth: u8,
     /// Maximum depth of the resolver.
-    pub max_depth: u8,
+    pub max_depth: u8 = 64,
 }
 
 impl ResolveContext {
