@@ -1,7 +1,10 @@
 use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::{Expression, NodeId, NodeIdAny, PostfixPosition, Statement};
+use dyst_javascript_ast::{Expression, NodeId, NodeIdAny, NodeType, PostfixPosition, Statement};
 
-use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
+use crate::{
+    TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,
+    TranspilerUnit,
+};
 
 impl<'a> Transpiler<'a> {
     /// Get the position of a postfix expression.
@@ -51,10 +54,28 @@ impl<'a> Transpiler<'a> {
                 block_id.into_any()
             }
             dir::Expression::Statement { statement } => {
-                let statement_id = self
-                    .transpile_expression(module, *statement, unit)
-                    .expect_node::<Statement>(statement.into_any(), unit)?;
-                unit.ast.alias_from(expression_id.id, statement_id);
+                let transpiled_id = self.transpile_expression(module, *statement, unit)?;
+                let statement_id: NodeId<Statement> = match transpiled_id.ty {
+                    // wrap expression in statement
+                    NodeType::Expression => {
+                        unit.warning(TranspileWarning::ExpectedStatement {
+                            node: expression_id.into_any(),
+                        });
+                        let statement = Statement::Expression {
+                            expression: transpiled_id.into(),
+                        };
+                        unit.ast
+                            .insert_from_source(statement, module.id, expression_id)
+                    }
+                    NodeType::Statement => transpiled_id.into(),
+                    _ => {
+                        return Err(TranspileError::UnsupportedNode {
+                            node: expression_id.into_any(),
+                            message: None,
+                        });
+                    }
+                };
+                unit.ast.alias_from(transpiled_id.id, statement_id);
                 statement_id.into_any()
             }
 

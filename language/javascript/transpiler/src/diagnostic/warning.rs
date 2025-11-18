@@ -15,6 +15,8 @@ pub enum TranspileWarning {
         wanted: NodeType,
         message: Option<String>,
     },
+    /// Expected statement, got something else.
+    ExpectedStatement { node: dir::NodeIdAny },
 }
 
 impl TranspileWarning {
@@ -25,6 +27,9 @@ impl TranspileWarning {
             Self::UnexpectedNode { node, wanted, .. } => {
                 format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
             }
+            Self::ExpectedStatement { node, .. } => {
+                format!("expected statement, got {}", node.ty.name())
+            }
         }
     }
 
@@ -33,6 +38,7 @@ impl TranspileWarning {
         match self {
             Self::ImpreciseType { .. } => 1,
             Self::UnexpectedNode { .. } => 2,
+            Self::ExpectedStatement { .. } => 3,
         }
     }
 
@@ -41,6 +47,7 @@ impl TranspileWarning {
         match self {
             Self::ImpreciseType { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,
+            Self::ExpectedStatement { node, .. } => *node,
         }
     }
 

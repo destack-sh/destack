@@ -86,6 +86,16 @@ impl Debug for NodeIdAny {
     }
 }
 
+impl<T: Node> From<NodeIdAny> for NodeId<T> {
+    fn from(id: NodeIdAny) -> Self {
+        debug_assert_eq!(id.ty, T::TYPE);
+        Self {
+            id: id.id,
+            _ty: PhantomData,
+        }
+    }
+}
+
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
