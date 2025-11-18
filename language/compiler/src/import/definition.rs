@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
-    ScopeId, ScopeKind, StructKind, SymbolId, SymbolSpace,
+    ScopeId, ScopeKind, StructKind, SymbolId, SymbolKey, SymbolSpace,
 };
 
 impl<'a> Compiler<'a> {
@@ -223,9 +223,12 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.session
-            .tree
-            .insert_from_source(definition, module.id, definition_id)
+        self.session.tree.insert_from_source_as_symbol(
+            definition,
+            module.id,
+            definition_id,
+            symbol_id,
+        )
     }
 
     /// Lower an AST enum field into a DIR enum field.
@@ -243,9 +246,18 @@ impl<'a> Compiler<'a> {
         let value = field
             .value
             .map(|value| self.lower_expression(module, scope_id, value));
-        let enum_field = EnumField { name, value };
+        let symbol_id = self.session.tree.create_symbol(
+            SymbolSpace::Value,
+            Some(SymbolKey::Name(name)),
+            scope_id,
+        );
+        let enum_field = EnumField {
+            name,
+            value,
+            symbol: symbol_id,
+        };
         self.session
             .tree
-            .insert_from_source(enum_field, module.id, field_id)
+            .insert_from_source_as_symbol(enum_field, module.id, field_id, symbol_id)
     }
 }

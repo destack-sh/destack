@@ -20,5 +20,17 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
+        {
+            "name": "destack_cli_compile",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["run", "--bin", "destack_cli"],
+                "filter": { "kind": "bin", "name": "destack_cli" }
+            },
+            "args": ["compile", "--file", "library/entity/src/entity/entity.ds"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
     ]
 }

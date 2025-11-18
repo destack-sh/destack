@@ -4,33 +4,13 @@ use dyst_source::{Color, ImmutableStringPool, SmallVec, impl_dump_display, rebui
 
 use crate::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct DumperOptions {
-    /// Spaces per indent.
-    pub indent: usize,
-    /// Maximum depth to dump. 0 = unlimited.
-    pub max_depth: usize,
     /// Use colors.
-    pub use_colors: bool,
-    /// If true, show NodeId<T> raw index.
-    pub show_id: bool,
-    /// If true, print source Spans.
-    pub show_span: bool,
+    pub use_colors: bool = true,
 }
 
-impl Default for DumperOptions {
-    fn default() -> Self {
-        Self {
-            indent: 2,
-            max_depth: 0,
-            use_colors: true,
-            show_id: false,
-            show_span: false,
-        }
-    }
-}
-
-/// A Dumper for dumping AST nodes.
+/// A Dumper for dumping DIR nodes.
 #[derive(Debug)]
 pub struct Dumper<'a> {
     /// The string pool.
@@ -536,20 +516,6 @@ impl Dump for Path {
                     .end();
             }
         }
-    }
-}
-
-/// Dump a ScopeId as a structured representation.
-impl Dump for ScopeId {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(self.0.to_string(), Some(Color::White));
-    }
-}
-
-/// Dump a SymbolId as a structured representation.
-impl Dump for SymbolId {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(self.0.to_string(), Some(Color::White));
     }
 }
 
@@ -1253,7 +1219,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Module", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
             Definition::Struct {
@@ -1269,7 +1235,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("kind", kind)
                     .field("generics", generics)
                     .field("heritage", heritage)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
             Definition::Enum {
@@ -1284,7 +1250,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
             Definition::Interface {
@@ -1298,7 +1264,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
             Definition::Function {
@@ -1311,7 +1277,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Definition::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
             Definition::Implement {
@@ -1326,7 +1292,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
-                    .field("scope", &scope.0)
+                    .field("scope", scope)
                     .end();
             }
         }
@@ -1440,6 +1406,99 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_type_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<TypeField>,
+        type_field: &TypeField,
+    ) {
+        match type_field {
+            TypeField::Field {
+                modifiers,
+                key,
+                ty: _,
+            } => {
+                self.node("TypeField::Field", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("key", key)
+                    .end();
+            }
+            TypeField::Method {
+                modifiers,
+                key,
+                signature,
+            } => {
+                self.node("TypeField::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("key", key)
+                    .field("signature", signature)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_type_field(dumper, tree, id, type_field);
+        });
+    }
+
+    fn visit_property(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<Property>,
+        property: &Property,
+    ) {
+        match property {
+            Property::Field {
+                modifiers,
+                key,
+                value: _,
+                default: _,
+            } => {
+                self.node("Property::Field", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .end();
+            }
+            Property::Method {
+                modifiers,
+                key,
+                signature,
+                body: _,
+            } => {
+                self.node("Property::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .end();
+            }
+            Property::Spread {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Property::Spread", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_property(dumper, tree, id, property);
+        });
+    }
+
+    fn visit_enum_field(
+        &mut self,
+        tree: &MutableNodeTree,
+        id: NodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
+        self.node("EnumField", id.id)
+            .field("name", &enum_field.name)
+            .field("symbol", &enum_field.symbol)
+            .end();
+        self.with_depth(|dumper| {
+            walk_enum_field(dumper, tree, id, enum_field);
+        });
+    }
+
     fn visit_where_clause(
         &mut self,
         tree: &MutableNodeTree,
@@ -1485,41 +1544,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
             DependencyItem::UnresolvedDefault {
                 kind: _,
                 alias,
-                local_symbol,
+                symbol,
             } => {
                 self.node("DependencyItem::UnresolvedDefault", id.id)
                     .field("alias", alias)
-                    .field("local_symbol", local_symbol)
+                    .field("symbol", symbol)
                     .end();
             }
             DependencyItem::UnresolvedItem {
                 kind,
                 name,
                 alias,
-                local_symbol,
+                symbol,
             } => {
                 self.node("DependencyItem::UnresolvedNamed", id.id)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
-                    .field("local_symbol", local_symbol)
+                    .field("symbol", symbol)
                     .end();
             }
             DependencyItem::Value { value: _ } => {
                 self.node("DependencyItem::Value", id.id).end();
             }
-            DependencyItem::Local { local_symbol } => {
+            DependencyItem::Local { symbol } => {
                 self.node("DependencyItem::Definition", id.id)
-                    .field("local_symbol", local_symbol)
+                    .field("symbol", symbol)
                     .end();
             }
             DependencyItem::Remote {
-                local_symbol,
+                symbol,
                 remote_symbol,
                 module,
             } => {
                 self.node("DependencyItem::Remote", id.id)
-                    .field("local_symbol", local_symbol)
+                    .field("symbol", symbol)
                     .field("remote_symbol", remote_symbol)
                     .field("module", module)
                     .end();
@@ -1898,5 +1957,80 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.with_depth(|dumper| {
             walk_annotation(dumper, tree, id, annotation);
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Meta
+// ----------------------------------------------------------------------------
+
+impl_dump_display! {
+    ScopeKind,
+    SymbolSpace,
+    NodeType,
+}
+
+impl Dump for ScopeId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("#{}", self.0), Some(Color::Green));
+    }
+}
+
+impl Dump for SymbolId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("#{}", self.0), Some(Color::Green));
+    }
+}
+
+impl Dump for SymbolKey {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            SymbolKey::Name(name) => {
+                dumper.object("SymbolKey::Name").value(name).end();
+            }
+            SymbolKey::UniqueSymbol(unique_symbol) => {
+                dumper
+                    .object("SymbolKey::UniqueSymbol")
+                    .value(&unique_symbol.id)
+                    .end();
+            }
+            SymbolKey::GlobalSymbol(global_symbol) => {
+                dumper
+                    .object("SymbolKey::GlobalSymbol")
+                    .value(global_symbol)
+                    .end();
+            }
+        }
+    }
+}
+
+impl<'a> Dumper<'a> {
+    pub fn visit_scope(&mut self, tree: &MutableNodeTree, id: ScopeId, scope: &Scope) {
+        self.node("Scope", id.0)
+            .field("id", &id)
+            .field("kind", &scope.kind)
+            .field_optional("owner", &scope.owner)
+            .end();
+        self.with_depth(|dumper| {
+            // symbols
+            for (_key, symbol_id) in scope.symbols.iter() {
+                let symbol = tree.get_symbol(*symbol_id);
+                dumper.visit_symbol(tree, *symbol_id, symbol);
+            }
+            // children
+            for child_id in scope.children.iter() {
+                let child = tree.get_scope_by_id(*child_id);
+                dumper.visit_scope(tree, *child_id, child);
+            }
+        });
+    }
+
+    pub fn visit_symbol(&mut self, _tree: &MutableNodeTree, id: SymbolId, symbol: &Symbol) {
+        self.node("Symbol", id.0)
+            .field("id", &id)
+            .field("space", &symbol.space)
+            .field_optional("declaration", &symbol.primary_declaration.map(|id| id.ty))
+            .field_optional("key", &symbol.key)
+            .end();
     }
 }

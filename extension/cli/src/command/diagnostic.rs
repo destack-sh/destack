@@ -37,8 +37,10 @@ pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, min_severity: Diag
         let mut parts: Vec<String> = Vec::new();
         for (severity, count) in counts.iter().rev() {
             let name = severity.family_name().to_ascii_lowercase();
-            let colored_count = severity.color().apply_bold(&format!("{count}"));
-            parts.push(format!("{} {}", colored_count, pluralize(*count, name)));
+            let color = severity.color();
+            let colored_count = color.apply_bold(&format!("{count}"));
+            let colored_name = color.apply_bold(&pluralize(*count, name));
+            parts.push(format!("{colored_count} {colored_name}"));
         }
         let summary = parts.join(", ");
         // summary line

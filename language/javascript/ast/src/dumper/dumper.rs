@@ -32,7 +32,7 @@ impl Default for DumperOptions {
     }
 }
 
-/// A Dumper for dumping JS nodes.
+/// A Dumper for dumping JS AST nodes.
 #[derive(Debug)]
 pub struct Dumper<'a> {
     /// The string pool.

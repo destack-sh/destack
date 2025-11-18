@@ -145,6 +145,8 @@ pub struct EnumField {
     pub name: StringId,
     /// The value of the enum field.
     pub value: Option<NodeId<Expression>>,
+    /// The symbol of the enum field.
+    pub symbol: SymbolId,
 }
 
 impl Node for EnumField {

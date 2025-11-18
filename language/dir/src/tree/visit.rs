@@ -10,10 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Default)]
-pub struct NodeVisitorOptions {
-    /// Visit non-children nodes.
-    pub visit_indirect: bool = false,
-}
+pub struct NodeVisitorOptions {}
 
 /// A NodeVisitor is a visitor for the DIR.
 pub trait NodeVisitor {

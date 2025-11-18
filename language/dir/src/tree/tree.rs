@@ -326,7 +326,7 @@ impl MutableNodeTree {
             secondary_declarations: Vec::new(),
             declared_ty: None,
             inferred_ty: None,
-            target: None,
+            remote_symbol: None,
         };
         self.symbols.push(symbol);
         if let Some(key) = key {
