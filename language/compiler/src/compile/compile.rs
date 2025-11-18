@@ -5,7 +5,7 @@ impl<'s> Compiler<'s> {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&mut self) {
         // queue all unresolved nodes
-        self.queue_all_unresolved();
+        self.enqueue_resolve_all();
 
         // process all tasks
         while let Some(task) = self.queue.pop_front() {
@@ -13,8 +13,8 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    /// Queue a task to the compiler.
-    pub(super) fn queue(&mut self, task: CompilerTask) {
+    /// Enqueue a task to the compiler.
+    pub fn enqueue(&mut self, task: CompilerTask) {
         self.queue.push_back(task);
     }
 

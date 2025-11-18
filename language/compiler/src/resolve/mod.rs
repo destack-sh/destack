@@ -1,10 +1,12 @@
 mod annotation;
 mod argument;
 mod block;
+mod dependency;
 mod error;
 mod expression;
 mod options;
 mod path;
+mod pattern;
 mod resolve;
 mod r#type;
 mod warning;

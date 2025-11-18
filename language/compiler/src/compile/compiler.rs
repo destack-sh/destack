@@ -2,9 +2,9 @@ use dyst_dir::Session;
 use dyst_source::{Diagnostic, DiagnosticOptions, FileId};
 
 use crate::{
-    BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, CompilerTask,
-    ExecuteOptions, ImportOptions, ImportTask, LinkOptions, LowerOptions, OptimizeOptions,
-    ResolveOptions, ValidateOptions,
+    BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, ExecuteOptions,
+    ImportOptions, ImportTask, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions,
+    ValidateOptions,
 };
 
 /// The options for compiling a Workspace.
@@ -53,18 +53,14 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    /// Create a new Compiler from a single file.
+    /// Create a new Compiler from a single module/file.
     pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompileOptions) -> Self {
         let mut compiler = Self {
             session,
             options,
             queue: CompilerQueue::new(),
         };
-        compiler
-            .queue
-            .push_back(CompilerTask::Import(ImportTask::ImportFileFromId {
-                file_id,
-            }));
+        compiler.enqueue(ImportTask::ImportFileFromId { file_id }.into());
         compiler
     }
 

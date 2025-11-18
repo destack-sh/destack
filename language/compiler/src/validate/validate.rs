@@ -1,4 +1,4 @@
-use crate::{Compiler, ValidateResult};
+use crate::{Compiler, CompilerTask, ValidateResult};
 
 use dyst_dir::{ModuleId, NodeId, Pattern, Type};
 
@@ -15,6 +15,12 @@ pub enum ValidateTask {
         module_id: ModuleId,
         pattern: NodeId<Pattern>,
     },
+}
+
+impl From<ValidateTask> for CompilerTask {
+    fn from(task: ValidateTask) -> Self {
+        CompilerTask::Validate(task)
+    }
 }
 
 impl<'a> Compiler<'a> {

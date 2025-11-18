@@ -1,16 +1,19 @@
 use crate::{Compiler, ResolveResult};
 use dyst_ast::StringId;
 use dyst_dir::{
-    Expression, FloatType, IntType, NodeId, PrimitiveType, Type, TypeLiteral, TypeUnaryOperator,
-    UnaryOperator,
+    Expression, FloatType, IntType, ModuleId, NodeId, PrimitiveType, Type, TypeLiteral,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
-    pub fn resolve_type(&mut self, ty_id: NodeId<Type>) -> ResolveResult<()> {
-        let ty = self.session.tree.get(ty_id);
-        let Type::UnresolvedExpression(expression_id) = *ty else {
-            return Ok(());
+    pub fn resolve_type(&mut self, _module_id: ModuleId, ty_id: NodeId<Type>) -> ResolveResult<()> {
+        let expression_id = {
+            let ty = self.session.tree.get(ty_id);
+            let Type::UnresolvedExpression(expression_id) = *ty else {
+                return Ok(());
+            };
+            expression_id
         };
 
         // resolve and update in-place

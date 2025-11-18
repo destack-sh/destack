@@ -11,25 +11,18 @@ impl<'a> Compiler<'a> {
         }
 
         // attach them
+        let mut tree = self.session.tree.write();
         for (ast_node_id, ast_annotations) in module.ast.get_all_annotations() {
-            let Some(dir_node_id) = self
-                .session
-                .tree
-                .get_node_id_by_source_id(module.id, *ast_node_id)
-            else {
+            let Some(dir_node_id) = tree.get_node_id_by_source_id(module.id, *ast_node_id) else {
                 continue;
             };
             for ast_annotation_id in ast_annotations {
-                let Some(dir_annotation_id) = self
-                    .session
-                    .tree
-                    .get_node_id_by_source_id(module.id, ast_annotation_id.id)
+                let Some(dir_annotation_id) =
+                    tree.get_node_id_by_source_id(module.id, ast_annotation_id.id)
                 else {
                     continue; // skipped by lower_annotation
                 };
-                self.session
-                    .tree
-                    .append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
+                tree.append_annotation(dir_node_id, NodeId::new(dir_annotation_id),);
             }
         }
     }

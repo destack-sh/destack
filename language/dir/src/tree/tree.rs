@@ -6,9 +6,9 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    MatchCase, ModuleId, Node, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Scope,
-    ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField, WhereClause,
-    WithClause,
+    MatchCase, ModuleId, Node, NodeId, NodeIdAny, NodeType, Parameter, Pattern, PatternField,
+    Property, Scope, ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField,
+    WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -245,8 +245,7 @@ impl MutableNodeTree {
     }
 
     /// Iterate over all nodes of a given type together with their NodeId.
-    #[inline]
-    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
+    pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
         Self: MutableNodeTreeImpl<T>,
@@ -263,6 +262,19 @@ impl MutableNodeTree {
                     None
                 }
             })
+    }
+
+    /// Iterate over all nodes.
+    pub fn iter_node_ids(&self) -> impl Iterator<Item = NodeIdAny> + '_ {
+        self.type_by_node_id
+            .iter()
+            .enumerate()
+            .map(|(global_index, &type_id)| NodeIdAny::new(global_index as u32, type_id))
+    }
+
+    /// Get the module id of a node by its global id.
+    pub fn get_module_id(&self, node_id: u32) -> ModuleId {
+        self.module_by_node_id[node_id as usize]
     }
 
     /// Get the source and AST id of a node by its global id.

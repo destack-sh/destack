@@ -18,7 +18,7 @@ fn bench_lex(c: &mut Criterion) {
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
     // glob all .ds files under the workspace root
-    let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
+    let ds_files = glob(&format!("{workspace_root}/**/*.ds"));
 
     // concatenate all contents into a single big string
     // pre-compute capacity to reduce reallocations

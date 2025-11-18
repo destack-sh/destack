@@ -5,6 +5,8 @@ use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId, Visibi
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveError {
+    /// Unsupported node.
+    UnsupportedNode { node: NodeIdAny },
     /// Dependent nodes are not ready to be resolved. May be retried.
     NotReady {
         module: ModuleId,
@@ -79,22 +81,24 @@ impl ResolveError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::NotReady { .. } => 1,
-            Self::CircularDependency { .. } => 2,
-            Self::UndeclaredSymbol { .. } => 3,
-            Self::MissingSymbol { .. } => 4,
-            Self::AmbiguousSymbol { .. } => 5,
-            Self::UnresolvedModule { .. } => 6,
-            Self::UnresolvedMember { .. } => 7,
-            Self::InaccessibleSymbol { .. } => 8,
-            Self::ConflictingDeclaration { .. } => 9,
-            Self::DuplicateExport { .. } => 10,
+            Self::UnsupportedNode { .. } => 1,
+            Self::NotReady { .. } => 2,
+            Self::CircularDependency { .. } => 3,
+            Self::UndeclaredSymbol { .. } => 4,
+            Self::MissingSymbol { .. } => 5,
+            Self::AmbiguousSymbol { .. } => 6,
+            Self::UnresolvedModule { .. } => 7,
+            Self::UnresolvedMember { .. } => 8,
+            Self::InaccessibleSymbol { .. } => 9,
+            Self::ConflictingDeclaration { .. } => 10,
+            Self::DuplicateExport { .. } => 11,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
+            Self::UnsupportedNode { node, .. } => Some(*node),
             Self::NotReady { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
             Self::UndeclaredSymbol { node, .. } => Some(*node),
@@ -111,6 +115,7 @@ impl ResolveError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
+            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::NotReady { .. } => "dependent nodes are not ready to be resolved".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
             Self::UndeclaredSymbol { .. } => "use of undeclared symbol".to_string(),

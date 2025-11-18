@@ -1,10 +1,15 @@
-use dyst_dir::{NodeIdAny, Path};
+use dyst_dir::{ModuleId, Path, ScopeId};
 
 use crate::{Compiler, ResolveResult};
 
 impl<'a> Compiler<'a> {
-    /// Analyze a Path.
-    pub fn analyze_path(&mut self, _scope_id: NodeIdAny, path: Path) -> ResolveResult<Path> {
-        todo!("analyze_path({path:?})")
+    /// Resolve a Path.
+    pub fn resolve_path(
+        &mut self,
+        _module_id: ModuleId,
+        _scope_id: ScopeId,
+        path: Path,
+    ) -> ResolveResult<Path> {
+        todo!("resolve_path({path:?})")
     }
 }

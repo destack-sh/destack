@@ -1,4 +1,4 @@
-use crate::{Compiler, ImportError, ImportResult};
+use crate::{Compiler, CompilerTask, ImportError, ImportResult};
 
 use dyst_dir::Module;
 use dyst_parser::Parser;
@@ -7,8 +7,14 @@ use dyst_source::{DiagnosticCollector, FileId};
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone)]
 pub enum ImportTask {
-    /// Feed a file from a file id.
+    /// Feed a file from a preloaded file id.
     ImportFileFromId { file_id: FileId },
+}
+
+impl From<ImportTask> for CompilerTask {
+    fn from(task: ImportTask) -> Self {
+        CompilerTask::Import(task)
+    }
 }
 
 impl<'a> Compiler<'a> {

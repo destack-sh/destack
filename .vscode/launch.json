@@ -28,13 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": [
-                "compile",
-                "--file",
-                "library/entity/src/entity/entity.ds",
-                "--suppress-errors",
-                "TE001"
-            ],
+            "args": ["compile", "--file", "library/entity/src/entity/entity.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         }
