@@ -1,6 +1,9 @@
 use crate::cache::{Cache, CachedPath};
 use crate::resolve::{
-    Alias, AliasValue, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap, ModuleType, NODEJS_BUILTINS, PackageJson, PackageType, Resolution, ResolveContext, ResolveError, ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsconfigDiscovery, TsconfigReferences
+    Alias, AliasValue, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap, ModuleType,
+    NODEJS_BUILTINS, PackageJson, PackageType, Resolution, ResolveContext, ResolveError,
+    ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsconfigDiscovery,
+    TsconfigReferences,
 };
 pub use dyst_source::PathExt;
 use dyst_source::{FileSystem, FileSystemOs, SLASH_START};
@@ -130,10 +133,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx.init_file_dependencies();
         let result = self.resolve_impl(directory.as_ref(), specifier, &mut ctx);
         if let Some(deps) = &mut ctx.file_dependencies {
-            resolve_context.file_dependencies.extend(deps.drain(..));
+            resolve_context
+                .file_dependencies
+                .get_or_insert_with(Vec::new)
+                .append(deps);
         }
         if let Some(deps) = &mut ctx.missing_dependencies {
-            resolve_context.missing_dependencies.extend(deps.drain(..));
+            resolve_context
+                .missing_dependencies
+                .get_or_insert_with(Vec::new)
+                .append(deps);
         }
         result
     }
@@ -1988,6 +1997,35 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Step 11.2 .. 12 omitted, which involves detecting file content.
             _ => Ok(None),
         }
+    }
+}
+
+#[derive(Default)]
+struct TsconfigResolveContext {
+    extended_configs: Vec<PathBuf>,
+}
+
+impl TsconfigResolveContext {
+    fn with_extended_file<F, T>(&mut self, path: PathBuf, f: F) -> Result<T, ResolveError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, ResolveError>,
+    {
+        self.extended_configs.push(path);
+        let result = f(self);
+        self.extended_configs.pop();
+        result
+    }
+
+    fn is_already_extended(&self, path: &Path) -> bool {
+        self.extended_configs
+            .iter()
+            .any(|extended| extended == path)
+    }
+
+    fn get_extended_configs_with(&self, path: PathBuf) -> Vec<PathBuf> {
+        let mut configs = self.extended_configs.clone();
+        configs.push(path);
+        configs
     }
 }
 

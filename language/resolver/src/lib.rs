@@ -4,3 +4,8 @@
 
 pub mod cache;
 pub mod resolve;
+
+pub use resolve::*;
+
+#[cfg(test)]
+mod tests;

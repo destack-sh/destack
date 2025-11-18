@@ -18,11 +18,6 @@ impl<'s> Compiler<'s> {
         self.queue.push_back(task);
     }
 
-    /// Generate tasks for all unresolved nodes.
-    pub(super) fn queue_all_unresolved(&mut self) {
-        // expressions, types, arguments, annotations, ...
-    }
-
     /// Process a compiler task.
     #[inline]
     pub(super) fn process(&mut self, task: CompilerTask) {

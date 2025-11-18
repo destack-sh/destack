@@ -309,7 +309,7 @@ impl PackageJson {
 }
 
 #[derive(Clone)]
-pub struct ImportsExportsEntry<'a>(pub(crate) &'a Value);
+pub(crate) struct ImportsExportsEntry<'a>(pub(crate) &'a Value);
 
 impl<'a> ImportsExportsEntry<'a> {
     #[must_use]
@@ -347,7 +347,7 @@ impl<'a> ImportsExportsEntry<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ImportsExportsArray<'a>(&'a [Value]);
 
 impl<'a> ImportsExportsArray<'a> {
@@ -385,7 +385,7 @@ impl<'a> Iterator for ImportsExportsArrayIter<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ImportsExportsMap<'a>(pub(crate) &'a serde_json::Map<String, Value>);
 
 impl<'a> ImportsExportsMap<'a> {

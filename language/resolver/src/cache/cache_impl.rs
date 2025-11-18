@@ -18,7 +18,7 @@ use crate::resolve::{
 use dyst_source::{FileSystem, PathExt};
 
 /// Cache implementation used for caching filesystem access.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
@@ -129,7 +129,6 @@ impl<Fs: FileSystem> Cache<Fs> {
                 ctx.add_file_dependency(&package_json.path);
             }
             Ok(None) => {
-                // Avoid an allocation by making this lazy
                 if let Some(deps) = &mut ctx.missing_dependencies {
                     deps.push(path.path.join("package.json"));
                 }

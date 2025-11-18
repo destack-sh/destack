@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
 use std::path::{Path, PathBuf};
@@ -8,7 +9,7 @@ use rustc_hash::FxHasher;
 use serde::Deserialize;
 
 use crate::resolve::TsconfigReferences;
-use dyst_source::{PathExt, StripJsonOptions, strip_json};
+use dyst_source::{PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
@@ -728,9 +729,13 @@ impl TsConfig {
     /// * Any error that can be returned by `serde_json::from_str()`.
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
-        _ = StripJsonOptions::strip(json); // nocheckin: fix this? see dyst_source
-        let mut tsconfig: Self =
-            serde_json::from_str(if json.trim().is_empty() { "{}" } else { json })?;
+        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
+        let json = if stripped.trim().is_empty() {
+            Cow::Borrowed("{}")
+        } else {
+            Cow::Owned(stripped)
+        };
+        let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
