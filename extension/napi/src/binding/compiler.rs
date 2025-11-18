@@ -3,13 +3,13 @@ use napi_derive::napi;
 /// The options for compiling.
 #[napi(object)]
 #[derive(Debug, Clone, Copy)]
-pub struct CompilerOptions {
+pub struct CompileOptions {
     /// The options for evaluating.
     pub resolve: ResolveOptions,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for CompilerOptions {
+impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             resolve: ResolveOptions::default(),
@@ -17,8 +17,8 @@ impl Default for CompilerOptions {
     }
 }
 
-impl From<CompilerOptions> for dyst_compiler::CompilerOptions {
-    fn from(options: CompilerOptions) -> Self {
+impl From<CompileOptions> for dyst_compiler::CompileOptions {
+    fn from(options: CompileOptions) -> Self {
         Self {
             import: dyst_compiler::ImportOptions::default(),
             resolve: options.resolve.into(),
@@ -31,9 +31,9 @@ impl From<CompilerOptions> for dyst_compiler::CompilerOptions {
 }
 
 /// Get the default compiler options.
-#[napi(js_name = "defaultCompilerOptions")]
-pub fn default_compiler_options() -> CompilerOptions {
-    CompilerOptions::default()
+#[napi(js_name = "defaultCompileOptions")]
+pub fn default_compiler_options() -> CompileOptions {
+    CompileOptions::default()
 }
 
 #[napi(object)]
@@ -45,10 +45,10 @@ pub struct ResolveOptions {
     pub default_float_width: u16,
     /// Whether to implicitly type unannotated expressions as any.
     pub implicit_any_type: bool,
-    /// Whether to resolve overimported operators.
-    pub overimport_operators: bool,
-    /// Whether to resolve overimported functions.
-    pub overimport_functions: bool,
+    /// Whether to resolve overloaded operators.
+    pub overload_operators: bool,
+    /// Whether to resolve overloaded functions.
+    pub overload_functions: bool,
 }
 
 impl Default for ResolveOptions {
@@ -57,8 +57,8 @@ impl Default for ResolveOptions {
             default_int_width: 32,
             default_float_width: 32,
             implicit_any_type: false,
-            overimport_operators: true,
-            overimport_functions: true,
+            overload_operators: true,
+            overload_functions: true,
         }
     }
 }
@@ -69,8 +69,8 @@ impl From<ResolveOptions> for dyst_compiler::ResolveOptions {
             default_int_width: options.default_int_width,
             default_float_width: options.default_float_width,
             implicit_any_type: options.implicit_any_type,
-            overimport_operators: options.overimport_operators,
-            overimport_functions: options.overimport_functions,
+            overload_operators: options.overload_operators,
+            overload_functions: options.overload_functions,
         }
     }
 }

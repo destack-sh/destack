@@ -210,8 +210,8 @@ impl From<FormatOptions> for dyst_javascript_transpiler::JavaScriptFormatOptions
 
 /// The transpilation options.
 #[napi(object)]
-#[derive(Debug, Clone, Copy)]
-pub struct TranspilerOptions {
+#[derive(Debug, Clone)]
+pub struct TranspileOptions {
     /// The transpilation mode.
     pub mode: TranspilerMode,
     /// The target language.
@@ -224,7 +224,7 @@ pub struct TranspilerOptions {
     pub formatting: FormatOptions,
 }
 
-impl Default for TranspilerOptions {
+impl Default for TranspileOptions {
     fn default() -> Self {
         Self {
             mode: TranspilerMode::Retained,
@@ -236,8 +236,8 @@ impl Default for TranspilerOptions {
     }
 }
 
-impl From<TranspilerOptions> for dyst_javascript_transpiler::TranspilerOptions {
-    fn from(options: TranspilerOptions) -> Self {
+impl From<TranspileOptions> for dyst_javascript_transpiler::TranspileOptions {
+    fn from(options: TranspileOptions) -> Self {
         Self {
             mode: options.mode.into(),
             target: options.target.into(),
@@ -249,7 +249,7 @@ impl From<TranspilerOptions> for dyst_javascript_transpiler::TranspilerOptions {
 }
 
 /// Get the default transpiler options.
-#[napi(js_name = "defaultTranspilerOptions")]
-pub fn default_transpiler_options() -> TranspilerOptions {
-    TranspilerOptions::default()
+#[napi(js_name = "defaultTranspileOptions")]
+pub fn default_transpiler_options() -> TranspileOptions {
+    TranspileOptions::default()
 }

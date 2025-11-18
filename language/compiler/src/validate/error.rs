@@ -8,10 +8,10 @@ use crate::{CompileError, CompilerStage};
 pub enum ValidateError {
     /// Missing type for an expression.
     MissingType { node: NodeIdAny },
-    /// Type mismatch for expressions/assignments/returns.
+    /// Type is not assignable to the expected type.
     TypeMismatch {
         node: NodeIdAny,
-        required_ty: NodeId<Type>,
+        expected_ty: NodeId<Type>,
         actual_ty: NodeId<Type>,
     },
     /// Calling non-callable.

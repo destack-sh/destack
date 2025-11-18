@@ -1,8 +1,8 @@
 use dyst_dir::{NodeIdAny, Session};
 
 use crate::{
-    BuildWarning, CompilerStage, ExecuteWarning, ImportWarning, LinkWarning, LowerWarning,
-    OptimizeWarning, ResolveWarning, ValidateWarning,
+    BuildWarning, CompileError, CompilerStage, ExecuteWarning, ImportWarning, LinkWarning,
+    LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -24,6 +24,8 @@ pub enum CompileWarning {
     Build(BuildWarning),
     /// Warning during linking.
     Link(LinkWarning),
+    /// Suppressed compiler error.
+    Suppressed(CompileError),
 }
 
 impl CompileWarning {
@@ -38,6 +40,7 @@ impl CompileWarning {
             Self::Optimize(_) => CompilerStage::Optimize,
             Self::Build(_) => CompilerStage::Build,
             Self::Link(_) => CompilerStage::Link,
+            Self::Suppressed(error) => error.stage(),
         }
     }
 
@@ -58,13 +61,17 @@ impl CompileWarning {
             Self::Optimize(warning) => warning.sub_code(),
             Self::Build(warning) => warning.sub_code(),
             Self::Link(warning) => warning.sub_code(),
+            Self::Suppressed(error) => error.sub_code(),
         }
     }
 
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        format!("{}W{:03}", self.stage_letter(), self.sub_code())
+        match self {
+            Self::Suppressed(error) => error.full_code(),
+            _ => format!("{}W{:03}", self.stage_letter(), self.sub_code()),
+        }
     }
 
     /// Get the node id of the warning.
@@ -78,6 +85,7 @@ impl CompileWarning {
             Self::Optimize(warning) => warning.node_id(),
             Self::Build(warning) => warning.node_id(),
             Self::Link(warning) => warning.node_id(),
+            Self::Suppressed(error) => error.node_id(),
         }
     }
 
@@ -92,6 +100,7 @@ impl CompileWarning {
             Self::Optimize(warning) => warning.message(session),
             Self::Build(warning) => warning.message(session),
             Self::Link(warning) => warning.message(session),
+            Self::Suppressed(error) => error.message(session),
         }
     }
 }

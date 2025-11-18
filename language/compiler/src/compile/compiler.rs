@@ -1,26 +1,33 @@
 use dyst_dir::Session;
-use dyst_source::{Diagnostic, FileId};
+use dyst_source::{Diagnostic, DiagnosticOptions, FileId};
 
 use crate::{
     BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, CompilerTask,
-    ExecuteOptions, ImportOptions, ImportTask, OptimizeOptions, ResolveOptions, ValidateOptions,
+    ExecuteOptions, ImportOptions, ImportTask, LinkOptions, LowerOptions, OptimizeOptions,
+    ResolveOptions, ValidateOptions,
 };
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone, Default)]
-pub struct CompilerOptions {
+pub struct CompileOptions {
+    /// The diagnostic options.
+    pub diagnostic: DiagnosticOptions,
     /// The options for importing.
     pub import: ImportOptions,
     /// The options for evaluating.
     pub resolve: ResolveOptions,
     /// The options for validating.
     pub validate: ValidateOptions,
+    /// The options for lowering.
+    pub lower: LowerOptions,
     /// The options for executing.
     pub execute: ExecuteOptions,
     /// The options for optimizing.
     pub optimize: OptimizeOptions,
     /// The options for building.
     pub build: BuildOptions,
+    /// The options for linking.
+    pub link: LinkOptions,
 }
 
 /// Compile files and sources into something (via DIR).
@@ -30,7 +37,7 @@ pub struct Compiler<'s> {
     /// The session.
     pub session: &'s Session<'s>,
     /// The options for compiling.
-    pub options: CompilerOptions,
+    pub options: CompileOptions,
     /// The queue of compiler tasks.
     pub(super) queue: CompilerQueue,
 }
@@ -41,13 +48,13 @@ impl<'s> Compiler<'s> {
     pub fn new(session: &'s Session<'s>) -> Self {
         Self {
             session,
-            options: CompilerOptions::default(),
+            options: CompileOptions::default(),
             queue: CompilerQueue::new(),
         }
     }
 
     /// Create a new Compiler from a single file.
-    pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompilerOptions) -> Self {
+    pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompileOptions) -> Self {
         let mut compiler = Self {
             session,
             options,
@@ -66,7 +73,9 @@ impl<'s> Compiler<'s> {
         let error: CompileError = error.into();
         let diagnostic: CompileDiagnostic = error.into();
         let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
-        self.session.diagnostics.insert(diagnostic);
+        if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
+            self.session.diagnostics.insert(diagnostic);
+        }
     }
 
     /// Add a warning to the compiler.
@@ -74,6 +83,8 @@ impl<'s> Compiler<'s> {
         let warning: CompileWarning = warning.into();
         let diagnostic: CompileDiagnostic = warning.into();
         let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
-        self.session.diagnostics.insert(diagnostic);
+        if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
+            self.session.diagnostics.insert(diagnostic);
+        }
     }
 }

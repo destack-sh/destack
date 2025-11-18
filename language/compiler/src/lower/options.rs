@@ -1,6 +1,3 @@
-/// The options for optimizing.
+/// The options for lowering.
 #[derive(Debug, Clone, Default)]
-pub struct LowerOptions {
-    /// Whether to enable aggressive optimizations.
-    pub aggressive: bool = false,
-}
+pub struct LowerOptions {}

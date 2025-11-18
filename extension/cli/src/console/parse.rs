@@ -6,7 +6,7 @@ use std::env;
 /// Parsed context for a command execution.
 #[derive(Debug, Clone)]
 pub struct CommandArguments {
-    /// Flag arguments with optional values (--key[=value] or -k [value])
+    /// Flag arguments with optional values (--key[=value], --key value, or -k [value])
     pub flags: HashMap<String, Option<String>>,
     /// Positional arguments
     pub positionals: Vec<String>,
@@ -16,7 +16,7 @@ impl CommandArguments {
     /// Parse command arguments from an iterator of strings with:
     /// - Long flags (`--flag`)
     /// - Short flags (`-f`)
-    /// - Flag values (`--key=value` or `--key value`)
+    /// - Flag values (`--key=value`, `--key value`, or `-k value`)
     /// - Positional arguments
     /// - The special `--` marker stops flag parsing and treats remaining arguments as positionals
     pub fn parse<I: IntoIterator<Item = String>>(iter: I) -> Self {
@@ -32,9 +32,9 @@ impl CommandArguments {
             if a == "--" {
                 positionals.extend(args[i + 1..].to_vec());
                 break;
-
+            }
             // parse long flags --key[=value]
-            } else if let Some(body) = a.strip_prefix("--") {
+            else if let Some(body) = a.strip_prefix("--") {
                 if let Some(eq) = body.find('=') {
                     let k = body[..eq].to_string();
                     let v = body[eq + 1..].to_string();
@@ -45,9 +45,9 @@ impl CommandArguments {
                 } else {
                     flags.insert(body.to_string(), None);
                 }
-
+            }
             // parse short flags -k [value]
-            } else if a.starts_with('-') && a.len() == 2 {
+            else if a.starts_with('-') && a.len() == 2 {
                 let k = a[1..].to_string();
                 if i + 1 < args.len() && !args[i + 1].starts_with('-') {
                     flags.insert(k, Some(args[i + 1].clone()));
@@ -55,9 +55,9 @@ impl CommandArguments {
                 } else {
                     flags.insert(k, None);
                 }
-
+            }
             // parse positional arguments
-            } else {
+            else {
                 positionals.push(a.clone());
             }
 
