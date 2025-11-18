@@ -768,8 +768,7 @@ mod tests {
         Expression, Key, Name, Property, ScalarLiteral, Tag,
     };
 
-    use crate::TestParser;
-    use crate::{assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_node, assert_path, assert_string};
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]

@@ -334,8 +334,7 @@ mod tests {
         Argument, DependencyItem, DependencyKind, ExportType, Expression, ScalarLiteral,
     };
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_import_simple() {

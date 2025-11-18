@@ -613,8 +613,9 @@ mod tests {
         Pattern, PatternField, ScalarLiteral, TypeLiteral, Visibility,
     };
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_parameter_type_only() {

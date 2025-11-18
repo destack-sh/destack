@@ -1,0 +1,218 @@
+use std::fmt::{self, Debug, Display};
+use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use thiserror::Error;
+
+/// All resolution errors
+///
+/// `thiserror` is used to display meaningful error messages.
+#[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
+pub enum ResolveError {
+    /// Ignored path
+    ///
+    /// Derived from ignored path (false value) from browser field in package.json
+    /// ```json
+    /// {
+    ///     "browser": {
+    ///         "./module": false
+    ///     }
+    /// }
+    /// ```
+    /// See <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
+    #[error("Path is ignored {0}")]
+    Ignored(PathBuf),
+
+    /// Module not found
+    #[error("Cannot find module '{0}'")]
+    NotFound(/* specifier */ String),
+
+    /// Matched alias value  not found
+    #[error("Cannot find module '{0}' for matched aliased key '{1}'")]
+    MatchedAliasNotFound(/* specifier */ String, /* alias key */ String),
+
+    /// Tsconfig not found
+    #[error("Tsconfig not found {0}")]
+    TsconfigNotFound(PathBuf),
+
+    /// Tsconfig's project reference path points to it self
+    #[error("Tsconfig's project reference path points to this tsconfig {0}")]
+    TsconfigSelfReference(PathBuf),
+
+    /// Occurs when tsconfig extends configs circularly
+    #[error("Tsconfig extends configs circularly: {0}")]
+    TsconfigCircularExtend(CircularPathBufs),
+
+    #[error("{0}")]
+    IOError(IOError),
+
+    /// Indicates the resulting path won't be able consumable by NodeJS `import` or `require`.
+    /// For example, DOS device path with Volume GUID (`\\?\Volume{...}`) is not supported.
+    #[error("Path {0:?} contains unsupported construct.")]
+    PathNotSupported(PathBuf),
+
+    /// Node.js builtin module when `Options::builtin_modules` is enabled.
+    ///
+    /// `is_runtime_module` can be used to determine whether the request
+    /// was prefixed with `node:` or not.
+    ///
+    /// `resolved` is always prefixed with "node:" in compliance with the ESM specification.
+    #[error("Builtin module {resolved}")]
+    Builtin {
+        resolved: String,
+        is_runtime_module: bool,
+    },
+
+    /// All of the aliased extension are not found
+    ///
+    /// Displays `Cannot resolve 'index.mjs' with extension aliases 'index.mts' in ...`
+    #[error("Cannot resolve '{0}' for extension aliases '{1}' in '{2}'")]
+    ExtensionAlias(
+        /* File name */ String,
+        /* Tried file names */ String,
+        /* Path to dir */ PathBuf,
+    ),
+
+    /// The provided path specifier cannot be parsed
+    #[error("{0}")]
+    Specifier(SpecifierError),
+
+    /// JSON parse error
+    #[error("{0:?}")]
+    Json(JSONError),
+
+    #[error(r#"Invalid module "{0}" specifier is not a valid subpath for the "exports" resolution of {1}"#)]
+    InvalidModuleSpecifier(String, PathBuf),
+
+    #[error(r#"Invalid "exports" target "{0}" defined for '{1}' in the package config {2}"#)]
+    InvalidPackageTarget(String, String, PathBuf),
+
+    #[error(r#""{subpath}" is not exported under {conditions} from package {package_path} (see exports field in {package_json_path})"#)]
+    PackagePathNotExported {
+        subpath: String,
+        package_path: PathBuf,
+        package_json_path: PathBuf,
+        conditions: ConditionNames,
+    },
+
+    #[error(r#"Invalid package config "{0}", "exports" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."#)]
+    InvalidPackageConfig(PathBuf),
+
+    #[error(r#"Default condition should be last one in "{0}""#)]
+    InvalidPackageConfigDefault(PathBuf),
+
+    #[error(r#"Expecting folder to folder mapping. "{0}" should end with "/"#)]
+    InvalidPackageConfigDirectory(PathBuf),
+
+    #[error(r#"Package import specifier "{0}" is not defined in package {1}"#)]
+    PackageImportNotDefined(String, PathBuf),
+
+    #[error("{0} is unimplemented")]
+    Unimplemented(&'static str),
+
+    /// Occurs when alias paths reference each other.
+    #[error("Recursion in resolving")]
+    Recursion,
+}
+
+impl ResolveError {
+    #[must_use]
+    pub const fn is_ignore(&self) -> bool {
+        matches!(self, Self::Ignored(_))
+    }
+}
+
+/// Error for [ResolveError::Specifier]
+#[derive(Debug, Clone, Eq, PartialEq, Error)]
+pub enum SpecifierError {
+    #[error("The specifiers must be a non-empty string. Received \"{0}\"")]
+    Empty(String),
+}
+
+/// JSON error from [serde_json::Error]
+#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[error("{message}")]
+pub struct JSONError {
+    pub path: PathBuf,
+    pub message: String,
+    pub line: usize,
+    pub column: usize,
+}
+
+#[derive(Debug, Clone, Error)]
+#[error("{0}")]
+pub struct IOError(Arc<io::Error>);
+
+impl PartialEq for IOError {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.kind() == other.0.kind()
+    }
+}
+
+impl From<IOError> for io::Error {
+    #[cold]
+    fn from(error: IOError) -> Self {
+        let io_error = error.0.as_ref();
+        Self::new(io_error.kind(), io_error.to_string())
+    }
+}
+
+impl From<io::Error> for ResolveError {
+    #[cold]
+    fn from(err: io::Error) -> Self {
+        Self::IOError(IOError(Arc::new(err)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CircularPathBufs(Vec<PathBuf>);
+
+impl Display for CircularPathBufs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, path) in self.0.iter().enumerate() {
+            if i != 0 {
+                write!(f, " -> ")?;
+            }
+            path.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl From<Vec<PathBuf>> for CircularPathBufs {
+    #[cold]
+    fn from(value: Vec<PathBuf>) -> Self {
+        Self(value)
+    }
+}
+
+/// Helper type for formatting condition names in error messages
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConditionNames(Vec<String>);
+
+impl From<Vec<String>> for ConditionNames {
+    fn from(conditions: Vec<String>) -> Self {
+        Self(conditions)
+    }
+}
+
+impl Display for ConditionNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0.len() {
+            0 => write!(f, "no conditions"),
+            1 => write!(f, "the condition \"{}\"", self.0[0]),
+            _ => {
+                write!(f, "the conditions ")?;
+                let conditions_str = self
+                    .0
+                    .iter()
+                    .map(|s| format!("\"{s}\""))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "[{conditions_str}]")
+            }
+        }
+    }
+}

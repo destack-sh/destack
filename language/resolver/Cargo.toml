@@ -16,6 +16,17 @@ dyst_source = { workspace = true }
 dyst_dir = { workspace = true }
 dyst_unicode = { workspace = true }
 
+cfg-if = { workspace = true }
+rustix = { workspace = true }
+# nocheckin: vendor/remove resolver dependencies
+papaya = "0.2.3"
+thiserror = "2.0.17"
+rustc-hash = "2.1.1"
+serde_json = "1.0.145"
+serde = "1.0.228"
+indexmap = "2.12.0"
+url = "2.5.7"
+
 [dev-dependencies]
 
 [lints]

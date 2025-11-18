@@ -162,7 +162,7 @@ mod tests {
         let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
         // glob all .ds files under the workspace root
-        let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
+        let ds_files = glob(&format!("{workspace_root}/**/*.ds"));
 
         let mut sources: HashMap<FileId, File> = HashMap::new();
         let mut diagnostics = DiagnosticCollector::new();

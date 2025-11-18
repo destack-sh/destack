@@ -118,8 +118,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause};
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_where_type_assertion() {

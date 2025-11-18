@@ -177,8 +177,7 @@ mod tests {
         ScalarLiteral, WhereClause, WithClause,
     };
 
-    use crate::TestParser;
-    use crate::{assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_enum_with_extends_types() {

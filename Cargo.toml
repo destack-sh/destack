@@ -64,9 +64,9 @@ destack_napi = { path = "extension/napi" }
 # general
 rayon = "1.11.0"
 parking_lot = "0.12.5"
-
-# build
-wasm-bindgen = "0.2.100"
+cfg-if = "1.0.4"
+rustix = "1.1.2"
+simdutf8 = "0.1.5"
 
 # dev
 arbitrary = { version = "1.4.2", features = ["derive"] }
@@ -75,7 +75,6 @@ pretty_assertions = "1.4.1"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 static_assertions = "1.1.0"
-wasm-bindgen-test = "0.3.50"
 criterion = { version = "0.5", features = ["html_reports"] }
 pprof = { version = "0.15", features = ["flamegraph", "criterion"] }
 

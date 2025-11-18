@@ -109,8 +109,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{BinaryOperator, Block, Expression, ScalarLiteral};
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path};
 
     #[test]
     fn test_parse_if_basic() {

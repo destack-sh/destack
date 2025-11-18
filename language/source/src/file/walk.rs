@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::ignore::IgnoreSet;
+use crate::file::ignore::IgnoreSet;
 
 /// Options for directory walking.
 #[derive(Debug, Clone)]
@@ -83,7 +83,7 @@ where
                 let text = path.to_string_lossy();
                 if !glob
                     .iter()
-                    .any(|p| crate::glob::matches(p.as_bytes(), 0, text.as_bytes(), 0))
+                    .any(|p| crate::file::glob::matches(p.as_bytes(), 0, text.as_bytes(), 0))
                 {
                     continue;
                 }
