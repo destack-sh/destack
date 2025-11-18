@@ -754,8 +754,19 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::Error => Expression::Error,
         };
-        self.session
-            .tree
-            .insert_from_source(expression, module.id, expression_id)
+
+        // expression
+        if let Some(symbol_id) = expression.symbol() {
+            self.session.tree.insert_from_source_as_symbol(
+                expression,
+                module.id,
+                expression_id,
+                symbol_id,
+            )
+        } else {
+            self.session
+                .tree
+                .insert_from_source(expression, module.id, expression_id)
+        }
     }
 }

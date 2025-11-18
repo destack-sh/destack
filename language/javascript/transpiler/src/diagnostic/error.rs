@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Session};
 use dyst_javascript_ast::{Node, NodeId, NodeIdAny, NodeType};
 
-use crate::{TranspileDiagnostic, TranspilerUnit};
+use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 
 /// Error when transpiling something into JS/TS
 #[derive(Debug, Clone)]
@@ -85,12 +85,19 @@ pub type TranspileResult<T> = Result<T, TranspileError>;
 
 /// Extension methods for TranspileResult.
 pub trait TranspileResultExt {
-    /// Expect a node of the given type.
+    /// Expect a node of the given type. Error with UnexpectedNode otherwise.
     fn expect_node<T: Node>(
         self,
         source_id: dir::NodeIdAny,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<T>>;
+
+    /// Prefer a node of the given type. Warn with UnexpectedNode otherwise.
+    fn prefer_node<T: Node>(
+        self,
+        source_id: dir::NodeIdAny,
+        unit: &mut TranspilerUnit,
+    ) -> Option<NodeId<T>>;
 
     /// Unwrap a node of the given type. None otherwise.
     fn unwrap_node<T: Node>(
@@ -101,7 +108,6 @@ pub trait TranspileResultExt {
 }
 
 impl TranspileResultExt for TranspileResult<NodeIdAny> {
-    /// Expect a node of the given type. Error with UnexpectedNode if the node type does not match.
     fn expect_node<T: Node>(
         self,
         source_id: dir::NodeIdAny,
@@ -124,7 +130,28 @@ impl TranspileResultExt for TranspileResult<NodeIdAny> {
         }
     }
 
-    /// Unwrap a node of the given type. None otherwise.
+    fn prefer_node<T: Node>(
+        self,
+        source_id: dir::NodeIdAny,
+        unit: &mut TranspilerUnit,
+    ) -> Option<NodeId<T>> {
+        match self {
+            Ok(node_id) => {
+                if node_id.ty == T::TYPE {
+                    Some(NodeId::<T>::new(node_id.id))
+                } else {
+                    unit.warning(TranspileWarning::UnexpectedNode {
+                        node: source_id,
+                        wanted: T::TYPE,
+                        message: None,
+                    });
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    }
+
     fn unwrap_node<T: Node>(
         self,
         _source_id: dir::NodeIdAny,

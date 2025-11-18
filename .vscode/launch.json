@@ -16,7 +16,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["transpile", "--file", "library/entity/src/entity/entity.ds"],
+            "args": ["transpile", "--string", "import { Color } from 'destack';"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

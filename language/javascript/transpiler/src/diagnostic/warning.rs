@@ -1,4 +1,5 @@
 use dyst_dir::{self as dir, Session};
+use dyst_javascript_ast::NodeType;
 
 use crate::TranspileDiagnostic;
 
@@ -6,7 +7,14 @@ use crate::TranspileDiagnostic;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum TranspileWarning {
+    /// Imprecise type.
     ImpreciseType { node: dir::NodeIdAny },
+    /// Unexpected node.
+    UnexpectedNode {
+        node: dir::NodeIdAny,
+        wanted: NodeType,
+        message: Option<String>,
+    },
 }
 
 impl TranspileWarning {
@@ -14,6 +22,9 @@ impl TranspileWarning {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::ImpreciseType { .. } => "imprecise type".to_string(),
+            Self::UnexpectedNode { node, wanted, .. } => {
+                format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
+            }
         }
     }
 
@@ -21,6 +32,7 @@ impl TranspileWarning {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::ImpreciseType { .. } => 1,
+            Self::UnexpectedNode { .. } => 2,
         }
     }
 
@@ -28,6 +40,7 @@ impl TranspileWarning {
     pub fn node_id(&self) -> dir::NodeIdAny {
         match self {
             Self::ImpreciseType { node, .. } => *node,
+            Self::UnexpectedNode { node, .. } => *node,
         }
     }
 
