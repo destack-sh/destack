@@ -16,6 +16,7 @@ use super::thread_local::SCRATCH_PATH;
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathImpl>);
 
+#[derive(Debug)]
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,

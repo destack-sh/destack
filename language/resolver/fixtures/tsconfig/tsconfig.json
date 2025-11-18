@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "ts-path": ["src/foo.js"]
+    }
+  }
+}

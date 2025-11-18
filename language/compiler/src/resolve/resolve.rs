@@ -10,10 +10,17 @@ pub enum ResolveTask {
 }
 
 impl<'a> Compiler<'a> {
+    /// Generate tasks for all unresolved nodes.
+    pub fn queue_all_unresolved(&mut self) {
+
+    }
+
+    /// Generate tasks for all unresolved nodes in a module.
+    pub(super) fn queue_all_unresolved_in_module(&mut self, module: ModuleId) {
+    }
+
     /// Resolve a node.
     pub fn process_resolve(&mut self, task: ResolveTask) -> ResolveResult<()> {
-        // nocheckin #Broken: revisit Compiler is_resolved/resolve logic (after load, ...)
-        // (also see all the :Unresolved* variants, and Type::Definition, ...)
         todo!("process_resolve({task:?})")
     }
 }

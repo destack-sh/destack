@@ -7,12 +7,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
     /// Current working directory, used for testing purposes.
-    pub cwd: Option<PathBuf> = None,
+    pub cwd: Option<PathBuf>,
 
     /// Discover tsconfig automatically or use the specified tsconfig.json path.
     ///
     /// Default `None`
-    pub tsconfig: Option<TsconfigDiscovery> = None,
+    pub tsconfig: Option<TsconfigDiscovery>,
 
     /// Create aliases to import or require certain modules more easily.
     ///

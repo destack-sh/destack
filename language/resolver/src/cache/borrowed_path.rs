@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 #[derive(Debug)]
-pub struct BorrowedCachedPath<'a> {
+pub(crate) struct BorrowedCachedPath<'a> {
     pub hash: u64,
     pub path: &'a Path,
 }

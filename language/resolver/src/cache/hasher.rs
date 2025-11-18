@@ -2,8 +2,8 @@ use std::hash::Hasher;
 
 /// Since the cache key is memoized, use an identity hasher
 /// to avoid double cache.
-#[derive(Default)]
-pub struct IdentityHasher(u64);
+#[derive(Debug, Default)]
+pub(crate) struct IdentityHasher(u64);
 
 impl Hasher for IdentityHasher {
     fn write(&mut self, _: &[u8]) {
