@@ -6,6 +6,8 @@ use crate::{CompileWarning, CompilerStage};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveWarning {
+    /// Already evaluated.
+    AlreadyEvaluated { module: ModuleId, node: NodeIdAny },
     /// Unknown import.
     UnknownImport { module: ModuleId, node: NodeIdAny },
     /// Unused imports / unused re-exports.
@@ -19,6 +21,7 @@ impl ResolveWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::AlreadyEvaluated { .. } => 1,
             Self::UnknownImport { .. } => 1,
             Self::UnusedImport { .. } => 2,
             Self::SideEffectOnlyImport { .. } => 3,
@@ -28,6 +31,7 @@ impl ResolveWarning {
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
+            Self::AlreadyEvaluated { node, .. } => Some(*node),
             Self::UnknownImport { node, .. } => Some(*node),
             Self::UnusedImport { node, .. } => Some(*node),
             Self::SideEffectOnlyImport { node, .. } => Some(*node),
@@ -37,6 +41,7 @@ impl ResolveWarning {
     /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
+            Self::AlreadyEvaluated { .. } => "already evaluated".to_string(),
             Self::UnknownImport { .. } => "unknown import".to_string(),
             Self::UnusedImport { .. } => "unused import".to_string(),
             Self::SideEffectOnlyImport { .. } => "side effect only import".to_string(),

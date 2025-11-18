@@ -145,7 +145,7 @@ impl PackageJson {
     /// Values are dynamically retrieved from [crate::ResolveOptions::main_fields].
     ///
     /// <https://nodejs.org/api/packages.html#main>
-    pub(crate) fn main_fields<'a>(
+    pub fn main_fields<'a>(
         &'a self,
         main_fields: &'a [String],
     ) -> impl Iterator<Item = &'a str> + 'a {
@@ -162,7 +162,7 @@ impl PackageJson {
     /// self-reference to its own name.
     ///
     /// <https://nodejs.org/api/packages.html#exports>
-    pub(crate) fn exports_fields<'a>(
+    pub fn exports_fields<'a>(
         &'a self,
         exports_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = ImportsExportsEntry<'a>> + 'a {
@@ -181,7 +181,7 @@ impl PackageJson {
     /// within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
-    pub(crate) fn imports_fields<'a>(
+    pub fn imports_fields<'a>(
         &'a self,
         imports_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = ImportsExportsMap<'a>> + 'a {
@@ -200,7 +200,7 @@ impl PackageJson {
     /// "browser" field.
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
-    pub(crate) fn resolve_browser_field<'a>(
+    pub fn resolve_browser_field<'a>(
         &'a self,
         path: &Path,
         request: Option<&str>,
@@ -282,7 +282,7 @@ impl PackageJson {
     /// Multiple values are configured by [ResolveOptions::alias_fields].
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
-    pub(crate) fn browser_fields<'a>(
+    pub fn browser_fields<'a>(
         &'a self,
         alias_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = &'a serde_json::Map<String, Value>> + 'a {
@@ -296,7 +296,7 @@ impl PackageJson {
         })
     }
 
-    pub(crate) fn alias_value<'a>(
+    pub fn alias_value<'a>(
         key: &Path,
         value: &'a Value,
     ) -> Result<Option<&'a str>, ResolveError> {
@@ -313,7 +313,7 @@ pub(crate) struct ImportsExportsEntry<'a>(pub(crate) &'a Value);
 
 impl<'a> ImportsExportsEntry<'a> {
     #[must_use]
-    pub fn kind(&self) -> ImportsExportsKind {
+    pub(crate) fn kind(&self) -> ImportsExportsKind {
         match self.0 {
             Value::String(_) => ImportsExportsKind::String,
             Value::Array(_) => ImportsExportsKind::Array,
@@ -323,7 +323,7 @@ impl<'a> ImportsExportsEntry<'a> {
     }
 
     #[must_use]
-    pub fn as_string(&self) -> Option<&'a str> {
+    pub(crate) fn as_string(&self) -> Option<&'a str> {
         match self.0 {
             Value::String(s) => Some(s.as_str()),
             _ => None,
@@ -331,7 +331,7 @@ impl<'a> ImportsExportsEntry<'a> {
     }
 
     #[must_use]
-    pub fn as_array(&self) -> Option<ImportsExportsArray<'a>> {
+    pub(crate) fn as_array(&self) -> Option<ImportsExportsArray<'a>> {
         match self.0 {
             Value::Array(arr) => Some(ImportsExportsArray(arr)),
             _ => None,
@@ -339,7 +339,7 @@ impl<'a> ImportsExportsEntry<'a> {
     }
 
     #[must_use]
-    pub fn as_map(&self) -> Option<ImportsExportsMap<'a>> {
+    pub(crate) fn as_map(&self) -> Option<ImportsExportsMap<'a>> {
         match self.0 {
             Value::Object(obj) => Some(ImportsExportsMap(obj)),
             _ => None,
@@ -348,20 +348,20 @@ impl<'a> ImportsExportsEntry<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ImportsExportsArray<'a>(&'a [Value]);
+pub(crate) struct ImportsExportsArray<'a>(&'a [Value]);
 
 impl<'a> ImportsExportsArray<'a> {
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = ImportsExportsEntry<'a>> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = ImportsExportsEntry<'a>> {
         ImportsExportsArrayIter {
             slice: self.0,
             index: 0,
@@ -389,15 +389,15 @@ impl<'a> Iterator for ImportsExportsArrayIter<'a> {
 pub struct ImportsExportsMap<'a>(pub(crate) &'a serde_json::Map<String, Value>);
 
 impl<'a> ImportsExportsMap<'a> {
-    pub fn get(&self, key: &str) -> Option<ImportsExportsEntry<'a>> {
+    pub(crate) fn get(&self, key: &str) -> Option<ImportsExportsEntry<'a>> {
         self.0.get(key).map(ImportsExportsEntry)
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = &'a str> {
+    pub(crate) fn keys(&self) -> impl Iterator<Item = &'a str> {
         self.0.keys().map(String::as_str)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&'a str, ImportsExportsEntry<'a>)> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&'a str, ImportsExportsEntry<'a>)> {
         self.0
             .iter()
             .map(|(k, v)| (k.as_str(), ImportsExportsEntry(v)))

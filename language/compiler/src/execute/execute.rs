@@ -1,4 +1,4 @@
-use crate::{Compiler, ExecuteResult};
+use crate::{Compiler, CompilerTask, ExecuteResult};
 
 use dyst_dir::{Expression, NodeId};
 
@@ -7,6 +7,12 @@ use dyst_dir::{Expression, NodeId};
 pub enum ExecuteTask {
     /// Execute an Expression fully (in-place).
     ExecuteExpression { expression: NodeId<Expression> },
+}
+
+impl From<ExecuteTask> for CompilerTask {
+    fn from(task: ExecuteTask) -> Self {
+        CompilerTask::Execute(task)
+    }
 }
 
 impl<'a> Compiler<'a> {

@@ -11,6 +11,8 @@ impl<'a> Compiler<'a> {
         scope_id: Option<ScopeId>,
         expressions: &[ast::NodeId<ast::Expression>],
     ) {
+        let module_id = module.id;
+
         // create scope
         let scope_id = self
             .session
@@ -25,5 +27,8 @@ impl<'a> Compiler<'a> {
             .collect();
         module.expressions.extend(expressions);
         self.session.modules.insert(module);
+
+        // begin resolving
+        self.enqueue_resolve_module(module_id);
     }
 }

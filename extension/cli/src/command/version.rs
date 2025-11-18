@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use dyst_source::glob::glob;
+use dyst_source::glob;
 
 use crate::{CommandApp, CommandArguments, console};
 

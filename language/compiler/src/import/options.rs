@@ -1,5 +1,3 @@
-use dyst_resolver;
-
 /// The options for importing.
 #[derive(Debug, Clone, Default)]
 pub struct ImportOptions {
