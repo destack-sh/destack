@@ -318,6 +318,10 @@ pub enum Expression {
 
 impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }
 
 impl Expression {
@@ -481,4 +485,8 @@ pub struct WithClause {
 
 impl Node for WithClause {
     const TYPE: NodeType = NodeType::WithClause;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }

@@ -54,6 +54,16 @@ pub enum Annotation {
 
 impl Node for Annotation {
     const TYPE: NodeType = NodeType::Annotation;
+
+    fn is_resolved(&self) -> bool {
+        matches!(
+            self,
+            Annotation::Doc { .. }
+                | Annotation::Comment { .. }
+                | Annotation::Tag { .. }
+                | Annotation::Decorator { .. }
+        )
+    }
 }
 
 impl Annotation {
@@ -69,14 +79,4 @@ impl Annotation {
         }
     }
 
-    /// Whether this annotation is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        matches!(
-            self,
-            Annotation::Doc { .. }
-                | Annotation::Comment { .. }
-                | Annotation::Tag { .. }
-                | Annotation::Decorator { .. }
-        )
-    }
 }

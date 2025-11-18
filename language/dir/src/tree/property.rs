@@ -100,4 +100,8 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }

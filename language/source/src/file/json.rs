@@ -200,6 +200,15 @@ impl StripJsonOptions {
     }
 }
 
+/// Strip JSON comments into a new string using the default settings.
+pub fn strip_json(input: &str) -> Result<String> {
+    let mut stripped = String::with_capacity(input.len());
+    StripJsonOptions::default()
+        .strip(input.as_bytes())
+        .read_to_string(&mut stripped)?;
+    Ok(stripped)
+}
+
 fn top(c: &mut u8, settings: &StripJsonOptions) -> State {
     match *c {
         b'"' => InString,

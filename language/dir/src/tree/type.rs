@@ -190,11 +190,8 @@ pub enum Type {
 
 impl Node for Type {
     const TYPE: NodeType = NodeType::Type;
-}
 
-impl Type {
-    /// Whether the type is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    fn is_resolved(&self) -> bool {
         !matches!(self, Type::UnresolvedExpression(_) | Type::Error)
     }
 }
@@ -218,6 +215,10 @@ pub enum TypeField {
 
 impl Node for TypeField {
     const TYPE: NodeType = NodeType::TypeField;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }
 
 /// The polymorphism of some type or declaration.
@@ -521,4 +522,8 @@ pub enum WhereClause {
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }

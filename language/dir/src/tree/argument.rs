@@ -32,6 +32,10 @@ pub enum Parameter {
 
 impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }
 
 /// An Argument is a named or positional argument to a function or method call.
@@ -103,11 +107,8 @@ impl Argument {
 
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
-}
 
-impl Argument {
-    /// Whether the argument is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    fn is_resolved(&self) -> bool {
         matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
     }
 }

@@ -143,6 +143,9 @@ impl<T: Node> NodeId<T> {
 /// A Node.
 pub trait Node: Sized {
     const TYPE: NodeType;
+
+    /// Whether this node is resolved (ignoring child nodes).
+    fn is_resolved(&self) -> bool;
 }
 
 /// A Visibility is the visibility of an item.
