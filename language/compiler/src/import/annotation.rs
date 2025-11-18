@@ -22,7 +22,7 @@ impl<'a> Compiler<'a> {
                 else {
                     continue; // skipped by lower_annotation
                 };
-                tree.append_annotation(dir_node_id, NodeId::new(dir_annotation_id),);
+                tree.append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
             }
         }
     }

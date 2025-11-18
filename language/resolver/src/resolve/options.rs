@@ -43,7 +43,8 @@ pub struct ResolveOptions {
     /// Redirect module requests when normal resolving fails.
     pub fallback: Alias,
 
-    /// Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests).
+    /// Request passed to resolve is already fully specified.
+    /// Extensions or main files are not resolved for it (they are still resolved for internal requests).
     pub fully_specified: bool,
 
     /// Main fields in description files (e.g., `["main"]`).
@@ -72,44 +73,13 @@ pub struct ResolveOptions {
     pub roots: Vec<PathBuf>,
 
     /// Whether to resolve symlinks to their symlinked location, if possible.
-    /// When enabled, symlinked resources are resolved to their real path, not their symlinked location.
-    /// Note that this may cause module resolution to fail when using tools that symlink packages (like `npm link`).
-    ///
-    /// Even if this option has been enabled, the resolver may decide not to follow the symlinks if the target cannot be
-    /// represented as a valid path for `require` or `import` statements in NodeJS. Specifically, we won't follow the symlink if:
-    /// 1. On Windows, the symlink is a [Volume mount point](https://learn.microsoft.com/en-us/windows/win32/fileio/volume-mount-points)
-    ///    to a Volume that does not have a drive letter.
-    ///    See: How to [mount a drive in a folder](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/assign-a-mount-point-folder-path-to-a-drive).
-    /// 2. On Windows, the symlink points to a [DOS device path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
-    ///    that cannot be reduced into a [traditional DOS path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#traditional-dos-paths).
-    ///    For example, all of the following symlink targets _will not_ be followed:
-    ///    * `\\.\Volume{b75e2c83-0000-0000-0000-602f00000000}\folder\` (Volume GUID)
-    ///    * `\\.\BootPartition\folder\file.ts` (Drive name)
-    ///
-    ///    DOS device path either pointing to a drive with drive letter, or a UNC path, will be simplified and followed, such as
-    ///    * `\\.\D:\path\to\file`: reduced to `D:\path\to\file`;
-    ///    * `\\.\UNC\server\share\path\to\file`: reduced to `\\server\share\path\to\file`.
-    ///
-    /// Default `true`
+    /// NOTE that this may cause module resolution to fail when using tools that symlink packages (like `npm link`).
     pub symlinks: bool,
 
-    /// Whether to parse "builtin" modules or not.
-    /// Default `false`
+    /// Whether to parse "builtin" Node modules or not.
     pub builtin_modules: bool,
 
-    /// Resolve [crate::Resolution::module_type].
-    ///
-    /// Default: `false`
-    pub module_type: bool,
-
-    /// Allow `exports` field in `require('../directory')`.
-    ///
-    /// This is not part of the spec but some vite projects rely on this behavior.
-    /// See
-    /// * <https://github.com/vitejs/vite/pull/20252>
-    /// * <https://github.com/nodejs/node/issues/58827>
-    ///
-    /// Default: `false`
+    /// Allow `exports` field in `require('../directory')`. This is not part of the spec but some vite projects rely on this behavior.
     pub allow_package_exports_in_directory_resolve: bool,
 }
 
@@ -352,7 +322,6 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             builtin_modules: false,
-            module_type: false,
             allow_package_exports_in_directory_resolve: false,
         }
     }

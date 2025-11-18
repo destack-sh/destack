@@ -1,4 +1,4 @@
-use dyst_source::{FileSystem, FileSystemOs, PathExt, SLASH_START};
+use dyst_source::{FileSystem, PathExt, SLASH_START};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::OsStr;
@@ -8,35 +8,32 @@ use std::{fmt, iter};
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, ModuleType, NODEJS_BUILTINS, PackageJson, PackageType, Resolution,
-    ResolveContext, ResolveError, ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig,
-    TsconfigDiscovery, TsconfigReferences,
+    ImportsExportsMap, NODEJS_BUILTINS, PackageJson, Resolution, ResolveContext, ResolveError,
+    ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsconfigDiscovery,
+    TsconfigReferences,
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
-/// Resolver with the current operating system as the file system.
-pub type Resolver = ResolverGeneric<FileSystemOs>;
-
-/// Generic implementation of the resolver, can be configured by the [Cache] trait
-pub struct ResolverGeneric<Fs> {
+/// Resolved backed by some Fs implementation.
+pub struct Resolver<Fs> {
     options: ResolveOptions,
     cache: Arc<CachedFileSystem<Fs>>,
 }
 
-impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
+impl<Fs> fmt::Debug for Resolver<Fs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.options.fmt(f)
     }
 }
 
-impl<Fs: FileSystem> Default for ResolverGeneric<Fs> {
+impl<Fs: FileSystem> Default for Resolver<Fs> {
     fn default() -> Self {
         Self::new(ResolveOptions::default())
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl<Fs: FileSystem> Resolver<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
         let fs = Fs::new();
         let cache = Arc::new(CachedFileSystem::new(fs));
@@ -47,7 +44,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl<Fs: FileSystem> Resolver<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         Self {
             cache: Arc::new(CachedFileSystem::new(file_system)),
@@ -126,7 +123,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         resolve_context: &mut ResolveContext,
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = ResolveContext::default();
-        ctx.init_file_dependencies();
+        ctx.file_dependencies.replace(vec![]);
+        ctx.missing_dependencies.replace(vec![]);
         let result = self.do_resolve(directory.as_ref(), specifier, &mut ctx);
         if let Some(deps) = &mut ctx.file_dependencies {
             resolve_context
@@ -149,7 +147,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Resolution, ResolveError> {
-        ctx.with_fully_specified(self.options.fully_specified);
+        ctx.is_fully_specified = self.options.fully_specified;
 
         let cached_path = self.cache.value(path);
         let cached_path = self.require(&cached_path, specifier, ctx)?;
@@ -160,14 +158,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // path must be inside the package.
             debug_assert!(path.starts_with(package_json.directory()));
         }
-        let module_type = self.esm_file_format(&cached_path, ctx)?;
 
         Ok(Resolution {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
             package_json,
-            module_type,
         })
     }
 
@@ -211,7 +207,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<CachedPath, ResolveError> {
-        ctx.test_for_infinite_recursion()?;
+        ctx.check_depth()?;
 
         // enhanced-resolve: parse
         let (parsed, try_fragment_as_path) = self.load_parse(cached_path, specifier, ctx)?;
@@ -415,7 +411,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut ResolveContext,
     ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
-        ctx.with_query_fragment(parsed.query, parsed.fragment);
+        ctx.set_query_fragment(parsed.query, parsed.fragment);
 
         // There is an edge-case where a request with # can be a path or a fragment -> try both
         if ctx.fragment.is_some() && ctx.query.is_none() {
@@ -438,7 +434,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<CachedPath, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
-            ctx.with_fully_specified(false);
+            ctx.is_fully_specified = false;
         }
         // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
         if let Some(path) = self.load_package_self(cached_path, specifier, ctx)? {
@@ -615,7 +611,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         extensions: &[String],
         ctx: &mut ResolveContext,
     ) -> ResolveResult {
-        if ctx.fully_specified {
+        if ctx.is_fully_specified {
             return Ok(None);
         }
         for extension in extensions {
@@ -954,8 +950,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             return Err(ResolveError::Recursion);
         }
-        ctx.with_resolving_alias(new_specifier.to_string());
-        ctx.with_fully_specified(false);
+        ctx.resolving_alias = Some(new_specifier.to_string());
+        ctx.is_fully_specified = false;
         let package_url = self.cache.value(package_json.path().parent().unwrap());
         self.require(&package_url, new_specifier, ctx).map(Some)
     }
@@ -1074,7 +1070,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             };
 
             *should_stop = true;
-            ctx.with_fully_specified(false);
+            ctx.is_fully_specified = false;
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
                 Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
                     Ok(None)
@@ -1117,17 +1113,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let Some(filename) = path.file_name() else {
             return Ok(None);
         };
-        ctx.with_fully_specified(true);
+        ctx.is_fully_specified = true;
         for extension in extensions {
             let cached_path = cached_path.replace_extension(extension, self.cache.as_ref());
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
-                ctx.with_fully_specified(false);
+                ctx.is_fully_specified = false;
                 return Ok(Some(path));
             }
         }
         // Bail if path is module directory such as `ipaddr.js`
         if !self.cache.is_file(cached_path, ctx) {
-            ctx.with_fully_specified(false);
+            ctx.is_fully_specified = false;
             return Ok(None);
         } else if !self.check_restrictions(cached_path.path()) {
             return Ok(None);
@@ -1452,7 +1448,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         }
                     }
                     let subpath = format!(".{subpath}");
-                    ctx.with_fully_specified(false);
+                    ctx.is_fully_specified = false;
                     return self.require(&cached_path, &subpath, ctx).map(Some);
                 }
             }
@@ -1739,7 +1735,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Target string con contain queries or fragments:
             // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
             let parsed = Specifier::parse(target).map_err(ResolveError::Specifier)?;
-            ctx.with_query_fragment(parsed.query, parsed.fragment);
+            ctx.set_query_fragment(parsed.query, parsed.fragment);
             let target = parsed.path();
 
             // 1. If target does not start with "./", then
@@ -1938,61 +1934,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier
             .strip_prefix(package_name)
             .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
-    }
-
-    /// ESM_FILE_FORMAT(url)
-    ///
-    /// <https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification>
-    fn esm_file_format(
-        &self,
-        cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<ModuleType>, ResolveError> {
-        if !self.options.module_type {
-            return Ok(None);
-        }
-        // 1. Assert: url corresponds to an existing file.
-        let ext = cached_path.path().extension().and_then(|ext| ext.to_str());
-        match ext {
-            // 2. If url ends in ".mjs", then
-            //   1. Return "module".
-            Some("mjs" | "mts") => Ok(Some(ModuleType::Module)),
-            // 3. If url ends in ".cjs", then
-            //   1. Return "commonjs".
-            Some("cjs" | "cts") => Ok(Some(ModuleType::CommonJs)),
-            // 4. If url ends in ".json", then
-            //   1. Return "json".
-            Some("json") => Ok(Some(ModuleType::Json)),
-            // 5. If --experimental-wasm-modules is enabled and url ends in ".wasm", then
-            //   1. Return "wasm".
-            Some("wasm") => Ok(Some(ModuleType::Wasm)),
-            // 6. If --experimental-addon-modules is enabled and url ends in ".node", then
-            //   1. Return "addon".
-            Some("node") => Ok(Some(ModuleType::Addon)),
-            // 11. If url ends in ".js", then
-            //   1. If packageType is not null, then
-            //     1. Return packageType.
-            Some("js" | "ts") => {
-                // 7. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(url).
-                // 8. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
-                let package_json =
-                    cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
-                // 9. Let packageType be null.
-                if let Some(package_json) = package_json {
-                    // 10. If pjson?.type is "module" or "commonjs", then
-                    //   1. Set packageType to pjson.type.
-                    if let Some(ty) = package_json.r#type() {
-                        return Ok(Some(match ty {
-                            PackageType::Module => ModuleType::Module,
-                            PackageType::CommonJs => ModuleType::CommonJs,
-                        }));
-                    }
-                }
-                Ok(None)
-            }
-            // Step 11.2 .. 12 omitted, which involves detecting file content.
-            _ => Ok(None),
-        }
     }
 }
 

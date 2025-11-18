@@ -35,7 +35,6 @@ pub struct CachedPathState {
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
     pub canonicalized_path: OnceLock<Weak<CachedPathState>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
-
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }

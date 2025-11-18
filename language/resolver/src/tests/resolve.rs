@@ -1,5 +1,6 @@
 use super::{fixture, fixture_root};
-use crate::resolve::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::resolve::{Resolution, ResolveError, ResolveOptions};
+use crate::tests::Resolver;
 
 /// Run the tests from the enhanced-resolve test suite (webpack).
 /// https://github.com/webpack/enhanced-resolve/tree/main/test/fixtures
@@ -173,7 +174,7 @@ fn test_resolve_dot_spelled_out() {
     let foo_dir: std::path::PathBuf = f.join("foo");
     let resolver = Resolver::default();
     let foo_index = foo_dir.join("index.js");
-    
+
     #[rustfmt::skip]
     let data = [
         ("dot dir", foo_dir.clone(), ".", foo_index.clone()),
@@ -477,7 +478,6 @@ fn test_resolve_minimatch() {
     let path = dir.join("pnpm");
     let esm_resolver = Resolver::new(ResolveOptions {
         condition_names: vec!["import".into()],
-        module_type: true,
         ..ResolveOptions::default()
     });
     let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
@@ -487,11 +487,9 @@ fn test_resolve_minimatch() {
             "pnpm/node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/esm/index.js",
         )
     );
-    assert_eq!(resolution.module_type(), Some(ModuleType::Module));
 
     let cjs_resolver = esm_resolver.clone_with_options(ResolveOptions {
         condition_names: vec!["require".into()],
-        module_type: true,
         ..ResolveOptions::default()
     });
     let resolution = cjs_resolver.resolve(&path, "minimatch").unwrap();
@@ -501,7 +499,6 @@ fn test_resolve_minimatch() {
             "pnpm/node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/commonjs/index.js",
         )
     );
-    assert_eq!(resolution.module_type(), Some(ModuleType::CommonJs));
 }
 
 /// Test resolving against nested symlinks.

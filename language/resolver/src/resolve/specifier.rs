@@ -6,7 +6,7 @@ use crate::resolve::SpecifierError;
 #[derive(Debug)]
 pub struct Specifier<'a> {
     /// Path (like `./foo.js` or `../bar.js`), without query or fragment.
-    path: Cow<'a, str>,
+    pub path: Cow<'a, str>,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub query: Option<&'a str>,
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).

@@ -2599,9 +2599,9 @@ declare namespace "bun" {
     setrange(key: RedisClient.KeyLike, offset: number, value: RedisClient.KeyLike): Promise<number>;
 
     /**
-     * Return a serialized version of the value stored at the specified key
+     * Return a serializsed version of the value stored at the specified key
      * @param key The key to dump
-     * @returns Promise that resolves with the serialized value, or null if the
+     * @returns Promise that resolves with the serializsed value, or null if the
      * key doesn't exist
      */
     dump(key: RedisClient.KeyLike): Promise<string | null>;
