@@ -37,7 +37,7 @@ pub enum DependencyEdge {
         alias: StringId,
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
     /// Unresolved item dependency edge.
     /// Edges where the target is not found remain unresolved (we just resolve the module in place).
@@ -49,7 +49,7 @@ pub enum DependencyEdge {
         alias: Option<StringId>,
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
     /// Resolved default dependency edge.
     ResolvedDefault {
@@ -58,7 +58,7 @@ pub enum DependencyEdge {
         module: ModuleId,
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
     /// Resolved dependency edge.
     Resolved {
@@ -67,7 +67,7 @@ pub enum DependencyEdge {
         module: ModuleId,
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
 }
 

@@ -1046,7 +1046,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         DependencyItem::UnresolvedDefault {
             kind: _,
             alias: _,
-            local_symbol: _,
+            symbol: _,
         } => {
             // nothing to do
         }
@@ -1054,7 +1054,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             kind: _,
             name: _,
             alias: _,
-            local_symbol: _,
+            symbol: _,
         } => {
             // nothing to do
         }
@@ -1062,11 +1062,11 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        DependencyItem::Local { local_symbol: _ } => {
+        DependencyItem::Local { symbol: _ } => {
             // nothing to do
         }
         DependencyItem::Remote {
-            local_symbol: _,
+            symbol: _,
             remote_symbol: _,
             module: _,
         } => {

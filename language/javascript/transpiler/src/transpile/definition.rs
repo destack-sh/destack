@@ -107,7 +107,7 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|property| self.transpile_property(module, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                // nocheckin: struct definitions should become just JS types + namespaces?
+                // TODO #Broken: struct definitions should become just JS types + namespaces?
                 Definition::Class {
                     descriptor,
                     generics,

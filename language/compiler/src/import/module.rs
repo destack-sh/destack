@@ -16,6 +16,7 @@ impl<'a> Compiler<'a> {
             .session
             .tree
             .create_scope(ScopeKind::Module, scope_id, None);
+        module.scope = Some(scope_id);
 
         // lower expressions
         let expressions: Vec<_> = expressions

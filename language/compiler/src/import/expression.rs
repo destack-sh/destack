@@ -90,7 +90,7 @@ impl<'a> Compiler<'a> {
                     let item = DependencyItem::UnresolvedDefault {
                         kind: self.lower_dependency_kind(*kind),
                         alias,
-                        local_symbol: symbol_id,
+                        symbol: symbol_id,
                     };
                     items.push(self.session.tree.insert_from_source_as_symbol(
                         item,
@@ -151,7 +151,7 @@ impl<'a> Compiler<'a> {
                         let item = DependencyItem::UnresolvedDefault {
                             kind: self.lower_dependency_kind(*kind),
                             alias,
-                            local_symbol: symbol_id,
+                            symbol: symbol_id,
                         };
                         items.push(self.session.tree.insert_from_source_as_symbol(
                             item,

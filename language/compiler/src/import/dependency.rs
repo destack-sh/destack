@@ -50,7 +50,7 @@ impl<'a> Compiler<'a> {
             kind,
             name,
             alias,
-            local_symbol: symbol_id,
+            symbol: symbol_id,
         };
         self.session
             .tree

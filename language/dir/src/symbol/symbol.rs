@@ -55,7 +55,7 @@ pub struct Symbol {
     /// The inferred type of the symbol.
     pub inferred_ty: Option<NodeId<Type>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
-    pub target: Option<SymbolId>,
+    pub remote_symbol: Option<SymbolId>,
 }
 
 impl Symbol {

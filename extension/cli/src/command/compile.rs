@@ -8,15 +8,18 @@ use crate::{CommandArguments, console};
 pub const HELP: &str = r"
 Compile source files.
     --package <path>   Compile a package
+    --module <module>  Compile a single module
     --file <path>      Compile a single file
     --string <string>  Compile a string
-    --type <format>    Compile a file with the given format (default: ds)
+    --type <format>    Compile a file with the given format (js|ts|jsx|tsx|ds, default: ds)
+    --dump <format>    Dump the compiled DIR in the given format (node|symbol|all, default: node)
     --silent           Don't print anything to the console (except errors)
 ";
 
 /// Compile source into its final DIR.
 pub fn run(ctx: CommandArguments) -> i32 {
     let silent = ctx.flag("silent");
+    let dump = ctx.option("dump").unwrap_or("node");
 
     // read input source
     let mut files = FileRegistry::new();
@@ -43,17 +46,34 @@ pub fn run(ctx: CommandArguments) -> i32 {
         let dump_options = DumperOptions::default();
         let tree = session.tree.read();
         let strings = session.strings.clone().into_immutable();
-        let mut dumper = Dumper::new(&strings, &tree, dump_options);
-        for module in session.modules.iter() {
-            console::info("=".repeat(80).as_str());
-            console::info(module.uri.to_string().as_str());
-            console::info("=".repeat(80).as_str());
-            for expression_id in &module.expressions {
-                let expression = tree.get(*expression_id);
-                dumper.visit_expression(&tree, *expression_id, expression);
+        // dump node representation
+        if dump == "node" || dump == "all" {
+            let mut dumper = Dumper::new(&strings, &tree, dump_options);
+            for module in session.modules.iter() {
+                console::info("=".repeat(80).as_str());
+                console::info(format!("{} [NODE]", module.uri).as_str());
+                console::info("=".repeat(80).as_str());
+                for expression_id in &module.expressions {
+                    let expression = tree.get(*expression_id);
+                    dumper.visit_expression(&tree, *expression_id, expression);
+                }
             }
+            console::info(&dumper.finish());
         }
-        console::info(&dumper.finish());
+        // dump symbol representation
+        if dump == "symbol" || dump == "all" {
+            let mut dumper = Dumper::new(&strings, &tree, dump_options);
+            for module in session.modules.iter() {
+                console::info("=".repeat(80).as_str());
+                console::info(format!("{} [SYMBOL]", module.uri).as_str());
+                console::info("=".repeat(80).as_str());
+                if let Some(scope_id) = module.scope {
+                    let scope = tree.get_scope_by_id(scope_id);
+                    dumper.visit_scope(&tree, scope_id, scope);
+                }
+            }
+            console::info(&dumper.finish());
+        }
     }
 
     // handle diagnostics

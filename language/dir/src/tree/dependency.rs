@@ -29,22 +29,22 @@ pub enum DependencyItem {
     UnresolvedDefault {
         kind: DependencyKind,
         alias: StringId,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
     /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
     UnresolvedItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
-        local_symbol: SymbolId,
+        symbol: SymbolId,
     },
     /// Value expression dependency (like `export = foo`).
     Value { value: NodeId<Expression> },
     /// Internal to the module (i.e., plain exports).
-    Local { local_symbol: SymbolId },
+    Local { symbol: SymbolId },
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
-        local_symbol: SymbolId,
+        symbol: SymbolId,
         remote_symbol: SymbolId,
         module: ModuleId,
     },
