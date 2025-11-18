@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::resolve::{JSONError, ResolveError};
 
-/// Serde implementation for the deserialized `package.json`.
+/// Serde implementation for the deserializsed `package.json`.
 ///
 /// This implementation is used on big-endian systems where simd-json is not available.
 pub struct PackageJson {
@@ -262,10 +262,7 @@ impl PackageJson {
         })
     }
 
-    pub fn alias_value<'a>(
-        key: &Path,
-        value: &'a Value,
-    ) -> Result<Option<&'a str>, ResolveError> {
+    pub fn alias_value<'a>(key: &Path, value: &'a Value) -> Result<Option<&'a str>, ResolveError> {
         match value {
             Value::String(s) => Ok(Some(s.as_str())),
             Value::Bool(false) => Err(ResolveError::Ignored(key.to_path_buf())),

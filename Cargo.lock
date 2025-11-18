@@ -2996,10 +2996,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_json"
-version = "2025.11.15-0"
-
-[[package]]
 name = "dyst_linter"
 version = "2025.11.15-0"
 dependencies = [

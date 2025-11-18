@@ -65,9 +65,9 @@ declare namespace "bun" {
    */
   interface SQLArrayParameter {
     /**
-     * The serialized values of the array parameter
+     * The serializsed values of the array parameter
      */
-    serializedValues: string;
+    serializsedValues: string;
     /**
      * The type of the array parameter
      */

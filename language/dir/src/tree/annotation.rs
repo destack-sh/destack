@@ -78,5 +78,4 @@ impl Annotation {
             Annotation::Decorator { position, .. } => *position,
         }
     }
-
 }

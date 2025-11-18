@@ -1,6 +1,6 @@
-mod system;
-mod path;
 mod hasher;
+mod path;
+mod system;
 
-pub use system::CachedFileSystem;
 pub use path::CachedPath;
+pub use system::CachedFileSystem;

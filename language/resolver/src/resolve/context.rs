@@ -5,42 +5,32 @@ use crate::resolve::ResolveError;
 /// Context for the resolver.
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
-    pub fully_specified: bool,
-
+    /// Whether the specifier is fully specified.
+    pub is_fully_specified: bool,
+    /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub query: Option<String>,
-
+    /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub fragment: Option<String>,
-
     /// Files that was found on file system.
     pub file_dependencies: Option<Vec<PathBuf>>,
-
     /// Dependencies that was not found on file system.
     pub missing_dependencies: Option<Vec<PathBuf>>,
-
     /// The current resolving alias for bailing recursion alias.
     pub resolving_alias: Option<String>,
-
-    /// For avoiding infinite recursion, which will cause stack overflow.
-    depth: u8,
+    /// Current depth of the resolver.
+    pub depth: u8,
+    /// Maximum depth of the resolver.
+    pub max_depth: u8,
 }
 
 impl ResolveContext {
-    pub fn with_fully_specified(&mut self, yes: bool) {
-        self.fully_specified = yes;
-    }
-
-    pub fn with_query_fragment(&mut self, query: Option<&str>, fragment: Option<&str>) {
+    pub fn set_query_fragment(&mut self, query: Option<&str>, fragment: Option<&str>) {
         if let Some(query) = query {
             self.query.replace(query.to_string());
         }
         if let Some(fragment) = fragment {
             self.fragment.replace(fragment.to_string());
         }
-    }
-
-    pub fn init_file_dependencies(&mut self) {
-        self.file_dependencies.replace(vec![]);
-        self.missing_dependencies.replace(vec![]);
     }
 
     pub fn add_file_dependency(&mut self, dep: &Path) {
@@ -55,19 +45,10 @@ impl ResolveContext {
         }
     }
 
-    pub fn with_resolving_alias(&mut self, alias: String) {
-        self.resolving_alias = Some(alias);
-    }
-
-    /// Increases the context's depth in order to detect recursion.
-    ///
-    /// ### Errors
-    ///
-    /// * [ResolveError::Recursion]
-    pub fn test_for_infinite_recursion(&mut self) -> Result<(), ResolveError> {
+    /// Check the context's depth in order to detect recursion.
+    pub fn check_depth(&mut self) -> Result<(), ResolveError> {
         self.depth += 1;
-        // 64 should be more than enough for detecting infinite recursion.
-        if self.depth > 64 {
+        if self.depth > self.max_depth {
             return Err(ResolveError::Recursion);
         }
         Ok(())

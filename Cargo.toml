@@ -10,7 +10,6 @@ members = [
 	"language/javascript/ast",
 	"language/javascript/machine",
 	"language/javascript/transpiler",
-	"language/json",
 	"language/linter",
 	"language/machine",
 	"language/mir",
@@ -44,7 +43,6 @@ dyst_formatter = { path = "language/formatter" }
 dyst_javascript_ast = { path = "language/javascript/ast" }
 dyst_javascript_machine = { path = "language/javascript/machine" }
 dyst_javascript_transpiler = { path = "language/javascript/transpiler" }
-dyst_json = { path = "language/json" }
 dyst_linter = { path = "language/linter" }
 dyst_machine = { path = "language/machine" }
 dyst_mir = { path = "language/mir" }

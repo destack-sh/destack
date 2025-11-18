@@ -28,11 +28,11 @@ pub trait FileSystem: Send + Sync {
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 }
 
-/// OS-specific file system implementation.
+/// Physical file system implementation (backed by the current target OS).
 #[derive(Debug)]
-pub struct FileSystemOs;
+pub struct PhysicalFileSystem;
 
-impl FileSystemOs {
+impl PhysicalFileSystem {
     #[inline]
     pub fn validate_string(bytes: Vec<u8>) -> io::Result<String> {
         // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
@@ -110,7 +110,7 @@ impl FileSystemOs {
     }
 }
 
-impl FileSystem for FileSystemOs {
+impl FileSystem for PhysicalFileSystem {
     fn new() -> Self {
         Self
     }
