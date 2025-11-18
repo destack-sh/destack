@@ -84,6 +84,10 @@ pub enum Definition {
 
 impl Node for Definition {
     const TYPE: NodeType = NodeType::Definition;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }
 
 impl Definition {
@@ -151,4 +155,8 @@ pub struct EnumField {
 
 impl Node for EnumField {
     const TYPE: NodeType = NodeType::EnumField;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }

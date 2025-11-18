@@ -46,6 +46,10 @@ pub enum Pattern {
 
 impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
 }
 
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
@@ -92,11 +96,8 @@ pub enum PatternField {
 
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
-}
 
-impl PatternField {
-    /// Whether the pattern field is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    fn is_resolved(&self) -> bool {
         matches!(
             self,
             PatternField::Named { .. }

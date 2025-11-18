@@ -52,11 +52,8 @@ pub enum DependencyItem {
 
 impl Node for DependencyItem {
     const TYPE: NodeType = NodeType::DependencyItem;
-}
 
-impl DependencyItem {
-    /// Whether the dependency item is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
+    fn is_resolved(&self) -> bool {
         matches!(
             self,
             DependencyItem::Local { .. }
