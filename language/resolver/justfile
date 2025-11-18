@@ -1,0 +1,48 @@
+set shell := ["bash", "-cu"]
+
+_default:
+  @just --list --unsorted
+
+alias t := test
+alias tf := test_fast
+
+# install workspace js deps
+install:
+  pnpm install
+
+# install fixture-local deps with their own .pnpm trees
+install_fixtures:
+  set -euo pipefail
+  for dir in fixtures/pnpm fixtures/pnpm-workspace; do \
+    if [ -f "$dir/package.json" ]; then \
+      (cd "$dir" && pnpm install --ignore-workspace); \
+    fi; \
+  done
+
+# format rust sources
+fmt:
+  cargo fmt --all
+
+# typecheck the resolver crate
+check:
+  cargo check -p dyst_resolver --all-targets
+
+# lint with clippy
+lint:
+  cargo clippy -p dyst_resolver --all-targets -- --deny warnings
+
+# run the release-mode resolver tests
+test:
+  cargo test --release -p dyst_resolver
+
+# run debug-mode resolver tests
+test_fast:
+  cargo test -p dyst_resolver
+
+# run the common CI steps for this crate
+ready:
+  cargo fmt --all
+  just check
+  just lint
+  just test
+
