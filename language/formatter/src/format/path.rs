@@ -18,7 +18,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::TestFormatter;
+    use crate::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
 
     #[test]

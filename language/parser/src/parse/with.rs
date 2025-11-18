@@ -159,8 +159,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Expression, UnaryOperator, WithClause};
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_with_type_assertion() {
@@ -185,7 +185,7 @@ mod tests {
         // with Foo
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_expr_path!(parser, parser.tree.get(*right), "Foo");
+            assert_expression_path!(parser, parser.tree.get(*right), "Foo");
         });
     }
 
@@ -197,7 +197,7 @@ mod tests {
         // with Foo.Bar
         assert_eq!(clauses.len(), 1);
         assert_node!(parser.tree, clauses[0], WithClause { alias: _, right } => {
-            assert_expr_path!(parser, parser.tree.get(*right), "Foo.Bar");
+            assert_expression_path!(parser, parser.tree.get(*right), "Foo.Bar");
         });
     }
 

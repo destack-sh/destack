@@ -97,8 +97,8 @@ mod tests {
         WhereClause, WithClause,
     };
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_interface_anonymous_empty() {
@@ -296,10 +296,10 @@ interface SQL {
                 assert_eq!(signature.dynamic_parameters.len(), 1);
                 assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                     assert_string!(parser, *name, "value");
-                    assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
+                    assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "T");
                 });
                 // SQL.Result<T>
-                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
             });
 
             // (value: any, ...arguments: any[]): SQL.Result<any>;
@@ -317,7 +317,7 @@ interface SQL {
                     assert_node!(parser.tree, *ty, Expression::Index { .. });
                 });
                 // SQL.Result<any>;
-                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL.Result");
             });
 
             // new(): SQL;
@@ -325,22 +325,22 @@ interface SQL {
                 assert_eq!(signature.mode, Some(FunctionMode::New));
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 // SQL
-                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL");
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL");
             });
 
             // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
             assert_node!(parser.tree, properties[3], Property::Method { modifiers: None, key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.asyncIterator]
-                assert_expr_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
+                assert_expression_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 // AsyncIterableIterator<string>
-                assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "AsyncIterableIterator");
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "AsyncIterableIterator");
             });
 
             // [Symbol.toPrimitive]?(): number;
             assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.toPrimitive]
-                assert_expr_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
+                assert_expression_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
                 // ?
                 assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
                 assert_eq!(signature.dynamic_parameters.len(), 0);

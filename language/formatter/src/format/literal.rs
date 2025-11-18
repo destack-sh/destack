@@ -325,7 +325,7 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::TestFormatter;
+    use crate::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
 
     /// Strings parsed with single quotes should be rewritten with double quotes.

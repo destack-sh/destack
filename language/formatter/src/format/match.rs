@@ -48,7 +48,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::TestFormatter;
+    use crate::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
 
     #[test]

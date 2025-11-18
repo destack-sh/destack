@@ -27,7 +27,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::TestFormatter;
+    use crate::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
     use dyst_ast::DeclarationDescriptor;
 

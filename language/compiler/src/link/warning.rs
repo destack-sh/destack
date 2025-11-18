@@ -7,19 +7,11 @@ use crate::{CompileWarning, CompilerStage};
 #[repr(u8)]
 pub enum LinkWarning {
     /// Missing target for a symbol.
-    MissingTarget {
-        node: NodeIdAny,
-    },
+    MissingTarget { node: NodeIdAny },
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    WeakSymbol {
-        node: NodeIdAny,
-        symbol: String,
-    },
+    WeakSymbol { node: NodeIdAny, symbol: String },
     /// Large binary / large static data section.
-    LargeBinary {
-        node: NodeIdAny,
-        size_mb: u64,
-    },
+    LargeBinary { node: NodeIdAny, size_mb: u64 },
 }
 
 impl LinkWarning {

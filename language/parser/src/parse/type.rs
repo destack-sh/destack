@@ -386,7 +386,7 @@ mod tests {
         BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, TypeUnaryOperator,
     };
 
-    use crate::parse::tests::TestParser;
+    use crate::TestParser;
     use crate::{assert_node, assert_path, assert_string};
 
     #[test]

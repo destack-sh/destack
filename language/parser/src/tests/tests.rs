@@ -90,94 +90,6 @@ macro_rules! assert_node {
     }};
 }
 
-/// Run an arbitrary predicate/closure on the resolved node.
-/// The closure receives `&T` and must return `bool`.
-///
-/// Examples:
-/// ```
-/// assert_check!(tree, id, |n| matches!(n, Pattern::Wildcard));
-/// assert_check!(tree, id, |n| compute_ok(n), "bad node: {n:?}");
-/// ```
-#[macro_export]
-macro_rules! assert_check {
-    // Predicate + custom panic message.
-    // e.g., `assert_check!(tree, id, |n| predicate(n), "msg {}", x);`
-    ($tree:expr, $id:expr, $pred:expr, $($msg:tt)*) => {{
-        let __n = $tree.get($id);
-        if !($pred)(__n) {
-            panic!($($msg)*);
-        }
-    }};
-    // Predicate with default panic message.
-    // e.g., `assert_check!(tree, id, |n| predicate(n));`
-    ($tree:expr, $id:expr, $pred:expr) => {{
-        let __n = $tree.get($id);
-        if !($pred)(__n) {
-            panic!("assert_check predicate failed for `{id}`", id = $id);
-        }
-    }};
-}
-
-/// Assert a `ScalarLiteral::Integer` equals an exact value (ignores `IntType` details).
-#[macro_export]
-macro_rules! assert_int {
-    // Exact integer value.
-    ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Integer(n) => {
-            assert_eq!(
-							*n,
-							$expected,
-							"expected integer literal",
-						);
-        });
-    }};
-}
-
-/// Assert a `ScalarLiteral::Float` equals an exact value with `==`.
-#[macro_export]
-macro_rules! assert_float {
-    // Exact float value (elementwise equal).
-    ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Float(f) => {
-            assert_eq!(
-							*f,
-							$expected,
-							"expected float literal",
-						);
-        });
-    }};
-}
-
-/// Assert a `ScalarLiteral::Boolean`.
-#[macro_export]
-macro_rules! assert_bool {
-    // Exact bool.
-    ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Boolean(b) => {
-            assert_eq!(
-							*b,
-							$expected,
-							"expected bool literal",
-						);
-        });
-    }};
-}
-
-/// Assert a `ScalarLiteral::Character`.
-#[macro_export]
-macro_rules! assert_char {
-    // Exact char.
-    ($tree:expr, $id:expr, $expected:expr) => {{
-        $crate::assert_node!($tree, $id, ::dyst_ast::ScalarLiteral::Character(c) => {
-            assert_eq!(
-							*c,
-							$expected,
-							"expected char literal",
-						);
-        });
-    }};
-}
-
 /// Assert a `StringId` directly against an expected string.
 #[macro_export]
 macro_rules! assert_string {
@@ -193,33 +105,6 @@ macro_rules! assert_name {
     ($parser:expr, $name:expr, $expected:expr) => {{
         let got = $parser.strings.get($name.string()).to_string();
         assert_eq!(got, $expected, "expected name");
-    }};
-}
-
-/// Assert a `ScalarLiteral::String`.
-#[macro_export]
-macro_rules! assert_lit_string {
-    ($parser:expr, $id:expr, $expected:expr) => {{
-        match $id {
-            ::dyst_ast::ScalarLiteral::String(s) => {
-                let got = $parser.strings.get(*s);
-                assert_eq!(got, $expected, "expected string");
-            }
-            other => panic!("expected ScalarLiteral::String, got {other:?}"),
-        }
-    }};
-}
-
-/// Assert a `ScalarLiteral::Integer`.
-#[macro_export]
-macro_rules! assert_lit_int {
-    ($parser:expr, $id:expr, $expected:expr) => {{
-        match $id {
-            ::dyst_ast::ScalarLiteral::Integer(n) => {
-                assert_eq!(*n, $expected, "expected integer");
-            }
-            other => panic!("expected ScalarLiteral::Integer, got {other:?}"),
-        }
     }};
 }
 
@@ -239,7 +124,7 @@ macro_rules! assert_path {
 
 /// Assert an "Expression::Path(path)" directly against an expected string.
 #[macro_export]
-macro_rules! assert_expr_path {
+macro_rules! assert_expression_path {
     ($parser:expr, $expr:expr, $expected:expr) => {{
         match $expr {
             ::dyst_ast::Expression::Path {

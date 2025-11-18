@@ -118,8 +118,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause};
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_where_type_assertion() {
@@ -146,8 +146,8 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser, parser.tree.get(*left), "T");
-                assert_expr_path!(parser, parser.tree.get(*right), "Y");
+                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                assert_expression_path!(parser, parser.tree.get(*right), "Y");
             });
         });
     }
@@ -165,7 +165,7 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
+                assert_expression_path!(parser, parser.tree.get(*right), "Bar");
             });
         });
 
@@ -173,8 +173,8 @@ mod tests {
         assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser, parser.tree.get(*left), "Time");
-                assert_expr_path!(parser, parser.tree.get(*right), "Limit");
+                assert_expression_path!(parser, parser.tree.get(*left), "Time");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
 
@@ -204,7 +204,7 @@ mod tests {
         assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
                 assert_eq!(*operator, UnaryOperator::Not);
-                assert_expr_path!(parser, parser.tree.get(*right), "Bar");
+                assert_expression_path!(parser, parser.tree.get(*right), "Bar");
             });
         });
 
@@ -212,8 +212,8 @@ mod tests {
         assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
             assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expr_path!(parser, parser.tree.get(*left), "Time");
-                assert_expr_path!(parser, parser.tree.get(*right), "Limit");
+                assert_expression_path!(parser, parser.tree.get(*left), "Time");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
 

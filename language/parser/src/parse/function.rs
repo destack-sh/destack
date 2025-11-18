@@ -309,8 +309,8 @@ mod tests {
         WhereClause, WithClause,
     };
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_function_lambda_with_newlines() {
@@ -380,7 +380,7 @@ mod tests {
             assert_eq!(signature.mode, Some(FunctionMode::New));
             assert_eq!(signature.kind, FunctionKind::Lambda);
             assert!(signature.dynamic_parameters.is_empty());
-            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "$");
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "$");
         });
     }
 
@@ -417,7 +417,7 @@ mod tests {
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
             // T
-            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
     }
 
@@ -466,8 +466,8 @@ function foo() => int32 with (
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
+                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
             // return type

@@ -393,7 +393,7 @@ mod tests {
     use dyst_source::{LanguageCompatibility, LanguageOptions};
 
     use crate::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_property_with_es_visibility_modifier() {
@@ -474,10 +474,10 @@ mod tests {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_expr_path!(parser, parser.tree.get(ty.unwrap()), "T");
+                assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "T");
             });
             // T
-            assert_expr_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
     }
 
