@@ -1,0 +1,9 @@
+packages:
+  - npm
+  - fixtures/pnpm
+  - fixtures/pnpm-workspace/**
+
+ignoredBuiltDependencies:
+  - esbuild
+
+ignoreScripts: true

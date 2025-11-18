@@ -5,9 +5,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-/// All resolution errors
-///
-/// `thiserror` is used to display meaningful error messages.
+/// Resolution error.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum ResolveError {
@@ -118,7 +116,6 @@ pub enum ResolveError {
 }
 
 impl ResolveError {
-    #[must_use]
     pub const fn is_ignore(&self) -> bool {
         matches!(self, Self::Ignored(_))
     }

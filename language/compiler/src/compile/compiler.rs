@@ -60,7 +60,7 @@ impl<'s> Compiler<'s> {
             options,
             queue: CompilerQueue::new(),
         };
-        compiler.enqueue(ImportTask::ImportFileFromId { file_id }.into());
+        compiler.enqueue(ImportTask::ImportModuleFromFileId { file_id }.into());
         compiler
     }
 

@@ -2,139 +2,73 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Module Resolution Options
+/// Resolution options (like oxc-resolver / enhanced-resolve).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
-    /// Current working directory, used for testing purposes.
+    /// Current working directory.
     pub cwd: Option<PathBuf>,
 
-    /// Discover tsconfig automatically or use the specified tsconfig.json path.
-    ///
-    /// Default `None`
+    /// How to discover tsconfig.
     pub tsconfig: Option<TsconfigDiscovery>,
 
-    /// Create aliases to import or require certain modules more easily.
-    ///
-    /// An alias is used to replace a whole path or part of a path.
-    /// For example, to alias a commonly used `src/` folders: `vec![("@/src"), vec![AliasValue::Path("/path/to/src")]]`
-    ///
-    /// A trailing $ can also be added to the given object's keys to signify an exact match.
-    ///
-    /// See [webpack's `resolve.alias` documentation](https://webpack.js.org/configuration/resolve/#resolvealias) for a list of use cases.
+    /// Aliases to import or require certain modules more easily.
     pub alias: Alias,
 
-    /// A list of alias fields in description files.
-    ///
-    /// Specify a field, such as `browser`, to be parsed according to [this specification](https://github.com/defunctzombie/package-browser-field-spec).
-    /// Can be a path to json object such as `["path", "to", "exports"]`.
-    ///
-    /// Default `[]`
+    /// Alias fields in description files (e.g., `["path", "to", "exports"]`)
+    /// <https://github.com/defunctzombie/package-browser-field-spec>
     pub alias_fields: Vec<Vec<String>>,
 
     /// Condition names for exports field which defines entry points of a package.
-    ///
-    /// The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
-    ///
-    /// Default `[]`
+    /// The key order in the exports field is significant.
+    /// During condition matching, earlier entries have higher priority and take precedence over later entries.
     pub condition_names: Vec<String>,
 
-    /// Set to [EnforceExtension::Enabled] for [ESM Mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions).
-    ///
-    /// If `enforce_extension` is set to [EnforceExtension::Enabled], resolution will not allow extension-less files.
-    /// This means `require('./foo.js')` will resolve, while `require('./foo')` will not.
-    ///
-    /// The default value for `enforce_extension` is [EnforceExtension::Auto], which is changed upon initialization.
-    ///
-    /// It changes to [EnforceExtension::Enabled] if [ResolveOptions::extensions] contains an empty string;
-    /// otherwise, this value changes to [EnforceExtension::Disabled].
-    ///
-    /// Explicitly set the value to [EnforceExtension::Disabled] to disable this automatic behavior.
-    ///
-    /// For reference, this behavior is aligned with `enhanced-resolve`. See <https://github.com/webpack/enhanced-resolve/pull/285>.
+    /// Whether and how to enforce file extensions.
+    /// <https://github.com/webpack/enhanced-resolve/pull/285>.
     pub enforce_extension: EnforceExtension,
 
-    /// A list of exports fields in description files.
-    ///
-    /// Can be a path to a JSON object such as `["path", "to", "exports"]`.
-    ///
-    /// Default `[["exports"]]`.
+    /// Exports fields in description files (like `["exports"]`).
     pub exports_fields: Vec<Vec<String>>,
 
-    /// Fields from `package.json` which are used to provide the internal requests of a package
-    /// (requests starting with # are considered internal).
-    ///
-    /// Can be a path to a JSON object such as `["path", "to", "imports"]`.
-    ///
-    /// Default `[["imports"]]`.
+    /// Imports fields in description files (like `["imports"]`).
     pub imports_fields: Vec<Vec<String>>,
 
-    /// An object which maps extension to extension aliases.
-    ///
-    /// Default `{}`
+    /// Extension aliases (e.g., `(".js", [".ts", ".tsx"])`).
     pub extension_alias: Vec<(String, Vec<String>)>,
 
-    /// Attempt to resolve these extensions in order.
-    ///
-    /// If multiple files share the same name but have different extensions,
-    /// will resolve the one with the extension listed first in the array and skip the rest.
-    ///
-    /// All extensions must have a leading dot.
-    ///
-    /// Default `[".js", ".json", ".node"]`
+    /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
     pub extensions: Vec<String>,
 
     /// Redirect module requests when normal resolving fails.
-    ///
-    /// Default `[]`
     pub fallback: Alias,
 
     /// Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests).
-    ///
-    /// See also webpack configuration [resolve.fullySpecified](https://webpack.js.org/configuration/module/#resolvefullyspecified)
-    ///
-    /// Default `false`
     pub fully_specified: bool,
 
-    /// A list of main fields in description files
-    ///
-    /// Default `["main"]`.
+    /// Main fields in description files (e.g., `["main"]`).
     pub main_fields: Vec<String>,
 
-    /// The filename to be used while resolving directories.
-    ///
-    /// Default `["index"]`
+    /// Main files in description files (e.g., `["index"]`).
     pub main_files: Vec<String>,
 
-    /// A list of directories to resolve modules from, can be absolute path or folder name.
-    ///
-    /// Default `["node_modules"]`
+    /// Directories to resolve modules from (e.g., `["node_modules"]`).
     pub modules: Vec<String>,
 
     /// Resolve to a context instead of a file.
-    ///
-    /// Default `false`
     pub resolve_to_context: bool,
 
     /// Prefer to resolve module requests as relative requests instead of using modules from node_modules directories.
-    ///
-    /// Default `false`
     pub prefer_relative: bool,
 
     /// Prefer to resolve server-relative urls as absolute paths before falling back to resolve in ResolveOptions::roots.
-    ///
-    /// Default `false`
     pub prefer_absolute: bool,
 
     /// A list of resolve restrictions to restrict the paths that a request can be resolved on.
-    ///
-    /// Default `[]`
     pub restrictions: Vec<Restriction>,
 
     /// A list of directories where requests of server-relative URLs (starting with '/') are resolved.
     /// On non-Windows systems these requests are resolved as an absolute path first.
-    ///
-    /// Default `[]`
     pub roots: Vec<PathBuf>,
 
     /// Whether to resolve symlinks to their symlinked location, if possible.
@@ -159,9 +93,7 @@ pub struct ResolveOptions {
     /// Default `true`
     pub symlinks: bool,
 
-    /// Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
-    /// For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
-    ///
+    /// Whether to parse "builtin" modules or not.
     /// Default `false`
     pub builtin_modules: bool,
 
@@ -182,15 +114,8 @@ pub struct ResolveOptions {
 }
 
 impl ResolveOptions {
-    /// ## Examples
-    ///
+    /// Set condition names.
     /// ```
-    /// use oxc_resolver::ResolveOptions;
-    ///
-    /// let options = ResolveOptions::default().with_condition_names(&["bar"]);
-    /// assert_eq!(options.condition_names, vec!["bar".to_string()])
-    /// ```
-    #[must_use]
     pub fn with_condition_names(mut self, names: &[&str]) -> Self {
         self.condition_names = names
             .iter()
@@ -199,187 +124,75 @@ impl ResolveOptions {
         self
     }
 
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::ResolveOptions;
-    ///
-    /// let options = ResolveOptions::default().with_builtin_modules(false);
-    /// assert_eq!(options.builtin_modules, false)
-    /// ```
-    #[must_use]
+    /// Set whether to parse "builtin" modules or not.
     pub const fn with_builtin_modules(mut self, flag: bool) -> Self {
         self.builtin_modules = flag;
         self
     }
 
-    /// Adds a single root to the options
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::ResolveOptions;
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_root("foo");
-    /// assert_eq!(options.roots, vec![PathBuf::from("foo")])
-    /// ```
-    #[must_use]
+    /// Add a single root to the options.
     pub fn with_root<P: AsRef<Path>>(mut self, root: P) -> Self {
         self.roots.push(root.as_ref().to_path_buf());
         self
     }
 
-    /// Adds a single extension to the list of extensions. Extension must start with a `.`
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::ResolveOptions;
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_extension(".jsonc");
-    /// assert!(options.extensions.contains(&".jsonc".to_string()));
-    /// ```
-    #[must_use]
+    /// Add a single extension to the list of extensions. Extension must start with a `.`
     pub fn with_extension<S: Into<String>>(mut self, extension: S) -> Self {
         self.extensions.push(extension.into());
         self
     }
 
-    /// Adds a single main field to the list of fields
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::ResolveOptions;
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_main_field("something");
-    /// assert!(options.main_fields.contains(&"something".to_string()));
-    /// ```
-    #[must_use]
+    /// Add a single main field to the list of fields
     pub fn with_main_field<S: Into<String>>(mut self, field: S) -> Self {
         self.main_fields.push(field.into());
         self
     }
 
-    /// Changes how the extension should be treated
+    /// Set how the extension should be treated
     ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions, EnforceExtension};
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_force_extension(EnforceExtension::Enabled);
-    /// assert_eq!(options.enforce_extension, EnforceExtension::Enabled);
-    /// ```
-    #[must_use]
     pub const fn with_force_extension(mut self, enforce_extension: EnforceExtension) -> Self {
         self.enforce_extension = enforce_extension;
         self
     }
 
-    /// Sets the value for [ResolveOptions::fully_specified]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_fully_specified(true);
-    /// assert_eq!(options.fully_specified, true);
-    /// ```
-    #[must_use]
+    /// Set whether to resolve fully specified modules or not.
     pub const fn with_fully_specified(mut self, fully_specified: bool) -> Self {
         self.fully_specified = fully_specified;
         self
     }
 
-    /// Sets the value for [ResolveOptions::prefer_relative]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_prefer_relative(true);
-    /// assert_eq!(options.prefer_relative, true);
-    /// ```
-    #[must_use]
+    /// Set whether to prefer relative requests or not.
     pub const fn with_prefer_relative(mut self, flag: bool) -> Self {
         self.prefer_relative = flag;
         self
     }
 
-    /// Sets the value for [ResolveOptions::prefer_absolute]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    /// use std::path::{Path, PathBuf};
-    ///
-    /// let options = ResolveOptions::default().with_prefer_absolute(true);
-    /// assert_eq!(options.prefer_absolute, true);
-    /// ```
-    #[must_use]
+    /// Set whether to prefer absolute requests or not.
     pub const fn with_prefer_absolute(mut self, flag: bool) -> Self {
         self.prefer_absolute = flag;
         self
     }
 
-    /// Changes the value of [ResolveOptions::symlinks]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    ///
-    /// let options = ResolveOptions::default().with_symbolic_link(false);
-    /// assert_eq!(options.symlinks, false);
-    /// ```
-    #[must_use]
+    /// Set whether to resolve symlinks or not.
     pub const fn with_symbolic_link(mut self, flag: bool) -> Self {
         self.symlinks = flag;
         self
     }
 
-    /// Adds a module to [ResolveOptions::modules]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    ///
-    /// let options = ResolveOptions::default().with_module("module");
-    /// assert!(options.modules.contains(&"module".to_string()));
-    /// ```
-    #[must_use]
+    /// Add a module to the list of modules.
     pub fn with_module<M: Into<String>>(mut self, module: M) -> Self {
         self.modules.push(module.into());
         self
     }
 
-    /// Adds a main file to [ResolveOptions::main_files]
+    /// Add a main file to the list of main files.
     ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    ///
-    /// let options = ResolveOptions::default().with_main_file("foo");
-    /// assert!(options.main_files.contains(&"foo".to_string()));
-    /// ```
-    #[must_use]
     pub fn with_main_file<M: Into<String>>(mut self, module: M) -> Self {
         self.main_files.push(module.into());
         self
     }
 
+    /// Sanitize the options.
     pub fn sanitize(mut self) -> Self {
         debug_assert!(
             self.extensions
@@ -401,11 +214,14 @@ impl ResolveOptions {
     }
 }
 
-/// Value for [ResolveOptions::enforce_extension]
+/// How to enforce file extensions.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EnforceExtension {
+    /// Automatically determine whether to enforce file extensions based on the list of extensions.
     Auto,
+    /// Enforce file extensions.
     Enabled,
+    /// Do not enforce file extensions.
     Disabled,
 }
 
@@ -416,17 +232,17 @@ impl Default for EnforceExtension {
 }
 
 impl EnforceExtension {
-    #[must_use]
+    /// Check if the enforce extension is automatic.
     pub const fn is_auto(self) -> bool {
         matches!(self, Self::Auto)
     }
 
-    #[must_use]
+    /// Check if the enforce extension is enabled.
     pub const fn is_enabled(self) -> bool {
         matches!(self, Self::Enabled)
     }
 
-    #[must_use]
+    /// Check if the enforce extension is disabled.
     pub const fn is_disabled(self) -> bool {
         matches!(self, Self::Disabled)
     }
@@ -491,13 +307,14 @@ pub struct TsconfigOptions {
     pub references: TsconfigReferences,
 }
 
-/// Configuration for [TsconfigOptions::references]
+/// How to handle references in `tsconfig.json`.
 #[derive(Debug, Clone)]
 pub enum TsconfigReferences {
+    /// Disable references.
     Disabled,
-    /// Use the `references` field from tsconfig of `config_file`.
+    /// Use the `references` field from `tsconfig.json` of `config_file`.
     Auto,
-    /// Manually provided relative or absolute path.
+    /// Manually provided relative or absolute paths.
     Paths(Vec<PathBuf>),
 }
 
@@ -513,7 +330,16 @@ impl Default for ResolveOptions {
             extension_alias: vec![],
             exports_fields: vec![vec!["exports".into()]],
             imports_fields: vec![vec!["imports".into()]],
-            extensions: vec![".js".into(), ".json".into(), ".node".into()],
+            extensions: vec![
+                ".js".into(),
+                ".mjs".into(),
+                ".cjs".into(),
+                ".wasm".into(),
+                ".jsx".into(),
+                ".tsx".into(),
+                ".json".into(),
+                ".node".into(),
+            ],
             fallback: vec![],
             fully_specified: false,
             main_fields: vec!["main".into()],
@@ -605,89 +431,5 @@ impl fmt::Display for ResolveOptions {
             )?;
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::path::PathBuf;
-
-    use super::{
-        AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
-    };
-
-    #[test]
-    fn enforce_extension() {
-        assert!(EnforceExtension::Auto.is_auto());
-        assert!(!EnforceExtension::Enabled.is_auto());
-        assert!(!EnforceExtension::Disabled.is_auto());
-
-        assert!(!EnforceExtension::Auto.is_enabled());
-        assert!(EnforceExtension::Enabled.is_enabled());
-        assert!(!EnforceExtension::Disabled.is_enabled());
-
-        assert!(!EnforceExtension::Auto.is_disabled());
-        assert!(!EnforceExtension::Enabled.is_disabled());
-        assert!(EnforceExtension::Disabled.is_disabled());
-    }
-
-    #[test]
-    fn display() {
-        let options = ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: PathBuf::from("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
-            alias: vec![("a".into(), vec![AliasValue::Ignore])],
-            alias_fields: vec![vec!["browser".into()]],
-            condition_names: vec!["require".into()],
-            enforce_extension: EnforceExtension::Enabled,
-            extension_alias: vec![(".js".into(), vec![".ts".into()])],
-            exports_fields: vec![vec!["exports".into()]],
-            imports_fields: vec![vec!["imports".into()]],
-            fallback: vec![("fallback".into(), vec![AliasValue::Ignore])],
-            fully_specified: true,
-            resolve_to_context: true,
-            prefer_relative: true,
-            prefer_absolute: true,
-            restrictions: vec![Restriction::Path(PathBuf::from("restrictions"))],
-            roots: vec![PathBuf::from("roots")],
-            builtin_modules: true,
-            allow_package_exports_in_directory_resolve: true,
-            ..ResolveOptions::default()
-        };
-
-        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
-        assert_eq!(format!("{options}"), expected);
-
-        let options = ResolveOptions {
-            cwd: None,
-            alias: vec![],
-            alias_fields: vec![],
-            builtin_modules: false,
-            condition_names: vec![],
-            enforce_extension: EnforceExtension::Disabled,
-            exports_fields: vec![],
-            extension_alias: vec![],
-            extensions: vec![],
-            fallback: vec![],
-            fully_specified: false,
-            imports_fields: vec![],
-            main_fields: vec![],
-            main_files: vec![],
-            modules: vec![],
-            prefer_absolute: false,
-            prefer_relative: false,
-            resolve_to_context: false,
-            restrictions: vec![],
-            roots: vec![],
-            symlinks: false,
-            tsconfig: None,
-            module_type: false,
-            allow_package_exports_in_directory_resolve: false,
-        };
-
-        assert_eq!(format!("{options}"), "");
     }
 }

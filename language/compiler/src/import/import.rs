@@ -8,7 +8,7 @@ use dyst_source::{DiagnosticCollector, FileId};
 #[derive(Debug, Clone)]
 pub enum ImportTask {
     /// Feed a file from a preloaded file id.
-    ImportFileFromId { file_id: FileId },
+    ImportModuleFromFileId { file_id: FileId },
 }
 
 impl From<ImportTask> for CompilerTask {
@@ -21,7 +21,8 @@ impl<'a> Compiler<'a> {
     /// Process an import task.
     pub fn process_import(&mut self, task: ImportTask) -> ImportResult<()> {
         let file = match task {
-            ImportTask::ImportFileFromId { file_id } => match self.session.files.get(file_id) {
+            ImportTask::ImportModuleFromFileId { file_id } => match self.session.files.get(file_id)
+            {
                 Some(file) => file,
                 None => return Err(ImportError::FileIdNotFound { file_id }),
             },

@@ -32,34 +32,17 @@ impl fmt::Debug for PackageJson {
 }
 
 impl PackageJson {
-    /// Returns the path where the `package.json` was found.
-    ///
-    /// Contains the `package.json` filename.
-    ///
-    /// This does not need to be the path where the file is stored on disk.
-    /// See [Self::realpath()].
-    #[must_use]
+    /// Returns the path where the `package.json` was found (including `package.json`).
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Returns the path where the `package.json` file was stored on disk.
-    ///
-    /// Contains the `package.json` filename.
-    ///
-    /// This is the canonicalized version of [Self::path()], where all symbolic
-    /// links are resolved.
-    #[must_use]
+    /// Returns the path where the `package.json` file was stored on disk (including `package.json`).
     pub fn realpath(&self) -> &Path {
         &self.realpath
     }
 
-    /// Directory to `package.json`.
-    ///
-    /// # Panics
-    ///
-    /// * When the `package.json` path is misconfigured.
-    #[must_use]
+    /// Directory to `package.json` (excluding `package.json`).
     pub fn directory(&self) -> &Path {
         debug_assert!(
             self.realpath
@@ -70,12 +53,6 @@ impl PackageJson {
     }
 
     /// Name of the package.
-    ///
-    /// The "name" field can be used together with the "exports" field to
-    /// self-reference a package using its name.
-    ///
-    /// <https://nodejs.org/api/packages.html#name>
-    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.value
             .as_object()
@@ -84,9 +61,7 @@ impl PackageJson {
     }
 
     /// Version of the package.
-    ///
-    /// <https://nodejs.org/api/packages.html#name>
-    #[must_use]
+    /// <https://nodejs.org/api/packages.html#version>
     pub fn version(&self) -> Option<&str> {
         self.value
             .as_object()
@@ -95,9 +70,7 @@ impl PackageJson {
     }
 
     /// Returns the package type, if one is configured in the `package.json`.
-    ///
     /// <https://nodejs.org/api/packages.html#type>
-    #[must_use]
     pub fn r#type(&self) -> Option<PackageType> {
         self.value
             .as_object()
@@ -107,9 +80,7 @@ impl PackageJson {
     }
 
     /// The "sideEffects" field.
-    ///
     /// <https://webpack.js.org/guides/tree-shaking>
-    #[must_use]
     pub fn side_effects(&self) -> Option<SideEffects<'_>> {
         self.value
             .as_object()
@@ -126,9 +97,7 @@ impl PackageJson {
     }
 
     /// The "exports" field allows defining the entry points of a package.
-    ///
     /// <https://nodejs.org/api/packages.html#exports>
-    #[must_use]
     pub fn exports(&self) -> Option<ImportsExportsEntry<'_>> {
         self.value
             .as_object()
@@ -226,8 +195,6 @@ impl PackageJson {
     }
 
     /// Parse a package.json file from JSON bytes
-    ///
-    /// # Errors
     pub fn parse<Fs: FileSystem>(
         _fs: &Fs,
         path: PathBuf,
@@ -280,7 +247,6 @@ impl PackageJson {
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
     /// Multiple values are configured by [ResolveOptions::alias_fields].
-    ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     pub fn browser_fields<'a>(
         &'a self,
@@ -308,12 +274,11 @@ impl PackageJson {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct ImportsExportsEntry<'a>(pub(crate) &'a Value);
+#[derive(Debug, Clone)]
+pub struct ImportsExportsEntry<'a>(pub &'a Value);
 
 impl<'a> ImportsExportsEntry<'a> {
-    #[must_use]
-    pub(crate) fn kind(&self) -> ImportsExportsKind {
+    pub fn kind(&self) -> ImportsExportsKind {
         match self.0 {
             Value::String(_) => ImportsExportsKind::String,
             Value::Array(_) => ImportsExportsKind::Array,
@@ -322,24 +287,21 @@ impl<'a> ImportsExportsEntry<'a> {
         }
     }
 
-    #[must_use]
-    pub(crate) fn as_string(&self) -> Option<&'a str> {
+    pub fn as_string(&self) -> Option<&'a str> {
         match self.0 {
             Value::String(s) => Some(s.as_str()),
             _ => None,
         }
     }
 
-    #[must_use]
-    pub(crate) fn as_array(&self) -> Option<ImportsExportsArray<'a>> {
+    pub fn as_array(&self) -> Option<ImportsExportsArray<'a>> {
         match self.0 {
             Value::Array(arr) => Some(ImportsExportsArray(arr)),
             _ => None,
         }
     }
 
-    #[must_use]
-    pub(crate) fn as_map(&self) -> Option<ImportsExportsMap<'a>> {
+    pub fn as_map(&self) -> Option<ImportsExportsMap<'a>> {
         match self.0 {
             Value::Object(obj) => Some(ImportsExportsMap(obj)),
             _ => None,
@@ -348,20 +310,18 @@ impl<'a> ImportsExportsEntry<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ImportsExportsArray<'a>(&'a [Value]);
+pub struct ImportsExportsArray<'a>(&'a [Value]);
 
 impl<'a> ImportsExportsArray<'a> {
-    #[must_use]
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    #[must_use]
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = ImportsExportsEntry<'a>> {
+    pub fn iter(&self) -> impl Iterator<Item = ImportsExportsEntry<'a>> {
         ImportsExportsArrayIter {
             slice: self.0,
             index: 0,
