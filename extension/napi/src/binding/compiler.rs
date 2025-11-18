@@ -17,19 +17,6 @@ impl Default for CompileOptions {
     }
 }
 
-impl From<CompileOptions> for dyst_compiler::CompileOptions {
-    fn from(options: CompileOptions) -> Self {
-        Self {
-            import: dyst_compiler::ImportOptions::default(),
-            resolve: options.resolve.into(),
-            validate: dyst_compiler::ValidateOptions::default(),
-            execute: dyst_compiler::ExecuteOptions::default(),
-            optimize: dyst_compiler::OptimizeOptions::default(),
-            build: dyst_compiler::BuildOptions::default(),
-        }
-    }
-}
-
 /// Get the default compiler options.
 #[napi(js_name = "defaultCompileOptions")]
 pub fn default_compiler_options() -> CompileOptions {
@@ -59,18 +46,6 @@ impl Default for ResolveOptions {
             implicit_any_type: false,
             overload_operators: true,
             overload_functions: true,
-        }
-    }
-}
-
-impl From<ResolveOptions> for dyst_compiler::ResolveOptions {
-    fn from(options: ResolveOptions) -> Self {
-        Self {
-            default_int_width: options.default_int_width,
-            default_float_width: options.default_float_width,
-            implicit_any_type: options.implicit_any_type,
-            overload_operators: options.overload_operators,
-            overload_functions: options.overload_functions,
         }
     }
 }

@@ -1662,8 +1662,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
 #[cfg(test)]
 mod tests {
-    use crate::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, TestFormatter, assert_format};
 
     /// Simple expressions should stay on one line.
     #[test]

@@ -248,8 +248,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_match_simple_arms() {

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use crate::glob::matches;
+use crate::file::glob::matches;
 
 /// One parsed ignore pattern.
 #[derive(Debug, Clone)]

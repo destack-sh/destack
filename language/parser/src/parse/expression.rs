@@ -1267,8 +1267,9 @@ mod tests {
         VarianceBound, WithClause,
     };
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     /// Disambiguate using import as a path.
     #[test]

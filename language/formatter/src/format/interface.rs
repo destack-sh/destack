@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, TestFormatter, assert_format};
     use dyst_ast::DeclarationDescriptor;
 
     #[test]

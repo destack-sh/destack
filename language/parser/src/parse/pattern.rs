@@ -379,8 +379,9 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_pattern_wildcard() {

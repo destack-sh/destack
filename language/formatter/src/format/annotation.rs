@@ -406,8 +406,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 
 #[cfg(test)]
 mod tests {
-    use crate::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, TestFormatter, assert_format};
     use dyst_ast::DeclarationDescriptor;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).

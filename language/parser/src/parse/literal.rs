@@ -607,8 +607,7 @@ mod tests {
         TypeLiteral,
     };
 
-    use crate::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     /// Parse integer literals in various formats.
     #[test]

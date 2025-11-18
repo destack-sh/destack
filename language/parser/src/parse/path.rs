@@ -46,8 +46,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::TokenType;
 
-    use crate::assert_path;
-    use crate::TestParser;
+    use crate::{TestParser, assert_path};
 
     #[test]
     fn test_parse_simple_path_single_segment() {

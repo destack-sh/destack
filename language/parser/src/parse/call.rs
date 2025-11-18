@@ -165,8 +165,9 @@ mod tests {
     use dyst_ast::{Argument, Expression, Name, NodeId, Path, PostfixPosition, ScalarLiteral};
     use dyst_source::smallvec;
 
-    use crate::TestParser;
-    use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,
+    };
 
     fn make_receiver(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");

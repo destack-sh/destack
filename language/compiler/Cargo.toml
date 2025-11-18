@@ -18,6 +18,7 @@ dyst_fir = { workspace = true }
 dyst_mir = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
+dyst_resolver = { workspace = true }
 
 rayon = { workspace = true }
 parking_lot = { workspace = true }

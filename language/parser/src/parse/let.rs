@@ -143,8 +143,7 @@ mod tests {
         PatternField, Property, ScalarLiteral, TypeLiteral,
     };
 
-    use crate::TestParser;
-    use crate::{assert_name, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_let_scalar() {
