@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{Color, FileId, LabeledSpan, Suggestion};
 
 /// The level of a diagnostic.
@@ -47,6 +49,8 @@ pub struct Diagnostic {
     pub code: String,
     /// The DiagnosticSeverity of the diagnostic.
     pub severity: DiagnosticSeverity,
+    /// The original severity of the diagnostic.
+    pub original_severity: Option<DiagnosticSeverity>,
     /// The message of the diagnostic.
     pub message: String,
     /// The primary source of the diagnostic.
@@ -57,4 +61,69 @@ pub struct Diagnostic {
     pub secondary_spans: Option<Vec<LabeledSpan>>,
     /// The suggestions for the diagnostic.
     pub suggestions: Option<Vec<Suggestion>>,
+}
+
+/// Diagnostic options for re-mapping.
+#[derive(Debug, Clone, Default)]
+pub struct DiagnosticOptions {
+    /// Which warning codes to error on (as errors).
+    pub error_warnings: Vec<String>,
+    /// Which error codes to suppress (as warnings).
+    pub suppress_errors: Vec<String>,
+    /// Which warning codes to suppress.
+    pub suppress_warnings: Vec<String>,
+}
+
+impl DiagnosticOptions {
+    /// Parse diagnostic options from arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// --error-warnings W001,W002
+    /// --suppress-errors E001
+    /// --suppress-warnings W001,W002
+    /// ```
+    pub fn parse(flags: &HashMap<String, Option<String>>) -> Self {
+        let mut options = Self::default();
+        for (key, value) in flags {
+            match (key.as_str(), value) {
+                ("error-warnings", Some(value)) => {
+                    options
+                        .error_warnings
+                        .extend(value.split(',').map(|s| s.to_string()));
+                }
+                ("suppress-errors", Some(value)) => {
+                    options 
+                        .suppress_errors
+                        .extend(value.split(',').map(|s| s.to_string()));
+                }
+                ("suppress-warnings", Some(value)) => {
+                    options
+                        .suppress_warnings
+                        .extend(value.split(',').map(|s| s.to_string()));
+                }
+                _ => {}
+            }
+        }
+        options
+    }
+
+    /// Map a diagnostic to a new diagnostic.
+    pub fn map(&self, mut diagnostic: Diagnostic) -> Option<Diagnostic> {
+        diagnostic.original_severity = Some(diagnostic.severity);
+        if diagnostic.severity == DiagnosticSeverity::Error
+            && self.suppress_errors.contains(&diagnostic.code)
+        {
+            diagnostic.severity = DiagnosticSeverity::Warning;
+        } else if diagnostic.severity == DiagnosticSeverity::Warning
+            && self.error_warnings.contains(&diagnostic.code)
+        {
+            diagnostic.severity = DiagnosticSeverity::Error;
+        } else if diagnostic.severity == DiagnosticSeverity::Warning
+            && self.suppress_warnings.contains(&diagnostic.code)
+        {
+            return None;
+        }
+        Some(diagnostic)
+    }
 }

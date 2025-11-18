@@ -1,9 +1,8 @@
-use dyst_ast::StringId;
 use dyst_dir::{self as dir, ModuleId};
-use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
+use dyst_javascript_ast::{self as ast, NodeIdAny};
 use dyst_source::{SharedStringPool, Uri};
 
-use crate::{TranspileDiagnostic, TranspileError, TranspileWarning, Transpiler};
+use crate::{TranspileDiagnostic, TranspileError, TranspileOptions, TranspileWarning, Transpiler};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,6 +17,8 @@ impl TranspilerUnitId {
 /// A transpiled module.
 #[derive(Debug, Clone)]
 pub struct TranspilerUnit {
+    /// The options for transpilation.
+    pub options: TranspileOptions,
     /// The id of the transpiled module.
     pub id: TranspilerUnitId,
     /// The URI of the transpiled module (excluding extension).
@@ -38,11 +39,6 @@ pub struct TranspilerUnit {
 
 #[allow(unused)]
 impl TranspilerUnit {
-    /// Get alias for a symbol from a given node.
-    pub fn get_alias_to_symbol(&self, from_id: NodeIdAny, to_id: NodeId<Definition>) -> StringId {
-        todo!("get_alias_to_definition: {from_id:?} -> {to_id:?}");
-    }
-
     /// Add an error to the transpilation unit.
     pub(crate) fn error(&mut self, error: TranspileError) {
         self.diagnostics.push(error.into());

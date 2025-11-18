@@ -3,12 +3,12 @@ use dyst_dir::SharedModuleRegistry;
 use dyst_javascript_ast as ast;
 use dyst_source::{FileId, Uri};
 
-use crate::{Transpiler, TranspilerMode, TranspilerOptions, TranspilerUnit, TranspilerUnitId};
+use crate::{Transpiler, TranspilerMode, TranspileOptions, TranspilerUnit, TranspilerUnitId};
 
 impl<'a> Transpiler<'a> {
     /// Map the modules to the units.
     pub(crate) fn make_units(
-        options: TranspilerOptions,
+        options: &TranspileOptions,
         modules: &SharedModuleRegistry,
     ) -> Vec<TranspilerUnit> {
         let mut units: Vec<TranspilerUnit> = Vec::new();
@@ -19,6 +19,7 @@ impl<'a> Transpiler<'a> {
                     let unit_id = TranspilerUnitId::new(idx as u32);
                     let uri = module.uri.without_extension();
                     let unit = TranspilerUnit {
+                        options: options.clone(),
                         id: unit_id,
                         uri,
                         ast: ast::MutableNodeTree::new(),
@@ -34,6 +35,7 @@ impl<'a> Transpiler<'a> {
             // map all modules to a single artifact
             TranspilerMode::Combined => {
                 let unit = TranspilerUnit {
+                    options: options.clone(),
                     id: TranspilerUnitId::new(0),
                     uri: Uri::from_string("combined"),
                     ast: ast::MutableNodeTree::new(),
@@ -52,7 +54,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile the compiler's DIR into JS/TS artifacts.
     pub fn transpile(&self) {
         // transpile each module into AST
-        let mut units = Transpiler::make_units(self.options, &self.session.modules);
+        let mut units = Transpiler::make_units(&self.options, &self.session.modules);
         for unit in units.iter_mut() {
             for source_module_id in unit.sources.clone() {
                 let source_module = self
@@ -82,7 +84,9 @@ impl<'a> Transpiler<'a> {
             // add all the diagnostics to the session
             for diagnostic in &unit.diagnostics {
                 let diagnostic = diagnostic.to_diagnostic(self.session);
-                self.session.diagnostics.insert(diagnostic);
+                if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
+                    self.session.diagnostics.insert(diagnostic);
+                }
             }
             self.units.write().insert(unit.uri.clone(), unit);
         }

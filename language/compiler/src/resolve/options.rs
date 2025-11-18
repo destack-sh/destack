@@ -7,8 +7,8 @@ pub struct ResolveOptions {
     pub default_float_width: u16 = 32,
     /// Whether to implicitly type unannotated expressions as any.
     pub implicit_any_type: bool = false,
-    /// Whether to resolve overimported operators.
-    pub overimport_operators: bool = true,
-    /// Whether to resolve overimported functions.
-    pub overimport_functions: bool = true,
+    /// Whether to resolve overloaded operators.
+    pub overload_operators: bool = true,
+    /// Whether to resolve overloaded functions.
+    pub overload_functions: bool = true,
 }

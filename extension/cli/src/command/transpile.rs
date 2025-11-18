@@ -1,17 +1,20 @@
-use dyst_compiler::{Compiler, CompilerOptions};
+use dyst_compiler::{Compiler, CompileOptions};
 use dyst_dir::Session;
-use dyst_javascript_transpiler::{Transpiler, TranspilerOptions, TranspilerTarget};
-use dyst_source::{DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
+use dyst_javascript_transpiler::{Transpiler, TranspileOptions, TranspilerTarget};
+use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
 
 pub const HELP: &str = r"
 Transpile source files.
-    --file <path>      Read input from file
-    --string <string>  Read input from provided string
-    --target <target>  Transpile to the given target (js|ts|jsdts|all, default: all)
-    --silent           Don't print anything to the console (except errors)
+    --file <path>        Read input from file
+    --string <string>    Read input from provided string
+    --target <target>    Transpile to the given target (js|ts|jsdts|all, default: all)
+    --silent             Don't print anything to the console (except errors)
+    --error-warnings     Error on the given warning codes (like W001)
+    --suppress-errors    Suppress the given error codes (like E001) as warnings
+    --suppress-warnings  Suppress the given warning codes (like W001)
 ";
 
 /// Transpile source into its final JavaScript.
@@ -29,6 +32,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
         None => TranspilerTarget::All,
     };
+    let diagnostic_options = DiagnosticOptions::parse(&ctx.flags);
 
     // read input source
     let mut files = FileRegistry::new();
@@ -46,7 +50,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile source
     let session = Session::new(LanguageOptions::default(), &files);
-    let mut compiler = Compiler::from_file(&session, file_id, CompilerOptions::default());
+    let mut compiler = Compiler::from_file(&session, file_id, CompileOptions::default());
     compiler.compile();
     drop(compiler);
 
@@ -57,8 +61,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // transpile source
-    let transpiler_options = TranspilerOptions {
+    let transpiler_options = TranspileOptions {
         target,
+        diagnostic: diagnostic_options,
         ..Default::default()
     };
     let transpiler = Transpiler::new(&session, transpiler_options);

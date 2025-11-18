@@ -75,6 +75,7 @@ impl TranspileDiagnostic {
         Diagnostic {
             code,
             severity,
+            original_severity: None,
             message,
             file_id,
             primary_span,

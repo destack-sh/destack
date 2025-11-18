@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use dyst_dir as dir;
-use dyst_source::{SmallVec, Uri, smallvec};
+use dyst_source::{DiagnosticOptions, SmallVec, Uri, smallvec};
 use parking_lot::RwLock;
 
 use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
@@ -15,9 +15,11 @@ pub enum TranspilerMode {
     Combined,
 }
 
-/// The options for transpiling a Workspace.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct TranspilerOptions {
+/// The options for transpiling.
+#[derive(Debug, Default, Clone)]
+pub struct TranspileOptions {
+    /// The diagnostic options.
+    pub diagnostic: DiagnosticOptions,
     /// The transpilation mode.
     pub mode: TranspilerMode = TranspilerMode::Retained,
     /// The target language.
@@ -93,7 +95,7 @@ pub struct Transpiler<'a> {
     /// The session.
     pub session: &'a dir::Session<'a>,
     /// The options for transpiling.
-    pub options: TranspilerOptions,
+    pub options: TranspileOptions,
     /// The transpiled modules (from the source modules).
     pub units: RwLock<HashMap<Uri, TranspilerUnit>>,
     /// The transpiled artifacts (from those units).
@@ -102,7 +104,7 @@ pub struct Transpiler<'a> {
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
-    pub fn new(session: &'a dir::Session<'a>, options: TranspilerOptions) -> Self {
+    pub fn new(session: &'a dir::Session<'a>, options: TranspileOptions) -> Self {
         Self {
             session,
             options,

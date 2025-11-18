@@ -181,6 +181,7 @@ impl ParseError {
         Diagnostic {
             code: "P001".to_string(),
             severity: DiagnosticSeverity::Error,
+            original_severity: None,
             message: match expected {
                 Some(token_type) => format!("parse error: expected {token_type}{in_node_str}"),
                 None => format!("parse error: unexpected {token_at_primary_span}{in_node_str}"),
