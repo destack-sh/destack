@@ -1,12 +1,4 @@
-use crate::cache::{Cache, CachedPath};
-use crate::resolve::{
-    Alias, AliasValue, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap, ModuleType,
-    NODEJS_BUILTINS, PackageJson, PackageType, Resolution, ResolveContext, ResolveError,
-    ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsconfigDiscovery,
-    TsconfigReferences,
-};
-pub use dyst_source::PathExt;
-use dyst_source::{FileSystem, FileSystemOs, SLASH_START};
+use dyst_source::{FileSystem, FileSystemOs, PathExt, SLASH_START};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::OsStr;
@@ -14,15 +6,22 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
+use crate::{
+    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
+    ImportsExportsMap, ModuleType, NODEJS_BUILTINS, PackageJson, PackageType, Resolution,
+    ResolveContext, ResolveError, ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig,
+    TsconfigDiscovery, TsconfigReferences,
+};
+
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
-/// Resolver with the current operating system as the file system
+/// Resolver with the current operating system as the file system.
 pub type Resolver = ResolverGeneric<FileSystemOs>;
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
 pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
-    cache: Arc<Cache<Fs>>,
+    cache: Arc<CachedFileSystem<Fs>>,
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
@@ -38,10 +37,9 @@ impl<Fs: FileSystem> Default for ResolverGeneric<Fs> {
 }
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
-    #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         let fs = Fs::new();
-        let cache = Arc::new(Cache::new(fs));
+        let cache = Arc::new(CachedFileSystem::new(fs));
         Self {
             options: options.sanitize(),
             cache,
@@ -52,13 +50,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         Self {
-            cache: Arc::new(Cache::new(file_system)),
+            cache: Arc::new(CachedFileSystem::new(file_system)),
             options: options.sanitize(),
         }
     }
 
     /// Clone the resolver using the same underlying cache.
-    #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         Self {
             options: options.sanitize(),
@@ -67,7 +64,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     /// Returns the options.
-    #[must_use]
     pub const fn options(&self) -> &ResolveOptions {
         &self.options
     }
@@ -94,7 +90,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = ResolveContext::default();
-        self.resolve_impl(directory.as_ref(), specifier, &mut ctx)
+        self.do_resolve(directory.as_ref(), specifier, &mut ctx)
     }
 
     /// Resolve `tsconfig`.
@@ -131,7 +127,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = ResolveContext::default();
         ctx.init_file_dependencies();
-        let result = self.resolve_impl(directory.as_ref(), specifier, &mut ctx);
+        let result = self.do_resolve(directory.as_ref(), specifier, &mut ctx);
         if let Some(deps) = &mut ctx.file_dependencies {
             resolve_context
                 .file_dependencies
@@ -147,7 +143,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         result
     }
 
-    fn resolve_impl(
+    fn do_resolve(
         &self,
         path: &Path,
         specifier: &str,
@@ -190,7 +186,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if cp.is_node_modules() {
                     break;
                 }
-                if self.cache.is_dir(&cp, ctx)
+                if self.cache.is_directory(&cp, ctx)
                     && let Some(package_json) =
                         self.cache.get_package_json(&cp, &self.options, ctx)?
                 {
@@ -597,7 +593,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.resolve_to_context {
             return Ok(self
                 .cache
-                .is_dir(cached_path, ctx)
+                .is_directory(cached_path, ctx)
                 .then(|| cached_path.clone()));
         }
         if !specifier.ends_with('/')
@@ -605,7 +601,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             return Ok(Some(path));
         }
-        if self.cache.is_dir(cached_path, ctx)
+        if self.cache.is_directory(cached_path, ctx)
             && let Some(path) = self.load_as_directory(cached_path, ctx)?
         {
             return Ok(Some(path));
@@ -740,7 +736,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
             {
                 // Skip if /path/to/node_modules does not exist
-                if !self.cache.is_dir(&cached_path, ctx) {
+                if !self.cache.is_directory(&cached_path, ctx) {
                     continue;
                 }
 
@@ -755,7 +751,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if !package_name.is_empty() {
                     let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
                     // Try foo/node_modules/package_name
-                    if self.cache.is_dir(&cached_path, ctx) {
+                    if self.cache.is_directory(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
                         if let Some(path) =
                             self.load_package_exports(specifier, subpath, &cached_path, ctx)?
@@ -771,7 +767,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
                         if package_name.starts_with('@')
                             && let Some(path) = cached_path.parent().as_ref()
-                            && !self.cache.is_dir(path, ctx)
+                            && !self.cache.is_directory(path, ctx)
                         {
                             continue;
                         }
@@ -787,12 +783,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if self.options.resolve_to_context {
                     return Ok(self
                         .cache
-                        .is_dir(&cached_path, ctx)
+                        .is_directory(&cached_path, ctx)
                         .then(|| cached_path.clone()));
                 }
 
                 // Perf: try LOAD_AS_DIRECTORY first. No modern package manager creates `node_modules/X.js`.
-                if self.cache.is_dir(&cached_path, ctx) {
+                if self.cache.is_directory(&cached_path, ctx) {
                     if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
                         return Ok(Some(path));
                     }
@@ -1422,7 +1418,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
                 // 3. If the folder at packageURL does not exist, then
                 //   1. Continue the next loop iteration.
-                if self.cache.is_dir(&cached_path, ctx) {
+                if self.cache.is_directory(&cached_path, ctx) {
                     // 4. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
                     if let Some(package_json) =
                         self.cache

@@ -1,13 +1,12 @@
 use std::hash::Hasher;
 
-/// Since the cache key is memoized, use an identity hasher
-/// to avoid double cache.
+/// Simple identity hasher to avoid double caching.
 #[derive(Debug, Default)]
 pub(crate) struct IdentityHasher(u64);
 
 impl Hasher for IdentityHasher {
     fn write(&mut self, _: &[u8]) {
-        unreachable!("Invalid use of IdentityHasher")
+        unreachable!("invalid use of IdentityHasher")
     }
 
     fn write_u64(&mut self, n: u64) {

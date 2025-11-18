@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::convert::AsRef;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -7,30 +8,39 @@ use std::sync::{Arc, OnceLock, Weak};
 
 use cfg_if::cfg_if;
 use dyst_source::FileSystem;
+use papaya::Equivalent;
 
-use crate::resolve::{PackageJson, ResolveContext, ResolveError, ResolveOptions, TsConfig};
+use super::system::CachedFileSystem;
+use crate::{PackageJson, ResolveContext, ResolveError, ResolveOptions, TsConfig};
 
-use super::cache_impl::Cache;
-use super::thread_local::SCRATCH_PATH;
+// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
+// <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
+thread_local! {
+    pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
+}
 
+/// Cached path.
 #[derive(Clone)]
-pub struct CachedPath(pub Arc<CachedPathImpl>);
+pub struct CachedPath(pub Arc<CachedPathState>);
 
+/// Cached path implementation.
 #[derive(Debug)]
-pub struct CachedPathImpl {
+pub struct CachedPathState {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<Weak<CachedPathImpl>>,
+    pub parent: Option<Weak<CachedPathState>>,
     pub is_node_modules: bool,
-    pub inside_node_modules: bool,
+    pub is_inside_node_modules: bool,
+
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
-    pub canonicalized: OnceLock<Weak<CachedPathImpl>>,
-    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
+    pub canonicalized_path: OnceLock<Weak<CachedPathState>>,
+    pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
+
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
-impl CachedPathImpl {
+impl CachedPathState {
     pub fn new(
         hash: u64,
         path: Box<Path>,
@@ -43,9 +53,9 @@ impl CachedPathImpl {
             path,
             parent,
             is_node_modules,
-            inside_node_modules,
+            is_inside_node_modules: inside_node_modules,
             meta: OnceLock::new(),
-            canonicalized: OnceLock::new(),
+            canonicalized_path: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
@@ -54,7 +64,7 @@ impl CachedPathImpl {
 }
 
 impl Deref for CachedPath {
-    type Target = CachedPathImpl;
+    type Target = CachedPathState;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
@@ -62,14 +72,17 @@ impl Deref for CachedPath {
 }
 
 impl CachedPath {
+    /// Get the path of the cached path.
     pub(crate) fn path(&self) -> &Path {
         &self.0.path
     }
 
+    /// Convert the cached path to a path buffer.
     pub(crate) fn to_path_buf(&self) -> PathBuf {
         self.path.to_path_buf()
     }
 
+    /// Get the parent of the cached path.
     pub(crate) fn parent(&self) -> Option<Self> {
         self.0
             .parent
@@ -77,27 +90,31 @@ impl CachedPath {
             .and_then(|weak| weak.upgrade().map(CachedPath))
     }
 
+    /// Check if the cached path is a node_modules directory.
     pub(crate) fn is_node_modules(&self) -> bool {
         self.is_node_modules
     }
 
+    /// Check if the cached path is inside a node_modules directory.
     pub(crate) fn inside_node_modules(&self) -> bool {
-        self.inside_node_modules
+        self.is_inside_node_modules
     }
 
+    /// Get the module directory of the cached path.
     pub(crate) fn module_directory<Fs: FileSystem>(
         &self,
         module_name: &str,
-        cache: &Cache<Fs>,
+        cache: &CachedFileSystem<Fs>,
         ctx: &mut ResolveContext,
     ) -> Option<Self> {
         let cached_path = cache.value(&self.path.join(module_name));
-        cache.is_dir(&cached_path, ctx).then_some(cached_path)
+        cache.is_directory(&cached_path, ctx).then_some(cached_path)
     }
 
+    /// Get the cached node_modules directory.
     pub(crate) fn cached_node_modules<Fs: FileSystem>(
         &self,
-        cache: &Cache<Fs>,
+        cache: &CachedFileSystem<Fs>,
         ctx: &mut ResolveContext,
     ) -> Option<Self> {
         self.node_modules
@@ -110,19 +127,15 @@ impl CachedPath {
     }
 
     /// Find package.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::Json]
     pub(crate) fn find_package_json<Fs: FileSystem>(
         &self,
         options: &ResolveOptions,
-        cache: &Cache<Fs>,
+        cache: &CachedFileSystem<Fs>,
         ctx: &mut ResolveContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut cache_value = self.clone();
         // Go up directories when the querying path is not a directory
-        while !cache.is_dir(&cache_value, ctx) {
+        while !cache.is_directory(&cache_value, ctx) {
             if let Some(cv) = cache_value.parent() {
                 cache_value = cv;
             } else {
@@ -139,7 +152,12 @@ impl CachedPath {
         Ok(None)
     }
 
-    pub(crate) fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
+    /// Add an extension to the cached path.
+    pub(crate) fn add_extension<Fs: FileSystem>(
+        &self,
+        ext: &str,
+        cache: &CachedFileSystem<Fs>,
+    ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -149,7 +167,12 @@ impl CachedPath {
         })
     }
 
-    pub(crate) fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
+    /// Replace the extension of the cached path.
+    pub(crate) fn replace_extension<Fs: FileSystem>(
+        &self,
+        ext: &str,
+        cache: &CachedFileSystem<Fs>,
+    ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -172,7 +195,7 @@ impl CachedPath {
     pub(crate) fn normalize_with<Fs: FileSystem, P: AsRef<Path>>(
         &self,
         subpath: P,
-        cache: &Cache<Fs>,
+        cache: &CachedFileSystem<Fs>,
     ) -> Self {
         let subpath = subpath.as_ref();
         let mut components = subpath.components();
@@ -211,9 +234,10 @@ impl CachedPath {
         })
     }
 
+    /// Normalize the root of the cached path.
     #[inline]
     #[cfg(windows)]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &CachedFileSystem<Fs>) -> Self {
         if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
             let mut path_string = self.path.to_string_lossy().into_owned();
             path_string.pop();
@@ -224,14 +248,16 @@ impl CachedPath {
         }
     }
 
+    /// Normalize the root of the cached path.
     #[inline]
     #[cfg(not(windows))]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
+    pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &CachedFileSystem<Fs>) -> Self {
         self.clone()
     }
 }
 
 impl CachedPath {
+    /// Get the metadata of the cached path.
     fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
         *self.meta.get_or_init(|| {
             fs.metadata(&self.path)
@@ -240,11 +266,13 @@ impl CachedPath {
         })
     }
 
+    /// Check if the cached path is a file.
     pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
         self.metadata(fs).map(|r| r.0)
     }
 
-    pub(crate) fn is_dir<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
+    /// Check if the cached path is a directory.
+    pub(crate) fn is_directory<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
         self.metadata(fs).map(|r| r.1)
     }
 }
@@ -265,8 +293,33 @@ impl Eq for CachedPath {}
 
 impl fmt::Debug for CachedPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FsCachedPath")
+        f.debug_struct("CachedPath")
             .field("path", &self.path)
             .finish()
+    }
+}
+
+/// Borrowed cached path.
+#[derive(Debug)]
+pub(crate) struct BorrowedCachedPath<'a> {
+    pub hash: u64,
+    pub path: &'a Path,
+}
+
+impl Equivalent<CachedPath> for BorrowedCachedPath<'_> {
+    fn equivalent(&self, other: &CachedPath) -> bool {
+        self.path.as_os_str() == other.path().as_os_str()
+    }
+}
+
+impl Hash for BorrowedCachedPath<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for BorrowedCachedPath<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.as_os_str() == other.path.as_os_str()
     }
 }

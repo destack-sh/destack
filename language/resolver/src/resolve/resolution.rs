@@ -2,37 +2,34 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::resolve::PackageJson;
+use crate::PackageJson;
 
+/// JS module type.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ModuleType {
+    /// ESM module.
     Module,
+    /// CommonJS module.
     CommonJs,
+    /// JSON module.
     Json,
+    /// Wasm module.
     Wasm,
+    /// Addon module.
     Addon,
 }
 
 /// The final path resolution with optional `?query` and `#fragment`
 pub struct Resolution {
+    /// The final path.
     pub(crate) path: PathBuf,
-
-    /// Path query `?query`, contains `?`.
+    /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub(crate) query: Option<String>,
-
-    /// Path fragment `#query`, contains `#`.
+    /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub(crate) fragment: Option<String>,
-
-    /// `package.json` for the given module.
+    /// `package.json` of the given module.
     pub(crate) package_json: Option<Arc<PackageJson>>,
-
-    /// Module type for this path.
-    ///
-    /// Enable with [crate::ResolveOptions::module_type].
-    ///
-    /// The module type is computed `ESM_FILE_FORMAT` from the [ESM resolution algorithm specification](https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification).
-    ///
-    ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
+    /// Module type of this path.
     pub(crate) module_type: Option<ModuleType>,
 }
 
@@ -72,37 +69,31 @@ impl Eq for Resolution {}
 
 impl Resolution {
     /// Returns the path without query and fragment
-    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the path without query and fragment
-    #[must_use]
     pub fn into_path_buf(self) -> PathBuf {
         self.path
     }
 
     /// Returns the path query `?query`, contains the leading `?`
-    #[must_use]
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
 
     /// Returns the path fragment `#fragment`, contains the leading `#`
-    #[must_use]
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
 
     /// Returns serialized package_json
-    #[must_use]
     pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
         self.package_json.as_ref()
     }
 
     /// Returns the full path with query and fragment
-    #[must_use]
     pub fn full_path(&self) -> PathBuf {
         let mut path = self.path.clone().into_os_string();
         if let Some(query) = &self.query {
@@ -115,7 +106,6 @@ impl Resolution {
     }
 
     /// Returns the module type of this path.
-    #[must_use]
     pub fn module_type(&self) -> Option<ModuleType> {
         self.module_type
     }

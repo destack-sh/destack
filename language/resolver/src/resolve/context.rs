@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::resolve::ResolveError;
 
+/// Context for the resolver.
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
     pub fully_specified: bool,

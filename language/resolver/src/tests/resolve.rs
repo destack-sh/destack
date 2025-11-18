@@ -1,12 +1,12 @@
 use super::{fixture, fixture_root};
-use crate::resolve::{Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::resolve::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
 
+/// Run the tests from the enhanced-resolve test suite (webpack).
+/// https://github.com/webpack/enhanced-resolve/tree/main/test/fixtures
 #[test]
-fn resolve() {
+fn test_resolve_enhanced_resolve() {
     let f = fixture();
-
     let resolver = Resolver::default();
-
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
 
     #[rustfmt::skip]
@@ -48,7 +48,6 @@ fn resolve() {
         ("handle fragment edge case (no fragment)", f.clone(), "./no#fragment/#/#", f.join("no#fragment/#/#.js")),
         ("handle fragment edge case (fragment)", f.clone(), "./no#fragment/#/", f.join("no.js#fragment/#/")),
         ("handle fragment escaping", f.clone(), "./no\0#fragment/\0#/\0##fragment", f.join("no#fragment/#/#.js#fragment")),
-
     ];
 
     for (comment, path, request, expected) in pass {
@@ -72,8 +71,9 @@ fn resolve() {
     }
 }
 
+/// (Not entirely sure where issue #238 is from.)
 #[test]
-fn issue238_resolve() {
+fn test_resolve_issue238() {
     let f = fixture().join("issue-238");
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into(), ".jsx".into(), ".ts".into(), ".tsx".into()],
@@ -94,8 +94,9 @@ fn issue238_resolve() {
     );
 }
 
+/// Test the `prefer_relative` option (should prefer relative paths over node_modules).
 #[test]
-fn prefer_relative() {
+fn test_resolve_prefer_relative() {
     let f = fixture();
 
     let resolver = Resolver::new(ResolveOptions {
@@ -116,7 +117,7 @@ fn prefer_relative() {
 }
 
 #[test]
-fn resolve_to_context() {
+fn test_resolve_to_context() {
     let f = fixture();
     let resolver = Resolver::new(ResolveOptions {
         resolve_to_context: true,
@@ -137,8 +138,9 @@ fn resolve_to_context() {
     }
 }
 
+/// Test resolving a specifier with a hash in it.
 #[test]
-fn resolve_hash_as_module() {
+fn test_resolve_hash_as_module() {
     let f = fixture();
     let resolver = Resolver::default();
     let resolution = resolver.resolve(f, "#a");
@@ -146,10 +148,11 @@ fn resolve_hash_as_module() {
 }
 
 #[test]
-fn resolve_edge_cases() {
+fn test_resolve_edge_cases() {
     let f = fixture();
     let resolver = Resolver::default();
 
+    #[rustfmt::skip]
     let data = [(
         "resolve with multiple dots",
         f.clone(),
@@ -163,12 +166,15 @@ fn resolve_edge_cases() {
     }
 }
 
+/// Test resolving a specifier with "dot", "dir", "slash", etc. spelled out.
 #[test]
-fn resolve_dot() {
+fn test_resolve_dot_spelled_out() {
     let f = fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
     let resolver = Resolver::default();
     let foo_index = foo_dir.join("index.js");
+    
+    #[rustfmt::skip]
     let data = [
         ("dot dir", foo_dir.clone(), ".", foo_index.clone()),
         ("dot dir slash", foo_dir.clone(), "./", foo_index),
@@ -182,6 +188,7 @@ fn resolve_dot() {
         main_files: vec![],
         ..ResolveOptions::default()
     });
+    #[rustfmt::skip]
     let data = [
         (
             "dot dir",
@@ -202,14 +209,16 @@ fn resolve_dot() {
     }
 }
 
+/// Test resolving abnormal relative paths (e.g., with "../..").
 #[test]
-fn abnormal_relative() {
+fn test_resolve_abnormal_relative() {
     let f = fixture_root().join("abnormal-relative-with-node_modules");
 
     let base = f.join("foo/bar/baz");
 
     let resolver = Resolver::default();
 
+    #[rustfmt::skip]
     let data = [
         ("2-level abnormal relative path 1", "jest-runner-../../.."),
         ("2-level abnormal relative path 2", "jest-runner-../../../"),
@@ -230,6 +239,7 @@ fn abnormal_relative() {
         );
     }
 
+    #[rustfmt::skip]
     let data = [
         ("1-level abnormal relative path 1", "jest-runner-../.."),
         ("1-level abnormal relative path 2", "jest-runner-../../"),
@@ -267,9 +277,267 @@ fn abnormal_relative() {
     }
 }
 
+/// Test resolving a directory / specifier with Chinese characters.
+#[test]
+fn test_resolve_chinese() {
+    let dir = fixture_root();
+    let specifier = "./misc/中文/中文.js";
+    let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
+    assert_eq!(
+        resolution.map(Resolution::into_path_buf),
+        Ok(dir.join("misc/中文/中文.js"))
+    );
+}
+
+/// Test resolving against the styled-components package.
+#[test]
+fn test_resolve_styled_components() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let module_path = path
+        .join("node_modules/.pnpm")
+        .join(
+            "styled-components@6.1.17_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/styled-components",
+        );
+    let specifier = "styled-components";
+
+    let options = ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.full_path()),
+        Ok(module_path.join("dist/styled-components.browser.cjs.js"))
+    );
+
+    let options = ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        main_fields: vec!["module".into()],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.full_path()),
+        Ok(module_path.join("dist/styled-components.browser.esm.js"))
+    );
+}
+
+/// Test resolving against the axios package.
+#[test]
+fn test_resolve_axios() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let module_path = path.join("node_modules/.pnpm/axios@1.8.4/node_modules/axios");
+    let specifier = "axios";
+
+    let options = ResolveOptions::default();
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.full_path()),
+        Ok(module_path.join("index.js"))
+    );
+
+    let options = ResolveOptions {
+        condition_names: vec!["browser".into(), "require".into()],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.full_path()),
+        Ok(module_path.join("dist/browser/axios.cjs"))
+    );
+
+    let options = ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.full_path()),
+        Ok(module_path.join("dist/node/axios.cjs"))
+    );
+}
+
+/// Test resolving against the postcss package.
+#[test]
+fn test_resolve_postcss() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let module_path = path.join("node_modules/postcss");
+    let resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        symlinks: false,
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve(&module_path, "path");
+    assert_eq!(resolution, Err(ResolveError::Ignored(module_path.clone())));
+
+    let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
+    assert_eq!(
+        resolution,
+        Err(ResolveError::Ignored(
+            module_path.join("lib/terminal-highlight")
+        ))
+    );
+}
+
+/// Test resolving against the ipaddr.js package.
+#[test]
+fn test_resolve_ipaddr_js() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let module_path =
+        path.join("node_modules/.pnpm/ipaddr.js@2.2.0/node_modules/ipaddr.js/lib/ipaddr.js");
+
+    let resolvers = [
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(
+                ".js".into(),
+                vec![".js".into(), ".ts".into(), ".tsx".into()],
+            )],
+            ..ResolveOptions::default()
+        }),
+        Resolver::new(ResolveOptions {
+            extensions: vec![".ts".into()],
+            ..ResolveOptions::default()
+        }),
+        Resolver::default(),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "ipaddr.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
+
+/// Test resolving against the decimal.js package.
+#[test]
+fn test_resolve_decimal_js() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let module_path =
+        path.join("node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
+
+    let resolvers = [
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(
+                ".js".into(),
+                vec![".js".into(), ".ts".into(), ".tsx".into()],
+            )],
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+        Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
+
+/// Test resolving against the decimal.js package from the mathjs package.
+#[test]
+fn test_resolve_decimal_js_from_mathjs() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm/node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm");
+    let module_path =
+        dir.join("pnpm/node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
+
+    let resolvers = [
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(
+                ".js".into(),
+                vec![".js".into(), ".ts".into(), ".tsx".into()],
+            )],
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+        Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
+
+/// Test resolving against the minimatch package.
+#[test]
+fn test_resolve_minimatch() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let esm_resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        module_type: true,
+        ..ResolveOptions::default()
+    });
+    let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
+    assert_eq!(
+        resolution.full_path(),
+        dir.join(
+            "pnpm/node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/esm/index.js",
+        )
+    );
+    assert_eq!(resolution.module_type(), Some(ModuleType::Module));
+
+    let cjs_resolver = esm_resolver.clone_with_options(ResolveOptions {
+        condition_names: vec!["require".into()],
+        module_type: true,
+        ..ResolveOptions::default()
+    });
+    let resolution = cjs_resolver.resolve(&path, "minimatch").unwrap();
+    assert_eq!(
+        resolution.full_path(),
+        dir.join(
+            "pnpm/node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/commonjs/index.js",
+        )
+    );
+    assert_eq!(resolution.module_type(), Some(ModuleType::CommonJs));
+}
+
+/// Test resolving against nested symlinks.
+#[test]
+fn test_resolve_nested_symlinks() {
+    let dir = fixture_root().join("nested-symlink");
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            .resolve(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
+            .map(Resolution::into_path_buf),
+        Ok(dir.join("nm/index.js"))
+    );
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            .resolve(&dir, "./apps/tooling/typescript-config/index.js")
+            .map(Resolution::into_path_buf),
+        Ok(dir.join("nm/index.js"))
+    );
+}
+
+/// Test resolving against a package.json with a BOM.
+#[test]
+fn test_resolve_package_json_with_bom() {
+    let dir = fixture_root().join("misc");
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            .resolve(&dir, "./package-json-with-bom")
+            .map(Resolution::into_path_buf),
+        Ok(dir.join("package-json-with-bom/index.js"))
+    );
+}
+
+/// Test resolving on Windows (should normalize the path).
 #[cfg(windows)]
 #[test]
-fn resolve_normalized_on_windows() {
+fn test_resolve_normalized_on_windows() {
     use dyst_source::PathExt;
 
     let f = fixture();
@@ -296,9 +564,10 @@ fn resolve_normalized_on_windows() {
     );
 }
 
+/// Test resolving against a file protocol path.
 #[cfg(windows)]
 #[test]
-fn file_protocol() {
+fn test_resolve_file_protocol() {
     use url::Url;
 
     let f = fixture();

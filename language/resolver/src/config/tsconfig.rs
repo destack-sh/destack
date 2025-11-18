@@ -15,30 +15,36 @@ const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
+/// TypeScript configuration (usually from `tsconfig.json`)
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
     #[serde(skip)]
-    pub root: bool,
+    pub is_root: bool,
 
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
     #[serde(skip)]
     pub path: PathBuf,
 
+    /// Specific files to include in the project.
     #[serde(default)]
     pub files: Option<Vec<String>>,
 
+    /// Files to include in the project.
     #[serde(default)]
     pub include: Option<Vec<String>>,
 
+    /// Files to exclude from the project.
     #[serde(default)]
     pub exclude: Option<Vec<String>>,
 
+    /// Paths to other tsconfigs to extend.
     #[serde(default)]
     pub extends: Option<ExtendsField>,
 
+    /// Compiler options.
     #[serde(default)]
     pub compiler_options: CompilerOptions,
 
@@ -50,15 +56,13 @@ pub struct TsConfig {
 impl TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
-    #[must_use]
     pub fn root(&self) -> bool {
-        self.root
+        self.is_root
     }
 
     /// Returns the path where the `tsconfig.json` was found.
     ///
     /// Contains the `tsconfig.json` filename.
-    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -68,21 +72,18 @@ impl TsConfig {
     /// # Panics
     ///
     /// * When the `tsconfig.json` path is misconfigured.
-    #[must_use]
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
     }
 
     /// Returns the compiler options configured in this tsconfig.
-    #[must_use]
     pub fn compiler_options(&self) -> &CompilerOptions {
         &self.compiler_options
     }
 
     /// Returns a mutable reference to the compiler options configured in this
     /// tsconfig.
-    #[must_use]
     pub fn compiler_options_mut(&mut self) -> &mut CompilerOptions {
         &mut self.compiler_options
     }
@@ -139,7 +140,6 @@ impl TsConfig {
     /// The base path can be configured by the user as part of the
     /// [CompilerOptions]. If not configured, it returns the directory in which
     /// the tsconfig itself is found.
-    #[must_use]
     pub(crate) fn base_path(&self) -> &Path {
         self.compiler_options()
             .base_url()
@@ -290,12 +290,12 @@ impl TsConfig {
             compiler_options.set_allow_js(*allow_js);
         }
     }
+
     /// "Build" the root tsconfig, resolve:
     ///
     /// * `{configDir}` template variable
     /// * `paths_base` for resolving paths alias
     /// * `baseUrl` to absolute path
-    #[must_use]
     pub(crate) fn build(mut self) -> Self {
         // Only the root tsconfig requires paths resolution.
         if !self.root() {
@@ -364,7 +364,6 @@ impl TsConfig {
     /// tsconfig, relative to the given `path`.
     ///
     /// `specifier` can be either a real path or an alias.
-    #[must_use]
     pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         let paths = self.resolve_path_alias(specifier);
         for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
@@ -381,7 +380,6 @@ impl TsConfig {
     /// `specifier` is expected to be a path alias.
     // Copied from parcel
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    #[must_use]
     pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
         if specifier.starts_with('.') {
             return Vec::new();
@@ -502,7 +500,6 @@ pub struct CompilerOptions {
 
 impl CompilerOptions {
     /// Explicit base URL configured by the user.
-    #[must_use]
     fn base_url(&self) -> Option<&Path> {
         self.base_url.as_deref()
     }
@@ -513,13 +510,11 @@ impl CompilerOptions {
     }
 
     /// Path aliases.
-    #[must_use]
     fn paths(&self) -> Option<&CompilerOptionsPathsMap> {
         self.paths.as_ref()
     }
 
     /// Returns a mutable reference to the path aliases.
-    #[must_use]
     fn paths_mut(&mut self) -> Option<&mut CompilerOptionsPathsMap> {
         self.paths.as_mut()
     }
@@ -530,7 +525,6 @@ impl CompilerOptions {
     }
 
     /// The actual base from where path aliases are resolved.
-    #[must_use]
     fn paths_base(&self) -> &Path {
         &self.paths_base
     }
@@ -696,37 +690,33 @@ pub enum ExtendsField {
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
 #[derive(Debug, Deserialize)]
 pub struct ProjectReference {
+    /// Path to the tsconfig.json file.
     pub path: PathBuf,
 
+    /// Resolved tsconfig.
     #[serde(skip)]
     pub tsconfig: Option<Arc<TsConfig>>,
 }
 
 impl ProjectReference {
-    /// Returns the path to a directory containing a `tsconfig.json` file, or to
-    /// the config file itself (which may have any name).
-    #[must_use]
+    /// Returns the path to the tsconfig.json file.
     pub fn path(&self) -> &Path {
         &self.path
     }
-    /// Returns the resolved tsconfig, if one has been set.
-    #[must_use]
+
+    /// Returns the resolved tsconfig.
     pub fn tsconfig(&self) -> Option<Arc<TsConfig>> {
         self.tsconfig.clone()
     }
 
     /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
+    pub(crate) fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
         self.tsconfig.replace(tsconfig);
     }
 }
 
 impl TsConfig {
     /// Parses the tsconfig from a JSON string.
-    ///
-    /// # Errors
-    ///
-    /// * Any error that can be returned by `serde_json::from_str()`.
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         let stripped = strip_json(json).map_err(serde_json::Error::io)?;
@@ -736,17 +726,18 @@ impl TsConfig {
             Cow::Owned(stripped)
         };
         let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
-        tsconfig.root = root;
+        tsconfig.is_root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
     }
 }
 
-fn trim_start_matches_mut(s: &mut str, pat: char) -> &mut str {
-    if s.starts_with(pat) {
+/// Trims the start of a string if it starts with the given character.
+fn trim_start_matches_mut(string: &mut str, pattern: char) -> &mut str {
+    if string.starts_with(pattern) {
         // trim the prefix
-        &mut s[pat.len_utf8()..]
+        &mut string[pattern.len_utf8()..]
     } else {
-        s
+        string
     }
 }

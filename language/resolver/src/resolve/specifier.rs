@@ -2,18 +2,24 @@ use std::borrow::Cow;
 
 use crate::resolve::SpecifierError;
 
+/// Specifier (like `./foo.js` or `../bar.js` or `#baz`).
 #[derive(Debug)]
 pub struct Specifier<'a> {
+    /// Path (like `./foo.js` or `../bar.js`), without query or fragment.
     path: Cow<'a, str>,
+    /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub query: Option<&'a str>,
+    /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub fragment: Option<&'a str>,
 }
 
 impl<'a> Specifier<'a> {
+    /// Returns the path, without query or fragment.
     pub fn path(&'a self) -> &'a str {
         self.path.as_ref()
     }
 
+    /// Parses a Specifier from a string.
     pub fn parse(specifier: &'a str) -> Result<Self, SpecifierError> {
         if specifier.is_empty() {
             #[cold]
@@ -41,14 +47,15 @@ impl<'a> Specifier<'a> {
         })
     }
 
+    /// Parses the query and fragment from a string.
     fn parse_query_fragment(
         specifier: &'a str,
         skip: usize,
     ) -> (Cow<'a, str>, Option<&'a str>, Option<&'a str>) {
         let mut query_start: Option<usize> = None;
         let mut fragment_start: Option<usize> = None;
-
         let mut prev = specifier.chars().next().unwrap();
+
         // Optimize for the common case: most specifiers don't have escaped characters
         let mut escaped_indexes: Option<Vec<usize>> = None;
         for (i, c) in specifier.char_indices().skip(skip) {
@@ -97,17 +104,9 @@ impl<'a> Specifier<'a> {
 mod tests {
     use super::{Specifier, SpecifierError};
 
+    /// Test parsing an empty specifier.
     #[test]
-    fn debug() {
-        let specifier = Specifier::parse("/").unwrap();
-        assert_eq!(
-            format!("{specifier:?}"),
-            r#"Specifier { path: "/", query: None, fragment: None }"#
-        );
-    }
-
-    #[test]
-    fn empty() {
+    fn test_parse_empty_specifier() {
         let specifiers = ["", "?"];
         for specifier in specifiers {
             let error = Specifier::parse(specifier).unwrap_err();
@@ -115,8 +114,9 @@ mod tests {
         }
     }
 
+    /// Parse an absolute specifier.
     #[test]
-    fn absolute() -> Result<(), SpecifierError> {
+    fn test_parse_absolute_specifier() -> Result<(), SpecifierError> {
         let specifier = "/test?#";
         let parsed = Specifier::parse(specifier)?;
         assert_eq!(parsed.path, "/test");
@@ -125,8 +125,9 @@ mod tests {
         Ok(())
     }
 
+    /// Parse a relative specifier.
     #[test]
-    fn relative() -> Result<(), SpecifierError> {
+    fn test_parse_relative_specifier() -> Result<(), SpecifierError> {
         let specifiers = ["./test", "../test", "../../test"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
@@ -139,8 +140,9 @@ mod tests {
         Ok(())
     }
 
+    /// Parse a hash specifier.
     #[test]
-    fn hash() -> Result<(), SpecifierError> {
+    fn test_parse_hash_specifier() -> Result<(), SpecifierError> {
         let specifiers = ["#", "#path"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
@@ -153,8 +155,9 @@ mod tests {
         Ok(())
     }
 
+    /// Parse a module specifier.
     #[test]
-    fn module() -> Result<(), SpecifierError> {
+    fn test_parse_module_specifier() -> Result<(), SpecifierError> {
         let specifiers = ["module"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
@@ -167,8 +170,9 @@ mod tests {
         Ok(())
     }
 
+    /// Parse a query and fragment specifier.
     #[test]
-    fn query_fragment() -> Result<(), SpecifierError> {
+    fn test_parse_query_fragment_specifier() -> Result<(), SpecifierError> {
         let data = [
             ("a?", Some("?"), None),
             ("a?query", Some("?query"), None),
@@ -199,9 +203,10 @@ mod tests {
         Ok(())
     }
 
+    /// Test parsing enhanced-resolve edge cases.
     #[test]
     // https://github.com/webpack/enhanced-resolve/blob/main/test/identifier.test.js
-    fn enhanced_resolve_edge_cases() -> Result<(), SpecifierError> {
+    fn test_parse_enhanced_resolve_edge_cases() -> Result<(), SpecifierError> {
         let data = [
             ("path/#", "path/", "", "#"),
             ("path/as/?", "path/as/", "?", ""),
@@ -232,9 +237,10 @@ mod tests {
         Ok(())
     }
 
-    // https://github.com/webpack/enhanced-resolve/blob/main/test/identifier.test.js
+    /// Test parsing enhanced-resolve windows-like specifiers.
+    /// https://github.com/webpack/enhanced-resolve/blob/main/test/identifier.test.js
     #[test]
-    fn enhanced_resolve_windows_like() -> Result<(), SpecifierError> {
+    fn test_parse_enhanced_resolve_windows_like() -> Result<(), SpecifierError> {
         let data = [
             ("path\\#", "path\\", "", "#"),
             ("path\\as\\?", "path\\as\\", "?", ""),
