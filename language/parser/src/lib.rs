@@ -6,3 +6,9 @@ mod parse;
 
 pub use lex::*;
 pub use parse::*;
+
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use tests::*;

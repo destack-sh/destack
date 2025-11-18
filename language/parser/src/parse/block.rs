@@ -356,8 +356,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Expression, ScalarLiteral, YieldCardinality};
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_empty_block() {
@@ -452,7 +452,7 @@ mod tests {
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Expression::Defer { expression } => {
             assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });
@@ -467,7 +467,7 @@ mod tests {
         assert_node!(parser.tree, await_id, Expression::Await { expression } => {
             // someFunction()
             assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });
@@ -483,7 +483,7 @@ mod tests {
             assert_eq!(*cardinality, YieldCardinality::Scalar);
             // someFunction()
             assert_node!(parser.tree, *value, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });
@@ -498,7 +498,7 @@ mod tests {
             assert_eq!(*cardinality, YieldCardinality::Generator);
             // someFunction()
             assert_node!(parser.tree, *value, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
-                assert_expr_path!(parser, parser.tree.get(*left), "someFunction");
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
         });

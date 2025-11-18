@@ -379,8 +379,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_name, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_pattern_wildcard() {
@@ -456,7 +456,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
-            assert_expr_path!(parser, parser.tree.get(*value), "MyEnum.A");
+            assert_expression_path!(parser, parser.tree.get(*value), "MyEnum.A");
         });
     }
 

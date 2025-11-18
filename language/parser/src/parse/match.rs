@@ -248,8 +248,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_match_simple_arms() {
@@ -270,7 +270,7 @@ match x {
 
         assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
             // value: path x
-            assert_expr_path!(parser, parser.tree.get(*value), "x");
+            assert_expression_path!(parser, parser.tree.get(*value), "x");
 
             assert_eq!(cases.len(), 4);
 
@@ -361,7 +361,7 @@ match self {
         // match self { ... }
         assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
             // self
-            assert_expr_path!(parser, parser.tree.get(*value), "self");
+            assert_expression_path!(parser, parser.tree.get(*value), "self");
 
             assert_eq!(cases.len(), 3);
 
@@ -370,10 +370,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                    assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
+                    assert_expression_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
                 });
                 // Color.Blue
-                assert_expr_path!(parser, parser.tree.get(*body), "Color.Blue");
+                assert_expression_path!(parser, parser.tree.get(*body), "Color.Blue");
             });
 
             // TetrisPieceShape.J => Color.Red
@@ -381,10 +381,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                    assert_expr_path!(parser, parser.tree.get(*value), "TetrisPieceShape.J");
+                    assert_expression_path!(parser, parser.tree.get(*value), "TetrisPieceShape.J");
                 });
                 // Color.Red
-                assert_expr_path!(parser, parser.tree.get(*body), "Color.Red");
+                assert_expression_path!(parser, parser.tree.get(*body), "Color.Red");
             });
 
             // _ => Color.Gray
@@ -392,7 +392,7 @@ match self {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // Color.Gray
-                assert_expr_path!(parser, parser.tree.get(*body), "Color.Gray");
+                assert_expression_path!(parser, parser.tree.get(*body), "Color.Gray");
             });
         });
     }
@@ -467,7 +467,7 @@ switch (left.type) {
                 });
                 // body (one statement, no block)
                 assert_node!(parser.tree, *body, Expression::Call { left, .. } => {
-                    assert_expr_path!(parser, parser.tree.get(*left), "something");
+                    assert_expression_path!(parser, parser.tree.get(*left), "something");
                 });
             });
 

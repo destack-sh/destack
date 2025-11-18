@@ -177,7 +177,7 @@ mod tests {
         ScalarLiteral, WhereClause, WithClause,
     };
 
-    use crate::parse::tests::TestParser;
+    use crate::TestParser;
     use crate::{assert_node, assert_path, assert_string};
 
     #[test]

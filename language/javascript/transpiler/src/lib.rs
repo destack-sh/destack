@@ -8,3 +8,6 @@ pub mod transpile;
 pub use diagnostic::*;
 pub use format::*;
 pub use transpile::*;
+
+#[cfg(test)]
+pub(crate) mod tests;

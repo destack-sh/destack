@@ -20,3 +20,9 @@ pub use lower::*;
 pub use optimize::*;
 pub use resolve::*;
 pub use validate::*;
+
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use tests::*;

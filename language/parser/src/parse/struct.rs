@@ -118,8 +118,8 @@ mod tests {
         TypeLiteral, Visibility, WhereClause, WithClause,
     };
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_struct_anonymous() {
@@ -245,11 +245,11 @@ struct Foo<T: Numeric> extends Boz implements Quux {
 
             // ..Bar
             assert_node!(parser.tree, properties[0], Property::Spread { modifiers: None, value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "Bar");
+                assert_expression_path!(parser, parser.tree.get(*value), "Bar");
             });
             // ..Baz
             assert_node!(parser.tree, properties[1], Property::Spread { modifiers: None, value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "Baz");
+                assert_expression_path!(parser, parser.tree.get(*value), "Baz");
             });
             // a: T
             assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
@@ -262,7 +262,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
             assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_eq!(modifiers.kind.unwrap(), BindingKind::Maybe);
                 assert_string!(parser, *name, "b");
-                assert_expr_path!(parser, parser.tree.get(*ty), "T");
+                assert_expression_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
             assert_node!(parser.tree, properties[4], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
@@ -315,8 +315,8 @@ struct Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
+                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
         });

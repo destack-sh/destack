@@ -7,20 +7,11 @@ use crate::{CompileWarning, CompilerStage};
 #[repr(u8)]
 pub enum ResolveWarning {
     /// Unknown import.
-    UnknownImport {
-        module: ModuleId,
-        node: NodeIdAny,
-    },
+    UnknownImport { module: ModuleId, node: NodeIdAny },
     /// Unused imports / unused re-exports.
-    UnusedImport {
-        module: ModuleId,
-        node: NodeIdAny,
-    },
+    UnusedImport { module: ModuleId, node: NodeIdAny },
     /// Import that resolves but is only used for side effects.
-    SideEffectOnlyImport {
-        module: ModuleId,
-        node: NodeIdAny,
-    },
+    SideEffectOnlyImport { module: ModuleId, node: NodeIdAny },
 }
 
 impl ResolveWarning {

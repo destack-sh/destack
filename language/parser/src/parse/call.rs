@@ -165,8 +165,8 @@ mod tests {
     use dyst_ast::{Argument, Expression, Name, NodeId, Path, PostfixPosition, ScalarLiteral};
     use dyst_source::smallvec;
 
-    use crate::parse::tests::TestParser;
-    use crate::{Parser, assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
 
     fn make_receiver(parser: &mut Parser<'_>) -> NodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");
@@ -238,11 +238,11 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_eq!(*position, PostfixPosition::Direct);
             // foo
-            assert_expr_path!(parser, parser.tree.get(*left), "foo");
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
             // <T>
             assert_eq!(static_arguments.len(), 1);
             assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                assert_expr_path!(parser, parser.tree.get(*value), "T");
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
             });
             // (1, x: 2)
             assert_eq!(dynamic_arguments.len(), 2);

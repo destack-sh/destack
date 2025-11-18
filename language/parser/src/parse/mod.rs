@@ -37,6 +37,3 @@ pub use expression::{
 pub use function::FUNCTION_MODIFIERS;
 pub use prelude::*;
 pub use property::BINDING_MODIFIERS;
-
-#[cfg(test)]
-pub(crate) mod tests;

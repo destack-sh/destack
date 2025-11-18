@@ -93,7 +93,7 @@ impl DiagnosticOptions {
                         .extend(value.split(',').map(|s| s.to_string()));
                 }
                 ("suppress-errors", Some(value)) => {
-                    options 
+                    options
                         .suppress_errors
                         .extend(value.split(',').map(|s| s.to_string()));
                 }

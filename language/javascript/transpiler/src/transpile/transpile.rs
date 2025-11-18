@@ -3,7 +3,7 @@ use dyst_dir::SharedModuleRegistry;
 use dyst_javascript_ast as ast;
 use dyst_source::{FileId, Uri};
 
-use crate::{Transpiler, TranspilerMode, TranspileOptions, TranspilerUnit, TranspilerUnitId};
+use crate::{TranspileOptions, Transpiler, TranspilerMode, TranspilerUnit, TranspilerUnitId};
 
 impl<'a> Transpiler<'a> {
     /// Map the modules to the units.

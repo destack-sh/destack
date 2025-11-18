@@ -334,8 +334,8 @@ mod tests {
         Argument, DependencyItem, DependencyKind, ExportType, Expression, ScalarLiteral,
     };
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_import_simple() {
@@ -544,7 +544,7 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target: None, value: Some(value), .. } => {
             assert_eq!(*mode, ExportType::Namespace);
             assert_eq!(*kind, DependencyKind::Value);
-            assert_expr_path!(parser, parser.tree.get(*value), "foo");
+            assert_expression_path!(parser, parser.tree.get(*value), "foo");
         });
     }
 }

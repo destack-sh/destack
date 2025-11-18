@@ -245,7 +245,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::TestFormatter;
+    use crate::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
 
     /// Semicolons should be automatically inserted for every value-ignored expression.

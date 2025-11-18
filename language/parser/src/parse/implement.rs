@@ -84,8 +84,8 @@ mod tests {
         IntType, Parameter, TypeLiteral, WhereClause, WithClause,
     };
 
-    use crate::parse::tests::TestParser;
-    use crate::{assert_expr_path, assert_node, assert_path, assert_string};
+    use crate::TestParser;
+    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_implement_simple() {
@@ -293,8 +293,8 @@ implement Foo with Context where Guard > Limit {
             assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
                 assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expr_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expr_path!(parser, parser.tree.get(*right), "Limit");
+                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
                 });
             });
 

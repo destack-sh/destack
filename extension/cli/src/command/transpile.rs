@@ -1,7 +1,9 @@
-use dyst_compiler::{Compiler, CompileOptions};
+use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Session;
-use dyst_javascript_transpiler::{Transpiler, TranspileOptions, TranspilerTarget};
-use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
+use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspilerTarget};
+use dyst_source::{
+    DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
+};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
