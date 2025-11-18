@@ -53,7 +53,7 @@ impl<'a> Transpiler<'a> {
             dir::Expression::Statement { statement } => {
                 let statement_id = self
                     .transpile_expression(module, *statement, unit)
-                    .expect_node::<Expression>(statement.into_any(), unit)?;
+                    .expect_node::<Statement>(statement.into_any(), unit)?;
                 unit.ast.alias_from(expression_id.id, statement_id);
                 statement_id.into_any()
             }

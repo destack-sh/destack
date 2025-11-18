@@ -3,7 +3,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_javascript_ast::{self as ast, Definition, NodeId, NodeIdAny};
 use dyst_source::{SharedStringPool, Uri};
 
-use crate::{TranspileDiagnostic, TranspileError, TranspileResult, TranspileWarning, Transpiler};
+use crate::{TranspileDiagnostic, TranspileError, TranspileWarning, Transpiler};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,30 +52,15 @@ impl TranspilerUnit {
     pub(crate) fn warning(&mut self, warning: TranspileWarning) {
         self.diagnostics.push(warning.into());
     }
-
-    /// Try to do something and remember the TranspilerError if it fails.
-    pub(crate) fn try_recover<T>(
-        &mut self,
-        f: impl FnOnce(&mut TranspilerUnit) -> TranspileResult<T>,
-    ) -> Option<T> {
-        match f(self) {
-            Ok(result) => Some(result),
-            Err(error) => {
-                self.error(error);
-                None
-            }
-        }
-    }
 }
 
 impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
     pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
-            if let Some(root_id) =
-                unit.try_recover(|unit| self.transpile_expression(module, *expression_id, unit))
-            {
-                unit.roots.push(root_id)
+            match self.transpile_expression(module, *expression_id, unit) {
+                Ok(root_id) => unit.roots.push(root_id),
+                Err(error) => unit.error(error),
             }
         }
     }
