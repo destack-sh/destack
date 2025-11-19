@@ -316,25 +316,11 @@ fn test_resolve_styled_components() {
         );
     let specifier = "styled-components";
 
-    let options = ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        ..ResolveOptions::default()
-    };
+    let options = ResolveOptions::default();
     let resolution = TestResolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(|r| r.full_path()),
         Ok(module_path.join("dist/styled-components.browser.cjs.js"))
-    );
-
-    let options = ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        main_fields: vec!["module".into()],
-        ..ResolveOptions::default()
-    };
-    let resolution = TestResolver::new(options).resolve(&path, specifier);
-    assert_eq!(
-        resolution.map(|r| r.full_path()),
-        Ok(module_path.join("dist/styled-components.browser.esm.js"))
     );
 }
 
@@ -354,7 +340,7 @@ fn test_resolve_axios() {
     );
 
     let options = ResolveOptions {
-        condition_names: vec!["browser".into(), "require".into()],
+        conditions: vec!["browser".into(), "require".into()],
         ..ResolveOptions::default()
     };
     let resolution = TestResolver::new(options).resolve(&path, specifier);
@@ -364,7 +350,7 @@ fn test_resolve_axios() {
     );
 
     let options = ResolveOptions {
-        condition_names: vec!["node".into(), "require".into()],
+        conditions: vec!["node".into(), "require".into()],
         ..ResolveOptions::default()
     };
     let resolution = TestResolver::new(options).resolve(&path, specifier);
@@ -381,8 +367,7 @@ fn test_resolve_postcss() {
     let path = dir.join("pnpm");
     let module_path = path.join("node_modules/postcss");
     let resolver = TestResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        symlinks: false,
+        canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
 
@@ -446,11 +431,11 @@ fn test_resolve_decimal_js() {
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )],
-            condition_names: vec!["import".into()],
+            conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
         TestResolver::new(ResolveOptions {
-            condition_names: vec!["import".into()],
+            conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
     ];
@@ -475,11 +460,11 @@ fn test_resolve_decimal_js_from_mathjs() {
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
             )],
-            condition_names: vec!["import".into()],
+            conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
         TestResolver::new(ResolveOptions {
-            condition_names: vec!["import".into()],
+            conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
     ];
@@ -496,7 +481,7 @@ fn test_resolve_minimatch() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
     let esm_resolver = TestResolver::new(ResolveOptions {
-        condition_names: vec!["import".into()],
+        conditions: vec!["import".into()],
         ..ResolveOptions::default()
     });
     let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
@@ -508,7 +493,7 @@ fn test_resolve_minimatch() {
     );
 
     let cjs_resolver = esm_resolver.clone_with_options(ResolveOptions {
-        condition_names: vec!["require".into()],
+        conditions: vec!["require".into()],
         ..ResolveOptions::default()
     });
     let resolution = cjs_resolver.resolve(&path, "minimatch").unwrap();
@@ -609,10 +594,7 @@ fn test_resolve_file_protocol() {
 #[test]
 fn test_resolve_scoped_packages() {
     let f = fixture().join("scoped");
-    let resolver = TestResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        ..ResolveOptions::default()
-    });
+    let resolver = TestResolver::new(ResolveOptions::default());
 
     #[rustfmt::skip]
     let pass = [
@@ -713,8 +695,9 @@ fn test_roots_fall_through() {
     let f = super::fixture();
     let absolute_path = f.join("roots_fall_through/index.js");
     let specifier = absolute_path.to_string_lossy();
-    let resolution =
-        TestResolver::new(ResolveOptions::default().with_root(&f)).resolve(&f, &specifier);
+    let mut options = ResolveOptions::default();
+    options.roots.push(f.clone());
+    let resolution = TestResolver::new(options).resolve(&f, &specifier);
     assert_eq!(resolution.map(Resolution::into_path_buf), Ok(absolute_path));
 }
 
@@ -795,8 +778,7 @@ fn test_fully_specified_path_resolution() {
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
-            alias_fields: vec![vec!["browser".into()]],
-            fully_specified: true,
+            is_fully_specified: true,
             ..ResolveOptions::default()
         },
     );
@@ -872,8 +854,7 @@ fn test_fully_specified_resolve_to_context() {
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
-            alias_fields: vec![vec!["browser".into()]],
-            fully_specified: true,
+            is_fully_specified: true,
             resolve_to_context: true,
             ..ResolveOptions::default()
         },

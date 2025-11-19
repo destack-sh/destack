@@ -14,7 +14,7 @@ fn test_imports_field_simple() {
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
-        condition_names: vec!["webpack".into()],
+        conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
 
@@ -60,8 +60,7 @@ fn test_imports_field_shared_resolvers() {
     let resolver1 = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index.js".into()],
-        imports_fields: vec![vec!["imports".into()]],
-        condition_names: vec!["webpack".into()],
+        conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
 
@@ -71,10 +70,7 @@ fn test_imports_field_shared_resolvers() {
     assert_eq!(resolved_path, Ok(f.join("b.js")));
 
     // field name #2
-    let resolver2 = resolver1.clone_with_options(ResolveOptions {
-        imports_fields: vec![vec!["other".into(), "imports".into()]],
-        ..ResolveOptions::default()
-    });
+    let resolver2 = resolver1.clone_with_options(ResolveOptions::default());
 
     let resolved_path = resolver2.resolve(&f, "#b").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("a.js")));
@@ -84,9 +80,9 @@ struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports_field: ImportsExportsMap<'static>,
+    imports: ImportsExportsMap<'static>,
     request: &'static str,
-    condition_names: Vec<&'static str>,
+    conditions: Vec<&'static str>,
 }
 
 fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
@@ -107,7 +103,7 @@ fn test_imports_field_cases() {
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#abc/": {
                 "import": [
                   "./dist/",
@@ -118,13 +114,13 @@ fn test_imports_field_cases() {
               "#abc": "./main.js"
             })),
             request: "#abc/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./src/test/file.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#abc/": {
                 "import": [
                   "./src/"
@@ -134,31 +130,31 @@ fn test_imports_field_cases() {
               "#abc": "./main.js"
             })),
             request: "#abc/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         TestCase {
             name: "sample #2",
             expect: Some(vec!["./data/timezones/pdt.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#1/timezones/": "./data/timezones/"
             })),
             request: "#1/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #3",
             expect: Some(vec!["./data/timezones/timezones/pdt.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#aaa/": "./data/timezones/",
               "#a/": "./data/timezones/"
             })),
             request: "#a/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #4",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/lib/": {
                 "browser": [
                   "./browser/"
@@ -169,12 +165,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "sample #5",
             expect: Some(vec!["./browser/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/lib/": {
                 "browser": [
                   "./browser/"
@@ -186,48 +182,48 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "sample #6",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/dist/a": "./dist/index.js"
             })),
             request: "#a/dist/aaa",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #7",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/a/a/": "./dist/index.js"
             })),
             request: "#a/a/a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #8",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": "./index.js"
             })),
             request: "#a/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #9",
             expect: Some(vec!["./main.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/index.js": "./main.js"
             })),
             request: "#a/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #10",
             expect: Some(vec!["./ok.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -236,12 +232,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #11",
             expect: Some(vec!["./ok.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -250,12 +246,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/bar#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #12",
             expect: Some(vec!["./ok.js#abc"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -264,12 +260,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/#zapp/ok.js#abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #13",
             expect: Some(vec!["./ok.js?abc"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -278,12 +274,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/#zapp/ok.js?abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #14",
             expect: Some(vec!["./🎉.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -292,12 +288,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/#zapp/🎉.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #15",
             expect: Some(vec!["./%F0%9F%8E%89.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -306,12 +302,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/#zapp/%F0%9F%8E%89.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #16",
             expect: Some(vec!["./ok.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -320,12 +316,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/🎉",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #17",
             expect: Some(vec!["./other.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -334,12 +330,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/%F0%9F%8E%89",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #18",
             expect: Some(vec!["./ok.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -348,12 +344,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/module",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #19",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -362,12 +358,12 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/module#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #20",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/#foo": "./ok.js",
               "#a/module": "./ok.js",
               "#a/🎉": "./ok.js",
@@ -376,88 +372,88 @@ fn test_imports_field_cases() {
               "#a/#zapp/": "./"
             })),
             request: "#a/module?foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #21",
             expect: Some(vec!["./d?e?f"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/a?b?c/": "./"
             })),
             request: "#a/a?b?c/d?e?f",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #22",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "/user/a/"
             })),
             request: "#a/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #1",
             expect: Some(vec!["./A/b/d.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./A/",
               "#a/b/c": "./c.js"
             })),
             request: "#a/b/d.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #2",
             expect: Some(vec!["./A/c.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./A/",
               "#a/b": "./b.js"
             })),
             request: "#a/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #3",
             expect: Some(vec!["./A/b/c/d.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./A/",
               "#a/b/c/d": "./c.js"
             })),
             request: "#a/b/c/d.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #1",
             expect: Some(vec!["./dist/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": "./dist/index.js"
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #2",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./"
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #3",
             expect: Some(vec!["./dist/a.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./dist/",
               "#a/index.js": "./dist/a.js"
             })),
             request: "#a/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #4",
             expect: Some(vec!["./index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "browser": [
                   "./browser/"
@@ -468,12 +464,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #5",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "browser": [
                   "./browser/"
@@ -484,12 +480,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #6",
             expect: Some(vec!["./index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": {
                 "browser": "./index.js",
                 "node": "./src/node/index.js",
@@ -497,12 +493,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #7",
             expect: Some(vec!["./src/index.js"]), // `enhanced_resolve` is `None`
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": {
                 "default": "./src/index.js",
                 "browser": "./index.js",
@@ -510,12 +506,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #8",
             expect: Some(vec!["./src/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": {
                 "browser": "./index.js",
                 "node": "./src/node/index.js",
@@ -523,57 +519,57 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #9",
             expect: Some(vec!["./index"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": "./index"
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #10",
             expect: Some(vec!["./index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/index": "./index.js"
             })),
             request: "#a/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #11",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": "b"
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #12",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "b/"
             })),
             request: "#a/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #13",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a?q=a#hashishere": "b#anotherhashishere"
             })),
             request: "#a?q=a#hashishere",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct and conditional mapping #1",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -587,12 +583,12 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct and conditional mapping #2",
             expect: Some(vec!["./import.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -606,12 +602,12 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import"],
+            conditions: vec!["import"],
         },
         TestCase {
             name: "Direct and conditional mapping #3",
             expect: Some(vec!["./require.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -625,13 +621,13 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #3",
             expect: Some(vec!["./import.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -642,12 +638,12 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./require.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -666,13 +662,13 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./import.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -686,13 +682,13 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": [
                 {
                   "browser": "./browser.js"
@@ -705,118 +701,118 @@ fn test_imports_field_cases() {
               ]
             })),
             request: "#a",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         TestCase {
             name: "mapping to a folder root #1",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#timezones": "./data/timezones/"
             })),
             request: "#timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #2",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#timezones/": "./data/timezones"
             })),
             request: "#timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #3",
             expect: Some(vec!["./data/timezones/pdt/index.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#timezones/pdt/": "./data/timezones/pdt/"
             })),
             request: "#timezones/pdt/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #4",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./timezones/"
             })),
             request: "#a/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #5",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./"
             })),
             request: "#a/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #6",
             expect: None,
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "."
             })),
             request: "#a/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #7",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a": "./"
             })),
             request: "#a/timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #1",
             expect: Some(vec!["./lib/index.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": "./",
               "#a/dist/": "./lib/"
             })),
             request: "#a/dist/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #2",
             expect: Some(vec!["./dist/utils/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/dist/utils/": "./dist/utils/",
               "#a/dist/": "./lib/"
             })),
             request: "#a/dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #3",
             expect: Some(vec!["./dist/utils/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/dist/utils/index.js": "./dist/utils/index.js",
               "#a/dist/utils/": "./dist/utils/index.mjs",
               "#a/dist/": "./lib/"
             })),
             request: "#a/dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #4",
             expect: Some(vec!["./lib/index.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "browser": "./browser/"
               },
               "#a/dist/": "./lib/"
             })),
             request: "#a/dist/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "conditional mapping folder #1",
             expect: Some(vec!["./utils/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "browser": [
                   "lodash/",
@@ -828,13 +824,13 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "conditional mapping folder #1",
             expect: Some(vec!["./utils/index.js"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "browser": [
                   "./utils/"
@@ -845,12 +841,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "conditional mapping folder #2",
             expect: Some(vec![]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "webpack": "./wpk/",
                 "browser": [
@@ -863,12 +859,12 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "conditional mapping folder #3",
             expect: Some(vec!["./wpk/index.mjs"]),
-            imports_field: imports_field(&json!({
+            imports: imports_field(&json!({
               "#a/": {
                 "webpack": "./wpk/",
                 "browser": [
@@ -881,7 +877,7 @@ fn test_imports_field_cases() {
               }
             })),
             request: "#a/index.mjs",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
     ];
 
@@ -894,11 +890,11 @@ fn test_imports_field_cases() {
         let resolved_path = resolver
             .package_imports_exports_resolve(
                 case.request,
-                &case.imports_field,
+                &case.imports,
                 &cached_path,
                 true,
                 &case
-                    .condition_names
+                    .conditions
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>(),

@@ -155,7 +155,7 @@ fn test_symlinks_resolution() {
         return;
     };
     let resolver_without_symlinks = TestResolver::new(ResolveOptions {
-        symlinks: false,
+        canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
     let resolver_with_symlinks = TestResolver::default();

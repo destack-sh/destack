@@ -145,7 +145,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         ctx: &mut ResolutionContext,
     ) -> Result<Resolution, ResolveError> {
-        ctx.is_fully_specified = self.options.fully_specified;
+        ctx.is_fully_specified = self.options.is_fully_specified;
 
         let cached_path = self.cache.value(path);
         let cached_path = self.require(&cached_path, specifier, ctx)?;
@@ -508,8 +508,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .cache
             .get_package_json(cached_path, &self.options, ctx)?
         {
-            // check main fields
-            for main_field in package_json.main_fields(&self.options.main_fields) {
+            if let Some(main_field) = package_json.main.as_deref() {
                 let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
                     Cow::Borrowed(main_field)
                 } else {
@@ -530,15 +529,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 }
             }
 
-            // allow `exports` field in `require('../directory')`.
-            // this is not part of the spec but some vite projects rely on this behavior.
-            if self.options.allow_package_exports_in_directory_resolve {
-                for exports in package_json.exports_fields(&self.options.exports_fields) {
-                    if let Some(path) =
-                        self.package_exports_resolve(cached_path, ".", &exports, ctx)?
-                    {
-                        return Ok(Some(path));
-                    }
+            // allow `exports` field in `require('../directory')`
+            if let Some(exports) = package_json.exports.as_ref() {
+                let entry = ImportsExportsEntry(exports);
+                if let Some(path) = self.package_exports_resolve(cached_path, ".", &entry, ctx)? {
+                    return Ok(Some(path));
                 }
             }
         }
@@ -599,7 +594,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
     /// Loads the real path (resolving symlinks if needed).
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        if self.options.symlinks {
+        if self.options.canonicalize_symlinks {
             self.cache.canonicalize(cached_path)
         } else {
             Ok(cached_path.to_path_buf())
@@ -661,9 +656,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
-        if !self.options.alias_fields.is_empty()
-            && let Some(package_json) =
-                cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
+        if let Some(package_json) =
+            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
             && let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)?
         {
             return Ok(Some(path));
@@ -808,12 +802,14 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(None);
         };
 
-        // check exports field
-        for exports in package_json.exports_fields(&self.options.exports_fields) {
-            if let Some(path) =
-                self.package_exports_resolve(cached_path, &format!(".{subpath}"), &exports, ctx)?
-            {
-                // resolve esm match
+        if let Some(exports) = package_json.exports.as_ref() {
+            let exports_entry = ImportsExportsEntry(exports);
+            if let Some(path) = self.package_exports_resolve(
+                cached_path,
+                &format!(".{subpath}"),
+                &exports_entry,
+                ctx,
+            )? {
                 return self.resolve_esm_match(specifier, &path, ctx);
             }
         }
@@ -837,19 +833,16 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // check if the package name matches the specifier
         if let Some(subpath) = package_json
-            .name()
-            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
+            .name
+            .as_ref()
+            .and_then(|package_name| Self::strip_package_name(specifier, package_name.as_str()))
         {
-            // resolve exports
             let package_url = self.cache.value(package_json.path.parent().unwrap());
-            for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(cached_path) = self.package_exports_resolve(
-                    &package_url,
-                    &format!(".{subpath}"),
-                    &exports,
-                    ctx,
-                )? {
-                    // resolve esm match
+            if let Some(exports) = package_json.exports.as_ref() {
+                let entry = ImportsExportsEntry(exports);
+                if let Some(cached_path) =
+                    self.package_exports_resolve(&package_url, &format!(".{subpath}"), &entry, ctx)?
+                {
                     return self.resolve_esm_match(specifier, &cached_path, ctx);
                 }
             }
@@ -887,11 +880,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let path = cached_path.path();
-        let Some(new_specifier) = package_json.resolve_browser_field(
-            path,
-            module_specifier,
-            &self.options.alias_fields,
-        )?
+        let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
         else {
             return Ok(None);
         };
@@ -1414,28 +1403,27 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         self.cache
                             .get_package_json(&cached_path, &self.options, ctx)?
                     {
-                        // if the package has exports, resolve against them
-                        for exports in package_json.exports_fields(&self.options.exports_fields) {
+                        if let Some(exports) = package_json.exports.as_ref() {
+                            let entry = ImportsExportsEntry(exports);
                             if let Some(path) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
-                                &exports,
+                                &entry,
                                 ctx,
                             )? {
                                 return Ok(Some(path));
                             }
                         }
 
-                        // fallback to main field if subpath is root
-                        if subpath == "." {
-                            for main_field in package_json.main_fields(&self.options.main_fields) {
-                                let cached_path =
-                                    cached_path.normalize_with(main_field, self.cache.as_ref());
-                                if self.cache.is_file(&cached_path, ctx)
-                                    && self.check_restrictions(cached_path.path())
-                                {
-                                    return Ok(Some(cached_path));
-                                }
+                        if subpath == "."
+                            && let Some(main_field) = package_json.main.as_deref()
+                        {
+                            let cached_path =
+                                cached_path.normalize_with(main_field, self.cache.as_ref());
+                            if self.cache.is_file(&cached_path, ctx)
+                                && self.check_restrictions(cached_path.path())
+                            {
+                                return Ok(Some(cached_path));
                             }
                         }
                     }
@@ -1460,7 +1448,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         exports: &ImportsExportsEntry<'_>,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
-        let conditions = &self.options.condition_names;
+        let conditions = &self.options.conditions;
 
         // validate exports: cannot mix starting with "." and not starting with "."
         if let Some(map) = exports.as_map() {
@@ -1537,7 +1525,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             subpath: subpath.to_string(),
             package_path: package_url.path().to_path_buf(),
             package_json_path: package_url.path().join("package.json"),
-            conditions: self.options.condition_names.clone().into(),
+            conditions: self.options.conditions.clone().into(),
         })
     }
 
@@ -1550,41 +1538,33 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ) -> Result<Option<CachedPath>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
-        // validate specifier
-        let mut has_imports = false;
-        for imports in package_json.imports_fields(&self.options.imports_fields) {
-            if !has_imports {
-                has_imports = true;
-                if specifier == "#" || specifier.starts_with("#/") {
-                    return Err(ResolveError::InvalidModuleSpecifier {
-                        specifier: specifier.to_string(),
-                        package_path: package_json.path().to_path_buf(),
-                    });
-                }
-            }
+        let Some(imports) = package_json.imports.as_ref() else {
+            return Ok(None);
+        };
 
-            // resolve imports exports
-            if let Some(path) = self.package_imports_exports_resolve(
-                specifier,
-                &imports,
-                &self.cache.value(package_json.directory()),
-                /* is_imports */ true,
-                &self.options.condition_names,
-                ctx,
-            )? {
-                return Ok(Some(path));
-            }
-        }
-
-        // package import not defined
-        if has_imports {
-            Err(ResolveError::PackageImportNotDefined {
+        if specifier == "#" || specifier.starts_with("#/") {
+            return Err(ResolveError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
                 package_path: package_json.path().to_path_buf(),
-            })
-        } else {
-            Ok(None)
+            });
         }
+
+        let imports_map = ImportsExportsMap(imports);
+        if let Some(path) = self.package_imports_exports_resolve(
+            specifier,
+            &imports_map,
+            &self.cache.value(package_json.directory()),
+            /* is_imports */ true,
+            &self.options.conditions,
+            ctx,
+        )? {
+            return Ok(Some(path));
+        }
+
+        Err(ResolveError::PackageImportNotDefined {
+            specifier: specifier.to_string(),
+            package_path: package_json.path().to_path_buf(),
+        })
     }
 
     /// Implements `PACKAGE_IMPORTS_EXPORTS_RESOLVE` (matchKey, matchObj, packageURL, isImports, conditions).
@@ -1772,7 +1752,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     subpath: pattern_match.unwrap_or(".").to_string(),
                     package_path: package_url.path().to_path_buf(),
                     package_json_path: package_url.path().join("package.json"),
-                    conditions: self.options.condition_names.clone().into(),
+                    conditions: self.options.conditions.clone().into(),
                 });
             }
             for (i, target_value) in targets.iter().enumerate() {

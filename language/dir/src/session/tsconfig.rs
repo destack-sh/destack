@@ -676,7 +676,7 @@ impl TypeScriptProjectReference {
 
 impl TypeScriptOptions {
     /// Parses the tsconfig from a JSON string.
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
+    pub fn parse(is_root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         let stripped = strip_json(json).map_err(serde_json::Error::io)?;
         let json = if stripped.trim().is_empty() {
@@ -685,7 +685,7 @@ impl TypeScriptOptions {
             Cow::Owned(stripped)
         };
         let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
-        tsconfig.is_root = root;
+        tsconfig.is_root = is_root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
     }

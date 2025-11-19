@@ -2,18 +2,50 @@ use core::fmt;
 use std::path::{Path, PathBuf};
 
 use dyst_source::{FileSystem, PathExt};
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{Map, Value};
 
 use crate::resolve::{JSONError, ResolveError};
 
 /// Package options (from `package.json`).
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageOptions {
     /// Path to `package.json` (including the `package.json` filename).
+    #[serde(skip)]
     pub path: PathBuf,
+
     /// Realpath of `package.json` (including the `package.json` filename).
+    #[serde(skip)]
     pub realpath: PathBuf,
-    /// Parsed JSON value from `package.json`.
-    value: Value,
+
+    /// Name of the package.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#name>
+    pub name: Option<String>,
+
+    /// Version of the package.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#version>
+    pub version: Option<String>,
+
+    /// Package type.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#type>
+    pub r#type: Option<PackageType>,
+
+    /// The "main" field.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
+    pub main: Option<String>,
+
+    /// The "exports" field.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#exports>
+    pub exports: Option<Value>,
+
+    /// The "imports" field.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#imports>
+    pub imports: Option<Map<String, Value>>,
+
+    /// The "browser" field.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#browser>
+    pub browser: Option<Value>,
 }
 
 impl fmt::Debug for PackageOptions {
@@ -21,8 +53,8 @@ impl fmt::Debug for PackageOptions {
         f.debug_struct("PackageOptions")
             .field("path", &self.path)
             .field("realpath", &self.realpath)
-            .field("name", &self.name())
-            .field("type", &self.r#type())
+            .field("name", &self.name)
+            .field("type", &self.r#type)
             .finish_non_exhaustive()
     }
 }
@@ -45,119 +77,6 @@ impl PackageOptions {
             .expect("package.json file must have a parent directory")
     }
 
-    /// Name of the package.
-    pub fn name(&self) -> Option<&str> {
-        self.value
-            .as_object()
-            .and_then(|obj| obj.get("name"))
-            .and_then(|v| v.as_str())
-    }
-
-    /// Version of the package.
-    /// <https://nodejs.org/api/packages.html#version>
-    pub fn version(&self) -> Option<&str> {
-        self.value
-            .as_object()
-            .and_then(|obj| obj.get("version"))
-            .and_then(|v| v.as_str())
-    }
-
-    /// Returns the package type, if one is configured in the `package.json`.
-    /// <https://nodejs.org/api/packages.html#type>
-    pub fn r#type(&self) -> Option<PackageType> {
-        self.value
-            .as_object()
-            .and_then(|obj| obj.get("type"))
-            .and_then(|v| v.as_str())
-            .and_then(PackageType::from_str)
-    }
-
-    /// The "sideEffects" field.
-    /// <https://webpack.js.org/guides/tree-shaking>
-    pub fn side_effects(&self) -> Option<SideEffects<'_>> {
-        self.value
-            .as_object()
-            .and_then(|obj| obj.get("sideEffects"))
-            .and_then(|value| match value {
-                Value::Bool(b) => Some(SideEffects::Bool(*b)),
-                Value::String(s) => Some(SideEffects::String(s.as_str())),
-                Value::Array(arr) => {
-                    let strings: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
-                    Some(SideEffects::Array(strings))
-                }
-                _ => None,
-            })
-    }
-
-    /// The "exports" field allows defining the entry points of a package.
-    /// <https://nodejs.org/api/packages.html#exports>
-    pub fn exports(&self) -> Option<ImportsExportsEntry<'_>> {
-        self.value
-            .as_object()
-            .and_then(|obj| obj.get("exports"))
-            .map(ImportsExportsEntry)
-    }
-
-    /// The "main" field defines the entry point of a package when imported by
-    /// name via a node_modules lookup. Its value should be a path.
-    ///
-    /// When a package has an "exports" field, this will take precedence over
-    /// the "main" field when importing the package by name.
-    ///
-    /// Values are dynamically retrieved from [crate::ResolveOptions::main_fields].
-    ///
-    /// <https://nodejs.org/api/packages.html#main>
-    pub fn main_fields<'a>(
-        &'a self,
-        main_fields: &'a [String],
-    ) -> impl Iterator<Item = &'a str> + 'a {
-        let json_object = self.value.as_object();
-
-        main_fields
-            .iter()
-            .filter_map(move |main_field| json_object.and_then(|obj| obj.get(main_field.as_str())))
-            .filter_map(|v| v.as_str())
-    }
-
-    /// The "exports" field allows defining the entry points of a package when
-    /// imported by name loaded either via a node_modules lookup or a
-    /// self-reference to its own name.
-    ///
-    /// <https://nodejs.org/api/packages.html#exports>
-    pub fn exports_fields<'a>(
-        &'a self,
-        exports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = ImportsExportsEntry<'a>> + 'a {
-        exports_fields
-            .iter()
-            .filter_map(move |object_path| {
-                self.value
-                    .as_object()
-                    .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-            })
-            .map(ImportsExportsEntry)
-    }
-
-    /// In addition to the "exports" field, there is a package "imports" field
-    /// to create private mappings that only apply to import specifiers from
-    /// within the package itself.
-    ///
-    /// <https://nodejs.org/api/packages.html#subpath-imports>
-    pub fn imports_fields<'a>(
-        &'a self,
-        imports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = ImportsExportsMap<'a>> + 'a {
-        imports_fields
-            .iter()
-            .filter_map(move |object_path| {
-                self.value
-                    .as_object()
-                    .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-                    .and_then(|v| v.as_object())
-            })
-            .map(ImportsExportsMap)
-    }
-
     /// Resolves the request string for this `package.json` by looking at the
     /// "browser" field.
     ///
@@ -166,9 +85,8 @@ impl PackageOptions {
         &'a self,
         path: &Path,
         request: Option<&str>,
-        alias_fields: &'a [Vec<String>],
     ) -> Result<Option<&'a str>, ResolveError> {
-        for object in self.browser_fields(alias_fields) {
+        if let Some(object) = self.browser.as_ref().and_then(|v| v.as_object()) {
             if let Some(request) = request {
                 // Find matching key in object
                 if let Some(value) = object.get(request) {
@@ -201,58 +119,29 @@ impl PackageOptions {
             &json[..]
         };
 
-        // Check if empty after BOM stripping
-        check_if_empty(json_bytes, path.clone())?;
+        // check if content is empty or whitespace-only
+        if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
+            return Err(JSONError {
+                path: path.clone(),
+                message: "File is empty".to_string(),
+                line: 0,
+                column: 0,
+            });
+        }
 
         // Parse JSON directly from bytes
-        let value = serde_json::from_slice::<Value>(json_bytes).map_err(|error| JSONError {
-            path: path.clone(),
-            message: error.to_string(),
-            line: error.line(),
-            column: error.column(),
-        })?;
+        let mut options: PackageOptions =
+            serde_json::from_slice(json_bytes).map_err(|error| JSONError {
+                path: path.clone(),
+                message: error.to_string(),
+                line: error.line(),
+                column: error.column(),
+            })?;
 
-        Ok(Self {
-            path,
-            realpath,
-            value,
-        })
-    }
+        options.path = path;
+        options.realpath = realpath;
 
-    fn get_value_by_path<'a>(
-        fields: &'a serde_json::Map<String, Value>,
-        path: &[String],
-    ) -> Option<&'a Value> {
-        if path.is_empty() {
-            return None;
-        }
-        let mut value = fields.get(path[0].as_str())?;
-
-        for key in path.iter().skip(1) {
-            if let Some(obj) = value.as_object() {
-                value = obj.get(key.as_str())?;
-            } else {
-                return None;
-            }
-        }
-        Some(value)
-    }
-
-    /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
-    /// Multiple values are configured by [ResolveOptions::alias_fields].
-    /// <https://github.com/defunctzombie/package-browser-field-spec>
-    pub fn browser_fields<'a>(
-        &'a self,
-        alias_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a serde_json::Map<String, Value>> + 'a {
-        alias_fields.iter().filter_map(move |object_path| {
-            self.value
-                .as_object()
-                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-                // Only object is valid, all other types are invalid
-                // https://github.com/webpack/enhanced-resolve/blob/3a28f47788de794d9da4d1702a3a583d8422cd48/lib/AliasFieldPlugin.js#L44-L52
-                .and_then(|value| value.as_object())
-        })
+        Ok(options)
     }
 
     pub fn alias_value<'a>(key: &Path, value: &'a Value) -> Result<Option<&'a str>, ResolveError> {
@@ -356,38 +245,15 @@ impl<'a> ImportsExportsMap<'a> {
     }
 }
 
-/// Check if JSON content is empty or contains only whitespace
-fn check_if_empty(json_bytes: &[u8], path: PathBuf) -> Result<(), JSONError> {
-    // Check if content is empty or whitespace-only
-    if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
-        return Err(JSONError {
-            path,
-            message: "File is empty".to_string(),
-            line: 0,
-            column: 0,
-        });
-    }
-    Ok(())
-}
-
 /// The package type.
 /// <https://nodejs.org/api/packages.html#type>
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum PackageType {
     /// CommonJS package.
     CommonJs,
     /// Module package.
     Module,
-}
-
-impl PackageType {
-    pub(super) fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "commonjs" => Some(Self::CommonJs),
-            "module" => Some(Self::Module),
-            _ => None,
-        }
-    }
 }
 
 impl fmt::Display for PackageType {

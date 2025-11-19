@@ -16,8 +16,8 @@ fn test_resolve_exports_field_simple() {
 
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        fully_specified: true,
-        condition_names: vec!["webpack".into()],
+        is_fully_specified: true,
+        conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
 
@@ -79,8 +79,7 @@ fn test_resolve_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        condition_names: vec!["webpack".into()],
+        conditions: vec!["webpack".into()],
         extensions: vec![".js".into()],
         ..ResolveOptions::default()
     });
@@ -100,9 +99,8 @@ fn test_resolve_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
         extensions: vec![".js".into()],
-        condition_names: vec!["node".into()],
+        conditions: vec!["node".into()],
         ..ResolveOptions::default()
     });
 
@@ -122,7 +120,7 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
 
     let commonjs_resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        condition_names: vec!["webpack".into()],
+        conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
 
@@ -135,121 +133,6 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
     );
 }
 
-/// Test nested exports field paths.
-#[test]
-fn test_resolve_exports_field_name_path() {
-    let f2 = super::fixture().join("exports-field2");
-    let f3 = super::fixture().join("exports-field3");
-
-    // field name path #1 #2 #3
-    let exports_fields = [
-        vec![vec!["exportsField".into(), "exports".into()]],
-        vec![
-            vec!["exportsField".into(), "exports".into()],
-            vec!["exports".into()],
-        ],
-        vec![
-            vec!["exports".into()],
-            vec!["exportsField".into(), "exports".into()],
-        ],
-    ];
-
-    for exports_fields in exports_fields {
-        let resolver = PhysicalResolver::new(ResolveOptions {
-            alias_fields: vec![vec!["browser".into()]],
-            exports_fields,
-            extensions: vec![".js".into()],
-            ..ResolveOptions::default()
-        });
-        let resolved_path = resolver
-            .resolve(&f3, "exports-field")
-            .map(|r| r.full_path());
-        assert_eq!(
-            resolved_path,
-            Ok(f3.join("node_modules/exports-field/main.js"))
-        );
-    }
-
-    // field name path #4
-    let resolver = PhysicalResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        exports_fields: vec![vec!["exports".into()]],
-        extensions: vec![".js".into()],
-        ..ResolveOptions::default()
-    });
-    let resolved_path = resolver
-        .resolve(&f2, "exports-field")
-        .map(|r| r.full_path());
-    assert_eq!(
-        resolved_path,
-        Ok(f2.join("node_modules/exports-field/index.js"))
-    );
-
-    // field name path #5
-    let resolver = PhysicalResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        exports_fields: vec![
-            vec!["ex".into()],
-            vec!["exports_field".into(), "exports".into()],
-        ],
-        extensions: vec![".js".into()],
-        ..ResolveOptions::default()
-    });
-    let resolved_path = resolver
-        .resolve(&f3, "exports-field")
-        .map(|r| r.full_path());
-    assert_eq!(
-        resolved_path,
-        Ok(f3.join("node_modules/exports-field/index"))
-    );
-
-    // non-compliant export targeting a directory
-    let resolver = PhysicalResolver::new(ResolveOptions {
-        exports_fields: vec![vec!["broken".into()]],
-        extensions: vec![".js".into()],
-        ..ResolveOptions::default()
-    });
-    let resolved_path = resolver
-        .resolve(&f3, "exports-field")
-        .map(|r| r.full_path());
-    assert_eq!(
-        resolved_path,
-        Ok(f3.join("node_modules/exports-field/src/index.js"))
-    );
-}
-
-/// Test shared resolvers with exports field.
-#[test]
-fn test_resolve_exports_field_shared_resolvers() {
-    let f3 = super::fixture().join("exports-field3");
-
-    let resolver1 = PhysicalResolver::new(ResolveOptions {
-        exports_fields: vec![vec!["exportsField".into(), "exports".into()]],
-        extensions: vec![".js".into()],
-        ..ResolveOptions::default()
-    });
-    let resolved_path = resolver1
-        .resolve(&f3, "exports-field")
-        .map(|r| r.full_path());
-    assert_eq!(
-        resolved_path,
-        Ok(f3.join("node_modules/exports-field/main.js"))
-    );
-
-    let resolver2 = resolver1.clone_with_options(ResolveOptions {
-        exports_fields: vec![vec!["ex".into()]],
-        extensions: vec![".js".into()],
-        ..ResolveOptions::default()
-    });
-    let resolved_path = resolver2
-        .resolve(&f3, "exports-field")
-        .map(|r| r.full_path());
-    assert_eq!(
-        resolved_path,
-        Ok(f3.join("node_modules/exports-field/index"))
-    );
-}
-
 /// Test exports field with extension alias.
 #[test]
 fn test_resolve_exports_field_extension_alias() {
@@ -258,8 +141,8 @@ fn test_resolve_exports_field_extension_alias() {
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: vec![(".js".into(), vec![".ts".into(), ".js".into()])],
-        fully_specified: true,
-        condition_names: vec!["webpack".into(), "default".into()],
+        is_fully_specified: true,
+        conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
 
@@ -292,8 +175,8 @@ fn test_resolve_exports_field_extension_alias_complex() {
                 ".js".into(),
             ],
         )],
-        fully_specified: true,
-        condition_names: vec!["webpack".into(), "default".into()],
+        is_fully_specified: true,
+        conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
 
@@ -316,22 +199,19 @@ fn test_resolve_exports_field_extension_alias_error() {
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: vec![(".js".into(), vec![".ts".into()])],
-        fully_specified: true,
-        condition_names: vec!["webpack".into(), "default".into()],
+        is_fully_specified: true,
+        conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
 
     #[rustfmt::skip]
     let fail = [
-        // enhanced-resolve has two test cases that are exactly the same here
         // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/test/exportsField.test.js#L2976-L3024
         ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAlias {
             filename: "string.js".into(),
             tried: "string.ts".into(),
             dir: f.join("node_modules/pkg/dist")
         }),
-        // TODO: The error is PackagePathNotExported in enhanced-resolve
-        // ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::PackagePathNotExported("node_modules/pkg/dist/string.ts".to_string())),
     ];
 
     for (comment, path, request, error) in fail {
@@ -344,10 +224,7 @@ fn test_resolve_exports_field_extension_alias_error() {
 #[test]
 fn test_resolve_exports_field_directory() {
     let f = super::fixture();
-    let resolver = PhysicalResolver::new(ResolveOptions {
-        allow_package_exports_in_directory_resolve: true,
-        ..ResolveOptions::default()
-    });
+    let resolver = PhysicalResolver::new(ResolveOptions::default());
     let resolution = resolver.resolve(f.join("foo"), "../exports-field");
     let path = resolution.unwrap().full_path();
     assert_eq!(path, f.join("exports-field").join("a.js"));
@@ -357,9 +234,9 @@ struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: ImportsExportsEntry<'static>,
+    exports: ImportsExportsEntry<'static>,
     request: &'static str,
-    condition_names: Vec<&'static str>,
+    conditions: Vec<&'static str>,
 }
 
 fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
@@ -375,7 +252,7 @@ fn test_resolve_exports_field_cases() {
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./foo/": {
                     "import": [
                         "./dist/",
@@ -386,13 +263,13 @@ fn test_resolve_exports_field_cases() {
                 ".": "./main.js"
             })),
             request: "./foo/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./src/test/file.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./foo/": {
                     "import": [
                         "./src/"
@@ -402,12 +279,12 @@ fn test_resolve_exports_field_cases() {
                 ".": "./main.js"
             })),
             request: "./foo/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         TestCase {
             name: "sample #1 (wildcard)",
             expect: Some(vec!["./dist/test/file.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./foo/*": {
                     "import": [
                         "./dist/*",
@@ -418,13 +295,13 @@ fn test_resolve_exports_field_cases() {
                 ".": "./main.js"
             })),
             request: "./foo/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "sample #1 (wildcard)",
             expect: Some(vec!["./src/test/file.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./foo/*": {
                     "import": [
                         "./src/*"
@@ -434,48 +311,48 @@ fn test_resolve_exports_field_cases() {
                 ".": "./main.js"
             })),
             request: "./foo/test/file.js",
-            condition_names: vec!["import", "webpack"],
+            conditions: vec!["import", "webpack"],
         },
         TestCase {
             name: "sample #2",
             expect: Some(vec!["./data/timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones/": "./data/timezones/"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #2 (wildcard)",
             expect: Some(vec!["./data/timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones/*": "./data/timezones/*"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #3",
             expect: Some(vec!["./data/timezones/timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./data/timezones/"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #3 (wildcard)",
             expect: Some(vec!["./data/timezones/timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./data/timezones/*"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #4",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/": {
                     "browser": [
                         "./browser/"
@@ -486,12 +363,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "sample #5",
             expect: Some(vec!["./browser/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/": {
                     "browser": [
                         "./browser/"
@@ -503,66 +380,66 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "sample #6",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/a": "./dist/index.js"
             })),
             request: "./dist/aaa",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #6 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/a*": "./dist/index.js"
             })),
             request: "./dist/aaa",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #7",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/a/": "./dist/index.js"
             })),
             request: "./a/a/a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #7 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/a/*": "./dist/index.js"
             })),
             request: "./a/a/a",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #8",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": "./index.js"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #9",
             expect: Some(vec!["./main.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./index.js": "./main.js"
             })),
             request: "./index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #10",
             expect: Some(vec!["./ok.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -571,12 +448,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #11",
             expect: Some(vec!["./ok.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -585,12 +462,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./bar#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #12",
             expect: Some(vec!["./ok.js#abc"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -599,12 +476,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./#zapp/ok.js#abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #12 (wildcard)",
             expect: Some(vec!["./ok.js#abc"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -613,12 +490,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/*": "./*"
             })),
             request: "./#zapp/ok.js#abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #13",
             expect: Some(vec!["./ok.js?abc"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -627,12 +504,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./#zapp/ok.js?abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #13 (wildcard)",
             expect: Some(vec!["./ok.js?abc"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -641,12 +518,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/*": "./*"
             })),
             request: "./#zapp/ok.js?abc",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #14",
             expect: Some(vec!["./🎉.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -655,12 +532,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./#zapp/🎉.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #14 (wildcard)",
             expect: Some(vec!["./🎉.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -669,12 +546,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/*": "./*"
             })),
             request: "./#zapp/🎉.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #15",
             expect: Some(vec!["./%F0%9F%8E%89.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -683,12 +560,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./#zapp/%F0%9F%8E%89.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #15 (wildcard)",
             expect: Some(vec!["./%F0%9F%8E%89.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -697,12 +574,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/*": "./*"
             })),
             request: "./#zapp/%F0%9F%8E%89.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #16",
             expect: Some(vec!["./ok.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -711,12 +588,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./🎉",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #17",
             expect: Some(vec!["./other.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -725,12 +602,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./%F0%9F%8E%89",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #18",
             expect: Some(vec!["./ok.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -739,12 +616,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./module",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #19",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -753,12 +630,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./module#foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #20",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -767,12 +644,12 @@ fn test_resolve_exports_field_cases() {
                 "./#zapp/": "./"
             })),
             request: "./module?foo",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #21",
             expect: Some(vec!["./zizizi"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./#foo": "./ok.js",
                 "./module": "./ok.js",
                 "./🎉": "./ok.js",
@@ -782,53 +659,53 @@ fn test_resolve_exports_field_cases() {
                 "./#zipp*": "./z*z*z*"
             })),
             request: "./#zippi",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "sample #22",
             expect: Some(vec!["./d?e?f"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a?b?c/": "./"
             })),
             request: "./a?b?c/d?e?f",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #1",
             expect: Some(vec!["./dist/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": "./dist/index.js"
             })),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #2",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./",
                 "./*": "./*",
                 "./dist/index.js": "./dist/index.js"
             })),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #3",
             expect: Some(vec!["./dist/a.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/": "./dist/",
                 "./dist/*": "./dist/*",
                 "./dist*": "./dist*",
                 "./dist/index.js": "./dist/a.js"
             })),
             request: "./dist/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #4",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": {
                     "browser": [
                         "./browser/"
@@ -844,12 +721,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #5",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": {
                     "browser": [
                         "./browser/"
@@ -865,12 +742,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #6",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": {
                     "browser": "./index.js",
                     "node": "./src/node/index.js",
@@ -878,12 +755,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #7",
             expect: Some(vec!["./src/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": {
                     "default": "./src/index.js",
                     "browser": "./index.js",
@@ -891,12 +768,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "Direct mapping #8",
             expect: Some(vec!["./src/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": {
                     "browser": "./index.js",
                     "node": "./src/node/index.js",
@@ -904,72 +781,72 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #9",
             expect: Some(vec!["./index"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": "./index"
             })),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #10",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./index": "./index.js"
             })),
             request: "./index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #11",
             expect: Some(vec!["./foo.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./",
                 "./*": "./*",
                 "./dist/index.js": "./dist/index.js"
             })),
             request: "./foo.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #12",
             expect: Some(vec!["./foo/bar/baz.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./",
                 "./*": "./*",
                 "./dist/index.js": "./dist/index.js"
             })),
             request: "./foo/bar/baz.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #13",
             expect: Some(vec!["./foo/bar/baz.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./",
                 "./dist/index.js": "./dist/index.js"
             })),
             request: "./foo/bar/baz.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct mapping #14",
             expect: Some(vec!["./foo/bar/baz.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./*",
                 "./dist/index.js": "./dist/index.js"
             })),
             request: "./foo/bar/baz.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct and conditional mapping #1",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [{
                     "browser": "./browser.js"
                 }, {
@@ -979,12 +856,12 @@ fn test_resolve_exports_field_cases() {
                 }]
             })),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "Direct and conditional mapping #2",
             expect: Some(vec!["./import.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [{
                     "browser": "./browser.js"
                 }, {
@@ -994,12 +871,12 @@ fn test_resolve_exports_field_cases() {
                 }]
             })),
             request: ".",
-            condition_names: vec!["import"],
+            conditions: vec!["import"],
         },
         TestCase {
             name: "Direct and conditional mapping #3",
             expect: Some(vec!["./require.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [
                 {
                     "browser": "./browser.js"
@@ -1013,13 +890,13 @@ fn test_resolve_exports_field_cases() {
                 ]
             })),
             request: ".",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #3",
             expect: Some(vec!["./import.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [{
                     "browser": "./browser.js"
                 }, {
@@ -1027,12 +904,12 @@ fn test_resolve_exports_field_cases() {
                 }]
             })),
             request: ".",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./require.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [{
                     "browser": "./browser.js"
                 }, {
@@ -1047,13 +924,13 @@ fn test_resolve_exports_field_cases() {
                 }]
             })),
             request: ".",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./import.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [
                 {
                     "browser": "./browser.js"
@@ -1067,13 +944,13 @@ fn test_resolve_exports_field_cases() {
                 ]
             })),
             request: ".",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./import.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": [
                 {
                     "browser": "./browser.js"
@@ -1086,207 +963,207 @@ fn test_resolve_exports_field_cases() {
                 ]
             })),
             request: ".",
-            condition_names: vec!["import", "require"],
+            conditions: vec!["import", "require"],
         },
         TestCase {
             name: "mapping to a folder root #1",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones": "./data/timezones/"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #2",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones/": "./data/timezones"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #3",
             expect: Some(vec!["./data/timezones/pdt/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones/pdt/": "./data/timezones/pdt/"
             })),
             request: "./timezones/pdt/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #3 (wildcard)",
             expect: Some(vec!["./data/timezones/pdt/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./timezones/pdt/*": "./data/timezones/pdt/*"
             })),
             request: "./timezones/pdt/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #4",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./timezones/"
             })),
             request: "./pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #4 (wildcard)",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./timezones/*"
             })),
             request: "./pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #5",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #5 (wildcard)",
             expect: Some(vec!["./timezones/pdt.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./*"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #6",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "."
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #6 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "."
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #7",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": "./"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "mapping to a folder root #7 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 ".": "./*"
             })),
             request: "./timezones/pdt.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #1",
             expect: Some(vec!["./lib/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./",
                 "./dist/": "./lib/"
             })),
             request: "./dist/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #1 (wildcard)",
             expect: Some(vec!["./lib/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./*",
                 "./dist/*": "./lib/*"
             })),
             request: "./dist/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #2",
             expect: Some(vec!["./dist/utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/utils/": "./dist/utils/",
                 "./dist/": "./lib/"
             })),
             request: "./dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #2 (wildcard)",
             expect: Some(vec!["./dist/utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/utils/*": "./dist/utils/*",
                 "./dist/*": "./lib/*"
             })),
             request: "./dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #3",
             expect: Some(vec!["./dist/utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/utils/index.js": "./dist/utils/index.js",
                 "./dist/utils/": "./dist/utils/index.mjs",
                 "./dist/": "./lib/"
             })),
             request: "./dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #3 (wildcard)",
             expect: Some(vec!["./dist/utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./dist/utils/index.js": "./dist/utils/index.js",
                 "./dist/utils/*": "./dist/utils/index.mjs",
                 "./dist/*": "./lib/*"
             })),
             request: "./dist/utils/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #4",
             expect: Some(vec!["./lib/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": {
                     "browser": "./browser/"
                 },
                 "./dist/": "./lib/"
             })),
             request: "./dist/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "the longest matching path prefix is prioritized #4 (wildcard)",
             expect: Some(vec!["./lib/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": {
                     "browser": "./browser/*"
                 },
                 "./dist/*": "./lib/*"
             })),
             request: "./dist/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "conditional mapping folder #1",
             // `lodash/` does not start with './' so fallbacks to util
             expect: Some(vec!["./utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": [
                         "lodash/",
@@ -1298,13 +1175,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "conditional mapping folder #1",
             expect: Some(vec!["./utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": [
                         "./utils/"
@@ -1315,13 +1192,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "conditional mapping folder #1 (wildcard)",
             // `lodash/` does not start with './' so fallbacks to util
             expect: Some(vec!["./utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": [
                         "lodash/*",
@@ -1333,13 +1210,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "conditional mapping folder #1 (wildcard)",
             expect: Some(vec!["./utils/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": [
                         "./utils/*"
@@ -1350,12 +1227,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "conditional mapping folder #2",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "webpack": "./wpk/",
                     "browser": [
@@ -1368,12 +1245,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "conditional mapping folder #2 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "webpack": "./wpk/*",
                     "browser": [
@@ -1386,12 +1263,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "conditional mapping folder #3",
             expect: Some(vec!["./wpk/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "webpack": "./wpk/",
                     "browser": [
@@ -1404,12 +1281,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         TestCase {
             name: "conditional mapping folder #3 (wildcard)",
             expect: Some(vec!["./wpk/index.mjs"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "webpack": "./wpk/*",
                     "browser": [
@@ -1422,330 +1299,330 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         TestCase {
             name: "incorrect exports field #1",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "/utils/": "./a/"
             })),
             request: "./utils/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "incorrect exports field #2",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "/a/"
             })),
             request: "./utils/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "incorrect exports field #3",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "/utils/": {
                     "browser": "./a/",
                     "default": "./b/"
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "incorrect exports field #4",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": "/a/",
                     "default": "/b/"
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "incorrect exports field #4 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": "/a/",
                     "default": "/b/"
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "incorrect exports field #5",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/index": "./a/index.js"
             })),
             request: "./utils/index.mjs",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "incorrect exports field #6",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/index.mjs": "./a/index.js"
             })),
             request: "./utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "incorrect exports field #7",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/index": {
                     "browser": "./a/index.js",
                     "default": "./b/index.js"
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "incorrect exports field #8",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/index.mjs": {
                     "browser": "./a/index.js",
                     "default": "./b/index.js"
                 }
             })),
             request: "./utils/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #1",
             expect: Some(vec!["./dist/index"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./../../utils/": "./dist/"
             })),
             request: "./../../utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #1 (wildcard)",
             expect: Some(vec!["./dist/index"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./../../utils/*": "./dist/*"
             })),
             request: "./../../utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #2",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "../../utils/": "./dist/"
             })),
             request: "../../utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #2 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "../../utils/*": "./dist/*"
             })),
             request: "../../utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #3",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "../src/"
             })),
             request: "./utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #3 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": "../src/*"
             })),
             request: "./utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #6",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/../utils/index": "./src/../index.js"
             })),
             request: "./utils/index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking package base #7",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": "../this/"
                 }
             })),
             request: "./utils/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #7",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": "../this/*"
                 }
             })),
             request: "./utils/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #8",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": "./utils/../"
                 }
             })),
             request: "./utils/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #8 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": "./utils/../*"
                 }
             })),
             request: "./utils/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #9",
             expect: Some(vec!["./dist/index"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./": "./src/../../",
                 "./dist/": "./dist/"
             })),
             request: "./dist/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking package base #9 (wildcard)",
             expect: Some(vec!["./dist/index"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./*": "./src/../../*",
                 "./dist/*": "./dist/*"
             })),
             request: "./dist/index",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "backtracking target folder #1",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "./dist/"
             })),
             request: "./utils/timezone/../../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking target folder #1 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": "./dist/*"
             })),
             request: "./utils/timezone/../../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking target folder #2",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "./dist/"
             })),
             request: "./utils/timezone/../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking target folder #2 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": "./dist/*"
             })),
             request: "./utils/timezone/../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking target folder #3",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "./dist/target/"
             })),
             request: "./utils/../../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "backtracking target folder #3 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": "./dist/target/*"
             })),
             request: "./utils/../../index",
-            condition_names: vec![],
+            conditions: vec![],
         },
         // enhanced-resolve does not handle `node_modules` in target
         TestCase {
             name: "nested node_modules path #1",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": "./node_modules/"
                 }
             })),
             request: "./utils/lodash/dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "nested node_modules path #1 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": "./node_modules/*"
                 }
             })),
             request: "./utils/lodash/dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "nested node_modules path #2",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": "./utils/../node_modules/"
             })),
             request: "./utils/lodash/dist/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "nested node_modules path #2 (wildcard)",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": "./utils/../node_modules/*"
             })),
             request: "./utils/lodash/dist/index.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "nested mapping #1",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": "./",
@@ -1756,12 +1633,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "nested mapping #1 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": "./*",
@@ -1772,12 +1649,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "nested mapping #2",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1791,13 +1668,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #2",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1810,12 +1687,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         TestCase {
             name: "nested mapping #2 (wildcard)",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -1829,13 +1706,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #2 (wildcard)",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -1848,12 +1725,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "webpack"],
+            conditions: vec!["browser", "webpack"],
         },
         TestCase {
             name: "nested mapping #3",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1867,12 +1744,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["webpack"],
+            conditions: vec!["webpack"],
         },
         TestCase {
             name: "nested mapping #3 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -1886,12 +1763,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["webpack"],
+            conditions: vec!["webpack"],
         },
         TestCase {
             name: "nested mapping #4",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1905,12 +1782,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["node", "browser"],
+            conditions: vec!["node", "browser"],
         },
         TestCase {
             name: "nested mapping #4 (wildcard)",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -1924,12 +1801,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["node", "browser"],
+            conditions: vec!["node", "browser"],
         },
         TestCase {
             name: "nested mapping #5",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1947,12 +1824,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node"],
+            conditions: vec!["browser", "node"],
         },
         TestCase {
             name: "nested mapping #5 (wildcard)",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -1970,12 +1847,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node"],
+            conditions: vec!["browser", "node"],
         },
         TestCase {
             name: "nested mapping #6",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -1993,13 +1870,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
+            conditions: vec!["browser", "node", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #6",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/": {
                     "browser": {
                         "webpack": [
@@ -2016,12 +1893,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
+            conditions: vec!["browser", "node", "webpack"],
         },
         TestCase {
             name: "nested mapping #6 (wildcard)",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -2039,13 +1916,13 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
+            conditions: vec!["browser", "node", "webpack"],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #6 (wildcard)",
             expect: Some(vec!["./node/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./utils/*": {
                     "browser": {
                         "webpack": [
@@ -2062,12 +1939,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./utils/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
+            conditions: vec!["browser", "node", "webpack"],
         },
         TestCase {
             name: "nested mapping #7",
             expect: Some(vec!["./y.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a.js": {
                     "abc": {
                         "def": "./x.js"
@@ -2076,12 +1953,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./a.js",
-            condition_names: vec!["abc", "ghi"],
+            conditions: vec!["abc", "ghi"],
         },
         TestCase {
             name: "nested mapping #8",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a.js": {
                     "abc": {
                         "def": "./x.js",
@@ -2091,234 +1968,234 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./a.js",
-            condition_names: vec!["abc", "ghi"],
+            conditions: vec!["abc", "ghi"],
         },
         TestCase {
             name: "syntax sugar #1",
             expect: Some(vec!["./main.js"]),
-            exports_field: exports_field(&json!("./main.js")),
+            exports: exports_field(&json!("./main.js")),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "syntax sugar #2",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!("./main.js")),
+            exports: exports_field(&json!("./main.js")),
             request: "./lib.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "syntax sugar #3",
             expect: Some(vec!["./a.js"]),
-            exports_field: exports_field(&json!(["./a.js", "./b.js"])),
+            exports: exports_field(&json!(["./a.js", "./b.js"])),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "syntax sugar #3",
             expect: Some(vec!["./b.js"]),
-            exports_field: exports_field(&json!(["./b.js"])),
+            exports: exports_field(&json!(["./b.js"])),
             request: ".",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "syntax sugar #4",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!(["./a.js", "./b.js"])),
+            exports: exports_field(&json!(["./a.js", "./b.js"])),
             request: "./lib.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "syntax sugar #5",
             expect: Some(vec!["./index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "browser": {
                     "default": "./index.js"
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "syntax sugar #6",
             expect: Some(vec![]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "browser": {
                     "default": "./index.js"
                 }
             })),
             request: "./lib.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "syntax sugar #7",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./node": "./node.js",
                 "browser": {
                     "default": "./index.js"
                 }
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "syntax sugar #8",
             expect: None,
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "browser": {
                     "default": "./index.js"
                 },
                 "./node": "./node.js"
             })),
             request: ".",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard longest #1",
             expect: Some(vec!["./abc/d"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./ab*": "./ab/*",
                 "./abc*": "./abc/*",
                 "./a*": "./a/*"
             })),
             request: "./abcd",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard longest #2",
             expect: Some(vec!["./abc/d/e"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./ab*": "./ab/*",
                 "./abc*": "./abc/*",
                 "./a*": "./a/*"
             })),
             request: "./abcd/e",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard longest #3",
             expect: Some(vec!["./abc/d"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./x/ab*": "./ab/*",
                 "./x/abc*": "./abc/*",
                 "./x/a*": "./a/*"
             })),
             request: "./x/abcd",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard longest #4",
             expect: Some(vec!["./abc/d/e"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./x/ab*": "./ab/*",
                 "./x/abc*": "./abc/*",
                 "./x/a*": "./a/*"
             })),
             request: "./x/abcd/e",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "path tree edge case #1",
             expect: Some(vec!["./A/b/d.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/": "./A/",
                 "./a/b/c": "./c.js"
             })),
             request: "./a/b/d.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #1 (wildcard)",
             expect: Some(vec!["./A/b/d.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*": "./A/*",
                 "./a/b/c": "./c.js"
             })),
             request: "./a/b/d.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #2",
             expect: Some(vec!["./A/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/": "./A/",
                 "./a/b": "./b.js"
             })),
             request: "./a/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #2 (wildcard)",
             expect: Some(vec!["./A/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*": "./A/*",
                 "./a/b": "./b.js"
             })),
             request: "./a/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #3",
             expect: Some(vec!["./A/b/d/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/": "./A/",
                 "./a/b/c/d": "./c.js"
             })),
             request: "./a/b/d/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "path tree edge case #3 (wildcard)",
             expect: Some(vec!["./A/b/d/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*": "./A/*",
                 "./a/b/c/d": "./c.js"
             })),
             request: "./a/b/d/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #1",
             expect: Some(vec!["./A/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*.js": "./A/*.js"
             })),
             request: "./a/b.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #2",
             expect: Some(vec!["./A/b/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*.js": "./A/*.js"
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #3",
             expect: Some(vec!["./A/b/c.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*/c.js": "./A/*/c.js"
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #4",
             expect: Some(vec!["./A/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*/c.js": "./A/*/*.js"
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #5",
             expect: Some(vec!["./browser/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/*": {
                     "browser": [
                         "./browser/*"
@@ -2330,12 +2207,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./dist/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard pattern #5",
             expect: Some(vec!["./browser/index.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/*": {
                     "browser": [
                         "./browser/*"
@@ -2347,12 +2224,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./lib/index.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard pattern #6",
             expect: Some(vec!["./browser/foo/bar.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/*/bar.js": {
                     "browser": [
                         "./browser/*/bar.js"
@@ -2364,12 +2241,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./lib/foo/bar.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard pattern #6",
             expect: Some(vec!["./browser/foo.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/*/bar.js": {
                     "browser": [
                         "./browser/*/bar.js"
@@ -2381,12 +2258,12 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./dist/foo/bar.js",
-            condition_names: vec!["browser"],
+            conditions: vec!["browser"],
         },
         TestCase {
             name: "wildcard pattern #7",
             expect: Some(vec!["./browser/foo/default.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./lib/*/bar.js": {
                     "browser": [
                         "./browser/*/bar.js"
@@ -2398,91 +2275,91 @@ fn test_resolve_exports_field_cases() {
                 }
             })),
             request: "./dist/foo/bar.js",
-            condition_names: vec!["default"],
+            conditions: vec!["default"],
         },
         TestCase {
             name: "wildcard pattern #8",
             expect: Some(vec!["./A/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*/c.js": "./A/*/*/*.js"
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #9",
             expect: Some(vec!["./A/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*/c.js": [
                     "./A/*/*/*.js",
                     "./B/*/*/*.js"
                 ]
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         // (test is repeated because we don't support returning an array)
         TestCase {
             name: "wildcard pattern #9",
             expect: Some(vec!["./B/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*/c.js": [
                     "./B/*/*/*.js"
                 ]
             })),
             request: "./a/b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #10",
             expect: Some(vec!["./A/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/foo-*/c.js": "./A/*/*/*.js"
             })),
             request: "./a/foo-b/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #11",
             expect: Some(vec!["./A/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/*-foo/c.js": "./A/*/*/*.js"
             })),
             request: "./a/b-foo/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #12",
             expect: Some(vec!["./A/b/b/b.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/foo-*-foo/c.js": "./A/*/*/*.js"
             })),
             request: "./a/foo-b-foo/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #13",
             expect: Some(vec!["./A/b/c/d.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/foo-*-foo/c.js": "./A/b/c/d.js"
             })),
             request: "./a/foo-b-foo/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
         TestCase {
             name: "wildcard pattern #14",
             expect: Some(vec!["./A/b/c/*.js"]),
-            exports_field: exports_field(&json!({
+            exports: exports_field(&json!({
                 "./a/foo-foo/c.js": "./A/b/c/*.js"
             })),
             request: "./a/foo-foo/c.js",
-            condition_names: vec![],
+            conditions: vec![],
         },
     ];
 
     for case in test_cases {
         let condition_names = case
-            .condition_names
+            .conditions
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>();
@@ -2490,7 +2367,7 @@ fn test_resolve_exports_field_cases() {
         let resolver = crate::Resolver::from_file_system(
             file_system,
             ResolveOptions {
-                condition_names,
+                conditions: condition_names,
                 ..ResolveOptions::default()
             },
         );
@@ -2499,7 +2376,7 @@ fn test_resolve_exports_field_cases() {
             .package_exports_resolve(
                 &cached_path,
                 case.request,
-                &case.exports_field,
+                &case.exports,
                 &mut crate::ResolutionContext::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));

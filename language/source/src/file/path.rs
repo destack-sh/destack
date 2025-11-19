@@ -5,22 +5,17 @@ pub const SLASH_START: &[char; 2] = &['/', '\\'];
 /// Extension trait to add path normalization to std's [`Path`].
 pub trait PathExt {
     /// Normalize this path without performing I/O.
-    ///
     /// All redundant separator and up-level references are collapsed.
-    ///
-    /// However, this does not resolve links.
     fn normalize(&self) -> PathBuf;
 
     /// Like `normalize`, but don't require the path to be absolute.
     fn normalize_relative(&self) -> PathBuf;
 
     /// Normalize with subpath assuming this path is normalized without performing I/O.
-    ///
     /// All redundant separator and up-level references are collapsed.
-    ///
-    /// However, this does not resolve links.
     fn normalize_with<P: AsRef<Path>>(&self, subpath: P) -> PathBuf;
 
+    // nocheckin: PathExt.is_invalid_exports_target?
     /// Defined in ESM PACKAGE_TARGET_RESOLVE
     /// If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after the first "." segment, case insensitive and including percent encoded variants
     fn is_invalid_exports_target(&self) -> bool;
