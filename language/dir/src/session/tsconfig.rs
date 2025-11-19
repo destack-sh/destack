@@ -50,6 +50,26 @@ pub struct TypeScriptOptions {
 }
 
 impl TypeScriptOptions {
+    /// Parses the tsconfig from a JSON string.
+    pub fn parse(is_root: bool, path: &Path, content: &mut str) -> Result<Self, serde_json::Error> {
+        let json = trim_start_matches_mut(content, '\u{feff}'); // strip bom
+        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
+
+        // default to empty object if the file is empty
+        let json = if stripped.trim().is_empty() {
+            Cow::Borrowed("{}")
+        } else {
+            Cow::Owned(stripped)
+        };
+
+        // parse the tsconfig
+        let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
+        tsconfig.is_root = is_root;
+        tsconfig.path = path.to_path_buf();
+
+        Ok(tsconfig)
+    }
+
     /// Directory of the `tsconfig.json` file.
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
@@ -642,23 +662,6 @@ impl TypeScriptProjectReference {
     /// Sets the resolved tsconfig.
     pub fn set_tsconfig(&mut self, tsconfig: Arc<TypeScriptOptions>) {
         self.tsconfig.replace(tsconfig);
-    }
-}
-
-impl TypeScriptOptions {
-    /// Parses the tsconfig from a JSON string.
-    pub fn parse(is_root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
-        let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
-        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
-        let json = if stripped.trim().is_empty() {
-            Cow::Borrowed("{}")
-        } else {
-            Cow::Owned(stripped)
-        };
-        let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
-        tsconfig.is_root = is_root;
-        tsconfig.path = path.to_path_buf();
-        Ok(tsconfig)
     }
 }
 

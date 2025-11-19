@@ -5,14 +5,13 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{TypeScriptOptions, TypeScriptProjectReference};
+use dyst_dir::{PackageOptions, TypeScriptOptions, TypeScriptProjectReference};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, PackageOptions, Resolution, ResolutionContext, ResolveError, ResolveOptions,
-    Restriction, Specifier, SpecifierError, TypeScriptOptionsDiscovery,
-    TypeScriptOptionsReferences,
+    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
+    Specifier, SpecifierError, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
 pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;

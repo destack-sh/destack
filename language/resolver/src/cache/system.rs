@@ -11,8 +11,8 @@ use rustc_hash::FxHasher;
 
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
-use crate::{JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions};
-use dyst_dir::TypeScriptOptions;
+use crate::{JSONError, ResolutionContext, ResolveError, ResolveOptions};
+use dyst_dir::{PackageOptions, TypeScriptOptions};
 use dyst_source::{FileSystem, PathExt};
 
 /// A cached file system implementation.
@@ -132,9 +132,16 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                     package_json_path.clone()
                 };
 
-                PackageOptions::parse(&self.fs, package_json_path, real_path, package_json_bytes)
+                PackageOptions::parse(package_json_path.clone(), real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
-                    .map_err(|error| ResolveError::Json { error })
+                    .map_err(|error| ResolveError::Json {
+                        error: JSONError {
+                            path: package_json_path,
+                            message: error.to_string(),
+                            line: error.line(),
+                            column: error.column(),
+                        },
+                    })
             })
             .cloned();
 

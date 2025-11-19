@@ -12,7 +12,8 @@ use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
-use crate::{PackageOptions, ResolutionContext, ResolveError, ResolveOptions};
+use crate::{ResolutionContext, ResolveError, ResolveOptions};
+use dyst_dir::PackageOptions;
 
 // Thread-local pre-allocated path buffer.
 // Used to perform operations on paths more quickly without repeated allocations.
