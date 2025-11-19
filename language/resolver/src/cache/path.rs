@@ -11,7 +11,7 @@ use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
-use crate::{PackageJson, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions};
+use crate::{PackageOptions, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions};
 
 // Thread-local pre-allocated path buffer.
 // Used to perform operations on paths more quickly without repeated allocations.
@@ -44,7 +44,7 @@ pub struct CachedPathState {
     /// Lazy-loaded `node_modules` subdirectory.
     pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
     /// Lazy-loaded `package.json`.
-    pub package_json: OnceLock<Option<Arc<PackageJson>>>,
+    pub package_json: OnceLock<Option<Arc<PackageOptions>>>,
     /// Lazy-loaded `tsconfig.json`.
     pub tsconfig: OnceLock<Option<Arc<TypeScriptOptions>>>,
 }
@@ -138,7 +138,7 @@ impl CachedPath {
         options: &ResolveOptions,
         cache: &CachedFileSystem<Fs>,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         let mut cache_value = self.clone();
 
         // go up directories when the querying path is not a directory

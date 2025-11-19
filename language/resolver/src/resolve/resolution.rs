@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::PackageJson;
+use crate::PackageOptions;
 
 /// The final path resolution with optional `?query` and `#fragment`
 pub struct Resolution {
@@ -13,7 +13,7 @@ pub struct Resolution {
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub(crate) fragment: Option<String>,
     /// `package.json` of the given module.
-    pub(crate) package_json: Option<Arc<PackageJson>>,
+    pub(crate) package_json: Option<Arc<PackageOptions>>,
 }
 
 impl Clone for Resolution {
@@ -70,7 +70,7 @@ impl Resolution {
     }
 
     /// Returns serializsed package_json.
-    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
+    pub fn package_json(&self) -> Option<&Arc<PackageOptions>> {
         self.package_json.as_ref()
     }
 

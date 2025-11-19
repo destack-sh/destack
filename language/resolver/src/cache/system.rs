@@ -12,7 +12,7 @@ use rustc_hash::FxHasher;
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
 use crate::{
-    JSONError, PackageJson, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions,
+    JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions,
 };
 use dyst_source::{FileSystem, PathExt};
 
@@ -93,10 +93,10 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     /// Checks if the cached path is a file.
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
         if path.is_file(&self.fs).is_some_and(|b| b) {
-            ctx.add_file_dependency(path.path());
+            ctx.add_found_dependency_maybe(path.path());
             true
         } else {
-            ctx.add_missing_dependency(path.path());
+            ctx.add_missing_dependency_maybe(path.path());
             false
         }
     }
@@ -105,7 +105,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     pub(crate) fn is_directory(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
         path.is_directory(&self.fs).map_or_else(
             || {
-                ctx.add_missing_dependency(path.path());
+                ctx.add_missing_dependency_maybe(path.path());
                 false
             },
             |b| b,
@@ -118,7 +118,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         let result = path
             .package_json
             .get_or_try_init(|| {
@@ -133,7 +133,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                     package_json_path.clone()
                 };
 
-                PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
+                PackageOptions::parse(&self.fs, package_json_path, real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(|error| ResolveError::Json { error })
             })
@@ -143,7 +143,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
         match &result {
             Ok(Some(package_json)) => {
-                ctx.add_file_dependency(&package_json.path);
+                ctx.add_found_dependency_maybe(&package_json.path);
             }
             Ok(None) => {
                 if let Some(deps) = &mut ctx.missing_dependencies {
@@ -151,7 +151,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 }
             }
             Err(_) => {
-                if let Some(deps) = &mut ctx.file_dependencies {
+                if let Some(deps) = &mut ctx.found_dependencies {
                     deps.push(path.path.join("package.json"));
                 }
             }

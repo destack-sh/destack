@@ -238,7 +238,7 @@ fn test_resolve_alias_is_full_path() {
     });
 
     let mut ctx = ResolutionContext {
-        file_dependencies: Some(Vec::new()),
+        found_dependencies: Some(Vec::new()),
         missing_dependencies: Some(Vec::new()),
         ..ResolutionContext::default()
     };
@@ -257,7 +257,7 @@ fn test_resolve_alias_is_full_path() {
         assert_eq!(resolution.map(|r| r.full_path()), Ok(dir.join("index.js")));
     }
 
-    if let Some(file_dependencies) = &ctx.file_dependencies {
+    if let Some(file_dependencies) = &ctx.found_dependencies {
         for path in file_dependencies {
             assert_eq!(path, &path.normalize(), "{path:?}");
             check_os_path_slashes(path);
